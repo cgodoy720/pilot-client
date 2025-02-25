@@ -9,7 +9,8 @@
 
 .layout__sidebar {
   /* background-color: #252525; */
-  background-color: #1e1e1e;
+  /* background-color: #1e1e1e; */
+  background-color: #1a1f2c;
   color: #FFFFFF;
   display: flex;
   flex-direction: column;
@@ -99,7 +100,9 @@
   flex: 1;
   padding: 2rem;
   /* background-color: #1e1e1e; */
-  background-color: #252525;
+  /* background-color: #252525; */
+  /* background-color: #1A1F2C; */
+  background-color: #121212;
   color: #FFFFFF;
 }
 

@@ -6,6 +6,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import ChatIcon from '@mui/icons-material/Chat';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LogoutIcon from '@mui/icons-material/Logout';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import './Layout.css';
 import logo from '../../assets/logo.png'
 import logoFull from '../../assets/logo-full.png'
@@ -38,6 +39,10 @@ const Layout = ({ children }) => {
           <a href="#" className="layout__nav-item">
             <ChatIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">GPT-4-TURBO</span>}
+          </a>
+          <a href="#" className="layout__nav-item">
+            <CalendarMonthIcon className="layout__nav-icon" />
+            {isExpanded && <span className="layout__nav-text">Calendar</span>}
           </a>
         </div>
 

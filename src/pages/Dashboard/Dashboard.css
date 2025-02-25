@@ -1,5 +1,5 @@
 .content-placeholder {
-  background-color: var(--color-background-light);
+  /* background-color: var(--color-background-light); */
   border-radius: 8px;
   padding: var(--spacing-lg);
   margin-top: var(--spacing-md);
