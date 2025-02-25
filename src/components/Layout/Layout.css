@@ -14,7 +14,7 @@
   display: flex;
   flex-direction: column;
   transition: width 0.3s ease;
-  padding: 1rem;
+  padding: 1rem 1rem 1rem 1rem; /* Explicit padding on all sides */
   height: 100%;
   position: relative;
 }
@@ -43,18 +43,26 @@
 
 .layout__toggle-btn {
   position: absolute !important;
-  right: -40px;
+  right: -41px !important;
   top: 20px;
-  /* background-color: #252525 !important; */
-  background-color: #1e1e1e;
+  background-color: #4242ea !important;
   border-radius: 0 8px 8px 0 !important;
-  padding: 8px !important;
-  min-width: 40px !important;
-  height: 40px !important;
+  padding: 4px !important;
+  min-width: 16px !important;
+  height: 32px !important;
+  color: white !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1) !important;
   
   &:hover {
-    background-color: #4242ea !important;
+    background-color: #5555ff !important;
   }
+}
+
+.layout__toggle-btn svg {
+  font-size: 16px;
 }
 
 .layout__nav-links {
