@@ -1,0 +1,11 @@
+.content-placeholder {
+  background-color: var(--color-background-light);
+  border-radius: 8px;
+  padding: var(--spacing-lg);
+  margin-top: var(--spacing-md);
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+} 

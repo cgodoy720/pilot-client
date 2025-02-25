@@ -1,18 +1,17 @@
-import Layout from './components/Layout/Layout'
-import './App.css'
+import { Routes, Route, Navigate } from 'react-router-dom';
+import Layout from './components/Layout/Layout';
+import Dashboard from './pages/Dashboard/Dashboard';
+import './App.css';
 
 function App() {
   return (
     <Layout>
-      <div className="page-content">
-        <h1>Welcome back, Carlos!</h1>
-        {/* Your page content will go here */}
-        <div className="content-placeholder">
-          Main content area
-        </div>
-      </div>
+      <Routes>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
     </Layout>
-  )
+  );
 }
 
-export default App
+export default App;
