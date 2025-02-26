@@ -8,7 +8,7 @@ import { getThreads, getThreadMessages, createThread, sendMessageToGPT } from '.
 function GPT() {
   const { token } = useAuth();
   const [threads, setThreads] = useState([]);
-  const [activeThread, setActiveThread] = useState(null);
+  const [activeThread, setActiveThread] = useState(null); // Start with no active thread
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -54,12 +54,9 @@ function GPT() {
       
       setThreads(threadsArray);
       
-      // Set active thread to the first thread if available and none is selected
-      if (threadsArray.length > 0 && !activeThread) {
-        // Adapt to your API's thread ID field name (thread_id or id)
-        const threadIdField = threadsArray[0].thread_id ? 'thread_id' : 'id';
-        setActiveThread(threadsArray[0][threadIdField]);
-      }
+      // Remove the automatic selection of the first thread
+      // Only set active thread if we're refreshing threads after creating a new one
+      // This will be handled by the handleCreateThread function instead
       
       setError('');
     } catch (err) {
@@ -319,13 +316,15 @@ function GPT() {
                 >
                   <FaPlus size={14} />
                 </button>
-                <button
-                  className="gpt__toggle-sidebar-btn"
-                  onClick={() => setSidebarVisible(!sidebarVisible)}
-                  title={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
-                >
-                  <FaChevronLeft size={14} />
-                </button>
+                {sidebarVisible && (
+                  <button
+                    className="gpt__toggle-sidebar-btn"
+                    onClick={() => setSidebarVisible(false)}
+                    title="Hide sidebar"
+                  >
+                    <FaChevronLeft size={14} />
+                  </button>
+                )}
               </div>
             </div>
             
@@ -350,10 +349,20 @@ function GPT() {
             </div>
           </div>
           <div className="gpt__chat-panel">
+            {!sidebarVisible && (
+              <button
+                className="gpt__toggle-sidebar-btn"
+                onClick={() => setSidebarVisible(true)}
+                title="Show sidebar"
+              >
+                <FaChevronLeft size={14} style={{ transform: 'rotate(180deg)' }} />
+              </button>
+            )}
+            
             {!activeThread ? (
               <div className="gpt__empty-state">
-                <h3 className="gpt__empty-state-title">Start a New Conversation</h3>
-                <p className="gpt__empty-state-text">Create a new thread to start chatting with GPT-4-TURBO</p>
+                <h3 className="gpt__empty-state-title">Welcome to GPT-4-TURBO</h3>
+                <p className="gpt__empty-state-text">Start a new conversation or select an existing thread from the sidebar</p>
                 <button 
                   className="gpt__empty-state-btn" 
                   onClick={handleCreateThread}

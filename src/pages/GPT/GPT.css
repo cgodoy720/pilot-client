@@ -34,6 +34,7 @@
   padding: 0;
   overflow: hidden;
   border-right: none;
+  width: 0;
 }
 
 .gpt__sidebar-header {
@@ -74,17 +75,24 @@
   color: white;
 }
 
-.gpt__sidebar--collapsed .gpt__toggle-sidebar-btn {
+/* Position the toggle button in the chat panel */
+.gpt__chat-panel .gpt__toggle-sidebar-btn {
   position: absolute;
   left: 0;
   top: 20px;
-  transform: rotate(180deg);
   z-index: 10;
-  background: #1a1f2c;
+  background: transparent;
   border-radius: 0 6px 6px 0;
   width: 20px;
   height: 32px;
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
+  color: var(--color-primary);
+  transition: all 0.2s ease;
+}
+
+.gpt__chat-panel .gpt__toggle-sidebar-btn:hover {
+  background: rgba(66, 66, 234, 0.1);
+  color: var(--color-primary);
 }
 
 .gpt__threads-list {
@@ -119,6 +127,7 @@
   flex-direction: column;
   overflow: hidden;
   background-color: var(--color-background-darker);
+  position: relative;
 }
 
 .gpt__messages {
@@ -129,6 +138,16 @@
   flex-direction: column;
   gap: 20px;
   background-color: var(--color-background-darker);
+}
+
+/* Add left padding when sidebar is collapsed to prevent content from being hidden behind the toggle button */
+.gpt__sidebar--collapsed + .gpt__chat-panel .gpt__messages {
+  padding-left: 40px; /* Extra padding on the left when sidebar is collapsed */
+}
+
+/* Also add padding to the empty state */
+.gpt__sidebar--collapsed + .gpt__chat-panel .gpt__empty-state {
+  padding-left: 40px;
 }
 
 .gpt__message {
