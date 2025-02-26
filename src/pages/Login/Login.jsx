@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import logoFull from '../../assets/logo-full.png';
 import './Login.css';
 
@@ -7,14 +8,36 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+  const { login, isAuthenticated } = useAuth();
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Here you would typically authenticate with your backend
-    // For now, we'll just navigate to the main app
-    localStorage.setItem('isAuthenticated', 'true');
+  // Redirect if already authenticated
+  if (isAuthenticated) {
     navigate('/dashboard');
+    return null;
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+    
+    try {
+      const result = await login(email, password);
+      
+      if (result.success) {
+        navigate('/dashboard');
+      } else {
+        setError(result.error || 'Invalid email or password');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -29,6 +52,8 @@ const Login = () => {
         </div>
         
         <form onSubmit={handleSubmit} className="login-form">
+          {error && <div className="login-error">{error}</div>}
+          
           <div className="login-input-group">
             <input
               type="email"
@@ -37,6 +62,7 @@ const Login = () => {
               placeholder="Email"
               required
               className="login-input"
+              disabled={isSubmitting}
             />
           </div>
           
@@ -48,6 +74,7 @@ const Login = () => {
               placeholder="Password"
               required
               className="login-input"
+              disabled={isSubmitting}
             />
             <button 
               type="button" 
@@ -63,7 +90,13 @@ const Login = () => {
             <a href="#" className="login-link">Forgot Password?</a>
           </div>
           
-          <button type="submit" className="login-button">Log In</button>
+          <button 
+            type="submit" 
+            className="login-button"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Logging in...' : 'Log In'}
+          </button>
         </form>
       </div>
     </div>
