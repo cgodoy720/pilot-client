@@ -8,6 +8,7 @@ import ChatIcon from '@mui/icons-material/Chat';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LogoutIcon from '@mui/icons-material/Logout';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import SchoolIcon from '@mui/icons-material/School';
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 import logo from '../../assets/logo.png'
@@ -52,6 +53,10 @@ const Layout = ({ children }) => {
           <Link to="/calendar" className="layout__nav-item">
             <CalendarMonthIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Calendar</span>}
+          </Link>
+          <Link to="/learning" className="layout__nav-item">
+            <SchoolIcon className="layout__nav-icon" />
+            {isExpanded && <span className="layout__nav-text">Learning</span>}
           </Link>
         </div>
 
