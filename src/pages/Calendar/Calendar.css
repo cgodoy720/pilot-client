@@ -40,7 +40,7 @@
 
 .rbc-toolbar button {
   color: var(--color-text-primary);
-  background-color: var(--color-background-light);
+  background-color: var(--color-background-darker);
   border: 1px solid var(--color-border);
 }
 

@@ -25,90 +25,86 @@
   border-right: 1px solid var(--color-border);
   padding: var(--spacing-md);
   overflow-y: auto;
-  background-color: #1a1f2c;
+  background-color: var(--color-background-dark);
   transition: all 0.3s ease;
 }
 
 .gpt__sidebar--collapsed {
   flex: 0 0 0;
+  width: 0;
   padding: 0;
   overflow: hidden;
-  border-right: none;
-  width: 0;
 }
 
 .gpt__sidebar-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: var(--spacing-md);
 }
 
 .gpt__sidebar-title {
-  margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
+  font-weight: 500;
   color: var(--color-text-primary);
 }
 
 .gpt__sidebar-actions {
   display: flex;
-  gap: 8px;
-  align-items: center;
+  gap: var(--spacing-xs);
 }
 
 .gpt__new-thread-btn, .gpt__toggle-sidebar-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: none;
-  background: rgba(255, 255, 255, 0.1);
+  width: 32px;
+  height: 32px;
+  background-color: transparent;
   color: var(--color-text-primary);
-  cursor: pointer;
-  transition: all 0.2s ease;
+  border: none;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .gpt__new-thread-btn:hover, .gpt__toggle-sidebar-btn:hover {
-  background: var(--color-primary);
-  color: white;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
 }
 
-/* Position the toggle button in the chat panel */
 .gpt__chat-panel .gpt__toggle-sidebar-btn {
   position: absolute;
   left: 0;
   top: 20px;
-  z-index: 10;
-  background: transparent;
-  border-radius: 0 6px 6px 0;
-  width: 20px;
-  height: 32px;
-  box-shadow: none;
+  background-color: transparent;
   color: var(--color-primary);
-  transition: all 0.2s ease;
+  border-radius: 0 4px 4px 0;
+  width: 28px;
+  height: 28px;
+  box-shadow: none;
+  z-index: 10;
 }
 
 .gpt__chat-panel .gpt__toggle-sidebar-btn:hover {
-  background: rgba(66, 66, 234, 0.1);
+  background-color: rgba(66, 66, 234, 0.1);
   color: var(--color-primary);
 }
 
 .gpt__threads-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--spacing-xs);
 }
 
 .gpt__thread-item {
-  padding: 10px;
+  padding: var(--spacing-sm);
   border-radius: 4px;
-  background-color: rgba(255, 255, 255, 0.05);
   cursor: pointer;
   transition: all 0.2s ease;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .gpt__thread-item:hover {
@@ -116,9 +112,8 @@
 }
 
 .gpt__thread-item--active {
-  background-color: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
+  background-color: rgba(66, 66, 234, 0.1);
+  color: var(--color-primary);
 }
 
 .gpt__chat-panel {
@@ -140,12 +135,10 @@
   background-color: var(--color-background-darker);
 }
 
-/* Add left padding when sidebar is collapsed to prevent content from being hidden behind the toggle button */
 .gpt__sidebar--collapsed + .gpt__chat-panel .gpt__messages {
-  padding-left: 40px; /* Extra padding on the left when sidebar is collapsed */
+  padding-left: 40px;
 }
 
-/* Also add padding to the empty state */
 .gpt__sidebar--collapsed + .gpt__chat-panel .gpt__empty-state {
   padding-left: 40px;
 }
@@ -190,7 +183,7 @@
   font-size: 15px;
   white-space: pre-wrap;
   max-width: 100%;
-  background-color: var(--color-background-light);
+  background-color: var(--color-background-darker);
   color: var(--color-text-primary);
 }
 
@@ -203,14 +196,13 @@
 }
 
 .gpt__message--assistant .gpt__message-content {
-  background-color: #1a1f2c;
+  background-color: var(--color-background-dark);
   color: var(--color-text-primary);
   border-top-left-radius: 2px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   text-align: left;
 }
 
-/* Enhanced markdown styling */
 .gpt__message-content h1,
 .gpt__message-content h2,
 .gpt__message-content h3,
@@ -220,29 +212,28 @@
   margin-top: 16px;
   margin-bottom: 8px;
   font-weight: 600;
-  line-height: 1.25;
 }
 
 .gpt__message-content h1 {
-  font-size: 1.5em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding-bottom: 0.3em;
+  font-size: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 4px;
 }
 
 .gpt__message-content h2 {
-  font-size: 1.3em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding-bottom: 0.3em;
+  font-size: 1.3rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 4px;
 }
 
 .gpt__message-content h3 {
-  font-size: 1.15em;
+  font-size: 1.1rem;
 }
 
 .gpt__message-content ul,
 .gpt__message-content ol {
-  padding-left: 2em;
   margin: 8px 0;
+  padding-left: 20px;
 }
 
 .gpt__message-content ul {
@@ -271,57 +262,57 @@
   padding-left: 12px;
   color: rgba(255, 255, 255, 0.8);
   margin: 8px 0;
+  font-style: italic;
 }
 
 .gpt__message-content table {
   border-collapse: collapse;
   width: 100%;
-  margin: 12px 0;
+  margin: 16px 0;
+  overflow-x: auto;
 }
 
 .gpt__message-content table th,
 .gpt__message-content table td {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  padding: 8px 12px;
   text-align: left;
 }
 
 .gpt__message-content table th {
   background-color: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
 }
 
-/* Style code blocks within messages */
 .gpt__message-content pre {
   background-color: rgba(0, 0, 0, 0.3);
-  color: var(--color-text-primary);
   padding: 12px;
-  border-radius: 6px;
-  margin: 8px 0;
+  border-radius: 4px;
   overflow-x: auto;
-  font-family: 'Consolas', 'Monaco', monospace;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 12px 0;
   position: relative;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .gpt__message-content .code-language {
   position: absolute;
   top: 0;
   right: 0;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.7);
-  font-size: 0.75rem;
-  padding: 2px 8px;
-  border-radius: 0 6px 0 6px;
+  border-radius: 0 4px 0 4px;
   font-family: 'Consolas', 'Monaco', monospace;
-  text-transform: uppercase;
 }
 
 .gpt__message--user .gpt__message-content pre {
-  background-color: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(0, 0, 0, 0.2);
+  color: white;
 }
 
-/* Style inline code */
 .gpt__message-content code.inline-code {
   background-color: rgba(0, 0, 0, 0.3);
   color: var(--color-text-primary);
@@ -331,13 +322,12 @@
 }
 
 .gpt__message--user .gpt__message-content code.inline-code {
-  background-color: rgba(0, 0, 0, 0.3);
+  background-color: rgba(0, 0, 0, 0.2);
   color: white;
 }
 
-/* Add spacing between paragraphs */
 .gpt__message-content p {
-  margin: 0 0 12px 0;
+  margin-bottom: 12px;
 }
 
 .gpt__message-content p:last-child {
@@ -356,38 +346,38 @@
 }
 
 .gpt__empty-state {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
+  padding: 2rem;
   text-align: center;
-  padding: 20px;
-  background-color: var(--color-background-darker);
-}
-
-.gpt__empty-state-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin-bottom: 8px;
-}
-
-.gpt__empty-state-text {
-  font-size: 16px;
-  margin-bottom: 24px;
   color: var(--color-text-secondary);
 }
 
+.gpt__empty-state-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--color-text-primary);
+}
+
+.gpt__empty-state-text {
+  max-width: 500px;
+  margin-bottom: 2rem;
+  line-height: 1.5;
+}
+
 .gpt__empty-state-btn {
-  padding: 12px 24px;
   background-color: var(--color-primary);
   color: white;
   border: none;
-  border-radius: 6px;
-  font-weight: 500;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s;
 }
 
 .gpt__empty-state-btn:hover {
@@ -432,19 +422,22 @@
 }
 
 .gpt__send-btn {
-  padding: 12px 24px;
+  width: 40px;
+  height: 40px;
   background-color: var(--color-primary);
   color: white;
   border: none;
-  border-radius: 8px;
-  font-weight: 500;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  height: 44px;
 }
 
 .gpt__send-btn:hover:not(:disabled) {
   background-color: var(--color-primary-hover);
+  transform: translateY(-2px);
 }
 
 .gpt__send-btn:disabled {
@@ -491,50 +484,46 @@
   background-color: rgba(255, 0, 0, 0.1);
   border: 1px solid rgba(255, 0, 0, 0.3);
   color: #ff6b6b;
-  padding: 8px 12px;
+  padding: var(--spacing-sm) var(--spacing-md);
   border-radius: 4px;
-  font-size: 0.85rem;
-  margin-bottom: 12px;
-  text-align: center;
-}
-
-.gpt__loading, 
-.gpt__empty-threads,
-.gpt__loading-messages,
-.gpt__empty-messages {
-  padding: 16px;
-  text-align: center;
-  color: var(--color-text-secondary);
   font-size: 0.9rem;
+  margin-bottom: var(--spacing-md);
+  text-align: center;
+  width: 100%;
 }
 
 .gpt__loading, 
-.gpt__loading-messages {
-  animation: pulse 1.5s infinite ease-in-out;
-}
-
 .gpt__empty-messages {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
-  opacity: 0.7;
+  color: var(--color-text-secondary);
+}
+
+.gpt__loading, 
+.gpt__empty-messages {
+  font-size: 1rem;
+}
+
+.gpt__empty-messages {
+  text-align: center;
+  padding: 2rem;
 }
 
 .gpt__empty-messages p {
-  max-width: 300px;
-  line-height: 1.5;
+  margin-bottom: 1rem;
 }
 
 .gpt__new-thread-btn:disabled,
-.gpt__empty-state-btn:disabled,
-.gpt__send-btn:disabled {
+.gpt__toggle-sidebar-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 .gpt__input:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
@@ -592,13 +581,14 @@
 .markdown-table {
   border-collapse: collapse;
   width: 100%;
-  margin: 12px 0;
+  margin: 16px 0;
+  overflow-x: auto;
 }
 
 .markdown-table th,
 .markdown-table td {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  padding: 8px 12px;
   text-align: left;
 }
 

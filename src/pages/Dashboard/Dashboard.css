@@ -18,22 +18,20 @@
   color: var(--color-text-primary);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
+/* Hide the header */
 .dashboard__header {
-  margin-bottom: var(--spacing-lg);
-}
-
-.dashboard__header h1 {
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  display: none;
 }
 
 .dashboard__content {
   display: flex;
   gap: var(--spacing-lg);
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* Schedule Panel Styles */
@@ -43,6 +41,9 @@
   border-radius: 8px;
   padding: var(--spacing-lg);
   border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .panel-title {
@@ -56,12 +57,15 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
+  overflow-y: auto;
+  padding-right: var(--spacing-sm);
+  max-height: calc(100vh - 250px);
 }
 
 .schedule-item {
   display: flex;
   padding: var(--spacing-md);
-  background-color: var(--color-background-light);
+  background-color: var(--color-background-darker);
   border-radius: 6px;
   border-left: 3px solid var(--color-border);
   transition: all 0.2s ease;
@@ -132,6 +136,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
+  overflow: visible;
+  padding-right: var(--spacing-sm);
+  max-height: none;
 }
 
 .dashboard__objectives,
@@ -141,11 +148,15 @@
   border-radius: 8px;
   padding: var(--spacing-lg);
   border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
 }
 
 /* Objectives Styles */
 .objectives-list {
   list-style-type: none;
+  overflow-y: auto;
+  max-height: 150px;
 }
 
 .objective-item {
@@ -162,7 +173,7 @@
 /* Progress Styles */
 .progress-bar-container {
   height: 8px;
-  background-color: var(--color-background-light);
+  background-color: var(--color-background-darker);
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: var(--spacing-sm);
@@ -186,11 +197,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
+  overflow-y: auto;
+  max-height: 150px;
 }
 
 .notification-item {
   padding: var(--spacing-sm);
-  background-color: var(--color-background-light);
+  background-color: var(--color-background-darker);
   border-radius: 4px;
   font-size: 0.9rem;
 }
@@ -199,7 +212,8 @@
 .dashboard__continue {
   display: flex;
   justify-content: center;
-  margin-top: var(--spacing-xl);
+  margin-top: var(--spacing-md);
+  padding-bottom: 0;
 }
 
 .continue-btn {
@@ -228,13 +242,60 @@
   font-size: 0.9rem;
 }
 
+/* Custom scrollbar styles */
+.schedule-list::-webkit-scrollbar,
+.objectives-list::-webkit-scrollbar,
+.notifications-list::-webkit-scrollbar,
+.dashboard__info-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.schedule-list::-webkit-scrollbar-track,
+.objectives-list::-webkit-scrollbar-track,
+.notifications-list::-webkit-scrollbar-track,
+.dashboard__info-panel::-webkit-scrollbar-track {
+  background: var(--color-background-darker);
+  border-radius: 3px;
+}
+
+.schedule-list::-webkit-scrollbar-thumb,
+.objectives-list::-webkit-scrollbar-thumb,
+.notifications-list::-webkit-scrollbar-thumb,
+.dashboard__info-panel::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+.schedule-list::-webkit-scrollbar-thumb:hover,
+.objectives-list::-webkit-scrollbar-thumb:hover,
+.notifications-list::-webkit-scrollbar-thumb:hover,
+.dashboard__info-panel::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  .dashboard {
+    height: 100%;
+    overflow-y: auto;
+  }
+  
   .dashboard__content {
     flex-direction: column;
+    max-height: none;
   }
   
   .dashboard__info-panel {
     width: 100%;
+    max-height: none;
+  }
+  
+  .schedule-list {
+    max-height: 400px;
+  }
+  
+  .objectives-list,
+  .notifications-list {
+    max-height: 150px;
   }
 } 

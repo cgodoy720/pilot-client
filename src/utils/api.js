@@ -39,7 +39,7 @@ export const fetchWithAuth = async (endpoint, options = {}, token) => {
 
 // Chat API functions
 export const sendMessageToGPT = async (message, threadId, token) => {
-  return fetchWithAuth('/chat/messages', {
+  return fetchWithAuth('/api/chat/messages', {
     method: 'POST',
     body: JSON.stringify({
       content: message,
@@ -49,13 +49,13 @@ export const sendMessageToGPT = async (message, threadId, token) => {
 };
 
 export const getThreads = async (token) => {
-  return fetchWithAuth('/chat/threads', {
+  return fetchWithAuth('/api/chat/threads', {
     method: 'GET'
   }, token);
 };
 
 export const createThread = async (title, token) => {
-  return fetchWithAuth('/chat/threads', {
+  return fetchWithAuth('/api/chat/threads', {
     method: 'POST',
     body: JSON.stringify({
       title: title || 'New Conversation'
@@ -64,7 +64,7 @@ export const createThread = async (title, token) => {
 };
 
 export const getThreadMessages = async (threadId, token) => {
-  return fetchWithAuth(`/chat/messages/${threadId}`, {
+  return fetchWithAuth(`/api/chat/messages/${threadId}`, {
     method: 'GET'
   }, token);
 }; 
