@@ -510,48 +510,55 @@ function Learning() {
             </div>
             
             {/* Message Input */}
-            <form className="learning__input" onSubmit={handleSendMessage}>
+            <form className="learning__input-form" onSubmit={handleSendMessage}>
               {error && <div className="learning__error">{error}</div>}
-              <div className="learning__input-container">
-                <textarea
-                  ref={textareaRef}
-                  className="learning__input-field"
-                  placeholder="Type your message..."
-                  value={newMessage}
-                  onChange={handleTextareaChange}
-                  disabled={isSending}
-                  rows={1}
-                />
-                <button 
-                  type="submit" 
-                  className="learning__send-btn"
-                  disabled={isSending || !newMessage.trim()}
-                >
-                  <FaPaperPlane />
-                </button>
-              </div>
+              <textarea
+                ref={textareaRef}
+                className="learning__input"
+                placeholder={isSending ? "Sending..." : "Type your message..."}
+                value={newMessage}
+                onChange={handleTextareaChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage(e);
+                  }
+                }}
+                disabled={isSending}
+                rows={1}
+              />
+              <button 
+                type="submit" 
+                className="learning__send-btn"
+                disabled={isSending || !newMessage.trim()}
+              >
+                {isSending ? "Sending..." : <FaPaperPlane />}
+              </button>
             </form>
             
             {/* Quick Replies */}
             <div className="learning__quick-replies">
-              <button 
-                className="learning__quick-reply-btn"
-                onClick={() => handleQuickReply("I've used Khan Academy for learning math concepts.")}
-              >
-                I've used Khan Academy
-              </button>
-              <button 
-                className="learning__quick-reply-btn"
-                onClick={() => handleQuickReply("The interactive exercises helped me understand the concepts better.")}
-              >
-                Interactive exercises helped
-              </button>
-              <button 
-                className="learning__quick-reply-btn"
-                onClick={() => handleQuickReply("It was more effective than traditional textbooks because of the immediate feedback.")}
-              >
-                More effective than textbooks
-              </button>
+              <div className="learning__quick-replies-title">Quick Replies</div>
+              <div className="learning__quick-replies-list">
+                <button 
+                  className="learning__quick-reply-btn"
+                  onClick={() => handleQuickReply("I've used Khan Academy for learning math concepts.")}
+                >
+                  I've used Khan Academy
+                </button>
+                <button 
+                  className="learning__quick-reply-btn"
+                  onClick={() => handleQuickReply("The interactive exercises helped me understand the concepts better.")}
+                >
+                  Interactive exercises helped
+                </button>
+                <button 
+                  className="learning__quick-reply-btn"
+                  onClick={() => handleQuickReply("It was more effective than traditional textbooks because of the immediate feedback.")}
+                >
+                  More effective than textbooks
+                </button>
+              </div>
             </div>
           </div>
         </div>

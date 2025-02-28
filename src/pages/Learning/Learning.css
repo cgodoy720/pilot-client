@@ -41,10 +41,12 @@
 .learning__messages {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: var(--spacing-md);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--spacing-md);
+  scroll-behavior: smooth;
+  padding-bottom: 20px; /* Add extra padding at the bottom */
   background-color: var(--color-background-darker);
   max-height: calc(100vh - 180px); /* Account for input form and other elements */
 }
@@ -152,8 +154,6 @@
   padding: 12px;
   background-color: var(--color-background-darker);
   border-top: 1px solid var(--color-border);
-  min-height: 60px;
-  max-height: 220px;
 }
 
 .learning__input {
@@ -196,6 +196,7 @@
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-size: 0.9rem;
 }
 
 .learning__send-btn:hover:not(:disabled) {
@@ -206,6 +207,13 @@
 .learning__send-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.learning__error {
+  color: #ff4d4f;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+  padding: 0 4px;
 }
 
 /* Task Panel Styles */
@@ -284,32 +292,62 @@
 
 /* Quick replies section */
 .learning__quick-replies {
-  padding: var(--spacing-md);
+  padding: 12px;
   border-top: 1px solid var(--color-border);
   background-color: var(--color-background-darker);
 }
 
-.quick-replies-list {
+.learning__quick-replies-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}
+
+.learning__quick-replies-list {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-sm);
-  max-height: 100px;
-  overflow-y: auto;
-  padding-bottom: var(--spacing-sm);
+  gap: 8px;
+}
+
+.learning__quick-reply-btn {
+  padding: 8px 12px;
+  background-color: var(--color-background-dark);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.learning__quick-reply-btn:hover:not(:disabled) {
+  background-color: rgba(66, 66, 234, 0.1);
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.learning__quick-reply-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Custom scrollbar styles */
 .learning__messages::-webkit-scrollbar,
 .learning__tasks-list::-webkit-scrollbar,
-.quick-replies-list::-webkit-scrollbar,
+.learning__quick-replies-list::-webkit-scrollbar,
 .learning__input::-webkit-scrollbar {
   width: 6px;
 }
 
 .learning__messages::-webkit-scrollbar-track,
 .learning__tasks-list::-webkit-scrollbar-track,
-.quick-replies-list::-webkit-scrollbar-track,
+.learning__quick-replies-list::-webkit-scrollbar-track,
 .learning__input::-webkit-scrollbar-track {
   background: var(--color-background-darker);
   border-radius: 3px;
@@ -317,7 +355,7 @@
 
 .learning__messages::-webkit-scrollbar-thumb,
 .learning__tasks-list::-webkit-scrollbar-thumb,
-.quick-replies-list::-webkit-scrollbar-thumb,
+.learning__quick-replies-list::-webkit-scrollbar-thumb,
 .learning__input::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: 3px;
@@ -325,7 +363,7 @@
 
 .learning__messages::-webkit-scrollbar-thumb:hover,
 .learning__tasks-list::-webkit-scrollbar-thumb:hover,
-.quick-replies-list::-webkit-scrollbar-thumb:hover,
+.learning__quick-replies-list::-webkit-scrollbar-thumb:hover,
 .learning__input::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
 }
@@ -421,26 +459,4 @@
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-/* Quick reply button styles */
-.quick-reply-btn {
-  padding: var(--spacing-sm);
-  background-color: var(--color-background-darker);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  color: var(--color-text-primary);
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.quick-reply-btn:hover:not(:disabled) {
-  background-color: rgba(66, 66, 234, 0.1);
-  border-color: var(--color-primary);
-}
-
-.quick-reply-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 } 
