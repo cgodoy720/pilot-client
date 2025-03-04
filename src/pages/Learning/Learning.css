@@ -49,6 +49,11 @@
   padding-bottom: 20px; /* Add extra padding at the bottom */
   background-color: var(--color-background-darker);
   max-height: calc(100vh - 180px); /* Account for input form and other elements */
+  transition: opacity 0.2s ease;
+}
+
+.learning__messages.loading {
+  opacity: 0.7;
 }
 
 .learning__message {
@@ -247,7 +252,7 @@
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  padding: 15px;
+  padding: 12px 15px;
   margin-bottom: 10px;
   border-radius: 8px;
   background-color: var(--color-background-darker);
@@ -258,6 +263,7 @@
 }
 
 .learning__task-item.current {
+  transition: background-color 0.5s ease, border-left-color 0.3s ease;
   background-color: var(--color-primary-transparent);
   border-left: 4px solid var(--color-primary);
   animation: highlightTask 0.5s ease;
@@ -269,6 +275,10 @@
 
 .learning__task-icon {
   margin-right: var(--spacing-sm);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .learning__task-content {
@@ -278,9 +288,11 @@
 
 .learning__task-title {
   font-weight: 500;
+  font-size: 0.95rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 2px;
 }
 
 .learning__task-block {
@@ -534,12 +546,24 @@
 
 /* Loading state improvements */
 .learning__message-content--loading {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  min-height: 40px;
-  color: #666;
-  font-style: italic;
+  position: relative;
+}
+
+.learning__message-content--loading::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(to right, transparent, var(--color-primary), transparent);
+  animation: loadingPulse 1.5s infinite ease-in-out;
+}
+
+@keyframes loadingPulse {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
 }
 
 /* Task navigation indicator */

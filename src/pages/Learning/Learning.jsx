@@ -11,7 +11,8 @@ function Learning() {
   const [isSending, setIsSending] = useState(false);
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  const [isMessagesLoading, setIsMessagesLoading] = useState(false);
   
   // Current day and task data
   const [currentDay, setCurrentDay] = useState(null);
@@ -40,24 +41,29 @@ function Learning() {
   const fetchTaskMessages = async (taskId) => {
     if (!taskId) return;
     
-    setIsLoading(true);
+    setIsMessagesLoading(true);
     setError('');
     
-    // Show a loading indicator in the messages area
-    setMessages(prevMessages => {
-      // If we're just refreshing the same task, keep the messages
-      if (prevMessages.length > 0 && 
-          tasks.find(t => t.id === taskId)?.id === tasks[currentTaskIndex]?.id) {
-        return prevMessages;
-      }
-      
-      // Otherwise show a loading message
-      return [{
-        id: 'loading-indicator',
-        role: 'assistant',
-        content: 'Loading task information...'
-      }];
-    });
+    // Only show loading indicator if we're switching to a different task
+    const isSameTask = tasks.find(t => t.id === taskId)?.id === tasks[currentTaskIndex]?.id;
+    
+    if (!isSameTask) {
+      // When switching tasks, keep the previous messages visible but show a subtle loading indicator
+      setMessages(prevMessages => {
+        // If we already have messages, keep them visible with a loading state
+        // This prevents the UI from flashing empty content
+        if (prevMessages.length > 0) {
+          return prevMessages;
+        }
+        
+        // Only show loading message if we have no messages yet
+        return [{
+          id: 'loading-indicator',
+          role: 'assistant',
+          content: 'Loading task information...'
+        }];
+      });
+    }
     
     try {
       // Fetch existing messages for this task
@@ -86,14 +92,16 @@ function Learning() {
         // No existing messages, send the initial 'start' message
         const currentTask = tasks.find(task => task.id === taskId);
         
-        // Show a transition message while we wait for the API
-        setMessages([
-          {
-            id: Date.now(),
-            role: 'assistant',
-            content: `Loading task: **${currentTask?.title || 'New Task'}**...`
-          }
-        ]);
+        // Only update messages if we're not already showing a loading message
+        if (!isSameTask) {
+          setMessages([
+            {
+              id: Date.now(),
+              role: 'assistant',
+              content: `Loading task: **${currentTask?.title || 'New Task'}**...`
+            }
+          ]);
+        }
         
         const initialMessageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages`, {
           method: 'POST',
@@ -146,14 +154,14 @@ function Learning() {
         ]);
       }
     } finally {
-      setIsLoading(false);
+      setIsMessagesLoading(false);
     }
   };
   
   // Fetch current day data and tasks
   useEffect(() => {
     const fetchCurrentDayData = async () => {
-      setIsLoading(true);
+      setIsPageLoading(true);
       setError('');
       
       try {
@@ -172,12 +180,12 @@ function Learning() {
         
         if (data.message === 'No schedule for today') {
           setError('No learning schedule available for today.');
-          setIsLoading(false);
+          setIsPageLoading(false);
           return;
         }
         
         // Process the data
-        setCurrentDay(data.day);
+        const dayData = data.day;
         
         // Extract tasks from all time blocks
         const allTasks = [];
@@ -202,11 +210,13 @@ function Learning() {
           });
         });
         
-        setTasks(allTasks);
-        
         // Find the first incomplete task to start with
         const firstIncompleteIndex = allTasks.findIndex(task => !task.completed);
         const initialTaskIndex = firstIncompleteIndex >= 0 ? firstIncompleteIndex : 0;
+        
+        // Batch update state to reduce renders
+        setCurrentDay(dayData);
+        setTasks(allTasks);
         setCurrentTaskIndex(initialTaskIndex);
         
         // Fetch messages for the initial task
@@ -250,6 +260,7 @@ function Learning() {
           }
         ];
         
+        // Batch update state to reduce renders
         setTasks(mockTasks);
         setCurrentTaskIndex(0);
         
@@ -262,7 +273,7 @@ function Learning() {
           }
         ]);
       } finally {
-        setIsLoading(false);
+        setIsPageLoading(false);
       }
     };
     
@@ -636,57 +647,45 @@ function Learning() {
       : Math.max(currentTaskIndex - 1, 0);
       
     if (newIndex !== currentTaskIndex) {
-      setIsAiThinking(true);
+      // Update the current task index first
       setCurrentTaskIndex(newIndex);
       
-      setTimeout(() => {
-        fetchTaskMessages(tasks[newIndex].id);
-        setIsAiThinking(false);
-      }, 300);
+      // Then fetch the messages for the new task
+      fetchTaskMessages(tasks[newIndex].id);
     }
   };
 
-  if (isLoading) {
+  if (isPageLoading) {
     return <div className="learning loading">Loading learning session...</div>;
   }
 
   return (
     <div className="learning">
       <div className="learning__content">
-        {/* Task Panel */}
         <div className="learning__task-panel">
           <div className="learning__task-header">
             <h2>Today's Tasks</h2>
           </div>
-          
           <div className="learning__tasks-list">
             {tasks.map((task, index) => (
-              <div 
-                key={task.id} 
+              <div
+                key={task.id}
                 className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''} ${task.completed ? 'completed' : ''}`}
                 onClick={() => {
-                  // Don't reload if it's the current task
-                  if (index === currentTaskIndex) return;
-                  
-                  // Add a transition effect
-                  setIsAiThinking(true);
-                  
-                  // Update the current task index immediately for UI feedback
-                  setCurrentTaskIndex(index);
-                  
-                  // Add a small delay before fetching messages to show the transition
-                  setTimeout(() => {
+                  if (index !== currentTaskIndex) {
+                    setCurrentTaskIndex(index);
                     fetchTaskMessages(task.id);
-                    setIsAiThinking(false);
-                  }, 300);
+                  }
                 }}
               >
                 <div className="learning__task-icon">
                   {getTaskIcon(task.type, task.completed)}
                 </div>
                 <div className="learning__task-content">
-                  <div className="learning__task-title">{task.title}</div>
-                  <div className="learning__task-block">{task.blockTitle} • {task.blockTime}</div>
+                  <h3 className="learning__task-title">{task.title}</h3>
+                  <div className="learning__task-block">
+                    {task.blockTitle} • {task.blockTime}
+                  </div>
                 </div>
               </div>
             ))}
@@ -694,15 +693,11 @@ function Learning() {
         </div>
         
         <div className="learning__chat-container">
-          {/* Chat Window */}
           <div className="learning__chat-panel">
-            <div className="learning__messages">
-              {messages.map((message) => (
-                <div 
-                  key={message.id} 
-                  className={`learning__message ${message.role === 'user' ? 'learning__message--user' : 'learning__message--assistant'}`}
-                >
-                  <div className="learning__message-content">
+            <div className={`learning__messages ${isMessagesLoading ? 'loading' : ''}`}>
+              {messages.map(message => (
+                <div key={message.id} className={`learning__message learning__message--${message.role}`}>
+                  <div className={`learning__message-content ${isMessagesLoading && message === messages[messages.length - 1] ? 'learning__message-content--loading' : ''}`}>
                     {formatMessageContent(message.content)}
                   </div>
                 </div>
@@ -721,18 +716,16 @@ function Learning() {
               <div ref={messagesEndRef} />
             </div>
             
-            {/* Task Navigation */}
             <div className="learning__task-navigation">
               <button 
-                className="learning__task-nav-button"
+                className="learning__task-nav-button" 
                 onClick={() => navigateToTask('prev')}
                 disabled={currentTaskIndex === 0}
               >
                 <FaArrowLeft /> Previous Task
               </button>
-              
               <button 
-                className="learning__task-nav-button"
+                className="learning__task-nav-button" 
                 onClick={() => navigateToTask('next')}
                 disabled={currentTaskIndex === tasks.length - 1}
               >
@@ -740,57 +733,61 @@ function Learning() {
               </button>
             </div>
             
-            {/* Message Input */}
             <form className="learning__input-form" onSubmit={handleSendMessage}>
-              {error && <div className="learning__error">{error}</div>}
               <textarea
                 ref={textareaRef}
                 className="learning__input"
                 value={newMessage}
                 onChange={handleTextareaChange}
                 placeholder={isSending ? "Sending..." : "Type your message..."}
+                disabled={isSending || isAiThinking}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     handleSendMessage(e);
                   }
                 }}
-                disabled={isSending || isAiThinking}
                 rows={1}
               />
               <button 
+                className="learning__send-btn" 
                 type="submit" 
-                className="learning__send-btn"
-                disabled={isSending || !newMessage.trim() || isAiThinking}
+                disabled={!newMessage.trim() || isSending || isAiThinking}
               >
                 {isSending ? "Sending..." : <FaPaperPlane />}
               </button>
             </form>
             
-            {/* Quick Replies */}
-            <div className="learning__quick-replies">
-              <div className="learning__quick-replies-title">Quick Replies</div>
-              <div className="learning__quick-replies-list">
-                <button 
-                  className="learning__quick-reply-btn"
-                  onClick={() => handleQuickReply("I've used Khan Academy for learning math concepts.")}
-                >
-                  I've used Khan Academy
-                </button>
-                <button 
-                  className="learning__quick-reply-btn"
-                  onClick={() => handleQuickReply("The interactive exercises helped me understand the concepts better.")}
-                >
-                  Interactive exercises helped
-                </button>
-                <button 
-                  className="learning__quick-reply-btn"
-                  onClick={() => handleQuickReply("It was more effective than traditional textbooks because of the immediate feedback.")}
-                >
-                  More effective than textbooks
-                </button>
+            {error && <div className="learning__error">{error}</div>}
+            
+            {currentTaskIndex < tasks.length && tasks[currentTaskIndex].type === 'reflect' && (
+              <div className="learning__quick-replies">
+                <h4 className="learning__quick-replies-title">Quick Replies</h4>
+                <div className="learning__quick-replies-list">
+                  <button 
+                    className="learning__quick-reply-btn"
+                    onClick={() => handleQuickReply("I've used Khan Academy for math and found the interactive exercises helped me understand concepts better than textbooks.")}
+                    disabled={isSending || isAiThinking}
+                  >
+                    I've used Khan Academy
+                  </button>
+                  <button 
+                    className="learning__quick-reply-btn"
+                    onClick={() => handleQuickReply("Interactive exercises helped me learn faster because I could immediately apply what I was learning.")}
+                    disabled={isSending || isAiThinking}
+                  >
+                    Interactive exercises helped
+                  </button>
+                  <button 
+                    className="learning__quick-reply-btn"
+                    onClick={() => handleQuickReply("I found digital tools more effective than traditional textbooks because they provided immediate feedback.")}
+                    disabled={isSending || isAiThinking}
+                  >
+                    More effective than textbooks
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
