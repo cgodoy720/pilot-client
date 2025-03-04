@@ -91,6 +91,7 @@ function Learning() {
       } else {
         // No existing messages, send the initial 'start' message
         const currentTask = tasks.find(task => task.id === taskId);
+        const hasResources = currentTask && currentTask.resources && currentTask.resources.length > 0;
         
         // Only update messages if we're not already showing a loading message
         if (!isSameTask) {
@@ -119,21 +120,34 @@ function Learning() {
         if (initialMessageResponse.ok) {
           const initialMessageData = await initialMessageResponse.json();
           
+          // Add a note about resources if they exist
+          let messageContent = initialMessageData.content;
+          if (hasResources) {
+            messageContent = `Let's work on: **${currentTask.title}**\n\n**Please review the resources above before we begin.** They contain important information for this task.\n\n${initialMessageData.content.replace(/^Let's work on: \*\*.*?\*\*\n\n/i, '')}`;
+          }
+          
           setMessages([
             {
               id: initialMessageData.message_id || Date.now(),
               role: 'assistant',
-              content: initialMessageData.content
+              content: messageContent
             }
           ]);
         } else {
           // Fallback if API call fails
           const currentTask = tasks.find(task => task.id === taskId);
+          const hasResources = currentTask && currentTask.resources && currentTask.resources.length > 0;
+          
+          let messageContent = `Let's work on: **${currentTask.title}**\n\n${currentTask.description}`;
+          if (hasResources) {
+            messageContent = `Let's work on: **${currentTask.title}**\n\n**Please review the resources above before we begin.** They contain important information for this task.\n\n${currentTask.description}`;
+          }
+          
           setMessages([
             {
               id: Date.now(),
               role: 'assistant',
-              content: `Let's work on: **${currentTask.title}**\n\n${currentTask.description}`
+              content: messageContent
             }
           ]);
         }
@@ -145,11 +159,18 @@ function Learning() {
       // Fallback to a default message
       const currentTask = tasks.find(task => task.id === taskId);
       if (currentTask) {
+        const hasResources = currentTask && currentTask.resources && currentTask.resources.length > 0;
+        
+        let messageContent = `Let's work on: **${currentTask.title}**\n\n${currentTask.description}`;
+        if (hasResources) {
+          messageContent = `Let's work on: **${currentTask.title}**\n\n**Please review the resources above before we begin.** They contain important information for this task.\n\n${currentTask.description}`;
+        }
+        
         setMessages([
           {
             id: Date.now(),
             role: 'assistant',
-            content: `Let's work on: **${currentTask.title}**\n\n${currentTask.description}`
+            content: messageContent
           }
         ]);
       }
@@ -521,21 +542,37 @@ function Learning() {
   const renderTaskResources = (resources) => {
     if (!resources || resources.length === 0) return null;
     
+    // Group resources by type
+    const groupedResources = resources.reduce((acc, resource) => {
+      const type = resource.resource_type || 'other';
+      if (!acc[type]) {
+        acc[type] = [];
+      }
+      acc[type].push(resource);
+      return acc;
+    }, {});
+    
     return (
       <div className="learning__task-resources">
-        <h4>Resources:</h4>
-        <ul className="learning__resources-list">
-          {resources.map((resource) => (
-            <li key={resource.resource_id} className="learning__resource-item">
-              <a 
-                href={resource.resource_url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="learning__resource-link"
-              >
-                {resource.resource_title} ({resource.resource_type})
-              </a>
-            </li>
+        <h4 className="learning__task-resources-title">Task Resources</h4>
+        <p className="learning__task-resources-intro">Please review these materials before continuing:</p>
+        <ul className="learning__task-resources-list">
+          {Object.entries(groupedResources).map(([type, typeResources]) => (
+            <div key={type} className="learning__task-resources-group">
+              {typeResources.map((resource) => (
+                <li key={resource.resource_id} className="learning__task-resources-item">
+                  <a 
+                    href={resource.resource_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="learning__task-resources-link"
+                  >
+                    {resource.resource_title}
+                    <span className="learning__task-resources-type">{type}</span>
+                  </a>
+                </li>
+              ))}
+            </div>
           ))}
         </ul>
       </div>
