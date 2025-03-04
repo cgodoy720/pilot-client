@@ -542,13 +542,9 @@ function Learning() {
     );
   };
   
-  // Update the formatMessageContent function to include resources for the current task
+  // Update the formatMessageContent function to NOT include resources for every message
   const formatMessageContent = (content) => {
     if (!content) return null;
-    
-    // Get the current task
-    const currentTask = tasks[currentTaskIndex];
-    const hasResources = currentTask && currentTask.resources && currentTask.resources.length > 0;
     
     // Split content by code blocks to handle them separately
     const parts = content.split(/(```[\s\S]*?```)/g);
@@ -623,9 +619,6 @@ function Learning() {
             </ReactMarkdown>
           );
         })}
-        
-        {/* Display resources after the message content */}
-        {hasResources && renderTaskResources(currentTask.resources)}
       </>
     );
   };
@@ -694,6 +687,13 @@ function Learning() {
         
         <div className="learning__chat-container">
           <div className="learning__chat-panel">
+            {/* Display resources at the top of the chat panel */}
+            {currentTaskIndex < tasks.length && tasks[currentTaskIndex].resources && tasks[currentTaskIndex].resources.length > 0 && (
+              <div className="learning__task-resources-container">
+                {renderTaskResources(tasks[currentTaskIndex].resources)}
+              </div>
+            )}
+            
             <div className={`learning__messages ${isMessagesLoading ? 'loading' : ''}`}>
               {messages.map(message => (
                 <div key={message.id} className={`learning__message learning__message--${message.role}`}>
