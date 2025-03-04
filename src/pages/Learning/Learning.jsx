@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import './Learning.css';
@@ -18,12 +18,137 @@ function Learning() {
   const [tasks, setTasks] = useState([]);
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
   
-  // Time tracking
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [totalTime, setTotalTime] = useState(300); // 5 minutes in seconds
-  
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  
+  // Helper function to format time
+  const formatTime = (timeString) => {
+    if (!timeString) return '';
+    
+    // If the timeString includes seconds (HH:MM:SS), remove the seconds
+    const timeParts = timeString.split(':');
+    const hours = parseInt(timeParts[0], 10);
+    const minutes = timeParts[1];
+    
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const formattedHours = hours % 12 || 12; // Convert 0 to 12 for 12 AM
+    
+    return `${formattedHours}:${minutes} ${period}`;
+  };
+  
+  // Fetch messages for the current task
+  const fetchTaskMessages = async (taskId) => {
+    if (!taskId) return;
+    
+    setIsLoading(true);
+    setError('');
+    
+    // Show a loading indicator in the messages area
+    setMessages(prevMessages => {
+      // If we're just refreshing the same task, keep the messages
+      if (prevMessages.length > 0 && 
+          tasks.find(t => t.id === taskId)?.id === tasks[currentTaskIndex]?.id) {
+        return prevMessages;
+      }
+      
+      // Otherwise show a loading message
+      return [{
+        id: 'loading-indicator',
+        role: 'assistant',
+        content: 'Loading task information...'
+      }];
+    });
+    
+    try {
+      // Fetch existing messages for this task
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/task-messages/${taskId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch task messages');
+      }
+      
+      const data = await response.json();
+      
+      if (data.length > 0) {
+        // Format messages for display
+        const formattedMessages = data.map(msg => ({
+          id: msg.message_id,
+          role: msg.message_role,
+          content: msg.content
+        }));
+        
+        setMessages(formattedMessages);
+      } else {
+        // No existing messages, send the initial 'start' message
+        const currentTask = tasks.find(task => task.id === taskId);
+        
+        // Show a transition message while we wait for the API
+        setMessages([
+          {
+            id: Date.now(),
+            role: 'assistant',
+            content: `Loading task: **${currentTask?.title || 'New Task'}**...`
+          }
+        ]);
+        
+        const initialMessageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            content: 'start',
+            message_role: 'system',
+            taskId: taskId
+          })
+        });
+        
+        if (initialMessageResponse.ok) {
+          const initialMessageData = await initialMessageResponse.json();
+          
+          setMessages([
+            {
+              id: initialMessageData.message_id || Date.now(),
+              role: 'assistant',
+              content: initialMessageData.content
+            }
+          ]);
+        } else {
+          // Fallback if API call fails
+          const currentTask = tasks.find(task => task.id === taskId);
+          setMessages([
+            {
+              id: Date.now(),
+              role: 'assistant',
+              content: `Let's work on: **${currentTask.title}**\n\n${currentTask.description}`
+            }
+          ]);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching task messages:', err);
+      setError('Failed to load task messages. Please try again.');
+      
+      // Fallback to a default message
+      const currentTask = tasks.find(task => task.id === taskId);
+      if (currentTask) {
+        setMessages([
+          {
+            id: Date.now(),
+            role: 'assistant',
+            content: `Let's work on: **${currentTask.title}**\n\n${currentTask.description}`
+          }
+        ]);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   // Fetch current day data and tasks
   useEffect(() => {
@@ -70,8 +195,9 @@ function Learning() {
               description: task.task_description,
               type: task.task_type,
               blockTitle: block.block_title,
-              blockTime: block.start_time,
-              completed: taskProgress ? taskProgress.status === 'completed' : false
+              blockTime: formatTime(block.start_time),
+              completed: taskProgress ? taskProgress.status === 'completed' : false,
+              resources: task.resources || []
             });
           });
         });
@@ -80,27 +206,13 @@ function Learning() {
         
         // Find the first incomplete task to start with
         const firstIncompleteIndex = allTasks.findIndex(task => !task.completed);
-        setCurrentTaskIndex(firstIncompleteIndex >= 0 ? firstIncompleteIndex : 0);
+        const initialTaskIndex = firstIncompleteIndex >= 0 ? firstIncompleteIndex : 0;
+        setCurrentTaskIndex(initialTaskIndex);
         
-        // Set initial message based on the current task
+        // Fetch messages for the initial task
         if (allTasks.length > 0) {
-          const currentTask = allTasks[firstIncompleteIndex >= 0 ? firstIncompleteIndex : 0];
-          setMessages([
-            {
-              id: 1,
-              role: 'assistant',
-              content: `Let's work on: **${currentTask.title}**\n\n${currentTask.description}`
-            }
-          ]);
-        }
-        
-        // Set total time based on the current task duration (if available)
-        if (allTasks.length > 0) {
-          const currentTask = allTasks[firstIncompleteIndex >= 0 ? firstIncompleteIndex : 0];
-          // Assuming duration is stored in minutes, convert to seconds
-          if (currentTask.duration) {
-            setTotalTime(currentTask.duration * 60);
-          }
+          const initialTaskId = allTasks[initialTaskIndex].id;
+          await fetchTaskMessages(initialTaskId);
         }
         
       } catch (err) {
@@ -164,28 +276,6 @@ function Learning() {
     }
   }, [messages]);
   
-  // Timer effect
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setElapsedTime(prev => {
-        if (prev < totalTime) {
-          return prev + 1;
-        }
-        clearInterval(timer);
-        return prev;
-      });
-    }, 1000);
-    
-    return () => clearInterval(timer);
-  }, [totalTime]);
-  
-  // Format time as mm:ss
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
-  
   // Handle sending a message
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -210,8 +300,11 @@ function Learning() {
     setIsAiThinking(true);
     
     try {
-      // Send message to conversation API
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/messages`, {
+      // Get the current task ID
+      const currentTaskId = tasks[currentTaskIndex]?.id;
+      
+      // Send message to learning API
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -219,7 +312,8 @@ function Learning() {
         },
         body: JSON.stringify({
           content: messageToSend,
-          message_role: 'user'
+          message_role: 'user',
+          taskId: currentTaskId
         })
       });
       
@@ -234,8 +328,17 @@ function Learning() {
       const shouldAdvanceTask = messages.length >= 3 && currentTaskIndex < tasks.length - 1;
       
       if (shouldAdvanceTask) {
-        // Mark current task as completed
-        await markTaskAsCompleted(tasks[currentTaskIndex].id);
+        // Mark current task as completed using the new endpoint
+        await fetch(`${import.meta.env.VITE_API_URL}/api/learning/complete-task/${currentTaskId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            notes: ''
+          })
+        });
         
         // Move to next task
         const nextTaskIndex = currentTaskIndex + 1;
@@ -317,15 +420,14 @@ function Learning() {
   // Mark a task as completed
   const markTaskAsCompleted = async (taskId) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/progress/tasks/${taskId}`, {
-        method: 'PUT',
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/complete-task/${taskId}`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          status: 'completed',
-          user_notes: ''
+          notes: ''
         })
       });
       
@@ -339,6 +441,27 @@ function Learning() {
           task.id === taskId ? { ...task, completed: true } : task
         )
       );
+      
+      // Automatically transition to the next task if available
+      const nextTaskIndex = currentTaskIndex + 1;
+      if (nextTaskIndex < tasks.length) {
+        // Add a transition message
+        setMessages(prevMessages => [
+          ...prevMessages,
+          {
+            id: Date.now(),
+            role: 'assistant',
+            content: "Great job completing this task! Let's move on to the next one.",
+            timestamp: new Date().toISOString()
+          }
+        ]);
+        
+        // Wait a moment before transitioning
+        setTimeout(() => {
+          setCurrentTaskIndex(nextTaskIndex);
+          fetchTaskMessages(tasks[nextTaskIndex].id);
+        }, 1500);
+      }
       
     } catch (err) {
       console.error('Error marking task as completed:', err);
@@ -383,56 +506,116 @@ function Learning() {
     }
   };
   
-  // Format message content with markdown
-  const formatMessageContent = (content) => {
+  // Add this function to render resources
+  const renderTaskResources = (resources) => {
+    if (!resources || resources.length === 0) return null;
+    
     return (
-      <ReactMarkdown
-        components={{
-          p: ({node, children, ...props}) => (
-            <p className="markdown-paragraph" {...props}>{children}</p>
-          ),
-          h1: ({node, children, ...props}) => (
-            <h1 className="markdown-heading" {...props}>{children}</h1>
-          ),
-          h2: ({node, children, ...props}) => (
-            <h2 className="markdown-heading" {...props}>{children}</h2>
-          ),
-          h3: ({node, children, ...props}) => (
-            <h3 className="markdown-heading" {...props}>{children}</h3>
-          ),
-          ul: ({node, children, ...props}) => (
-            <ul className="markdown-list" {...props}>{children}</ul>
-          ),
-          ol: ({node, children, ...props}) => (
-            <ol className="markdown-list" {...props}>{children}</ol>
-          ),
-          li: ({node, children, ...props}) => (
-            <li className="markdown-list-item" {...props}>{children}</li>
-          ),
-          a: ({node, children, ...props}) => (
-            <a className="markdown-link" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
-          ),
-          blockquote: ({node, children, ...props}) => (
-            <blockquote className="markdown-blockquote" {...props}>{children}</blockquote>
-          ),
-          code: ({node, inline, className, children, ...props}) => {
-            if (inline) {
+      <div className="learning__task-resources">
+        <h4>Resources:</h4>
+        <ul className="learning__resources-list">
+          {resources.map((resource) => (
+            <li key={resource.resource_id} className="learning__resource-item">
+              <a 
+                href={resource.resource_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="learning__resource-link"
+              >
+                {resource.resource_title} ({resource.resource_type})
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
+  
+  // Update the formatMessageContent function to include resources for the current task
+  const formatMessageContent = (content) => {
+    if (!content) return null;
+    
+    // Get the current task
+    const currentTask = tasks[currentTaskIndex];
+    const hasResources = currentTask && currentTask.resources && currentTask.resources.length > 0;
+    
+    // Split content by code blocks to handle them separately
+    const parts = content.split(/(```[\s\S]*?```)/g);
+    
+    return (
+      <>
+        {parts.map((part, index) => {
+          // Check if this part is a code block
+          if (part.startsWith('```') && part.endsWith('```')) {
+            // Extract language and code
+            const match = part.match(/```(\w*)\n([\s\S]*?)```/);
+            
+            if (match) {
+              const [, language, code] = match;
+              
               return (
-                <code className="inline-code" {...props}>
-                  {children}
-                </code>
+                <div key={index} className="code-block-wrapper">
+                  <div className="code-block-header">
+                    {language && <span className="code-language">{language}</span>}
+                  </div>
+                  <pre className="code-block">
+                    <code>{code}</code>
+                  </pre>
+                </div>
               );
             }
-            return (
-              <code {...props}>
-                {children}
-              </code>
-            );
           }
-        }}
-      >
-        {content}
-      </ReactMarkdown>
+          
+          // Regular markdown for non-code parts
+          return (
+            <ReactMarkdown key={index}
+              components={{
+                p: ({node, children, ...props}) => (
+                  <p className="markdown-paragraph" {...props}>{children}</p>
+                ),
+                h1: ({node, children, ...props}) => (
+                  <h1 className="markdown-heading" {...props}>{children}</h1>
+                ),
+                h2: ({node, children, ...props}) => (
+                  <h2 className="markdown-heading" {...props}>{children}</h2>
+                ),
+                h3: ({node, children, ...props}) => (
+                  <h3 className="markdown-heading" {...props}>{children}</h3>
+                ),
+                ul: ({node, children, ...props}) => (
+                  <ul className="markdown-list" {...props}>{children}</ul>
+                ),
+                ol: ({node, children, ...props}) => (
+                  <ol className="markdown-list" {...props}>{children}</ol>
+                ),
+                li: ({node, children, ...props}) => (
+                  <li className="markdown-list-item" {...props}>{children}</li>
+                ),
+                a: ({node, children, ...props}) => (
+                  <a className="markdown-link" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+                ),
+                strong: ({node, children, ...props}) => (
+                  <strong {...props}>{children}</strong>
+                ),
+                em: ({node, children, ...props}) => (
+                  <em {...props}>{children}</em>
+                ),
+                code: ({node, inline, className, children, ...props}) => {
+                  if (inline) {
+                    return <code className="inline-code" {...props}>{children}</code>;
+                  }
+                  return <code {...props}>{children}</code>;
+                }
+              }}
+            >
+              {part}
+            </ReactMarkdown>
+          );
+        })}
+        
+        {/* Display resources after the message content */}
+        {hasResources && renderTaskResources(currentTask.resources)}
+      </>
     );
   };
 
@@ -443,6 +626,23 @@ function Learning() {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  };
+
+  // Add this function to handle task navigation
+  const navigateToTask = (direction) => {
+    const newIndex = direction === 'next' 
+      ? Math.min(currentTaskIndex + 1, tasks.length - 1)
+      : Math.max(currentTaskIndex - 1, 0);
+      
+    if (newIndex !== currentTaskIndex) {
+      setIsAiThinking(true);
+      setCurrentTaskIndex(newIndex);
+      
+      setTimeout(() => {
+        fetchTaskMessages(tasks[newIndex].id);
+        setIsAiThinking(false);
+      }, 300);
     }
   };
 
@@ -457,9 +657,6 @@ function Learning() {
         <div className="learning__task-panel">
           <div className="learning__task-header">
             <h2>Today's Tasks</h2>
-            <div className="learning__timer">
-              Time: {formatTime(elapsedTime)} / {formatTime(totalTime)}
-            </div>
           </div>
           
           <div className="learning__tasks-list">
@@ -467,7 +664,22 @@ function Learning() {
               <div 
                 key={task.id} 
                 className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''} ${task.completed ? 'completed' : ''}`}
-                onClick={() => setCurrentTaskIndex(index)}
+                onClick={() => {
+                  // Don't reload if it's the current task
+                  if (index === currentTaskIndex) return;
+                  
+                  // Add a transition effect
+                  setIsAiThinking(true);
+                  
+                  // Update the current task index immediately for UI feedback
+                  setCurrentTaskIndex(index);
+                  
+                  // Add a small delay before fetching messages to show the transition
+                  setTimeout(() => {
+                    fetchTaskMessages(task.id);
+                    setIsAiThinking(false);
+                  }, 300);
+                }}
               >
                 <div className="learning__task-icon">
                   {getTaskIcon(task.type, task.completed)}
@@ -509,28 +721,47 @@ function Learning() {
               <div ref={messagesEndRef} />
             </div>
             
+            {/* Task Navigation */}
+            <div className="learning__task-navigation">
+              <button 
+                className="learning__task-nav-button"
+                onClick={() => navigateToTask('prev')}
+                disabled={currentTaskIndex === 0}
+              >
+                <FaArrowLeft /> Previous Task
+              </button>
+              
+              <button 
+                className="learning__task-nav-button"
+                onClick={() => navigateToTask('next')}
+                disabled={currentTaskIndex === tasks.length - 1}
+              >
+                Next Task <FaArrowRight />
+              </button>
+            </div>
+            
             {/* Message Input */}
             <form className="learning__input-form" onSubmit={handleSendMessage}>
               {error && <div className="learning__error">{error}</div>}
               <textarea
                 ref={textareaRef}
                 className="learning__input"
-                placeholder={isSending ? "Sending..." : "Type your message..."}
                 value={newMessage}
                 onChange={handleTextareaChange}
+                placeholder={isSending ? "Sending..." : "Type your message..."}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     handleSendMessage(e);
                   }
                 }}
-                disabled={isSending}
+                disabled={isSending || isAiThinking}
                 rows={1}
               />
               <button 
                 type="submit" 
                 className="learning__send-btn"
-                disabled={isSending || !newMessage.trim()}
+                disabled={isSending || !newMessage.trim() || isAiThinking}
               >
                 {isSending ? "Sending..." : <FaPaperPlane />}
               </button>

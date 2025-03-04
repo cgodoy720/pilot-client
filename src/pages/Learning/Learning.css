@@ -244,19 +244,23 @@
 }
 
 .learning__task-item {
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background-color: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
   display: flex;
   align-items: center;
-  padding: var(--spacing-sm);
-  background-color: var(--color-background-darker);
-  border-radius: 6px;
-  transition: all 0.2s ease;
-  cursor: pointer;
-  border-left: 3px solid transparent;
 }
 
 .learning__task-item.current {
-  border-left-color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb), 0.1);
+  background-color: var(--color-primary-transparent);
+  border-left: 4px solid var(--color-primary);
+  animation: highlightTask 0.5s ease;
 }
 
 .learning__task-item.completed {
@@ -282,12 +286,6 @@
 .learning__task-block {
   font-size: 0.8rem;
   color: var(--color-text-muted);
-}
-
-.learning__timer {
-  margin-top: var(--spacing-sm);
-  font-size: 0.9rem;
-  color: var(--color-text-secondary);
 }
 
 /* Quick replies section */
@@ -459,4 +457,124 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Task Resources Styles */
+.learning__task-resources {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background-color: var(--color-background-dark);
+  border-radius: 8px;
+  border-left: 3px solid var(--color-primary);
+}
+
+.learning__task-resources h4 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 16px;
+  color: var(--color-text-primary);
+}
+
+.learning__resources-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.learning__resource-item {
+  margin-bottom: 8px;
+}
+
+.learning__resource-item:last-child {
+  margin-bottom: 0;
+}
+
+.learning__resource-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-primary);
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.learning__resource-link::before {
+  content: '';
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234242ea'%3E%3Cpath d='M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm0 2v14h14V5H5zm8 2h2v7h-2V7zm-4 3h2v4H9v-4z'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.learning__resource-link:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+/* Task transition animations */
+@keyframes highlightTask {
+  0% { background-color: var(--color-background-darker); }
+  50% { background-color: var(--color-primary-transparent-light); }
+  100% { background-color: var(--color-primary-transparent); }
+}
+
+/* Message transition animations */
+.learning__message {
+  animation: fadeInMessage 0.3s ease;
+  transition: all 0.3s ease;
+}
+
+@keyframes fadeInMessage {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading state improvements */
+.learning__message-content--loading {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 40px;
+  color: #666;
+  font-style: italic;
+}
+
+/* Task navigation indicator */
+.learning__task-navigation {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background-color: var(--color-background-dark);
+  border: 1px solid var(--color-border);
+}
+
+.learning__task-nav-button {
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.learning__task-nav-button:hover:not(:disabled) {
+  background-color: #f0f7ff;
+  border-color: #0078d4;
+  color: #0078d4;
+}
+
+.learning__task-nav-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 } 

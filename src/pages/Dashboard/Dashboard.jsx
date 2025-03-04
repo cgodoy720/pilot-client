@@ -64,7 +64,7 @@ function Dashboard() {
             
             allTasks.push({
               id: task.task_id,
-              time: block.start_time,
+              time: formatTime(block.start_time),
               title: task.task_title,
               duration: `${task.duration_minutes} min`,
               type: task.task_type,
@@ -228,6 +228,21 @@ function Dashboard() {
       console.error('Error updating task status:', err);
       setError('Failed to update task status. Please try again.');
     }
+  };
+
+  // Add a helper function to format time from 24-hour to 12-hour format
+  const formatTime = (timeString) => {
+    if (!timeString) return '';
+    
+    // If the timeString includes seconds (HH:MM:SS), remove the seconds
+    const timeParts = timeString.split(':');
+    const hours = parseInt(timeParts[0], 10);
+    const minutes = timeParts[1];
+    
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const formattedHours = hours % 12 || 12; // Convert 0 to 12 for 12 AM
+    
+    return `${formattedHours}:${minutes} ${period}`;
   };
 
   if (isLoading) {
