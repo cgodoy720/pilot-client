@@ -39,143 +39,156 @@ function Learning() {
   
   // Fetch messages for the current task
   const fetchTaskMessages = async (taskId) => {
-    if (!taskId) return;
-    
-    setIsMessagesLoading(true);
-    setError('');
-    
-    // Only show loading indicator if we're switching to a different task
-    const isSameTask = tasks.find(t => t.id === taskId)?.id === tasks[currentTaskIndex]?.id;
-    
-    if (!isSameTask) {
-      // When switching tasks, keep the previous messages visible but show a subtle loading indicator
-      setMessages(prevMessages => {
-        // If we already have messages, keep them visible with a loading state
-        // This prevents the UI from flashing empty content
-        if (prevMessages.length > 0) {
-          return prevMessages;
-        }
-        
-        // Only show loading message if we have no messages yet
-        return [{
-          id: 'loading-indicator',
-          role: 'assistant',
-          content: 'Loading task information...'
-        }];
-      });
-    }
+    // Add a timestamp to prevent duplicate calls
+    const fetchTimestamp = Date.now();
+    fetchTaskMessages.lastFetchTimestamp = fetchTimestamp;
     
     try {
-      // Fetch existing messages for this task
+      // Clear any previous error
+      setError('');
+      
+      // Show loading state
+      setIsMessagesLoading(true);
+      
+      // Clear previous messages
+      setMessages([]);
+      
+      // Show a loading message with the current task title
+      const currentTask = tasks[currentTaskIndex];
+      if (currentTask) {
+        setMessages([{
+          id: 'loading',
+          content: `Loading ${currentTask.title}...`,
+          role: 'system'
+        }]);
+      }
+      
+      console.log(`Fetching messages for task ${taskId} at timestamp ${fetchTimestamp}`);
+      
+      // First, try to get existing messages
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/task-messages/${taskId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
+      // Check if this is still the most recent fetch
+      if (fetchTaskMessages.lastFetchTimestamp !== fetchTimestamp) {
+        console.log(`Aborting fetch for task ${taskId} - newer fetch in progress`);
+        return;
+      }
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch task messages');
+        throw new Error(`Failed to fetch messages: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log(`Received ${data.messages.length} messages for task ${taskId}`);
       
-      if (data.length > 0) {
-        // Format messages for display
-        const formattedMessages = data.map(msg => ({
+      // Check if this is still the most recent fetch
+      if (fetchTaskMessages.lastFetchTimestamp !== fetchTimestamp) {
+        console.log(`Aborting fetch for task ${taskId} - newer fetch in progress`);
+        return;
+      }
+      
+      if (data.messages && data.messages.length > 0) {
+        // We have existing messages, format and display them
+        const formattedMessages = data.messages.map(msg => ({
           id: msg.message_id,
-          role: msg.message_role,
-          content: msg.content
+          content: msg.content,
+          role: msg.role,
+          timestamp: msg.timestamp
         }));
         
-        setMessages(formattedMessages);
-      } else {
-        // No existing messages, send the initial 'start' message
-        const currentTask = tasks.find(task => task.id === taskId);
-        const hasResources = currentTask && currentTask.resources && currentTask.resources.length > 0;
+        // Final client-side deduplication check
+        const uniqueMessages = [];
+        const seenContents = new Set();
         
-        // Only update messages if we're not already showing a loading message
-        if (!isSameTask) {
-          setMessages([
-            {
-              id: Date.now(),
-              role: 'assistant',
-              content: `Loading task: **${currentTask?.title || 'New Task'}**...`
-            }
-          ]);
+        for (const message of formattedMessages) {
+          // Create a simple hash of the message content
+          const contentHash = message.content.substring(0, 100);
+          
+          // If we've seen this content before, skip it
+          if (seenContents.has(contentHash)) {
+            console.log(`Skipping duplicate message with content: ${contentHash}...`);
+            continue;
+          }
+          
+          // Otherwise, add it to our unique list
+          seenContents.add(contentHash);
+          uniqueMessages.push(message);
         }
         
-        const initialMessageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages`, {
+        console.log(`Deduplication: ${formattedMessages.length} messages reduced to ${uniqueMessages.length}`);
+        
+        setMessages(uniqueMessages);
+        console.log(`Displayed ${uniqueMessages.length} existing messages`);
+      } else {
+        // No existing messages, send initial 'start' message
+        console.log(`No existing messages found, sending initial 'start' message`);
+        
+        // Prepare message content based on whether the task has resources
+        const currentTask = tasks[currentTaskIndex];
+        let messageContent = 'start';
+        
+        // Send the initial message
+        const messageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            content: 'start',
+            content: messageContent,
             message_role: 'system',
             taskId: taskId
           })
         });
         
-        if (initialMessageResponse.ok) {
-          const initialMessageData = await initialMessageResponse.json();
-          
-          // Add a note about resources if they exist
-          let messageContent = initialMessageData.content;
-          if (hasResources) {
-            messageContent = `Let's work on: **${currentTask.title}**\n\n**Please review the resources above before we begin.** They contain important information for this task.\n\n${initialMessageData.content.replace(/^Let's work on: \*\*.*?\*\*\n\n/i, '')}`;
-          }
-          
-          setMessages([
-            {
-              id: initialMessageData.message_id || Date.now(),
-              role: 'assistant',
-              content: messageContent
-            }
-          ]);
-        } else {
-          // Fallback if API call fails
-          const currentTask = tasks.find(task => task.id === taskId);
-          const hasResources = currentTask && currentTask.resources && currentTask.resources.length > 0;
-          
-          let messageContent = `Let's work on: **${currentTask.title}**\n\n${currentTask.description}`;
-          if (hasResources) {
-            messageContent = `Let's work on: **${currentTask.title}**\n\n**Please review the resources above before we begin.** They contain important information for this task.\n\n${currentTask.description}`;
-          }
-          
-          setMessages([
-            {
-              id: Date.now(),
-              role: 'assistant',
-              content: messageContent
-            }
-          ]);
+        // Check if this is still the most recent fetch
+        if (fetchTaskMessages.lastFetchTimestamp !== fetchTimestamp) {
+          console.log(`Aborting fetch for task ${taskId} - newer fetch in progress`);
+          return;
         }
+        
+        if (!messageResponse.ok) {
+          throw new Error(`Failed to send initial message: ${messageResponse.status}`);
+        }
+        
+        const messageData = await messageResponse.json();
+        
+        // Display the assistant's response
+        setMessages([{
+          id: messageData.message_id,
+          content: messageData.content,
+          role: messageData.role,
+          timestamp: messageData.timestamp
+        }]);
+        
+        console.log(`Displayed initial assistant message`);
       }
-    } catch (err) {
-      console.error('Error fetching task messages:', err);
-      setError('Failed to load task messages. Please try again.');
+    } catch (error) {
+      // Check if this is still the most recent fetch
+      if (fetchTaskMessages.lastFetchTimestamp !== fetchTimestamp) {
+        console.log(`Aborting error handling for task ${taskId} - newer fetch in progress`);
+        return;
+      }
       
-      // Fallback to a default message
-      const currentTask = tasks.find(task => task.id === taskId);
-      if (currentTask) {
-        const hasResources = currentTask && currentTask.resources && currentTask.resources.length > 0;
-        
-        let messageContent = `Let's work on: **${currentTask.title}**\n\n${currentTask.description}`;
-        if (hasResources) {
-          messageContent = `Let's work on: **${currentTask.title}**\n\n**Please review the resources above before we begin.** They contain important information for this task.\n\n${currentTask.description}`;
-        }
-        
-        setMessages([
-          {
-            id: Date.now(),
-            role: 'assistant',
-            content: messageContent
-          }
-        ]);
-      }
+      console.error('Error fetching task messages:', error);
+      setError(`Failed to load messages: ${error.message}`);
+      
+      // Display a fallback message
+      setMessages([{
+        id: 'error',
+        content: `Error loading task: ${error.message}. Please try refreshing the page.`,
+        role: 'system'
+      }]);
     } finally {
-      setIsMessagesLoading(false);
+      // Only update loading state if this is still the most recent fetch
+      if (fetchTaskMessages.lastFetchTimestamp === fetchTimestamp) {
+        // Always set loading to false when done
+        setIsMessagesLoading(false);
+      }
     }
   };
   
@@ -381,7 +394,8 @@ function Learning() {
         const aiResponse = {
           id: Date.now() + 1,
           role: 'assistant',
-          content: `Great job completing that task! Let's move on to the next one:\n\n**${nextTask.title}**\n\n${nextTask.description}`
+          content: `Great job completing that task! Let's move on to the next one:\n\n**${nextTask.title}**\n\n${nextTask.description}`,
+          timestamp: new Date().toISOString()
         };
         
         setMessages(prev => [...prev, aiResponse]);
@@ -394,18 +408,38 @@ function Learning() {
           aiResponse = {
             id: aiResponseData.message_id || Date.now() + 1,
             role: 'assistant',
-            content: aiResponseData.content
+            content: aiResponseData.content,
+            timestamp: aiResponseData.timestamp
           };
         } else {
           // Fallback response if API doesn't return expected format
           aiResponse = {
             id: Date.now() + 1,
             role: 'assistant',
-            content: "I'm processing your message. Could you provide more details or clarify your thoughts?"
+            content: "I'm processing your message. Could you provide more details or clarify your thoughts?",
+            timestamp: new Date().toISOString()
           };
         }
         
-        setMessages(prev => [...prev, aiResponse]);
+        // Apply deduplication before adding the new message
+        setMessages(prevMessages => {
+          // Create a new array with all previous messages
+          const updatedMessages = [...prevMessages];
+          
+          // Check if this message is a duplicate
+          const contentHash = aiResponse.content.substring(0, 100);
+          const isDuplicate = updatedMessages.some(msg => 
+            msg.role === 'assistant' && msg.content.substring(0, 100) === contentHash
+          );
+          
+          if (isDuplicate) {
+            console.log('Skipping duplicate AI response');
+            return updatedMessages;
+          }
+          
+          // Add the new message
+          return [...updatedMessages, aiResponse];
+        });
       }
     } catch (err) {
       console.error('Error sending/receiving message:', err);
@@ -425,7 +459,8 @@ function Learning() {
         aiResponse = {
           id: Date.now() + 1,
           role: 'assistant',
-          content: `Great job completing that task! Let's move on to the next one:\n\n**${nextTask.title}**\n\n${nextTask.description}`
+          content: `Great job completing that task! Let's move on to the next one:\n\n**${nextTask.title}**\n\n${nextTask.description}`,
+          timestamp: new Date().toISOString()
         };
       } else {
         // Regular AI response based on current task
@@ -438,11 +473,30 @@ function Learning() {
         aiResponse = {
           id: Date.now() + 1,
           role: 'assistant',
-          content: responseOptions[Math.min(messages.length - 1, responseOptions.length - 1)]
+          content: responseOptions[Math.min(messages.length - 1, responseOptions.length - 1)],
+          timestamp: new Date().toISOString()
         };
       }
       
-      setMessages(prev => [...prev, aiResponse]);
+      // Apply deduplication before adding the new message
+      setMessages(prevMessages => {
+        // Create a new array with all previous messages
+        const updatedMessages = [...prevMessages];
+        
+        // Check if this message is a duplicate
+        const contentHash = aiResponse.content.substring(0, 100);
+        const isDuplicate = updatedMessages.some(msg => 
+          msg.role === 'assistant' && msg.content.substring(0, 100) === contentHash
+        );
+        
+        if (isDuplicate) {
+          console.log('Skipping duplicate AI response');
+          return updatedMessages;
+        }
+        
+        // Add the new message
+        return [...updatedMessages, aiResponse];
+      });
     } finally {
       setIsSending(false);
       setIsAiThinking(false);
