@@ -50,10 +50,7 @@ function Learning() {
       // Show loading state
       setIsMessagesLoading(true);
       
-      // Clear previous messages
-      setMessages([]);
-      
-      // Show a loading message with the current task title
+      // Show a loading message with the current task title instead of clearing messages first
       const currentTask = tasks[currentTaskIndex];
       if (currentTask) {
         setMessages([{
@@ -731,7 +728,10 @@ function Learning() {
       : Math.max(currentTaskIndex - 1, 0);
       
     if (newIndex !== currentTaskIndex) {
-      // Update the current task index first
+      // Set loading state first to prevent flashing
+      setIsMessagesLoading(true);
+      
+      // Update the current task index
       setCurrentTaskIndex(newIndex);
       
       // Then fetch the messages for the new task
