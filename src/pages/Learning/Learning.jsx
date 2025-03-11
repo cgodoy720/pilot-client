@@ -70,7 +70,7 @@ function Learning() {
       setIsMessagesLoading(true);
       
       // Show a loading message with the current task title instead of clearing messages first
-      const currentTask = tasks[currentTaskIndex];
+      const currentTask = tasks.find(task => task.id === taskId);
       if (currentTask) {
         setMessages([{
           id: 'loading',
@@ -145,7 +145,7 @@ function Learning() {
         console.log(`No existing messages found, sending initial 'start' message`);
         
         // Prepare message content based on whether the task has resources
-        const currentTask = tasks[currentTaskIndex];
+        const currentTask = tasks.find(task => task.id === taskId);
         let messageContent = 'start';
         
         try {
