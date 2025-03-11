@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import logoFull from '../../assets/logo-full.png';
 import './Login.css';
@@ -86,7 +86,7 @@ const Login = () => {
           </div>
           
           <div className="login-links">
-            <a href="#" className="login-link">Create an account</a>
+            <Link to="/signup" className="login-link">Create an account</Link>
             <a href="#" className="login-link">Forgot Password?</a>
           </div>
           

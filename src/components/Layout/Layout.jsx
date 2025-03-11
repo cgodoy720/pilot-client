@@ -46,6 +46,10 @@ const Layout = ({ children }) => {
             <DashboardIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Dashboard</span>}
           </Link>
+          <Link to="/learning" className="layout__nav-item">
+            <SchoolIcon className="layout__nav-icon" />
+            {isExpanded && <span className="layout__nav-text">Learning</span>}
+          </Link>
           <Link to="/gpt" className="layout__nav-item">
             <ChatIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">GPT-4-TURBO</span>}
@@ -53,10 +57,6 @@ const Layout = ({ children }) => {
           <Link to="/calendar" className="layout__nav-item">
             <CalendarMonthIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Calendar</span>}
-          </Link>
-          <Link to="/learning" className="layout__nav-item">
-            <SchoolIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Learning</span>}
           </Link>
         </div>
 

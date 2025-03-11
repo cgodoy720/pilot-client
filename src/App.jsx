@@ -4,9 +4,30 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import GPT from './pages/GPT/GPT';
 import Calendar from './pages/Calendar/Calendar';
 import Learning from './pages/Learning/Learning';
+import { useAuth } from './context/AuthContext';
 import './App.css';
 
 function App() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Protected route component
+  const ProtectedRoute = ({ children }) => {
+    if (isLoading) {
+      return <div>Loading...</div>;
+    }
+    
+    if (!isAuthenticated) {
+      return <Navigate to="/login" replace />;
+    }
+    
+    return children;
+  };
+
+  // If auth is still loading, show a minimal loading state
+  if (isLoading) {
+    return <div className="app-loading">Loading application...</div>;
+  }
+
   return (
     <Layout>
       <Routes>

@@ -62,6 +62,42 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Signup function
+  const signup = async (firstName, lastName, email, password) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ firstName, lastName, email, password }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Registration failed');
+      }
+
+      const data = await response.json();
+      
+      // Save user and token to state
+      setUser(data.user);
+      setToken(data.token);
+      setIsAuthenticated(true);
+      
+      // Save to localStorage for persistence
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('token', data.token);
+      
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Logout function
   const logout = () => {
     // Clear state
@@ -81,6 +117,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     isLoading,
     login,
+    signup,
     logout
   };
 
