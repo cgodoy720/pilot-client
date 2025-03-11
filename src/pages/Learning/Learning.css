@@ -159,6 +159,7 @@
   padding: 12px;
   background-color: var(--color-background-darker);
   border-top: 1px solid var(--color-border);
+  position: relative;
 }
 
 .learning__input {
@@ -176,6 +177,7 @@
   overflow-y: auto;
   word-wrap: break-word;
   font-family: inherit;
+  padding-right: 80px; /* Make room for the action buttons */
 }
 
 .learning__input:focus {
@@ -187,6 +189,15 @@
 .learning__input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.learning__input-actions {
+  display: flex;
+  align-items: center;
+  position: absolute;
+  right: 60px; /* Position to the left of the send button */
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .learning__send-btn {
@@ -212,6 +223,25 @@
 .learning__send-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.learning__deliverable-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 5px;
+  margin-right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.learning__deliverable-btn:hover {
+  color: var(--color-primary);
+  transform: translateY(-2px);
 }
 
 .learning__error {
@@ -793,4 +823,167 @@
   margin-top: 2px;
   margin-bottom: 0;
   line-height: 1.4;
+}
+
+/* Modal Styles */
+.learning__modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+  backdrop-filter: blur(3px);
+}
+
+.learning__modal {
+  background-color: var(--color-background);
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  animation: slideIn 0.3s ease;
+  border: 1px solid var(--color-border);
+}
+
+.learning__modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.learning__modal-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--color-text-primary);
+}
+
+.learning__modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.learning__modal-close:hover {
+  color: var(--color-text-primary);
+}
+
+.learning__modal-body {
+  padding: 20px;
+}
+
+.learning__form-group {
+  margin-bottom: 20px;
+}
+
+.learning__form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.learning__input-with-icon {
+  position: relative;
+}
+
+.learning__input-with-icon input {
+  width: 100%;
+  padding: 12px 40px 12px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: var(--color-background-dark);
+  color: var(--color-text-primary);
+}
+
+.learning__input-with-icon input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(66, 66, 234, 0.1);
+}
+
+.learning__input-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  font-size: 16px;
+}
+
+.learning__submission-error {
+  color: #e74c3c;
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: rgba(231, 76, 60, 0.1);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.learning__modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.learning__modal-cancel {
+  padding: 10px 16px;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.learning__modal-cancel:hover {
+  background-color: var(--color-background-darker);
+}
+
+.learning__modal-submit {
+  padding: 10px 16px;
+  background-color: var(--color-primary);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.learning__modal-submit:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.learning__modal-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 } 

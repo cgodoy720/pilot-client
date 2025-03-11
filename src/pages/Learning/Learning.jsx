@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import './Learning.css';
@@ -24,6 +24,12 @@ function Learning() {
   
   // Add a debounce mechanism to prevent multiple calls
   const fetchingTasks = {};
+  
+  // Add state for the submission modal
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [submissionUrl, setSubmissionUrl] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState('');
   
   // Helper function to format time
   const formatTime = (timeString) => {
@@ -94,6 +100,7 @@ function Learning() {
       
       const data = await response.json();
       console.log(`Received ${data.messages.length} messages for task ${taskId}`);
+      
       
       // Check if this is still the most recent fetch
       if (fetchTaskMessages.lastFetchTimestamp !== fetchTimestamp) {
@@ -315,7 +322,9 @@ function Learning() {
               blockTitle: task.task_title,
               blockTime: formatTime(block.start_time),
               completed: taskProgress ? taskProgress.status === 'completed' : false,
-              resources: resources
+              resources: resources,
+              deliverable: task.deliverable,
+              deliverable_type: task.deliverable_type || 'none'
             });
           });
         });
@@ -348,7 +357,9 @@ function Learning() {
             completed: false,
             type: 'individual',
             blockTitle: 'LAUNCH',
-            blockTime: '1:00 PM'
+            blockTime: '1:00 PM',
+            deliverable: null,
+            deliverable_type: 'none'
           },
           { 
             id: 2, 
@@ -357,16 +368,20 @@ function Learning() {
             completed: false,
             type: 'individual',
             blockTitle: 'Daily Standup',
-            blockTime: '1:15 PM'
+            blockTime: '1:15 PM',
+            deliverable: 'Completed Daily Standup prompt',
+            deliverable_type: 'none'
           },
           { 
             id: 3, 
-            title: 'Group Retrospective', 
-            description: 'Participate in group retrospective',
+            title: 'Personal Learning Plan', 
+            description: 'Create a personalized learning plan',
             completed: false,
-            type: 'group',
-            blockTitle: 'Group Retrospective',
-            blockTime: '1:30 PM'
+            type: 'individual',
+            blockTitle: 'Personal Learning Plan',
+            blockTime: '1:45 PM',
+            deliverable: 'Learning plan following the template format',
+            deliverable_type: 'link'
           }
         ];
         
@@ -445,114 +460,64 @@ function Learning() {
       // Get AI response
       const aiResponseData = await response.json();
       
-      // Check if we should move to the next task based on message count
-      const shouldAdvanceTask = messages.length >= 3 && currentTaskIndex < tasks.length - 1;
+      // Regular AI response
+      let aiResponse;
       
-      if (shouldAdvanceTask) {
-        // Mark current task as completed using the new endpoint
-        await fetch(`${import.meta.env.VITE_API_URL}/api/learning/complete-task/${currentTaskId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            notes: ''
-          })
-        });
-        
-        // Move to next task
-        const nextTaskIndex = currentTaskIndex + 1;
-        setCurrentTaskIndex(nextTaskIndex);
-        
-        // Add a transition message from the AI
-        const nextTask = tasks[nextTaskIndex];
-        const aiResponse = {
+      if (aiResponseData && aiResponseData.content) {
+        // Use the actual AI response from the API
+        aiResponse = {
+          id: aiResponseData.message_id || Date.now() + 1,
+          role: 'assistant',
+          content: aiResponseData.content,
+          timestamp: aiResponseData.timestamp || new Date().toISOString()
+        };
+      } else {
+        // Fallback response if API doesn't return expected format
+        aiResponse = {
           id: Date.now() + 1,
           role: 'assistant',
-          content: `Great job completing that task! Let's move on to the next one:\n\n**${nextTask.title}**\n\n${nextTask.description}`,
+          content: "I'm processing your message. Could you provide more details or clarify your thoughts?",
           timestamp: new Date().toISOString()
         };
+      }
+      
+      // Apply deduplication before adding the new message
+      setMessages(prevMessages => {
+        // Create a new array with all previous messages
+        const updatedMessages = [...prevMessages];
         
-        setMessages(prev => [...prev, aiResponse]);
-      } else {
-        // Regular AI response
-        let aiResponse;
+        // Check if this message is a duplicate
+        const contentHash = aiResponse.content.substring(0, 100);
+        const isDuplicate = updatedMessages.some(msg => 
+          msg.role === 'assistant' && msg.content.substring(0, 100) === contentHash
+        );
         
-        if (aiResponseData && aiResponseData.content) {
-          // Use the actual AI response from the API
-          aiResponse = {
-            id: aiResponseData.message_id || Date.now() + 1,
-            role: 'assistant',
-            content: aiResponseData.content,
-            timestamp: aiResponseData.timestamp
-          };
-        } else {
-          // Fallback response if API doesn't return expected format
-          aiResponse = {
-            id: Date.now() + 1,
-            role: 'assistant',
-            content: "I'm processing your message. Could you provide more details or clarify your thoughts?",
-            timestamp: new Date().toISOString()
-          };
+        if (isDuplicate) {
+          console.log('Skipping duplicate AI response');
+          return updatedMessages;
         }
         
-        // Apply deduplication before adding the new message
-        setMessages(prevMessages => {
-          // Create a new array with all previous messages
-          const updatedMessages = [...prevMessages];
-          
-          // Check if this message is a duplicate
-          const contentHash = aiResponse.content.substring(0, 100);
-          const isDuplicate = updatedMessages.some(msg => 
-            msg.role === 'assistant' && msg.content.substring(0, 100) === contentHash
-          );
-          
-          if (isDuplicate) {
-            console.log('Skipping duplicate AI response');
-            return updatedMessages;
-          }
-          
-          // Add the new message
-          return [...updatedMessages, aiResponse];
-        });
-      }
+        // Add the new message
+        return [...updatedMessages, aiResponse];
+      });
     } catch (err) {
       console.error('Error sending/receiving message:', err);
       setError('Failed to communicate with the learning assistant. Please try again.');
       
       // Fallback AI response for development
-      let aiResponse;
+      // Regular AI response based on current task
+      const responseOptions = [
+        "That's a great example! Could you tell me more about specific features you found helpful?",
+        "Interesting perspective! How do you think this compares to traditional learning methods?",
+        "Thank you for sharing your experience! Your insights will help us design better learning experiences."
+      ];
       
-      // Check if we should move to the next task based on message count
-      if (messages.length >= 3 && currentTaskIndex < tasks.length - 1) {
-        // Move to next task
-        const nextTaskIndex = currentTaskIndex + 1;
-        setCurrentTaskIndex(nextTaskIndex);
-        
-        // Add a transition message from the AI
-        const nextTask = tasks[nextTaskIndex];
-        aiResponse = {
-          id: Date.now() + 1,
-          role: 'assistant',
-          content: `Great job completing that task! Let's move on to the next one:\n\n**${nextTask.title}**\n\n${nextTask.description}`,
-          timestamp: new Date().toISOString()
-        };
-      } else {
-        // Regular AI response based on current task
-        const responseOptions = [
-          "That's a great example! Could you tell me more about specific features you found helpful?",
-          "Interesting perspective! How do you think this compares to traditional learning methods?",
-          "Thank you for sharing your experience! Your insights will help us design better learning experiences."
-        ];
-        
-        aiResponse = {
-          id: Date.now() + 1,
-          role: 'assistant',
-          content: responseOptions[Math.min(messages.length - 1, responseOptions.length - 1)],
-          timestamp: new Date().toISOString()
-        };
-      }
+      const aiResponse = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        content: responseOptions[Math.min(messages.length - 1, responseOptions.length - 1)],
+        timestamp: new Date().toISOString()
+      };
       
       // Apply deduplication before adding the new message
       setMessages(prevMessages => {
@@ -830,6 +795,51 @@ function Learning() {
     }
   };
 
+  // Handle deliverable submission
+  const handleDeliverableSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!submissionUrl.trim()) {
+      setSubmissionError('Please enter a valid URL');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setSubmissionError('');
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          taskId: tasks[currentTaskIndex].id,
+          content: submissionUrl
+        })
+      });
+      
+      if (response.ok) {
+        // Close the modal on success
+        setShowSubmissionModal(false);
+        setSubmissionUrl('');
+        
+        // Show success message
+        setError('Deliverable submitted successfully!');
+        setTimeout(() => setError(''), 3000);
+      } else {
+        const data = await response.json();
+        setSubmissionError(data.error || 'Failed to submit deliverable');
+      }
+    } catch (err) {
+      console.error('Error submitting deliverable:', err);
+      setSubmissionError('Network error. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isPageLoading) {
     return <div className="learning loading">Loading learning session...</div>;
   }
@@ -931,6 +941,22 @@ function Learning() {
                 }}
                 rows={1}
               />
+              <div className="learning__input-actions">
+                {(() => {
+                  return currentTaskIndex < tasks.length && 
+                    (tasks[currentTaskIndex].deliverable_type === 'link' || 
+                     tasks[currentTaskIndex].deliverable_type === 'file') && (
+                    <button 
+                      type="button"
+                      className="learning__deliverable-btn"
+                      onClick={() => setShowSubmissionModal(true)}
+                      title={`Submit ${tasks[currentTaskIndex].deliverable}`}
+                    >
+                      {tasks[currentTaskIndex].deliverable_type === 'link' ? <FaLink /> : <FaBars />}
+                    </button>
+                  );
+                })()}
+              </div>
               <button 
                 className="learning__send-btn" 
                 type="submit" 
@@ -973,6 +999,68 @@ function Learning() {
           </div>
         </div>
       </div>
+      
+      {/* Submission Modal */}
+      {showSubmissionModal && (
+        <div className="learning__modal-overlay">
+          <div className="learning__modal">
+            <div className="learning__modal-header">
+              <h3>Submit Deliverable</h3>
+              <button 
+                className="learning__modal-close" 
+                onClick={() => setShowSubmissionModal(false)}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="learning__modal-body">
+              <p>{tasks[currentTaskIndex].deliverable}</p>
+              
+              <form onSubmit={handleDeliverableSubmit}>
+                {tasks[currentTaskIndex].deliverable_type === 'link' && (
+                  <div className="learning__form-group">
+                    <label htmlFor="submission-url">URL</label>
+                    <div className="learning__input-with-icon">
+                      <input
+                        id="submission-url"
+                        type="url"
+                        value={submissionUrl}
+                        onChange={(e) => setSubmissionUrl(e.target.value)}
+                        placeholder="https://..."
+                        required
+                      />
+                      <FaExternalLinkAlt className="learning__input-icon" />
+                    </div>
+                  </div>
+                )}
+                
+                {submissionError && (
+                  <div className="learning__submission-error">
+                    {submissionError}
+                  </div>
+                )}
+                
+                <div className="learning__modal-actions">
+                  <button 
+                    type="button" 
+                    className="learning__modal-cancel"
+                    onClick={() => setShowSubmissionModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="learning__modal-submit"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Submitting...' : 'Submit'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
