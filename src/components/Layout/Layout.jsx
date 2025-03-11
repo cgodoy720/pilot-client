@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Box, IconButton } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -7,12 +8,21 @@ import ChatIcon from '@mui/icons-material/Chat';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LogoutIcon from '@mui/icons-material/Logout';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import SchoolIcon from '@mui/icons-material/School';
+import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 import logo from '../../assets/logo.png'
 import logoFull from '../../assets/logo-full.png'
 
 const Layout = ({ children }) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <Box className="layout">
@@ -32,18 +42,22 @@ const Layout = ({ children }) => {
         </div>
         
         <div className="layout__nav-links">
-          <a href="#" className="layout__nav-item">
+          <Link to="/dashboard" className="layout__nav-item">
             <DashboardIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Dashboard</span>}
-          </a>
-          <a href="#" className="layout__nav-item">
+          </Link>
+          <Link to="/learning" className="layout__nav-item">
+            <SchoolIcon className="layout__nav-icon" />
+            {isExpanded && <span className="layout__nav-text">Learning</span>}
+          </Link>
+          <Link to="/gpt" className="layout__nav-item">
             <ChatIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">GPT-4-TURBO</span>}
-          </a>
-          <a href="#" className="layout__nav-item">
+          </Link>
+          <Link to="/calendar" className="layout__nav-item">
             <CalendarMonthIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Calendar</span>}
-          </a>
+          </Link>
         </div>
 
         <div className="layout__bottom-links">
@@ -51,10 +65,10 @@ const Layout = ({ children }) => {
             <DarkModeIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Theme</span>}
           </a>
-          <a href="#" className="layout__nav-item">
+          <button onClick={handleLogout} className="layout__nav-item layout__logout-btn">
             <LogoutIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Logout</span>}
-          </a>
+          </button>
         </div>
       </nav>
       

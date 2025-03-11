@@ -40,3 +40,14 @@
 .read-the-docs {
   color: #888;
 }
+
+.app-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100%;
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
+  font-size: 1.2rem;
+}
