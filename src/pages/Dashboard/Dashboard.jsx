@@ -20,11 +20,10 @@ function Dashboard() {
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      setIsLoading(true);
-      setError(null);
-      
       try {
-        // Fetch current day's schedule and progress
+        setIsLoading(true);
+        setError(null);
+        
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/progress/current-day`, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -37,6 +36,12 @@ function Dashboard() {
         
         const data = await response.json();
         
+        // Debug logging
+        console.log('API Response Data:', data);
+        console.log('API Response Data Type:', typeof data);
+        console.log('API Response Data Keys:', Object.keys(data));
+        console.log('timeBlocks property:', data.timeBlocks);
+        
         if (data.message === 'No schedule for today') {
           // Handle case where there's no schedule for today
           setIsLoading(false);
@@ -44,37 +49,45 @@ function Dashboard() {
         }
         
         // Process the data
-        setCurrentDay(data.day);
+        const timeBlocks = data.timeBlocks || [];
+        const taskProgress = Array.isArray(data.taskProgress) ? data.taskProgress : [];
         
         // Extract tasks from all time blocks
         const allTasks = [];
-        const dayObjectives = [];
+        const learningObjectives = [];
         
-        data.timeBlocks.forEach(block => {
-          // Add learning objectives from each block
-          if (block.learning_objectives && block.learning_objectives.length > 0) {
-            dayObjectives.push(...block.learning_objectives);
-          }
-          
+        timeBlocks.forEach(block => {
           // Add tasks with their completion status
           block.tasks.forEach(task => {
-            const taskProgress = data.taskProgress.find(
-              progress => progress.task_id === task.task_id
-            );
+            const taskCompleted = taskProgress.find(
+              progress => progress.task_id === task.id
+            )?.status === 'completed';
             
             allTasks.push({
-              id: task.task_id,
+              id: task.id,
               time: formatTime(block.start_time),
               title: task.task_title,
               duration: `${task.duration_minutes} min`,
               type: task.task_type,
-              completed: taskProgress ? taskProgress.status === 'completed' : false
+              completed: taskCompleted
             });
+            
+            // Add learning objectives from each task
+            if (task.learning_objectives && Array.isArray(task.learning_objectives)) {
+              task.learning_objectives.forEach(objective => {
+                learningObjectives.push({
+                  text: objective,
+                  completed: taskCompleted
+                });
+              });
+            }
           });
         });
         
+        // Set state with the processed data
+        setCurrentDay(data.day || {});
         setDailyTasks(allTasks);
-        setObjectives(dayObjectives);
+        setObjectives(learningObjectives.map(obj => obj.text));
         
         // Set progress data
         const completed = allTasks.filter(task => task.completed).length;
@@ -97,62 +110,10 @@ function Dashboard() {
           );
         }
         
-      } catch (err) {
-        console.error('Error fetching dashboard data:', err);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
         setError('Failed to load dashboard data. Please try again later.');
-        
-        // Set some mock data for development purposes
-        setDailyTasks([
-          { 
-            id: 1, 
-            time: '1:00 PM', 
-            title: 'Daily Standup', 
-            duration: '15 min', 
-            type: 'standup',
-            completed: true 
-          },
-          { 
-            id: 2, 
-            time: '1:15 PM', 
-            title: 'Group Discussion', 
-            duration: '15 min', 
-            type: 'group',
-            completed: false 
-          },
-          { 
-            id: 3, 
-            time: '1:45 PM', 
-            title: 'Individual Task', 
-            duration: '30 min', 
-            type: 'individual',
-            completed: false 
-          },
-          { 
-            id: 4, 
-            time: '2:15 PM', 
-            title: 'Reflection', 
-            duration: '10 min', 
-            type: 'reflection',
-            completed: false 
-          }
-        ]);
-        
-        setObjectives([
-          'Learn AI research strategies',
-          'Practice critical thinking'
-        ]);
-        
-        setNotifications([
-          'Team assignment due today',
-          'New feedback from mentor'
-        ]);
-        
-        // Calculate progress from mock data
-        const mockCompleted = 1;
-        const mockTotal = 4;
-        setCompletedTasks(mockCompleted);
-        setTotalTasks(mockTotal);
-        setProgressPercentage((mockCompleted / mockTotal) * 100);
+        console.log('Error details:', error.message);
       } finally {
         setIsLoading(false);
       }

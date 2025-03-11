@@ -22,6 +22,9 @@ function Learning() {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   
+  // Add a debounce mechanism to prevent multiple calls
+  const fetchingTasks = {};
+  
   // Helper function to format time
   const formatTime = (timeString) => {
     if (!timeString) return '';
@@ -38,9 +41,19 @@ function Learning() {
   };
   
   // Fetch messages for the current task
-  const fetchTaskMessages = async (taskId) => {
+  const fetchTaskMessages = async (taskId, retryCount = 0) => {
+    // Prevent multiple fetches for the same task within a short time period
+    const now = Date.now();
+    if (fetchingTasks[taskId] && now - fetchingTasks[taskId] < 2000) {
+      console.log(`Skipping duplicate fetch for task ${taskId} - already fetching`);
+      return;
+    }
+    
+    // Mark this task as being fetched
+    fetchingTasks[taskId] = now;
+    
     // Add a timestamp to prevent duplicate calls
-    const fetchTimestamp = Date.now();
+    const fetchTimestamp = now;
     fetchTaskMessages.lastFetchTimestamp = fetchTimestamp;
     
     try {
@@ -128,41 +141,79 @@ function Learning() {
         const currentTask = tasks[currentTaskIndex];
         let messageContent = 'start';
         
-        // Send the initial message
-        const messageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            content: messageContent,
-            message_role: 'system',
-            taskId: taskId
-          })
-        });
-        
-        // Check if this is still the most recent fetch
-        if (fetchTaskMessages.lastFetchTimestamp !== fetchTimestamp) {
-          console.log(`Aborting fetch for task ${taskId} - newer fetch in progress`);
-          return;
+        try {
+          // Send the initial message
+          const messageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              content: messageContent,
+              message_role: 'system',
+              taskId: taskId
+            })
+          });
+          
+          // Check if this is still the most recent fetch
+          if (fetchTaskMessages.lastFetchTimestamp !== fetchTimestamp) {
+            console.log(`Aborting fetch for task ${taskId} - newer fetch in progress`);
+            return;
+          }
+          
+          // Handle 429 Too Many Requests with retry
+          if (messageResponse.status === 429) {
+            const data = await messageResponse.json();
+            const retryAfter = data.retryAfter || (Math.pow(2, retryCount) * 1000); // Exponential backoff
+            
+            if (retryCount < 3) { // Limit to 3 retries
+              console.log(`Rate limited, retrying after ${retryAfter}ms (retry ${retryCount + 1}/3)`);
+              
+              // Show a temporary message
+              setMessages([{
+                id: 'retry',
+                content: `Loading task content, please wait...`,
+                role: 'system'
+              }]);
+              
+              // Wait and retry
+              setTimeout(() => {
+                fetchTaskMessages(taskId, retryCount + 1);
+              }, retryAfter);
+              return;
+            }
+          }
+          
+          if (!messageResponse.ok) {
+            throw new Error(`Failed to send initial message: ${messageResponse.status}`);
+          }
+          
+          const messageData = await messageResponse.json();
+          
+          // Display the assistant's response
+          setMessages([{
+            id: messageData.message_id,
+            content: messageData.content,
+            role: messageData.role,
+            timestamp: messageData.timestamp
+          }]);
+          
+          console.log(`Displayed initial assistant message`);
+        } catch (error) {
+          // If we get an error sending the initial message, try to handle it gracefully
+          console.error('Error sending initial message:', error);
+          
+          // If we're still the most recent fetch, show an error
+          if (fetchTaskMessages.lastFetchTimestamp === fetchTimestamp) {
+            setError(`Failed to start conversation: ${error.message}. Please try refreshing the page.`);
+            setMessages([{
+              id: 'error',
+              content: `Error starting conversation: ${error.message}. Please try refreshing the page.`,
+              role: 'system'
+            }]);
+          }
         }
-        
-        if (!messageResponse.ok) {
-          throw new Error(`Failed to send initial message: ${messageResponse.status}`);
-        }
-        
-        const messageData = await messageResponse.json();
-        
-        // Display the assistant's response
-        setMessages([{
-          id: messageData.message_id,
-          content: messageData.content,
-          role: messageData.role,
-          timestamp: messageData.timestamp
-        }]);
-        
-        console.log(`Displayed initial assistant message`);
       }
     } catch (error) {
       // Check if this is still the most recent fetch
@@ -186,6 +237,11 @@ function Learning() {
         // Always set loading to false when done
         setIsMessagesLoading(false);
       }
+      
+      // Clear the fetching flag after a delay to prevent immediate re-fetching
+      setTimeout(() => {
+        delete fetchingTasks[taskId];
+      }, 2000);
     }
   };
   
@@ -209,6 +265,8 @@ function Learning() {
         
         const data = await response.json();
         
+        console.log('Learning API Response Data:', JSON.stringify(data, null, 2));
+        
         if (data.message === 'No schedule for today') {
           setError('No learning schedule available for today.');
           setIsPageLoading(false);
@@ -224,19 +282,40 @@ function Learning() {
         data.timeBlocks.forEach(block => {
           // Add tasks with their completion status
           block.tasks.forEach(task => {
-            const taskProgress = data.taskProgress.find(
-              progress => progress.task_id === task.task_id
-            );
+            const taskProgress = Array.isArray(data.taskProgress) ? 
+              data.taskProgress.find(progress => progress.task_id === task.id) : null;
+            
+            // Parse linked_resources if it's a string
+            let resources = [];
+            if (task.linked_resources) {
+              try {
+                // If it's a string, try to parse it
+                if (typeof task.linked_resources === 'string') {
+                  resources = JSON.parse(task.linked_resources);
+                } 
+                // If it's already an array, use it directly
+                else if (Array.isArray(task.linked_resources)) {
+                  resources = task.linked_resources;
+                }
+                // If it's a JSONB object from PostgreSQL, it might already be parsed
+                else {
+                  resources = task.linked_resources;
+                }
+              } catch (e) {
+                console.error('Error parsing linked_resources:', e);
+                resources = [];
+              }
+            }
             
             allTasks.push({
-              id: task.task_id,
+              id: task.id,
               title: task.task_title,
               description: task.task_description,
               type: task.task_type,
-              blockTitle: block.block_title,
+              blockTitle: task.task_title,
               blockTime: formatTime(block.start_time),
               completed: taskProgress ? taskProgress.status === 'completed' : false,
-              resources: task.resources || []
+              resources: resources
             });
           });
         });
@@ -264,29 +343,29 @@ function Learning() {
         const mockTasks = [
           { 
             id: 1, 
-            title: 'Share a learning tool', 
-            description: 'Think about a digital tool you\'ve used to learn something new (YouTube, Duolingo, Coursera, etc.). Share one tool and how it helped you learn.',
+            title: 'LAUNCH', 
+            description: 'Welcome to the program',
             completed: false,
-            type: 'share',
-            blockTitle: 'Discussion on Digital Learning',
+            type: 'individual',
+            blockTitle: 'LAUNCH',
             blockTime: '1:00 PM'
           },
           { 
             id: 2, 
-            title: 'Discuss features', 
-            description: 'What specific features of the tool did you find most useful for your learning style?',
+            title: 'Daily Standup', 
+            description: 'Complete the daily standup prompt',
             completed: false,
-            type: 'discuss',
-            blockTitle: 'Discussion on Digital Learning',
+            type: 'individual',
+            blockTitle: 'Daily Standup',
             blockTime: '1:15 PM'
           },
           { 
             id: 3, 
-            title: 'Reflect on effectiveness', 
-            description: 'How effective do you think this approach was compared to traditional learning methods you\'ve tried?',
+            title: 'Group Retrospective', 
+            description: 'Participate in group retrospective',
             completed: false,
-            type: 'reflect',
-            blockTitle: 'Reflection',
+            type: 'group',
+            blockTitle: 'Group Retrospective',
             blockTime: '1:30 PM'
           }
         ];
@@ -593,9 +672,24 @@ function Learning() {
   const renderTaskResources = (resources) => {
     if (!resources || resources.length === 0) return null;
     
+    // Ensure resources are properly parsed
+    const parsedResources = resources.map(resource => {
+      if (typeof resource === 'string') {
+        try {
+          return JSON.parse(resource);
+        } catch (e) {
+          console.error('Error parsing resource:', e);
+          return null;
+        }
+      }
+      return resource;
+    }).filter(Boolean); // Remove any null resources
+    
+    if (parsedResources.length === 0) return null;
+    
     // Group resources by type
-    const groupedResources = resources.reduce((acc, resource) => {
-      const type = resource.resource_type || 'other';
+    const groupedResources = parsedResources.reduce((acc, resource) => {
+      const type = resource.type || 'other';
       if (!acc[type]) {
         acc[type] = [];
       }
@@ -605,27 +699,24 @@ function Learning() {
     
     return (
       <div className="learning__task-resources">
-        <h4 className="learning__task-resources-title">Task Resources</h4>
-        <p className="learning__task-resources-intro">Please review these materials before continuing:</p>
-        <ul className="learning__task-resources-list">
-          {Object.entries(groupedResources).map(([type, typeResources]) => (
-            <div key={type} className="learning__task-resources-group">
-              {typeResources.map((resource) => (
-                <li key={resource.resource_id} className="learning__task-resources-item">
-                  <a 
-                    href={resource.resource_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="learning__task-resources-link"
-                  >
-                    {resource.resource_title}
-                    <span className="learning__task-resources-type">{type}</span>
+        <h3>Resources</h3>
+        {Object.entries(groupedResources).map(([type, typeResources]) => (
+          <div key={type} className="learning__resource-group">
+            <h4>{type.charAt(0).toUpperCase() + type.slice(1)}s</h4>
+            <ul>
+              {typeResources.map((resource, index) => (
+                <li key={index}>
+                  <a href={resource.url} target="_blank" rel="noopener noreferrer">
+                    {resource.title}
                   </a>
+                  {resource.description && (
+                    <p className="resource-description">{resource.description}</p>
+                  )}
                 </li>
               ))}
-            </div>
-          ))}
-        </ul>
+            </ul>
+          </div>
+        ))}
       </div>
     );
   };
