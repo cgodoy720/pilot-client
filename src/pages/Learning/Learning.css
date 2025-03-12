@@ -629,9 +629,11 @@
 }
 
 .learning__task-nav-button:hover:not(:disabled) {
-  background-color: #f0f7ff;
-  border-color: #0078d4;
-  color: #0078d4;
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .learning__task-nav-button:disabled {
