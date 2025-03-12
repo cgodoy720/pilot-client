@@ -106,11 +106,14 @@
   padding: var(--spacing-md);
   background-color: var(--color-background-darker);
   border-radius: 6px;
+  border: 1px solid transparent; /* Add transparent border by default */
   border-left: 3px solid var(--color-border);
   transition: all 0.2s ease;
   cursor: pointer;
   position: relative;
-  align-items: center;
+  align-items: center; /* Center items vertically */
+  height: 60px; /* Fixed height for consistent sizing */
+  box-sizing: border-box; /* Include padding in height calculation */
 }
 
 .schedule-item:hover {
@@ -122,7 +125,8 @@
 }
 
 .schedule-item.completed {
-  border-left-color: #4caf50;
+  border: 1px solid transparent; /* Add transparent border by default */
+  border-left: 3px solid #4caf50;
   opacity: 0.8;
 }
 
@@ -135,13 +139,16 @@
   width: 80px;
   font-weight: 500;
   color: var(--color-text-secondary);
+  flex-shrink: 0; /* Prevent time from shrinking */
+  display: flex;
+  align-items: center; /* Center time vertically */
 }
 
 .schedule-details {
   flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center; /* Align items horizontally */
+  gap: 12px; /* Add space between title and duration */
 }
 
 .schedule-title {
@@ -149,10 +156,17 @@
   align-items: center;
   gap: 8px;
   font-weight: 500;
+  flex: 1; /* Allow title to take available space */
 }
 
+/* Task icon styles */
 .task-icon {
   font-size: 1rem;
+  flex-shrink: 0; /* Prevent icon from shrinking */
+  width: 20px; /* Fixed width for consistent spacing */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .task-icon.completed {
@@ -178,6 +192,9 @@
 .schedule-duration {
   font-size: 0.85rem;
   color: var(--color-text-muted);
+  flex-shrink: 0; /* Prevent duration from shrinking */
+  min-width: 60px; /* Give duration a minimum width */
+  text-align: right; /* Right align duration */
 }
 
 /* Add styles for the checkbox */
@@ -190,6 +207,9 @@
   padding: 6px;
   border-radius: 4px;
   transition: all 0.2s ease;
+  flex-shrink: 0; /* Prevent checkbox from shrinking */
+  width: 30px; /* Fixed width for checkbox */
+  height: 30px; /* Fixed height for checkbox */
 }
 
 .schedule-checkbox:hover {
