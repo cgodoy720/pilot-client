@@ -150,15 +150,13 @@ function Learning() {
         
         try {
           // Send the initial message
-          const messageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages`, {
+          const messageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages/start`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-              content: messageContent,
-              message_role: 'system',
               taskId: taskId
             })
           });
@@ -440,7 +438,7 @@ function Learning() {
       const currentTaskId = tasks[currentTaskIndex]?.id;
       
       // Send message to learning API
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages/continue`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -448,7 +446,6 @@ function Learning() {
         },
         body: JSON.stringify({
           content: messageToSend,
-          message_role: 'user',
           taskId: currentTaskId
         })
       });
