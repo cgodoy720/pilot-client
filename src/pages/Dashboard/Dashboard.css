@@ -98,6 +98,7 @@
   padding-right: var(--spacing-sm);
   flex: 1; /* Take all available space */
   max-height: none; /* Remove fixed max-height */
+  padding-top: 8px;
 }
 
 .schedule-item {
