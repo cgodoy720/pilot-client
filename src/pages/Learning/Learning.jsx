@@ -112,7 +112,7 @@ function Learning() {
         // We have existing messages, format and display them
         const formattedMessages = data.messages.map(msg => ({
           id: msg.message_id,
-          content: msg.content,
+          content: typeof msg.content === 'object' ? JSON.stringify(msg.content) : msg.content,
           role: msg.role,
           timestamp: msg.timestamp
         }));
@@ -199,7 +199,7 @@ function Learning() {
           // Display the assistant's response
           setMessages([{
             id: messageData.message_id,
-            content: messageData.content,
+            content: typeof messageData.content === 'object' ? JSON.stringify(messageData.content) : messageData.content,
             role: messageData.role,
             timestamp: messageData.timestamp
           }]);
@@ -465,7 +465,7 @@ function Learning() {
         aiResponse = {
           id: aiResponseData.message_id || Date.now() + 1,
           role: 'assistant',
-          content: aiResponseData.content,
+          content: typeof aiResponseData.content === 'object' ? JSON.stringify(aiResponseData.content) : aiResponseData.content,
           timestamp: aiResponseData.timestamp || new Date().toISOString()
         };
       } else {
@@ -686,6 +686,17 @@ function Learning() {
   // Update the formatMessageContent function to NOT include resources for every message
   const formatMessageContent = (content) => {
     if (!content) return null;
+    
+    // Check if content is an object and not a string
+    if (typeof content === 'object') {
+      // Convert the object to a readable string format
+      try {
+        return <pre className="system-message">System message: {JSON.stringify(content, null, 2)}</pre>;
+      } catch (e) {
+        console.error('Error stringifying content object:', e);
+        return <p className="error-message">Error displaying message content</p>;
+      }
+    }
     
     // Split content by code blocks to handle them separately
     const parts = content.split(/(```[\s\S]*?```)/g);

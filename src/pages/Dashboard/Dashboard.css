@@ -32,6 +32,42 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  height: calc(100vh - 150px); /* Set a specific height based on viewport */
+}
+
+/* Left Panel Styles - Objectives and Progress */
+.dashboard__left-panel {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  overflow: visible;
+  padding-right: var(--spacing-sm);
+  max-height: none;
+  height: 100%;
+}
+
+.dashboard__objectives,
+.dashboard__progress {
+  background-color: var(--color-background-dark);
+  border-radius: 8px;
+  padding: var(--spacing-lg);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Make objectives take most of the space */
+.dashboard__objectives {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Keep progress at its natural height */
+.dashboard__progress {
+  flex-shrink: 0;
 }
 
 /* Schedule Panel Styles */
@@ -44,6 +80,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 100%;
 }
 
 .panel-title {
@@ -59,7 +96,8 @@
   gap: var(--spacing-md);
   overflow-y: auto;
   padding-right: var(--spacing-sm);
-  max-height: calc(100vh - 250px);
+  flex: 1; /* Take all available space */
+  max-height: none; /* Remove fixed max-height */
 }
 
 .schedule-item {
@@ -69,16 +107,27 @@
   border-radius: 6px;
   border-left: 3px solid var(--color-border);
   transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+  align-items: center;
 }
 
 .schedule-item:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  background-color: var(--color-background-dark);
+  border: 1px solid var(--color-primary);
+  border-left: 3px solid var(--color-primary);
 }
 
 .schedule-item.completed {
   border-left-color: #4caf50;
   opacity: 0.8;
+}
+
+.schedule-item.completed:hover {
+  border: 1px solid #4caf50;
+  border-left: 3px solid #4caf50;
 }
 
 .schedule-time {
@@ -130,44 +179,64 @@
   color: var(--color-text-muted);
 }
 
-/* Info Panel Styles */
-.dashboard__info-panel {
-  width: 300px;
+/* Add styles for the checkbox */
+.schedule-checkbox {
+  margin-left: var(--spacing-md);
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-  overflow: visible;
-  padding-right: var(--spacing-sm);
-  max-height: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
 }
 
-.dashboard__objectives,
-.dashboard__progress,
-.dashboard__notifications {
-  background-color: var(--color-background-dark);
-  border-radius: 8px;
-  padding: var(--spacing-lg);
-  border: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
+.schedule-checkbox:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.checkbox-icon {
+  font-size: 1.2rem;
+  color: var(--color-text-muted);
+}
+
+.checkbox-icon.completed {
+  color: #4caf50;
 }
 
 /* Objectives Styles */
 .objectives-list {
   list-style-type: none;
   overflow-y: auto;
-  max-height: 150px;
+  padding-left: 0;
+  flex: 1; /* Make it take all available space */
+  max-height: none; /* Remove max-height limitation */
+  margin: 0; /* Remove default margin */
 }
 
 .objective-item {
   margin-bottom: var(--spacing-sm);
   display: flex;
   align-items: flex-start;
+  line-height: 1.4;
+  padding: var(--spacing-xs) 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05); /* Add subtle separator */
+  text-align: left; /* Ensure text is left-aligned */
+}
+
+.objective-item:last-child {
+  border-bottom: none; /* Remove border from last item */
+  margin-bottom: 0; /* Remove margin from last item */
 }
 
 .bullet {
   margin-right: 8px;
   color: var(--color-primary);
+  font-size: 1.2rem;
+  flex-shrink: 0; /* Prevent bullet from shrinking */
+  display: inline-block; /* Ensure proper alignment */
+  width: 15px; /* Fixed width for better alignment */
+  text-align: center; /* Center the bullet */
 }
 
 /* Progress Styles */
@@ -190,22 +259,6 @@
   font-size: 0.9rem;
   color: var(--color-text-secondary);
   text-align: right;
-}
-
-/* Notifications Styles */
-.notifications-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-  overflow-y: auto;
-  max-height: 150px;
-}
-
-.notification-item {
-  padding: var(--spacing-sm);
-  background-color: var(--color-background-darker);
-  border-radius: 4px;
-  font-size: 0.9rem;
 }
 
 /* Continue Button Styles */
@@ -245,31 +298,27 @@
 /* Custom scrollbar styles */
 .schedule-list::-webkit-scrollbar,
 .objectives-list::-webkit-scrollbar,
-.notifications-list::-webkit-scrollbar,
-.dashboard__info-panel::-webkit-scrollbar {
+.dashboard__left-panel::-webkit-scrollbar {
   width: 6px;
 }
 
 .schedule-list::-webkit-scrollbar-track,
 .objectives-list::-webkit-scrollbar-track,
-.notifications-list::-webkit-scrollbar-track,
-.dashboard__info-panel::-webkit-scrollbar-track {
+.dashboard__left-panel::-webkit-scrollbar-track {
   background: var(--color-background-darker);
   border-radius: 3px;
 }
 
 .schedule-list::-webkit-scrollbar-thumb,
 .objectives-list::-webkit-scrollbar-thumb,
-.notifications-list::-webkit-scrollbar-thumb,
-.dashboard__info-panel::-webkit-scrollbar-thumb {
+.dashboard__left-panel::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: 3px;
 }
 
 .schedule-list::-webkit-scrollbar-thumb:hover,
 .objectives-list::-webkit-scrollbar-thumb:hover,
-.notifications-list::-webkit-scrollbar-thumb:hover,
-.dashboard__info-panel::-webkit-scrollbar-thumb:hover {
+.dashboard__left-panel::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
 }
 
@@ -285,7 +334,7 @@
     max-height: none;
   }
   
-  .dashboard__info-panel {
+  .dashboard__left-panel {
     width: 100%;
     max-height: none;
   }
@@ -294,8 +343,13 @@
     max-height: 400px;
   }
   
-  .objectives-list,
-  .notifications-list {
-    max-height: 150px;
+  .objectives-list {
+    max-height: 200px;
   }
+}
+
+.objective-text {
+  flex: 1;
+  text-align: left;
+  word-break: break-word; /* Allow long words to break */
 } 
