@@ -444,8 +444,13 @@
 
 /* Markdown specific styling */
 .markdown-paragraph {
-  margin-bottom: 12px;
+  margin-bottom: 0;
   line-height: 1.6;
+}
+
+/* Add margin between paragraphs only when they follow another paragraph */
+.markdown-paragraph + .markdown-paragraph {
+  margin-top: 12px;
 }
 
 .markdown-heading {
