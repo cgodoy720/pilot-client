@@ -131,6 +131,15 @@ function Learning() {
             continue;
           }
           
+          // Skip system metadata objects that shouldn't be displayed
+          if (typeof message.content === 'string' && 
+              (message.content.includes('"conversation_started":') || 
+               message.content.includes('"last_message_timestamp":') ||
+               message.content.includes('"topics_discussed":'))) {
+            console.log('Skipping system metadata object');
+            continue;
+          }
+          
           // Otherwise, add it to our unique list
           seenContents.add(contentHash);
           uniqueMessages.push(message);
@@ -196,13 +205,29 @@ function Learning() {
           
           const messageData = await messageResponse.json();
           
-          // Display the assistant's response
-          setMessages([{
-            id: messageData.message_id,
-            content: typeof messageData.content === 'object' ? JSON.stringify(messageData.content) : messageData.content,
-            role: messageData.role,
-            timestamp: messageData.timestamp
-          }]);
+          // Check if the message is a system metadata object that shouldn't be displayed
+          const messageContent = typeof messageData.content === 'object' ? 
+            JSON.stringify(messageData.content) : messageData.content;
+          
+          if (typeof messageContent === 'string' && 
+              (messageContent.includes('"conversation_started":') || 
+               messageContent.includes('"last_message_timestamp":') ||
+               messageContent.includes('"topics_discussed":'))) {
+            console.log('Skipping system metadata object in initial message');
+            setMessages([{
+              id: 'system',
+              content: 'Starting conversation...',
+              role: 'system'
+            }]);
+          } else {
+            // Display the assistant's response
+            setMessages([{
+              id: messageData.message_id,
+              content: messageContent,
+              role: messageData.role,
+              timestamp: messageData.timestamp
+            }]);
+          }
           
           console.log(`Displayed initial assistant message`);
         } catch (error) {
@@ -494,6 +519,15 @@ function Learning() {
           return updatedMessages;
         }
         
+        // Skip system metadata objects that shouldn't be displayed
+        if (typeof aiResponse.content === 'string' && 
+            (aiResponse.content.includes('"conversation_started":') || 
+             aiResponse.content.includes('"last_message_timestamp":') ||
+             aiResponse.content.includes('"topics_discussed":'))) {
+          console.log('Skipping system metadata object in AI response');
+          return updatedMessages;
+        }
+        
         // Add the new message
         return [...updatedMessages, aiResponse];
       });
@@ -529,6 +563,15 @@ function Learning() {
         
         if (isDuplicate) {
           console.log('Skipping duplicate AI response');
+          return updatedMessages;
+        }
+        
+        // Skip system metadata objects that shouldn't be displayed
+        if (typeof aiResponse.content === 'string' && 
+            (aiResponse.content.includes('"conversation_started":') || 
+             aiResponse.content.includes('"last_message_timestamp":') ||
+             aiResponse.content.includes('"topics_discussed":'))) {
+          console.log('Skipping system metadata object in AI response');
           return updatedMessages;
         }
         
