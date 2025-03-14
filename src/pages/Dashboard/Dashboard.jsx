@@ -53,7 +53,6 @@ function Dashboard() {
         
         // Extract tasks from all time blocks
         const allTasks = [];
-        const learningObjectives = [];
         
         timeBlocks.forEach(block => {
           // Add tasks with their completion status
@@ -70,23 +69,17 @@ function Dashboard() {
               type: task.task_type,
               completed: taskCompleted
             });
-            
-            // Add learning objectives from each task
-            if (task.learning_objectives && Array.isArray(task.learning_objectives)) {
-              task.learning_objectives.forEach(objective => {
-                learningObjectives.push({
-                  text: objective,
-                  completed: taskCompleted
-                });
-              });
-            }
           });
         });
         
         // Set state with the processed data
         setCurrentDay(data.day || {});
         setDailyTasks(allTasks);
-        setObjectives(learningObjectives.map(obj => obj.text));
+        
+        // Get learning objectives from the day object
+        const dayObjectives = data.day && data.day.learning_objectives ? 
+          data.day.learning_objectives : [];
+        setObjectives(dayObjectives);
         
         // Set progress data
         const completed = allTasks.filter(task => task.completed).length;
