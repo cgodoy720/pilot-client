@@ -1114,12 +1114,10 @@ function Learning() {
               </button>
             </div>
             <div className="learning__modal-body">
-              <p>{tasks[currentTaskIndex].deliverable}</p>
               
               <form onSubmit={handleDeliverableSubmit}>
                 {tasks[currentTaskIndex].deliverable_type === 'link' && (
                   <div className="learning__form-group">
-                    <label htmlFor="submission-url">URL</label>
                     <div className="learning__input-with-icon">
                       <input
                         id="submission-url"
