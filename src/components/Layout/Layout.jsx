@@ -54,17 +54,17 @@ const Layout = ({ children }) => {
             <ChatIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">GPT-4-TURBO</span>}
           </Link>
-          <Link to="/calendar" className="layout__nav-item">
+          {/* <Link to="/calendar" className="layout__nav-item">
             <CalendarMonthIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Calendar</span>}
-          </Link>
+          </Link> */}
         </div>
 
         <div className="layout__bottom-links">
-          <a href="#" className="layout__nav-item">
+          {/* <a href="#" className="layout__nav-item">
             <DarkModeIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Theme</span>}
-          </a>
+          </a> */}
           <button onClick={handleLogout} className="layout__nav-item layout__logout-btn">
             <LogoutIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Logout</span>}

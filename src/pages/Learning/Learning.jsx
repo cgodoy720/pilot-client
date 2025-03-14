@@ -2,10 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
+import { useLocation, useNavigate } from 'react-router-dom';
 import './Learning.css';
 
 function Learning() {
   const { token } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -18,6 +21,11 @@ function Learning() {
   const [currentDay, setCurrentDay] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
+  
+  // Get dayId from URL query parameters
+  const queryParams = new URLSearchParams(location.search);
+  const dayId = queryParams.get('dayId');
+  const taskId = queryParams.get('taskId');
   
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -282,8 +290,18 @@ function Learning() {
       setError('');
       
       try {
-        // Fetch current day's schedule and progress
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/progress/current-day`, {
+        let url;
+        
+        // If dayId is provided, fetch that specific day
+        if (dayId) {
+          url = `${import.meta.env.VITE_API_URL}/api/curriculum/days/${dayId}/schedule`;
+        } else {
+          // Otherwise fetch the current day
+          url = `${import.meta.env.VITE_API_URL}/api/progress/current-day`;
+        }
+        
+        // Fetch day's schedule and progress
+        const response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -309,11 +327,15 @@ function Learning() {
         // Extract tasks from all time blocks
         const allTasks = [];
         
-        data.timeBlocks.forEach(block => {
+        // Handle different response formats based on the endpoint
+        const timeBlocks = dayId ? data.timeBlocks : data.timeBlocks;
+        const taskProgress = dayId ? [] : data.taskProgress; // We might not have progress for historical days
+        
+        timeBlocks.forEach(block => {
           // Add tasks with their completion status
           block.tasks.forEach(task => {
-            const taskProgress = Array.isArray(data.taskProgress) ? 
-              data.taskProgress.find(progress => progress.task_id === task.id) : null;
+            const taskProgressItem = Array.isArray(taskProgress) ? 
+              taskProgress.find(progress => progress.task_id === task.id) : null;
             
             // Parse linked_resources if it's a string
             let resources = [];
@@ -344,7 +366,7 @@ function Learning() {
               type: task.task_type,
               blockTitle: task.task_title,
               blockTime: formatTime(block.start_time),
-              completed: taskProgress ? taskProgress.status === 'completed' : false,
+              completed: taskProgressItem ? taskProgressItem.status === 'completed' : false,
               resources: resources,
               deliverable: task.deliverable,
               deliverable_type: task.deliverable_type || 'none'
@@ -352,9 +374,18 @@ function Learning() {
           });
         });
         
-        // Find the first incomplete task to start with
-        const firstIncompleteIndex = allTasks.findIndex(task => !task.completed);
-        const initialTaskIndex = firstIncompleteIndex >= 0 ? firstIncompleteIndex : 0;
+        // If a specific taskId is provided in the URL, find its index
+        let initialTaskIndex = 0;
+        if (taskId) {
+          const taskIndex = allTasks.findIndex(task => task.id === parseInt(taskId));
+          if (taskIndex >= 0) {
+            initialTaskIndex = taskIndex;
+          }
+        } else {
+          // Otherwise, find the first incomplete task to start with
+          const firstIncompleteIndex = allTasks.findIndex(task => !task.completed);
+          initialTaskIndex = firstIncompleteIndex >= 0 ? firstIncompleteIndex : 0;
+        }
         
         // Batch update state to reduce renders
         setCurrentDay(dayData);
@@ -707,7 +738,7 @@ function Learning() {
         <h3>Resources</h3>
         {Object.entries(groupedResources).map(([type, typeResources]) => (
           <div key={type} className="learning__resource-group">
-            <h4>{type.charAt(0).toUpperCase() + type.slice(1)}s</h4>
+            {/* <h4>{type.charAt(0).toUpperCase() + type.slice(1)}s</h4> */}
             <ul>
               {typeResources.map((resource, index) => (
                 <li key={index}>
@@ -841,8 +872,18 @@ function Learning() {
       // Update the current task index
       setCurrentTaskIndex(newIndex);
       
+      // Update the URL to reflect the current task
+      const newTaskId = tasks[newIndex].id;
+      
+      // Preserve the dayId parameter if it exists
+      const params = new URLSearchParams(location.search);
+      params.set('taskId', newTaskId);
+      
+      // Update the URL without reloading the page
+      navigate(`/learning?${params.toString()}`, { replace: true });
+      
       // Then fetch the messages for the new task
-      fetchTaskMessages(tasks[newIndex].id);
+      fetchTaskMessages(newTaskId);
     }
   };
 
@@ -899,8 +940,16 @@ function Learning() {
     <div className="learning">
       <div className="learning__content">
         <div className="learning__task-panel">
-          <div className="learning__task-header">
-            <h2>Today's Tasks</h2>
+          <div className={`learning__task-header ${dayId ? 'learning__task-header--with-back' : ''}`}>
+            <h2>{dayId ? `Day ${currentDay?.day_number || ''} Tasks` : "Today's Tasks"}</h2>
+            {dayId && (
+              <button 
+                className="back-to-calendar-btn"
+                onClick={() => navigate('/calendar')}
+              >
+                <FaArrowLeft /> Back to Calendar
+              </button>
+            )}
           </div>
           <div className="learning__tasks-list">
             {tasks.map((task, index) => (
@@ -920,7 +969,7 @@ function Learning() {
                 <div className="learning__task-content">
                   <h3 className="learning__task-title">{task.title}</h3>
                   <div className="learning__task-block">
-                    {task.blockTitle} • {task.blockTime}
+                    {task.blockTime}
                   </div>
                 </div>
               </div>
