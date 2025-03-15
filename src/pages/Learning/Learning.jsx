@@ -936,6 +936,25 @@ function Learning() {
     return <div className="learning loading">Loading learning session...</div>;
   }
 
+  // Add a check for empty tasks
+  if (tasks.length === 0) {
+    return (
+      <div className="learning">
+        <div className="learning__empty-state">
+          <h2>No Tasks Available</h2>
+          <p>There are no tasks scheduled for today.</p>
+          <p>Check back tomorrow for your next scheduled activities.</p>
+          <button 
+            className="learning__back-btn"
+            onClick={() => navigate('/dashboard')}
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="learning">
       <div className="learning__content">
@@ -951,30 +970,36 @@ function Learning() {
               </button>
             )}
           </div>
-          <div className="learning__tasks-list">
-            {tasks.map((task, index) => (
-              <div
-                key={task.id}
-                className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''} ${task.completed ? 'completed' : ''}`}
-                onClick={() => {
-                  if (index !== currentTaskIndex) {
-                    setCurrentTaskIndex(index);
-                    fetchTaskMessages(task.id);
-                  }
-                }}
-              >
-                <div className="learning__task-icon">
-                  {getTaskIcon(task.type, task.completed)}
-                </div>
-                <div className="learning__task-content">
-                  <h3 className="learning__task-title">{task.title}</h3>
-                  <div className="learning__task-block">
-                    {task.blockTime}
+          {tasks.length > 0 ? (
+            <div className="learning__tasks-list">
+              {tasks.map((task, index) => (
+                <div
+                  key={task.id}
+                  className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''} ${task.completed ? 'completed' : ''}`}
+                  onClick={() => {
+                    if (index !== currentTaskIndex) {
+                      setCurrentTaskIndex(index);
+                      fetchTaskMessages(task.id);
+                    }
+                  }}
+                >
+                  <div className="learning__task-icon">
+                    {getTaskIcon(task.type, task.completed)}
+                  </div>
+                  <div className="learning__task-content">
+                    <h3 className="learning__task-title">{task.title}</h3>
+                    <div className="learning__task-block">
+                      {task.blockTime}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="learning__no-tasks">
+              <p>No tasks available for this day.</p>
+            </div>
+          )}
         </div>
         
         <div className="learning__chat-container">
