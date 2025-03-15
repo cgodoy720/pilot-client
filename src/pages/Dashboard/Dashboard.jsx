@@ -207,61 +207,78 @@ function Dashboard() {
           {/* Objectives */}
           <div className="dashboard__objectives">
             <h2 className="panel-title">Today's Objectives</h2>
-            <ul className="objectives-list">
-              {objectives.map((objective, index) => (
-                <li key={index} className="objective-item">
-                  <span className="bullet">•</span>
-                  <span className="objective-text">{objective}</span>
-                </li>
-              ))}
-            </ul>
+            {objectives.length > 0 ? (
+              <ul className="objectives-list">
+                {objectives.map((objective, index) => (
+                  <li key={index} className="objective-item">
+                    <span className="bullet">•</span>
+                    <span className="objective-text">{objective}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="no-content-message">No objectives for today.</p>
+            )}
           </div>
           
           {/* Progress */}
           <div className="dashboard__progress">
             <h2 className="panel-title">Progress</h2>
-            <div className="progress-bar-container">
-              <div 
-                className="progress-bar" 
-                style={{ width: `${progressPercentage}%` }}
-              ></div>
-            </div>
-            <div className="progress-text">
-              {completedTasks}/{totalTasks} tasks completed
-            </div>
+            {totalTasks > 0 ? (
+              <>
+                <div className="progress-bar-container">
+                  <div 
+                    className="progress-bar" 
+                    style={{ width: `${progressPercentage}%` }}
+                  ></div>
+                </div>
+                <div className="progress-text">
+                  {completedTasks}/{totalTasks} tasks completed
+                </div>
+              </>
+            ) : (
+              <p className="no-content-message">No tasks scheduled for today.</p>
+            )}
           </div>
         </div>
         
         {/* Right panel - Daily Schedule */}
         <div className="dashboard__schedule-panel">
           <h2 className="panel-title">Daily Schedule Panel</h2>
-          <div className="schedule-list">
-            {dailyTasks.map(task => (
-              <div 
-                key={task.id} 
-                className={`schedule-item ${task.completed ? 'completed' : ''}`}
-                onClick={() => navigateToTask(task.id)}
-              >
-                <div className="schedule-time">{task.time}</div>
-                <div className="schedule-details">
-                  <div className="schedule-title">
-                    {getTaskIcon(task.type, task.completed)}
-                    <span>{task.title}</span>
-                  </div>
-                  <div className="schedule-duration">{task.duration}</div>
-                </div>
+          {dailyTasks.length > 0 ? (
+            <div className="schedule-list">
+              {dailyTasks.map(task => (
                 <div 
-                  className="schedule-checkbox"
-                  onClick={(e) => handleTaskCompletion(e, task.id, task.completed)}
+                  key={task.id} 
+                  className={`schedule-item ${task.completed ? 'completed' : ''}`}
+                  onClick={() => navigateToTask(task.id)}
                 >
-                  {task.completed ? 
-                    <FaCheck className="checkbox-icon completed" /> : 
-                    <FaRegSquare className="checkbox-icon" />
-                  }
+                  <div className="schedule-time">{task.time}</div>
+                  <div className="schedule-details">
+                    <div className="schedule-title">
+                      {getTaskIcon(task.type, task.completed)}
+                      <span>{task.title}</span>
+                    </div>
+                    <div className="schedule-duration">{task.duration}</div>
+                  </div>
+                  <div 
+                    className="schedule-checkbox"
+                    onClick={(e) => handleTaskCompletion(e, task.id, task.completed)}
+                  >
+                    {task.completed ? 
+                      <FaCheck className="checkbox-icon completed" /> : 
+                      <FaRegSquare className="checkbox-icon" />
+                    }
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="no-tasks-message">
+              <p>No tasks scheduled for today.</p>
+              <p>Check back tomorrow for your next scheduled activities.</p>
+            </div>
+          )}
         </div>
       </div>
       
@@ -270,6 +287,7 @@ function Dashboard() {
         <button 
           className="continue-btn"
           onClick={handleContinueSession}
+          disabled={dailyTasks.length === 0}
         >
           Continue Session
           <FaArrowRight className="continue-icon" />
