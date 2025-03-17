@@ -125,38 +125,23 @@ function Learning() {
           timestamp: msg.timestamp
         }));
         
-        // Final client-side deduplication check
-        const uniqueMessages = [];
-        const seenContents = new Set();
-        
-        for (const message of formattedMessages) {
-          // Create a simple hash of the message content
-          const contentHash = message.content.substring(0, 100);
-          
-          // If we've seen this content before, skip it
-          if (seenContents.has(contentHash)) {
-            console.log(`Skipping duplicate message with content: ${contentHash}...`);
-            continue;
-          }
-          
+        // Filter out system metadata objects that shouldn't be displayed
+        const filteredMessages = formattedMessages.filter(message => {
           // Skip system metadata objects that shouldn't be displayed
           if (typeof message.content === 'string' && 
               (message.content.includes('"conversation_started":') || 
                message.content.includes('"last_message_timestamp":') ||
                message.content.includes('"topics_discussed":'))) {
             console.log('Skipping system metadata object');
-            continue;
+            return false;
           }
-          
-          // Otherwise, add it to our unique list
-          seenContents.add(contentHash);
-          uniqueMessages.push(message);
-        }
+          return true;
+        });
         
-        console.log(`Deduplication: ${formattedMessages.length} messages reduced to ${uniqueMessages.length}`);
+        console.log(`Filtered out ${formattedMessages.length - filteredMessages.length} system metadata messages`);
         
-        setMessages(uniqueMessages);
-        console.log(`Displayed ${uniqueMessages.length} existing messages`);
+        setMessages(filteredMessages);
+        console.log(`Displayed ${filteredMessages.length} messages`);
       } else {
         // No existing messages, send initial 'start' message
         console.log(`No existing messages found, sending initial 'start' message`);
@@ -539,17 +524,6 @@ function Learning() {
         // Create a new array with all previous messages
         const updatedMessages = [...prevMessages];
         
-        // Check if this message is a duplicate
-        const contentHash = aiResponse.content.substring(0, 100);
-        const isDuplicate = updatedMessages.some(msg => 
-          msg.role === 'assistant' && msg.content.substring(0, 100) === contentHash
-        );
-        
-        if (isDuplicate) {
-          console.log('Skipping duplicate AI response');
-          return updatedMessages;
-        }
-        
         // Skip system metadata objects that shouldn't be displayed
         if (typeof aiResponse.content === 'string' && 
             (aiResponse.content.includes('"conversation_started":') || 
@@ -585,17 +559,6 @@ function Learning() {
       setMessages(prevMessages => {
         // Create a new array with all previous messages
         const updatedMessages = [...prevMessages];
-        
-        // Check if this message is a duplicate
-        const contentHash = aiResponse.content.substring(0, 100);
-        const isDuplicate = updatedMessages.some(msg => 
-          msg.role === 'assistant' && msg.content.substring(0, 100) === contentHash
-        );
-        
-        if (isDuplicate) {
-          console.log('Skipping duplicate AI response');
-          return updatedMessages;
-        }
         
         // Skip system metadata objects that shouldn't be displayed
         if (typeof aiResponse.content === 'string' && 
@@ -1188,4 +1151,4 @@ function Learning() {
   );
 }
 
-export default Learning; 
+export default Learning;
