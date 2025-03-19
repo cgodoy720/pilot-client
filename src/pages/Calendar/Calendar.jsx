@@ -32,8 +32,9 @@ function Calendar() {
         
         // Convert curriculum days to FullCalendar events
         const calendarEvents = data.map(day => {
+          console.log('Day data from API:', day); // Log the individual day data
           return {
-            id: day.id,
+            id: day.id, // Use id which matches the database column name
             title: `Day ${day.day_number}: ${day.daily_goal}`,
             date: day.day_date,
             allDay: true,
@@ -44,6 +45,8 @@ function Calendar() {
             }
           };
         });
+        
+        console.log('Calendar events data:', calendarEvents);
         
         setEvents(calendarEvents);
       } catch (error) {
@@ -58,8 +61,14 @@ function Calendar() {
   }, [token]);
 
   const handleEventClick = (clickInfo) => {
-    // Navigate to the Learning page with the selected day's ID
-    navigate(`/learning?dayId=${clickInfo.event.id}`);
+    console.log('Event clicked:', clickInfo.event);
+    console.log('Event ID:', clickInfo.event.id);
+    console.log('Event extendedProps:', clickInfo.event.extendedProps);
+    
+    // Navigate to the PastSession page with the selected day's ID as a query parameter
+    const targetUrl = `/past-session?dayId=${clickInfo.event.id}`;
+    console.log('Navigating to:', targetUrl);
+    navigate(targetUrl);
   };
 
   if (isLoading) {
