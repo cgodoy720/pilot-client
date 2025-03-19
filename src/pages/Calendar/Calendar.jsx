@@ -1,26 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar as BigCalendar, dateFnsLocalizer } from 'react-big-calendar';
 import { useNavigate } from 'react-router-dom';
-import format from 'date-fns/format';
-import parse from 'date-fns/parse';
-import startOfWeek from 'date-fns/startOfWeek';
-import getDay from 'date-fns/getDay';
-import enUS from 'date-fns/locale/en-US';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
 import './Calendar.css';
 import { useAuth } from '../../context/AuthContext';
-
-const locales = {
-  'en-US': enUS
-};
-
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  locales,
-});
 
 function Calendar() {
   const [events, setEvents] = useState([]);
@@ -47,20 +30,18 @@ function Calendar() {
         
         const data = await response.json();
         
-        // Convert curriculum days to calendar events
+        // Convert curriculum days to FullCalendar events
         const calendarEvents = data.map(day => {
-          // Parse the date string to a Date object
-          const date = new Date(day.day_date);
-          
           return {
             id: day.id,
             title: `Day ${day.day_number}: ${day.daily_goal}`,
-            start: date,
-            end: date,
+            date: day.day_date,
             allDay: true,
-            dayNumber: day.day_number,
-            dayType: day.day_type,
-            resource: day // Store the full day object as a resource
+            extendedProps: {
+              dayNumber: day.day_number,
+              dayType: day.day_type,
+              resource: day // Store the full day object
+            }
           };
         });
         
@@ -76,9 +57,9 @@ function Calendar() {
     fetchCurriculumDays();
   }, [token]);
 
-  const handleSelectEvent = (event) => {
+  const handleEventClick = (clickInfo) => {
     // Navigate to the Learning page with the selected day's ID
-    navigate(`/learning?dayId=${event.id}`);
+    navigate(`/learning?dayId=${clickInfo.event.id}`);
   };
 
   if (isLoading) {
@@ -106,15 +87,21 @@ function Calendar() {
       <div className="calendar__content">
         <div className="calendar-container">
           <div className="calendar-view">
-            <BigCalendar
-              localizer={localizer}
+            <FullCalendar
+              plugins={[dayGridPlugin]}
+              initialView="dayGridMonth"
+              headerToolbar={{
+                left: 'prev,next today',
+                center: 'title',
+                right: ''
+              }}
               events={events}
-              startAccessor="start"
-              endAccessor="end"
-              style={{ height: 'calc(100vh - 120px)' }}
-              className="dark-calendar"
-              onSelectEvent={handleSelectEvent}
-              tooltipAccessor={(event) => `${event.title}\nClick to view tasks`}
+              eventClick={handleEventClick}
+              eventDidMount={(info) => {
+                // Add tooltip
+                info.el.title = `${info.event.title}\nClick to view tasks`;
+              }}
+              height="calc(100vh - 120px)"
             />
           </div>
         </div>
