@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaCalendarAlt } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
@@ -20,6 +20,9 @@ function PastSession() {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [isPastSession, setIsPastSession] = useState(true);
 
+  // After the existing useEffects, add a new one to fetch task details
+  const fetchedTasksRef = useRef(new Set());
+  
   useEffect(() => {
     const fetchDaySchedule = async () => {
       if (!dayId) {
@@ -32,7 +35,7 @@ function PastSession() {
       
       try {
         setIsLoading(true);
-        const apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/days/${dayId}/schedule`;
+        const apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/days/${dayId}/full-details`;
         console.log('API URL:', apiUrl);
         
         const response = await fetch(apiUrl, {
@@ -44,145 +47,39 @@ function PastSession() {
         console.log('API Response status:', response.status);
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch day schedule: ${response.status} ${response.statusText}`);
+          throw new Error(`Failed to fetch day details: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
-        console.log('Day schedule data:', data);
+        console.log('Full day details data:', data);
+        
+        // Set day schedule data
         setDaySchedule(data);
         
-        // We'll handle tasks in a separate useEffect
+        // Set tasks data directly from the response
+        if (data.flattenedTasks && Array.isArray(data.flattenedTasks)) {
+          console.log('Setting tasks from full-details response:', data.flattenedTasks.length);
+          setTasks(data.flattenedTasks);
+          setTasksLoading(false);
+        } else {
+          console.log('No flattened tasks found in response');
+          // Fallback to processing from timeBlocks if needed
+          processTasksFromTimeBlocks(data);
+        }
       } catch (error) {
-        console.error('Error fetching day schedule:', error);
-        setError('Failed to load the day schedule. Please try again later.');
+        console.error('Error fetching day details:', error);
+        setError('Failed to load the day details. Please try again later.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchDaySchedule();
-  }, [dayId, token]);
-
-  // New useEffect to fetch tasks for the selected day
-  useEffect(() => {
-    const fetchDayTasks = async () => {
-      if (!dayId) return;
-      
-      try {
-        setTasksLoading(true);
-        console.log('Fetching tasks for dayId:', dayId);
-        const apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/days/${dayId}/tasks`;
-        
-        const response = await fetch(apiUrl, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch day tasks: ${response.status} ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        console.log('Day tasks data:', data);
-        
-        // Look for task 703 specifically
-        const task703 = data.find(task => task.id === 703 || task.task_id === 703);
-        if (task703) {
-          console.log('FOUND TASK 703:', task703);
-          console.log('TASK 703 linked_resources:', task703.linked_resources);
-          console.log('TASK 703 linked_resource:', task703.linked_resource);
-          console.log('TASK 703 resources:', task703.resources);
-        }
-        
-        // Process the tasks data
-        if (data && Array.isArray(data)) {
-          const formattedTasks = data.map(task => {
-            // Determine which resources field to use and process it accordingly
-            let taskResources = [];
-            
-            if (task.resources && Array.isArray(task.resources) && task.resources.length > 0) {
-              taskResources = task.resources;
-            } else if (task.linked_resources) {
-              // Handle linked_resources field
-              if (typeof task.linked_resources === 'string') {
-                try {
-                  // Try to parse if it's a JSON string
-                  const parsed = JSON.parse(task.linked_resources);
-                  taskResources = Array.isArray(parsed) ? parsed : [parsed];
-                } catch (e) {
-                  // If not parseable JSON, assume it's a URL
-                  taskResources = [{
-                    title: 'Resource Link',
-                    url: task.linked_resources,
-                    type: 'link'
-                  }];
-                }
-              } else if (typeof task.linked_resources === 'object') {
-                // If it's already an object, use it directly
-                taskResources = Array.isArray(task.linked_resources) ? 
-                  task.linked_resources : [task.linked_resources];
-              }
-            } else if (task.linked_resource) {
-              // Handle linked_resource field
-              if (typeof task.linked_resource === 'string') {
-                try {
-                  // Try to parse if it's a JSON string
-                  const parsed = JSON.parse(task.linked_resource);
-                  taskResources = Array.isArray(parsed) ? parsed : [parsed];
-                } catch (e) {
-                  // If not parseable JSON, assume it's a URL
-                  taskResources = [{
-                    title: 'Resource Link',
-                    url: task.linked_resource,
-                    type: 'link'
-                  }];
-                }
-              } else if (typeof task.linked_resource === 'object') {
-                // If it's already an object, use it directly
-                taskResources = Array.isArray(task.linked_resource) ? 
-                  task.linked_resource : [task.linked_resource];
-              }
-            }
-            
-            return {
-              id: task.id || task.task_id,
-              title: task.title || task.task_title,
-              description: task.description || task.task_description,
-              type: task.type || task.task_type || 'individual',
-              blockTime: task.blockTime || `${task.start_time ? new Date(task.start_time).toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit'
-              }) : ''} ${task.end_time ? '- ' + new Date(task.end_time).toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit'
-              }) : ''}`,
-              blockTitle: task.blockTitle || task.block_title || '',
-              completed: task.completed || false,
-              resources: taskResources
-            };
-          });
-          
-          setTasks(formattedTasks);
-        } else {
-          // If API returned non-array data, fall back to processing from timeBlocks
-          processTasksFromTimeBlocks();
-        }
-      } catch (error) {
-        console.error('Error fetching day tasks:', error);
-        // If tasks API fails, process tasks from schedule as a fallback
-        processTasksFromTimeBlocks();
-      } finally {
-        setTasksLoading(false);
-      }
-    };
-    
-    // Helper function to process tasks from timeBlocks
-    const processTasksFromTimeBlocks = () => {
-      if (!daySchedule || !daySchedule.timeBlocks) return;
+    // Helper function to process tasks from timeBlocks if needed
+    const processTasksFromTimeBlocks = (data) => {
+      if (!data || !data.timeBlocks) return;
       
       const allTasks = [];
-      daySchedule.timeBlocks.forEach(block => {
+      data.timeBlocks.forEach(block => {
         if (block.tasks && block.tasks.length > 0) {
           block.tasks.forEach(task => {
             // Handle resources and linked_resource fields
@@ -210,33 +107,13 @@ function PastSession() {
                 taskResources = Array.isArray(task.linked_resources) ? 
                   task.linked_resources : [task.linked_resources];
               }
-            } else if (task.linked_resource) {
-              // Handle linked_resource field
-              if (typeof task.linked_resource === 'string') {
-                try {
-                  // Try to parse if it's a JSON string
-                  const parsed = JSON.parse(task.linked_resource);
-                  taskResources = Array.isArray(parsed) ? parsed : [parsed];
-                } catch (e) {
-                  // If not parseable JSON, assume it's a URL
-                  taskResources = [{
-                    title: 'Resource Link',
-                    url: task.linked_resource,
-                    type: 'link'
-                  }];
-                }
-              } else if (typeof task.linked_resource === 'object') {
-                // If it's already an object, use it directly
-                taskResources = Array.isArray(task.linked_resource) ? 
-                  task.linked_resource : [task.linked_resource];
-              }
             }
             
             allTasks.push({
-              id: task.task_id,
-              title: task.task_title,
-              description: task.task_description,
-              type: task.task_type || 'individual',
+              id: task.task_id || task.id,
+              title: task.task_title || task.title,
+              description: task.task_description || task.description,
+              type: task.task_type || task.type || 'individual',
               blockTime: `${new Date(block.start_time).toLocaleTimeString('en-US', {
                 hour: '2-digit',
                 minute: '2-digit'
@@ -244,7 +121,7 @@ function PastSession() {
                 hour: '2-digit',
                 minute: '2-digit'
               })}`,
-              blockTitle: block.block_title,
+              blockTitle: block.block_category || block.block_title || '',
               completed: false,
               resources: taskResources
             });
@@ -253,12 +130,11 @@ function PastSession() {
       });
       
       setTasks(allTasks);
+      setTasksLoading(false);
     };
-    
-    if (daySchedule) {
-      fetchDayTasks();
-    }
-  }, [dayId, token, daySchedule]);
+
+    fetchDaySchedule();
+  }, [dayId, token]);
 
   // Add a new useEffect to fetch messages when a task is selected
   useEffect(() => {
@@ -368,17 +244,28 @@ function PastSession() {
   // After the existing useEffects, add a new one to fetch task details
   useEffect(() => {
     const fetchTaskDetails = async () => {
+      // This function can be simplified now but kept for edge cases
       if (!tasks.length || currentTaskIndex >= tasks.length) return;
       
       const selectedTask = tasks[currentTaskIndex];
       if (!selectedTask?.id) return;
       
-      const selectedTaskId = selectedTask.id;
+      const taskId = selectedTask.id;
+      
+      // Skip if we've already fetched details for this task or if it already has resources
+      if (fetchedTasksRef.current.has(taskId) || 
+          (selectedTask.resources && selectedTask.resources.length > 0)) {
+        console.log('Task already processed, skipping details fetch');
+        return;
+      }
+      
+      // Mark this task as fetched to prevent repeated fetches
+      fetchedTasksRef.current.add(taskId);
       
       try {
-        console.log(`Fetching detailed info for task ID: ${selectedTaskId}`);
+        console.log(`Fetching detailed info for task ID: ${taskId}`);
         
-        const apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/tasks/${selectedTaskId}`;
+        const apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/tasks/${taskId}`;
         const response = await fetch(apiUrl, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -393,7 +280,7 @@ function PastSession() {
         const taskData = await response.json();
         console.log('Task details API response:', taskData);
         
-        // Check if the task has linked_resources or linked_resource
+        // Check if the task has linked_resources
         if (taskData.linked_resources) {
           console.log('Found linked_resources in task details:', taskData.linked_resources);
           
@@ -435,62 +322,19 @@ function PastSession() {
             console.log('Processed resource object:', resourceObj);
             
             // Update the task with the linked_resources
-            const updatedTasks = [...tasks];
-            updatedTasks[currentTaskIndex] = {
-              ...updatedTasks[currentTaskIndex],
-              resources: Array.isArray(resourceObj) ? resourceObj : [resourceObj]
-            };
-            
-            setTasks(updatedTasks);
-          }
-        } else if (taskData.linked_resource) {
-          console.log('Found linked_resource in task details:', taskData.linked_resource);
-          
-          // Process linked_resource to usable format
-          let resourceObj;
-          
-          if (typeof taskData.linked_resource === 'string') {
-            try {
-              // Try to parse if it's a JSON string
-              resourceObj = JSON.parse(taskData.linked_resource);
-              console.log('Successfully parsed linked_resource JSON:', resourceObj);
-            } catch (e) {
-              console.log('linked_resource is not valid JSON, treating as URL');
+            setTasks(prevTasks => {
+              // Find the current index of the task (may have changed since fetch started)
+              const taskIndex = prevTasks.findIndex(t => t.id === taskId);
+              if (taskIndex === -1) return prevTasks;
               
-              // If it's a URL, create a simple resource object
-              if (taskData.linked_resource.startsWith('http')) {
-                resourceObj = {
-                  title: 'Resource Link',
-                  url: taskData.linked_resource,
-                  type: 'link'
-                };
-              } else {
-                // Try to extract a URL if present
-                const urlMatch = taskData.linked_resource.match(/(https?:\/\/[^\s]+)/g);
-                if (urlMatch && urlMatch.length > 0) {
-                  resourceObj = {
-                    title: 'Extracted Resource',
-                    url: urlMatch[0],
-                    type: 'link'
-                  };
-                }
-              }
-            }
-          } else if (typeof taskData.linked_resource === 'object') {
-            resourceObj = taskData.linked_resource;
-          }
-          
-          if (resourceObj) {
-            console.log('Processed resource object:', resourceObj);
-            
-            // Update the task with the linked_resource
-            const updatedTasks = [...tasks];
-            updatedTasks[currentTaskIndex] = {
-              ...updatedTasks[currentTaskIndex],
-              resources: Array.isArray(resourceObj) ? resourceObj : [resourceObj]
-            };
-            
-            setTasks(updatedTasks);
+              const updatedTasks = [...prevTasks];
+              updatedTasks[taskIndex] = {
+                ...updatedTasks[taskIndex],
+                resources: Array.isArray(resourceObj) ? resourceObj : [resourceObj]
+              };
+              
+              return updatedTasks;
+            });
           }
         }
       } catch (error) {
@@ -499,10 +343,9 @@ function PastSession() {
     };
     
     if (tasks.length > 0 && currentTaskIndex < tasks.length) {
-      // Use a ref to track the last fetched task ID to avoid unnecessary refetches
       fetchTaskDetails();
     }
-  }, [currentTaskIndex, token]);
+  }, [currentTaskIndex, token]); // Remove tasks from dependency array
 
   const handleBackToCalendar = () => {
     navigate('/calendar');
