@@ -37,15 +37,14 @@
 }
 
 .past-session__date-display {
-  padding: 8px 12px;
+  padding: 10px 16px;
   background-color: var(--color-background-dark);
   border-radius: 6px;
   margin: 10px 0 15px;
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: var(--color-text-secondary);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
   text-align: center;
-  border-left: 3px solid var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -54,6 +53,7 @@
 
 .past-session__date-display svg {
   color: var(--color-primary);
+  font-size: 1.1rem;
 }
 
 .past-session__date-display p {
@@ -61,11 +61,10 @@
 }
 
 .past-session__goal {
-  margin-top: 20px;
+  margin: 5px 0 15px 0;
   padding: 12px 16px;
   background-color: var(--color-background-dark);
   border-radius: 6px;
-  border-left: 3px solid var(--color-primary);
 }
 
 .past-session__goal h2 {
@@ -191,10 +190,21 @@
 .past-session__task-details h2 {
   font-size: 1.4rem;
   margin-top: 0;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
   color: var(--color-text-primary);
   border-bottom: 1px solid var(--color-border);
   padding-bottom: 10px;
+}
+
+.past-session__task-day {
+  margin-bottom: 15px;
+}
+
+.past-session__task-day p {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  font-style: italic;
 }
 
 .past-session__task-description {
@@ -207,6 +217,21 @@
   color: var(--color-text-secondary);
   margin: 0;
   white-space: pre-wrap;
+}
+
+.past-session__block-title {
+  margin-bottom: 20px;
+  padding: 8px 12px;
+  background-color: var(--color-background-darker);
+  border-radius: 4px;
+  border-left: 3px solid var(--color-primary);
+}
+
+.past-session__block-title p {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+  font-weight: 500;
 }
 
 .past-session__objectives {
@@ -294,7 +319,6 @@
 
   .past-session__goal {
     background-color: #2c2c2c;
-    border-left-color: #3498db;
   }
 
   .past-session__block {
@@ -361,4 +385,97 @@
 .past-session__back-to-calendar:hover {
   background-color: var(--color-primary-transparent);
   border-color: var(--color-primary);
+}
+
+.past-session__messages-container {
+  display: flex;
+  flex-direction: column;
+  margin: 15px;
+  flex: 1;
+}
+
+.past-session__messages-header {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.past-session__messages-header h3 {
+  font-size: 1.1rem;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.past-session__loading-messages {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  padding: 1rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-style: italic;
+  background-color: var(--color-background-dark);
+  border-radius: 6px;
+  border: 1px dashed var(--color-border);
+}
+
+.past-session__message-text p {
+  margin: 0 0 0.5rem 0;
+}
+
+.past-session__message-text p:last-child {
+  margin-bottom: 0;
+}
+
+.past-session__message-disclaimer {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: var(--color-background-darker);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .past-session__messages-container {
+    margin: 10px;
+  }
+  
+  .past-session__loading-messages {
+    min-height: 80px;
+    padding: 0.8rem;
+  }
+}
+
+/* Header with date display */
+.learning__task-header--with-back {
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 0;
+}
+
+.learning__task-header--with-back .past-session__date-display {
+  margin: 0 0 5px 0;
+  width: 100%;
+  border-radius: 4px;
+}
+
+.back-to-calendar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: var(--color-primary);
+  color: var(--color-text-light);
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 30px auto 30px auto;
+  width: fit-content;
 } 
