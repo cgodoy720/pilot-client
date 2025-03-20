@@ -4,6 +4,88 @@ import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaCalendarAlt } from 'reac
 import { useAuth } from '../../context/AuthContext';
 import './PastSession.css';
 
+// Add CSS styles near the top of the file after the imports
+const resourceStyles = `
+  .past-session__task-resources-container {
+    margin: 1rem;
+    width: calc(100% - 2rem);
+  }
+
+  .past-session__task-resources {
+    margin: 0;
+    padding: 1.25rem;
+    background-color: var(--color-background-dark, #181c28);
+    border-radius: 8px;
+    border-left: 4px solid var(--color-primary, #4242ea);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .past-session__task-resources h3 {
+    margin-top: 0;
+    margin-bottom: 1.25rem;
+    color: var(--color-text-primary, #ffffff);
+    font-size: 1.25rem;
+    border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+    padding-bottom: 0.75rem;
+  }
+
+  .past-session__resource-group ul {
+    list-style-type: none;
+    padding-left: 0;
+    margin-bottom: 0;
+  }
+
+  .past-session__resource-group li {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.05));
+  }
+
+  .past-session__resource-group li:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .past-session__resource-group a {
+    color: var(--color-primary, #4242ea);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.05rem;
+    display: inline-block;
+    padding: 4px 0;
+    transition: color 0.2s ease, transform 0.2s ease;
+  }
+
+  .past-session__resource-group a:hover {
+    text-decoration: underline;
+    color: var(--color-primary-hover, #5555ff);
+    transform: translateX(2px);
+  }
+
+  .resource-description {
+    margin-top: 0.4rem;
+    margin-bottom: 0.4rem;
+    font-size: 0.9rem;
+    color: var(--color-text-secondary, #a0a0a0);
+    line-height: 1.4;
+  }
+
+  .past-session__no-resources {
+    margin: 1rem;
+    padding: 1.25rem;
+    background-color: var(--color-background-dark, #181c28);
+    border-radius: 8px;
+    text-align: center;
+  }
+
+  .past-session__no-resources p {
+    color: var(--color-text-secondary, #a0a0a0);
+    font-size: 0.95rem;
+    margin: 0;
+  }
+`;
+
 function PastSession() {
   const [searchParams] = useSearchParams();
   const dayId = searchParams.get('dayId');
@@ -452,7 +534,7 @@ function PastSession() {
     
     return (
       <div className="past-session__task-resources">
-        <h3>Resources</h3>
+        <h3>Learning Resources</h3>
         {Object.entries(groupedResources).map(([type, typeResources]) => (
           <div key={type} className="past-session__resource-group">
             <ul>
@@ -528,6 +610,7 @@ function PastSession() {
 
   return (
     <div className="learning">
+      <style>{resourceStyles}</style>
       <div className="learning__content">
         <div className="learning__task-panel">
           <div className="learning__task-header learning__task-header--with-back">
@@ -590,33 +673,15 @@ function PastSession() {
               <div className="past-session__loading-details">
                 <p>Loading task details...</p>
               </div>
-            ) : tasks.length > 0 && (
-              <div className="past-session__task-details">
-                <h2>{tasks[currentTaskIndex]?.title}</h2>
-                
-                {tasks[currentTaskIndex]?.description && (
-                  <div className="past-session__task-description">
-                    <p>{tasks[currentTaskIndex].description}</p>
-                  </div>
-                )}
-                
-                {tasks[currentTaskIndex]?.blockTitle && (
-                  <div className="past-session__block-title">
-                    <p>Block: {tasks[currentTaskIndex].blockTitle}</p>
-                  </div>
-                )}
-                
-                {console.log('Current task:', tasks[currentTaskIndex])}
-                {console.log('Current task ID:', tasks[currentTaskIndex]?.id)}
-                {console.log('Current task resources:', tasks[currentTaskIndex]?.resources)}
-                
-                {tasks[currentTaskIndex]?.resources && tasks[currentTaskIndex].resources.length > 0 && (
-                  <div className="past-session__task-resources-container">
-                    {renderTaskResources(tasks[currentTaskIndex].resources)}
-                  </div>
-                )}
+            ) : tasks.length > 0 && tasks[currentTaskIndex]?.resources && tasks[currentTaskIndex].resources.length > 0 ? (
+              <div className="past-session__task-resources-container">
+                {renderTaskResources(tasks[currentTaskIndex].resources)}
               </div>
-            )}
+            ) : tasks.length > 0 ? (
+              <div className="past-session__no-resources">
+                <p>No resources available for this task.</p>
+              </div>
+            ) : null}
             
             {/* Message display area - updated to show messages */}
             <div className="past-session__messages-container">
