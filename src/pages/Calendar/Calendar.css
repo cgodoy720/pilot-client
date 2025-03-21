@@ -28,96 +28,88 @@
   height: 100%;
 }
 
-/* Override react-big-calendar styles */
-.rbc-calendar {
+.loading-message,
+.error-message {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: var(--color-text-primary);
+}
+
+/* FullCalendar overrides */
+.fc {
   font-family: inherit;
-  color: var(--color-text-primary);
+  height: 100%;
 }
 
-.rbc-toolbar {
+.fc .fc-toolbar-title {
   color: var(--color-text-primary);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  margin: 0;
 }
 
-.rbc-toolbar button {
-  color: var(--color-text-primary);
+.fc .fc-toolbar {
+  position: relative;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fc .fc-button-primary {
   background-color: var(--color-background-darker);
-  border: 1px solid var(--color-border);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
 }
 
-.rbc-toolbar button:hover {
+.fc .fc-button-primary:hover {
   background-color: var(--color-background-darker);
-}
-
-.rbc-toolbar button.rbc-active {
-  background-color: var(--color-primary);
-  color: white;
   border-color: var(--color-primary);
 }
 
-.rbc-toolbar button.rbc-active:hover {
-  background-color: var(--color-primary-hover);
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
 }
 
-.rbc-month-view, 
-.rbc-time-view, 
-.rbc-agenda-view {
-  background-color: var(--color-background-dark);
-  border: 1px solid var(--color-border);
-}
-
-.rbc-month-row, 
-.rbc-day-bg, 
-.rbc-header, 
-.rbc-time-header, 
-.rbc-time-content,
-.rbc-agenda-table {
+.fc-theme-standard .fc-scrollgrid {
   border-color: var(--color-border);
 }
 
-.rbc-off-range-bg {
-  background-color: var(--color-background-darker);
+.fc-theme-standard td,
+.fc-theme-standard th {
+  border-color: var(--color-border);
 }
 
-.rbc-header, 
-.rbc-agenda-date-cell, 
-.rbc-agenda-time-cell {
+.fc .fc-daygrid-day-number {
   color: var(--color-text-primary);
 }
 
-.rbc-event {
-  background-color: var(--color-primary);
-  border-color: var(--color-primary-hover);
+.fc .fc-col-header-cell-cushion {
+  color: var(--color-text-primary);
 }
 
-.rbc-event.rbc-selected {
-  background-color: var(--color-primary-hover);
-}
-
-.rbc-today {
+.fc .fc-daygrid-day.fc-day-today {
   background-color: rgba(66, 66, 234, 0.1);
 }
 
-.rbc-day-slot .rbc-time-slot {
-  border-color: var(--color-border);
-}
-
-.rbc-time-content > * + * > * {
-  border-color: var(--color-border);
-}
-
-.rbc-timeslot-group {
-  border-color: var(--color-border);
-}
-
-.rbc-time-gutter,
-.rbc-label {
-  color: var(--color-text-primary);
-}
-
-.rbc-day-slot .rbc-time-slot {
-  border-color: rgba(255, 255, 255, 0.05);
-}
-
-.rbc-current-time-indicator {
+.fc-event {
   background-color: var(--color-primary);
+  border-color: var(--color-primary-hover);
+  cursor: pointer;
+}
+
+.fc-event-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fc-daygrid-day-events {
+  min-height: auto !important;
 } 

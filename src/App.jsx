@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import GPT from './pages/GPT/GPT';
 import Calendar from './pages/Calendar/Calendar';
 import Learning from './pages/Learning/Learning';
+import PastSession from './pages/PastSession/PastSession';
 import { useAuth } from './context/AuthContext';
 import './App.css';
 
@@ -35,6 +36,7 @@ function App() {
         <Route path="/gpt" element={<GPT />} />
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/learning" element={<Learning />} />
+        <Route path="/past-session" element={<PastSession />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Layout>
