@@ -45,6 +45,18 @@
 
 .fc .fc-toolbar-title {
   color: var(--color-text-primary);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  margin: 0;
+}
+
+.fc .fc-toolbar {
+  position: relative;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .fc .fc-button-primary {

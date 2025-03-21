@@ -22,11 +22,15 @@ const resourceStyles = `
 
   .past-session__task-resources h3 {
     margin-top: 0;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
     color: var(--color-text-primary, #ffffff);
     font-size: 1.25rem;
     border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-    padding-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .past-session__resource-group {
+    margin-bottom: 0;
   }
 
   .past-session__resource-group ul {
@@ -36,8 +40,8 @@ const resourceStyles = `
   }
 
   .past-session__resource-group li {
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.25rem;
     border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.05));
   }
 
@@ -53,7 +57,7 @@ const resourceStyles = `
     font-weight: 600;
     font-size: 1.05rem;
     display: inline-block;
-    padding: 4px 0;
+    padding: 2px 0;
     transition: color 0.2s ease, transform 0.2s ease;
   }
 
@@ -83,6 +87,38 @@ const resourceStyles = `
     color: var(--color-text-secondary, #a0a0a0);
     font-size: 0.95rem;
     margin: 0;
+  }
+
+  .past-session__messages-container {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding-bottom: 0px; /* Removed bottom padding */
+    min-height: 200px;
+  }
+
+  .past-session__message-disclaimer {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin-top: 10px; /* Reduced margin */
+    padding: 0 16px; /* Removed vertical padding */
+    height: 36px; /* Set a fixed height */
+    background-color: var(--color-background-darker, #111827);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: var(--color-text-primary, #ffffff);
+    text-align: center;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+    border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+    z-index: 10;
+  }
+
+  .past-session__message-disclaimer p {
+    margin: 0;
+    font-weight: 500;
+    line-height: 36px; /* Match the height of the container for vertical centering */
   }
 `;
 
@@ -298,7 +334,7 @@ function PastSession() {
     if (tasks.length > 0 && currentTaskIndex < tasks.length) {
       fetchTaskMessages();
     }
-  }, [currentTaskIndex, token]);
+  }, [currentTaskIndex, token, tasks]);
 
   useEffect(() => {
     if (daySchedule && daySchedule.day && daySchedule.day.day_date) {
@@ -543,9 +579,6 @@ function PastSession() {
                   <a href={resource.url} target="_blank" rel="noopener noreferrer">
                     {resource.title || 'Resource Link'}
                   </a>
-                  {resource.description && (
-                    <p className="resource-description">{resource.description}</p>
-                  )}
                 </li>
               ))}
             </ul>
