@@ -33,10 +33,15 @@ function Calendar() {
         // Convert curriculum days to FullCalendar events
         const calendarEvents = data.map(day => {
           console.log('Day data from API:', day); // Log the individual day data
+
+          // Create a date string without time portion to avoid timezone issues
+          // This ensures the date is displayed exactly as stored in the database
+          const dayDate = day.day_date.split('T')[0]; // Extract just the YYYY-MM-DD part
+          
           return {
             id: day.id, // Use id which matches the database column name
             title: `Day ${day.day_number}: ${day.daily_goal}`,
-            date: day.day_date,
+            date: dayDate, // Use just the date portion without time
             allDay: true,
             extendedProps: {
               dayNumber: day.day_number,
@@ -67,7 +72,7 @@ function Calendar() {
     
     // Navigate to the PastSession page with the day_number as the query parameter instead of ID
     const dayNumber = clickInfo.event.extendedProps.dayNumber;
-    const targetUrl = `/past-session?dayId=${dayNumber}`;
+    const targetUrl = `/past-session?dayNumber=${dayNumber}`;
     console.log('Navigating to:', targetUrl);
     navigate(targetUrl);
   };
