@@ -54,10 +54,10 @@ const Layout = ({ children }) => {
             <ChatIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">GPT-4-TURBO</span>}
           </Link>
-          {/* <Link to="/calendar" className="layout__nav-item">
+          <Link to="/calendar" className="layout__nav-item">
             <CalendarMonthIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Calendar</span>}
-          </Link> */}
+          </Link>
         </div>
 
         <div className="layout__bottom-links">
