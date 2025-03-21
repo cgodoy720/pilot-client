@@ -644,12 +644,24 @@ function PastSession() {
   }
 
   const { day } = daySchedule;
-  const formattedDate = new Date(day.day_date).toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+
+  // Format date in Eastern Time (EST/EDT) regardless of user's local time zone
+  // Create a formatter that explicitly uses the America/New_York time zone
+  const formatDateInET = (dateString) => {
+    // This creates a date object and formats it specifically for Eastern Time
+    // Ensures consistent display for all users regardless of their local time zone
+    const options = {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'America/New_York'
+    };
+    
+    return new Date(dateString).toLocaleDateString('en-US', options);
+  };
+
+  const formattedDate = formatDateInET(day.day_date);
 
   return (
     <div className="learning">
