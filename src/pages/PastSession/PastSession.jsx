@@ -645,17 +645,13 @@ function PastSession() {
 
   const { day } = daySchedule;
 
-  // Extract just the date portion (YYYY-MM-DD) to avoid timezone issues
-  // This ensures the date is displayed exactly as stored in the database
-  const dateWithoutTime = day.day_date.split('T')[0];
-
-  // Now create a date object using this string, which will be interpreted in the local timezone
-  // but since we removed the time portion, it will display the correct date
-  const formattedDate = new Date(dateWithoutTime).toLocaleDateString('en-US', {
+  // Force the date to be interpreted in UTC to match what's in the database
+  const formattedDate = new Date(day.day_date).toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone: 'UTC'  // This is the key - interpret the date in UTC
   });
 
   return (
