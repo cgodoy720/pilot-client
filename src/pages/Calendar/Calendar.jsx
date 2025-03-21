@@ -65,8 +65,9 @@ function Calendar() {
     console.log('Event ID:', clickInfo.event.id);
     console.log('Event extendedProps:', clickInfo.event.extendedProps);
     
-    // Navigate to the PastSession page with the selected day's ID as a query parameter
-    const targetUrl = `/past-session?dayId=${clickInfo.event.id}`;
+    // Navigate to the PastSession page with the day_number as the query parameter instead of ID
+    const dayNumber = clickInfo.event.extendedProps.dayNumber;
+    const targetUrl = `/past-session?dayId=${dayNumber}`;
     console.log('Navigating to:', targetUrl);
     navigate(targetUrl);
   };
