@@ -645,23 +645,18 @@ function PastSession() {
 
   const { day } = daySchedule;
 
-  // Format date in Eastern Time (EST/EDT) regardless of user's local time zone
-  // Create a formatter that explicitly uses the America/New_York time zone
-  const formatDateInET = (dateString) => {
-    // This creates a date object and formats it specifically for Eastern Time
-    // Ensures consistent display for all users regardless of their local time zone
-    const options = {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'America/New_York'
-    };
-    
-    return new Date(dateString).toLocaleDateString('en-US', options);
-  };
+  // Extract just the date portion (YYYY-MM-DD) to avoid timezone issues
+  // This ensures the date is displayed exactly as stored in the database
+  const dateWithoutTime = day.day_date.split('T')[0];
 
-  const formattedDate = formatDateInET(day.day_date);
+  // Now create a date object using this string, which will be interpreted in the local timezone
+  // but since we removed the time portion, it will display the correct date
+  const formattedDate = new Date(dateWithoutTime).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
 
   return (
     <div className="learning">
