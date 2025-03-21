@@ -125,6 +125,7 @@ const resourceStyles = `
 function PastSession() {
   const [searchParams] = useSearchParams();
   const dayId = searchParams.get('dayId');
+  const dayNumber = searchParams.get('dayNumber');
   const { token } = useAuth();
   const navigate = useNavigate();
   
@@ -143,18 +144,27 @@ function PastSession() {
   
   useEffect(() => {
     const fetchDaySchedule = async () => {
-      if (!dayId) {
-        setError('No day ID provided');
+      // Check if we have either dayId or dayNumber
+      if (!dayId && !dayNumber) {
+        setError('No day identifier provided');
         setIsLoading(false);
         return;
       }
 
-      console.log('Fetching day schedule with dayId:', dayId);
+      console.log('Fetching day schedule with:', { dayId, dayNumber });
       
       try {
         setIsLoading(true);
-        const apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/days/${dayId}/full-details`;
-        console.log('API URL:', apiUrl);
+        
+        // Choose the appropriate API URL based on available parameters
+        let apiUrl;
+        if (dayNumber) {
+          apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/days/number/${dayNumber}/full-details`;
+          console.log('Using day_number API URL:', apiUrl);
+        } else {
+          apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/days/${dayId}/full-details`;
+          console.log('Using day ID API URL:', apiUrl);
+        }
         
         const response = await fetch(apiUrl, {
           headers: {
@@ -252,7 +262,7 @@ function PastSession() {
     };
 
     fetchDaySchedule();
-  }, [dayId, token]);
+  }, [dayId, dayNumber, token]);
 
   // Add a new useEffect to fetch messages when a task is selected
   useEffect(() => {
