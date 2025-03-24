@@ -1,6 +1,33 @@
 /* Import the Learning.css styles */
 @import url('../Learning/Learning.css');
 
+/* Override the user message styles to prevent the edit tooltip from showing on PastSession */
+.past-session .learning__messages .learning__message--user .learning__message-content:hover::after {
+  content: none !important; /* Remove the tooltip */
+  display: none !important; /* Ensure it's hidden */
+}
+
+.past-session .learning__messages .learning__message--user .learning__message-content {
+  cursor: default !important; /* Use default cursor instead of pointer */
+  transition: none !important; /* Disable hover transitions */
+  pointer-events: auto !important; /* Allow clicks for scrolling but don't trigger edit */
+}
+
+.past-session .learning__messages .learning__message--user .learning__message-content:hover {
+  background-color: var(--color-primary) !important; /* Keep the original background color */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important; /* Keep the original shadow */
+  transform: none !important; /* Disable hover transform */
+}
+
+.past-session .learning__messages .learning__message--user .learning__message-content:active {
+  transform: none !important; /* Disable active transform */
+}
+
+/* Add a specific class for the past session messages to make styles easier to maintain */
+.past-session__messages .learning__message-content {
+  cursor: default !important;
+}
+
 .past-session {
   max-width: 1200px;
   margin: 0 auto;
@@ -487,12 +514,29 @@
   gap: var(--spacing-xs);
   padding: var(--spacing-xs) var(--spacing-sm);
   background-color: var(--color-primary);
-  color: var(--color-text-light);
+  color: white;
   border: none;
   border-radius: 4px;
   font-size: 0.9rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
   margin: 30px auto 30px auto;
   width: fit-content;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.back-to-calendar-btn:hover {
+  background-color: var(--color-primary-hover, #5555ff);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.back-to-calendar-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.back-to-calendar-btn svg {
+  color: white;
 } 

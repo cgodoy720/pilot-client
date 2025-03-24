@@ -62,10 +62,42 @@
   animation: fadeIn 0.3s ease-in;
 }
 
+/* User message styles with interactive indicators */
 .learning__message--user {
   margin-left: auto !important;
   margin-right: 0 !important;
   flex-direction: row-reverse !important;
+  position: relative;
+}
+
+/* Hover effect on user messages */
+.learning__message--user .learning__message-content:hover {
+  background-color: var(--color-primary-hover, #5555ff);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Active/pressed state */
+.learning__message--user .learning__message-content:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Add a subtle "editable" indicator on hover */
+.learning__message--user .learning__message-content:hover::after {
+  content: "Click to edit";
+  position: absolute;
+  bottom: -20px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0.9;
+  pointer-events: none; /* Prevent it from interfering with clicks */
+  transition: opacity 0.2s ease;
+  z-index: 10;
 }
 
 .learning__message--assistant {
@@ -98,6 +130,7 @@
   max-width: 100%;
   background-color: var(--color-background-darker);
   color: var(--color-text-primary);
+  position: relative;
 }
 
 .learning__message--user .learning__message-content {
@@ -106,6 +139,14 @@
   border-top-right-radius: 2px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   text-align: left;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.learning__message--user .learning__message-content:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .learning__message--assistant .learning__message-content {
@@ -1105,4 +1146,169 @@
 .no-tasks-message p {
   margin: 0.5rem 0;
   color: #666;
+}
+
+/* Message edit button */
+.learning__message-edit-btn {
+  display: none;
+}
+
+/* Only show edit button on the specific message being hovered */
+.learning__message--user:hover .learning__message-edit-btn {
+  opacity: 1;
+}
+
+/* On touch devices, show the edit button with lower opacity when not hovered */
+@media (hover: none) {
+  .learning__message--user .learning__message-content:active::after {
+    content: "Tap to edit";
+    position: absolute;
+    bottom: -20px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    opacity: 0.9;
+    z-index: 10;
+  }
+  
+  .learning__message--user .learning__message-content:hover::after {
+    /* Hide the hover tooltip on touch devices */
+    display: none;
+  }
+}
+
+/* Edit form */
+.learning__message-edit {
+  width: 100%;
+  padding: 4px 0;
+}
+
+.learning__edit-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 12px;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  background-color: var(--color-background-lighter, #2a2f3e);
+  color: var(--color-text-primary, #ffffff);
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  resize: vertical;
+  margin-bottom: 8px;
+  transition: border-color 0.2s ease;
+}
+
+.learning__edit-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary, #4242ea);
+  box-shadow: 0 0 0 2px rgba(66, 66, 234, 0.2);
+}
+
+.learning__edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.learning__edit-save-btn,
+.learning__edit-cancel-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.learning__edit-save-btn {
+  background-color: var(--color-primary, #4242ea);
+  color: white;
+  border: none;
+}
+
+.learning__edit-save-btn:hover {
+  background-color: var(--color-primary-hover, #5555ff);
+  transform: scale(1.05);
+}
+
+.learning__edit-cancel-btn {
+  background-color: var(--color-background, #212534);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  color: var(--color-text-secondary, #a0a0a0);
+}
+
+.learning__edit-cancel-btn:hover {
+  background-color: var(--color-background-lighter, #2a2f3e);
+  color: var(--color-text-primary, #ffffff);
+  transform: scale(1.05);
+}
+
+.learning__edit-save-btn:disabled,
+.learning__edit-cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Edited indicator */
+.learning__message-edited-indicator {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #a0a0a0);
+  margin-left: 8px;
+  font-style: italic;
+  display: inline-block;
+  margin-top: 4px;
+}
+
+/* Add this class for user messages being edited */
+.learning__message--user .learning__message-edit {
+  position: relative;
+  z-index: 2;
+}
+
+/* Prevent the edit tooltip from showing when any message is being edited */
+.learning__message--user .learning__message-content:hover::after {
+  content: "Click to edit";
+  position: absolute;
+  bottom: -20px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0.9;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 10;
+  display: var(--show-edit-tooltip, block);
+}
+
+/* Custom property to control tooltip visibility based on edit state */
+:root {
+  --show-edit-tooltip: block;
+}
+
+/* When any message is being edited, hide the tooltip globally */
+.learning__messages.has-editing-message .learning__message--user .learning__message-content:hover::after {
+  display: none;
+}
+
+/* When editing a specific message, change its cursor and visual style */
+.learning__message--user.editing .learning__message-content {
+  cursor: default; /* Remove the pointer cursor when in edit mode */
+  box-shadow: 0 0 0 2px var(--color-primary-hover, #5555ff);
+}
+
+/* Stop hover effects on messages while in edit mode */
+.learning__message--user.editing .learning__message-content:hover {
+  transform: none;
+  background-color: var(--color-primary);
 } 

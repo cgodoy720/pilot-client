@@ -613,7 +613,7 @@ function PastSession() {
 
   if (isLoading) {
     return (
-      <div className="learning">
+      <div className="learning past-session">
         <div className="learning__content">
           <div className="learning__chat-container">
             <div className="learning__loading">
@@ -627,7 +627,7 @@ function PastSession() {
 
   if (error || !daySchedule) {
     return (
-      <div className="learning">
+      <div className="learning past-session">
         <div className="learning__content">
           <div className="learning__chat-container">
             <div className="learning__error">
@@ -655,7 +655,7 @@ function PastSession() {
   });
 
   return (
-    <div className="learning">
+    <div className="learning past-session">
       <style>{resourceStyles}</style>
       <div className="learning__content">
         <div className="learning__task-panel">
