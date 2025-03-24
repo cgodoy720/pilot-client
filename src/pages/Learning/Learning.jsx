@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt, FaEdit, FaCheck, FaTimes } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -17,6 +17,11 @@ function Learning() {
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isMessagesLoading, setIsMessagesLoading] = useState(false);
   
+  // Add state variables for message editing
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editMessageContent, setEditMessageContent] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  
   // Current day and task data
   const [currentDay, setCurrentDay] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -29,6 +34,7 @@ function Learning() {
   
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  const editTextareaRef = useRef(null);
   
   // Add a debounce mechanism to prevent multiple calls
   const fetchingTasks = {};
@@ -120,6 +126,7 @@ function Learning() {
         // We have existing messages, format and display them
         const formattedMessages = data.messages.map(msg => ({
           id: msg.message_id,
+          message_id: msg.message_id,
           content: typeof msg.content === 'object' ? JSON.stringify(msg.content) : msg.content,
           role: msg.role,
           timestamp: msg.timestamp
@@ -463,8 +470,10 @@ function Learning() {
     }
     
     // Add user message to UI immediately
+    const temporaryId = Date.now();
     const userMessage = {
-      id: Date.now(),
+      id: temporaryId,
+      message_id: temporaryId, // Store id as message_id for consistency
       role: 'user',
       content: messageToSend
     };
@@ -498,6 +507,25 @@ function Learning() {
       // Get AI response
       const aiResponseData = await response.json();
       
+      // Extract the user message ID from the response if available
+      // The server might include the user_message_id in its response
+      const userMessageId = aiResponseData.user_message_id;
+      
+      // If the server returned the user message ID, update our state to use it
+      if (userMessageId) {
+        console.log(`User message ID from server: ${userMessageId}, replacing temporary ID: ${temporaryId}`);
+        // Update the user message with the real server ID
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg.id === temporaryId ? 
+              { ...msg, id: userMessageId, message_id: userMessageId } : 
+              msg
+          )
+        );
+      } else {
+        console.log('Server did not return user_message_id, keeping temporary ID');
+      }
+      
       // Regular AI response
       let aiResponse;
       
@@ -505,14 +533,17 @@ function Learning() {
         // Use the actual AI response from the API
         aiResponse = {
           id: aiResponseData.message_id || Date.now() + 1,
+          message_id: aiResponseData.message_id, // Store original message_id for API calls
           role: 'assistant',
           content: typeof aiResponseData.content === 'object' ? JSON.stringify(aiResponseData.content) : aiResponseData.content,
           timestamp: aiResponseData.timestamp || new Date().toISOString()
         };
       } else {
         // Fallback response if API doesn't return expected format
+        const fallbackId = Date.now() + 1;
         aiResponse = {
-          id: Date.now() + 1,
+          id: fallbackId,
+          message_id: fallbackId, // Store id as message_id for consistency
           role: 'assistant',
           content: "I'm processing your message. Could you provide more details or clarify your thoughts?",
           timestamp: new Date().toISOString()
@@ -895,6 +926,155 @@ function Learning() {
     }
   };
 
+  // Add message editing functions after the handleSendMessage function
+  // Handle edit message button click
+  const handleEditMessage = (message) => {
+    console.log('Editing message with full data:', message);
+    
+    // Check if message has an actual server-assigned ID
+    // Some messages might have been generated client-side and only have the timestamp ID
+    const messageId = message.message_id || message.id;
+    console.log('Message ID type:', typeof messageId, 'Value:', messageId);
+    console.log('Message properties:', Object.keys(message).join(', '));
+    
+    // Debug: check if the message has the message_id property
+    if (message.hasOwnProperty('message_id')) {
+      console.log('Message has message_id property:', message.message_id);
+    } else {
+      console.log('Message does NOT have message_id property, using id:', message.id);
+    }
+    
+    // Ensure ID is treated as a string
+    setEditingMessageId(String(messageId));
+    setEditMessageContent(message.content);
+    
+    // Focus the textarea after it's rendered
+    setTimeout(() => {
+      if (editTextareaRef.current) {
+        editTextareaRef.current.focus();
+        
+        // Auto-resize the textarea
+        editTextareaRef.current.style.height = 'auto';
+        editTextareaRef.current.style.height = `${editTextareaRef.current.scrollHeight}px`;
+      }
+    }, 0);
+  };
+
+  // Handle edit message form submission
+  const handleUpdateMessage = async (messageId) => {
+    if (!editMessageContent.trim() || isUpdating) return;
+    
+    console.log('Attempting to update message ID:', messageId, 'Type:', typeof messageId);
+    setIsUpdating(true);
+    
+    try {
+      // Convert messageId to string to ensure consistent handling
+      const messageIdStr = String(messageId);
+      
+      // First, verify the message ID with the server
+      console.log(`Verifying message ID before update: ${messageIdStr}`);
+      const verifiedId = await verifyMessageId(messageIdStr);
+      
+      // Use the verified ID if available, otherwise use the original ID
+      const finalMessageId = verifiedId || messageIdStr;
+      console.log(`Using ID for update: ${finalMessageId} (verified: ${Boolean(verifiedId)})`);
+      
+      const apiUrl = `${import.meta.env.VITE_API_URL}/api/learning/messages/${finalMessageId}`;
+      console.log('Sending PUT request to:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          content: editMessageContent
+        })
+      });
+      
+      console.log('PUT response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error response data:', errorData);
+        throw new Error(errorData.error || 'Failed to update message');
+      }
+      
+      const updatedMessage = await response.json();
+      console.log('Successfully updated message:', updatedMessage);
+      
+      // Update the message in the state
+      // Use the ID returned from the server, not the one we sent
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          String(msg.id) === messageIdStr ? 
+            {
+              ...msg, 
+              id: updatedMessage.message_id, // Use the server's ID
+              message_id: updatedMessage.message_id, // Store both versions for consistency
+              content: updatedMessage.content, 
+              updated: true
+            } : 
+            msg
+        )
+      );
+      
+      // Reset edit state
+      setEditingMessageId(null);
+      setEditMessageContent('');
+      
+      // Show success notification
+      setError('Message updated successfully!');
+      setTimeout(() => setError(''), 3000);
+    } catch (err) {
+      console.error('Error updating message:', err);
+      setError(`Failed to update message: ${err.message}`);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+  
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditMessageContent('');
+  };
+  
+  // Handle edit textarea auto-resize
+  const handleEditTextareaChange = (e) => {
+    setEditMessageContent(e.target.value);
+    
+    if (editTextareaRef.current) {
+      editTextareaRef.current.style.height = 'auto';
+      editTextareaRef.current.style.height = `${editTextareaRef.current.scrollHeight}px`;
+    }
+  };
+
+  // Add a function to fetch a message by ID to verify we have the correct ID
+  const verifyMessageId = async (messageId) => {
+    try {
+      console.log(`Verifying message ID: ${messageId}`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages/${messageId}/verify`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        console.log(`Message verification failed with status: ${response.status}`);
+        return null;
+      }
+      
+      const data = await response.json();
+      console.log(`Message verification result:`, data);
+      return data.message_id;
+    } catch (error) {
+      console.error(`Error verifying message ID:`, error);
+      return null;
+    }
+  };
+
   if (isPageLoading) {
     return <div className="learning loading">Loading learning session...</div>;
   }
@@ -974,11 +1154,51 @@ function Learning() {
               </div>
             )}
             
-            <div className={`learning__messages ${isMessagesLoading ? 'loading' : ''}`}>
+            <div className={`learning__messages ${isMessagesLoading ? 'loading' : ''} ${editingMessageId !== null ? 'has-editing-message' : ''}`}>
               {messages.map(message => (
-                <div key={message.id} className={`learning__message learning__message--${message.role}`}>
-                  <div className={`learning__message-content ${isMessagesLoading && message === messages[messages.length - 1] ? 'learning__message-content--loading' : ''}`}>
-                    {formatMessageContent(message.content)}
+                <div 
+                  key={message.id} 
+                  className={`learning__message learning__message--${message.role} ${String(editingMessageId) === String(message.id) ? 'editing' : ''}`}
+                >
+                  <div 
+                    className={`learning__message-content ${isMessagesLoading && message === messages[messages.length - 1] ? 'learning__message-content--loading' : ''} ${message.role === 'user' ? 'learning__message-content--editable' : ''}`}
+                    onClick={message.role === 'user' && editingMessageId === null ? () => handleEditMessage(message) : undefined}
+                  >
+                    {String(editingMessageId) === String(message.id) ? (
+                      <div className="learning__message-edit">
+                        <textarea
+                          ref={editTextareaRef}
+                          value={editMessageContent}
+                          onChange={handleEditTextareaChange}
+                          className="learning__edit-textarea"
+                          disabled={isUpdating}
+                          placeholder="Edit your message..."
+                        />
+                        <div className="learning__edit-actions">
+                          <button 
+                            onClick={() => handleUpdateMessage(message.id)}
+                            className="learning__edit-save-btn"
+                            disabled={isUpdating}
+                          >
+                            {isUpdating ? 'Saving...' : <FaCheck />}
+                          </button>
+                          <button 
+                            onClick={handleCancelEdit}
+                            className="learning__edit-cancel-btn"
+                            disabled={isUpdating}
+                          >
+                            <FaTimes />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {formatMessageContent(message.content)}
+                        {message.updated && (
+                          <span className="learning__message-edited-indicator">(edited)</span>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
