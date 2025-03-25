@@ -62,18 +62,8 @@ function Learning() {
   
   // Fetch messages for the current task
   const fetchTaskMessages = async (taskId, retryCount = 0) => {
-    // Prevent multiple fetches for the same task within a short time period
-    const now = Date.now();
-    if (fetchingTasks[taskId] && now - fetchingTasks[taskId] < 2000) {
-      console.log(`Skipping duplicate fetch for task ${taskId} - already fetching`);
-      return;
-    }
-    
-    // Mark this task as being fetched
-    fetchingTasks[taskId] = now;
-    
-    // Add a timestamp to prevent duplicate calls
-    const fetchTimestamp = now;
+    // Generate a unique timestamp for this fetch
+    const fetchTimestamp = Date.now();
     fetchTaskMessages.lastFetchTimestamp = fetchTimestamp;
     
     try {
@@ -95,8 +85,16 @@ function Learning() {
       
       console.log(`Fetching messages for task ${taskId} at timestamp ${fetchTimestamp}`);
       
+      // Add dayNumber parameter to the API request if available
+      let apiUrl = `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${taskId}`;
+      
+      if (currentDay && currentDay.day_number) {
+        apiUrl += `?dayNumber=${currentDay.day_number}`;
+        console.log(`Adding dayNumber ${currentDay.day_number} to request`);
+      }
+      
       // First, try to get existing messages
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/task-messages/${taskId}`, {
+      const response = await fetch(apiUrl, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -166,7 +164,8 @@ function Learning() {
               'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-              taskId: taskId
+              taskId: taskId,
+              dayNumber: currentDay?.day_number
             })
           });
           
@@ -461,31 +460,56 @@ function Learning() {
   // Handle sending a message
   const handleSendMessage = async (e) => {
     e.preventDefault();
+    
     if (!newMessage.trim() || isSending) return;
     
-    const messageToSend = newMessage;
+    // Prevent double-clicks
+    setIsSending(true);
     
+    // Store the message locally for optimistic UI update
+    const messageToSend = newMessage.trim();
+    
+    // Clear the input
+    setNewMessage('');
+    
+    // Resize the textarea back to its original size
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
     
-    // Add user message to UI immediately
-    const temporaryId = Date.now();
-    const userMessage = {
-      id: temporaryId,
-      message_id: temporaryId, // Store id as message_id for consistency
-      role: 'user',
-      content: messageToSend
-    };
+    // Create a temporary ID for this message
+    const temporaryId = `temp-${Date.now()}`;
     
-    setMessages(prev => [...prev, userMessage]);
-    setNewMessage('');
-    setIsSending(true);
+    // Optimistically add message to the UI
+    setMessages(prevMessages => [
+      ...prevMessages.filter(msg => msg.id !== 'loading'),
+      {
+        id: temporaryId,
+        content: messageToSend,
+        role: 'user',
+        isTemporary: true
+      }
+    ]);
+    
+    // Show the AI thinking indicator
     setIsAiThinking(true);
     
     try {
       // Get the current task ID
       const currentTaskId = tasks[currentTaskIndex]?.id;
+      
+      // Get day number if available
+      const currentDayNumber = currentDay?.day_number;
+      
+      // Prepare request body with dayNumber if available
+      const requestBody = {
+        content: messageToSend,
+        taskId: currentTaskId
+      };
+      
+      if (currentDayNumber) {
+        requestBody.dayNumber = currentDayNumber;
+      }
       
       // Send message to learning API
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages/continue`, {
@@ -494,10 +518,7 @@ function Learning() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          content: messageToSend,
-          taskId: currentTaskId
-        })
+        body: JSON.stringify(requestBody)
       });
       
       if (!response.ok) {

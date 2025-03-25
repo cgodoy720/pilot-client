@@ -278,7 +278,14 @@ function PastSession() {
         setMessagesLoading(true);
         console.log(`Fetching messages for task ID: ${selectedTaskId}`);
         
-        const apiUrl = `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${selectedTaskId}`;
+        // Add dayNumber parameter to the API request if available
+        let apiUrl = `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${selectedTaskId}`;
+        
+        if (daySchedule && daySchedule.day && daySchedule.day.day_number) {
+          apiUrl += `?dayNumber=${daySchedule.day.day_number}`;
+          console.log(`Adding dayNumber ${daySchedule.day.day_number} to request`);
+        }
+        
         const response = await fetch(apiUrl, {
           headers: {
             'Authorization': `Bearer ${token}`
