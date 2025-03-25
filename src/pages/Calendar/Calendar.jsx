@@ -70,11 +70,22 @@ function Calendar() {
     console.log('Event ID:', clickInfo.event.id);
     console.log('Event extendedProps:', clickInfo.event.extendedProps);
     
-    // Navigate to the PastSession page with the day_number as the query parameter instead of ID
     const dayNumber = clickInfo.event.extendedProps.dayNumber;
-    const targetUrl = `/past-session?dayNumber=${dayNumber}`;
-    console.log('Navigating to:', targetUrl);
-    navigate(targetUrl);
+    
+    // Simple way to check if the clicked date is today
+    const today = new Date();
+    const todayString = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    const clickedDateString = clickInfo.event.startStr; // Already in YYYY-MM-DD format
+    
+    console.log('Today:', todayString, 'Clicked:', clickedDateString);
+    
+    if (clickedDateString === todayString) {
+      // Today - navigate to Learning page
+      navigate(`/learning?dayNumber=${dayNumber}`);
+    } else {
+      // Past or future day - navigate to PastSession page
+      navigate(`/past-session?dayNumber=${dayNumber}`);
+    }
   };
 
   if (isLoading) {

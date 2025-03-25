@@ -763,7 +763,7 @@ function PastSession() {
               <div className="past-session__message-disclaimer">
                 <p>{isPastSession 
                   ? "This is a past session. You cannot send new messages." 
-                  : "This session is scheduled for today or in the future. You can send messages on the scheduled day."}
+                  : "This session is scheduled for the future. You can send messages on the scheduled day."}
                 </p>
               </div>
             </div>
