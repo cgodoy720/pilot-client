@@ -278,7 +278,14 @@ function PastSession() {
         setMessagesLoading(true);
         console.log(`Fetching messages for task ID: ${selectedTaskId}`);
         
-        const apiUrl = `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${selectedTaskId}`;
+        // Add dayNumber parameter to the API request if available
+        let apiUrl = `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${selectedTaskId}`;
+        
+        if (daySchedule && daySchedule.day && daySchedule.day.day_number) {
+          apiUrl += `?dayNumber=${daySchedule.day.day_number}`;
+          console.log(`Adding dayNumber ${daySchedule.day.day_number} to request`);
+        }
+        
         const response = await fetch(apiUrl, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -756,7 +763,7 @@ function PastSession() {
               <div className="past-session__message-disclaimer">
                 <p>{isPastSession 
                   ? "This is a past session. You cannot send new messages." 
-                  : "This session is scheduled for today or in the future. You can send messages on the scheduled day."}
+                  : "This session is scheduled for the future. You can send messages on the scheduled day."}
                 </p>
               </div>
             </div>
