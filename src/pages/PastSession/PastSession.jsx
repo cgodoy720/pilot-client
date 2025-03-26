@@ -1,126 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaCalendarAlt } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes, FaLink, FaExternalLinkAlt } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import './PastSession.css';
-
-// Add CSS styles near the top of the file after the imports
-const resourceStyles = `
-  .past-session__task-resources-container {
-    margin: 1rem;
-    width: calc(100% - 2rem);
-  }
-
-  .past-session__task-resources {
-    margin: 0;
-    padding: 1.25rem;
-    background-color: var(--color-background-dark, #181c28);
-    border-radius: 8px;
-    border-left: 4px solid var(--color-primary, #4242ea);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-
-  .past-session__task-resources h3 {
-    margin-top: 0;
-    margin-bottom: 1rem;
-    color: var(--color-text-primary, #ffffff);
-    font-size: 1.25rem;
-    border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-    padding-bottom: 0.5rem;
-  }
-
-  .past-session__resource-group {
-    margin-bottom: 0;
-  }
-
-  .past-session__resource-group ul {
-    list-style-type: none;
-    padding-left: 0;
-    margin-bottom: 0;
-  }
-
-  .past-session__resource-group li {
-    margin-bottom: 0.5rem;
-    padding-bottom: 0.25rem;
-    border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.05));
-  }
-
-  .past-session__resource-group li:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-  }
-
-  .past-session__resource-group a {
-    color: var(--color-primary, #4242ea);
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 1.05rem;
-    display: inline-block;
-    padding: 2px 0;
-    transition: color 0.2s ease, transform 0.2s ease;
-  }
-
-  .past-session__resource-group a:hover {
-    text-decoration: underline;
-    color: var(--color-primary-hover, #5555ff);
-    transform: translateX(2px);
-  }
-
-  .resource-description {
-    margin-top: 0.4rem;
-    margin-bottom: 0.4rem;
-    font-size: 0.9rem;
-    color: var(--color-text-secondary, #a0a0a0);
-    line-height: 1.4;
-  }
-
-  .past-session__no-resources {
-    margin: 1rem;
-    padding: 1.25rem;
-    background-color: var(--color-background-dark, #181c28);
-    border-radius: 8px;
-    text-align: center;
-  }
-
-  .past-session__no-resources p {
-    color: var(--color-text-secondary, #a0a0a0);
-    font-size: 0.95rem;
-    margin: 0;
-  }
-
-  .past-session__messages-container {
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    padding-bottom: 0px; /* Removed bottom padding */
-    min-height: 200px;
-  }
-
-  .past-session__message-disclaimer {
-    position: sticky;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    margin-top: 10px; /* Reduced margin */
-    padding: 0 16px; /* Removed vertical padding */
-    height: 36px; /* Set a fixed height */
-    background-color: var(--color-background-darker, #111827);
-    border-radius: 8px;
-    font-size: 0.9rem;
-    color: var(--color-text-primary, #ffffff);
-    text-align: center;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
-    border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-    z-index: 10;
-  }
-
-  .past-session__message-disclaimer p {
-    margin: 0;
-    font-weight: 500;
-    line-height: 36px; /* Match the height of the container for vertical centering */
-  }
-`;
 
 function PastSession() {
   const [searchParams] = useSearchParams();
@@ -138,9 +20,38 @@ function PastSession() {
   const [messages, setMessages] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [isPastSession, setIsPastSession] = useState(true);
+  
+  // Add new state variables for message input and sending
+  const [newMessage, setNewMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [isAiThinking, setIsAiThinking] = useState(false);
+  
+  // Add state variables for message editing
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editMessageContent, setEditMessageContent] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  
+  // Add new lazy loading and rate limiting states
+  const [isLazyLoading, setIsLazyLoading] = useState(false);
+  const [rateLimitHit, setRateLimitHit] = useState(false);
+  
+  // Add state for the submission modal
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [submissionUrl, setSubmissionUrl] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState('');
+  
+  // Add refs for scrolling and textarea handling
+  const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
+  const editTextareaRef = useRef(null);
 
   // After the existing useEffects, add a new one to fetch task details
   const fetchedTasksRef = useRef(new Set());
+  const lastTaskIdRef = useRef(null);
+  
+  // Add a new state variable for success messages
+  const [successMessage, setSuccessMessage] = useState('');
   
   useEffect(() => {
     const fetchDaySchedule = async () => {
@@ -150,8 +61,6 @@ function PastSession() {
         setIsLoading(false);
         return;
       }
-
-      console.log('Fetching day schedule with:', { dayId, dayNumber });
       
       try {
         setIsLoading(true);
@@ -160,10 +69,8 @@ function PastSession() {
         let apiUrl;
         if (dayNumber) {
           apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/days/number/${dayNumber}/full-details`;
-          console.log('Using day_number API URL:', apiUrl);
         } else {
           apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/days/${dayId}/full-details`;
-          console.log('Using day ID API URL:', apiUrl);
         }
         
         const response = await fetch(apiUrl, {
@@ -171,31 +78,26 @@ function PastSession() {
             'Authorization': `Bearer ${token}`
           }
         });
-
-        console.log('API Response status:', response.status);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch day details: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
-        console.log('Full day details data:', data);
+        console.log('Day details data:', data);
         
         // Set day schedule data
         setDaySchedule(data);
         
         // Set tasks data directly from the response
         if (data.flattenedTasks && Array.isArray(data.flattenedTasks)) {
-          console.log('Setting tasks from full-details response:', data.flattenedTasks.length);
           setTasks(data.flattenedTasks);
           setTasksLoading(false);
         } else {
-          console.log('No flattened tasks found in response');
           // Fallback to processing from timeBlocks if needed
           processTasksFromTimeBlocks(data);
         }
       } catch (error) {
-        console.error('Error fetching day details:', error);
         setError('Failed to load the day details. Please try again later.');
       } finally {
         setIsLoading(false);
@@ -251,7 +153,9 @@ function PastSession() {
               })}`,
               blockTitle: block.block_category || block.block_title || '',
               completed: false,
-              resources: taskResources
+              resources: taskResources,
+              deliverable: task.deliverable,
+              deliverable_type: task.deliverable_type || 'none'
             });
           });
         }
@@ -264,7 +168,14 @@ function PastSession() {
     fetchDaySchedule();
   }, [dayId, dayNumber, token]);
 
-  // Add a new useEffect to fetch messages when a task is selected
+  // Add auto-scroll effect when messages change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  // Update existing useEffect for fetching task messages
   useEffect(() => {
     const fetchTaskMessages = async () => {
       if (!tasks.length || currentTaskIndex >= tasks.length) return;
@@ -273,17 +184,28 @@ function PastSession() {
       if (!selectedTask?.id) return;
       
       const selectedTaskId = selectedTask.id;
+
+      // Skip refetching if we're already on this task
+      if (lastTaskIdRef.current === selectedTaskId) {
+        return;
+      }
+      
+      // Set loading state and update last task id
+      setMessagesLoading(true);
+      setRateLimitHit(false); // Reset any previous rate limit flag
+      lastTaskIdRef.current = selectedTaskId;
       
       try {
-        setMessagesLoading(true);
-        console.log(`Fetching messages for task ID: ${selectedTaskId}`);
+        // Add lazy loading delay (mimic network latency)
+        setIsLazyLoading(true);
+        await new Promise(resolve => setTimeout(resolve, 800)); // 800ms delay
+        setIsLazyLoading(false);
         
         // Add dayNumber parameter to the API request if available
         let apiUrl = `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${selectedTaskId}`;
         
         if (daySchedule && daySchedule.day && daySchedule.day.day_number) {
           apiUrl += `?dayNumber=${daySchedule.day.day_number}`;
-          console.log(`Adding dayNumber ${daySchedule.day.day_number} to request`);
         }
         
         const response = await fetch(apiUrl, {
@@ -293,20 +215,29 @@ function PastSession() {
         });
         
         if (!response.ok) {
-          if (response.status === 404) {
+          if (response.status === 429) {
+            setRateLimitHit(true);
+            throw new Error('Rate limit exceeded. Please wait before trying again.');
+          } else if (response.status === 404) {
             // No messages for this task yet, which is okay
-            console.log('No messages found for this task');
             setMessages([]);
+            
+            // Don't automatically start thread - user will need to click button
             return;
           }
           throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
-        console.log('Task messages data:', data);
         
         // Process and format the messages
         if (data && data.messages && Array.isArray(data.messages)) {
+          // If we got an empty array of messages, don't automatically start the thread
+          if (data.messages.length === 0) {
+            setMessages([]);
+            return;
+          }
+          
           setMessages(data.messages.map(msg => {
             // Only include a timestamp if it's valid
             const timestamp = msg.timestamp ? new Date(msg.timestamp) : null;
@@ -316,6 +247,7 @@ function PastSession() {
               
             return {
               id: msg.message_id,
+              message_id: msg.message_id,
               role: msg.role,
               content: msg.content,
               timestamp: formattedTimestamp
@@ -323,6 +255,11 @@ function PastSession() {
           }));
         } else if (data && Array.isArray(data)) {
           // Fallback for direct array response
+          if (data.length === 0) {
+            setMessages([]);
+            return;
+          }
+          
           setMessages(data.map(msg => {
             // Only include a timestamp if it's valid
             const timestamp = msg.created_at ? new Date(msg.created_at) : null;
@@ -332,6 +269,7 @@ function PastSession() {
               
             return {
               id: msg.id,
+              message_id: msg.id,
               role: msg.role,
               content: msg.content,
               timestamp: formattedTimestamp
@@ -341,8 +279,10 @@ function PastSession() {
           setMessages([]);
         }
       } catch (error) {
-        console.error('Error fetching task messages:', error);
         setMessages([]);
+        if (!rateLimitHit) {
+          setError('Failed to load messages. Please try again.');
+        }
       } finally {
         setMessagesLoading(false);
       }
@@ -351,7 +291,7 @@ function PastSession() {
     if (tasks.length > 0 && currentTaskIndex < tasks.length) {
       fetchTaskMessages();
     }
-  }, [currentTaskIndex, token, tasks]);
+  }, [currentTaskIndex, token, tasks, daySchedule, dayNumber, isPastSession]); // rateLimitHit removed to prevent recalling on rate limit
 
   useEffect(() => {
     if (daySchedule && daySchedule.day && daySchedule.day.day_date) {
@@ -390,7 +330,6 @@ function PastSession() {
       // Skip if we've already fetched details for this task or if it already has resources
       if (fetchedTasksRef.current.has(taskId) || 
           (selectedTask.resources && selectedTask.resources.length > 0)) {
-        console.log('Task already processed, skipping details fetch');
         return;
       }
       
@@ -398,8 +337,6 @@ function PastSession() {
       fetchedTasksRef.current.add(taskId);
       
       try {
-        console.log(`Fetching detailed info for task ID: ${taskId}`);
-        
         const apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/tasks/${taskId}`;
         const response = await fetch(apiUrl, {
           headers: {
@@ -408,17 +345,13 @@ function PastSession() {
         });
         
         if (!response.ok) {
-          console.error(`Failed to fetch task details: ${response.status} ${response.statusText}`);
           return;
         }
         
         const taskData = await response.json();
-        console.log('Task details API response:', taskData);
         
         // Check if the task has linked_resources
         if (taskData.linked_resources) {
-          console.log('Found linked_resources in task details:', taskData.linked_resources);
-          
           // Process linked_resources to usable format
           let resourceObj;
           
@@ -426,10 +359,7 @@ function PastSession() {
             try {
               // Try to parse if it's a JSON string
               resourceObj = JSON.parse(taskData.linked_resources);
-              console.log('Successfully parsed linked_resources JSON:', resourceObj);
             } catch (e) {
-              console.log('linked_resources is not valid JSON, treating as URL');
-              
               // If it's a URL, create a simple resource object
               if (taskData.linked_resources.startsWith('http')) {
                 resourceObj = {
@@ -454,8 +384,6 @@ function PastSession() {
           }
           
           if (resourceObj) {
-            console.log('Processed resource object:', resourceObj);
-            
             // Update the task with the linked_resources
             setTasks(prevTasks => {
               // Find the current index of the task (may have changed since fetch started)
@@ -473,7 +401,7 @@ function PastSession() {
           }
         }
       } catch (error) {
-        console.error('Error fetching task details:', error);
+        // Error handling without console.log
       }
     };
     
@@ -486,11 +414,8 @@ function PastSession() {
     navigate('/calendar');
   };
 
-  const getTaskIcon = (type, completed) => {
-    if (completed) {
-      return <FaCheckCircle className="task-icon completed" />;
-    }
-    
+  const getTaskIcon = (type) => {
+    // Remove the completed check - always show the icon based on type
     switch (type) {
       case 'share':
       case 'discussion':
@@ -507,27 +432,19 @@ function PastSession() {
   };
 
   const renderTaskResources = (resources) => {
-    console.log('Attempting to render resources:', resources);
-    
     if (!resources || resources.length === 0) {
-      console.log('Resources array is empty or null');
       return null;
     }
     
     // Ensure resources are properly parsed
     const parsedResources = resources.map(resource => {
-      console.log('Processing resource:', resource);
-      
       if (typeof resource === 'string') {
         try {
           const parsed = JSON.parse(resource);
-          console.log('Successfully parsed string resource:', parsed);
           return parsed;
         } catch (e) {
-          console.error('Error parsing resource string:', e);
           // Try to handle it as a direct URL string
           if (resource.startsWith('http')) {
-            console.log('Resource is a URL string:', resource);
             return {
               title: 'Resource Link',
               url: resource,
@@ -560,7 +477,6 @@ function PastSession() {
         if (processedResource.url) {
           return processedResource;
         } else {
-          console.log('Resource object missing URL:', resource);
           return null;
         }
       }
@@ -568,10 +484,7 @@ function PastSession() {
       return resource;
     }).filter(Boolean); // Remove any null resources
     
-    console.log('Parsed resources after filtering:', parsedResources);
-    
     if (parsedResources.length === 0) {
-      console.log('No valid resources after parsing');
       return null;
     }
     
@@ -616,6 +529,337 @@ function PastSession() {
         ))}
       </div>
     );
+  };
+
+  // Add function to handle sending a message
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    
+    if (!newMessage.trim() || isSending) return;
+    
+    // Prevent double-clicks
+    setIsSending(true);
+    
+    // Store the message locally for optimistic UI update
+    const messageToSend = newMessage.trim();
+    
+    // Clear the input
+    setNewMessage('');
+    
+    // Resize the textarea back to its original size
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+    
+    // Create a temporary ID for this message
+    const temporaryId = `temp-${Date.now()}`;
+    
+    // Optimistically add message to the UI
+    setMessages(prevMessages => [
+      ...prevMessages.filter(msg => msg.id !== 'loading'),
+      {
+        id: temporaryId,
+        content: messageToSend,
+        role: 'user',
+        isTemporary: true
+      }
+    ]);
+    
+    // Show the AI thinking indicator
+    setIsAiThinking(true);
+    
+    try {
+      // Get the current task ID
+      const currentTaskId = tasks[currentTaskIndex]?.id;
+      
+      // Get day number from the day schedule
+      const currentDayNumber = daySchedule?.day?.day_number || dayNumber;
+      
+      // Prepare request body
+      const requestBody = {
+        content: messageToSend,
+        taskId: currentTaskId
+      };
+      
+      if (currentDayNumber) {
+        requestBody.dayNumber = currentDayNumber;
+      }
+      
+      // Determine if this is a new conversation or continuing an existing one
+      const endpoint = messages.length === 0 
+        ? 'messages/start' 
+        : 'messages/continue';
+      
+      // Send message to learning API
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to send message: ${response.status}`);
+      }
+      
+      // Get AI response
+      const aiResponseData = await response.json();
+      
+      // Extract the user message ID from the response if available
+      const userMessageId = aiResponseData.user_message_id;
+      
+      // If the server returned the user message ID, update our state to use it
+      if (userMessageId) {
+        // Update the user message with the real server ID
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg.id === temporaryId ? 
+              { ...msg, id: userMessageId, message_id: userMessageId } : 
+              msg
+          )
+        );
+      }
+      
+      // Add AI response
+      const aiResponse = {
+        id: aiResponseData.message_id,
+        message_id: aiResponseData.message_id,
+        content: aiResponseData.content,
+        role: aiResponseData.role,
+        timestamp: aiResponseData.timestamp
+      };
+      
+      setMessages(prevMessages => [...prevMessages, aiResponse]);
+      
+    } catch (err) {
+      setError('Failed to communicate with the learning assistant. Please try again.');
+      
+      // Remove the temporary message on error
+      setMessages(prevMessages => prevMessages.filter(msg => msg.id !== temporaryId));
+    } finally {
+      setIsSending(false);
+      setIsAiThinking(false);
+    }
+  };
+
+  // Handle text input changes for the message input
+  const handleTextareaChange = (e) => {
+    setNewMessage(e.target.value);
+    
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  };
+
+  // Handle starting to edit a message
+  const handleEditMessage = (message) => {
+    // Check if message has an actual server-assigned ID
+    const messageId = message.message_id || message.id;
+    
+    // Ensure ID is treated as a string
+    setEditingMessageId(String(messageId));
+    setEditMessageContent(message.content);
+    
+    // Focus the textarea after it's rendered
+    setTimeout(() => {
+      if (editTextareaRef.current) {
+        editTextareaRef.current.focus();
+        
+        // Auto-resize the textarea
+        editTextareaRef.current.style.height = 'auto';
+        editTextareaRef.current.style.height = `${editTextareaRef.current.scrollHeight}px`;
+      }
+    }, 0);
+  };
+
+  // Handle updating a message
+  const handleUpdateMessage = async (messageId) => {
+    if (!editMessageContent.trim() || isUpdating) return;
+    
+    setIsUpdating(true);
+    
+    try {
+      // Ensure messageId is treated as a string for comparisons
+      const messageIdStr = String(messageId);
+      
+      // Send update request to API
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages/${messageId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          content: editMessageContent.trim()
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to update message: ${response.status}`);
+      }
+      
+      const updatedMessage = await response.json();
+      
+      // Update the message in the UI
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          String(msg.id) === messageIdStr ? 
+            {
+              ...msg, 
+              id: updatedMessage.message_id, // Use the server's ID
+              message_id: updatedMessage.message_id, // Store both versions for consistency
+              content: updatedMessage.content, 
+              updated: true
+            } : 
+            msg
+        )
+      );
+      
+      // Reset edit state
+      setEditingMessageId(null);
+      setEditMessageContent('');
+      
+    } catch (err) {
+      setError(`Failed to update message: ${err.message}`);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+  
+  // Handle canceling an edit
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditMessageContent('');
+  };
+  
+  // Handle edit textarea auto-resize
+  const handleEditTextareaChange = (e) => {
+    setEditMessageContent(e.target.value);
+    
+    if (editTextareaRef.current) {
+      editTextareaRef.current.style.height = 'auto';
+      editTextareaRef.current.style.height = `${editTextareaRef.current.scrollHeight}px`;
+    }
+  };
+
+  // Update startTaskThread to include lazy loading delay
+  const startTaskThread = async (taskId) => {
+    try {
+      setIsAiThinking(true);
+      setRateLimitHit(false);
+      
+      // Add lazy loading delay
+      setIsLazyLoading(true);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+      setIsLazyLoading(false);
+      
+      const currentDayNumber = daySchedule?.day?.day_number || dayNumber;
+      
+      // Prepare the request
+      const requestBody = {
+        taskId: taskId
+      };
+      
+      if (currentDayNumber) {
+        requestBody.dayNumber = currentDayNumber;
+      }
+      
+      // Call the start endpoint
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (!response.ok) {
+        if (response.status === 429) {
+          setRateLimitHit(true);
+          throw new Error('Rate limit exceeded. Please wait before trying again.');
+        }
+        throw new Error(`Failed to start thread: ${response.status}`);
+      }
+      
+      // Get the initial message
+      const data = await response.json();
+      
+      // Add the assistant message to the state
+      setMessages([{
+        id: data.message_id,
+        message_id: data.message_id,
+        content: data.content,
+        role: data.role,
+        timestamp: new Date().toLocaleTimeString()
+      }]);
+    } catch (error) {
+      if (!rateLimitHit) {
+        setError('Failed to start conversation. Please try again.');
+      }
+    } finally {
+      setIsAiThinking(false);
+    }
+  };
+
+  // Add a retry handler function
+  const handleRetry = async () => {
+    setError(null);
+    setRateLimitHit(false);
+    
+    // Add a delay before retrying
+    await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+    
+    if (tasks.length > 0) {
+      await startTaskThread(tasks[currentTaskIndex].id);
+    }
+  };
+
+  // Handle deliverable submission
+  const handleDeliverableSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!submissionUrl.trim()) {
+      setSubmissionError('Please enter a valid URL');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setSubmissionError('');
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          taskId: tasks[currentTaskIndex].id,
+          content: submissionUrl
+        })
+      });
+      
+      if (response.ok) {
+        // Close the modal on success
+        setShowSubmissionModal(false);
+        setSubmissionUrl('');
+        
+        // Show success message without using error state
+        setSuccessMessage('Deliverable submitted successfully!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        const data = await response.json();
+        setSubmissionError(data.error || 'Failed to submit deliverable');
+      }
+    } catch (err) {
+      setSubmissionError('Network error. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isLoading) {
@@ -663,7 +907,6 @@ function PastSession() {
 
   return (
     <div className="learning past-session">
-      <style>{resourceStyles}</style>
       <div className="learning__content">
         <div className="learning__task-panel">
           <div className="learning__task-header learning__task-header--with-back">
@@ -688,11 +931,11 @@ function PastSession() {
               {tasks.map((task, index) => (
                 <div
                   key={task.id}
-                  className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''} ${task.completed ? 'completed' : ''}`}
+                  className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''}`}
                   onClick={() => setCurrentTaskIndex(index)}
                 >
                   <div className="learning__task-icon">
-                    {getTaskIcon(task.type, task.completed)}
+                    {getTaskIcon(task.type)}
                   </div>
                   <div className="learning__task-content">
                     <h3 className="learning__task-title">{task.title}</h3>
@@ -738,38 +981,232 @@ function PastSession() {
             
             {/* Message display area - updated to show messages */}
             <div className="past-session__messages-container">
-              {messagesLoading ? (
+              {messagesLoading || isLazyLoading ? (
                 <div className="past-session__loading-messages">
-                  <p>Loading previous messages...</p>
-                </div>
-              ) : messages.length > 0 ? (
-                <div className="learning__messages">
-                  {messages.map(message => (
-                    <div key={message.id} className={`learning__message learning__message--${message.role}`}>
-                      <div className="learning__message-content">
-                        {formatMessageContent(message.content)}
-                      </div>
-                    </div>
-                  ))}
+                  <p>
+                    {isLazyLoading ? 'Preparing to load messages...' : 'Loading previous messages...'}
+                  </p>
                 </div>
               ) : (
-                <div className="past-session__messages">
-                  <div className="past-session__message-note">
-                    <p>No previous messages available for this task.</p>
-                  </div>
+                <div className={`learning__messages ${messagesLoading ? 'loading' : ''} ${editingMessageId !== null ? 'has-editing-message' : ''}`}>
+                  {messages.length > 0 ? (
+                    messages.map(message => (
+                      <div 
+                        key={message.id} 
+                        className={`learning__message learning__message--${message.role} ${String(editingMessageId) === String(message.id) ? 'editing' : ''}`}
+                      >
+                        <div 
+                          className={`learning__message-content ${message.role === 'user' && isPastSession ? 'learning__message-content--editable' : ''}`}
+                          onClick={message.role === 'user' && editingMessageId === null && isPastSession ? () => handleEditMessage(message) : undefined}
+                        >
+                          {String(editingMessageId) === String(message.id) ? (
+                            <div className="learning__message-edit">
+                              <textarea
+                                ref={editTextareaRef}
+                                value={editMessageContent}
+                                onChange={handleEditTextareaChange}
+                                className="learning__edit-textarea"
+                                disabled={isUpdating}
+                                placeholder="Edit your message..."
+                              />
+                              <div className="learning__edit-actions">
+                                <button 
+                                  onClick={() => handleUpdateMessage(message.id)}
+                                  className="learning__edit-save-btn"
+                                  disabled={isUpdating}
+                                >
+                                  {isUpdating ? 'Saving...' : <FaCheck />}
+                                </button>
+                                <button 
+                                  onClick={handleCancelEdit}
+                                  className="learning__edit-cancel-btn"
+                                  disabled={isUpdating}
+                                >
+                                  <FaTimes />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {formatMessageContent(message.content)}
+                              {message.updated && (
+                                <span className="learning__message-edited-indicator">(edited)</span>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : isAiThinking ? (
+                    <div className="past-session__loading-messages">
+                      <p>Starting conversation for this task...</p>
+                    </div>
+                  ) : (
+                    <div className="past-session__message-note">
+                      {rateLimitHit ? (
+                        <div className="past-session__error-note">
+                          <p>The server is busy at the moment. Please wait a moment before trying again.</p>
+                          <button 
+                            onClick={handleRetry}
+                            className="past-session__retry-btn"
+                            disabled={isLazyLoading}
+                          >
+                            Try Again
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <p>No previous messages available for this task.</p>
+                          {isPastSession && (
+                            <button 
+                              onClick={() => tasks.length > 0 && startTaskThread(tasks[currentTaskIndex].id)}
+                              className="past-session__start-conversation-btn"
+                              disabled={!tasks.length || tasksLoading || isLazyLoading}
+                            >
+                              {isLazyLoading ? 'Preparing...' : 'Start Conversation'}
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                  
+                  {isAiThinking && (
+                    <div className="learning__message learning__message--assistant">
+                      <div className="learning__message-content learning__message-content--thinking">
+                        <div className="learning__typing-indicator">
+                          <span></span>
+                          <span></span>
+                          <span></span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
                 </div>
               )}
               
-              <div className="past-session__message-disclaimer">
-                <p>{isPastSession 
-                  ? "This is a past session. You cannot send new messages." 
-                  : "This session is scheduled for the future. You can send messages on the scheduled day."}
-                </p>
-              </div>
+              {/* Message input area for past sessions */}
+              {isPastSession ? (
+                messages.length > 0 ? (
+                  <form className="learning__input-form" onSubmit={handleSendMessage}>
+                    <textarea
+                      ref={textareaRef}
+                      className="learning__input"
+                      value={newMessage}
+                      onChange={handleTextareaChange}
+                      placeholder={isSending ? "Sending..." : "Type your message..."}
+                      disabled={isSending || isAiThinking}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(e);
+                        }
+                      }}
+                      rows={1}
+                    />
+                    <div className="learning__input-actions">
+                      {(() => {
+                        return tasks.length > 0 && 
+                          tasks[currentTaskIndex]?.deliverable_type === 'link' && (
+                          <button 
+                            type="button"
+                            className="learning__deliverable-btn"
+                            onClick={() => setShowSubmissionModal(true)}
+                            title={`Submit ${tasks[currentTaskIndex].deliverable}`}
+                          >
+                            <FaLink />
+                          </button>
+                        );
+                      })()}
+                    </div>
+                    <button 
+                      className="learning__send-btn" 
+                      type="submit" 
+                      disabled={!newMessage.trim() || isSending || isAiThinking}
+                    >
+                      {isSending ? "Sending..." : <FaPaperPlane />}
+                    </button>
+                  </form>
+                ) : (
+                  <div className="past-session__message-input-placeholder">
+                    <p>Start a conversation to interact with this task</p>
+                  </div>
+                )
+              ) : (
+                <div className="past-session__message-disclaimer">
+                  <p>This session is scheduled for the future. You can send messages on the scheduled day.</p>
+                </div>
+              )}
+              
+              {/* Display success message below the input */}
+              {successMessage && <div className="learning__success">{successMessage}</div>}
+
+              {/* Display error message if there is one - keep this separate from the success message */}
+              {error && !rateLimitHit && <div className="learning__error">{error}</div>}
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Submission Modal */}
+      {showSubmissionModal && (
+        <div className="learning__modal-overlay">
+          <div className="learning__modal">
+            <div className="learning__modal-header">
+              <h3>Submit Deliverable</h3>
+              <button 
+                className="learning__modal-close" 
+                onClick={() => setShowSubmissionModal(false)}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="learning__modal-body">
+              <form onSubmit={handleDeliverableSubmit}>
+                {tasks[currentTaskIndex].deliverable_type === 'link' && (
+                  <div className="learning__form-group">
+                    <div className="learning__input-with-icon">
+                      <input
+                        id="submission-url"
+                        type="url"
+                        value={submissionUrl}
+                        onChange={(e) => setSubmissionUrl(e.target.value)}
+                        placeholder="https://..."
+                        required
+                      />
+                      <FaExternalLinkAlt className="learning__input-icon" />
+                    </div>
+                  </div>
+                )}
+                
+                {submissionError && (
+                  <div className="learning__submission-error">
+                    {submissionError}
+                  </div>
+                )}
+                
+                <div className="learning__modal-actions">
+                  <button 
+                    type="button" 
+                    className="learning__modal-cancel"
+                    onClick={() => setShowSubmissionModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="learning__modal-submit"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Submitting...' : 'Submit'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
