@@ -349,29 +349,44 @@ const resourceStyles = `
     align-items: center;
     justify-content: center;
     padding: 24px;
-    margin: 20px 0;
+    margin: 20px auto;
     text-align: center;
+    min-height: 200px;
+    width: 100%;
+    max-width: 600px;
+  }
+  
+  .past-session__message-note p {
+    font-size: 1.1rem;
+    color: var(--color-text-secondary, #a0a0a0);
+    margin-bottom: 24px;
   }
   
   .past-session__start-conversation-btn {
     margin-top: 16px;
-    padding: 8px 16px;
+    padding: 10px 20px;
     background-color: var(--color-primary, #4242ea);
     color: white;
     border: none;
     border-radius: 4px;
     font-weight: 500;
+    font-size: 1rem;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
   
   .past-session__start-conversation-btn:hover {
     background-color: var(--color-primary-hover, #5555ff);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   }
   
   .past-session__start-conversation-btn:disabled {
     background-color: var(--color-disabled, #2a2a4a);
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
   }
 
   /* New styles for error note and retry button */
@@ -407,6 +422,21 @@ const resourceStyles = `
   .past-session__retry-btn:disabled {
     background-color: var(--color-disabled, #2a2a4a);
     cursor: not-allowed;
+  }
+  
+  /* Message input placeholder styling */
+  .past-session__message-input-placeholder {
+    padding: 14px;
+    text-align: center;
+    background-color: var(--color-background-darker, #111827);
+    border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  }
+  
+  .past-session__message-input-placeholder p {
+    color: var(--color-text-secondary, #a0a0a0);
+    font-size: 0.9rem;
+    margin: 0;
+    font-style: italic;
   }
 `;
 
@@ -1494,30 +1524,36 @@ function PastSession() {
               
               {/* Message input area for past sessions */}
               {isPastSession ? (
-                <form className="learning__input-form" onSubmit={handleSendMessage}>
-                  <textarea
-                    ref={textareaRef}
-                    className="learning__input"
-                    value={newMessage}
-                    onChange={handleTextareaChange}
-                    placeholder={isSending ? "Sending..." : "Type your message..."}
-                    disabled={isSending || isAiThinking}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage(e);
-                      }
-                    }}
-                    rows={1}
-                  />
-                  <button 
-                    className="learning__send-btn" 
-                    type="submit" 
-                    disabled={!newMessage.trim() || isSending || isAiThinking}
-                  >
-                    {isSending ? "Sending..." : <FaPaperPlane />}
-                  </button>
-                </form>
+                messages.length > 0 ? (
+                  <form className="learning__input-form" onSubmit={handleSendMessage}>
+                    <textarea
+                      ref={textareaRef}
+                      className="learning__input"
+                      value={newMessage}
+                      onChange={handleTextareaChange}
+                      placeholder={isSending ? "Sending..." : "Type your message..."}
+                      disabled={isSending || isAiThinking}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(e);
+                        }
+                      }}
+                      rows={1}
+                    />
+                    <button 
+                      className="learning__send-btn" 
+                      type="submit" 
+                      disabled={!newMessage.trim() || isSending || isAiThinking}
+                    >
+                      {isSending ? "Sending..." : <FaPaperPlane />}
+                    </button>
+                  </form>
+                ) : (
+                  <div className="past-session__message-input-placeholder">
+                    <p>Start a conversation to interact with this task</p>
+                  </div>
+                )
               ) : (
                 <div className="past-session__message-disclaimer">
                   <p>This session is scheduled for the future. You can send messages on the scheduled day.</p>

@@ -514,29 +514,12 @@
   gap: var(--spacing-xs);
   padding: var(--spacing-xs) var(--spacing-sm);
   background-color: var(--color-primary);
-  color: white;
+  color: var(--color-text-light);
   border: none;
   border-radius: 4px;
   font-size: 0.9rem;
-  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
   margin: 30px auto 30px auto;
   width: fit-content;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.back-to-calendar-btn:hover {
-  background-color: var(--color-primary-hover, #5555ff);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-
-.back-to-calendar-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.back-to-calendar-btn svg {
-  color: white;
 } 
