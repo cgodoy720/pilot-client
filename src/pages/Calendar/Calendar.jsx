@@ -72,12 +72,16 @@ function Calendar() {
     
     const dayNumber = clickInfo.event.extendedProps.dayNumber;
     
-    // Simple way to check if the clicked date is today
+    // Fix: Create date strings using local timezone instead of UTC
     const today = new Date();
-    const todayString = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    // Format using YYYY-MM-DD with local timezone
+    const todayString = today.getFullYear() + '-' + 
+                       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                       String(today.getDate()).padStart(2, '0');
+    
     const clickedDateString = clickInfo.event.startStr; // Already in YYYY-MM-DD format
     
-    console.log('Today:', todayString, 'Clicked:', clickedDateString);
+    console.log('Today (local):', todayString, 'Clicked:', clickedDateString);
     
     if (clickedDateString === todayString) {
       // Today - navigate to Learning page
