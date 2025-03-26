@@ -341,6 +341,73 @@ const resourceStyles = `
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
   }
+
+  /* Start Conversation button */
+  .past-session__message-note {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    margin: 20px 0;
+    text-align: center;
+  }
+  
+  .past-session__start-conversation-btn {
+    margin-top: 16px;
+    padding: 8px 16px;
+    background-color: var(--color-primary, #4242ea);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  
+  .past-session__start-conversation-btn:hover {
+    background-color: var(--color-primary-hover, #5555ff);
+  }
+  
+  .past-session__start-conversation-btn:disabled {
+    background-color: var(--color-disabled, #2a2a4a);
+    cursor: not-allowed;
+  }
+
+  /* New styles for error note and retry button */
+  .past-session__error-note {
+    margin: 20px auto;
+    color: var(--color-text-primary, #ffffff);
+    background-color: rgba(255, 79, 79, 0.1);
+    padding: 16px;
+    border-radius: 6px;
+    max-width: 400px;
+  }
+
+  .past-session__error-note p {
+    margin-bottom: 16px;
+  }
+
+  .past-session__retry-btn {
+    padding: 8px 16px;
+    background-color: var(--color-primary, #4242ea);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .past-session__retry-btn:hover {
+    background-color: var(--color-primary-hover, #5555ff);
+    transform: translateY(-1px);
+  }
+
+  .past-session__retry-btn:disabled {
+    background-color: var(--color-disabled, #2a2a4a);
+    cursor: not-allowed;
+  }
 `;
 
 function PastSession() {
@@ -370,6 +437,10 @@ function PastSession() {
   const [editMessageContent, setEditMessageContent] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   
+  // Add new lazy loading and rate limiting states
+  const [isLazyLoading, setIsLazyLoading] = useState(false);
+  const [rateLimitHit, setRateLimitHit] = useState(false);
+  
   // Add refs for scrolling and textarea handling
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -377,6 +448,7 @@ function PastSession() {
 
   // After the existing useEffects, add a new one to fetch task details
   const fetchedTasksRef = useRef(new Set());
+  const lastTaskIdRef = useRef(null);
   
   useEffect(() => {
     const fetchDaySchedule = async () => {
@@ -516,9 +588,25 @@ function PastSession() {
       if (!selectedTask?.id) return;
       
       const selectedTaskId = selectedTask.id;
+
+      // Skip refetching if we're already on this task
+      if (lastTaskIdRef.current === selectedTaskId) {
+        console.log('Already fetched messages for this task, skipping');
+        return;
+      }
+      
+      // Set loading state and update last task id
+      setMessagesLoading(true);
+      setRateLimitHit(false); // Reset any previous rate limit flag
+      lastTaskIdRef.current = selectedTaskId;
       
       try {
-        setMessagesLoading(true);
+        // Add lazy loading delay (mimic network latency)
+        setIsLazyLoading(true);
+        console.log('Starting lazy loading delay');
+        await new Promise(resolve => setTimeout(resolve, 800)); // 800ms delay
+        setIsLazyLoading(false);
+        
         console.log(`Fetching messages for task ID: ${selectedTaskId}`);
         
         // Add dayNumber parameter to the API request if available
@@ -536,10 +624,16 @@ function PastSession() {
         });
         
         if (!response.ok) {
-          if (response.status === 404) {
+          if (response.status === 429) {
+            console.log('Rate limit hit, suggesting a wait period');
+            setRateLimitHit(true);
+            throw new Error('Rate limit exceeded. Please wait before trying again.');
+          } else if (response.status === 404) {
             // No messages for this task yet, which is okay
             console.log('No messages found for this task');
             setMessages([]);
+            
+            // Don't automatically start thread - user will need to click button
             return;
           }
           throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`);
@@ -550,6 +644,13 @@ function PastSession() {
         
         // Process and format the messages
         if (data && data.messages && Array.isArray(data.messages)) {
+          // If we got an empty array of messages, don't automatically start the thread
+          if (data.messages.length === 0) {
+            console.log('Empty messages array received');
+            setMessages([]);
+            return;
+          }
+          
           setMessages(data.messages.map(msg => {
             // Only include a timestamp if it's valid
             const timestamp = msg.timestamp ? new Date(msg.timestamp) : null;
@@ -567,6 +668,12 @@ function PastSession() {
           }));
         } else if (data && Array.isArray(data)) {
           // Fallback for direct array response
+          if (data.length === 0) {
+            console.log('Empty direct array received');
+            setMessages([]);
+            return;
+          }
+          
           setMessages(data.map(msg => {
             // Only include a timestamp if it's valid
             const timestamp = msg.created_at ? new Date(msg.created_at) : null;
@@ -588,7 +695,9 @@ function PastSession() {
       } catch (error) {
         console.error('Error fetching task messages:', error);
         setMessages([]);
-        setError('Failed to load messages. Please try again.');
+        if (!rateLimitHit) {
+          setError('Failed to load messages. Please try again.');
+        }
       } finally {
         setMessagesLoading(false);
       }
@@ -597,7 +706,7 @@ function PastSession() {
     if (tasks.length > 0 && currentTaskIndex < tasks.length) {
       fetchTaskMessages();
     }
-  }, [currentTaskIndex, token, tasks, daySchedule]);
+  }, [currentTaskIndex, token, tasks, daySchedule, dayNumber, isPastSession]); // rateLimitHit removed to prevent recalling on rate limit
 
   useEffect(() => {
     if (daySchedule && daySchedule.day && daySchedule.day.day_date) {
@@ -1081,6 +1190,83 @@ function PastSession() {
     }
   };
 
+  // Update startTaskThread to include lazy loading delay
+  const startTaskThread = async (taskId) => {
+    try {
+      setIsAiThinking(true);
+      setRateLimitHit(false);
+      
+      // Add lazy loading delay
+      setIsLazyLoading(true);
+      console.log('Starting lazy loading delay before thread start');
+      await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+      setIsLazyLoading(false);
+      
+      const currentDayNumber = daySchedule?.day?.day_number || dayNumber;
+      
+      // Prepare the request
+      const requestBody = {
+        taskId: taskId
+      };
+      
+      if (currentDayNumber) {
+        requestBody.dayNumber = currentDayNumber;
+      }
+      
+      // Call the start endpoint
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (!response.ok) {
+        if (response.status === 429) {
+          console.log('Rate limit hit when starting thread');
+          setRateLimitHit(true);
+          throw new Error('Rate limit exceeded. Please wait before trying again.');
+        }
+        throw new Error(`Failed to start thread: ${response.status}`);
+      }
+      
+      // Get the initial message
+      const data = await response.json();
+      console.log('Thread started, received initial message:', data);
+      
+      // Add the assistant message to the state
+      setMessages([{
+        id: data.message_id,
+        message_id: data.message_id,
+        content: data.content,
+        role: data.role,
+        timestamp: new Date().toLocaleTimeString()
+      }]);
+    } catch (error) {
+      console.error('Error starting task thread:', error);
+      if (!rateLimitHit) {
+        setError('Failed to start conversation. Please try again.');
+      }
+    } finally {
+      setIsAiThinking(false);
+    }
+  };
+
+  // Add a retry handler function
+  const handleRetry = async () => {
+    setError(null);
+    setRateLimitHit(false);
+    
+    // Add a delay before retrying
+    await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+    
+    if (tasks.length > 0) {
+      await startTaskThread(tasks[currentTaskIndex].id);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="learning past-session">
@@ -1201,9 +1387,11 @@ function PastSession() {
             
             {/* Message display area - updated to show messages */}
             <div className="past-session__messages-container">
-              {messagesLoading ? (
+              {messagesLoading || isLazyLoading ? (
                 <div className="past-session__loading-messages">
-                  <p>Loading previous messages...</p>
+                  <p>
+                    {isLazyLoading ? 'Preparing to load messages...' : 'Loading previous messages...'}
+                  </p>
                 </div>
               ) : (
                 <div className={`learning__messages ${messagesLoading ? 'loading' : ''} ${editingMessageId !== null ? 'has-editing-message' : ''}`}>
@@ -1255,9 +1443,37 @@ function PastSession() {
                         </div>
                       </div>
                     ))
+                  ) : isAiThinking ? (
+                    <div className="past-session__loading-messages">
+                      <p>Starting conversation for this task...</p>
+                    </div>
                   ) : (
                     <div className="past-session__message-note">
-                      <p>No previous messages available for this task.</p>
+                      {rateLimitHit ? (
+                        <div className="past-session__error-note">
+                          <p>The server is busy at the moment. Please wait a moment before trying again.</p>
+                          <button 
+                            onClick={handleRetry}
+                            className="past-session__retry-btn"
+                            disabled={isLazyLoading}
+                          >
+                            Try Again
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <p>No previous messages available for this task.</p>
+                          {isPastSession && (
+                            <button 
+                              onClick={() => tasks.length > 0 && startTaskThread(tasks[currentTaskIndex].id)}
+                              className="past-session__start-conversation-btn"
+                              disabled={!tasks.length || tasksLoading || isLazyLoading}
+                            >
+                              {isLazyLoading ? 'Preparing...' : 'Start Conversation'}
+                            </button>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
                   
@@ -1308,7 +1524,7 @@ function PastSession() {
                 </div>
               )}
               
-              {error && <div className="learning__error">{error}</div>}
+              {error && !rateLimitHit && <div className="learning__error">{error}</div>}
             </div>
           </div>
         </div>
