@@ -1017,4 +1017,14 @@
 .past-session .learning__no-tasks .past-session__back-to-calendar:hover {
   background-color: var(--color-primary-hover, #5555ff);
   transform: translateY(-1px);
+}
+
+/* Add styling for success messages */
+.learning__success {
+  color: #52c41a;
+  font-size: 0.85rem;
+  margin-top: 8px;
+  padding: 0 4px;
+  text-align: center;
+  font-weight: 500;
 } 

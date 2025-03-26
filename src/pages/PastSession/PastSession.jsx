@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes, FaLink, FaExternalLinkAlt } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import './PastSession.css';
 
@@ -35,6 +35,12 @@ function PastSession() {
   const [isLazyLoading, setIsLazyLoading] = useState(false);
   const [rateLimitHit, setRateLimitHit] = useState(false);
   
+  // Add state for the submission modal
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [submissionUrl, setSubmissionUrl] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState('');
+  
   // Add refs for scrolling and textarea handling
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -44,6 +50,9 @@ function PastSession() {
   const fetchedTasksRef = useRef(new Set());
   const lastTaskIdRef = useRef(null);
   
+  // Add a new state variable for success messages
+  const [successMessage, setSuccessMessage] = useState('');
+  
   useEffect(() => {
     const fetchDaySchedule = async () => {
       // Check if we have either dayId or dayNumber
@@ -52,8 +61,6 @@ function PastSession() {
         setIsLoading(false);
         return;
       }
-
-      console.log('Fetching day schedule with:', { dayId, dayNumber });
       
       try {
         setIsLoading(true);
@@ -62,10 +69,8 @@ function PastSession() {
         let apiUrl;
         if (dayNumber) {
           apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/days/number/${dayNumber}/full-details`;
-          console.log('Using day_number API URL:', apiUrl);
         } else {
           apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/days/${dayId}/full-details`;
-          console.log('Using day ID API URL:', apiUrl);
         }
         
         const response = await fetch(apiUrl, {
@@ -73,31 +78,26 @@ function PastSession() {
             'Authorization': `Bearer ${token}`
           }
         });
-
-        console.log('API Response status:', response.status);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch day details: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
-        console.log('Full day details data:', data);
+        console.log('Day details data:', data);
         
         // Set day schedule data
         setDaySchedule(data);
         
         // Set tasks data directly from the response
         if (data.flattenedTasks && Array.isArray(data.flattenedTasks)) {
-          console.log('Setting tasks from full-details response:', data.flattenedTasks.length);
           setTasks(data.flattenedTasks);
           setTasksLoading(false);
         } else {
-          console.log('No flattened tasks found in response');
           // Fallback to processing from timeBlocks if needed
           processTasksFromTimeBlocks(data);
         }
       } catch (error) {
-        console.error('Error fetching day details:', error);
         setError('Failed to load the day details. Please try again later.');
       } finally {
         setIsLoading(false);
@@ -153,7 +153,9 @@ function PastSession() {
               })}`,
               blockTitle: block.block_category || block.block_title || '',
               completed: false,
-              resources: taskResources
+              resources: taskResources,
+              deliverable: task.deliverable,
+              deliverable_type: task.deliverable_type || 'none'
             });
           });
         }
@@ -185,7 +187,6 @@ function PastSession() {
 
       // Skip refetching if we're already on this task
       if (lastTaskIdRef.current === selectedTaskId) {
-        console.log('Already fetched messages for this task, skipping');
         return;
       }
       
@@ -197,18 +198,14 @@ function PastSession() {
       try {
         // Add lazy loading delay (mimic network latency)
         setIsLazyLoading(true);
-        console.log('Starting lazy loading delay');
         await new Promise(resolve => setTimeout(resolve, 800)); // 800ms delay
         setIsLazyLoading(false);
-        
-        console.log(`Fetching messages for task ID: ${selectedTaskId}`);
         
         // Add dayNumber parameter to the API request if available
         let apiUrl = `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${selectedTaskId}`;
         
         if (daySchedule && daySchedule.day && daySchedule.day.day_number) {
           apiUrl += `?dayNumber=${daySchedule.day.day_number}`;
-          console.log(`Adding dayNumber ${daySchedule.day.day_number} to request`);
         }
         
         const response = await fetch(apiUrl, {
@@ -219,12 +216,10 @@ function PastSession() {
         
         if (!response.ok) {
           if (response.status === 429) {
-            console.log('Rate limit hit, suggesting a wait period');
             setRateLimitHit(true);
             throw new Error('Rate limit exceeded. Please wait before trying again.');
           } else if (response.status === 404) {
             // No messages for this task yet, which is okay
-            console.log('No messages found for this task');
             setMessages([]);
             
             // Don't automatically start thread - user will need to click button
@@ -234,13 +229,11 @@ function PastSession() {
         }
         
         const data = await response.json();
-        console.log('Task messages data:', data);
         
         // Process and format the messages
         if (data && data.messages && Array.isArray(data.messages)) {
           // If we got an empty array of messages, don't automatically start the thread
           if (data.messages.length === 0) {
-            console.log('Empty messages array received');
             setMessages([]);
             return;
           }
@@ -263,7 +256,6 @@ function PastSession() {
         } else if (data && Array.isArray(data)) {
           // Fallback for direct array response
           if (data.length === 0) {
-            console.log('Empty direct array received');
             setMessages([]);
             return;
           }
@@ -287,7 +279,6 @@ function PastSession() {
           setMessages([]);
         }
       } catch (error) {
-        console.error('Error fetching task messages:', error);
         setMessages([]);
         if (!rateLimitHit) {
           setError('Failed to load messages. Please try again.');
@@ -339,7 +330,6 @@ function PastSession() {
       // Skip if we've already fetched details for this task or if it already has resources
       if (fetchedTasksRef.current.has(taskId) || 
           (selectedTask.resources && selectedTask.resources.length > 0)) {
-        console.log('Task already processed, skipping details fetch');
         return;
       }
       
@@ -347,8 +337,6 @@ function PastSession() {
       fetchedTasksRef.current.add(taskId);
       
       try {
-        console.log(`Fetching detailed info for task ID: ${taskId}`);
-        
         const apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/tasks/${taskId}`;
         const response = await fetch(apiUrl, {
           headers: {
@@ -357,17 +345,13 @@ function PastSession() {
         });
         
         if (!response.ok) {
-          console.error(`Failed to fetch task details: ${response.status} ${response.statusText}`);
           return;
         }
         
         const taskData = await response.json();
-        console.log('Task details API response:', taskData);
         
         // Check if the task has linked_resources
         if (taskData.linked_resources) {
-          console.log('Found linked_resources in task details:', taskData.linked_resources);
-          
           // Process linked_resources to usable format
           let resourceObj;
           
@@ -375,10 +359,7 @@ function PastSession() {
             try {
               // Try to parse if it's a JSON string
               resourceObj = JSON.parse(taskData.linked_resources);
-              console.log('Successfully parsed linked_resources JSON:', resourceObj);
             } catch (e) {
-              console.log('linked_resources is not valid JSON, treating as URL');
-              
               // If it's a URL, create a simple resource object
               if (taskData.linked_resources.startsWith('http')) {
                 resourceObj = {
@@ -403,8 +384,6 @@ function PastSession() {
           }
           
           if (resourceObj) {
-            console.log('Processed resource object:', resourceObj);
-            
             // Update the task with the linked_resources
             setTasks(prevTasks => {
               // Find the current index of the task (may have changed since fetch started)
@@ -422,7 +401,7 @@ function PastSession() {
           }
         }
       } catch (error) {
-        console.error('Error fetching task details:', error);
+        // Error handling without console.log
       }
     };
     
@@ -435,11 +414,8 @@ function PastSession() {
     navigate('/calendar');
   };
 
-  const getTaskIcon = (type, completed) => {
-    if (completed) {
-      return <FaCheckCircle className="task-icon completed" />;
-    }
-    
+  const getTaskIcon = (type) => {
+    // Remove the completed check - always show the icon based on type
     switch (type) {
       case 'share':
       case 'discussion':
@@ -456,27 +432,19 @@ function PastSession() {
   };
 
   const renderTaskResources = (resources) => {
-    console.log('Attempting to render resources:', resources);
-    
     if (!resources || resources.length === 0) {
-      console.log('Resources array is empty or null');
       return null;
     }
     
     // Ensure resources are properly parsed
     const parsedResources = resources.map(resource => {
-      console.log('Processing resource:', resource);
-      
       if (typeof resource === 'string') {
         try {
           const parsed = JSON.parse(resource);
-          console.log('Successfully parsed string resource:', parsed);
           return parsed;
         } catch (e) {
-          console.error('Error parsing resource string:', e);
           // Try to handle it as a direct URL string
           if (resource.startsWith('http')) {
-            console.log('Resource is a URL string:', resource);
             return {
               title: 'Resource Link',
               url: resource,
@@ -509,7 +477,6 @@ function PastSession() {
         if (processedResource.url) {
           return processedResource;
         } else {
-          console.log('Resource object missing URL:', resource);
           return null;
         }
       }
@@ -517,10 +484,7 @@ function PastSession() {
       return resource;
     }).filter(Boolean); // Remove any null resources
     
-    console.log('Parsed resources after filtering:', parsedResources);
-    
     if (parsedResources.length === 0) {
-      console.log('No valid resources after parsing');
       return null;
     }
     
@@ -648,7 +612,6 @@ function PastSession() {
       
       // If the server returned the user message ID, update our state to use it
       if (userMessageId) {
-        console.log(`User message ID from server: ${userMessageId}, replacing temporary ID: ${temporaryId}`);
         // Update the user message with the real server ID
         setMessages(prevMessages => 
           prevMessages.map(msg => 
@@ -671,7 +634,6 @@ function PastSession() {
       setMessages(prevMessages => [...prevMessages, aiResponse]);
       
     } catch (err) {
-      console.error('Error sending/receiving message:', err);
       setError('Failed to communicate with the learning assistant. Please try again.');
       
       // Remove the temporary message on error
@@ -761,7 +723,6 @@ function PastSession() {
       setEditMessageContent('');
       
     } catch (err) {
-      console.error('Error updating message:', err);
       setError(`Failed to update message: ${err.message}`);
     } finally {
       setIsUpdating(false);
@@ -792,7 +753,6 @@ function PastSession() {
       
       // Add lazy loading delay
       setIsLazyLoading(true);
-      console.log('Starting lazy loading delay before thread start');
       await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
       setIsLazyLoading(false);
       
@@ -819,7 +779,6 @@ function PastSession() {
       
       if (!response.ok) {
         if (response.status === 429) {
-          console.log('Rate limit hit when starting thread');
           setRateLimitHit(true);
           throw new Error('Rate limit exceeded. Please wait before trying again.');
         }
@@ -828,7 +787,6 @@ function PastSession() {
       
       // Get the initial message
       const data = await response.json();
-      console.log('Thread started, received initial message:', data);
       
       // Add the assistant message to the state
       setMessages([{
@@ -839,7 +797,6 @@ function PastSession() {
         timestamp: new Date().toLocaleTimeString()
       }]);
     } catch (error) {
-      console.error('Error starting task thread:', error);
       if (!rateLimitHit) {
         setError('Failed to start conversation. Please try again.');
       }
@@ -858,6 +815,50 @@ function PastSession() {
     
     if (tasks.length > 0) {
       await startTaskThread(tasks[currentTaskIndex].id);
+    }
+  };
+
+  // Handle deliverable submission
+  const handleDeliverableSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!submissionUrl.trim()) {
+      setSubmissionError('Please enter a valid URL');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setSubmissionError('');
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          taskId: tasks[currentTaskIndex].id,
+          content: submissionUrl
+        })
+      });
+      
+      if (response.ok) {
+        // Close the modal on success
+        setShowSubmissionModal(false);
+        setSubmissionUrl('');
+        
+        // Show success message without using error state
+        setSuccessMessage('Deliverable submitted successfully!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        const data = await response.json();
+        setSubmissionError(data.error || 'Failed to submit deliverable');
+      }
+    } catch (err) {
+      setSubmissionError('Network error. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -930,11 +931,11 @@ function PastSession() {
               {tasks.map((task, index) => (
                 <div
                   key={task.id}
-                  className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''} ${task.completed ? 'completed' : ''}`}
+                  className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''}`}
                   onClick={() => setCurrentTaskIndex(index)}
                 >
                   <div className="learning__task-icon">
-                    {getTaskIcon(task.type, task.completed)}
+                    {getTaskIcon(task.type)}
                   </div>
                   <div className="learning__task-content">
                     <h3 className="learning__task-title">{task.title}</h3>
@@ -1104,6 +1105,21 @@ function PastSession() {
                       }}
                       rows={1}
                     />
+                    <div className="learning__input-actions">
+                      {(() => {
+                        return tasks.length > 0 && 
+                          tasks[currentTaskIndex]?.deliverable_type === 'link' && (
+                          <button 
+                            type="button"
+                            className="learning__deliverable-btn"
+                            onClick={() => setShowSubmissionModal(true)}
+                            title={`Submit ${tasks[currentTaskIndex].deliverable}`}
+                          >
+                            <FaLink />
+                          </button>
+                        );
+                      })()}
+                    </div>
                     <button 
                       className="learning__send-btn" 
                       type="submit" 
@@ -1123,11 +1139,74 @@ function PastSession() {
                 </div>
               )}
               
+              {/* Display success message below the input */}
+              {successMessage && <div className="learning__success">{successMessage}</div>}
+
+              {/* Display error message if there is one - keep this separate from the success message */}
               {error && !rateLimitHit && <div className="learning__error">{error}</div>}
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Submission Modal */}
+      {showSubmissionModal && (
+        <div className="learning__modal-overlay">
+          <div className="learning__modal">
+            <div className="learning__modal-header">
+              <h3>Submit Deliverable</h3>
+              <button 
+                className="learning__modal-close" 
+                onClick={() => setShowSubmissionModal(false)}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="learning__modal-body">
+              <form onSubmit={handleDeliverableSubmit}>
+                {tasks[currentTaskIndex].deliverable_type === 'link' && (
+                  <div className="learning__form-group">
+                    <div className="learning__input-with-icon">
+                      <input
+                        id="submission-url"
+                        type="url"
+                        value={submissionUrl}
+                        onChange={(e) => setSubmissionUrl(e.target.value)}
+                        placeholder="https://..."
+                        required
+                      />
+                      <FaExternalLinkAlt className="learning__input-icon" />
+                    </div>
+                  </div>
+                )}
+                
+                {submissionError && (
+                  <div className="learning__submission-error">
+                    {submissionError}
+                  </div>
+                )}
+                
+                <div className="learning__modal-actions">
+                  <button 
+                    type="button" 
+                    className="learning__modal-cancel"
+                    onClick={() => setShowSubmissionModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="learning__modal-submit"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Submitting...' : 'Submit'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
