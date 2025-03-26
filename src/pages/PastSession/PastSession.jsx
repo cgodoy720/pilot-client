@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaCalendarAlt } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import './PastSession.css';
 
@@ -93,8 +93,9 @@ const resourceStyles = `
     display: flex;
     flex-direction: column;
     position: relative;
-    padding-bottom: 0px; /* Removed bottom padding */
     min-height: 200px;
+    flex: 1;
+    overflow: hidden;
   }
 
   .past-session__message-disclaimer {
@@ -102,9 +103,8 @@ const resourceStyles = `
     bottom: 0;
     left: 0;
     right: 0;
-    margin-top: 10px; /* Reduced margin */
-    padding: 0 16px; /* Removed vertical padding */
-    height: 36px; /* Set a fixed height */
+    margin-top: 10px;
+    padding: 10px 16px;
     background-color: var(--color-background-darker, #111827);
     border-radius: 8px;
     font-size: 0.9rem;
@@ -118,7 +118,228 @@ const resourceStyles = `
   .past-session__message-disclaimer p {
     margin: 0;
     font-weight: 500;
-    line-height: 36px; /* Match the height of the container for vertical centering */
+  }
+
+  /* Message display and editing styles */
+  .learning__messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-md, 16px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md, 16px);
+    scroll-behavior: smooth;
+    padding-bottom: 20px;
+    background-color: var(--color-background-darker, #111827);
+    max-height: calc(100vh - 180px);
+    transition: opacity 0.2s ease;
+  }
+
+  .learning__messages.loading {
+    opacity: 0.7;
+  }
+
+  .learning__message {
+    display: flex;
+    max-width: 85%;
+    animation: fadeIn 0.3s ease-in;
+  }
+
+  .learning__message--user {
+    margin-left: auto;
+    margin-right: 0;
+    flex-direction: row-reverse;
+    position: relative;
+  }
+
+  .learning__message--assistant {
+    margin-right: auto;
+    margin-left: 0;
+  }
+
+  .learning__message-content {
+    padding: 12px 16px;
+    border-radius: 12px;
+    line-height: 1.5;
+    font-size: 15px;
+    white-space: pre-wrap;
+    max-width: 100%;
+    background-color: var(--color-background-darker, #111827);
+    color: var(--color-text-primary, #ffffff);
+    position: relative;
+  }
+
+  .learning__message--user .learning__message-content {
+    background-color: var(--color-primary, #4242ea);
+    color: white;
+    border-top-right-radius: 2px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: left;
+    transition: all 0.2s ease;
+    cursor: default;
+    position: relative;
+  }
+
+  .learning__message--user .learning__message-content--editable {
+    cursor: pointer;
+  }
+
+  .learning__message--user .learning__message-content--editable:hover {
+    background-color: var(--color-primary-hover, #5555ff);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+  }
+
+  .learning__message--assistant .learning__message-content {
+    background-color: var(--color-background-dark, #181c28);
+    color: var(--color-text-primary, #ffffff);
+    border-top-left-radius: 2px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    text-align: left;
+  }
+
+  /* Message editing */
+  .learning__message-edit {
+    width: 100%;
+  }
+
+  .learning__edit-textarea {
+    width: 100%;
+    padding: 8px 12px;
+    background-color: var(--color-background-dark, #181c28);
+    color: var(--color-text-primary, #ffffff);
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+    border-radius: 8px;
+    resize: none;
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.5;
+    min-height: 80px;
+    outline: none;
+  }
+
+  .learning__edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+    gap: 8px;
+  }
+
+  .learning__edit-save-btn,
+  .learning__edit-cancel-btn {
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .learning__edit-save-btn {
+    background-color: var(--color-primary, #4242ea);
+    color: white;
+  }
+
+  .learning__edit-cancel-btn {
+    background-color: var(--color-background-dark, #181c28);
+    color: var(--color-text-primary, #ffffff);
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  }
+
+  .learning__message-edited-indicator {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary, #a0a0a0);
+    margin-left: 8px;
+    opacity: 0.7;
+  }
+
+  /* Typing indicator */
+  .learning__typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 4px 8px;
+    justify-content: center;
+    min-width: 40px;
+  }
+
+  .learning__typing-indicator span {
+    width: 8px;
+    height: 8px;
+    background: var(--color-text-secondary, #a0a0a0);
+    border-radius: 50%;
+    animation: bounce 1.4s infinite ease-in-out;
+  }
+
+  .learning__typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+  .learning__typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+  @keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-8px); }
+  }
+
+  /* Input form styles */
+  .learning__input-form {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    padding: 12px;
+    background-color: var(--color-background-darker, #111827);
+    border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+    position: relative;
+  }
+
+  .learning__input {
+    flex: 1;
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+    background-color: var(--color-background-dark, #181c28);
+    color: var(--color-text-primary, #ffffff);
+    font-size: 15px;
+    resize: none;
+    max-height: 150px;
+    outline: none;
+  }
+
+  .learning__send-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background-color: var(--color-primary, #4242ea);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  .learning__send-btn:hover {
+    background-color: var(--color-primary-hover, #5555ff);
+  }
+
+  .learning__send-btn:disabled {
+    background-color: var(--color-disabled, #2a2a4a);
+    cursor: not-allowed;
+  }
+
+  .learning__error {
+    color: var(--color-error, #ff4f4f);
+    padding: 8px 12px;
+    margin: 8px 0;
+    border-radius: 4px;
+    background-color: rgba(255, 79, 79, 0.1);
+    text-align: center;
+  }
+
+  /* Message animations */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 `;
 
@@ -138,6 +359,21 @@ function PastSession() {
   const [messages, setMessages] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [isPastSession, setIsPastSession] = useState(true);
+  
+  // Add new state variables for message input and sending
+  const [newMessage, setNewMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [isAiThinking, setIsAiThinking] = useState(false);
+  
+  // Add state variables for message editing
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editMessageContent, setEditMessageContent] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  
+  // Add refs for scrolling and textarea handling
+  const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
+  const editTextareaRef = useRef(null);
 
   // After the existing useEffects, add a new one to fetch task details
   const fetchedTasksRef = useRef(new Set());
@@ -264,7 +500,14 @@ function PastSession() {
     fetchDaySchedule();
   }, [dayId, dayNumber, token]);
 
-  // Add a new useEffect to fetch messages when a task is selected
+  // Add auto-scroll effect when messages change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  // Update existing useEffect for fetching task messages
   useEffect(() => {
     const fetchTaskMessages = async () => {
       if (!tasks.length || currentTaskIndex >= tasks.length) return;
@@ -316,6 +559,7 @@ function PastSession() {
               
             return {
               id: msg.message_id,
+              message_id: msg.message_id,
               role: msg.role,
               content: msg.content,
               timestamp: formattedTimestamp
@@ -332,6 +576,7 @@ function PastSession() {
               
             return {
               id: msg.id,
+              message_id: msg.id,
               role: msg.role,
               content: msg.content,
               timestamp: formattedTimestamp
@@ -343,6 +588,7 @@ function PastSession() {
       } catch (error) {
         console.error('Error fetching task messages:', error);
         setMessages([]);
+        setError('Failed to load messages. Please try again.');
       } finally {
         setMessagesLoading(false);
       }
@@ -351,7 +597,7 @@ function PastSession() {
     if (tasks.length > 0 && currentTaskIndex < tasks.length) {
       fetchTaskMessages();
     }
-  }, [currentTaskIndex, token, tasks]);
+  }, [currentTaskIndex, token, tasks, daySchedule]);
 
   useEffect(() => {
     if (daySchedule && daySchedule.day && daySchedule.day.day_date) {
@@ -618,6 +864,223 @@ function PastSession() {
     );
   };
 
+  // Add function to handle sending a message
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    
+    if (!newMessage.trim() || isSending) return;
+    
+    // Prevent double-clicks
+    setIsSending(true);
+    
+    // Store the message locally for optimistic UI update
+    const messageToSend = newMessage.trim();
+    
+    // Clear the input
+    setNewMessage('');
+    
+    // Resize the textarea back to its original size
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+    
+    // Create a temporary ID for this message
+    const temporaryId = `temp-${Date.now()}`;
+    
+    // Optimistically add message to the UI
+    setMessages(prevMessages => [
+      ...prevMessages.filter(msg => msg.id !== 'loading'),
+      {
+        id: temporaryId,
+        content: messageToSend,
+        role: 'user',
+        isTemporary: true
+      }
+    ]);
+    
+    // Show the AI thinking indicator
+    setIsAiThinking(true);
+    
+    try {
+      // Get the current task ID
+      const currentTaskId = tasks[currentTaskIndex]?.id;
+      
+      // Get day number from the day schedule
+      const currentDayNumber = daySchedule?.day?.day_number || dayNumber;
+      
+      // Prepare request body
+      const requestBody = {
+        content: messageToSend,
+        taskId: currentTaskId
+      };
+      
+      if (currentDayNumber) {
+        requestBody.dayNumber = currentDayNumber;
+      }
+      
+      // Determine if this is a new conversation or continuing an existing one
+      const endpoint = messages.length === 0 
+        ? 'messages/start' 
+        : 'messages/continue';
+      
+      // Send message to learning API
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to send message: ${response.status}`);
+      }
+      
+      // Get AI response
+      const aiResponseData = await response.json();
+      
+      // Extract the user message ID from the response if available
+      const userMessageId = aiResponseData.user_message_id;
+      
+      // If the server returned the user message ID, update our state to use it
+      if (userMessageId) {
+        console.log(`User message ID from server: ${userMessageId}, replacing temporary ID: ${temporaryId}`);
+        // Update the user message with the real server ID
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg.id === temporaryId ? 
+              { ...msg, id: userMessageId, message_id: userMessageId } : 
+              msg
+          )
+        );
+      }
+      
+      // Add AI response
+      const aiResponse = {
+        id: aiResponseData.message_id,
+        message_id: aiResponseData.message_id,
+        content: aiResponseData.content,
+        role: aiResponseData.role,
+        timestamp: aiResponseData.timestamp
+      };
+      
+      setMessages(prevMessages => [...prevMessages, aiResponse]);
+      
+    } catch (err) {
+      console.error('Error sending/receiving message:', err);
+      setError('Failed to communicate with the learning assistant. Please try again.');
+      
+      // Remove the temporary message on error
+      setMessages(prevMessages => prevMessages.filter(msg => msg.id !== temporaryId));
+    } finally {
+      setIsSending(false);
+      setIsAiThinking(false);
+    }
+  };
+
+  // Handle text input changes for the message input
+  const handleTextareaChange = (e) => {
+    setNewMessage(e.target.value);
+    
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  };
+
+  // Handle starting to edit a message
+  const handleEditMessage = (message) => {
+    // Check if message has an actual server-assigned ID
+    const messageId = message.message_id || message.id;
+    
+    // Ensure ID is treated as a string
+    setEditingMessageId(String(messageId));
+    setEditMessageContent(message.content);
+    
+    // Focus the textarea after it's rendered
+    setTimeout(() => {
+      if (editTextareaRef.current) {
+        editTextareaRef.current.focus();
+        
+        // Auto-resize the textarea
+        editTextareaRef.current.style.height = 'auto';
+        editTextareaRef.current.style.height = `${editTextareaRef.current.scrollHeight}px`;
+      }
+    }, 0);
+  };
+
+  // Handle updating a message
+  const handleUpdateMessage = async (messageId) => {
+    if (!editMessageContent.trim() || isUpdating) return;
+    
+    setIsUpdating(true);
+    
+    try {
+      // Ensure messageId is treated as a string for comparisons
+      const messageIdStr = String(messageId);
+      
+      // Send update request to API
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages/${messageId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          content: editMessageContent.trim()
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to update message: ${response.status}`);
+      }
+      
+      const updatedMessage = await response.json();
+      
+      // Update the message in the UI
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          String(msg.id) === messageIdStr ? 
+            {
+              ...msg, 
+              id: updatedMessage.message_id, // Use the server's ID
+              message_id: updatedMessage.message_id, // Store both versions for consistency
+              content: updatedMessage.content, 
+              updated: true
+            } : 
+            msg
+        )
+      );
+      
+      // Reset edit state
+      setEditingMessageId(null);
+      setEditMessageContent('');
+      
+    } catch (err) {
+      console.error('Error updating message:', err);
+      setError(`Failed to update message: ${err.message}`);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+  
+  // Handle canceling an edit
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditMessageContent('');
+  };
+  
+  // Handle edit textarea auto-resize
+  const handleEditTextareaChange = (e) => {
+    setEditMessageContent(e.target.value);
+    
+    if (editTextareaRef.current) {
+      editTextareaRef.current.style.height = 'auto';
+      editTextareaRef.current.style.height = `${editTextareaRef.current.scrollHeight}px`;
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="learning past-session">
@@ -742,30 +1205,110 @@ function PastSession() {
                 <div className="past-session__loading-messages">
                   <p>Loading previous messages...</p>
                 </div>
-              ) : messages.length > 0 ? (
-                <div className="learning__messages">
-                  {messages.map(message => (
-                    <div key={message.id} className={`learning__message learning__message--${message.role}`}>
-                      <div className="learning__message-content">
-                        {formatMessageContent(message.content)}
+              ) : (
+                <div className={`learning__messages ${messagesLoading ? 'loading' : ''} ${editingMessageId !== null ? 'has-editing-message' : ''}`}>
+                  {messages.length > 0 ? (
+                    messages.map(message => (
+                      <div 
+                        key={message.id} 
+                        className={`learning__message learning__message--${message.role} ${String(editingMessageId) === String(message.id) ? 'editing' : ''}`}
+                      >
+                        <div 
+                          className={`learning__message-content ${message.role === 'user' && isPastSession ? 'learning__message-content--editable' : ''}`}
+                          onClick={message.role === 'user' && editingMessageId === null && isPastSession ? () => handleEditMessage(message) : undefined}
+                        >
+                          {String(editingMessageId) === String(message.id) ? (
+                            <div className="learning__message-edit">
+                              <textarea
+                                ref={editTextareaRef}
+                                value={editMessageContent}
+                                onChange={handleEditTextareaChange}
+                                className="learning__edit-textarea"
+                                disabled={isUpdating}
+                                placeholder="Edit your message..."
+                              />
+                              <div className="learning__edit-actions">
+                                <button 
+                                  onClick={() => handleUpdateMessage(message.id)}
+                                  className="learning__edit-save-btn"
+                                  disabled={isUpdating}
+                                >
+                                  {isUpdating ? 'Saving...' : <FaCheck />}
+                                </button>
+                                <button 
+                                  onClick={handleCancelEdit}
+                                  className="learning__edit-cancel-btn"
+                                  disabled={isUpdating}
+                                >
+                                  <FaTimes />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {formatMessageContent(message.content)}
+                              {message.updated && (
+                                <span className="learning__message-edited-indicator">(edited)</span>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="past-session__message-note">
+                      <p>No previous messages available for this task.</p>
+                    </div>
+                  )}
+                  
+                  {isAiThinking && (
+                    <div className="learning__message learning__message--assistant">
+                      <div className="learning__message-content learning__message-content--thinking">
+                        <div className="learning__typing-indicator">
+                          <span></span>
+                          <span></span>
+                          <span></span>
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="past-session__messages">
-                  <div className="past-session__message-note">
-                    <p>No previous messages available for this task.</p>
-                  </div>
+                  )}
+                  <div ref={messagesEndRef} />
                 </div>
               )}
               
-              <div className="past-session__message-disclaimer">
-                <p>{isPastSession 
-                  ? "This is a past session. You cannot send new messages." 
-                  : "This session is scheduled for the future. You can send messages on the scheduled day."}
-                </p>
-              </div>
+              {/* Message input area for past sessions */}
+              {isPastSession ? (
+                <form className="learning__input-form" onSubmit={handleSendMessage}>
+                  <textarea
+                    ref={textareaRef}
+                    className="learning__input"
+                    value={newMessage}
+                    onChange={handleTextareaChange}
+                    placeholder={isSending ? "Sending..." : "Type your message..."}
+                    disabled={isSending || isAiThinking}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage(e);
+                      }
+                    }}
+                    rows={1}
+                  />
+                  <button 
+                    className="learning__send-btn" 
+                    type="submit" 
+                    disabled={!newMessage.trim() || isSending || isAiThinking}
+                  >
+                    {isSending ? "Sending..." : <FaPaperPlane />}
+                  </button>
+                </form>
+              ) : (
+                <div className="past-session__message-disclaimer">
+                  <p>This session is scheduled for the future. You can send messages on the scheduled day.</p>
+                </div>
+              )}
+              
+              {error && <div className="learning__error">{error}</div>}
             </div>
           </div>
         </div>
