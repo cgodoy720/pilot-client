@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes, FaLink, FaExternalLinkAlt } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
+import PeerFeedbackForm from '../../components/PeerFeedbackForm';
 import './PastSession.css';
 
 function PastSession() {
@@ -40,6 +41,10 @@ function PastSession() {
   const [submissionUrl, setSubmissionUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
+  
+  // Add peer feedback state
+  const [showPeerFeedback, setShowPeerFeedback] = useState(false);
+  const [peerFeedbackCompleted, setPeerFeedbackCompleted] = useState(false);
   
   // Add refs for scrolling and textarea handling
   const messagesEndRef = useRef(null);
@@ -415,6 +420,14 @@ function PastSession() {
   };
 
   const getTaskIcon = (type) => {
+    // Special case for Independent Retrospective
+    if (type === 'reflect' && tasks.length > 0 && 
+        currentTaskIndex < tasks.length &&
+        tasks[currentTaskIndex].title === "Independent Retrospective") {
+      // Always show the original icon for the Independent Retrospective task
+      return <FaBook className="task-icon reflect" />;
+    }
+    
     // Remove the completed check - always show the icon based on type
     switch (type) {
       case 'share':
@@ -862,6 +875,39 @@ function PastSession() {
     }
   };
 
+  // Add a helper function to check if current task is the Independent Retrospective
+  const isIndependentRetroTask = () => {
+    if (!tasks.length || currentTaskIndex >= tasks.length) return false;
+    
+    const currentTask = tasks[currentTaskIndex];
+    // Check by title - a more robust approach would be to check by task ID or type
+    return currentTask.title === "Independent Retrospective";
+  };
+
+  // Add a function to handle peer feedback completion
+  const handlePeerFeedbackComplete = () => {
+    // Mark peer feedback as completed
+    setPeerFeedbackCompleted(true);
+    
+    // Hide the peer feedback form
+    setShowPeerFeedback(false);
+    
+    // Success status will be shown inline in the task action area
+  };
+  
+  // Add a function to handle peer feedback cancellation
+  const handlePeerFeedbackCancel = () => {
+    // Hide the peer feedback form without marking as completed
+    setShowPeerFeedback(false);
+  };
+  
+  // Add a function to show the peer feedback form
+  const showPeerFeedbackForm = () => {
+    if (isIndependentRetroTask() && isPastSession) {
+      setShowPeerFeedback(true);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="learning past-session">
@@ -955,6 +1001,24 @@ function PastSession() {
             </div>
           )}
           
+          {/* Add Peer Feedback button for Independent Retrospective tasks */}
+          {isIndependentRetroTask() && isPastSession && messages.length > 0 && (
+            <div className="past-session__task-action">
+              {peerFeedbackCompleted ? (
+                <div className="past-session__feedback-status">
+                  <FaCheck /> Peer feedback submitted successfully!
+                </div>
+              ) : (
+                <button 
+                  className="past-session__feedback-btn"
+                  onClick={showPeerFeedbackForm}
+                >
+                  <FaUsers /> Provide Peer Feedback
+                </button>
+              )}
+            </div>
+          )}
+          
           <button 
             className="back-to-calendar-btn"
             onClick={handleBackToCalendar}
@@ -964,188 +1028,194 @@ function PastSession() {
         </div>
         
         <div className="learning__chat-container">
-          <div className="learning__chat-panel">
-            {tasksLoading ? (
-              <div className="past-session__loading-details">
-                <p>Loading task details...</p>
-              </div>
-            ) : tasks.length > 0 && tasks[currentTaskIndex]?.resources && tasks[currentTaskIndex].resources.length > 0 ? (
-              <div className="past-session__task-resources-container">
-                {renderTaskResources(tasks[currentTaskIndex].resources)}
-              </div>
-            ) : tasks.length > 0 ? (
-              <div className="past-session__no-resources">
-                <p>No resources available for this task.</p>
-              </div>
-            ) : null}
-            
-            {/* Message display area - updated to show messages */}
-            <div className="past-session__messages-container">
-              {messagesLoading || isLazyLoading ? (
-                <div className="past-session__loading-messages">
-                  <p>
-                    {isLazyLoading ? 'Preparing to load messages...' : 'Loading previous messages...'}
-                  </p>
+          {showPeerFeedback ? (
+            // Show the peer feedback form when needed
+            <PeerFeedbackForm
+              dayNumber={daySchedule?.day?.day_number || dayNumber}
+              onComplete={handlePeerFeedbackComplete}
+              onCancel={handlePeerFeedbackCancel}
+            />
+          ) : (
+            <div className="learning__chat-panel">
+              {tasksLoading ? (
+                <div className="past-session__loading-details">
+                  <p>Loading task details...</p>
                 </div>
-              ) : (
-                <div className={`learning__messages ${messagesLoading ? 'loading' : ''} ${editingMessageId !== null ? 'has-editing-message' : ''}`}>
-                  {messages.length > 0 ? (
-                    messages.map(message => (
-                      <div 
-                        key={message.id} 
-                        className={`learning__message learning__message--${message.role} ${String(editingMessageId) === String(message.id) ? 'editing' : ''}`}
-                      >
-                        <div 
-                          className={`learning__message-content ${message.role === 'user' && isPastSession ? 'learning__message-content--editable' : ''}`}
-                          onClick={message.role === 'user' && editingMessageId === null && isPastSession ? () => handleEditMessage(message) : undefined}
-                        >
-                          {String(editingMessageId) === String(message.id) ? (
-                            <div className="learning__message-edit">
-                              <textarea
-                                ref={editTextareaRef}
-                                value={editMessageContent}
-                                onChange={handleEditTextareaChange}
-                                className="learning__edit-textarea"
-                                disabled={isUpdating}
-                                placeholder="Edit your message..."
-                              />
-                              <div className="learning__edit-actions">
-                                <button 
-                                  onClick={() => handleUpdateMessage(message.id)}
-                                  className="learning__edit-save-btn"
-                                  disabled={isUpdating}
-                                >
-                                  {isUpdating ? 'Saving...' : <FaCheck />}
-                                </button>
-                                <button 
-                                  onClick={handleCancelEdit}
-                                  className="learning__edit-cancel-btn"
-                                  disabled={isUpdating}
-                                >
-                                  <FaTimes />
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              {formatMessageContent(message.content)}
-                              {message.updated && (
-                                <span className="learning__message-edited-indicator">(edited)</span>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : isAiThinking ? (
-                    <div className="past-session__loading-messages">
-                      <p>Starting conversation for this task...</p>
-                    </div>
-                  ) : (
-                    <div className="past-session__message-note">
-                      {rateLimitHit ? (
-                        <div className="past-session__error-note">
-                          <p>The server is busy at the moment. Please wait a moment before trying again.</p>
-                          <button 
-                            onClick={handleRetry}
-                            className="past-session__retry-btn"
-                            disabled={isLazyLoading}
-                          >
-                            Try Again
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <p>No previous messages available for this task.</p>
-                          {isPastSession && (
-                            <button 
-                              onClick={() => tasks.length > 0 && startTaskThread(tasks[currentTaskIndex].id)}
-                              className="past-session__start-conversation-btn"
-                              disabled={!tasks.length || tasksLoading || isLazyLoading}
-                            >
-                              {isLazyLoading ? 'Preparing...' : 'Start Conversation'}
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
-                  
-                  {isAiThinking && (
-                    <div className="learning__message learning__message--assistant">
-                      <div className="learning__message-content learning__message-content--thinking">
-                        <div className="learning__typing-indicator">
-                          <span></span>
-                          <span></span>
-                          <span></span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div ref={messagesEndRef} />
+              ) : tasks.length > 0 && tasks[currentTaskIndex]?.resources && tasks[currentTaskIndex].resources.length > 0 ? (
+                <div className="past-session__task-resources-container">
+                  {renderTaskResources(tasks[currentTaskIndex].resources)}
                 </div>
-              )}
+              ) : tasks.length > 0 ? (
+                <div className="past-session__no-resources">
+                  <p>No resources available for this task.</p>
+                </div>
+              ) : null}
               
-              {/* Message input area for past sessions */}
-              {isPastSession ? (
-                messages.length > 0 ? (
-                  <form className="learning__input-form" onSubmit={handleSendMessage}>
-                    <textarea
-                      ref={textareaRef}
-                      className="learning__input"
-                      value={newMessage}
-                      onChange={handleTextareaChange}
-                      placeholder={isSending ? "Sending..." : "Type your message..."}
-                      disabled={isSending || isAiThinking}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage(e);
-                        }
-                      }}
-                      rows={1}
-                    />
-                    <div className="learning__input-actions">
-                      {(() => {
-                        return tasks.length > 0 && 
-                          tasks[currentTaskIndex]?.deliverable_type === 'link' && (
-                          <button 
-                            type="button"
-                            className="learning__deliverable-btn"
-                            onClick={() => setShowSubmissionModal(true)}
-                            title={`Submit ${tasks[currentTaskIndex].deliverable}`}
-                          >
-                            <FaLink />
-                          </button>
-                        );
-                      })()}
-                    </div>
-                    <button 
-                      className="learning__send-btn" 
-                      type="submit" 
-                      disabled={!newMessage.trim() || isSending || isAiThinking}
-                    >
-                      {isSending ? "Sending..." : <FaPaperPlane />}
-                    </button>
-                  </form>
-                ) : (
-                  <div className="past-session__message-input-placeholder">
-                    <p>Start a conversation to interact with this task</p>
+              {/* Message display area - updated to show messages */}
+              <div className={`learning__messages ${messagesLoading ? 'loading' : ''} ${editingMessageId !== null ? 'has-editing-message' : ''}`}>
+                {messagesLoading || isLazyLoading ? (
+                  <div className="past-session__loading-messages">
+                    <p>
+                      {isLazyLoading ? 'Preparing to load messages...' : 'Loading previous messages...'}
+                    </p>
                   </div>
-                )
-              ) : (
-                <div className="past-session__message-disclaimer">
-                  <p>This session is scheduled for the future. You can send messages on the scheduled day.</p>
-                </div>
-              )}
-              
-              {/* Display success message below the input */}
-              {successMessage && <div className="learning__success">{successMessage}</div>}
-
-              {/* Display error message if there is one - keep this separate from the success message */}
-              {error && !rateLimitHit && <div className="learning__error">{error}</div>}
+                ) : (
+                  <div className={`learning__messages ${messagesLoading ? 'loading' : ''} ${editingMessageId !== null ? 'has-editing-message' : ''}`}>
+                    {messages.length > 0 ? (
+                      messages.map(message => (
+                        <div 
+                          key={message.id} 
+                          className={`learning__message learning__message--${message.role} ${String(editingMessageId) === String(message.id) ? 'editing' : ''}`}
+                        >
+                          <div 
+                            className={`learning__message-content ${message.role === 'user' && isPastSession ? 'learning__message-content--editable' : ''}`}
+                            onClick={message.role === 'user' && editingMessageId === null && isPastSession ? () => handleEditMessage(message) : undefined}
+                          >
+                            {String(editingMessageId) === String(message.id) ? (
+                              <div className="learning__message-edit">
+                                <textarea
+                                  ref={editTextareaRef}
+                                  value={editMessageContent}
+                                  onChange={handleEditTextareaChange}
+                                  className="learning__edit-textarea"
+                                  disabled={isUpdating}
+                                  placeholder="Edit your message..."
+                                />
+                                <div className="learning__edit-actions">
+                                  <button 
+                                    onClick={() => handleUpdateMessage(message.id)}
+                                    className="learning__edit-save-btn"
+                                    disabled={isUpdating}
+                                  >
+                                    {isUpdating ? 'Saving...' : <FaCheck />}
+                                  </button>
+                                  <button 
+                                    onClick={handleCancelEdit}
+                                    className="learning__edit-cancel-btn"
+                                    disabled={isUpdating}
+                                  >
+                                    <FaTimes />
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                {formatMessageContent(message.content)}
+                                {message.updated && (
+                                  <span className="learning__message-edited-indicator">(edited)</span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : isAiThinking ? (
+                      <div className="past-session__loading-messages">
+                        <p>Starting conversation for this task...</p>
+                      </div>
+                    ) : (
+                      <div className="past-session__message-note">
+                        {rateLimitHit ? (
+                          <div className="past-session__error-note">
+                            <p>The server is busy at the moment. Please wait a moment before trying again.</p>
+                            <button 
+                              onClick={handleRetry}
+                              className="past-session__retry-btn"
+                              disabled={isLazyLoading}
+                            >
+                              Try Again
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <p>No previous messages available for this task.</p>
+                            {isPastSession && (
+                              <button 
+                                onClick={() => tasks.length > 0 && startTaskThread(tasks[currentTaskIndex].id)}
+                                className="past-session__start-conversation-btn"
+                                disabled={!tasks.length || tasksLoading || isLazyLoading}
+                              >
+                                {isLazyLoading ? 'Preparing...' : 'Start Conversation'}
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                    
+                    {isAiThinking && (
+                      <div className="learning__message learning__message--assistant">
+                        <div className="learning__message-content learning__message-content--thinking">
+                          <div className="learning__typing-indicator">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
+                
+                {/* Message input area for past sessions */}
+                {isPastSession ? (
+                  messages.length > 0 ? (
+                    <form className="learning__input-form" onSubmit={handleSendMessage}>
+                      <textarea
+                        ref={textareaRef}
+                        className="learning__input"
+                        value={newMessage}
+                        onChange={handleTextareaChange}
+                        placeholder={isSending ? "Sending..." : "Type your message..."}
+                        disabled={isSending || isAiThinking}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage(e);
+                          }
+                        }}
+                        rows={1}
+                      />
+                      <div className="learning__input-actions">
+                        {(() => {
+                          return tasks.length > 0 && 
+                            tasks[currentTaskIndex]?.deliverable_type === 'link' && (
+                            <button 
+                              type="button"
+                              className="learning__deliverable-btn"
+                              onClick={() => setShowSubmissionModal(true)}
+                              title={`Submit ${tasks[currentTaskIndex].deliverable}`}
+                            >
+                              <FaLink />
+                            </button>
+                          );
+                        })()}
+                      </div>
+                      <button 
+                        className="learning__send-btn" 
+                        type="submit" 
+                        disabled={!newMessage.trim() || isSending || isAiThinking}
+                      >
+                        {isSending ? "Sending..." : <FaPaperPlane />}
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="past-session__message-input-placeholder">
+                      <p>Start a conversation to interact with this task</p>
+                    </div>
+                  )
+                ) : (
+                  <div className="past-session__message-disclaimer">
+                    <p>This session is scheduled for the future. You can send messages on the scheduled day.</p>
+                  </div>
+                )}
+                
+                {/* Display error message if there is one */}
+                {error && !rateLimitHit && <div className="learning__error">{error}</div>}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
       

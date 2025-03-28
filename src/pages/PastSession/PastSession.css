@@ -1027,4 +1027,91 @@
   padding: 0 4px;
   text-align: center;
   font-weight: 500;
+}
+
+/* Peer feedback section styles */
+.past-session__feedback-prompt {
+  text-align: center;
+  margin: 24px 0;
+  padding: 16px;
+  background-color: rgba(66, 66, 234, 0.1);
+  border-radius: 8px;
+}
+
+.past-session__feedback-btn {
+  background-color: var(--color-primary, #4242ea);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.past-session__feedback-btn:hover {
+  background-color: var(--color-primary-hover, #5555ff);
+}
+
+/* Success message styles */
+.learning__success {
+  padding: 10px 16px;
+  margin: 10px 0;
+  background-color: rgba(39, 174, 96, 0.1);
+  color: #27ae60;
+  border-radius: 4px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.learning__success::before {
+  content: '✓';
+  display: inline-block;
+  margin-right: 8px;
+  font-weight: bold;
+}
+
+/* Feedback status indicator */
+.past-session__feedback-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #27ae60;
+  margin: 8px auto;
+  justify-content: center;
+  background-color: rgba(39, 174, 96, 0.1);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-weight: 500;
+  max-width: fit-content;
+}
+
+.past-session__feedback-status svg {
+  font-size: 1.1rem;
+}
+
+/* Task action styling */
+.past-session__task-action {
+  text-align: center;
+  margin: 16px 0;
+  padding: 8px 0;
+}
+
+.past-session__task-action .past-session__feedback-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 auto;
+}
+
+/* Peer feedback form container styling */
+.learning__chat-container .peer-feedback {
+  margin-top: 0;
+  position: relative;
+  top: 0;
+  border-radius: 8px;
+  height: auto;
+  max-height: calc(100vh - 120px);
 } 
