@@ -3,12 +3,14 @@
   height: 100%;
   background-color: var(--color-background-darker);
   color: var(--color-text-primary);
+  overflow: hidden;
 }
 
 .gpt__content {
   width: 100%;
   height: 100%;
   padding: var(--spacing-md);
+  overflow: hidden;
 }
 
 .gpt__chat-container {
@@ -18,15 +20,20 @@
   overflow: hidden;
   background-color: var(--color-background-darker);
   border: 1px solid var(--color-border);
+  width: 100%;
+  max-width: 100%;
+  position: relative;
 }
 
 .gpt__sidebar {
   flex: 0 0 250px;
+  min-width: 0;
   border-right: 1px solid var(--color-border);
   padding: var(--spacing-md);
   overflow-y: auto;
   background-color: var(--color-background-dark);
   transition: all 0.3s ease;
+  z-index: 10;
 }
 
 .gpt__sidebar--collapsed {
@@ -123,6 +130,8 @@
   overflow: hidden;
   background-color: var(--color-background-darker);
   position: relative;
+  min-width: 0;
+  width: 100%;
 }
 
 .gpt__messages {
@@ -133,6 +142,8 @@
   flex-direction: column;
   gap: 20px;
   background-color: var(--color-background-darker);
+  width: 100%;
+  max-width: 100%;
 }
 
 .gpt__sidebar--collapsed + .gpt__chat-panel .gpt__messages {
@@ -147,6 +158,9 @@
   display: flex;
   max-width: 85%;
   animation: fadeIn 0.3s ease-in;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .gpt__message--user {
@@ -185,6 +199,9 @@
   max-width: 100%;
   background-color: var(--color-background-darker);
   color: var(--color-text-primary);
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .gpt__message--user .gpt__message-content {
@@ -294,6 +311,8 @@
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 0.9rem;
   line-height: 1.5;
+  white-space: pre-wrap;
+  max-width: 100%;
 }
 
 .gpt__message-content .code-language {
