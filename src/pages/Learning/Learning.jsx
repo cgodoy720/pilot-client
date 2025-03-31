@@ -3,6 +3,7 @@ import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, F
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
+import PeerFeedbackForm from '../../components/PeerFeedbackForm';
 import './Learning.css';
 
 function Learning() {
@@ -44,6 +45,10 @@ function Learning() {
   const [submissionUrl, setSubmissionUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
+  
+  // Add state for peer feedback
+  const [showPeerFeedback, setShowPeerFeedback] = useState(false);
+  const [peerFeedbackCompleted, setPeerFeedbackCompleted] = useState(false);
   
   // Helper function to format time
   const formatTime = (timeString) => {
@@ -630,9 +635,38 @@ function Learning() {
     }
   };
   
-  // Mark a task as completed
+  // Add a helper function to check if current task is the Independent Retrospective
+  const isIndependentRetroTask = () => {
+    if (!tasks.length || currentTaskIndex >= tasks.length) return false;
+    
+    const currentTask = tasks[currentTaskIndex];
+    // Check by title - a more robust approach would be to check by task ID or type
+    return currentTask.title === "Independent Retrospective";
+  };
+
+  // Add a function to handle peer feedback completion
+  const handlePeerFeedbackComplete = () => {
+    // Mark peer feedback as completed
+    setPeerFeedbackCompleted(true);
+    
+    // Hide the peer feedback form
+    setShowPeerFeedback(false);
+    
+    // Success status will be shown by the inline status element
+  };
+  
+  // Add a function to handle peer feedback cancellation
+  const handlePeerFeedbackCancel = () => {
+    // Hide the peer feedback form without marking as completed
+    setShowPeerFeedback(false);
+  };
+
+  // Modify the markTaskAsCompleted function to not handle peer feedback
   const markTaskAsCompleted = async (taskId) => {
     try {
+      // No need to check for Independent Retrospective task anymore
+      // as we're not showing the Complete button for it
+      
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/complete-task/${taskId}`, {
         method: 'POST',
         headers: {
@@ -700,6 +734,14 @@ function Learning() {
   
   // Helper function to get task icon based on type
   const getTaskIcon = (type, completed) => {
+    // Special case for Independent Retrospective
+    if (type === 'reflect' && tasks.length > 0 && 
+        currentTaskIndex < tasks.length &&
+        tasks[currentTaskIndex].title === "Independent Retrospective") {
+      // Always show the original icon for Independent Retrospective
+      return <FaBook className="task-icon reflect" />;
+    }
+    
     if (completed) {
       return <FaCheckCircle className="task-icon completed" />;
     }
@@ -1167,165 +1209,203 @@ function Learning() {
         </div>
         
         <div className="learning__chat-container">
-          <div className="learning__chat-panel">
-            {/* Display resources at the top of the chat panel */}
-            {currentTaskIndex < tasks.length && tasks[currentTaskIndex].resources && tasks[currentTaskIndex].resources.length > 0 && (
-              <div className="learning__task-resources-container">
-                {renderTaskResources(tasks[currentTaskIndex].resources)}
-              </div>
-            )}
-            
-            <div className={`learning__messages ${isMessagesLoading ? 'loading' : ''} ${editingMessageId !== null ? 'has-editing-message' : ''}`}>
-              {messages.map(message => (
-                <div 
-                  key={message.id} 
-                  className={`learning__message learning__message--${message.role} ${String(editingMessageId) === String(message.id) ? 'editing' : ''}`}
-                >
-                  <div 
-                    className={`learning__message-content ${isMessagesLoading && message === messages[messages.length - 1] ? 'learning__message-content--loading' : ''} ${message.role === 'user' ? 'learning__message-content--editable' : ''}`}
-                    onClick={message.role === 'user' && editingMessageId === null ? () => handleEditMessage(message) : undefined}
-                  >
-                    {String(editingMessageId) === String(message.id) ? (
-                      <div className="learning__message-edit">
-                        <textarea
-                          ref={editTextareaRef}
-                          value={editMessageContent}
-                          onChange={handleEditTextareaChange}
-                          className="learning__edit-textarea"
-                          disabled={isUpdating}
-                          placeholder="Edit your message..."
-                        />
-                        <div className="learning__edit-actions">
-                          <button 
-                            onClick={() => handleUpdateMessage(message.id)}
-                            className="learning__edit-save-btn"
-                            disabled={isUpdating}
-                          >
-                            {isUpdating ? 'Saving...' : <FaCheck />}
-                          </button>
-                          <button 
-                            onClick={handleCancelEdit}
-                            className="learning__edit-cancel-btn"
-                            disabled={isUpdating}
-                          >
-                            <FaTimes />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {formatMessageContent(message.content)}
-                        {message.updated && (
-                          <span className="learning__message-edited-indicator">(edited)</span>
-                        )}
-                      </>
-                    )}
-                  </div>
+          {showPeerFeedback ? (
+            // Show the peer feedback form when needed
+            <PeerFeedbackForm
+              dayNumber={currentDay?.day_number}
+              onComplete={handlePeerFeedbackComplete}
+              onCancel={handlePeerFeedbackCancel}
+            />
+          ) : (
+            <div className="learning__chat-panel">
+              {/* Display resources at the top of the chat panel */}
+              {currentTaskIndex < tasks.length && tasks[currentTaskIndex].resources && tasks[currentTaskIndex].resources.length > 0 && (
+                <div className="learning__task-resources-container">
+                  {renderTaskResources(tasks[currentTaskIndex].resources)}
                 </div>
-              ))}
-              {isAiThinking && (
-                <div className="learning__message learning__message--assistant">
-                  <div className="learning__message-content learning__message-content--thinking">
-                    <div className="learning__typing-indicator">
-                      <span></span>
-                      <span></span>
-                      <span></span>
+              )}
+              
+              <div className={`learning__messages ${isMessagesLoading ? 'loading' : ''} ${editingMessageId !== null ? 'has-editing-message' : ''}`}>
+                {isMessagesLoading ? (
+                  <div className="learning__loading-messages">
+                    <p>Loading messages...</p>
+                  </div>
+                ) : messages.length > 0 ? (
+                  messages.map(message => (
+                    <div 
+                      key={message.id} 
+                      className={`learning__message learning__message--${message.role} ${String(editingMessageId) === String(message.id) ? 'editing' : ''}`}
+                    >
+                      <div 
+                        className={`learning__message-content ${isMessagesLoading && message === messages[messages.length - 1] ? 'learning__message-content--loading' : ''} ${message.role === 'user' ? 'learning__message-content--editable' : ''}`}
+                        onClick={message.role === 'user' && editingMessageId === null ? () => handleEditMessage(message) : undefined}
+                      >
+                        {String(editingMessageId) === String(message.id) ? (
+                          <div className="learning__message-edit">
+                            <textarea
+                              ref={editTextareaRef}
+                              value={editMessageContent}
+                              onChange={handleEditTextareaChange}
+                              className="learning__edit-textarea"
+                              disabled={isUpdating}
+                              placeholder="Edit your message..."
+                            />
+                            <div className="learning__edit-actions">
+                              <button 
+                                onClick={() => handleUpdateMessage(message.id)}
+                                className="learning__edit-save-btn"
+                                disabled={isUpdating}
+                              >
+                                {isUpdating ? 'Saving...' : <FaCheck />}
+                              </button>
+                              <button 
+                                onClick={handleCancelEdit}
+                                className="learning__edit-cancel-btn"
+                                disabled={isUpdating}
+                              >
+                                <FaTimes />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {formatMessageContent(message.content)}
+                            {message.updated && (
+                              <span className="learning__message-edited-indicator">(edited)</span>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="learning__message-note">
+                    <p>The AI Coach will start the conversation based on your task. Ask questions or share your thoughts to continue the discussion.</p>
+                  </div>
+                )}
+                
+                {/* Show thinking indicator when AI is generating a response */}
+                {isAiThinking && (
+                  <div className="learning__message learning__message--assistant">
+                    <div className="learning__message-content learning__message-content--thinking">
+                      <div className="learning__typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Add a ref for auto-scrolling */}
+                <div ref={messagesEndRef} />
+              </div>
+              
+              <div className="learning__task-navigation">
+                <button 
+                  className="learning__task-nav-button" 
+                  onClick={() => navigateToTask('prev')}
+                  disabled={currentTaskIndex === 0}
+                >
+                  <FaArrowLeft /> Previous Task
+                </button>
+                {isIndependentRetroTask() && messages.length > 0 && !tasks[currentTaskIndex].completed ? (
+                  peerFeedbackCompleted ? (
+                    <div className="learning__feedback-status">
+                      <FaCheck /> Peer feedback submitted successfully!
+                    </div>
+                  ) : (
+                    <button 
+                      className="learning__feedback-btn"
+                      onClick={() => setShowPeerFeedback(true)}
+                    >
+                      <FaUsers /> Provide Peer Feedback
+                    </button>
+                  )
+                ) : !isIndependentRetroTask() && (
+                  <button 
+                    className="learning__task-nav-button" 
+                    onClick={() => navigateToTask('next')}
+                    disabled={currentTaskIndex === tasks.length - 1}
+                  >
+                    Next Task <FaArrowRight />
+                  </button>
+                )}
+              </div>
+              
+              <form className="learning__input-form" onSubmit={handleSendMessage}>
+                <textarea
+                  ref={textareaRef}
+                  className="learning__input"
+                  value={newMessage}
+                  onChange={handleTextareaChange}
+                  placeholder={isSending ? "Sending..." : "Type your message..."}
+                  disabled={isSending || isAiThinking}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage(e);
+                    }
+                  }}
+                  rows={1}
+                />
+                <div className="learning__input-actions">
+                  {(() => {
+                    return currentTaskIndex < tasks.length && 
+                      (tasks[currentTaskIndex].deliverable_type === 'link' || 
+                       tasks[currentTaskIndex].deliverable_type === 'file') && (
+                      <button 
+                        type="button"
+                        className="learning__deliverable-btn"
+                        onClick={() => setShowSubmissionModal(true)}
+                        title={`Submit ${tasks[currentTaskIndex].deliverable}`}
+                      >
+                        {tasks[currentTaskIndex].deliverable_type === 'link' ? <FaLink /> : <FaBars />}
+                      </button>
+                    );
+                  })()}
+                </div>
+                <button 
+                  className="learning__send-btn" 
+                  type="submit" 
+                  disabled={!newMessage.trim() || isSending || isAiThinking}
+                >
+                  {isSending ? "Sending..." : <FaPaperPlane />}
+                </button>
+              </form>
+              
+              {error && <div className="learning__error">{error}</div>}
+              
+              {currentTaskIndex < tasks.length && tasks[currentTaskIndex].type === 'reflect' && (
+                <div className="learning__quick-replies">
+                  <h4 className="learning__quick-replies-title">Quick Replies</h4>
+                  <div className="learning__quick-replies-list">
+                    <button 
+                      className="learning__quick-reply-btn"
+                      onClick={() => handleQuickReply("I've used Khan Academy for math and found the interactive exercises helped me understand concepts better than textbooks.")}
+                      disabled={isSending || isAiThinking}
+                    >
+                      I've used Khan Academy
+                    </button>
+                    <button 
+                      className="learning__quick-reply-btn"
+                      onClick={() => handleQuickReply("Interactive exercises helped me learn faster because I could immediately apply what I was learning.")}
+                      disabled={isSending || isAiThinking}
+                    >
+                      Interactive exercises helped
+                    </button>
+                    <button 
+                      className="learning__quick-reply-btn"
+                      onClick={() => handleQuickReply("I found digital tools more effective than traditional textbooks because they provided immediate feedback.")}
+                      disabled={isSending || isAiThinking}
+                    >
+                      More effective than textbooks
+                    </button>
                   </div>
                 </div>
               )}
-              <div ref={messagesEndRef} />
             </div>
-            
-            <div className="learning__task-navigation">
-              <button 
-                className="learning__task-nav-button" 
-                onClick={() => navigateToTask('prev')}
-                disabled={currentTaskIndex === 0}
-              >
-                <FaArrowLeft /> Previous Task
-              </button>
-              <button 
-                className="learning__task-nav-button" 
-                onClick={() => navigateToTask('next')}
-                disabled={currentTaskIndex === tasks.length - 1}
-              >
-                Next Task <FaArrowRight />
-              </button>
-            </div>
-            
-            <form className="learning__input-form" onSubmit={handleSendMessage}>
-              <textarea
-                ref={textareaRef}
-                className="learning__input"
-                value={newMessage}
-                onChange={handleTextareaChange}
-                placeholder={isSending ? "Sending..." : "Type your message..."}
-                disabled={isSending || isAiThinking}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage(e);
-                  }
-                }}
-                rows={1}
-              />
-              <div className="learning__input-actions">
-                {(() => {
-                  return currentTaskIndex < tasks.length && 
-                    (tasks[currentTaskIndex].deliverable_type === 'link' || 
-                     tasks[currentTaskIndex].deliverable_type === 'file') && (
-                    <button 
-                      type="button"
-                      className="learning__deliverable-btn"
-                      onClick={() => setShowSubmissionModal(true)}
-                      title={`Submit ${tasks[currentTaskIndex].deliverable}`}
-                    >
-                      {tasks[currentTaskIndex].deliverable_type === 'link' ? <FaLink /> : <FaBars />}
-                    </button>
-                  );
-                })()}
-              </div>
-              <button 
-                className="learning__send-btn" 
-                type="submit" 
-                disabled={!newMessage.trim() || isSending || isAiThinking}
-              >
-                {isSending ? "Sending..." : <FaPaperPlane />}
-              </button>
-            </form>
-            
-            {error && <div className="learning__error">{error}</div>}
-            
-            {currentTaskIndex < tasks.length && tasks[currentTaskIndex].type === 'reflect' && (
-              <div className="learning__quick-replies">
-                <h4 className="learning__quick-replies-title">Quick Replies</h4>
-                <div className="learning__quick-replies-list">
-                  <button 
-                    className="learning__quick-reply-btn"
-                    onClick={() => handleQuickReply("I've used Khan Academy for math and found the interactive exercises helped me understand concepts better than textbooks.")}
-                    disabled={isSending || isAiThinking}
-                  >
-                    I've used Khan Academy
-                  </button>
-                  <button 
-                    className="learning__quick-reply-btn"
-                    onClick={() => handleQuickReply("Interactive exercises helped me learn faster because I could immediately apply what I was learning.")}
-                    disabled={isSending || isAiThinking}
-                  >
-                    Interactive exercises helped
-                  </button>
-                  <button 
-                    className="learning__quick-reply-btn"
-                    onClick={() => handleQuickReply("I found digital tools more effective than traditional textbooks because they provided immediate feedback.")}
-                    disabled={isSending || isAiThinking}
-                  >
-                    More effective than textbooks
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
       

@@ -346,7 +346,9 @@
   flex-direction: column;
   gap: var(--spacing-md);
   padding-right: var(--spacing-sm);
+  padding-top: 4px; /* Add padding to the top to prevent cutoff during hover */
   max-height: calc(100vh - 200px); /* Ensure it doesn't overflow */
+  scroll-behavior: smooth;
 }
 
 .learning__task-item {
@@ -361,6 +363,7 @@
   cursor: pointer;
   display: flex;
   align-items: center;
+  min-height: 60px; /* Minimum height for task items */
 }
 
 .learning__task-item.current {
@@ -374,25 +377,42 @@
   border-left-color: #4caf50;
 }
 
+.learning__task-item:hover {
+  background-color: var(--color-background-darker, #111827);
+  border-color: var(--color-primary, #4242ea);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1; /* Ensure hovered items appear above others */
+}
+
 .learning__task-icon {
   margin-right: var(--spacing-sm);
   font-size: 0.9rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0; /* Prevent icon from shrinking */
 }
 
 .learning__task-content {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 3px 0;
 }
 
 .learning__task-title {
   font-weight: 500;
   font-size: 0.95rem;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: initial;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* Limit to 2 lines */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  white-space: normal; /* Allow text to wrap */
   margin-bottom: 2px;
   line-height: 1.3;
 }
@@ -400,6 +420,10 @@
 .learning__task-block {
   font-size: 0.8rem;
   color: var(--color-text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Quick replies section */
@@ -461,7 +485,7 @@
 .learning__tasks-list::-webkit-scrollbar-track,
 .learning__quick-replies-list::-webkit-scrollbar-track,
 .learning__input::-webkit-scrollbar-track {
-  background: var(--color-background-darker);
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 3px;
 }
 
@@ -469,7 +493,7 @@
 .learning__tasks-list::-webkit-scrollbar-thumb,
 .learning__quick-replies-list::-webkit-scrollbar-thumb,
 .learning__input::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background-color: var(--color-primary, #4242ea);
   border-radius: 3px;
 }
 
@@ -477,7 +501,16 @@
 .learning__tasks-list::-webkit-scrollbar-thumb:hover,
 .learning__quick-replies-list::-webkit-scrollbar-thumb:hover,
 .learning__input::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
+  background-color: var(--color-primary-hover, #5555ff);
+}
+
+/* Firefox scrollbar styling */
+.learning__messages,
+.learning__tasks-list,
+.learning__quick-replies-list,
+.learning__input {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary, #4242ea) rgba(0, 0, 0, 0.1);
 }
 
 /* Responsive adjustments */
@@ -1311,4 +1344,123 @@
 .learning__message--user.editing .learning__message-content:hover {
   transform: none;
   background-color: var(--color-primary);
+}
+
+/* Add styles for the task complete button */
+/* We've removed the task complete button from the UI */
+/* These styles are kept for reference but are no longer actively used */
+/*
+.learning__task-complete-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background-color: var(--color-primary, #4242ea);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.learning__task-complete-button:hover {
+  background-color: var(--color-primary-hover, #5555ff);
+}
+
+.learning__task-complete-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.learning__task-complete-button.feedback-submitted::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #27ae60;
+  border: 2px solid white;
+}
+*/
+
+/* Add new styles for feedback status */
+.learning__feedback-status {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  font-size: 0.9rem;
+  color: #27ae60;
+  padding: 8px 12px;
+  background-color: rgba(39, 174, 96, 0.1);
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.learning__feedback-status svg {
+  margin-right: 6px;
+  font-size: 1.1rem;
+}
+
+/* Success message styles - still needed for feedback confirmation */
+.learning__success {
+  padding: 10px 16px;
+  margin: 10px 0;
+  background-color: rgba(39, 174, 96, 0.1);
+  color: #27ae60;
+  border-radius: 4px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.learning__success::before {
+  content: '✓';
+  display: inline-block;
+  margin-right: 8px;
+  font-weight: bold;
+}
+
+/* Add feedback prompt styles for Learning component */
+.learning__feedback-prompt {
+  text-align: center;
+  margin: 16px 0;
+  padding: 16px;
+  background-color: rgba(66, 66, 234, 0.1);
+  border-radius: 8px;
+}
+
+.learning__feedback-btn {
+  background-color: var(--color-primary, #4242ea);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.learning__feedback-btn:hover {
+  background-color: var(--color-primary-hover, #5555ff);
+}
+
+/* Peer feedback form container styling */
+.learning__chat-container .peer-feedback {
+  margin-top: 0;
+  position: relative;
+  top: 0;
+  border-radius: 8px;
+  height: auto;
+  max-height: calc(100vh - 120px);
+}
+
+@media (max-width: 768px) {
+  .learning__chat-container .peer-feedback {
+    max-height: calc(100vh - 100px);
+  }
 } 
