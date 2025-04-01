@@ -16,7 +16,7 @@ const TaskSubmission = ({ taskId, deliverable }) => {
   useEffect(() => {
     const fetchSubmission = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/submissions/${taskId}`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions/${taskId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
