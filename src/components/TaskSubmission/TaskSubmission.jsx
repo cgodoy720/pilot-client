@@ -4,7 +4,9 @@ import './TaskSubmission.css';
 
 const TaskSubmission = ({ taskId, deliverable }) => {
   const { token } = useAuth();
-  const [content, setContent] = useState('');
+  const [submissions, setSubmissions] = useState([
+    { type: 'link', content: '', label: '' }
+  ]);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -14,7 +16,7 @@ const TaskSubmission = ({ taskId, deliverable }) => {
   useEffect(() => {
     const fetchSubmission = async () => {
       try {
-        const response = await fetch(`/api/submissions/${taskId}`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/submissions/${taskId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -23,7 +25,22 @@ const TaskSubmission = ({ taskId, deliverable }) => {
         if (response.ok) {
           const data = await response.json();
           setSubmission(data);
-          setContent(data.content);
+          
+          // Handle parsing the content based on format
+          try {
+            // Check if the content is JSON (for multiple submissions)
+            const parsedContent = JSON.parse(data.content);
+            if (Array.isArray(parsedContent)) {
+              setSubmissions(parsedContent);
+            } else {
+              // If it's an object but not an array
+              setSubmissions([{ type: 'link', content: data.content, label: 'Main Submission' }]);
+            }
+          } catch (e) {
+            // If it's not valid JSON, assume it's a legacy single text submission
+            setSubmissions([{ type: 'link', content: data.content, label: 'Main Submission' }]);
+          }
+          
           setFeedback(data.feedback || '');
         } else if (response.status !== 404) {
           // 404 is expected if no submission exists yet
@@ -32,7 +49,7 @@ const TaskSubmission = ({ taskId, deliverable }) => {
         }
       } catch (error) {
         console.error('Error fetching submission:', error);
-        setError('Failed to connect to the server');
+        setError('Unable to load previous submissions. Please check your internet connection and try refreshing the page.');
       }
     };
 
@@ -46,8 +63,20 @@ const TaskSubmission = ({ taskId, deliverable }) => {
     setIsSubmitting(true);
     setError('');
 
+    // Validate submissions
+    const isValid = submissions.every(sub => 
+      sub.content.trim() !== '' && 
+      (sub.type !== 'link' || isValidUrl(sub.content))
+    );
+
+    if (!isValid) {
+      setError('Please fill in all submission fields. Ensure links are valid URLs.');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      const response = await fetch('/api/submissions', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/submissions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -55,7 +84,7 @@ const TaskSubmission = ({ taskId, deliverable }) => {
         },
         body: JSON.stringify({
           taskId,
-          content
+          content: JSON.stringify(submissions)
         })
       });
 
@@ -69,9 +98,53 @@ const TaskSubmission = ({ taskId, deliverable }) => {
       }
     } catch (error) {
       console.error('Error submitting:', error);
-      setError('Failed to connect to the server');
+      setError('Unable to submit your work. Please check your internet connection and try again.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleContentChange = (index, value) => {
+    const updatedSubmissions = [...submissions];
+    updatedSubmissions[index].content = value;
+    setSubmissions(updatedSubmissions);
+  };
+
+  const handleTypeChange = (index, type) => {
+    const updatedSubmissions = [...submissions];
+    updatedSubmissions[index].type = type;
+    // Clear content when switching types to avoid confusion
+    updatedSubmissions[index].content = ''; 
+    setSubmissions(updatedSubmissions);
+  };
+
+  const handleLabelChange = (index, label) => {
+    const updatedSubmissions = [...submissions];
+    updatedSubmissions[index].label = label;
+    setSubmissions(updatedSubmissions);
+  };
+
+  const addSubmission = () => {
+    setSubmissions([...submissions, { 
+      type: 'link', 
+      content: '',
+      label: `Submission ${submissions.length + 1}`
+    }]);
+  };
+
+  const removeSubmission = (index) => {
+    if (submissions.length <= 1) return; // Keep at least one submission
+    const updatedSubmissions = submissions.filter((_, i) => i !== index);
+    setSubmissions(updatedSubmissions);
+  };
+
+  // Simple URL validation
+  const isValidUrl = (url) => {
+    try {
+      new URL(url);
+      return true;
+    } catch (e) {
+      return false;
     }
   };
 
@@ -83,28 +156,103 @@ const TaskSubmission = ({ taskId, deliverable }) => {
       </p>
 
       <form onSubmit={handleSubmit} className="task-submission__form">
-        <div className="task-submission__form-group">
-          <label htmlFor="submission-content" className="task-submission__label">
-            Your Submission
-          </label>
-          <textarea
-            id="submission-content"
-            className="task-submission__textarea"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Enter your submission here..."
-            rows={10}
-            required
-          />
-        </div>
+        {submissions.map((sub, index) => (
+          <div key={index} className="task-submission__item">
+            <div className="task-submission__item-header">
+              <input
+                type="text"
+                className="task-submission__label-input"
+                value={sub.label}
+                onChange={(e) => handleLabelChange(index, e.target.value)}
+                placeholder="Enter title"
+              />
+              
+              <div className="task-submission__type-selector">
+                <label className={`task-submission__type-option ${sub.type === 'text' ? 'task-submission__type-option--active' : ''}`}>
+                  <input
+                    type="radio"
+                    name={`type-${index}`}
+                    value="text"
+                    checked={sub.type === 'text'}
+                    onChange={() => handleTypeChange(index, 'text')}
+                  />
+                  Text
+                </label>
+                <label className={`task-submission__type-option ${sub.type === 'link' ? 'task-submission__type-option--active' : ''}`}>
+                  <input
+                    type="radio"
+                    name={`type-${index}`}
+                    value="link"
+                    checked={sub.type === 'link'}
+                    onChange={() => handleTypeChange(index, 'link')}
+                  />
+                  Google Drive Link
+                </label>
+              </div>
+              
+              {submissions.length > 1 && (
+                <button
+                  type="button"
+                  className="task-submission__remove-btn"
+                  onClick={() => removeSubmission(index)}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
 
-        <button
-          type="submit"
-          className="task-submission__button"
-          disabled={isSubmitting || !content.trim()}
-        >
-          {isSubmitting ? 'Submitting...' : submission ? 'Update Submission' : 'Submit'}
-        </button>
+            {sub.type === 'text' ? (
+              <textarea
+                className="task-submission__textarea"
+                value={sub.content}
+                onChange={(e) => handleContentChange(index, e.target.value)}
+                placeholder="Enter your text submission here..."
+                rows={6}
+              />
+            ) : (
+              <div className="task-submission__link-input-container">
+                <input
+                  type="url"
+                  className="task-submission__link-input"
+                  value={sub.content}
+                  onChange={(e) => handleContentChange(index, e.target.value)}
+                  placeholder="Paste your Google Drive share link here"
+                />
+                {sub.content && !isValidUrl(sub.content) && (
+                  <p className="task-submission__link-warning">Please enter a valid URL</p>
+                )}
+                {sub.content && isValidUrl(sub.content) && (
+                  <a 
+                    href={sub.content} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="task-submission__link-preview"
+                  >
+                    View shared document
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+
+        <div className="task-submission__actions">
+          <button
+            type="button"
+            className="task-submission__add-btn"
+            onClick={addSubmission}
+          >
+            + Add Another Submission
+          </button>
+
+          <button
+            type="submit"
+            className="task-submission__button"
+            disabled={isSubmitting || submissions.some(sub => !sub.content.trim())}
+          >
+            {isSubmitting ? 'Submitting...' : submission ? 'Update Submission' : 'Submit'}
+          </button>
+        </div>
 
         {error && (
           <div className="task-submission__error">

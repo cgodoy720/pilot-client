@@ -332,7 +332,7 @@
 }
 
 .back-to-calendar-btn:hover {
-  background-color: var(--color-primary-dark);
+  background-color: var(--color-primary-hover);
 }
 
 .back-to-calendar-btn svg {
@@ -828,7 +828,7 @@
 }
 
 .learning__task-resources-link {
-  color: var(--color-primary);
+  color: var(--color-primary-hover);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -851,7 +851,7 @@
 }
 
 .learning__task-resources-link:hover {
-  color: var(--color-primary-dark);
+  color: var(--color-text-primary);
   text-decoration: underline;
 }
 
@@ -883,7 +883,7 @@
 }
 
 .learning__resource-group li a {
-  color: var(--color-primary);
+  color: var(--color-primary-hover);
   text-decoration: none;
   font-weight: 600;
   display: block;
@@ -894,7 +894,7 @@
 }
 
 .learning__resource-group li a:hover {
-  color: var(--color-primary-dark);
+  color: var(--color-text-primary);
   text-decoration: underline;
   text-shadow: 0 0 1px rgba(var(--color-primary-rgb), 0.3);
   background-color: rgba(var(--color-primary-rgb), 0.05);
@@ -1463,4 +1463,17 @@
   .learning__chat-container .peer-feedback {
     max-height: calc(100vh - 100px);
   }
+}
+
+/* Add styles for the larger submission modal */
+.learning__modal--submission {
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.learning__modal--submission .learning__modal-body {
+  padding: 0;
+  overflow-y: auto;
 } 
