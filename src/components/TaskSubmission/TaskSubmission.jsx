@@ -76,7 +76,7 @@ const TaskSubmission = ({ taskId, deliverable }) => {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/submissions`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
