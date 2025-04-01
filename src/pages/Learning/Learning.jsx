@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PeerFeedbackForm from '../../components/PeerFeedbackForm';
+import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
 import './Learning.css';
 
 function Learning() {
@@ -1412,7 +1413,7 @@ function Learning() {
       {/* Submission Modal */}
       {showSubmissionModal && (
         <div className="learning__modal-overlay">
-          <div className="learning__modal">
+          <div className="learning__modal learning__modal--submission">
             <div className="learning__modal-header">
               <h3>Submit Deliverable</h3>
               <button 
@@ -1423,47 +1424,10 @@ function Learning() {
               </button>
             </div>
             <div className="learning__modal-body">
-              
-              <form onSubmit={handleDeliverableSubmit}>
-                {tasks[currentTaskIndex].deliverable_type === 'link' && (
-                  <div className="learning__form-group">
-                    <div className="learning__input-with-icon">
-                      <input
-                        id="submission-url"
-                        type="url"
-                        value={submissionUrl}
-                        onChange={(e) => setSubmissionUrl(e.target.value)}
-                        placeholder="https://..."
-                        required
-                      />
-                      <FaExternalLinkAlt className="learning__input-icon" />
-                    </div>
-                  </div>
-                )}
-                
-                {submissionError && (
-                  <div className="learning__submission-error">
-                    {submissionError}
-                  </div>
-                )}
-                
-                <div className="learning__modal-actions">
-                  <button 
-                    type="button" 
-                    className="learning__modal-cancel"
-                    onClick={() => setShowSubmissionModal(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit" 
-                    className="learning__modal-submit"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? 'Submitting...' : 'Submit'}
-                  </button>
-                </div>
-              </form>
+              <TaskSubmission 
+                taskId={tasks[currentTaskIndex].id} 
+                deliverable={tasks[currentTaskIndex].deliverable}
+              />
             </div>
           </div>
         </div>

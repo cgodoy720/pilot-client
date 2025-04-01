@@ -578,7 +578,7 @@
 }
 
 .past-session__resource-group a {
-  color: var(--color-primary, #4242ea);
+  color: var(--color-primary-hover, #5555ff);
   text-decoration: none;
   font-weight: 600;
   font-size: 1.05rem;
@@ -589,7 +589,7 @@
 
 .past-session__resource-group a:hover {
   text-decoration: underline;
-  color: var(--color-primary-hover, #5555ff);
+  color: var(--color-text-primary, #ffffff);
   transform: translateX(2px);
 }
 
@@ -1176,4 +1176,17 @@
   border-radius: 8px;
   height: auto;
   max-height: calc(100vh - 120px);
+}
+
+/* Add styles for the larger submission modal */
+.learning__modal--submission {
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.learning__modal--submission .learning__modal-body {
+  padding: 0;
+  overflow-y: auto;
 } 

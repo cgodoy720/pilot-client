@@ -28,6 +28,11 @@ html, body {
   /* Color palette */
   --color-primary: #4242ea;
   --color-primary-hover: #5555ff;
+  --color-primary-dark: #3131d9; /* Darker shade for hover states */
+  --color-primary-rgb: 66, 66, 234; /* RGB values of primary color for rgba() */
+  --color-primary-transparent: rgba(66, 66, 234, 0.1); /* Transparent primary for backgrounds */
+  --color-primary-transparent-light: rgba(66, 66, 234, 0.05); /* Lighter transparent primary */
+  --color-error: #ff4f4f; /* Error/danger color */
   --color-navbar: #1a1f2c;
   --color-background-dark: #1a1f2c; /* Navbar color */
   --color-background-darker: #121212; /* Darker than navbar for contrast */
