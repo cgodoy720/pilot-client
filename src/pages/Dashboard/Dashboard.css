@@ -391,25 +391,28 @@
   text-align: center;
   height: 200px;
   padding: 2rem;
-  background-color: #f9f9f9;
+  background-color: var(--color-background-dark) !important;
   border-radius: 8px;
   margin: 1rem 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  /* border: 1px solid var(--color-border); */
 }
 
 .no-tasks-message p {
   margin: 0.5rem 0;
-  color: #666;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
 }
 
 /* Disabled button styling */
 .continue-btn:disabled {
-  background-color: #ccc;
+  background-color: var(--color-primary) !important;
+  color: white !important;
   cursor: not-allowed;
-  opacity: 0.7;
+  opacity: 0.5;
+  box-shadow: none;
 }
 
 .continue-btn:disabled:hover {
-  background-color: #ccc;
+  background-color: var(--color-primary) !important;
+  transform: none;
+  box-shadow: none;
 } 
