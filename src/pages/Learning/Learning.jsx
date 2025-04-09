@@ -366,7 +366,8 @@ function Learning() {
               completed: taskProgressItem ? taskProgressItem.status === 'completed' : false,
               resources: resources,
               deliverable: task.deliverable,
-              deliverable_type: task.deliverable_type || 'none'
+              deliverable_type: task.deliverable_type || 'none',
+              should_analyze: task.should_analyze || false
             });
           });
         });
@@ -1186,6 +1187,7 @@ function Learning() {
                   onClick={() => {
                     if (index !== currentTaskIndex) {
                       setCurrentTaskIndex(index);
+                      console.log('Task should_analyze:', task.should_analyze);
                       fetchTaskMessages(task.id);
                     }
                   }}
@@ -1308,8 +1310,15 @@ function Learning() {
                   onClick={() => navigateToTask('prev')}
                   disabled={currentTaskIndex === 0}
                 >
-                  <FaArrowLeft /> Previous Task
+                  <FaArrowLeft /> Prev Task
                 </button>
+                
+                {tasks.length > 0 && currentTaskIndex < tasks.length && tasks[currentTaskIndex].should_analyze && (
+                  <button className="learning__task-nav-button">
+                    Analyze Task
+                  </button>
+                )}
+                
                 {isIndependentRetroTask() && messages.length > 0 && !tasks[currentTaskIndex].completed ? (
                   peerFeedbackCompleted ? (
                     <div className="learning__feedback-status">
