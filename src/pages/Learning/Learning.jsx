@@ -51,6 +51,11 @@ function Learning() {
   const [showPeerFeedback, setShowPeerFeedback] = useState(false);
   const [peerFeedbackCompleted, setPeerFeedbackCompleted] = useState(false);
   
+  // Add state for task analysis
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResults, setAnalysisResults] = useState(null);
+  const [analysisError, setAnalysisError] = useState(null);
+  
   // Helper function to format time
   const formatTime = (timeString) => {
     if (!timeString) return '';
@@ -1140,6 +1145,43 @@ function Learning() {
     }
   };
 
+  // Function to handle task analysis
+  const handleAnalyzeTask = async () => {
+    if (!tasks.length || currentTaskIndex >= tasks.length) return;
+    
+    const currentTask = tasks[currentTaskIndex];
+    if (!currentTask.should_analyze) return;
+    
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    setAnalysisResults(null);
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/analyze-task/${currentTask.id}/analyze-chat`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to analyze task');
+      }
+      
+      const data = await response.json();
+      setAnalysisResults(data);
+      
+      // Show success message
+      setError('Analysis completed successfully!');
+      setTimeout(() => setError(''), 3000);
+    } catch (error) {
+      setAnalysisError(error.message);
+      setError('Failed to analyze task: ' + error.message);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   if (isPageLoading) {
     return <div className="learning loading">Loading learning session...</div>;
   }
@@ -1314,8 +1356,12 @@ function Learning() {
                 </button>
                 
                 {tasks.length > 0 && currentTaskIndex < tasks.length && tasks[currentTaskIndex].should_analyze && (
-                  <button className="learning__task-nav-button">
-                    Analyze Task
+                  <button 
+                    className="learning__task-nav-button"
+                    onClick={handleAnalyzeTask}
+                    disabled={isAnalyzing}
+                  >
+                    {isAnalyzing ? 'Analyzing...' : 'Analyze Task'}
                   </button>
                 )}
                 
