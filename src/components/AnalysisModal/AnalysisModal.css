@@ -1,0 +1,220 @@
+/* Analysis Modal Styles */
+.learning__modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.learning__modal {
+  max-width: 650px;
+  width: 95%;
+  max-height: 85vh;
+  overflow-y: auto;
+  margin: 20px auto;
+  background-color: #141414; /* Dark background */
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Add scrollbar styles for the modal content */
+.learning__modal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.learning__modal::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.learning__modal::-webkit-scrollbar-thumb {
+  background-color: #6366f1; /* Primary color */
+  border-radius: 3px;
+}
+
+.learning__modal::-webkit-scrollbar-thumb:hover {
+  background-color: #818cf8; /* Primary hover color */
+}
+
+.learning__modal--analysis {
+  padding: 0;
+}
+
+.learning__modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #2a2a2a;
+  background-color: #1a1a1a;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.learning__modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.learning__modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #999;
+  transition: color 0.2s;
+  padding: 0;
+  line-height: 1;
+}
+
+.learning__modal-close:hover {
+  color: #fff;
+}
+
+.learning__modal-body {
+  padding: 24px;
+}
+
+/* Analysis Content Styles */
+.analysis-score {
+  margin-bottom: 24px;
+}
+
+.analysis-score h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.score-bar {
+  height: 24px;
+  background-color: #2a2a2a; /* Darker background */
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.score-fill {
+  height: 100%;
+  background-color: #4f46e5; /* Primary color */
+  transition: width 0.5s ease;
+}
+
+.score-bar span {
+  position: absolute;
+  right: 10px;
+  top: 0;
+  line-height: 24px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.analysis-columns {
+  display: flex;
+  gap: 30px;
+  margin-bottom: 24px;
+}
+
+.analysis-criteria, 
+.analysis-improvements {
+  flex: 1;
+  min-width: 0; /* Ensure proper flex sizing with text overflow */
+}
+
+.analysis-criteria h4,
+.analysis-improvements h4,
+.analysis-feedback h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.criteria-list,
+.improvement-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 12px;
+}
+
+.criteria-item,
+.improvement-item {
+  padding: 8px 0;
+  display: flex;
+  align-items: flex-start;
+  line-height: 1.5;
+  color: #eee;
+}
+
+.criteria-icon {
+  color: #22c55e; /* Success color */
+  margin-right: 10px;
+  margin-top: 3px;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.analysis-feedback {
+  margin-top: 24px;
+  border-top: 1px solid #2a2a2a;
+  padding-top: 24px;
+}
+
+.feedback-content {
+  background-color: #1a1a1a;
+  padding: 16px;
+  border-radius: 8px;
+  line-height: 1.6;
+  border-left: 4px solid #4f46e5; /* Primary color */
+  color: #ddd;
+}
+
+.feedback-content p {
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+}
+
+.feedback-content p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .analysis-columns {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .learning__modal {
+    width: 95%;
+    max-height: 85vh;
+  }
+  
+  .learning__modal-body {
+    padding: 16px;
+  }
+} 

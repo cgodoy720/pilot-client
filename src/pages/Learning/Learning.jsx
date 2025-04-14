@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PeerFeedbackForm from '../../components/PeerFeedbackForm';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
+import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
 import './Learning.css';
 
 function Learning() {
@@ -58,6 +59,11 @@ function Learning() {
   
   // Add state for modal visibility
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  
+  // Add useEffect to log analysis results changes
+  useEffect(() => {
+    console.log('Analysis results state changed:', analysisResults ? 'Has results' : 'No results');
+  }, [analysisResults]);
   
   // Helper function to format time
   const formatTime = (timeString) => {
@@ -402,6 +408,11 @@ function Learning() {
         if (allTasks.length > 0) {
           const initialTaskId = allTasks[initialTaskIndex].id;
           await fetchTaskMessages(initialTaskId);
+          
+          // Check if there's an existing analysis for this task
+          if (allTasks[initialTaskIndex].should_analyze) {
+            await fetchTaskAnalysis(initialTaskId);
+          }
         }
         
       } catch (err) {
@@ -463,7 +474,7 @@ function Learning() {
     };
     
     fetchCurrentDayData();
-  }, [token]);
+  }, [token, dayId]);
   
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -936,6 +947,10 @@ function Learning() {
       // Set loading state first to prevent flashing
       setIsMessagesLoading(true);
       
+      // Reset the analysis results
+      setAnalysisResults(null);
+      setShowAnalysisModal(false);
+      
       // Update the current task index
       setCurrentTaskIndex(newIndex);
       
@@ -951,6 +966,11 @@ function Learning() {
       
       // Then fetch the messages for the new task
       fetchTaskMessages(newTaskId);
+      
+      // Check if current task can be analyzed and if there's an existing analysis
+      if (tasks[newIndex].should_analyze) {
+        fetchTaskAnalysis(newTaskId);
+      }
     }
   };
 
@@ -1148,7 +1168,41 @@ function Learning() {
     }
   };
 
-  // Function to handle task analysis
+  // Update fetchTaskAnalysis with the correct endpoint
+  const fetchTaskAnalysis = async (taskId) => {
+    if (!taskId) {
+      console.log('No taskId provided to fetchTaskAnalysis');
+      return false;
+    }
+    
+    try {
+      console.log(`Fetching analysis for task ${taskId} from ${import.meta.env.VITE_API_URL}/api/analyze-task/${taskId}/analysis`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/analyze-task/${taskId}/analysis`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log(`Analysis fetch response status: ${response.status}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Found existing analysis:', data);
+        setAnalysisResults(data);
+        return true;
+      } else {
+        console.log(`No analysis found for task ${taskId}, status: ${response.status}`);
+        setAnalysisResults(null);
+        return false;
+      }
+    } catch (error) {
+      console.error(`Error fetching task analysis for task ${taskId}:`, error);
+      setAnalysisResults(null);
+      return false;
+    }
+  };
+
+  // Update handleAnalyzeTask to use the correct API endpoint
   const handleAnalyzeTask = async () => {
     if (!tasks.length || currentTaskIndex >= tasks.length) return;
     
@@ -1171,91 +1225,10 @@ function Learning() {
       }
       
       const data = await response.json();
-      
-      // Store results without triggering a re-render yet
       setAnalysisResults(data);
-      
-      // Now directly manipulate the DOM for the modal
-      // This bypasses React's rendering cycle
-      const modalOverlay = document.createElement('div');
-      modalOverlay.className = 'learning__modal-overlay';
-      
-      const modalContent = `
-        <div class="learning__modal learning__modal--analysis">
-          <div class="learning__modal-header">
-            <h3>Analysis Results</h3>
-            <button class="learning__modal-close">&times;</button>
-          </div>
-          
-          <div class="learning__modal-body">
-            <!-- Completion Score -->
-            <div class="analysis-score">
-              <h4>Completion Score</h4>
-              <div class="score-bar">
-                <div class="score-fill" style="width: ${Math.min(100, Math.max(0, data.analysis_result.completion_score))}%"></div>
-                <span>${Math.min(100, Math.max(0, Math.round(data.analysis_result.completion_score)))}%</span>
-              </div>
-            </div>
-            
-            <div class="analysis-columns">
-              <!-- Criteria Met -->
-              ${data.analysis_result.criteria_met && data.analysis_result.criteria_met.length > 0 ? `
-                <div class="analysis-criteria">
-                  <h4>Criteria Met</h4>
-                  <ul class="criteria-list">
-                    ${data.analysis_result.criteria_met.map(criterion => `
-                      <li class="criteria-item">
-                        <svg class="criteria-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16" height="16">
-                          <path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z" fill="currentColor"></path>
-                        </svg>
-                        ${criterion}
-                      </li>
-                    `).join('')}
-                  </ul>
-                </div>
-              ` : ''}
-              
-              <!-- Areas for Improvement -->
-              ${data.analysis_result.areas_for_improvement && data.analysis_result.areas_for_improvement.length > 0 ? `
-                <div class="analysis-improvements">
-                  <h4>Areas for Improvement</h4>
-                  <ul class="improvement-list">
-                    ${data.analysis_result.areas_for_improvement.map(area => `
-                      <li class="improvement-item">${area}</li>
-                    `).join('')}
-                  </ul>
-                </div>
-              ` : ''}
-            </div>
-            
-            <!-- Feedback -->
-            ${data.feedback ? `
-              <div class="analysis-feedback">
-                <h4>Feedback</h4>
-                <div class="feedback-content">
-                  ${data.feedback.split('\n').map(line => `<p>${line}</p>`).join('')}
-                </div>
-              </div>
-            ` : ''}
-          </div>
-        </div>
-      `;
-      
-      modalOverlay.innerHTML = modalContent;
-      document.body.appendChild(modalOverlay);
-      
-      // Add event listener to close button
-      const closeButton = modalOverlay.querySelector('.learning__modal-close');
-      closeButton.addEventListener('click', () => {
-        document.body.removeChild(modalOverlay);
-      });
-      
-      // Show success message
+      setShowAnalysisModal(true);
       setError('Analysis completed successfully!');
       setTimeout(() => setError(''), 3000);
-      
-      // Set showAnalysisModal for the View Analysis button to work
-      setShowAnalysisModal(true);
     } catch (error) {
       setAnalysisError(error.message);
       setError('Failed to analyze task: ' + error.message);
@@ -1264,85 +1237,28 @@ function Learning() {
     }
   };
 
-  // Update View Analysis button handler to show the modal
+  // Make sure the handleViewAnalysis function properly shows the modal
   const handleViewAnalysis = () => {
     if (!analysisResults) return;
-    
-    // Create the modal using direct DOM manipulation
-    const modalOverlay = document.createElement('div');
-    modalOverlay.className = 'learning__modal-overlay';
-    
-    const data = analysisResults;
-    const modalContent = `
-      <div class="learning__modal learning__modal--analysis">
-        <div class="learning__modal-header">
-          <h3>Analysis Results</h3>
-          <button class="learning__modal-close">&times;</button>
-        </div>
-        
-        <div class="learning__modal-body">
-          <!-- Completion Score -->
-          <div class="analysis-score">
-            <h4>Completion Score</h4>
-            <div class="score-bar">
-              <div class="score-fill" style="width: ${Math.min(100, Math.max(0, data.analysis_result.completion_score))}%"></div>
-              <span>${Math.min(100, Math.max(0, Math.round(data.analysis_result.completion_score)))}%</span>
-            </div>
-          </div>
-          
-          <div class="analysis-columns">
-            <!-- Criteria Met -->
-            ${data.analysis_result.criteria_met && data.analysis_result.criteria_met.length > 0 ? `
-              <div class="analysis-criteria">
-                <h4>Criteria Met</h4>
-                <ul class="criteria-list">
-                  ${data.analysis_result.criteria_met.map(criterion => `
-                    <li class="criteria-item">
-                      <svg class="criteria-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16" height="16">
-                        <path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z" fill="currentColor"></path>
-                      </svg>
-                      ${criterion}
-                    </li>
-                  `).join('')}
-                </ul>
-              </div>
-            ` : ''}
-            
-            <!-- Areas for Improvement -->
-            ${data.analysis_result.areas_for_improvement && data.analysis_result.areas_for_improvement.length > 0 ? `
-              <div class="analysis-improvements">
-                <h4>Areas for Improvement</h4>
-                <ul class="improvement-list">
-                  ${data.analysis_result.areas_for_improvement.map(area => `
-                    <li class="improvement-item">${area}</li>
-                  `).join('')}
-                </ul>
-              </div>
-            ` : ''}
-          </div>
-          
-          <!-- Feedback -->
-          ${data.feedback ? `
-            <div class="analysis-feedback">
-              <h4>Feedback</h4>
-              <div class="feedback-content">
-                ${data.feedback.split('\n').map(line => `<p>${line}</p>`).join('')}
-              </div>
-            </div>
-          ` : ''}
-        </div>
-      </div>
-    `;
-    
-    modalOverlay.innerHTML = modalContent;
-    document.body.appendChild(modalOverlay);
-    
-    // Add event listener to close button
-    const closeButton = modalOverlay.querySelector('.learning__modal-close');
-    closeButton.addEventListener('click', () => {
-      document.body.removeChild(modalOverlay);
-    });
+    setShowAnalysisModal(true);
   };
+
+  // Update useEffect to include all dependencies
+  useEffect(() => {
+    if (tasks.length > 0 && currentTaskIndex >= 0 && currentTaskIndex < tasks.length) {
+      const currentTask = tasks[currentTaskIndex];
+      if (currentTask && currentTask.should_analyze) {
+        console.log(`Current task changed to task ${currentTask.id}, checking for analysis`);
+        fetchTaskAnalysis(currentTask.id);
+      } else {
+        // Reset analysis results if task doesn't support analysis
+        console.log('Current task does not support analysis, clearing results');
+        setAnalysisResults(null);
+        setShowAnalysisModal(false);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTaskIndex, tasks]);
 
   if (isPageLoading) {
     return <div className="learning loading">Loading learning session...</div>;
@@ -1657,6 +1573,14 @@ function Learning() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Analysis Modal */}
+      {showAnalysisModal && analysisResults && (
+        <AnalysisModal 
+          analysis={analysisResults} 
+          onClose={() => setShowAnalysisModal(false)} 
+        />
       )}
     </div>
   );
