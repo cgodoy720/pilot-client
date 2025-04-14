@@ -11,6 +11,7 @@
   align-items: center;
   z-index: 1000;
   animation: fadeIn 0.2s ease-in-out;
+  padding: 0 16px; /* Add padding for better spacing on small screens */
 }
 
 @keyframes fadeIn {
@@ -18,16 +19,19 @@
   to { opacity: 1; }
 }
 
-.learning__modal {
-  max-width: 650px;
-  width: 95%;
+/* Directly set styles on the component class used in AnalysisModal.jsx */
+.learning__modal-overlay .learning__modal.learning__modal--analysis {
+  max-width: 850px !important; /* Increased even more */
+  width: 95% !important;
   max-height: 85vh;
-  overflow-y: auto;
-  margin: 20px auto;
-  background-color: #141414; /* Dark background */
+  margin: 0 auto;
+  background-color: #1a1f2c; /* Match var(--color-background-dark) */
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
   animation: slideIn 0.2s ease-out;
+  overflow: hidden; /* Prevents content from overflowing rounded corners */
 }
 
 @keyframes slideIn {
@@ -36,26 +40,22 @@
 }
 
 /* Add scrollbar styles for the modal content */
-.learning__modal::-webkit-scrollbar {
+.learning__modal--analysis::-webkit-scrollbar {
   width: 6px;
 }
 
-.learning__modal::-webkit-scrollbar-track {
+.learning__modal--analysis::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.1);
   border-radius: 3px;
 }
 
-.learning__modal::-webkit-scrollbar-thumb {
-  background-color: #6366f1; /* Primary color */
+.learning__modal--analysis::-webkit-scrollbar-thumb {
+  background-color: #4242ea; /* Match var(--color-primary) */
   border-radius: 3px;
 }
 
-.learning__modal::-webkit-scrollbar-thumb:hover {
-  background-color: #818cf8; /* Primary hover color */
-}
-
-.learning__modal--analysis {
-  padding: 0;
+.learning__modal--analysis::-webkit-scrollbar-thumb:hover {
+  background-color: #5555ff; /* Match var(--color-primary-hover) */
 }
 
 .learning__modal-header {
@@ -63,17 +63,18 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #2a2a2a;
-  background-color: #1a1a1a;
+  border-bottom: 1px solid #333333; /* Match var(--color-border) */
+  background-color: #121212; /* Match var(--color-background-darker) */
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
+  flex-shrink: 0;
 }
 
 .learning__modal-header h3 {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
-  color: #fff;
+  color: #ffffff; /* Match var(--color-text-primary) */
 }
 
 .learning__modal-close {
@@ -81,18 +82,20 @@
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #999;
+  color: #e3e3e3; /* Match var(--color-text-secondary) */
   transition: color 0.2s;
   padding: 0;
   line-height: 1;
 }
 
 .learning__modal-close:hover {
-  color: #fff;
+  color: #ffffff; /* Match var(--color-text-primary) */
 }
 
 .learning__modal-body {
-  padding: 24px;
+  padding: 24px 28px; /* Slightly increased horizontal padding */
+  overflow-y: auto;
+  flex-grow: 1;
 }
 
 /* Analysis Content Styles */
@@ -103,24 +106,26 @@
 .analysis-score h4 {
   margin-top: 0;
   margin-bottom: 12px;
-  color: #fff;
+  color: #ffffff; /* Match var(--color-text-primary) */
   font-weight: 600;
   font-size: 1.1rem;
 }
 
 .score-bar {
   height: 24px;
-  background-color: #2a2a2a; /* Darker background */
+  background-color: #121212; /* Match var(--color-background-darker) */
   border-radius: 12px;
   position: relative;
   overflow: hidden;
   margin-top: 10px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3); /* Add subtle inset shadow */
 }
 
 .score-fill {
   height: 100%;
-  background-color: #4f46e5; /* Primary color */
+  background-color: #4242ea; /* Match var(--color-primary) */
   transition: width 0.5s ease;
+  background-image: linear-gradient(90deg, #4242ea, #5555ff); /* Add subtle gradient */
 }
 
 .score-bar span {
@@ -129,7 +134,7 @@
   top: 0;
   line-height: 24px;
   font-weight: bold;
-  color: #fff;
+  color: #ffffff; /* Match var(--color-text-primary) */
 }
 
 .analysis-columns {
@@ -149,7 +154,7 @@
 .analysis-feedback h4 {
   margin-top: 0;
   margin-bottom: 12px;
-  color: #fff;
+  color: #ffffff; /* Match var(--color-text-primary) */
   font-weight: 600;
   font-size: 1.1rem;
 }
@@ -167,11 +172,12 @@
   display: flex;
   align-items: flex-start;
   line-height: 1.5;
-  color: #eee;
+  color: #e3e3e3; /* Match var(--color-text-secondary) */
+  margin-bottom: 4px; /* Add some space between items */
 }
 
 .criteria-icon {
-  color: #22c55e; /* Success color */
+  color: #4CAF50; /* Success color */
   margin-right: 10px;
   margin-top: 3px;
   flex-shrink: 0;
@@ -180,18 +186,38 @@
 }
 
 .analysis-feedback {
-  margin-top: 24px;
-  border-top: 1px solid #2a2a2a;
-  padding-top: 24px;
+  margin-top: 26px;
+  border-top: 1px solid #333333; /* Match var(--color-border) */
+  padding-top: 26px;
 }
 
 .feedback-content {
-  background-color: #1a1a1a;
-  padding: 16px;
+  padding: 20px;
   border-radius: 8px;
   line-height: 1.6;
-  border-left: 4px solid #4f46e5; /* Primary color */
-  color: #ddd;
+  border-left: 4px solid #4242ea; /* Match var(--color-primary) */
+  color: #e3e3e3; /* Match var(--color-text-secondary) */
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Add scrollbar styles for the feedback content */
+.feedback-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.feedback-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+}
+
+.feedback-content::-webkit-scrollbar-thumb {
+  background-color: #4242ea; /* Match var(--color-primary) */
+  border-radius: 2px;
+}
+
+.feedback-content::-webkit-scrollbar-thumb:hover {
+  background-color: #5555ff; /* Match var(--color-primary-hover) */
 }
 
 .feedback-content p {
@@ -209,9 +235,9 @@
     gap: 16px;
   }
   
-  .learning__modal {
-    width: 95%;
-    max-height: 85vh;
+  .learning__modal-overlay .learning__modal.learning__modal--analysis {
+    width: 95% !important;
+    max-height: 80vh;
   }
   
   .learning__modal-body {

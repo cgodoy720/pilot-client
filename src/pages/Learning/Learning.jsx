@@ -1439,7 +1439,7 @@ function Learning() {
                     onClick={handleAnalyzeTask}
                     disabled={isAnalyzing}
                   >
-                    {isAnalyzing ? 'Analyzing...' : 'Analyze Task'}
+                    {isAnalyzing ? 'Generating Feedback...' : 'Generate AI Feedback'}
                   </button>
                 )}
                 
@@ -1448,7 +1448,7 @@ function Learning() {
                     className="learning__task-nav-button"
                     onClick={handleViewAnalysis}
                   >
-                    View Analysis
+                    View Feedback
                   </button>
                 )}
                 

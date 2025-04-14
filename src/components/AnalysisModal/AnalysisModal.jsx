@@ -14,7 +14,7 @@ const AnalysisModal = ({ analysis, onClose }) => {
         
         <div className="learning__modal-body">
           {/* Completion Score */}
-          <div className="analysis-score">
+          {/* <div className="analysis-score">
             <h4>Completion Score</h4>
             <div className="score-bar">
               <div 
@@ -23,7 +23,7 @@ const AnalysisModal = ({ analysis, onClose }) => {
               ></div>
               <span>{Math.min(100, Math.max(0, Math.round(analysis.analysis_result.completion_score)))}%</span>
             </div>
-          </div>
+          </div> */}
           
           <div className="analysis-columns">
             {/* Criteria Met */}
