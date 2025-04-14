@@ -56,6 +56,9 @@ function Learning() {
   const [analysisResults, setAnalysisResults] = useState(null);
   const [analysisError, setAnalysisError] = useState(null);
   
+  // Add state for modal visibility
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  
   // Helper function to format time
   const formatTime = (timeString) => {
     if (!timeString) return '';
@@ -1154,7 +1157,6 @@ function Learning() {
     
     setIsAnalyzing(true);
     setAnalysisError(null);
-    setAnalysisResults(null);
     
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/analyze-task/${currentTask.id}/analyze-chat`, {
@@ -1169,17 +1171,177 @@ function Learning() {
       }
       
       const data = await response.json();
+      
+      // Store results without triggering a re-render yet
       setAnalysisResults(data);
+      
+      // Now directly manipulate the DOM for the modal
+      // This bypasses React's rendering cycle
+      const modalOverlay = document.createElement('div');
+      modalOverlay.className = 'learning__modal-overlay';
+      
+      const modalContent = `
+        <div class="learning__modal learning__modal--analysis">
+          <div class="learning__modal-header">
+            <h3>Analysis Results</h3>
+            <button class="learning__modal-close">&times;</button>
+          </div>
+          
+          <div class="learning__modal-body">
+            <!-- Completion Score -->
+            <div class="analysis-score">
+              <h4>Completion Score</h4>
+              <div class="score-bar">
+                <div class="score-fill" style="width: ${Math.min(100, Math.max(0, data.analysis_result.completion_score))}%"></div>
+                <span>${Math.min(100, Math.max(0, Math.round(data.analysis_result.completion_score)))}%</span>
+              </div>
+            </div>
+            
+            <div class="analysis-columns">
+              <!-- Criteria Met -->
+              ${data.analysis_result.criteria_met && data.analysis_result.criteria_met.length > 0 ? `
+                <div class="analysis-criteria">
+                  <h4>Criteria Met</h4>
+                  <ul class="criteria-list">
+                    ${data.analysis_result.criteria_met.map(criterion => `
+                      <li class="criteria-item">
+                        <svg class="criteria-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16" height="16">
+                          <path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z" fill="currentColor"></path>
+                        </svg>
+                        ${criterion}
+                      </li>
+                    `).join('')}
+                  </ul>
+                </div>
+              ` : ''}
+              
+              <!-- Areas for Improvement -->
+              ${data.analysis_result.areas_for_improvement && data.analysis_result.areas_for_improvement.length > 0 ? `
+                <div class="analysis-improvements">
+                  <h4>Areas for Improvement</h4>
+                  <ul class="improvement-list">
+                    ${data.analysis_result.areas_for_improvement.map(area => `
+                      <li class="improvement-item">${area}</li>
+                    `).join('')}
+                  </ul>
+                </div>
+              ` : ''}
+            </div>
+            
+            <!-- Feedback -->
+            ${data.feedback ? `
+              <div class="analysis-feedback">
+                <h4>Feedback</h4>
+                <div class="feedback-content">
+                  ${data.feedback.split('\n').map(line => `<p>${line}</p>`).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+      
+      modalOverlay.innerHTML = modalContent;
+      document.body.appendChild(modalOverlay);
+      
+      // Add event listener to close button
+      const closeButton = modalOverlay.querySelector('.learning__modal-close');
+      closeButton.addEventListener('click', () => {
+        document.body.removeChild(modalOverlay);
+      });
       
       // Show success message
       setError('Analysis completed successfully!');
       setTimeout(() => setError(''), 3000);
+      
+      // Set showAnalysisModal for the View Analysis button to work
+      setShowAnalysisModal(true);
     } catch (error) {
       setAnalysisError(error.message);
       setError('Failed to analyze task: ' + error.message);
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  // Update View Analysis button handler to show the modal
+  const handleViewAnalysis = () => {
+    if (!analysisResults) return;
+    
+    // Create the modal using direct DOM manipulation
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'learning__modal-overlay';
+    
+    const data = analysisResults;
+    const modalContent = `
+      <div class="learning__modal learning__modal--analysis">
+        <div class="learning__modal-header">
+          <h3>Analysis Results</h3>
+          <button class="learning__modal-close">&times;</button>
+        </div>
+        
+        <div class="learning__modal-body">
+          <!-- Completion Score -->
+          <div class="analysis-score">
+            <h4>Completion Score</h4>
+            <div class="score-bar">
+              <div class="score-fill" style="width: ${Math.min(100, Math.max(0, data.analysis_result.completion_score))}%"></div>
+              <span>${Math.min(100, Math.max(0, Math.round(data.analysis_result.completion_score)))}%</span>
+            </div>
+          </div>
+          
+          <div class="analysis-columns">
+            <!-- Criteria Met -->
+            ${data.analysis_result.criteria_met && data.analysis_result.criteria_met.length > 0 ? `
+              <div class="analysis-criteria">
+                <h4>Criteria Met</h4>
+                <ul class="criteria-list">
+                  ${data.analysis_result.criteria_met.map(criterion => `
+                    <li class="criteria-item">
+                      <svg class="criteria-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16" height="16">
+                        <path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z" fill="currentColor"></path>
+                      </svg>
+                      ${criterion}
+                    </li>
+                  `).join('')}
+                </ul>
+              </div>
+            ` : ''}
+            
+            <!-- Areas for Improvement -->
+            ${data.analysis_result.areas_for_improvement && data.analysis_result.areas_for_improvement.length > 0 ? `
+              <div class="analysis-improvements">
+                <h4>Areas for Improvement</h4>
+                <ul class="improvement-list">
+                  ${data.analysis_result.areas_for_improvement.map(area => `
+                    <li class="improvement-item">${area}</li>
+                  `).join('')}
+                </ul>
+              </div>
+            ` : ''}
+          </div>
+          
+          <!-- Feedback -->
+          ${data.feedback ? `
+            <div class="analysis-feedback">
+              <h4>Feedback</h4>
+              <div class="feedback-content">
+                ${data.feedback.split('\n').map(line => `<p>${line}</p>`).join('')}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+    
+    modalOverlay.innerHTML = modalContent;
+    document.body.appendChild(modalOverlay);
+    
+    // Add event listener to close button
+    const closeButton = modalOverlay.querySelector('.learning__modal-close');
+    closeButton.addEventListener('click', () => {
+      document.body.removeChild(modalOverlay);
+    });
   };
 
   if (isPageLoading) {
@@ -1362,6 +1524,15 @@ function Learning() {
                     disabled={isAnalyzing}
                   >
                     {isAnalyzing ? 'Analyzing...' : 'Analyze Task'}
+                  </button>
+                )}
+                
+                {analysisResults && (
+                  <button 
+                    className="learning__task-nav-button"
+                    onClick={handleViewAnalysis}
+                  >
+                    View Analysis
                   </button>
                 )}
                 
