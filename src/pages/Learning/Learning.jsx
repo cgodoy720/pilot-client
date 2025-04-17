@@ -381,7 +381,8 @@ function Learning() {
               resources: resources,
               deliverable: task.deliverable,
               deliverable_type: task.deliverable_type || 'none',
-              should_analyze: task.should_analyze || false
+              should_analyze: task.should_analyze || false,
+              analyze_deliverable: task.analyze_deliverable || false
             });
           });
         });
@@ -430,7 +431,9 @@ function Learning() {
             blockTitle: 'LAUNCH',
             blockTime: '1:00 PM',
             deliverable: null,
-            deliverable_type: 'none'
+            deliverable_type: 'none',
+            should_analyze: false,
+            analyze_deliverable: false
           },
           { 
             id: 2, 
@@ -441,7 +444,9 @@ function Learning() {
             blockTitle: 'Daily Standup',
             blockTime: '1:15 PM',
             deliverable: 'Completed Daily Standup prompt',
-            deliverable_type: 'none'
+            deliverable_type: 'none',
+            should_analyze: true,
+            analyze_deliverable: false
           },
           { 
             id: 3, 
@@ -452,7 +457,9 @@ function Learning() {
             blockTitle: 'Personal Learning Plan',
             blockTime: '1:45 PM',
             deliverable: 'Learning plan following the template format',
-            deliverable_type: 'link'
+            deliverable_type: 'link',
+            should_analyze: false,
+            analyze_deliverable: true
           }
         ];
         
@@ -1176,7 +1183,7 @@ function Learning() {
     }
     
     try {
-      console.log(`Fetching analysis for task ${taskId} from ${import.meta.env.VITE_API_URL}/api/analyze-task/${taskId}/analysis`);
+      console.log(`Fetching analysis for task ${taskId}`);
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/analyze-task/${taskId}/analysis`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1202,7 +1209,7 @@ function Learning() {
     }
   };
 
-  // Update handleAnalyzeTask to use the correct API endpoint
+  // Update handleAnalyzeTask with the correct endpoint
   const handleAnalyzeTask = async () => {
     if (!tasks.length || currentTaskIndex >= tasks.length) return;
     
@@ -1213,6 +1220,7 @@ function Learning() {
     setAnalysisError(null);
     
     try {
+      // Make sure the URL uses the /api/analyze-task/ prefix
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/analyze-task/${currentTask.id}/analyze-chat`, {
         method: 'POST',
         headers: {
@@ -1259,6 +1267,52 @@ function Learning() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTaskIndex, tasks]);
+
+  // Add a function to handle deliverable analysis
+  const handleAnalyzeDeliverable = async (url) => {
+    if (!tasks.length || currentTaskIndex >= tasks.length) return;
+    
+    const currentTask = tasks[currentTaskIndex];
+    
+    // Only proceed if analyze_deliverable is enabled
+    if (!currentTask.analyze_deliverable) return;
+    
+    // Set loading state
+    setIsAnalyzing(true);
+    setError('');
+    
+    try {
+      // Call the API to analyze the deliverable
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/analyze-task/${currentTask.id}/analyze-deliverable`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ url })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to analyze deliverable: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      // Update UI with results
+      setAnalysisResults(data);
+      setShowAnalysisModal(true);
+      setError('Deliverable analyzed successfully!');
+      setTimeout(() => setError(''), 3000);
+      
+      return data;
+    } catch (error) {
+      console.error('Error analyzing deliverable:', error);
+      setError(`Failed to analyze deliverable: ${error.message}`);
+      throw error;
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   if (isPageLoading) {
     return <div className="learning loading">Loading learning session...</div>;
@@ -1569,6 +1623,8 @@ function Learning() {
               <TaskSubmission 
                 taskId={tasks[currentTaskIndex].id} 
                 deliverable={tasks[currentTaskIndex].deliverable}
+                canAnalyzeDeliverable={tasks[currentTaskIndex].analyze_deliverable}
+                onAnalyzeDeliverable={handleAnalyzeDeliverable}
               />
             </div>
           </div>

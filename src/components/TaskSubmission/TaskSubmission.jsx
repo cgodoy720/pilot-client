@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import './TaskSubmission.css';
 
-const TaskSubmission = ({ taskId, deliverable }) => {
+const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeDeliverable }) => {
   const { token } = useAuth();
   const [submissions, setSubmissions] = useState([
     { type: 'link', content: '', label: '' }
   ]);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState('');
   const [submission, setSubmission] = useState(null);
 
@@ -57,6 +58,24 @@ const TaskSubmission = ({ taskId, deliverable }) => {
       fetchSubmission();
     }
   }, [taskId, token]);
+
+  // Handle deliverable analysis
+  const handleAnalyzeDeliverable = () => {
+    if (!submission || !submissions[0]?.content) return;
+    
+    // For multiple submissions, use the first one or find one marked as main
+    const mainSubmission = submissions.find(sub => 
+      sub.label?.toLowerCase().includes('main') || 
+      sub.type === 'link'
+    ) || submissions[0];
+    
+    // Call the onAnalyzeDeliverable callback with the submission URL
+    if (onAnalyzeDeliverable && mainSubmission.content) {
+      setIsAnalyzing(true);
+      onAnalyzeDeliverable(mainSubmission.content)
+        .finally(() => setIsAnalyzing(false));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -263,6 +282,18 @@ const TaskSubmission = ({ taskId, deliverable }) => {
         {submission && (
           <div className="task-submission__status">
             <p>Last updated: {new Date(submission.updated_at).toLocaleString()}</p>
+            
+            {/* Show analyze button if deliverable analysis is enabled and a submission exists */}
+            {canAnalyzeDeliverable && (
+              <button
+                type="button"
+                className="task-submission__analyze-btn"
+                onClick={handleAnalyzeDeliverable}
+                disabled={isAnalyzing}
+              >
+                {isAnalyzing ? 'Analyzing Deliverable...' : 'Analyze Deliverable'}
+              </button>
+            )}
           </div>
         )}
 
