@@ -9,9 +9,11 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
   ]);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzingSubmissionIndex, setAnalyzingSubmissionIndex] = useState(null);
   const [error, setError] = useState('');
   const [submission, setSubmission] = useState(null);
+  const [analysisStatuses, setAnalysisStatuses] = useState({});
+  const [submissionErrors, setSubmissionErrors] = useState({});
 
   // Fetch existing submission if available
   useEffect(() => {
@@ -59,21 +61,71 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
     }
   }, [taskId, token]);
 
-  // Handle deliverable analysis
-  const handleAnalyzeDeliverable = () => {
-    if (!submission || !submissions[0]?.content) return;
+  // Check if a URL is a Google Doc
+  const isGoogleDoc = (url) => {
+    return url && url.startsWith('https://docs.google.com/');
+  };
+
+  // Handle analyzing a specific deliverable
+  const handleAnalyzeSubmission = (index) => {
+    if (!submission || !submissions[index]?.content) return;
     
-    // For multiple submissions, use the first one or find one marked as main
-    const mainSubmission = submissions.find(sub => 
-      sub.label?.toLowerCase().includes('main') || 
-      sub.type === 'link'
-    ) || submissions[0];
+    // Get the specific submission to analyze
+    const submissionToAnalyze = submissions[index];
+    
+    // Only proceed if it's a Google Doc
+    if (!isGoogleDoc(submissionToAnalyze.content)) {
+      setSubmissionErrors(prev => ({
+        ...prev,
+        [index]: "Only Google Docs can be analyzed. Please submit a Google Doc URL."
+      }));
+      return;
+    }
+    
+    // Clear previous errors
+    setSubmissionErrors(prev => ({
+      ...prev,
+      [index]: null
+    }));
     
     // Call the onAnalyzeDeliverable callback with the submission URL
-    if (onAnalyzeDeliverable && mainSubmission.content) {
-      setIsAnalyzing(true);
-      onAnalyzeDeliverable(mainSubmission.content)
-        .finally(() => setIsAnalyzing(false));
+    if (onAnalyzeDeliverable && submissionToAnalyze.content) {
+      setAnalyzingSubmissionIndex(index);
+      
+      onAnalyzeDeliverable(submissionToAnalyze.content)
+        .then(() => {
+          // Update analysis status for this submission
+          setAnalysisStatuses(prev => ({
+            ...prev,
+            [index]: { 
+              analyzed: true, 
+              timestamp: new Date().toISOString() 
+            }
+          }));
+        })
+        .catch(err => {
+          console.error('Analysis failed:', err);
+          
+          // Check for specific Google Doc access error
+          if (err.message && (
+              err.message.includes("Could not access Google Doc") || 
+              err.message.includes("status code 401") ||
+              err.message.includes("status code 403")
+            )) {
+            setSubmissionErrors(prev => ({
+              ...prev,
+              [index]: "Please set the visibility for this Google Doc to 'Anyone with the link can view'"
+            }));
+          } else {
+            setSubmissionErrors(prev => ({
+              ...prev,
+              [index]: err.message || "Analysis failed. Please try again."
+            }));
+          }
+        })
+        .finally(() => {
+          setAnalyzingSubmissionIndex(null);
+        });
     }
   };
 
@@ -127,6 +179,14 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
     const updatedSubmissions = [...submissions];
     updatedSubmissions[index].content = value;
     setSubmissions(updatedSubmissions);
+    
+    // Clear any existing errors for this submission when the content changes
+    if (submissionErrors[index]) {
+      setSubmissionErrors(prev => ({
+        ...prev,
+        [index]: null
+      }));
+    }
   };
 
   const handleTypeChange = (index, type) => {
@@ -135,6 +195,14 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
     // Clear content when switching types to avoid confusion
     updatedSubmissions[index].content = ''; 
     setSubmissions(updatedSubmissions);
+    
+    // Clear any existing errors for this submission
+    if (submissionErrors[index]) {
+      setSubmissionErrors(prev => ({
+        ...prev,
+        [index]: null
+      }));
+    }
   };
 
   const handleLabelChange = (index, label) => {
@@ -155,6 +223,11 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
     if (submissions.length <= 1) return; // Keep at least one submission
     const updatedSubmissions = submissions.filter((_, i) => i !== index);
     setSubmissions(updatedSubmissions);
+    
+    // Also clean up error state
+    const updatedErrors = {...submissionErrors};
+    delete updatedErrors[index];
+    setSubmissionErrors(updatedErrors);
   };
 
   // Simple URL validation
@@ -241,14 +314,59 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
                   <p className="task-submission__link-warning">Please enter a valid URL</p>
                 )}
                 {sub.content && isValidUrl(sub.content) && (
-                  <a 
-                    href={sub.content} 
-                    target="_blank" 
-                    rel="noreferrer" 
-                    className="task-submission__link-preview"
-                  >
-                    View shared document
-                  </a>
+                  <div className="task-submission__link-actions">
+                    <a 
+                      href={sub.content} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="task-submission__link-preview"
+                    >
+                      View shared document
+                    </a>
+                    
+                    {/* Only show analyze button for Google Docs */}
+                    {submission && isGoogleDoc(sub.content) && (
+                      <button
+                        type="button"
+                        className="task-submission__analyze-btn"
+                        onClick={() => {
+                          handleAnalyzeSubmission(index);
+                        }}
+                        disabled={analyzingSubmissionIndex === index}
+                      >
+                        {analyzingSubmissionIndex === index ? 'Analyzing...' : 'Analyze This Submission'}
+                      </button>
+                    )}
+                    
+                    {/* Show message if URL is not a Google Doc */}
+                    {submission && !isGoogleDoc(sub.content) && sub.type === 'link' && (
+                      <div className="task-submission__not-google-doc">
+                        <span>Only Google Docs can be analyzed</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Display specific error message for this submission */}
+                {submissionErrors[index] && (
+                  <div className="task-submission__submission-error">
+                    <p>
+                      <span className="task-submission__error-icon">⚠️</span> 
+                      {submissionErrors[index]}
+                    </p>
+                    {submissionErrors[index].includes("Google Doc") && (
+                      <div className="task-submission__error-help">
+                        <p>How to fix:</p>
+                        <ol>
+                          <li>Open your Google Doc</li>
+                          <li>Click the "Share" button in the top right</li>
+                          <li>In the "Get Link" section, click "Change to anyone with the link"</li>
+                          <li>Ensure the permission is set to "Viewer"</li>
+                          <li>Click "Copy link" and try again</li>
+                        </ol>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}
@@ -282,18 +400,6 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
         {submission && (
           <div className="task-submission__status">
             <p>Last updated: {new Date(submission.updated_at).toLocaleString()}</p>
-            
-            {/* Show analyze button if deliverable analysis is enabled and a submission exists */}
-            {canAnalyzeDeliverable && (
-              <button
-                type="button"
-                className="task-submission__analyze-btn"
-                onClick={handleAnalyzeDeliverable}
-                disabled={isAnalyzing}
-              >
-                {isAnalyzing ? 'Analyzing Deliverable...' : 'Analyze Deliverable'}
-              </button>
-            )}
           </div>
         )}
 

@@ -1,14 +1,51 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './AnalysisModal.css';
 
-const AnalysisModal = ({ analysis, onClose }) => {
+const AnalysisModal = ({ analysis, availableAnalyses, onSwitchAnalysis, onClose }) => {
   if (!analysis) return null;
+  
+  // Determine which type of analysis this is
+  const analysisType = analysis.analysis_type || 'unknown';
+  
+  // Format the analysis type for display
+  const formatAnalysisType = (type) => {
+    switch (type) {
+      case 'conversation':
+        return 'Chat Feedback';
+      case 'deliverable':
+        return 'Deliverable Feedback';
+      default:
+        return type.charAt(0).toUpperCase() + type.slice(1);
+    }
+  };
+  
+  // Check if we have multiple analyses to switch between
+  const hasMultipleAnalyses = availableAnalyses && 
+    Object.keys(availableAnalyses).length > 0 &&
+    onSwitchAnalysis;
   
   return (
     <div className="learning__modal-overlay">
       <div className="learning__modal learning__modal--analysis">
         <div className="learning__modal-header">
-          <h3>Analysis Results</h3>
+          {hasMultipleAnalyses ? (
+            <div className="learning__modal-header-content">
+              {/* <h3>Analysis Results</h3> */}
+              <div className="analysis-type-selector">
+                {Object.keys(availableAnalyses).map(type => (
+                  <button
+                    key={type}
+                    className={`analysis-type-btn ${type === analysisType ? 'active' : ''}`}
+                    onClick={() => onSwitchAnalysis(type)}
+                  >
+                    {formatAnalysisType(type)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <h3>Analysis Results</h3>
+          )}
           <button className="learning__modal-close" onClick={onClose}>&times;</button>
         </div>
         

@@ -56,6 +56,8 @@ function Learning() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResults, setAnalysisResults] = useState(null);
   const [analysisError, setAnalysisError] = useState(null);
+  const [availableAnalyses, setAvailableAnalyses] = useState({});
+  const [analysisType, setAnalysisType] = useState(null);
   
   // Add state for modal visibility
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
@@ -1175,41 +1177,50 @@ function Learning() {
     }
   };
 
-  // Update fetchTaskAnalysis with the correct endpoint
-  const fetchTaskAnalysis = async (taskId) => {
+  // Update fetchTaskAnalysis to handle specific analysis types
+  const fetchTaskAnalysis = async (taskId, type = null) => {
     if (!taskId) {
       console.log('No taskId provided to fetchTaskAnalysis');
       return false;
     }
     
     try {
-      console.log(`Fetching analysis for task ${taskId}`);
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/analyze-task/${taskId}/analysis`, {
+      // Build URL with type parameter if provided
+      let url = `${import.meta.env.VITE_API_URL}/api/analyze-task/${taskId}/analysis`;
+      if (type) {
+        url += `?type=${type}`;
+      }
+      
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      console.log(`Analysis fetch response status: ${response.status}`);
-      
       if (response.ok) {
         const data = await response.json();
-        console.log('Found existing analysis:', data);
         setAnalysisResults(data);
+        setAnalysisType(type || data.analysis_type); // Store which type of analysis is being viewed
         return true;
       } else {
-        console.log(`No analysis found for task ${taskId}, status: ${response.status}`);
-        setAnalysisResults(null);
+        console.log(`No analysis found for task ${taskId} type ${type}, status: ${response.status}`);
+        if (!type) {
+          // Only clear results if not looking for a specific type
+          setAnalysisResults(null);
+        }
         return false;
       }
     } catch (error) {
       console.error(`Error fetching task analysis for task ${taskId}:`, error);
-      setAnalysisResults(null);
+      if (!type) {
+        // Only clear results if not looking for a specific type
+        setAnalysisResults(null);
+      }
       return false;
     }
   };
 
-  // Update handleAnalyzeTask with the correct endpoint
+  // Update handleAnalyzeTask to refresh available analyses
   const handleAnalyzeTask = async () => {
     if (!tasks.length || currentTaskIndex >= tasks.length) return;
     
@@ -1220,7 +1231,6 @@ function Learning() {
     setAnalysisError(null);
     
     try {
-      // Make sure the URL uses the /api/analyze-task/ prefix
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/analyze-task/${currentTask.id}/analyze-chat`, {
         method: 'POST',
         headers: {
@@ -1234,6 +1244,11 @@ function Learning() {
       
       const data = await response.json();
       setAnalysisResults(data);
+      setAnalysisType('conversation');
+      
+      // Refresh available analyses
+      await fetchAvailableAnalyses(currentTask.id);
+      
       setShowAnalysisModal(true);
       setError('Analysis completed successfully!');
       setTimeout(() => setError(''), 3000);
@@ -1245,37 +1260,18 @@ function Learning() {
     }
   };
 
-  // Make sure the handleViewAnalysis function properly shows the modal
-  const handleViewAnalysis = () => {
-    if (!analysisResults) return;
-    setShowAnalysisModal(true);
-  };
-
-  // Update useEffect to include all dependencies
-  useEffect(() => {
-    if (tasks.length > 0 && currentTaskIndex >= 0 && currentTaskIndex < tasks.length) {
-      const currentTask = tasks[currentTaskIndex];
-      if (currentTask && currentTask.should_analyze) {
-        console.log(`Current task changed to task ${currentTask.id}, checking for analysis`);
-        fetchTaskAnalysis(currentTask.id);
-      } else {
-        // Reset analysis results if task doesn't support analysis
-        console.log('Current task does not support analysis, clearing results');
-        setAnalysisResults(null);
-        setShowAnalysisModal(false);
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTaskIndex, tasks]);
-
-  // Add a function to handle deliverable analysis
+  // Update handleAnalyzeDeliverable to include proper error handling
   const handleAnalyzeDeliverable = async (url) => {
     if (!tasks.length || currentTaskIndex >= tasks.length) return;
     
     const currentTask = tasks[currentTaskIndex];
     
-    // Only proceed if analyze_deliverable is enabled
-    if (!currentTask.analyze_deliverable) return;
+    // Log debugging information
+    console.log('handleAnalyzeDeliverable called with:', { 
+      url,
+      taskId: currentTask.id,
+      analyze_deliverable: currentTask.analyze_deliverable || false
+    });
     
     // Set loading state
     setIsAnalyzing(true);
@@ -1292,14 +1288,26 @@ function Learning() {
         body: JSON.stringify({ url })
       });
       
+      console.log('Analyze deliverable response:', response.status, response.statusText);
+      
       if (!response.ok) {
-        throw new Error(`Failed to analyze deliverable: ${response.status} ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({ error: `HTTP error ${response.status}` }));
+        const errorMessage = errorData.error || `Failed to analyze deliverable: ${response.status} ${response.statusText}`;
+        
+        console.error('Error response data:', errorData);
+        throw new Error(errorMessage);
       }
       
       const data = await response.json();
+      console.log('Analyze deliverable success, data received');
       
       // Update UI with results
       setAnalysisResults(data);
+      setAnalysisType('deliverable');
+      
+      // Refresh available analyses
+      await fetchAvailableAnalyses(currentTask.id);
+      
       setShowAnalysisModal(true);
       setError('Deliverable analyzed successfully!');
       setTimeout(() => setError(''), 3000);
@@ -1308,11 +1316,77 @@ function Learning() {
     } catch (error) {
       console.error('Error analyzing deliverable:', error);
       setError(`Failed to analyze deliverable: ${error.message}`);
+      
+      // Propagate the error so the TaskSubmission component can handle it
       throw error;
     } finally {
       setIsAnalyzing(false);
     }
   };
+
+  // Handle switching between different analysis types
+  const handleSwitchAnalysis = async (type) => {
+    if (!type || !tasks.length || currentTaskIndex >= tasks.length) return;
+    
+    const currentTask = tasks[currentTaskIndex];
+    await fetchTaskAnalysis(currentTask.id, type);
+    setAnalysisType(type);
+  };
+
+  // Add a function to fetch all available analyses for a task
+  const fetchAvailableAnalyses = async (taskId) => {
+    if (!taskId) return;
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/analyze-task/${taskId}/all-analyses`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableAnalyses(data);
+        
+        // If we already have a selected analysis type, keep it
+        // Otherwise, select the first available type
+        if (!analysisType && Object.keys(data).length > 0) {
+          const firstType = Object.keys(data)[0];
+          setAnalysisType(firstType);
+          
+          // Load the first analysis of this type
+          if (data[firstType] && data[firstType].length > 0) {
+            await fetchTaskAnalysis(taskId, firstType);
+          }
+        }
+        
+        return data;
+      } else {
+        // 404 is expected if no analyses exist yet
+        if (response.status !== 404) {
+          console.error(`Error fetching analyses: ${response.status}`);
+        }
+        setAvailableAnalyses({});
+        return {};
+      }
+    } catch (error) {
+      console.error(`Error fetching analyses:`, error);
+      setAvailableAnalyses({});
+      return {};
+    }
+  };
+
+  // Update useEffect to fetch analyses when the task changes
+  useEffect(() => {
+    if (tasks.length > 0 && currentTaskIndex >= 0 && currentTaskIndex < tasks.length) {
+      const currentTask = tasks[currentTaskIndex];
+      if (currentTask) {
+        console.log(`Current task changed to task ${currentTask.id}, checking for analyses`);
+        fetchAvailableAnalyses(currentTask.id);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTaskIndex, tasks]);
 
   if (isPageLoading) {
     return <div className="learning loading">Loading learning session...</div>;
@@ -1478,57 +1552,59 @@ function Learning() {
                 <div ref={messagesEndRef} />
               </div>
               
-              <div className="learning__task-navigation">
-                <button 
-                  className="learning__task-nav-button" 
-                  onClick={() => navigateToTask('prev')}
-                  disabled={currentTaskIndex === 0}
-                >
-                  <FaArrowLeft /> Prev Task
-                </button>
-                
-                {tasks.length > 0 && currentTaskIndex < tasks.length && tasks[currentTaskIndex].should_analyze && (
-                  <button 
-                    className="learning__task-nav-button"
-                    onClick={handleAnalyzeTask}
-                    disabled={isAnalyzing}
-                  >
-                    {isAnalyzing ? 'Generating Feedback...' : 'Generate AI Feedback'}
-                  </button>
-                )}
-                
-                {analysisResults && (
-                  <button 
-                    className="learning__task-nav-button"
-                    onClick={handleViewAnalysis}
-                  >
-                    View Feedback
-                  </button>
-                )}
-                
-                {isIndependentRetroTask() && messages.length > 0 && !tasks[currentTaskIndex].completed ? (
-                  peerFeedbackCompleted ? (
-                    <div className="learning__feedback-status">
-                      <FaCheck /> Peer feedback submitted successfully!
-                    </div>
-                  ) : (
-                    <button 
-                      className="learning__feedback-btn"
-                      onClick={() => setShowPeerFeedback(true)}
-                    >
-                      <FaUsers /> Provide Peer Feedback
-                    </button>
-                  )
-                ) : !isIndependentRetroTask() && (
+              {tasks.length > 0 && currentTaskIndex < tasks.length && (
+                <div className="learning__task-navigation">
                   <button 
                     className="learning__task-nav-button" 
-                    onClick={() => navigateToTask('next')}
-                    disabled={currentTaskIndex === tasks.length - 1}
+                    onClick={() => navigateToTask('prev')}
+                    disabled={currentTaskIndex === 0}
                   >
-                    Next Task <FaArrowRight />
+                    <FaArrowLeft /> Prev Task
                   </button>
-                )}
-              </div>
+                  
+                  {tasks[currentTaskIndex].should_analyze && (
+                    <button 
+                      className="learning__task-nav-button"
+                      onClick={handleAnalyzeTask}
+                      disabled={isAnalyzing}
+                    >
+                      {isAnalyzing ? 'Generating Feedback...' : 'Generate AI Feedback'}
+                    </button>
+                  )}
+                  
+                  {Object.keys(availableAnalyses).length > 0 && (
+                    <button 
+                      className="learning__task-nav-button"
+                      onClick={() => setShowAnalysisModal(true)}
+                    >
+                      View Feedback
+                    </button>
+                  )}
+                  
+                  {isIndependentRetroTask() && messages.length > 0 && !tasks[currentTaskIndex].completed ? (
+                    peerFeedbackCompleted ? (
+                      <div className="learning__feedback-status">
+                        <FaCheck /> Peer feedback submitted successfully!
+                      </div>
+                    ) : (
+                      <button 
+                        className="learning__feedback-btn"
+                        onClick={() => setShowPeerFeedback(true)}
+                      >
+                        <FaUsers /> Provide Peer Feedback
+                      </button>
+                    )
+                  ) : !isIndependentRetroTask() && (
+                    <button 
+                      className="learning__task-nav-button" 
+                      onClick={() => navigateToTask('next')}
+                      disabled={currentTaskIndex === tasks.length - 1}
+                    >
+                      Next Task <FaArrowRight />
+                    </button>
+                  )}
+                </div>
+              )}
               
               <form className="learning__input-form" onSubmit={handleSendMessage}>
                 <textarea
@@ -1623,7 +1699,7 @@ function Learning() {
               <TaskSubmission 
                 taskId={tasks[currentTaskIndex].id} 
                 deliverable={tasks[currentTaskIndex].deliverable}
-                canAnalyzeDeliverable={tasks[currentTaskIndex].analyze_deliverable}
+                canAnalyzeDeliverable={true}
                 onAnalyzeDeliverable={handleAnalyzeDeliverable}
               />
             </div>
@@ -1635,6 +1711,8 @@ function Learning() {
       {showAnalysisModal && analysisResults && (
         <AnalysisModal 
           analysis={analysisResults} 
+          availableAnalyses={availableAnalyses}
+          onSwitchAnalysis={handleSwitchAnalysis}
           onClose={() => setShowAnalysisModal(false)} 
         />
       )}
