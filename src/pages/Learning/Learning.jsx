@@ -62,6 +62,9 @@ function Learning() {
   // Add state for modal visibility
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   
+  // Initialize submission state
+  const [submission, setSubmission] = useState(null);
+  
   // Add useEffect to log analysis results changes
   useEffect(() => {
     console.log('Analysis results state changed:', analysisResults ? 'Has results' : 'No results');
@@ -1329,8 +1332,16 @@ function Learning() {
     if (!type || !tasks.length || currentTaskIndex >= tasks.length) return;
     
     const currentTask = tasks[currentTaskIndex];
-    await fetchTaskAnalysis(currentTask.id, type);
     setAnalysisType(type);
+    
+    // Fetch the appropriate analysis based on type
+    if (type === 'deliverable') {
+      // Make sure we have the submission data for deliverable analysis
+      await fetchTaskSubmission(currentTask.id);
+    }
+    
+    // Fetch the analysis for the selected type
+    await fetchTaskAnalysis(currentTask.id, type);
   };
 
   // Add a function to fetch all available analyses for a task
@@ -1387,6 +1398,137 @@ function Learning() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTaskIndex, tasks]);
+
+  // Add a function to get only the submissions that have been analyzed
+  const getAnalyzedSubmissions = () => {
+    // Skip if we don't have submission data
+    if (!submission) return [];
+    
+    try {
+      // Parse submissions from JSON if it's in that format
+      let submissionList = [];
+      try {
+        const parsed = JSON.parse(submission.content);
+        if (Array.isArray(parsed)) {
+          submissionList = parsed;
+        } else {
+          submissionList = [{ type: 'link', content: submission.content, label: 'Main Submission' }];
+        }
+      } catch (e) {
+        submissionList = [{ type: 'link', content: submission.content, label: 'Main Submission' }];
+      }
+      
+      // Only include Google Docs submissions that can be analyzed
+      const analyzableSubmissions = submissionList.filter(sub => {
+        return sub.type === 'link' && sub.content && 
+               sub.content.startsWith('https://docs.google.com/');
+      });
+      
+      console.log('Analyzable submissions:', analyzableSubmissions.length);
+      
+      if (analyzableSubmissions.length === 0) {
+        console.log('No analyzable Google Docs found');
+        // If none, return empty array
+        return [];
+      }
+      
+      // Map to the format expected by AnalysisModal
+      return analyzableSubmissions.map((sub, index) => ({
+        id: sub.id || `submission-${index}`,
+        label: sub.label || `Google Doc ${index + 1}`,
+        url: sub.content
+      }));
+    } catch (error) {
+      console.error('Error filtering analyzable submissions:', error);
+      return [];
+    }
+  };
+
+  // Update this function to organize analysis results by submission ID correctly
+  const organizeAnalysisBySubmission = (analysis) => {
+    if (!analysis) return {};
+    
+    // For conversation analysis, we don't need submission IDs
+    if (analysisType === 'conversation') {
+      return {
+        'conversation': {
+          criteria_met: analysis.analysis_result?.criteria_met || [],
+          areas_for_improvement: analysis.analysis_result?.areas_for_improvement || [],
+          feedback: analysis.feedback || "No detailed feedback available"
+        }
+      };
+    }
+    
+    // For deliverable analysis, use only Google Doc submissions
+    if (analysisType === 'deliverable' && submission) {
+      const analyzedSubmissions = getAnalyzedSubmissions();
+      const result = {};
+      
+      // If we have a single analysis result, use it for all Google Doc submissions
+      if (analysis.analysis_result) {
+        analyzedSubmissions.forEach(sub => {
+          result[sub.id] = {
+            criteria_met: analysis.analysis_result.criteria_met || [],
+            areas_for_improvement: analysis.analysis_result.areas_for_improvement || [],
+            feedback: analysis.feedback || "No detailed feedback available"
+          };
+        });
+      }
+      
+      return result;
+    }
+    
+    return {};
+  };
+
+  // Add a function to fetch the most recent submission
+  const fetchTaskSubmission = async (taskId) => {
+    if (!taskId) return null;
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions/${taskId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Fetched submission:', data);
+        setSubmission(data);
+        return data;
+      } else if (response.status !== 404) {
+        // 404 is expected if no submission exists yet
+        console.log(`No submission found for task ${taskId}`);
+      }
+      
+      setSubmission(null);
+      return null;
+    } catch (error) {
+      console.error(`Error fetching submission for task ${taskId}:`, error);
+      setSubmission(null);
+      return null;
+    }
+  };
+
+  // Update this function to also fetch the submission when showing the modal
+  const handleViewAnalysis = async () => {
+    if (!tasks.length || currentTaskIndex >= tasks.length) return;
+    
+    const currentTask = tasks[currentTaskIndex];
+    
+    // Fetch the task submission first
+    await fetchTaskSubmission(currentTask.id);
+    
+    // Then show the modal
+    setShowAnalysisModal(true);
+  };
+
+  // Get a list of available analysis types
+  const getAvailableAnalysisTypes = () => {
+    if (!availableAnalyses) return [];
+    return Object.keys(availableAnalyses);
+  };
 
   if (isPageLoading) {
     return <div className="learning loading">Loading learning session...</div>;
@@ -1575,7 +1717,7 @@ function Learning() {
                   {Object.keys(availableAnalyses).length > 0 && (
                     <button 
                       className="learning__task-nav-button"
-                      onClick={() => setShowAnalysisModal(true)}
+                      onClick={handleViewAnalysis}
                     >
                       View Feedback
                     </button>
@@ -1710,10 +1852,13 @@ function Learning() {
       {/* Analysis Modal */}
       {showAnalysisModal && analysisResults && (
         <AnalysisModal 
-          analysis={analysisResults} 
-          availableAnalyses={availableAnalyses}
-          onSwitchAnalysis={handleSwitchAnalysis}
-          onClose={() => setShowAnalysisModal(false)} 
+          isOpen={showAnalysisModal}
+          onClose={() => setShowAnalysisModal(false)}
+          analysisResults={organizeAnalysisBySubmission(analysisResults)}
+          analysisType={analysisType}
+          availableSubmissions={analysisType === 'deliverable' ? getAnalyzedSubmissions() : []}
+          availableAnalysisTypes={getAvailableAnalysisTypes()}
+          onSwitchAnalysisType={handleSwitchAnalysis}
         />
       )}
     </div>

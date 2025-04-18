@@ -1,5 +1,5 @@
 /* Analysis Modal Styles */
-.learning__modal-overlay {
+.analysis-modal {
   position: fixed;
   top: 0;
   left: 0;
@@ -11,7 +11,15 @@
   align-items: center;
   z-index: 1000;
   animation: fadeIn 0.2s ease-in-out;
-  padding: 0 16px; /* Add padding for better spacing on small screens */
+  padding: 0 16px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+.analysis-modal.open {
+  opacity: 1;
+  visibility: visible;
 }
 
 @keyframes fadeIn {
@@ -19,19 +27,18 @@
   to { opacity: 1; }
 }
 
-/* Directly set styles on the component class used in AnalysisModal.jsx */
-.learning__modal-overlay .learning__modal.learning__modal--analysis {
-  max-width: 850px !important; /* Increased even more */
-  width: 95% !important;
+.analysis-modal-content {
+  max-width: 850px;
+  width: 95%;
   max-height: 85vh;
   margin: 0 auto;
-  background-color: #1a1f2c; /* Match var(--color-background-dark) */
+  background-color: var(--color-background-dark);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
   animation: slideIn 0.2s ease-out;
-  overflow: hidden; /* Prevents content from overflowing rounded corners */
+  overflow: hidden;
 }
 
 @keyframes slideIn {
@@ -39,109 +46,128 @@
   to { transform: translateY(0); opacity: 1; }
 }
 
-/* Add scrollbar styles for the modal content */
-.learning__modal--analysis::-webkit-scrollbar {
-  width: 6px;
-}
-
-.learning__modal--analysis::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 3px;
-}
-
-.learning__modal--analysis::-webkit-scrollbar-thumb {
-  background-color: #4242ea; /* Match var(--color-primary) */
-  border-radius: 3px;
-}
-
-.learning__modal--analysis::-webkit-scrollbar-thumb:hover {
-  background-color: #5555ff; /* Match var(--color-primary-hover) */
-}
-
-.learning__modal-header {
+.analysis-modal-header {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #333333; /* Match var(--color-border) */
-  background-color: #121212; /* Match var(--color-background-darker) */
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-background-darker);
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
-  flex-shrink: 0;
-  position: relative;
 }
 
-.learning__modal-header h3 {
+.analysis-modal-header h2 {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
-  color: #ffffff; /* Match var(--color-text-primary) */
-  text-align: center; /* Center the Analysis Results title */
+  color: var(--color-text-primary);
 }
 
-.learning__modal-close {
+.close-button {
   background: none;
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #e3e3e3; /* Match var(--color-text-secondary) */
+  color: var(--color-text-secondary);
   transition: color 0.2s;
   padding: 0;
   line-height: 1;
-  position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
 }
 
-.learning__modal-close:hover {
-  color: #ffffff; /* Match var(--color-text-primary) */
+.close-button:hover {
+  color: var(--color-text-primary);
 }
 
-.learning__modal-body {
-  padding: 24px 28px; /* Slightly increased horizontal padding */
+.analysis-modal-body {
+  padding: 24px 28px;
   overflow-y: auto;
   flex-grow: 1;
 }
 
-/* Analysis Content Styles */
-.analysis-score {
-  margin-bottom: 24px;
+/* Submission selector styles */
+.analysis-submission-selector {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  background-color: rgba(255, 255, 255, 0.03);
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
 }
 
-.analysis-score h4 {
-  margin-top: 0;
-  margin-bottom: 12px;
-  color: #ffffff; /* Match var(--color-text-primary) */
+.analysis-selector-label {
   font-weight: 600;
-  font-size: 1.1rem;
-  text-align: center; /* Center section headers */
+  margin-right: 15px;
+  color: var(--color-text-primary);
+  min-width: 150px;
+  display: flex;
+  align-items: center;
 }
 
-.score-bar {
-  height: 24px;
-  background-color: #121212; /* Match var(--color-background-darker) */
-  border-radius: 12px;
-  position: relative;
-  overflow: hidden;
-  margin-top: 10px;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3); /* Add subtle inset shadow */
+.analysis-selector-label::before {
+  content: "📄";
+  margin-right: 8px;
+  font-size: 16px;
 }
 
-.score-fill {
-  height: 100%;
-  background-color: #4242ea; /* Match var(--color-primary) */
-  transition: width 0.5s ease;
-  background-image: linear-gradient(90deg, #4242ea, #5555ff); /* Add subtle gradient */
+.analysis-submission-dropdown {
+  flex-grow: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  max-width: 60%;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='rgb(227, 227, 227)' viewBox='0 0 16 16'><path d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 30px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.score-bar span {
-  position: absolute;
-  right: 10px;
-  top: 0;
-  line-height: 24px;
-  font-weight: bold;
-  color: #ffffff; /* Match var(--color-text-primary) */
+.analysis-submission-dropdown:hover {
+  border-color: var(--color-primary-hover);
+  background-color: rgba(66, 66, 234, 0.05);
+}
+
+.analysis-submission-dropdown:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(66, 66, 234, 0.2);
+  outline: none;
+}
+
+/* Analysis Content Styles */
+.analysis-content {
+  background-color: var(--color-background-dark);
+  color: var(--color-text-primary);
+}
+
+.analysis-content h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.2rem;
+  color: var(--color-primary);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 10px;
+}
+
+.analysis-text {
+  line-height: 1.6;
+}
+
+.no-analysis {
+  padding: 20px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  text-align: center;
+  color: var(--color-text-secondary);
 }
 
 .analysis-columns {
@@ -153,7 +179,7 @@
 .analysis-criteria, 
 .analysis-improvements {
   flex: 1;
-  min-width: 0; /* Ensure proper flex sizing with text overflow */
+  min-width: 0;
 }
 
 .analysis-criteria h4,
@@ -161,10 +187,10 @@
 .analysis-feedback h4 {
   margin-top: 0;
   margin-bottom: 12px;
-  color: #ffffff; /* Match var(--color-text-primary) */
+  color: var(--color-text-primary);
   font-weight: 600;
   font-size: 1.1rem;
-  text-align: left; /* Change from centered to left alignment */
+  text-align: left;
 }
 
 .criteria-list,
@@ -179,39 +205,37 @@
   display: flex;
   align-items: flex-start;
   line-height: 1.5;
-  color: #e3e3e3; /* Match var(--color-text-secondary) */
-  margin-bottom: 4px; /* Add some space between items */
-  text-align: left; /* Ensure left alignment for list items */
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+  text-align: left;
 }
 
 .criteria-icon {
-  color: #4CAF50; /* Success color */
+  color: #4CAF50;
   margin-right: 10px;
-  margin-top: 4px; /* Slightly adjust to better align with text */
+  margin-top: 4px;
   flex-shrink: 0;
-  width: 14px; /* Slightly smaller */
-  height: 14px; /* Slightly smaller */
+  width: 14px;
+  height: 14px;
 }
 
 .analysis-feedback {
-  margin-top: 26px;
-  border-top: 1px solid #333333; /* Match var(--color-border) */
-  padding-top: 26px;
+  margin-top: 0;
+  margin-bottom: 26px;
 }
 
 .feedback-content {
   padding: 16px 20px;
   border-radius: 8px;
   line-height: 1.6;
-  border-left: 4px solid #4242ea; /* Match var(--color-primary) */
-  background-color: rgba(66, 66, 234, 0.1); /* Light primary color background */
-  color: #e3e3e3; /* Match var(--color-text-secondary) */
+  border-left: 4px solid var(--color-primary);
+  background-color: var(--color-primary-transparent);
+  color: var(--color-text-secondary);
   max-height: 300px;
   overflow-y: auto;
-  text-align: left; /* Ensure feedback text is left-aligned */
+  text-align: left;
 }
 
-/* Add scrollbar styles for the feedback content */
 .feedback-content::-webkit-scrollbar {
   width: 4px;
 }
@@ -222,18 +246,18 @@
 }
 
 .feedback-content::-webkit-scrollbar-thumb {
-  background-color: #4242ea; /* Match var(--color-primary) */
+  background-color: var(--color-primary);
   border-radius: 2px;
 }
 
 .feedback-content::-webkit-scrollbar-thumb:hover {
-  background-color: #5555ff; /* Match var(--color-primary-hover) */
+  background-color: var(--color-primary-hover);
 }
 
 .feedback-content p {
   margin: 0 0 12px 0;
   line-height: 1.5;
-  text-align: left; /* Ensure paragraphs are left-aligned */
+  text-align: left;
 }
 
 .feedback-content p:last-child {
@@ -244,17 +268,17 @@
 .improvement-item {
   text-align: left;
   display: flex;
-  padding-left: 0; /* Remove the padding */
+  padding-left: 0;
   position: relative;
   margin-bottom: 4px;
-  color: #e3e3e3;
+  color: var(--color-text-secondary);
   line-height: 1.5;
   align-items: flex-start;
 }
 
 .improvement-item::before {
-  content: "•"; /* Add a bullet point */
-  color: #ff4f4f; /* Red color for improvement items */
+  content: "•";
+  color: var(--color-error);
   margin-right: 10px;
   font-size: 18px;
   line-height: 1;
@@ -266,48 +290,86 @@
     gap: 16px;
   }
   
-  .learning__modal-overlay .learning__modal.learning__modal--analysis {
-    width: 95% !important;
+  .analysis-modal-content {
+    width: 95%;
     max-height: 80vh;
   }
   
-  .learning__modal-body {
+  .analysis-modal-body {
     padding: 16px;
+  }
+  
+  .analysis-submission-selector {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .analysis-selector-label {
+    margin-bottom: 8px;
+    margin-right: 0;
+  }
+  
+  .analysis-submission-dropdown {
+    width: 100%;
+    max-width: 100%;
   }
 }
 
-.learning__modal-header-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
+.analysis-no-submissions {
+  padding: 15px;
+  background-color: rgba(255, 79, 79, 0.1);
+  border-radius: 6px;
+  margin-bottom: 20px;
+  color: var(--color-error);
+  text-align: center;
+  border: 1px solid rgba(255, 79, 79, 0.3);
 }
 
+.analysis-no-submissions p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.no-analysis .analysis-instructions {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: var(--color-primary-transparent);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  border-left: 3px solid var(--color-primary);
+}
+
+/* Analysis Type Selector */
 .analysis-type-selector {
   display: flex;
   justify-content: center;
   gap: 10px;
-  margin-top: 10px;
+  padding: 12px 0;
+  background-color: var(--color-background-darker);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .analysis-type-btn {
-  background: rgba(66, 66, 234, 0.1);
-  color: #e3e3e3;
-  border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
-  font-size: 0.85rem;
+  padding: 8px 16px;
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .analysis-type-btn:hover {
-  background: rgba(66, 66, 234, 0.2);
-  color: white;
+  background-color: rgba(66, 66, 234, 0.1);
+  color: var(--color-text-primary);
 }
 
 .analysis-type-btn.active {
-  background: #4242ea;
+  background-color: var(--color-primary);
   color: white;
-  font-weight: 500;
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 } 

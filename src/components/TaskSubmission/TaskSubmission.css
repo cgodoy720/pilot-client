@@ -459,4 +459,93 @@
 .task-submission__not-google-doc span::before {
   content: '⚠️';
   margin-right: 6px;
+}
+
+/* Add confirmation modal styles at the end of the file */
+
+/* Confirmation Modal */
+.confirmation-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.confirmation-modal {
+  max-width: 400px;
+  width: 90%;
+  background-color: var(--color-background-dark, #181c28);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.confirmation-modal__content {
+  padding: 20px;
+}
+
+.confirmation-modal__content p {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--color-text-primary, #ffffff);
+}
+
+.confirmation-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.confirmation-modal__cancel-btn {
+  padding: 8px 16px;
+  background-color: transparent;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  border-radius: 4px;
+  color: var(--color-text-secondary, #a0a0a0);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.confirmation-modal__cancel-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.confirmation-modal__confirm-btn {
+  padding: 8px 16px;
+  background-color: var(--color-error, #ff4f4f);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.confirmation-modal__confirm-btn:hover {
+  background-color: #e54545;
+  transform: translateY(-1px);
 } 

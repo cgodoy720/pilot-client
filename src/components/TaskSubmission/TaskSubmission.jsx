@@ -2,6 +2,35 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import './TaskSubmission.css';
 
+// Confirmation Modal Component
+const ConfirmationModal = ({ isOpen, message, onConfirm, onCancel }) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="confirmation-modal-overlay">
+      <div className="confirmation-modal">
+        <div className="confirmation-modal__content">
+          <p>{message}</p>
+          <div className="confirmation-modal__actions">
+            <button 
+              className="confirmation-modal__cancel-btn" 
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+            <button 
+              className="confirmation-modal__confirm-btn" 
+              onClick={onConfirm}
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeDeliverable }) => {
   const { token } = useAuth();
   const [submissions, setSubmissions] = useState([
@@ -14,6 +43,31 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
   const [submission, setSubmission] = useState(null);
   const [analysisStatuses, setAnalysisStatuses] = useState({});
   const [submissionErrors, setSubmissionErrors] = useState({});
+  
+  // State for confirmation modal
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmMessage, setConfirmMessage] = useState('');
+
+  // Function to show confirmation modal
+  const confirmAndExecute = (message, action) => {
+    setConfirmMessage(message);
+    setConfirmAction(() => action);
+    setShowConfirmModal(true);
+  };
+
+  // Function to handle confirmation
+  const handleConfirm = () => {
+    if (confirmAction) {
+      confirmAction();
+    }
+    setShowConfirmModal(false);
+  };
+
+  // Function to cancel confirmation
+  const handleCancel = () => {
+    setShowConfirmModal(false);
+  };
 
   // Fetch existing submission if available
   useEffect(() => {
@@ -219,15 +273,56 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
     }]);
   };
 
-  const removeSubmission = (index) => {
-    if (submissions.length <= 1) return; // Keep at least one submission
-    const updatedSubmissions = submissions.filter((_, i) => i !== index);
-    setSubmissions(updatedSubmissions);
+  const removeSubmission = async (index) => {
+    // Don't allow removing the last submission
+    if (submissions.length <= 1) return;
     
-    // Also clean up error state
-    const updatedErrors = {...submissionErrors};
-    delete updatedErrors[index];
-    setSubmissionErrors(updatedErrors);
+    // Use the confirmation modal instead of confirm()
+    confirmAndExecute(
+      `Are you sure you want to remove "${submissions[index].label}"?`,
+      async () => {
+        // Remove the submission from the local state
+        const updatedSubmissions = submissions.filter((_, i) => i !== index);
+        setSubmissions(updatedSubmissions);
+        
+        // Clean up error state
+        const updatedErrors = {...submissionErrors};
+        delete updatedErrors[index];
+        setSubmissionErrors(updatedErrors);
+        
+        // Only update the database if we already have a saved submission
+        if (submission) {
+          try {
+            // Update the submission in the database
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                taskId,
+                content: JSON.stringify(updatedSubmissions)
+              })
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              setSubmission(data);
+              // Set temporary success message
+              setError('Submission item removed successfully');
+              setTimeout(() => setError(''), 3000);
+            } else {
+              const errorData = await response.json();
+              setError(errorData.error || 'Failed to update submission');
+            }
+          } catch (error) {
+            console.error('Error updating submission:', error);
+            setError('Unable to update submission. Please check your internet connection and try again.');
+          }
+        }
+      }
+    );
   };
 
   // Simple URL validation
@@ -410,6 +505,14 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
           </div>
         )}
       </form>
+
+      {/* Add the Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        message={confirmMessage}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
     </div>
   );
 };
