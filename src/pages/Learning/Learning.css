@@ -603,11 +603,9 @@
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -939,7 +937,7 @@
   line-height: 1.4;
 }
 
-/* Modal Styles */
+/* Modal Styles for DOM-created elements */
 .learning__modal-overlay {
   position: fixed;
   top: 0;
@@ -977,27 +975,37 @@
 .learning__modal-header h3 {
   margin: 0;
   font-size: 1.2rem;
-  color: var(--color-text-primary);
 }
 
 .learning__modal-close {
   background: none;
   border: none;
-  font-size: 1.5rem;
   color: var(--color-text-secondary);
+  font-size: 24px;
   cursor: pointer;
-  padding: 0;
   line-height: 1;
 }
 
 .learning__modal-close:hover {
-  color: var(--color-text-primary);
+  color: var(--color-primary);
 }
 
 .learning__modal-body {
   padding: 20px;
 }
 
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Form Styles */
 .learning__form-group {
   margin-bottom: 20px;
 }
@@ -1089,17 +1097,6 @@
 .learning__modal-submit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateY(-20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
 }
 
 /* Empty state styling */
@@ -1476,4 +1473,4 @@
 .learning__modal--submission .learning__modal-body {
   padding: 0;
   overflow-y: auto;
-} 
+}
