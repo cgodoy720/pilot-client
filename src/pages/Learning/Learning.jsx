@@ -1399,86 +1399,30 @@ function Learning() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTaskIndex, tasks]);
 
-  // Add a function to get only the submissions that have been analyzed
-  const getAnalyzedSubmissions = () => {
-    // Skip if we don't have submission data
-    if (!submission) return [];
-    
-    try {
-      // Parse submissions from JSON if it's in that format
-      let submissionList = [];
-      try {
-        const parsed = JSON.parse(submission.content);
-        if (Array.isArray(parsed)) {
-          submissionList = parsed;
-        } else {
-          submissionList = [{ type: 'link', content: submission.content, label: 'Main Submission' }];
-        }
-      } catch (e) {
-        submissionList = [{ type: 'link', content: submission.content, label: 'Main Submission' }];
-      }
-      
-      // Only include Google Docs submissions that can be analyzed
-      const analyzableSubmissions = submissionList.filter(sub => {
-        return sub.type === 'link' && sub.content && 
-               sub.content.startsWith('https://docs.google.com/');
-      });
-      
-      console.log('Analyzable submissions:', analyzableSubmissions.length);
-      
-      if (analyzableSubmissions.length === 0) {
-        console.log('No analyzable Google Docs found');
-        // If none, return empty array
-        return [];
-      }
-      
-      // Map to the format expected by AnalysisModal
-      return analyzableSubmissions.map((sub, index) => ({
-        id: sub.id || `submission-${index}`,
-        label: sub.label || `Google Doc ${index + 1}`,
-        url: sub.content
-      }));
-    } catch (error) {
-      console.error('Error filtering analyzable submissions:', error);
-      return [];
-    }
-  };
-
-  // Update this function to organize analysis results by submission ID correctly
+  // Update this function to organize analysis results by analysis type instead of submission ID
   const organizeAnalysisBySubmission = (analysis) => {
     if (!analysis) return {};
     
-    // For conversation analysis, we don't need submission IDs
+    const result = {};
+    
+    // For conversation analysis, create a single conversation entry
     if (analysisType === 'conversation') {
-      return {
-        'conversation': {
-          criteria_met: analysis.analysis_result?.criteria_met || [],
-          areas_for_improvement: analysis.analysis_result?.areas_for_improvement || [],
-          feedback: analysis.feedback || "No detailed feedback available"
-        }
+      result['conversation'] = {
+        criteria_met: analysis.analysis_result?.criteria_met || [],
+        areas_for_improvement: analysis.analysis_result?.areas_for_improvement || [],
+        feedback: analysis.feedback || "No detailed feedback available"
+      };
+    } 
+    // For deliverable analysis, create a single deliverable entry
+    else if (analysisType === 'deliverable') {
+      result['deliverable'] = {
+        criteria_met: analysis.analysis_result?.criteria_met || [],
+        areas_for_improvement: analysis.analysis_result?.areas_for_improvement || [],
+        feedback: analysis.feedback || "No detailed feedback available"
       };
     }
     
-    // For deliverable analysis, use only Google Doc submissions
-    if (analysisType === 'deliverable' && submission) {
-      const analyzedSubmissions = getAnalyzedSubmissions();
-      const result = {};
-      
-      // If we have a single analysis result, use it for all Google Doc submissions
-      if (analysis.analysis_result) {
-        analyzedSubmissions.forEach(sub => {
-          result[sub.id] = {
-            criteria_met: analysis.analysis_result.criteria_met || [],
-            areas_for_improvement: analysis.analysis_result.areas_for_improvement || [],
-            feedback: analysis.feedback || "No detailed feedback available"
-          };
-        });
-      }
-      
-      return result;
-    }
-    
-    return {};
+    return result;
   };
 
   // Add a function to fetch the most recent submission
@@ -1856,7 +1800,6 @@ function Learning() {
           onClose={() => setShowAnalysisModal(false)}
           analysisResults={organizeAnalysisBySubmission(analysisResults)}
           analysisType={analysisType}
-          availableSubmissions={analysisType === 'deliverable' ? getAnalyzedSubmissions() : []}
           availableAnalysisTypes={getAvailableAnalysisTypes()}
           onSwitchAnalysisType={handleSwitchAnalysis}
         />

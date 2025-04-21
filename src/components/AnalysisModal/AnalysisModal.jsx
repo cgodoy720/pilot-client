@@ -1,53 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import './AnalysisModal.css';
 
-const AnalysisModal = ({ isOpen, onClose, analysisResults, analysisType, availableSubmissions, availableAnalysisTypes, onSwitchAnalysisType }) => {
-  const [selectedSubmissionId, setSelectedSubmissionId] = useState(null);
+const AnalysisModal = ({ isOpen, onClose, analysisResults, analysisType, availableAnalysisTypes, onSwitchAnalysisType }) => {
   const [currentAnalysis, setCurrentAnalysis] = useState(null);
   const [currentAnalysisType, setCurrentAnalysisType] = useState(analysisType);
-  
+
+  // Reset state when the modal is opened/closed or when analysis type changes
   useEffect(() => {
-    // Reset state when the modal is opened/closed or when analysis type changes
     if (isOpen) {
       // Set current analysis type from props
       setCurrentAnalysisType(analysisType);
-      
-      // Initialize with the first submission if available
-      if (availableSubmissions && availableSubmissions.length > 0) {
-        setSelectedSubmissionId(availableSubmissions[0].id);
-      } else {
-        setSelectedSubmissionId(null);
-      }
     }
-  }, [isOpen, availableSubmissions, analysisType]);
+  }, [isOpen, analysisType]);
 
+  // Update current analysis when analysis results or type changes
   useEffect(() => {
-    // Update current analysis when selection changes
-    if (selectedSubmissionId && analysisResults && Object.keys(analysisResults).length > 0) {
-      const selectedAnalysis = analysisResults[selectedSubmissionId];
-      setCurrentAnalysis(selectedAnalysis || null);
+    if (analysisResults && Object.keys(analysisResults).length > 0) {
+      // For conversation analysis, use the 'conversation' key
+      if (currentAnalysisType === 'conversation' && analysisResults.conversation) {
+        setCurrentAnalysis(analysisResults.conversation);
+      }
+      // For deliverable analysis, use the first result available (we no longer have a dropdown)
+      else if (currentAnalysisType === 'deliverable') {
+        // Just take the first available result
+        const firstKey = Object.keys(analysisResults)[0];
+        if (firstKey) {
+          setCurrentAnalysis(analysisResults[firstKey]);
+        } else {
+          setCurrentAnalysis(null);
+        }
+      }
     } else {
       setCurrentAnalysis(null);
     }
-  }, [selectedSubmissionId, analysisResults]);
+  }, [analysisResults, currentAnalysisType]);
 
-  // Force selection update when analysis type changes
-  useEffect(() => {
-    // When switching to deliverable and we have submissions, select the first one
-    if (currentAnalysisType === 'deliverable' && availableSubmissions && availableSubmissions.length > 0) {
-      setSelectedSubmissionId(availableSubmissions[0].id);
-    }
-    // When switching to conversation, use the 'conversation' key
-    else if (currentAnalysisType === 'conversation') {
-      setSelectedSubmissionId('conversation');
-    }
-  }, [currentAnalysisType, availableSubmissions]);
-
-  const handleSubmissionChange = (e) => {
-    const submissionId = e.target.value;
-    setSelectedSubmissionId(submissionId);
-  };
-  
   const handleAnalysisTypeChange = (type) => {
     setCurrentAnalysisType(type);
     if (onSwitchAnalysisType) {
@@ -69,7 +56,6 @@ const AnalysisModal = ({ isOpen, onClose, analysisResults, analysisType, availab
   
   if (!isOpen) return null;
   
-  const hasSubmissions = availableSubmissions && availableSubmissions.length > 0;
   const hasAnalysisTypes = availableAnalysisTypes && availableAnalysisTypes.length > 0;
   const hasAnalysis = currentAnalysis !== null;
   const isDeliverableAnalysis = currentAnalysisType === 'deliverable';
@@ -98,24 +84,6 @@ const AnalysisModal = ({ isOpen, onClose, analysisResults, analysisType, availab
         )}
         
         <div className="analysis-modal-body">
-          {/* Only show submission selector for deliverable analysis */}
-          {hasSubmissions && isDeliverableAnalysis ? (
-            <div className="analysis-submission-selector">
-              <label className="analysis-selector-label">Choose a submission:</label>
-              <select 
-                className="analysis-submission-dropdown" 
-                value={selectedSubmissionId || ''}
-                onChange={handleSubmissionChange}
-              >
-                {availableSubmissions.map((submission) => (
-                  <option key={submission.id} value={submission.id}>
-                    {submission.label || `Unnamed Submission ${submission.id}`}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-          
           {hasAnalysis ? (
             <div className="analysis-content">
               <h3>{formatAnalysisType(currentAnalysisType)}</h3>
@@ -165,11 +133,15 @@ const AnalysisModal = ({ isOpen, onClose, analysisResults, analysisType, availab
             </div>
           ) : (
             <div className="no-analysis">
-              <p>No analysis available for the selected {isDeliverableAnalysis ? 'submission' : 'chat'}.</p>
-              {hasSubmissions && isDeliverableAnalysis && (
+              <p>No analysis available for {isDeliverableAnalysis ? 'your deliverable' : 'the chat'}.</p>
+              {isDeliverableAnalysis ? (
                 <p className="analysis-instructions">
-                  You can analyze this submission by clicking the "Analyze This Submission" button 
-                  next to the submission in the task view.
+                  You can analyze your deliverable by clicking the "Analyze This Submission" button 
+                  next to your submission in the task view.
+                </p>
+              ) : (
+                <p className="analysis-instructions">
+                  You can generate chat feedback by clicking the "Generate AI Feedback" button in the task view.
                 </p>
               )}
             </div>

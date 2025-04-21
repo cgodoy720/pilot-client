@@ -257,7 +257,7 @@
 
 .task-submission__actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   margin-top: 15px;
   margin-bottom: 15px;
   flex-wrap: wrap;
