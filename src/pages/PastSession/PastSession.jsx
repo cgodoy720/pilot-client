@@ -1048,8 +1048,9 @@ function PastSession() {
       await fetchAvailableAnalyses(currentTask.id);
       
       setShowAnalysisModal(true);
-      setError('Analysis completed successfully!');
-      setTimeout(() => setError(''), 3000);
+      // Use success message instead of error message
+      setSuccessMessage('Analysis completed successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       setAnalysisError(error.message);
       setError('Failed to analyze task: ' + error.message);
