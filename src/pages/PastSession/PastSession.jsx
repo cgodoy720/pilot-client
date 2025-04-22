@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes, FaLink, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaArrowRight, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes, FaLink, FaExternalLinkAlt } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import PeerFeedbackForm from '../../components/PeerFeedbackForm';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
+import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
 import './PastSession.css';
 
 function PastSession() {
@@ -47,10 +48,26 @@ function PastSession() {
   const [showPeerFeedback, setShowPeerFeedback] = useState(false);
   const [peerFeedbackCompleted, setPeerFeedbackCompleted] = useState(false);
   
+  // Add state for task analysis
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResults, setAnalysisResults] = useState(null);
+  const [analysisError, setAnalysisError] = useState(null);
+  const [availableAnalyses, setAvailableAnalyses] = useState({});
+  const [analysisType, setAnalysisType] = useState(null);
+  
+  // Add state for modal visibility
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  
+  // Initialize submission state
+  const [submission, setSubmission] = useState(null);
+  
   // Add refs for scrolling and textarea handling
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const editTextareaRef = useRef(null);
+  
+  // Add a ref to the fetchTaskMessages function
+  const fetchTaskMessagesRef = useRef(null);
 
   // After the existing useEffects, add a new one to fetch task details
   const fetchedTasksRef = useRef(new Set());
@@ -161,7 +178,10 @@ function PastSession() {
               completed: false,
               resources: taskResources,
               deliverable: task.deliverable,
-              deliverable_type: task.deliverable_type || 'none'
+              deliverable_type: task.deliverable_type || 'none',
+              should_analyze: task.should_analyze || false,
+              analyze_deliverable: task.analyze_deliverable || false,
+              analyze_conversation: task.analyze_conversation || false
             });
           });
         }
@@ -183,23 +203,18 @@ function PastSession() {
 
   // Update existing useEffect for fetching task messages
   useEffect(() => {
-    const fetchTaskMessages = async () => {
-      if (!tasks.length || currentTaskIndex >= tasks.length) return;
+    const fetchTaskMessages = async (taskId) => {
+      if (!taskId) return;
       
-      const selectedTask = tasks[currentTaskIndex];
-      if (!selectedTask?.id) return;
-      
-      const selectedTaskId = selectedTask.id;
-
       // Skip refetching if we're already on this task
-      if (lastTaskIdRef.current === selectedTaskId) {
+      if (lastTaskIdRef.current === taskId) {
         return;
       }
       
       // Set loading state and update last task id
       setMessagesLoading(true);
       setRateLimitHit(false); // Reset any previous rate limit flag
-      lastTaskIdRef.current = selectedTaskId;
+      lastTaskIdRef.current = taskId;
       
       try {
         // Add lazy loading delay (mimic network latency)
@@ -208,7 +223,7 @@ function PastSession() {
         setIsLazyLoading(false);
         
         // Add dayNumber parameter to the API request if available
-        let apiUrl = `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${selectedTaskId}`;
+        let apiUrl = `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${taskId}`;
         
         if (daySchedule && daySchedule.day && daySchedule.day.day_number) {
           apiUrl += `?dayNumber=${daySchedule.day.day_number}`;
@@ -225,10 +240,10 @@ function PastSession() {
             setRateLimitHit(true);
             throw new Error('Rate limit exceeded. Please wait before trying again.');
           } else if (response.status === 404) {
-            // No messages for this task yet, which is okay
+            // No messages for this task yet - this is not an error
+            // Instead of automatic thread starting, show UI to let user start manually
             setMessages([]);
-            
-            // Don't automatically start thread - user will need to click button
+            setMessagesLoading(false);
             return;
           }
           throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`);
@@ -236,13 +251,9 @@ function PastSession() {
         
         const data = await response.json();
         
-        // Process and format the messages
-        if (data && data.messages && Array.isArray(data.messages)) {
-          // If we got an empty array of messages, don't automatically start the thread
-          if (data.messages.length === 0) {
-            setMessages([]);
-            return;
-          }
+        // Process and format the messages if we got them
+        if (data && data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
+          console.log(`Loaded ${data.messages.length} existing messages for task ${taskId}`);
           
           setMessages(data.messages.map(msg => {
             // Only include a timestamp if it's valid
@@ -259,12 +270,9 @@ function PastSession() {
               timestamp: formattedTimestamp
             };
           }));
-        } else if (data && Array.isArray(data)) {
+        } else if (data && Array.isArray(data) && data.length > 0) {
           // Fallback for direct array response
-          if (data.length === 0) {
-            setMessages([]);
-            return;
-          }
+          console.log(`Loaded ${data.length} existing messages in fallback format for task ${taskId}`);
           
           setMessages(data.map(msg => {
             // Only include a timestamp if it's valid
@@ -282,9 +290,12 @@ function PastSession() {
             };
           }));
         } else {
+          // No messages found but API returned successfully - this means we need empty state
+          console.log(`No messages found for task ${taskId} - showing empty state`);
           setMessages([]);
         }
       } catch (error) {
+        console.error('Error fetching messages:', error);
         setMessages([]);
         if (!rateLimitHit) {
           setError('Failed to load messages. Please try again.');
@@ -294,10 +305,15 @@ function PastSession() {
       }
     };
     
-    if (tasks.length > 0 && currentTaskIndex < tasks.length) {
-      fetchTaskMessages();
+    // Only fetch messages automatically when the component first mounts
+    // Don't fetch on task index changes - that will be handled by click handlers
+    if (tasks.length > 0 && currentTaskIndex < tasks.length && !lastTaskIdRef.current) {
+      fetchTaskMessages(tasks[currentTaskIndex].id);
     }
-  }, [currentTaskIndex, token, tasks, daySchedule, dayNumber, isPastSession]); // rateLimitHit removed to prevent recalling on rate limit
+    
+    // Expose fetchTaskMessages to be called from outside the effect
+    fetchTaskMessagesRef.current = fetchTaskMessages;
+  }, [token, tasks, daySchedule, dayNumber, isPastSession]); // removed currentTaskIndex dependency
 
   useEffect(() => {
     if (daySchedule && daySchedule.day && daySchedule.day.day_date) {
@@ -321,6 +337,18 @@ function PastSession() {
       }
     }
   }, [daySchedule]);
+
+  // Add useEffect to fetch analyses when the task changes
+  useEffect(() => {
+    if (tasks.length > 0 && currentTaskIndex >= 0 && currentTaskIndex < tasks.length) {
+      const currentTask = tasks[currentTaskIndex];
+      if (currentTask) {
+        console.log(`Current task changed to task ${currentTask.id}, checking for analyses`);
+        fetchAvailableAnalyses(currentTask.id);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTaskIndex, tasks]);
 
   // After the existing useEffects, add a new one to fetch task details
   useEffect(() => {
@@ -759,11 +787,46 @@ function PastSession() {
     }
   };
 
-  // Update startTaskThread to include lazy loading delay
+  // Handle task navigation
+  const navigateToTask = (direction) => {
+    const newIndex = direction === 'next' 
+      ? Math.min(currentTaskIndex + 1, tasks.length - 1)
+      : Math.max(currentTaskIndex - 1, 0);
+      
+    if (newIndex !== currentTaskIndex) {
+      // Reset the analysis results
+      setAnalysisResults(null);
+      setShowAnalysisModal(false);
+      
+      // Update the current task index
+      setCurrentTaskIndex(newIndex);
+      
+      // Set loading state
+      setMessagesLoading(true);
+      
+      // Preserve the dayId parameter if it exists
+      const params = new URLSearchParams(location.search);
+      const currentDayId = params.get('dayId') || params.get('dayNumber');
+      
+      if (currentDayId) {
+        console.log(`Navigating to task: ${tasks[newIndex].id} for day: ${currentDayId}`);
+      }
+      
+      // Use the shared fetchTaskMessages function to maintain consistency
+      // This will get existing messages or set up the UI to start a new thread
+      fetchTaskMessagesRef.current(tasks[newIndex].id);
+    }
+  };
+
+  // Update startTaskThread to work with our new approach
   const startTaskThread = async (taskId) => {
     try {
+      // We don't need to clear messages since we know it's empty
+      // (this function is only called when there are no messages)
       setIsAiThinking(true);
       setRateLimitHit(false);
+      setMessagesLoading(true);
+      lastTaskIdRef.current = taskId; // Update last task id
       
       // Add lazy loading delay
       setIsLazyLoading(true);
@@ -780,6 +843,8 @@ function PastSession() {
       if (currentDayNumber) {
         requestBody.dayNumber = currentDayNumber;
       }
+      
+      console.log(`Starting new chat thread for task ${taskId}`);
       
       // Call the start endpoint
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages/start`, {
@@ -811,11 +876,13 @@ function PastSession() {
         timestamp: new Date().toLocaleTimeString()
       }]);
     } catch (error) {
+      console.error('Error starting thread:', error);
       if (!rateLimitHit) {
         setError('Failed to start conversation. Please try again.');
       }
     } finally {
       setIsAiThinking(false);
+      setMessagesLoading(false);
     }
   };
 
@@ -828,7 +895,7 @@ function PastSession() {
     await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
     
     if (tasks.length > 0) {
-      await startTaskThread(tasks[currentTaskIndex].id);
+      fetchTaskMessagesRef.current(tasks[currentTaskIndex].id);
     }
   };
 
@@ -909,6 +976,286 @@ function PastSession() {
     }
   };
 
+  // Function to fetch task analysis
+  const fetchTaskAnalysis = async (taskId, type = null) => {
+    if (!taskId) {
+      console.log('No taskId provided to fetchTaskAnalysis');
+      return false;
+    }
+    
+    try {
+      // Build URL with type parameter if provided
+      let url = `${import.meta.env.VITE_API_URL}/api/analyze-task/${taskId}/analysis`;
+      if (type) {
+        url += `?type=${type}`;
+      }
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAnalysisResults(data);
+        setAnalysisType(type || data.analysis_type); // Store which type of analysis is being viewed
+        return true;
+      } else {
+        console.log(`No analysis found for task ${taskId} type ${type}, status: ${response.status}`);
+        if (!type) {
+          // Only clear results if not looking for a specific type
+          setAnalysisResults(null);
+        }
+        return response.status !== 404; // Return true for non-404 errors, false for 404 (not found)
+      }
+    } catch (error) {
+      console.error(`Error fetching task analysis for task ${taskId}:`, error);
+      if (!type) {
+        // Only clear results if not looking for a specific type
+        setAnalysisResults(null);
+      }
+      return false;
+    }
+  };
+
+  // Function to generate feedback for the current task
+  const handleAnalyzeTask = async () => {
+    if (!tasks.length || currentTaskIndex >= tasks.length) return;
+    
+    const currentTask = tasks[currentTaskIndex];
+    
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/analyze-task/${currentTask.id}/analyze-chat`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to analyze task');
+      }
+      
+      const data = await response.json();
+      setAnalysisResults(data);
+      setAnalysisType('conversation');
+      
+      // Refresh available analyses
+      await fetchAvailableAnalyses(currentTask.id);
+      
+      setShowAnalysisModal(true);
+      setError('Analysis completed successfully!');
+      setTimeout(() => setError(''), 3000);
+    } catch (error) {
+      setAnalysisError(error.message);
+      setError('Failed to analyze task: ' + error.message);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Function to analyze a deliverable submission
+  const handleAnalyzeDeliverable = async (url) => {
+    if (!tasks.length || currentTaskIndex >= tasks.length) return;
+    
+    const currentTask = tasks[currentTaskIndex];
+    
+    // Log debugging information
+    console.log('handleAnalyzeDeliverable called with:', { 
+      url,
+      taskId: currentTask.id
+    });
+    
+    // Set loading state
+    setIsAnalyzing(true);
+    setError('');
+    
+    try {
+      // Call the API to analyze the deliverable
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/analyze-task/${currentTask.id}/analyze-deliverable`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ url })
+      });
+      
+      console.log('Analyze deliverable response:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `HTTP error ${response.status}` }));
+        const errorMessage = errorData.error || `Failed to analyze deliverable: ${response.status} ${response.statusText}`;
+        
+        console.error('Error response data:', errorData);
+        throw new Error(errorMessage);
+      }
+      
+      const data = await response.json();
+      console.log('Analyze deliverable success, data received');
+      
+      // Update UI with results
+      setAnalysisResults(data);
+      setAnalysisType('deliverable');
+      
+      // Refresh available analyses
+      await fetchAvailableAnalyses(currentTask.id);
+      
+      setShowAnalysisModal(true);
+      setSuccessMessage('Deliverable analyzed successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      
+      return data;
+    } catch (error) {
+      console.error('Error analyzing deliverable:', error);
+      setError(`Failed to analyze deliverable: ${error.message}`);
+      
+      // Propagate the error so the TaskSubmission component can handle it
+      throw error;
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Function to handle switching between different analysis types
+  const handleSwitchAnalysis = async (type) => {
+    if (!type || !tasks.length || currentTaskIndex >= tasks.length) return;
+    
+    const currentTask = tasks[currentTaskIndex];
+    setAnalysisType(type);
+    
+    // Fetch the appropriate analysis based on type
+    if (type === 'deliverable') {
+      // Make sure we have the submission data for deliverable analysis
+      await fetchTaskSubmission(currentTask.id);
+    }
+    
+    // Fetch the analysis for the selected type
+    await fetchTaskAnalysis(currentTask.id, type);
+  };
+
+  // Function to fetch all available analyses for a task
+  const fetchAvailableAnalyses = async (taskId) => {
+    if (!taskId) return;
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/analyze-task/${taskId}/all-analyses`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableAnalyses(data);
+        
+        // If we already have a selected analysis type, keep it
+        // Otherwise, select the first available type
+        if (!analysisType && Object.keys(data).length > 0) {
+          const firstType = Object.keys(data)[0];
+          setAnalysisType(firstType);
+          
+          // Load the first analysis of this type
+          if (data[firstType] && data[firstType].length > 0) {
+            await fetchTaskAnalysis(taskId, firstType);
+          }
+        }
+        
+        return data;
+      } else {
+        // 404 is expected if no analyses exist yet
+        if (response.status !== 404) {
+          console.error(`Error fetching analyses: ${response.status}`);
+        }
+        setAvailableAnalyses({});
+        return {};
+      }
+    } catch (error) {
+      console.error(`Error fetching analyses:`, error);
+      setAvailableAnalyses({});
+      return {};
+    }
+  };
+
+  // Function to fetch the most recent submission
+  const fetchTaskSubmission = async (taskId) => {
+    if (!taskId) return null;
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions/${taskId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Fetched submission:', data);
+        setSubmission(data);
+        return data;
+      } else if (response.status !== 404) {
+        // 404 is expected if no submission exists yet
+        console.log(`No submission found for task ${taskId}`);
+      }
+      
+      setSubmission(null);
+      return null;
+    } catch (error) {
+      console.error(`Error fetching submission for task ${taskId}:`, error);
+      setSubmission(null);
+      return null;
+    }
+  };
+
+  // Function to view analysis in modal
+  const handleViewAnalysis = async () => {
+    if (!tasks.length || currentTaskIndex >= tasks.length) return;
+    
+    const currentTask = tasks[currentTaskIndex];
+    
+    // Fetch the task submission first
+    await fetchTaskSubmission(currentTask.id);
+    
+    // Then show the modal
+    setShowAnalysisModal(true);
+  };
+
+  // Helper function to organize analysis results
+  const organizeAnalysisBySubmission = (analysis) => {
+    if (!analysis) return {};
+    
+    const result = {};
+    
+    // For conversation analysis, create a single conversation entry
+    if (analysisType === 'conversation') {
+      result['conversation'] = {
+        criteria_met: analysis.analysis_result?.criteria_met || [],
+        areas_for_improvement: analysis.analysis_result?.areas_for_improvement || [],
+        feedback: analysis.feedback || "No detailed feedback available"
+      };
+    } 
+    // For deliverable analysis, create a single deliverable entry
+    else if (analysisType === 'deliverable') {
+      result['deliverable'] = {
+        criteria_met: analysis.analysis_result?.criteria_met || [],
+        areas_for_improvement: analysis.analysis_result?.areas_for_improvement || [],
+        feedback: analysis.feedback || "No detailed feedback available"
+      };
+    }
+    
+    return result;
+  };
+
+  // Get a list of available analysis types
+  const getAvailableAnalysisTypes = () => {
+    if (!availableAnalyses) return [];
+    return Object.keys(availableAnalyses);
+  };
+
   if (isLoading) {
     return (
       <div className="learning past-session">
@@ -979,7 +1326,23 @@ function PastSession() {
                 <div
                   key={task.id}
                   className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''}`}
-                  onClick={() => setCurrentTaskIndex(index)}
+                  onClick={() => {
+                    if (index !== currentTaskIndex) {
+                      // Update the task index
+                      setCurrentTaskIndex(index);
+                      
+                      // Reset analysis state
+                      setAnalysisResults(null);
+                      setShowAnalysisModal(false);
+                      
+                      // Set loading state
+                      setMessagesLoading(true);
+                      
+                      // Get task messages - first try to GET existing messages, if none exist 
+                      // the function will handle starting a new thread if needed
+                      fetchTaskMessagesRef.current(task.id);
+                    }
+                  }}
                 >
                   <div className="learning__task-icon">
                     {getTaskIcon(task.type)}
@@ -1132,7 +1495,7 @@ function PastSession() {
                             <p>No previous messages available for this task.</p>
                             {isPastSession && (
                               <button 
-                                onClick={() => tasks.length > 0 && startTaskThread(tasks[currentTaskIndex].id)}
+                                onClick={() => tasks.length > 0 && currentTaskIndex < tasks.length && startTaskThread(tasks[currentTaskIndex].id)}
                                 className="past-session__start-conversation-btn"
                                 disabled={!tasks.length || tasksLoading || isLazyLoading}
                               >
@@ -1159,62 +1522,120 @@ function PastSession() {
                   </div>
                 )}
                 
-                {/* Message input area for past sessions */}
-                {isPastSession ? (
-                  messages.length > 0 ? (
-                    <form className="learning__input-form" onSubmit={handleSendMessage}>
-                      <textarea
-                        ref={textareaRef}
-                        className="learning__input"
-                        value={newMessage}
-                        onChange={handleTextareaChange}
-                        placeholder={isSending ? "Sending..." : "Type your message..."}
-                        disabled={isSending || isAiThinking}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSendMessage(e);
-                          }
-                        }}
-                        rows={1}
-                      />
-                      <div className="learning__input-actions">
-                        {(() => {
-                          return tasks.length > 0 && 
-                            tasks[currentTaskIndex]?.deliverable_type === 'link' && (
-                            <button 
-                              type="button"
-                              className="learning__deliverable-btn"
-                              onClick={() => setShowSubmissionModal(true)}
-                              title={`Submit ${tasks[currentTaskIndex].deliverable}`}
-                            >
-                              <FaLink />
-                            </button>
-                          );
-                        })()}
-                      </div>
-                      <button 
-                        className="learning__send-btn" 
-                        type="submit" 
-                        disabled={!newMessage.trim() || isSending || isAiThinking}
-                      >
-                        {isSending ? "Sending..." : <FaPaperPlane />}
-                      </button>
-                    </form>
-                  ) : (
-                    <div className="past-session__message-input-placeholder">
-                      <p>Start a conversation to interact with this task</p>
-                    </div>
-                  )
-                ) : (
-                  <div className="past-session__message-disclaimer">
-                    <p>This session is scheduled for the future. You can send messages on the scheduled day.</p>
-                  </div>
-                )}
-                
-                {/* Display error message if there is one */}
-                {error && !rateLimitHit && <div className="learning__error">{error}</div>}
+                {/* Display success message if there is one */}
+                {successMessage && <div className="learning__success">{successMessage}</div>}
               </div>
+              
+              {/* Task Navigation with Analysis Actions */}
+              {isPastSession && tasks.length > 0 && currentTaskIndex < tasks.length && (
+                <div className="learning__task-navigation">
+                  <button 
+                    className="learning__task-nav-button" 
+                    onClick={() => navigateToTask('prev')}
+                    disabled={currentTaskIndex === 0}
+                  >
+                    <FaArrowLeft /> Prev Task
+                  </button>
+                  
+                  {tasks[currentTaskIndex].should_analyze && (
+                    <button 
+                      className="learning__task-nav-button"
+                      onClick={handleAnalyzeTask}
+                      disabled={isAnalyzing}
+                    >
+                      {isAnalyzing ? 'Generating Feedback...' : 'Generate AI Feedback'}
+                    </button>
+                  )}
+                  
+                  {Object.keys(availableAnalyses).length > 0 && (
+                    <button 
+                      className="learning__task-nav-button"
+                      onClick={handleViewAnalysis}
+                    >
+                      View Feedback
+                    </button>
+                  )}
+                  
+                  {isIndependentRetroTask() && messages.length > 0 ? (
+                    peerFeedbackCompleted ? (
+                      <div className="learning__feedback-status">
+                        <FaCheck /> Peer feedback submitted successfully!
+                      </div>
+                    ) : (
+                      <button 
+                        className="learning__feedback-btn"
+                        onClick={showPeerFeedbackForm}
+                      >
+                        <FaUsers /> Provide Peer Feedback
+                      </button>
+                    )
+                  ) : (
+                    <button 
+                      className="learning__task-nav-button" 
+                      onClick={() => navigateToTask('next')}
+                      disabled={currentTaskIndex === tasks.length - 1}
+                    >
+                      Next Task <FaArrowRight />
+                    </button>
+                  )}
+                </div>
+              )}
+              
+              {/* Message input area for past sessions */}
+              {isPastSession ? (
+                messages.length > 0 ? (
+                  <form className="learning__input-form" onSubmit={handleSendMessage}>
+                    <textarea
+                      ref={textareaRef}
+                      className="learning__input"
+                      value={newMessage}
+                      onChange={handleTextareaChange}
+                      placeholder={isSending ? "Sending..." : "Type your message..."}
+                      disabled={isSending || isAiThinking}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(e);
+                        }
+                      }}
+                      rows={1}
+                    />
+                    <div className="learning__input-actions">
+                      {(() => {
+                        return tasks.length > 0 && 
+                          tasks[currentTaskIndex]?.deliverable_type === 'link' && (
+                          <button 
+                            type="button"
+                            className="learning__deliverable-btn"
+                            onClick={() => setShowSubmissionModal(true)}
+                            title={`Submit ${tasks[currentTaskIndex].deliverable}`}
+                          >
+                            <FaLink />
+                          </button>
+                        );
+                      })()}
+                    </div>
+                    <button 
+                      className="learning__send-btn" 
+                      type="submit" 
+                      disabled={!newMessage.trim() || isSending || isAiThinking}
+                    >
+                      {isSending ? "Sending..." : <FaPaperPlane />}
+                    </button>
+                  </form>
+                ) : (
+                  <div className="past-session__message-input-placeholder">
+                    <p>Start a conversation to interact with this task</p>
+                  </div>
+                )
+              ) : (
+                <div className="past-session__message-disclaimer">
+                  <p>This session is scheduled for the future. You can send messages on the scheduled day.</p>
+                </div>
+              )}
+              
+              {/* Display error message if there is one */}
+              {error && !rateLimitHit && <div className="learning__error">{error}</div>}
             </div>
           )}
         </div>
@@ -1237,10 +1658,24 @@ function PastSession() {
               <TaskSubmission 
                 taskId={tasks[currentTaskIndex].id} 
                 deliverable={tasks[currentTaskIndex].deliverable}
+                canAnalyzeDeliverable={Boolean(tasks[currentTaskIndex].analyze_deliverable)}
+                onAnalyzeDeliverable={handleAnalyzeDeliverable}
               />
             </div>
           </div>
         </div>
+      )}
+      
+      {/* Analysis Modal */}
+      {showAnalysisModal && analysisResults && (
+        <AnalysisModal 
+          isOpen={showAnalysisModal}
+          onClose={() => setShowAnalysisModal(false)}
+          analysisResults={organizeAnalysisBySubmission(analysisResults)}
+          analysisType={analysisType}
+          availableAnalysisTypes={getAvailableAnalysisTypes()}
+          onSwitchAnalysisType={handleSwitchAnalysis}
+        />
       )}
     </div>
   );
