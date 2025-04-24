@@ -1404,11 +1404,59 @@ function Learning() {
     
     const currentTask = tasks[currentTaskIndex];
     
-    // Fetch the task submission first
-    await fetchTaskSubmission(currentTask.id);
+    // Reset analysis results to avoid showing stale data
+    setAnalysisResults(null);
     
-    // Then show the modal
-    setShowAnalysisModal(true);
+    try {
+      console.log(`Fetching analysis for task ${currentTask.id}`);
+      
+      // First, fetch all available analyses for this task
+      const analyses = await fetchAvailableAnalyses(currentTask.id);
+      console.log('Available analyses:', analyses);
+      
+      // Check if there are any available analyses
+      if (!analyses || Object.keys(analyses).length === 0) {
+        setError('No feedback available for this task yet.');
+        return;
+      }
+      
+      // Determine which analysis type to show
+      let analysisTypeToShow = null;
+      
+      // If the task supports deliverable analysis, prioritize that
+      if (currentTask.analyze_deliverable && analyses.deliverable) {
+        analysisTypeToShow = 'deliverable';
+      } 
+      // Otherwise if the task supports conversation analysis, use that
+      else if (currentTask.should_analyze && analyses.conversation) {
+        analysisTypeToShow = 'conversation';
+      }
+      // If neither is explicitly set, use the first available type
+      else if (Object.keys(analyses).length > 0) {
+        analysisTypeToShow = Object.keys(analyses)[0];
+      }
+      
+      if (!analysisTypeToShow) {
+        setError('No analysis available for this task.');
+        return;
+      }
+      
+      // Fetch the task submission (for context only)
+      await fetchTaskSubmission(currentTask.id);
+      
+      // Fetch the specific analysis
+      const success = await fetchTaskAnalysis(currentTask.id, analysisTypeToShow);
+      
+      if (success) {
+        // Show the modal with the fresh results
+        setShowAnalysisModal(true);
+      } else {
+        setError('Failed to load feedback. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error in handleViewAnalysis:', error);
+      setError('Failed to load feedback: ' + error.message);
+    }
   };
 
   // Get a list of available analysis types
