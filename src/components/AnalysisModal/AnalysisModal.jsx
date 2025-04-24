@@ -64,7 +64,7 @@ const AnalysisModal = ({ isOpen, onClose, analysisResults, analysisType, availab
     <div className={`analysis-modal ${isOpen ? 'open' : ''}`}>
       <div className="analysis-modal-content">
         <div className="analysis-modal-header">
-          <h2>Analysis Results</h2>
+          <h2>Analysis Results <span className="analysis-modal__beta-badge">BETA</span></h2>
           <button className="close-button" onClick={onClose}>×</button>
         </div>
         
@@ -86,7 +86,6 @@ const AnalysisModal = ({ isOpen, onClose, analysisResults, analysisType, availab
         <div className="analysis-modal-body">
           {hasAnalysis ? (
             <div className="analysis-content">
-              <h3>{formatAnalysisType(currentAnalysisType)}</h3>
               <div className="analysis-text">
                 {currentAnalysis.feedback && (
                   <div className="analysis-feedback">

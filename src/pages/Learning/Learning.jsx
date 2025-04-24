@@ -420,66 +420,9 @@ function Learning() {
             await fetchTaskAnalysis(initialTaskId);
           }
         }
-        
       } catch (err) {
         console.error('Error fetching learning data:', err);
         setError('Failed to load learning data. Please try again later.');
-        
-        // Set some mock data for development
-        const mockTasks = [
-          { 
-            id: 1, 
-            title: 'LAUNCH', 
-            description: 'Welcome to the program',
-            completed: false,
-            type: 'individual',
-            blockTitle: 'LAUNCH',
-            blockTime: '1:00 PM',
-            deliverable: null,
-            deliverable_type: 'none',
-            should_analyze: false,
-            analyze_deliverable: false
-          },
-          { 
-            id: 2, 
-            title: 'Daily Standup', 
-            description: 'Complete the daily standup prompt',
-            completed: false,
-            type: 'individual',
-            blockTitle: 'Daily Standup',
-            blockTime: '1:15 PM',
-            deliverable: 'Completed Daily Standup prompt',
-            deliverable_type: 'none',
-            should_analyze: true,
-            analyze_deliverable: false
-          },
-          { 
-            id: 3, 
-            title: 'Personal Learning Plan', 
-            description: 'Create a personalized learning plan',
-            completed: false,
-            type: 'individual',
-            blockTitle: 'Personal Learning Plan',
-            blockTime: '1:45 PM',
-            deliverable: 'Learning plan following the template format',
-            deliverable_type: 'link',
-            should_analyze: false,
-            analyze_deliverable: true
-          }
-        ];
-        
-        // Batch update state to reduce renders
-        setTasks(mockTasks);
-        setCurrentTaskIndex(0);
-        
-        // Set initial message based on the mock current task
-        setMessages([
-          {
-            id: 1,
-            role: 'assistant',
-            content: `Let's work on: **${mockTasks[0].title}**\n\n${mockTasks[0].description}`
-          }
-        ]);
       } finally {
         setIsPageLoading(false);
       }
