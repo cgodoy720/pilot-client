@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt, FaEdit, FaCheck, FaTimes } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt, FaEdit, FaCheck, FaTimes, FaFileAlt, FaVideo } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -1703,14 +1703,16 @@ function Learning() {
                   {(() => {
                     return currentTaskIndex < tasks.length && 
                       (tasks[currentTaskIndex].deliverable_type === 'link' || 
-                       tasks[currentTaskIndex].deliverable_type === 'file') && (
+                       tasks[currentTaskIndex].deliverable_type === 'file' ||
+                       tasks[currentTaskIndex].deliverable_type === 'document' ||
+                       tasks[currentTaskIndex].deliverable_type === 'video') && (
                       <button 
                         type="button"
                         className="learning__deliverable-btn"
                         onClick={() => setShowSubmissionModal(true)}
                         title={`Submit ${tasks[currentTaskIndex].deliverable}`}
                       >
-                        {tasks[currentTaskIndex].deliverable_type === 'link' ? <FaLink /> : <FaBars />}
+                        <FaLink />
                       </button>
                     );
                   })()}

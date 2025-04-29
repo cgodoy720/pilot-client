@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaArrowRight, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes, FaLink, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaArrowRight, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes, FaLink, FaExternalLinkAlt, FaFileAlt, FaVideo, FaBars } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import PeerFeedbackForm from '../../components/PeerFeedbackForm';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
@@ -1604,7 +1604,10 @@ function PastSession() {
                     <div className="learning__input-actions">
                       {(() => {
                         return tasks.length > 0 && 
-                          tasks[currentTaskIndex]?.deliverable_type === 'link' && (
+                          (tasks[currentTaskIndex]?.deliverable_type === 'link' ||
+                           tasks[currentTaskIndex]?.deliverable_type === 'file' ||
+                           tasks[currentTaskIndex]?.deliverable_type === 'document' ||
+                           tasks[currentTaskIndex]?.deliverable_type === 'video') && (
                           <button 
                             type="button"
                             className="learning__deliverable-btn"
