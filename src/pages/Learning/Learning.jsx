@@ -1712,7 +1712,7 @@ function Learning() {
                         onClick={() => setShowSubmissionModal(true)}
                         title={`Submit ${tasks[currentTaskIndex].deliverable}`}
                       >
-                        {tasks[currentTaskIndex].deliverable_type === 'link' ? <FaLink /> : <FaBars />}
+                        <FaLink />
                       </button>
                     );
                   })()}
