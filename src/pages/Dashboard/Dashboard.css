@@ -415,4 +415,32 @@
   background-color: var(--color-primary) !important;
   transform: none;
   box-shadow: none;
+}
+
+/* Add styles for the cohort selector */
+.dashboard__cohort-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.dashboard__cohort-selector label {
+  font-weight: 500;
+  color: #333;
+}
+
+.dashboard__cohort-selector select {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background-color: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.dashboard__cohort-selector select:focus {
+  outline: none;
+  border-color: #4285f4;
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
 } 

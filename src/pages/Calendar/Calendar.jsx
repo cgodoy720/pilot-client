@@ -9,8 +9,9 @@ function Calendar() {
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const navigate = useNavigate();
+  const [cohortFilter, setCohortFilter] = useState(null);
 
   useEffect(() => {
     const fetchCurriculumDays = async () => {
@@ -18,7 +19,14 @@ function Calendar() {
         setIsLoading(true);
         setError(null);
         
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/days`, {
+        let url = `${import.meta.env.VITE_API_URL}/api/curriculum/days`;
+        if (user.role === 'staff' || user.role === 'admin') {
+          if (cohortFilter) {
+            url += `?cohort=${cohortFilter}`;
+          }
+        }
+        
+        const response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -63,7 +71,7 @@ function Calendar() {
     };
     
     fetchCurriculumDays();
-  }, [token]);
+  }, [token, cohortFilter]);
 
   const handleEventClick = (clickInfo) => {
     console.log('Event clicked:', clickInfo.event);
@@ -83,13 +91,23 @@ function Calendar() {
     
     console.log('Today (local):', todayString, 'Clicked:', clickedDateString);
     
+    // For staff/admin users, pass the selected cohort
+    let url;
     if (clickedDateString === todayString) {
       // Today - navigate to Learning page
-      navigate(`/learning?dayNumber=${dayNumber}`);
+      url = `/learning?dayNumber=${dayNumber}`;
     } else {
       // Past or future day - navigate to PastSession page
-      navigate(`/past-session?dayNumber=${dayNumber}`);
+      url = `/past-session?dayNumber=${dayNumber}`;
     }
+
+    // If staff/admin user has selected a cohort, add it to the URL
+    if (cohortFilter && (user.role === 'staff' || user.role === 'admin')) {
+      url += `&cohort=${encodeURIComponent(cohortFilter)}`;
+    }
+    
+    console.log('Navigating to URL:', url);
+    navigate(url);
   };
 
   if (isLoading) {
@@ -135,6 +153,20 @@ function Calendar() {
             />
           </div>
         </div>
+        {(user.role === 'staff' || user.role === 'admin') && (
+          <div className="calendar__cohort-selector">
+            <label>Filter by Cohort:</label>
+            <select 
+              value={cohortFilter || ''} 
+              onChange={(e) => setCohortFilter(e.target.value || null)}
+            >
+              <option value="">My Cohort</option>
+              <option value="Spring 2025">Spring 2025</option>
+              <option value="Summer 2025">Summer 2025</option>
+              {/* Add more cohorts as needed */}
+            </select>
+          </div>
+        )}
       </div>
     </div>
   );

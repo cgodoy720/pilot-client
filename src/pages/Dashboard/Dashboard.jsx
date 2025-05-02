@@ -6,7 +6,7 @@ import './Dashboard.css';
 
 function Dashboard() {
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -16,6 +16,7 @@ function Dashboard() {
   const [progressPercentage, setProgressPercentage] = useState(0);
   const [completedTasks, setCompletedTasks] = useState(0);
   const [totalTasks, setTotalTasks] = useState(0);
+  const [cohortFilter, setCohortFilter] = useState(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -23,7 +24,14 @@ function Dashboard() {
         setIsLoading(true);
         setError(null);
         
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/progress/current-day`, {
+        let url = `${import.meta.env.VITE_API_URL}/api/progress/current-day`;
+        
+        // Add cohort parameter for staff/admin if selected
+        if ((user.role === 'staff' || user.role === 'admin') && cohortFilter) {
+          url += `?cohort=${encodeURIComponent(cohortFilter)}`;
+        }
+        
+        const response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -98,17 +106,27 @@ function Dashboard() {
     };
     
     fetchDashboardData();
-  }, [token]);
+  }, [token, cohortFilter, user.role]);
 
   // Handle continue session button click
   const handleContinueSession = () => {
+    // Add cohort parameter if staff/admin has selected a cohort
+    const cohortParam = (user.role === 'staff' || user.role === 'admin') && cohortFilter 
+      ? `?cohort=${encodeURIComponent(cohortFilter)}` 
+      : '';
+    
     // Navigate to the chat-based learning interface
-    navigate('/learning');
+    navigate(`/learning${cohortParam}`);
   };
 
   // Navigate to the specific task in the Learning page
   const navigateToTask = (taskId) => {
-    navigate(`/learning?taskId=${taskId}`);
+    // Add cohort parameter if staff/admin has selected a cohort
+    const cohortParam = (user.role === 'staff' || user.role === 'admin') && cohortFilter 
+      ? `&cohort=${encodeURIComponent(cohortFilter)}` 
+      : '';
+    
+    navigate(`/learning?taskId=${taskId}${cohortParam}`);
   };
 
   // Helper function to render task icon based on type
@@ -199,6 +217,22 @@ function Dashboard() {
     <div className="dashboard">
       <div className="dashboard__header">
         {error && <div className="error-message">{error}</div>}
+        
+        {/* Add cohort selector for staff/admin users */}
+        {(user.role === 'staff' || user.role === 'admin') && (
+          <div className="dashboard__cohort-selector">
+            <label>View Cohort:</label>
+            <select 
+              value={cohortFilter || ''} 
+              onChange={(e) => setCohortFilter(e.target.value || null)}
+            >
+              <option value="">My Cohort</option>
+              <option value="Spring 2025">Spring 2025</option>
+              <option value="Summer 2025">Summer 2025</option>
+              {/* Add more cohorts as needed */}
+            </select>
+          </div>
+        )}
       </div>
       
       <div className="dashboard__content">

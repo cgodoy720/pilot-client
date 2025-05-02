@@ -11,6 +11,7 @@ function PastSession() {
   const [searchParams] = useSearchParams();
   const dayId = searchParams.get('dayId');
   const dayNumber = searchParams.get('dayNumber');
+  const cohort = searchParams.get('cohort');
   const { token } = useAuth();
   const navigate = useNavigate();
   
@@ -92,8 +93,16 @@ function PastSession() {
         let apiUrl;
         if (dayNumber) {
           apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/days/number/${dayNumber}/full-details`;
+          // Add cohort parameter if available
+          if (cohort) {
+            apiUrl += `?cohort=${encodeURIComponent(cohort)}`;
+          }
         } else {
           apiUrl = `${import.meta.env.VITE_API_URL}/api/curriculum/days/${dayId}/full-details`;
+          // Add cohort parameter if available
+          if (cohort) {
+            apiUrl += `?cohort=${encodeURIComponent(cohort)}`;
+          }
         }
         
         const response = await fetch(apiUrl, {
@@ -192,7 +201,7 @@ function PastSession() {
     };
 
     fetchDaySchedule();
-  }, [dayId, dayNumber, token]);
+  }, [dayId, dayNumber, cohort, token]);
 
   // Add auto-scroll effect when messages change
   useEffect(() => {
@@ -225,9 +234,18 @@ function PastSession() {
         // Add dayNumber parameter to the API request if available
         let apiUrl = `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${taskId}`;
         
+        let hasQueryParam = false;
         if (daySchedule && daySchedule.day && daySchedule.day.day_number) {
           apiUrl += `?dayNumber=${daySchedule.day.day_number}`;
+          hasQueryParam = true;
         }
+        
+        // Add cohort parameter if available
+        if (cohort) {
+          apiUrl += hasQueryParam ? `&cohort=${encodeURIComponent(cohort)}` : `?cohort=${encodeURIComponent(cohort)}`;
+        }
+        
+        console.log('Fetching task messages from URL:', apiUrl);
         
         const response = await fetch(apiUrl, {
           headers: {
@@ -313,7 +331,7 @@ function PastSession() {
     
     // Expose fetchTaskMessages to be called from outside the effect
     fetchTaskMessagesRef.current = fetchTaskMessages;
-  }, [token, tasks, daySchedule, dayNumber, isPastSession]); // removed currentTaskIndex dependency
+  }, [token, tasks, daySchedule, dayNumber, cohort, isPastSession]); // Add cohort to dependency array
 
   useEffect(() => {
     if (daySchedule && daySchedule.day && daySchedule.day.day_date) {
@@ -577,69 +595,55 @@ function PastSession() {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     
-    if (!newMessage.trim() || isSending) return;
-    
-    // Prevent double-clicks
-    setIsSending(true);
-    
-    // Store the message locally for optimistic UI update
-    const messageToSend = newMessage.trim();
-    
-    // Clear the input
-    setNewMessage('');
-    
-    // Resize the textarea back to its original size
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+    if (!newMessage.trim()) {
+      return;
     }
     
-    // Create a temporary ID for this message
-    const temporaryId = `temp-${Date.now()}`;
-    
-    // Optimistically add message to the UI
-    setMessages(prevMessages => [
-      ...prevMessages.filter(msg => msg.id !== 'loading'),
-      {
-        id: temporaryId,
-        content: messageToSend,
-        role: 'user',
-        isTemporary: true
-      }
-    ]);
-    
-    // Show the AI thinking indicator
-    setIsAiThinking(true);
+    // Get the current task
+    const currentTask = tasks[currentTaskIndex];
+    if (!currentTask) {
+      setError('No task selected.');
+      return;
+    }
     
     try {
-      // Get the current task ID
-      const currentTaskId = tasks[currentTaskIndex]?.id;
+      setError(null);
+      setIsSending(true);
       
-      // Get day number from the day schedule
-      const currentDayNumber = daySchedule?.day?.day_number || dayNumber;
-      
-      // Prepare request body
-      const requestBody = {
-        content: messageToSend,
-        taskId: currentTaskId
+      // Show optimistic UI update
+      const optimisticId = `optimistic-${Date.now()}`;
+      const optimisticMessage = {
+        id: optimisticId,
+        content: newMessage,
+        role: 'user',
+        timestamp: new Date().toLocaleTimeString(),
+        status: 'sending'
       };
       
-      if (currentDayNumber) {
-        requestBody.dayNumber = currentDayNumber;
+      setMessages(prev => [...prev, optimisticMessage]);
+      setNewMessage('');
+      
+      // Auto expand the textarea
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
       }
       
-      // Determine if this is a new conversation or continuing an existing one
-      const endpoint = messages.length === 0 
-        ? 'messages/start' 
-        : 'messages/continue';
+      // Add cohort parameter to the URL for debugging
+      console.log('Sending message with cohort:', cohort);
       
-      // Send message to learning API
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/${endpoint}`, {
+      // Send the message
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages/continue`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          content: newMessage,
+          taskId: currentTask.id,
+          dayNumber: dayNumber,
+          cohort: cohort
+        })
       });
       
       if (!response.ok) {
@@ -657,7 +661,7 @@ function PastSession() {
         // Update the user message with the real server ID
         setMessages(prevMessages => 
           prevMessages.map(msg => 
-            msg.id === temporaryId ? 
+            msg.id === optimisticId ? 
               { ...msg, id: userMessageId, message_id: userMessageId } : 
               msg
           )
@@ -679,7 +683,7 @@ function PastSession() {
       setError('Failed to communicate with the learning assistant. Please try again.');
       
       // Remove the temporary message on error
-      setMessages(prevMessages => prevMessages.filter(msg => msg.id !== temporaryId));
+      setMessages(prevMessages => prevMessages.filter(msg => msg.id !== optimisticId));
     } finally {
       setIsSending(false);
       setIsAiThinking(false);
@@ -820,47 +824,34 @@ function PastSession() {
 
   // Update startTaskThread to work with our new approach
   const startTaskThread = async (taskId) => {
+    if (!taskId) return;
+    
+    // Show starting message
+    setMessages([{
+      id: 'starting',
+      content: 'Starting conversation...',
+      role: 'system'
+    }]);
+    
     try {
-      // We don't need to clear messages since we know it's empty
-      // (this function is only called when there are no messages)
-      setIsAiThinking(true);
-      setRateLimitHit(false);
-      setMessagesLoading(true);
-      lastTaskIdRef.current = taskId; // Update last task id
+      setError(null);
+      setIsSending(true);
       
-      // Add lazy loading delay
-      setIsLazyLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
-      setIsLazyLoading(false);
-      
-      const currentDayNumber = daySchedule?.day?.day_number || dayNumber;
-      
-      // Prepare the request
-      const requestBody = {
-        taskId: taskId
-      };
-      
-      if (currentDayNumber) {
-        requestBody.dayNumber = currentDayNumber;
-      }
-      
-      console.log(`Starting new chat thread for task ${taskId}`);
-      
-      // Call the start endpoint
+      // Send the start request
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          taskId: taskId,
+          dayNumber: dayNumber,
+          cohort: cohort
+        })
       });
       
       if (!response.ok) {
-        if (response.status === 429) {
-          setRateLimitHit(true);
-          throw new Error('Rate limit exceeded. Please wait before trying again.');
-        }
         throw new Error(`Failed to start thread: ${response.status}`);
       }
       
@@ -881,8 +872,7 @@ function PastSession() {
         setError('Failed to start conversation. Please try again.');
       }
     } finally {
-      setIsAiThinking(false);
-      setMessagesLoading(false);
+      setIsSending(false);
     }
   };
 

@@ -34,6 +34,7 @@ function Learning() {
   const queryParams = new URLSearchParams(location.search);
   const dayId = queryParams.get('dayId');
   const taskId = queryParams.get('taskId');
+  const cohort = queryParams.get('cohort');
   
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -113,9 +114,15 @@ function Learning() {
       // Add dayNumber parameter to the API request if available
       let apiUrl = `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${taskId}`;
       
+      let hasQueryParam = false;
       if (currentDay && currentDay.day_number) {
         apiUrl += `?dayNumber=${currentDay.day_number}`;
-        console.log(`Adding dayNumber ${currentDay.day_number} to request`);
+        hasQueryParam = true;
+      }
+      
+      // Add cohort parameter if available
+      if (cohort) {
+        apiUrl += hasQueryParam ? `&cohort=${encodeURIComponent(cohort)}` : `?cohort=${encodeURIComponent(cohort)}`;
       }
       
       // First, try to get existing messages
@@ -190,7 +197,8 @@ function Learning() {
             },
             body: JSON.stringify({
               taskId: taskId,
-              dayNumber: currentDay?.day_number
+              dayNumber: currentDay?.day_number,
+              cohort: cohort
             })
           });
           
@@ -311,9 +319,17 @@ function Learning() {
         // If dayId is provided, fetch that specific day
         if (dayId) {
           url = `${import.meta.env.VITE_API_URL}/api/curriculum/days/${dayId}/schedule`;
+          // Add cohort parameter if available
+          if (cohort) {
+            url += `?cohort=${encodeURIComponent(cohort)}`;
+          }
         } else {
           // Otherwise fetch the current day
           url = `${import.meta.env.VITE_API_URL}/api/progress/current-day`;
+          // Add cohort parameter if available
+          if (cohort) {
+            url += `?cohort=${encodeURIComponent(cohort)}`;
+          }
         }
         
         // Fetch day's schedule and progress
@@ -429,7 +445,7 @@ function Learning() {
     };
     
     fetchCurrentDayData();
-  }, [token, dayId]);
+  }, [token, dayId, cohort]);
   
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -490,6 +506,11 @@ function Learning() {
       
       if (currentDayNumber) {
         requestBody.dayNumber = currentDayNumber;
+      }
+      
+      // Add cohort parameter if available
+      if (cohort) {
+        requestBody.cohort = cohort;
       }
       
       // Send message to learning API
