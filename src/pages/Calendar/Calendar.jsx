@@ -135,38 +135,42 @@ function Calendar() {
       <div className="calendar__content">
         <div className="calendar-container">
           <div className="calendar-view">
-            <FullCalendar
-              plugins={[dayGridPlugin]}
-              initialView="dayGridMonth"
-              headerToolbar={{
-                left: 'prev,next today',
-                center: 'title',
-                right: ''
-              }}
-              events={events}
-              eventClick={handleEventClick}
-              eventDidMount={(info) => {
-                // Add tooltip
-                info.el.title = `${info.event.title}\nClick to view tasks`;
-              }}
-              height="calc(100vh - 120px)"
-            />
+            <div className="calendar__toolbar">
+              <FullCalendar
+                plugins={[dayGridPlugin]}
+                initialView="dayGridMonth"
+                headerToolbar={{
+                  left: 'prev,next today',
+                  center: 'title',
+                  right: ''
+                }}
+                events={events}
+                eventClick={handleEventClick}
+                eventDidMount={(info) => {
+                  // Add tooltip
+                  info.el.title = `${info.event.title}\nClick to view tasks`;
+                }}
+                height="calc(100vh - 120px)"
+              />
+              
+              {/* Render cohort selector in the toolbar space for staff/admin */}
+              {(user.role === 'staff' || user.role === 'admin') && (
+                <div className="calendar__cohort-filter">
+                  <label>Cohort:</label>
+                  <select 
+                    value={cohortFilter || ''} 
+                    onChange={(e) => setCohortFilter(e.target.value || null)}
+                  >
+                    <option value="">My Cohort</option>
+                    <option value="March 2025">March 2025</option>
+                    <option value="June 2025">June 2025</option>
+                    {/* Add more cohorts as needed */}
+                  </select>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-        {(user.role === 'staff' || user.role === 'admin') && (
-          <div className="calendar__cohort-selector">
-            <label>Filter by Cohort:</label>
-            <select 
-              value={cohortFilter || ''} 
-              onChange={(e) => setCohortFilter(e.target.value || null)}
-            >
-              <option value="">My Cohort</option>
-              <option value="Spring 2025">Spring 2025</option>
-              <option value="Summer 2025">Summer 2025</option>
-              {/* Add more cohorts as needed */}
-            </select>
-          </div>
-        )}
       </div>
     </div>
   );

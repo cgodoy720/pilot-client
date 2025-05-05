@@ -227,8 +227,8 @@ function Dashboard() {
               onChange={(e) => setCohortFilter(e.target.value || null)}
             >
               <option value="">My Cohort</option>
-              <option value="Spring 2025">Spring 2025</option>
-              <option value="Summer 2025">Summer 2025</option>
+              <option value="March 2025">March 2025</option>
+              <option value="June 2025">June 2025</option>
               {/* Add more cohorts as needed */}
             </select>
           </div>
