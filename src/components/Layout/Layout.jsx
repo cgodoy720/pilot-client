@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Box, IconButton } from '@mui/material';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Box, IconButton, Tooltip } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -16,12 +16,27 @@ import logoFull from '../../assets/logo-full.png'
 
 const Layout = ({ children }) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if user has active status
+  const isActive = user?.active !== false;
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+  
+  // Handle Learning link click for inactive users
+  const handleLearningClick = (e) => {
+    if (!isActive) {
+      e.preventDefault();
+      // If already on dashboard, no need to navigate
+      if (location.pathname !== '/dashboard') {
+        navigate('/dashboard');
+      }
+    }
   };
 
   return (
@@ -46,10 +61,21 @@ const Layout = ({ children }) => {
             <DashboardIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Dashboard</span>}
           </Link>
-          <Link to="/learning" className="layout__nav-item">
-            <SchoolIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Learning</span>}
-          </Link>
+          
+          {isActive ? (
+            <Link to="/learning" className="layout__nav-item">
+              <SchoolIcon className="layout__nav-icon" />
+              {isExpanded && <span className="layout__nav-text">Learning</span>}
+            </Link>
+          ) : (
+            <Tooltip title="You have historical access only" placement="right">
+              <span className="layout__nav-item layout__nav-item--disabled" onClick={handleLearningClick}>
+                <SchoolIcon className="layout__nav-icon" />
+                {isExpanded && <span className="layout__nav-text">Learning</span>}
+              </span>
+            </Tooltip>
+          )}
+          
           <Link to="/gpt" className="layout__nav-item">
             <ChatIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">GPT-4-TURBO</span>}

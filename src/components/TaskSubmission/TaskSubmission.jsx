@@ -32,7 +32,9 @@ const ConfirmationModal = ({ isOpen, message, onConfirm, onCancel }) => {
 };
 
 const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeDeliverable }) => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const isActive = user?.active !== false;
+  
   const [submissionData, setSubmissionData] = useState({ type: 'link', content: '' });
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -161,6 +163,13 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // If user is inactive, don't allow submission
+    if (!isActive) {
+      setError('You have historical access only and cannot submit new work.');
+      return;
+    }
+    
     setIsSubmitting(true);
     setError('');
 
@@ -233,152 +242,168 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
 
   return (
     <div className="task-submission">
-      <h3 className="task-submission__title">Task Submission</h3>
-      <p className="task-submission__description">
-        {deliverable}
-      </p>
-
-      <form onSubmit={handleSubmit} className="task-submission__form">
-        <div className="task-submission__item">
-          <div className="task-submission__item-header">
-            <div className="task-submission__type-selector">
-              <label className={`task-submission__type-option ${submissionData.type === 'text' ? 'task-submission__type-option--active' : ''}`}>
-                <input
-                  type="radio"
-                  name="type"
-                  value="text"
-                  checked={submissionData.type === 'text'}
-                  onChange={() => handleTypeChange('text')}
-                />
-                Text
-              </label>
-              <label className={`task-submission__type-option ${submissionData.type === 'link' ? 'task-submission__type-option--active' : ''}`}>
-                <input
-                  type="radio"
-                  name="type"
-                  value="link"
-                  checked={submissionData.type === 'link'}
-                  onChange={() => handleTypeChange('link')}
-                />
-                Google Drive Link
-              </label>
-            </div>
-          </div>
-
-          {submissionData.type === 'text' ? (
-            <textarea
-              className="task-submission__textarea"
-              value={submissionData.content}
-              onChange={(e) => handleContentChange(e.target.value)}
-              placeholder="Enter your text submission here..."
-              rows={6}
-            />
-          ) : (
-            <div className="task-submission__link-input-container">
-              <input
-                type="url"
-                className="task-submission__link-input"
-                value={submissionData.content}
-                onChange={(e) => handleContentChange(e.target.value)}
-                placeholder="Paste your Google Drive share link here"
-              />
-              {submissionData.content && !isValidUrl(submissionData.content) && (
-                <p className="task-submission__link-warning">Please enter a valid URL</p>
-              )}
-              {submissionData.content && isValidUrl(submissionData.content) && (
-                <div className="task-submission__link-actions">
-                  <a 
-                    href={submissionData.content} 
-                    target="_blank" 
-                    rel="noreferrer" 
-                    className="task-submission__link-preview"
-                  >
-                    View shared document
-                  </a>
-                  
-                  {/* Only show analyze button for Google Docs */}
-                  {submission && isGoogleDoc(submissionData.content) && (
-                    <button
-                      type="button"
-                      className="task-submission__analyze-btn"
-                      onClick={handleAnalyzeSubmission}
-                      disabled={isAnalyzing}
-                    >
-                      {isAnalyzing ? 'Analyzing...' : 'Analyze This Submission'}
-                    </button>
-                  )}
-                  
-                  {/* Show message if URL is not a Google Doc */}
-                  {submission && !isGoogleDoc(submissionData.content) && submissionData.type === 'link' && (
-                    <div className="task-submission__not-google-doc">
-                      <span>Only Google Docs can be analyzed</span>
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {/* Display error message for this submission */}
-              {submissionError && (
-                <div className="task-submission__submission-error">
-                  <p>
-                    <span className="task-submission__error-icon">⚠️</span> 
-                    {submissionError}
-                  </p>
-                  {submissionError.includes("Google Doc") && (
-                    <div className="task-submission__error-help">
-                      <p>How to fix:</p>
-                      <ol>
-                        <li>Open your Google Doc</li>
-                        <li>Click the "Share" button in the top right</li>
-                        <li>In the "Get Link" section, click "Change to anyone with the link"</li>
-                        <li>Ensure the permission is set to "Viewer"</li>
-                        <li>Click "Copy link" and try again</li>
-                      </ol>
-                    </div>
-                  )}
-                </div>
-              )}
+      {!isActive ? (
+        <div className="task-submission__historical-notice">
+          <p>You have historical access only. New submissions are not allowed.</p>
+          {submission && (
+            <div className="task-submission__previous">
+              <h4>Your Previous Submission:</h4>
+              <a href={submission.content} target="_blank" rel="noopener noreferrer">
+                {submission.content}
+              </a>
             </div>
           )}
         </div>
+      ) : (
+        <>
+          <h3 className="task-submission__title">Task Submission</h3>
+          <p className="task-submission__description">
+            {deliverable}
+          </p>
 
-        <div className="task-submission__actions">
-          <button
-            type="submit"
-            className="task-submission__button"
-            disabled={isSubmitting || !submissionData.content.trim()}
-          >
-            {isSubmitting ? 'Submitting...' : submission ? 'Update Submission' : 'Submit'}
-          </button>
-        </div>
+          <form onSubmit={handleSubmit} className="task-submission__form">
+            <div className="task-submission__item">
+              <div className="task-submission__item-header">
+                <div className="task-submission__type-selector">
+                  <label className={`task-submission__type-option ${submissionData.type === 'text' ? 'task-submission__type-option--active' : ''}`}>
+                    <input
+                      type="radio"
+                      name="type"
+                      value="text"
+                      checked={submissionData.type === 'text'}
+                      onChange={() => handleTypeChange('text')}
+                    />
+                    Text
+                  </label>
+                  <label className={`task-submission__type-option ${submissionData.type === 'link' ? 'task-submission__type-option--active' : ''}`}>
+                    <input
+                      type="radio"
+                      name="type"
+                      value="link"
+                      checked={submissionData.type === 'link'}
+                      onChange={() => handleTypeChange('link')}
+                    />
+                    Google Drive Link
+                  </label>
+                </div>
+              </div>
 
-        {error && (
-          <div className="task-submission__error">
-            {error}
-          </div>
-        )}
+              {submissionData.type === 'text' ? (
+                <textarea
+                  className="task-submission__textarea"
+                  value={submissionData.content}
+                  onChange={(e) => handleContentChange(e.target.value)}
+                  placeholder="Enter your text submission here..."
+                  rows={6}
+                />
+              ) : (
+                <div className="task-submission__link-input-container">
+                  <input
+                    type="url"
+                    className="task-submission__link-input"
+                    value={submissionData.content}
+                    onChange={(e) => handleContentChange(e.target.value)}
+                    placeholder="Paste your Google Drive share link here"
+                  />
+                  {submissionData.content && !isValidUrl(submissionData.content) && (
+                    <p className="task-submission__link-warning">Please enter a valid URL</p>
+                  )}
+                  {submissionData.content && isValidUrl(submissionData.content) && (
+                    <div className="task-submission__link-actions">
+                      <a 
+                        href={submissionData.content} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="task-submission__link-preview"
+                      >
+                        View shared document
+                      </a>
+                      
+                      {/* Only show analyze button for Google Docs */}
+                      {submission && isGoogleDoc(submissionData.content) && (
+                        <button
+                          type="button"
+                          className="task-submission__analyze-btn"
+                          onClick={handleAnalyzeSubmission}
+                          disabled={isAnalyzing || !isActive}
+                        >
+                          {isAnalyzing ? 'Analyzing...' : 'Analyze This Submission'}
+                        </button>
+                      )}
+                      
+                      {/* Show message if URL is not a Google Doc */}
+                      {submission && !isGoogleDoc(submissionData.content) && submissionData.type === 'link' && (
+                        <div className="task-submission__not-google-doc">
+                          <span>Only Google Docs can be analyzed</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Display error message for this submission */}
+                  {submissionError && (
+                    <div className="task-submission__submission-error">
+                      <p>
+                        <span className="task-submission__error-icon">⚠️</span> 
+                        {submissionError}
+                      </p>
+                      {submissionError.includes("Google Doc") && (
+                        <div className="task-submission__error-help">
+                          <p>How to fix:</p>
+                          <ol>
+                            <li>Open your Google Doc</li>
+                            <li>Click the "Share" button in the top right</li>
+                            <li>In the "Get Link" section, click "Change to anyone with the link"</li>
+                            <li>Ensure the permission is set to "Viewer"</li>
+                            <li>Click "Copy link" and try again</li>
+                          </ol>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-        {submission && (
-          <div className="task-submission__status">
-            <p>Last updated: {new Date(submission.updated_at).toLocaleString()}</p>
-          </div>
-        )}
+            <div className="task-submission__actions">
+              <button
+                type="submit"
+                className="task-submission__button"
+                disabled={isSubmitting || !submissionData.content.trim()}
+              >
+                {isSubmitting ? 'Submitting...' : submission ? 'Update Submission' : 'Submit'}
+              </button>
+            </div>
 
-        {feedback && (
-          <div className="task-submission__feedback">
-            <h4 className="task-submission__feedback-title">Feedback</h4>
-            <p className="task-submission__feedback-content">{feedback}</p>
-          </div>
-        )}
-      </form>
+            {error && (
+              <div className="task-submission__error">
+                {error}
+              </div>
+            )}
 
-      {/* Add the Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={showConfirmModal}
-        message={confirmMessage}
-        onConfirm={handleConfirm}
-        onCancel={handleCancel}
-      />
+            {submission && (
+              <div className="task-submission__status">
+                <p>Last updated: {new Date(submission.updated_at).toLocaleString()}</p>
+              </div>
+            )}
+
+            {feedback && (
+              <div className="task-submission__feedback">
+                <h4 className="task-submission__feedback-title">Feedback</h4>
+                <p className="task-submission__feedback-content">{feedback}</p>
+              </div>
+            )}
+          </form>
+
+          {/* Add the Confirmation Modal */}
+          <ConfirmationModal
+            isOpen={showConfirmModal}
+            message={confirmMessage}
+            onConfirm={handleConfirm}
+            onCancel={handleCancel}
+          />
+        </>
+      )}
     </div>
   );
 };

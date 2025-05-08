@@ -12,8 +12,11 @@ function PastSession() {
   const dayId = searchParams.get('dayId');
   const dayNumber = searchParams.get('dayNumber');
   const cohort = searchParams.get('cohort');
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const navigate = useNavigate();
+  
+  // Check if user has active status
+  const isActive = user?.active !== false;
   
   const [daySchedule, setDaySchedule] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -591,11 +594,29 @@ function PastSession() {
     );
   };
 
-  // Add function to handle sending a message
+  // Add a historical notification banner at the top of the component render
+  const renderHistoricalBanner = () => {
+    if (!isActive) {
+      return (
+        <div className="past-session__historical-banner">
+          <p>You have historical access only. You can view your past content but cannot submit new work or generate new feedback.</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Update the handleSendMessage to check for active status
   const handleSendMessage = async (e) => {
     e.preventDefault();
     
     if (!newMessage.trim()) {
+      return;
+    }
+    
+    // Prevent sending if the user is inactive
+    if (!isActive) {
+      setError('You have historical access only and cannot send new messages.');
       return;
     }
     
@@ -826,6 +847,12 @@ function PastSession() {
   const startTaskThread = async (taskId) => {
     if (!taskId) return;
     
+    // Check if user is active, if not, show error and return
+    if (!isActive) {
+      setError('You have historical access only and cannot start new conversations.');
+      return;
+    }
+    
     // Show starting message
     setMessages([{
       id: 'starting',
@@ -1013,6 +1040,12 @@ function PastSession() {
   const handleAnalyzeTask = async () => {
     if (!tasks.length || currentTaskIndex >= tasks.length) return;
     
+    // Check if user is active
+    if (!isActive) {
+      setError('You have historical access only and cannot generate new feedback.');
+      return;
+    }
+    
     const currentTask = tasks[currentTaskIndex];
     
     setIsAnalyzing(true);
@@ -1052,6 +1085,12 @@ function PastSession() {
   // Function to analyze a deliverable submission
   const handleAnalyzeDeliverable = async (url) => {
     if (!tasks.length || currentTaskIndex >= tasks.length) return;
+    
+    // Check if user is active
+    if (!isActive) {
+      setError('You have historical access only and cannot analyze deliverables.');
+      return;
+    }
     
     const currentTask = tasks[currentTaskIndex];
     
@@ -1292,6 +1331,7 @@ function PastSession() {
 
   return (
     <div className="learning past-session">
+      {renderHistoricalBanner()}
       <div className="learning__content">
         <div className="learning__task-panel">
           <div className="learning__task-header learning__task-header--with-back">
@@ -1488,7 +1528,7 @@ function PastSession() {
                               <button 
                                 onClick={() => tasks.length > 0 && currentTaskIndex < tasks.length && startTaskThread(tasks[currentTaskIndex].id)}
                                 className="past-session__start-conversation-btn"
-                                disabled={!tasks.length || tasksLoading || isLazyLoading}
+                                disabled={!isActive || !tasks.length || tasksLoading || isLazyLoading}
                               >
                                 {isLazyLoading ? 'Preparing...' : 'Start Conversation'}
                               </button>
@@ -1528,7 +1568,7 @@ function PastSession() {
                     <FaArrowLeft /> Prev Task
                   </button>
                   
-                  {tasks[currentTaskIndex].should_analyze && (
+                  {tasks[currentTaskIndex].should_analyze && isActive && (
                     <button 
                       className="learning__task-nav-button"
                       onClick={handleAnalyzeTask}
@@ -1581,8 +1621,8 @@ function PastSession() {
                       className="learning__input"
                       value={newMessage}
                       onChange={handleTextareaChange}
-                      placeholder={isSending ? "Sending..." : "Type your message..."}
-                      disabled={isSending || isAiThinking}
+                      placeholder={!isActive ? "Historical view only" : (isSending ? "Sending..." : "Type your message...")}
+                      disabled={!isActive || isSending || isAiThinking}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
@@ -1612,7 +1652,7 @@ function PastSession() {
                     <button 
                       className="learning__send-btn" 
                       type="submit" 
-                      disabled={!newMessage.trim() || isSending || isAiThinking}
+                      disabled={!isActive || !newMessage.trim() || isSending || isAiThinking}
                     >
                       {isSending ? "Sending..." : <FaPaperPlane />}
                     </button>

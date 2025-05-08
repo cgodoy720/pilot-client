@@ -9,7 +9,7 @@ import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
 import './Learning.css';
 
 function Learning() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
@@ -19,6 +19,9 @@ function Learning() {
   const [error, setError] = useState('');
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isMessagesLoading, setIsMessagesLoading] = useState(false);
+  
+  // Check if user has active status
+  const isActive = user?.active !== false;
   
   // Add state variables for message editing
   const [editingMessageId, setEditingMessageId] = useState(null);
@@ -459,6 +462,12 @@ function Learning() {
     e.preventDefault();
     
     if (!newMessage.trim() || isSending) return;
+    
+    // Prevent sending if the user is inactive
+    if (!isActive) {
+      setError('You have historical access only and cannot send new messages.');
+      return;
+    }
     
     // Prevent double-clicks
     setIsSending(true);
@@ -1486,6 +1495,18 @@ function Learning() {
     return Object.keys(availableAnalyses);
   };
 
+  // Add a historical notification banner at the top of the component render
+  const renderHistoricalBanner = () => {
+    if (!isActive) {
+      return (
+        <div className="learning__historical-banner">
+          <p>You have historical access only. You can view your past content but cannot submit new work or generate new feedback.</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   if (isPageLoading) {
     return <div className="learning loading">Loading learning session...</div>;
   }
@@ -1511,6 +1532,7 @@ function Learning() {
 
   return (
     <div className="learning">
+      {renderHistoricalBanner()}
       <div className="learning__content">
         <div className="learning__task-panel">
           <div className={`learning__task-header ${dayId ? 'learning__task-header--with-back' : ''}`}>
@@ -1660,7 +1682,7 @@ function Learning() {
                     <FaArrowLeft /> Prev Task
                   </button>
                   
-                  {tasks[currentTaskIndex].should_analyze && (
+                  {tasks[currentTaskIndex].should_analyze && isActive && (
                     <button 
                       className="learning__task-nav-button"
                       onClick={handleAnalyzeTask}
@@ -1710,8 +1732,8 @@ function Learning() {
                   className="learning__input"
                   value={newMessage}
                   onChange={handleTextareaChange}
-                  placeholder={isSending ? "Sending..." : "Type your message..."}
-                  disabled={isSending || isAiThinking}
+                  placeholder={!isActive ? "Historical view only" : (isSending ? "Sending..." : "Type your message...")}
+                  disabled={!isActive || isSending || isAiThinking}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -1741,7 +1763,7 @@ function Learning() {
                 <button 
                   className="learning__send-btn" 
                   type="submit" 
-                  disabled={!newMessage.trim() || isSending || isAiThinking}
+                  disabled={!isActive || !newMessage.trim() || isSending || isAiThinking}
                 >
                   {isSending ? "Sending..." : <FaPaperPlane />}
                 </button>
