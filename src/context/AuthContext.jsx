@@ -38,12 +38,19 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ email, password }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        // Check if this is a verification issue
+        if (response.status === 403 && data.needsVerification) {
+          return { 
+            success: false, 
+            error: data.error || 'Email verification required', 
+            needsVerification: true 
+          };
+        }
+        throw new Error(data.error || 'Login failed');
+      }
       
       // Save user and token to state
       setUser(data.user);
@@ -76,21 +83,17 @@ export const AuthProvider = ({ children }) => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Registration failed');
+        throw new Error(errorData.error || 'Registration failed');
       }
 
       const data = await response.json();
       
-      // Save user and token to state
-      setUser(data.user);
-      setToken(data.token);
-      setIsAuthenticated(true);
-      
-      // Save to localStorage for persistence
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('token', data.token);
-      
-      return { success: true };
+      // With email verification, we don't automatically authenticate the user
+      // They need to verify their email first
+      return { 
+        success: true, 
+        message: data.message || 'Registration successful. Please check your email to verify your account.' 
+      };
     } catch (error) {
       return { success: false, error: error.message };
     } finally {

@@ -10,6 +10,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
 
@@ -22,6 +23,7 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setNeedsVerification(false);
     setIsSubmitting(true);
     
     try {
@@ -30,7 +32,12 @@ const Login = () => {
       if (result.success) {
         navigate('/dashboard');
       } else {
-        setError(result.error || 'Invalid email or password');
+        // Check if the error is related to email verification
+        if (result.needsVerification) {
+          setNeedsVerification(true);
+        } else {
+          setError(result.error || 'Invalid email or password');
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -51,53 +58,71 @@ const Login = () => {
           <h1>LET'S BUILD<br />THE FUTURE<br />—TOGETHER.</h1>
         </div>
         
-        <form onSubmit={handleSubmit} className="login-form">
-          {error && <div className="login-error">{error}</div>}
-          
-          <div className="login-input-group">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              required
-              className="login-input"
-              disabled={isSubmitting}
-            />
+        {needsVerification ? (
+          <div className="login-verification-needed">
+            <p>Please verify your email address before logging in.</p>
+            <p>Check your email for a verification link or request a new one.</p>
+            <div className="login-verification-actions">
+              <Link to={`/resend-verification`} className="login-button verification-button">
+                Resend Verification Email
+              </Link>
+              <button 
+                onClick={() => setNeedsVerification(false)} 
+                className="login-link back-to-login"
+              >
+                Back to Login
+              </button>
+            </div>
           </div>
-          
-          <div className="login-input-group password-input-group">
-            <input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              required
-              className="login-input"
-              disabled={isSubmitting}
-            />
+        ) : (
+          <form onSubmit={handleSubmit} className="login-form">
+            {error && <div className="login-error">{error}</div>}
+            
+            <div className="login-input-group">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                required
+                className="login-input"
+                disabled={isSubmitting}
+              />
+            </div>
+            
+            <div className="login-input-group password-input-group">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                required
+                className="login-input"
+                disabled={isSubmitting}
+              />
+              <button 
+                type="button" 
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+            
+            <div className="login-links">
+              <Link to="/signup" className="login-link">Create an account</Link>
+              <Link to="/forgot-password" className="login-link">Forgot Password?</Link>
+            </div>
+            
             <button 
-              type="button" 
-              className="password-toggle"
-              onClick={() => setShowPassword(!showPassword)}
+              type="submit" 
+              className="login-button"
+              disabled={isSubmitting}
             >
-              {showPassword ? "Hide" : "Show"}
+              {isSubmitting ? 'Logging in...' : 'Log In'}
             </button>
-          </div>
-          
-          <div className="login-links">
-            <Link to="/signup" className="login-link">Create an account</Link>
-            <Link to="/forgot-password" className="login-link">Forgot Password?</Link>
-          </div>
-          
-          <button 
-            type="submit" 
-            className="login-button"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Logging in...' : 'Log In'}
-          </button>
-        </form>
+          </form>
+        )}
       </div>
     </div>
   );
