@@ -6,6 +6,8 @@ import Login from './pages/Login/Login.jsx'
 import Signup from './pages/Signup/Signup.jsx'
 import ForgotPassword from './pages/Login/ForgotPassword.jsx'
 import ResetPassword from './pages/Login/ResetPassword.jsx'
+import VerifyEmail from './pages/Login/VerifyEmail.jsx'
+import ResendVerification from './pages/Login/ResendVerification.jsx'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import './index.css'
 
@@ -35,6 +37,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/verify-email/:token" element={<VerifyEmail />} />
+          <Route path="/resend-verification" element={<ResendVerification />} />
           
           {/* Protected routes */}
           <Route 

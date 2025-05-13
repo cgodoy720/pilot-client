@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaArrowRight, FaCheck, FaRegSquare } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaArrowRight, FaCheck, FaRegSquare, FaCalendarAlt, FaExclamationTriangle } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import './Dashboard.css';
 
 function Dashboard() {
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  
+  // Check if user has active status
+  const isActive = user?.active !== false;
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -16,99 +19,140 @@ function Dashboard() {
   const [progressPercentage, setProgressPercentage] = useState(0);
   const [completedTasks, setCompletedTasks] = useState(0);
   const [totalTasks, setTotalTasks] = useState(0);
+  const [cohortFilter, setCohortFilter] = useState(null);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/progress/current-day`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch dashboard data');
+    // Only fetch dashboard data if user is active
+    if (isActive) {
+      fetchDashboardData();
+    } else {
+      // If user is inactive, we don't need to load the dashboard data
+      setIsLoading(false);
+    }
+  }, [token, cohortFilter, user.role, isActive]);
+
+  const fetchDashboardData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      let url = `${import.meta.env.VITE_API_URL}/api/progress/current-day`;
+      
+      // Add cohort parameter for staff/admin if selected
+      if ((user.role === 'staff' || user.role === 'admin') && cohortFilter) {
+        url += `?cohort=${encodeURIComponent(cohortFilter)}`;
+      }
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-        
-        const data = await response.json();
-        
-        // Debug logging
-        console.log('API Response Data:', data);
-        console.log('API Response Data Type:', typeof data);
-        console.log('API Response Data Keys:', Object.keys(data));
-        console.log('timeBlocks property:', data.timeBlocks);
-        
-        if (data.message === 'No schedule for today') {
-          // Handle case where there's no schedule for today
-          setIsLoading(false);
-          return;
-        }
-        
-        // Process the data
-        const timeBlocks = data.timeBlocks || [];
-        const taskProgress = Array.isArray(data.taskProgress) ? data.taskProgress : [];
-        
-        // Extract tasks from all time blocks
-        const allTasks = [];
-        
-        timeBlocks.forEach(block => {
-          // Add tasks with their completion status
-          block.tasks.forEach(task => {
-            const taskCompleted = taskProgress.find(
-              progress => progress.task_id === task.id
-            )?.status === 'completed';
-            
-            allTasks.push({
-              id: task.id,
-              time: formatTime(block.start_time),
-              title: task.task_title,
-              duration: `${task.duration_minutes} min`,
-              type: task.task_type,
-              completed: taskCompleted
-            });
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch dashboard data');
+      }
+      
+      const data = await response.json();
+      
+      // Debug logging
+      console.log('API Response Data:', data);
+      console.log('API Response Data Type:', typeof data);
+      console.log('API Response Data Keys:', Object.keys(data));
+      console.log('timeBlocks property:', data.timeBlocks);
+      
+      if (data.message === 'No schedule for today') {
+        // Handle case where there's no schedule for today
+        setIsLoading(false);
+        return;
+      }
+      
+      // Process the data
+      const timeBlocks = data.timeBlocks || [];
+      const taskProgress = Array.isArray(data.taskProgress) ? data.taskProgress : [];
+      
+      // Extract tasks from all time blocks
+      const allTasks = [];
+      
+      timeBlocks.forEach(block => {
+        // Add tasks with their completion status
+        block.tasks.forEach(task => {
+          const taskCompleted = taskProgress.find(
+            progress => progress.task_id === task.id
+          )?.status === 'completed';
+          
+          allTasks.push({
+            id: task.id,
+            time: formatTime(block.start_time),
+            title: task.task_title,
+            duration: `${task.duration_minutes} min`,
+            type: task.task_type,
+            completed: taskCompleted
           });
         });
-        
-        // Set state with the processed data
-        setCurrentDay(data.day || {});
-        setDailyTasks(allTasks);
-        
-        // Get learning objectives from the day object
-        const dayObjectives = data.day && data.day.learning_objectives ? 
-          data.day.learning_objectives : [];
-        setObjectives(dayObjectives);
-        
-        // Set progress data
-        const completed = allTasks.filter(task => task.completed).length;
-        const total = allTasks.length;
-        setCompletedTasks(completed);
-        setTotalTasks(total);
-        setProgressPercentage(total > 0 ? (completed / total) * 100 : 0);
-        
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        setError('Failed to load dashboard data. Please try again later.');
-        console.log('Error details:', error.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchDashboardData();
-  }, [token]);
+      });
+      
+      // Set state with the processed data
+      setCurrentDay(data.day || {});
+      setDailyTasks(allTasks);
+      
+      // Get learning objectives from the day object
+      const dayObjectives = data.day && data.day.learning_objectives ? 
+        data.day.learning_objectives : [];
+      setObjectives(dayObjectives);
+      
+      // Set progress data
+      const completed = allTasks.filter(task => task.completed).length;
+      const total = allTasks.length;
+      setCompletedTasks(completed);
+      setTotalTasks(total);
+      setProgressPercentage(total > 0 ? (completed / total) * 100 : 0);
+      
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      setError('Failed to load dashboard data. Please try again later.');
+      console.log('Error details:', error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Handle continue session button click
   const handleContinueSession = () => {
+    // If user is inactive, don't navigate to Learning
+    if (!isActive) {
+      setError('You have historical access only and cannot access new learning sessions.');
+      return;
+    }
+    
+    // Add cohort parameter if staff/admin has selected a cohort
+    const cohortParam = (user.role === 'staff' || user.role === 'admin') && cohortFilter 
+      ? `?cohort=${encodeURIComponent(cohortFilter)}` 
+      : '';
+    
     // Navigate to the chat-based learning interface
-    navigate('/learning');
+    navigate(`/learning${cohortParam}`);
   };
 
   // Navigate to the specific task in the Learning page
   const navigateToTask = (taskId) => {
-    navigate(`/learning?taskId=${taskId}`);
+    // If user is inactive, don't navigate to Learning
+    if (!isActive) {
+      setError('You have historical access only and cannot access new learning sessions.');
+      return;
+    }
+    
+    // Add cohort parameter if staff/admin has selected a cohort
+    const cohortParam = (user.role === 'staff' || user.role === 'admin') && cohortFilter 
+      ? `&cohort=${encodeURIComponent(cohortFilter)}` 
+      : '';
+    
+    navigate(`/learning?taskId=${taskId}${cohortParam}`);
+  };
+
+  // Navigate to calendar for historical viewing
+  const navigateToCalendar = () => {
+    navigate('/calendar');
   };
 
   // Helper function to render task icon based on type
@@ -135,6 +179,13 @@ function Dashboard() {
   // Handle task completion toggle
   const handleTaskCompletion = async (e, taskId, currentStatus) => {
     e.stopPropagation(); // Prevent the click from navigating to the task
+    
+    // If user is inactive, don't allow task completion
+    if (!isActive) {
+      e.preventDefault();
+      setError('You have historical access only and cannot update task status.');
+      return;
+    }
     
     try {
       const newStatus = currentStatus ? 'in_progress' : 'completed';
@@ -191,6 +242,130 @@ function Dashboard() {
     return `${formattedHours}:${minutes} ${period}`;
   };
 
+  // Render historical access view
+  const renderHistoricalView = () => {
+    return (
+      <div className="dashboard__historical-container">
+        <div className="dashboard__historical-notice">
+          <FaExclamationTriangle className="dashboard__notice-icon" />
+          <div className="dashboard__notice-content">
+            <h3>Historical Access Only</h3>
+            <p>
+              You have historical access only. You can view your past activities but cannot 
+              participate in new sessions. Please visit the calendar to access your completed work.
+            </p>
+            <button 
+              className="dashboard__calendar-btn"
+              onClick={navigateToCalendar}
+            >
+              <FaCalendarAlt /> View Past Sessions
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render regular dashboard content
+  const renderDashboardContent = () => {
+    return (
+      <>
+        <div className="dashboard__content">
+          {/* Left panel - Objectives and Progress */}
+          <div className="dashboard__left-panel">
+            {/* Objectives */}
+            <div className="dashboard__objectives">
+              <h2 className="panel-title">Today's Objectives</h2>
+              {objectives.length > 0 ? (
+                <ul className="objectives-list">
+                  {objectives.map((objective, index) => (
+                    <li key={index} className="objective-item">
+                      <span className="bullet">•</span>
+                      <span className="objective-text">{objective}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="no-content-message">No objectives for today.</p>
+              )}
+            </div>
+            
+            {/* Progress */}
+            <div className="dashboard__progress">
+              <h2 className="panel-title">Progress</h2>
+              {totalTasks > 0 ? (
+                <>
+                  <div className="progress-bar-container">
+                    <div 
+                      className="progress-bar" 
+                      style={{ width: `${progressPercentage}%` }}
+                    ></div>
+                  </div>
+                  <div className="progress-text">
+                    {completedTasks}/{totalTasks} tasks completed
+                  </div>
+                </>
+              ) : (
+                <p className="no-content-message">No tasks scheduled for today.</p>
+              )}
+            </div>
+          </div>
+          
+          {/* Right panel - Daily Schedule */}
+          <div className="dashboard__schedule-panel">
+            <h2 className="panel-title">Daily Schedule Panel</h2>
+            {dailyTasks.length > 0 ? (
+              <div className="schedule-list">
+                {dailyTasks.map(task => (
+                  <div 
+                    key={task.id} 
+                    className={`schedule-item ${task.completed ? 'completed' : ''}`}
+                    onClick={() => navigateToTask(task.id)}
+                  >
+                    <div className="schedule-time">{task.time}</div>
+                    <div className="schedule-details">
+                      <div className="schedule-title">
+                        {getTaskIcon(task.type, task.completed)}
+                        <span>{task.title}</span>
+                      </div>
+                      <div className="schedule-duration">{task.duration}</div>
+                    </div>
+                    <div 
+                      className="schedule-checkbox"
+                      onClick={(e) => handleTaskCompletion(e, task.id, task.completed)}
+                    >
+                      {task.completed ? 
+                        <FaCheck className="checkbox-icon completed" /> : 
+                        <FaRegSquare className="checkbox-icon" />
+                      }
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="no-tasks-message">
+                <p>No tasks scheduled for today.</p>
+                <p>Check back tomorrow for your next scheduled activities.</p>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Continue Session Button */}
+        <div className="dashboard__continue">
+          <button 
+            className="continue-btn"
+            onClick={handleContinueSession}
+            disabled={dailyTasks.length === 0}
+          >
+            Continue Session
+            <FaArrowRight className="continue-icon" />
+          </button>
+        </div>
+      </>
+    );
+  };
+
   if (isLoading) {
     return <div className="dashboard loading">Loading dashboard data...</div>;
   }
@@ -199,100 +374,28 @@ function Dashboard() {
     <div className="dashboard">
       <div className="dashboard__header">
         {error && <div className="error-message">{error}</div>}
-      </div>
-      
-      <div className="dashboard__content">
-        {/* Left panel - Objectives and Progress */}
-        <div className="dashboard__left-panel">
-          {/* Objectives */}
-          <div className="dashboard__objectives">
-            <h2 className="panel-title">Today's Objectives</h2>
-            {objectives.length > 0 ? (
-              <ul className="objectives-list">
-                {objectives.map((objective, index) => (
-                  <li key={index} className="objective-item">
-                    <span className="bullet">•</span>
-                    <span className="objective-text">{objective}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="no-content-message">No objectives for today.</p>
-            )}
-          </div>
-          
-          {/* Progress */}
-          <div className="dashboard__progress">
-            <h2 className="panel-title">Progress</h2>
-            {totalTasks > 0 ? (
-              <>
-                <div className="progress-bar-container">
-                  <div 
-                    className="progress-bar" 
-                    style={{ width: `${progressPercentage}%` }}
-                  ></div>
-                </div>
-                <div className="progress-text">
-                  {completedTasks}/{totalTasks} tasks completed
-                </div>
-              </>
-            ) : (
-              <p className="no-content-message">No tasks scheduled for today.</p>
-            )}
-          </div>
-        </div>
         
-        {/* Right panel - Daily Schedule */}
-        <div className="dashboard__schedule-panel">
-          <h2 className="panel-title">Daily Schedule Panel</h2>
-          {dailyTasks.length > 0 ? (
-            <div className="schedule-list">
-              {dailyTasks.map(task => (
-                <div 
-                  key={task.id} 
-                  className={`schedule-item ${task.completed ? 'completed' : ''}`}
-                  onClick={() => navigateToTask(task.id)}
-                >
-                  <div className="schedule-time">{task.time}</div>
-                  <div className="schedule-details">
-                    <div className="schedule-title">
-                      {getTaskIcon(task.type, task.completed)}
-                      <span>{task.title}</span>
-                    </div>
-                    <div className="schedule-duration">{task.duration}</div>
-                  </div>
-                  <div 
-                    className="schedule-checkbox"
-                    onClick={(e) => handleTaskCompletion(e, task.id, task.completed)}
-                  >
-                    {task.completed ? 
-                      <FaCheck className="checkbox-icon completed" /> : 
-                      <FaRegSquare className="checkbox-icon" />
-                    }
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="no-tasks-message">
-              <p>No tasks scheduled for today.</p>
-              <p>Check back tomorrow for your next scheduled activities.</p>
-            </div>
-          )}
-        </div>
+        {/* Add cohort selector for staff/admin users */}
+        {isActive && (user.role === 'staff' || user.role === 'admin') && (
+          <div className="dashboard__cohort-selector">
+            <label>View Cohort:</label>
+            <select 
+              value={cohortFilter || ''} 
+              onChange={(e) => setCohortFilter(e.target.value || null)}
+            >
+              <option value="">My Cohort</option>
+              <option value="March 2025">March 2025</option>
+              <option value="June 2025">June 2025</option>
+              {/* Add more cohorts as needed */}
+            </select>
+          </div>
+        )}
       </div>
       
-      {/* Continue Session Button */}
-      <div className="dashboard__continue">
-        <button 
-          className="continue-btn"
-          onClick={handleContinueSession}
-          disabled={dailyTasks.length === 0}
-        >
-          Continue Session
-          <FaArrowRight className="continue-icon" />
-        </button>
-      </div>
+      {/* Conditionally render either historical view or dashboard content */}
+      {!isActive ? renderHistoricalView() : renderDashboardContent()}
+      
+      {error && <div className="dashboard__error-message">{error}</div>}
     </div>
   );
 }

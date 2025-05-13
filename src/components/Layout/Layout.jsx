@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Box, IconButton } from '@mui/material';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Box, IconButton, Tooltip } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -9,6 +9,7 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LogoutIcon from '@mui/icons-material/Logout';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import SchoolIcon from '@mui/icons-material/School';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 import logo from '../../assets/logo.png'
@@ -16,12 +17,29 @@ import logoFull from '../../assets/logo-full.png'
 
 const Layout = ({ children }) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if user has active status
+  const isActive = user?.active !== false;
+  // Check if user is admin or staff
+  const isAdmin = user?.role === 'admin' || user?.role === 'staff';
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+  
+  // Handle Learning link click for inactive users
+  const handleLearningClick = (e) => {
+    if (!isActive) {
+      e.preventDefault();
+      // If already on dashboard, no need to navigate
+      if (location.pathname !== '/dashboard') {
+        navigate('/dashboard');
+      }
+    }
   };
 
   return (
@@ -46,10 +64,21 @@ const Layout = ({ children }) => {
             <DashboardIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Dashboard</span>}
           </Link>
-          <Link to="/learning" className="layout__nav-item">
-            <SchoolIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Learning</span>}
-          </Link>
+          
+          {isActive ? (
+            <Link to="/learning" className="layout__nav-item">
+              <SchoolIcon className="layout__nav-icon" />
+              {isExpanded && <span className="layout__nav-text">Learning</span>}
+            </Link>
+          ) : (
+            <Tooltip title="You have historical access only" placement="right">
+              <span className="layout__nav-item layout__nav-item--disabled" onClick={handleLearningClick}>
+                <SchoolIcon className="layout__nav-icon" />
+                {isExpanded && <span className="layout__nav-text">Learning</span>}
+              </span>
+            </Tooltip>
+          )}
+          
           <Link to="/gpt" className="layout__nav-item">
             <ChatIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">GPT-4-TURBO</span>}
@@ -58,6 +87,13 @@ const Layout = ({ children }) => {
             <CalendarMonthIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Calendar</span>}
           </Link>
+          
+          {isAdmin && (
+            <Link to="/admin-dashboard" className="layout__nav-item">
+              <AdminPanelSettingsIcon className="layout__nav-icon" />
+              {isExpanded && <span className="layout__nav-text">Admin Dashboard</span>}
+            </Link>
+          )}
         </div>
 
         <div className="layout__bottom-links">

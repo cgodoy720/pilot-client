@@ -9,8 +9,9 @@ function Calendar() {
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const navigate = useNavigate();
+  const [cohortFilter, setCohortFilter] = useState(null);
 
   useEffect(() => {
     const fetchCurriculumDays = async () => {
@@ -18,7 +19,14 @@ function Calendar() {
         setIsLoading(true);
         setError(null);
         
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/days`, {
+        let url = `${import.meta.env.VITE_API_URL}/api/curriculum/days`;
+        if (user.role === 'staff' || user.role === 'admin') {
+          if (cohortFilter) {
+            url += `?cohort=${cohortFilter}`;
+          }
+        }
+        
+        const response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -63,7 +71,7 @@ function Calendar() {
     };
     
     fetchCurriculumDays();
-  }, [token]);
+  }, [token, cohortFilter]);
 
   const handleEventClick = (clickInfo) => {
     console.log('Event clicked:', clickInfo.event);
@@ -83,13 +91,23 @@ function Calendar() {
     
     console.log('Today (local):', todayString, 'Clicked:', clickedDateString);
     
+    // For staff/admin users, pass the selected cohort
+    let url;
     if (clickedDateString === todayString) {
       // Today - navigate to Learning page
-      navigate(`/learning?dayNumber=${dayNumber}`);
+      url = `/learning?dayNumber=${dayNumber}`;
     } else {
       // Past or future day - navigate to PastSession page
-      navigate(`/past-session?dayNumber=${dayNumber}`);
+      url = `/past-session?dayNumber=${dayNumber}`;
     }
+
+    // If staff/admin user has selected a cohort, add it to the URL
+    if (cohortFilter && (user.role === 'staff' || user.role === 'admin')) {
+      url += `&cohort=${encodeURIComponent(cohortFilter)}`;
+    }
+    
+    console.log('Navigating to URL:', url);
+    navigate(url);
   };
 
   if (isLoading) {
@@ -117,22 +135,40 @@ function Calendar() {
       <div className="calendar__content">
         <div className="calendar-container">
           <div className="calendar-view">
-            <FullCalendar
-              plugins={[dayGridPlugin]}
-              initialView="dayGridMonth"
-              headerToolbar={{
-                left: 'prev,next today',
-                center: 'title',
-                right: ''
-              }}
-              events={events}
-              eventClick={handleEventClick}
-              eventDidMount={(info) => {
-                // Add tooltip
-                info.el.title = `${info.event.title}\nClick to view tasks`;
-              }}
-              height="calc(100vh - 120px)"
-            />
+            <div className="calendar__toolbar">
+              <FullCalendar
+                plugins={[dayGridPlugin]}
+                initialView="dayGridMonth"
+                headerToolbar={{
+                  left: 'prev,next today',
+                  center: 'title',
+                  right: ''
+                }}
+                events={events}
+                eventClick={handleEventClick}
+                eventDidMount={(info) => {
+                  // Add tooltip
+                  info.el.title = `${info.event.title}\nClick to view tasks`;
+                }}
+                height="calc(100vh - 120px)"
+              />
+              
+              {/* Render cohort selector in the toolbar space for staff/admin */}
+              {(user.role === 'staff' || user.role === 'admin') && (
+                <div className="calendar__cohort-filter">
+                  <label>Cohort:</label>
+                  <select 
+                    value={cohortFilter || ''} 
+                    onChange={(e) => setCohortFilter(e.target.value || null)}
+                  >
+                    <option value="">My Cohort</option>
+                    <option value="March 2025">March 2025</option>
+                    <option value="June 2025">June 2025</option>
+                    {/* Add more cohorts as needed */}
+                  </select>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

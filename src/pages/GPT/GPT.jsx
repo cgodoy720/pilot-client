@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getThreads, getThreadMessages, createThread, sendMessageToGPT } from '../../utils/api';
 
 function GPT() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [threads, setThreads] = useState([]);
   const [activeThread, setActiveThread] = useState(null); // Start with no active thread
   const [messages, setMessages] = useState([]);
@@ -18,6 +18,9 @@ function GPT() {
   const [isLoading, setIsLoading] = useState(true);
   const textareaRef = useRef(null);
   const messagesEndRef = useRef(null);
+
+  // Check if user is inactive (in historical access mode)
+  const isInactiveUser = user && user.active === false;
 
   // Fetch threads on component mount
   useEffect(() => {
@@ -110,6 +113,12 @@ function GPT() {
   };
 
   const handleCreateThread = async () => {
+    // Prevent inactive users from creating new threads
+    if (isInactiveUser) {
+      setError('You are in historical access mode and cannot create new conversations.');
+      return;
+    }
+
     try {
       setIsLoading(true);
       const data = await createThread(null, token);
@@ -138,6 +147,12 @@ function GPT() {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !activeThread || isSending) return;
+
+    // Prevent inactive users from sending messages
+    if (isInactiveUser) {
+      setError('You are in historical access mode and cannot send new messages.');
+      return;
+    }
 
     const messageToSend = newMessage;
     
@@ -302,6 +317,11 @@ function GPT() {
 
   return (
     <div className="gpt">
+      {isInactiveUser && (
+        <div className="historical-access-banner">
+          <p>Historical access mode: View past conversations only.</p>
+        </div>
+      )}
       <div className="gpt__content">
         <div className="gpt__chat-container">
           <div className={`gpt__sidebar ${!sidebarVisible ? 'gpt__sidebar--collapsed' : ''}`}>
@@ -311,8 +331,8 @@ function GPT() {
                 <button 
                   className="gpt__new-thread-btn"
                   onClick={handleCreateThread}
-                  title="New Conversation"
-                  disabled={isLoading}
+                  title={isInactiveUser ? "Cannot create new conversations in historical access mode" : "New Conversation"}
+                  disabled={isLoading || isInactiveUser}
                 >
                   <FaPlus size={14} />
                 </button>
@@ -362,14 +382,20 @@ function GPT() {
             {!activeThread ? (
               <div className="gpt__empty-state">
                 <h3 className="gpt__empty-state-title">Welcome to GPT-4-TURBO</h3>
-                <p className="gpt__empty-state-text">Start a new conversation or select an existing thread from the sidebar</p>
-                <button 
-                  className="gpt__empty-state-btn" 
-                  onClick={handleCreateThread}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Creating...' : 'New Conversation'}
-                </button>
+                <p className="gpt__empty-state-text">
+                  {isInactiveUser 
+                    ? "You can view your past conversations, but cannot create new ones in historical access mode." 
+                    : "Start a new conversation or select an existing thread from the sidebar"}
+                </p>
+                {!isInactiveUser && (
+                  <button 
+                    className="gpt__empty-state-btn" 
+                    onClick={handleCreateThread}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Creating...' : 'New Conversation'}
+                  </button>
+                )}
               </div>
             ) : (
               <>
@@ -378,7 +404,11 @@ function GPT() {
                     <div className="gpt__loading-messages">Loading messages...</div>
                   ) : messages.length === 0 ? (
                     <div className="gpt__empty-messages">
-                      <p>No messages yet. Start the conversation by sending a message below.</p>
+                      <p>
+                        {isInactiveUser 
+                          ? "This conversation has no messages."
+                          : "No messages yet. Start the conversation by sending a message below."}
+                      </p>
                     </div>
                   ) : (
                     messages.map((message) => (
@@ -421,16 +451,16 @@ function GPT() {
                         handleSendMessage(e);
                       }
                     }}
-                    placeholder={isSending ? "Sending..." : "Type your message..."}
-                    disabled={!activeThread || isSending || isLoading}
-                    className="gpt__input"
+                    placeholder={isInactiveUser ? "Historical access mode - cannot send messages" : isSending ? "Sending..." : "Type your message..."}
+                    disabled={!activeThread || isSending || isLoading || isInactiveUser}
+                    className={`gpt__input ${isInactiveUser ? 'gpt__input--disabled' : ''}`}
                   />
                   <button 
                     type="submit"
-                    disabled={!activeThread || !newMessage.trim() || isSending || isLoading}
-                    className="gpt__send-btn"
+                    disabled={!activeThread || !newMessage.trim() || isSending || isLoading || isInactiveUser}
+                    className={`gpt__send-btn ${isInactiveUser ? 'gpt__send-btn--disabled' : ''}`}
                   >
-                    {isSending ? "Sending..." : "Send"}
+                    {isInactiveUser ? "Historical" : isSending ? "Sending..." : "Send"}
                   </button>
                 </form>
               </>

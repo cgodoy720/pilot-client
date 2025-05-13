@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FaCheck, FaTimes, FaExclamationCircle, FaUsers, FaUser, FaSpinner, FaExclamationTriangle, FaSearch, FaFilter, FaCheckSquare, FaSquare } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
 import './PeerFeedbackForm.css';
 
 const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
+  const { user } = useAuth();
+  const isActive = user?.active !== false;
+  
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -75,6 +79,8 @@ const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
   
   // Toggle a peer selection
   const togglePeerSelection = (userId) => {
+    if (!isActive) return;
+    
     const userIdStr = userId.toString();
     
     if (selectedPeers.includes(userIdStr)) {
@@ -99,6 +105,8 @@ const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
   
   // Handle feedback text changes
   const handleFeedbackChange = (peerId, feedback) => {
+    if (!isActive) return;
+    
     setPeerFeedback({
       ...peerFeedback,
       [peerId]: feedback
@@ -107,6 +115,12 @@ const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
   
   // Submit peer feedback
   const handleSubmit = async () => {
+    // If user is inactive, don't allow submission
+    if (!isActive) {
+      setSubmitError('You have historical access only and cannot submit new feedback.');
+      return;
+    }
+    
     // Validate that peers are selected
     if (selectedPeers.length === 0) {
       setSubmitError('Please select at least one peer to provide feedback for.');
@@ -180,6 +194,25 @@ const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
             onClick={onCancel}
           >
             <FaTimes /> Skip Peer Feedback
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
+  // Display historical access notice for inactive users
+  if (!isActive) {
+    return (
+      <div className="peer-feedback">
+        <div className="peer-feedback__historical-notice">
+          <FaExclamationTriangle className="peer-feedback__notice-icon" />
+          <h3 className="peer-feedback__notice-title">Historical Access Only</h3>
+          <p>You have historical access only and cannot submit new peer feedback.</p>
+          <button 
+            className="peer-feedback__button peer-feedback__button--primary"
+            onClick={onCancel}
+          >
+            <FaTimes /> Go Back
           </button>
         </div>
       </div>
@@ -281,6 +314,7 @@ const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
                     value={peerFeedback[peerId] || ''}
                     onChange={(e) => handleFeedbackChange(peerId, e.target.value)}
                     placeholder={`Your feedback for ${formatName(user.first_name)}...`}
+                    disabled={!isActive}
                   />
                 </div>
               );
@@ -313,7 +347,7 @@ const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
         <button 
           className="peer-feedback__button peer-feedback__button--primary"
           onClick={handleSubmit}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !isActive}
         >
           {isSubmitting ? (
             <>

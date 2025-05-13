@@ -189,4 +189,24 @@
   flex-direction: column;
   gap: 0.5rem;
   padding-bottom: 0.5rem;
+}
+
+/* Disabled navigation item */
+.layout__nav-item--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  position: relative;
+}
+
+.layout__nav-item--disabled:hover {
+  background-color: transparent;
+  color: #e3e3e3;
+}
+
+.layout__nav-item--disabled .layout__nav-icon {
+  opacity: 0.5;
+}
+
+.layout__nav-item--disabled:hover .layout__nav-icon {
+  opacity: 0.5;
 } 

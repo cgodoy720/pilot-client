@@ -5,11 +5,12 @@ import GPT from './pages/GPT/GPT';
 import Calendar from './pages/Calendar/Calendar';
 import Learning from './pages/Learning/Learning';
 import PastSession from './pages/PastSession/PastSession';
+import AdminDashboard from './pages/AdminDashboard';
 import { useAuth } from './context/AuthContext';
 import './App.css';
 
 function App() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   // Protected route component
   const ProtectedRoute = ({ children }) => {
@@ -19,6 +20,28 @@ function App() {
     
     if (!isAuthenticated) {
       return <Navigate to="/login" replace />;
+    }
+    
+    return children;
+  };
+  
+  // Active user route protection component
+  const ActiveUserRoute = ({ children }) => {
+    const isActive = user?.active !== false;
+    
+    if (!isActive) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    
+    return children;
+  };
+
+  // Admin route protection component
+  const AdminRoute = ({ children }) => {
+    const isAdmin = user?.role === 'admin' || user?.role === 'staff';
+    
+    if (!isAdmin) {
+      return <Navigate to="/dashboard" replace />;
     }
     
     return children;
@@ -35,8 +58,17 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/gpt" element={<GPT />} />
         <Route path="/calendar" element={<Calendar />} />
-        <Route path="/learning" element={<Learning />} />
+        <Route path="/learning" element={
+          <ActiveUserRoute>
+            <Learning />
+          </ActiveUserRoute>
+        } />
         <Route path="/past-session" element={<PastSession />} />
+        <Route path="/admin-dashboard" element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+        } />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Layout>

@@ -1474,3 +1474,25 @@
   padding: 0;
   overflow-y: auto;
 }
+
+/* Add styles for the historical access banner */
+.learning__historical-banner {
+  background-color: rgba(31, 36, 54, 0.8);
+  color: #e0e0e0;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border-left: 4px solid var(--color-primary, #4242ea);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  line-height: 1.6;
+}
+
+.learning__historical-banner p {
+  margin: 0;
+}
