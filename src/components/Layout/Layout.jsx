@@ -9,6 +9,7 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LogoutIcon from '@mui/icons-material/Logout';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import SchoolIcon from '@mui/icons-material/School';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 import logo from '../../assets/logo.png'
@@ -22,6 +23,8 @@ const Layout = ({ children }) => {
   
   // Check if user has active status
   const isActive = user?.active !== false;
+  // Check if user is admin or staff
+  const isAdmin = user?.role === 'admin' || user?.role === 'staff';
 
   const handleLogout = () => {
     logout();
@@ -84,6 +87,13 @@ const Layout = ({ children }) => {
             <CalendarMonthIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Calendar</span>}
           </Link>
+          
+          {isAdmin && (
+            <Link to="/admin-dashboard" className="layout__nav-item">
+              <AdminPanelSettingsIcon className="layout__nav-icon" />
+              {isExpanded && <span className="layout__nav-text">Admin Dashboard</span>}
+            </Link>
+          )}
         </div>
 
         <div className="layout__bottom-links">

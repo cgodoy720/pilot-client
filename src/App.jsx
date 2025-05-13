@@ -5,6 +5,7 @@ import GPT from './pages/GPT/GPT';
 import Calendar from './pages/Calendar/Calendar';
 import Learning from './pages/Learning/Learning';
 import PastSession from './pages/PastSession/PastSession';
+import AdminDashboard from './pages/AdminDashboard';
 import { useAuth } from './context/AuthContext';
 import './App.css';
 
@@ -35,6 +36,17 @@ function App() {
     return children;
   };
 
+  // Admin route protection component
+  const AdminRoute = ({ children }) => {
+    const isAdmin = user?.role === 'admin' || user?.role === 'staff';
+    
+    if (!isAdmin) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    
+    return children;
+  };
+
   // If auth is still loading, show a minimal loading state
   if (isLoading) {
     return <div className="app-loading">Loading application...</div>;
@@ -52,6 +64,11 @@ function App() {
           </ActiveUserRoute>
         } />
         <Route path="/past-session" element={<PastSession />} />
+        <Route path="/admin-dashboard" element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+        } />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Layout>
