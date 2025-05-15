@@ -1,0 +1,426 @@
+.stats {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  height: calc(100vh - 80px);
+  overflow: hidden;
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
+}
+
+.stats__title {
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.stats__loading-container,
+.stats__error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 1rem;
+}
+
+.stats__overview {
+  margin-bottom: 1.5rem;
+}
+
+.stats__tabs-container {
+  background-color: var(--color-background-dark);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  border: 1px solid var(--color-border);
+  margin-bottom: 0.5rem;
+}
+
+.stats__tabs {
+  background-color: var(--color-background-darker);
+}
+
+.stats__tab-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+  max-height: calc(100vh - 300px);
+  flex: 1;
+}
+
+/* Empty state styling */
+.tasks-section__empty,
+.submissions-section__empty,
+.feedback-section__empty,
+.resources-section__empty {
+  background-color: var(--color-background-darker);
+  border-radius: 8px;
+  padding: 2rem;
+  border: 1px dashed var(--color-border);
+}
+
+.tasks-section__empty p,
+.submissions-section__empty p,
+.feedback-section__empty p,
+.resources-section__empty p {
+  color: var(--color-text-secondary) !important;
+  font-size: 0.95rem;
+}
+
+/* Progress card styles */
+.progress-card {
+  background-color: var(--color-background-dark) !important;
+  border-radius: 8px !important;
+  height: 100%;
+  transition: all 0.3s ease;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+.progress-card .MuiCardContent-root {
+  padding: 12px !important;
+}
+
+.progress-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.progress-card__title {
+  font-size: 0.9rem !important;
+  color: var(--color-text-muted) !important;
+  margin-bottom: 0.25rem !important;
+}
+
+.progress-card__value {
+  font-size: 1.75rem !important;
+  font-weight: 700 !important;
+  color: var(--color-text-primary) !important;
+  line-height: 1.2 !important;
+}
+
+.progress-card__subtitle {
+  font-size: 0.8rem !important;
+  color: var(--color-text-muted) !important;
+  margin-top: 0.25rem !important;
+}
+
+/* Table container */
+.MuiPaper-root.MuiTableContainer-root {
+  background-color: var(--color-background-dark) !important;
+  max-height: calc(100vh - 350px);
+  overflow-y: auto;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Table rows */
+.MuiTableRow-root:hover {
+  background-color: var(--color-primary-transparent) !important;
+}
+
+/* Table headers */
+.MuiTableCell-head {
+  background-color: var(--color-background-darker) !important;
+  color: var(--color-text-primary) !important;
+  font-weight: 600 !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1 !important;
+  padding: 16px !important;
+}
+
+/* Table cells */
+.MuiTableCell-body {
+  color: var(--color-text-secondary) !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  padding: 16px !important;
+}
+
+/* Chips */
+.MuiChip-root {
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+}
+
+.MuiChip-colorSuccess {
+  background-color: rgba(46, 174, 79, 0.2) !important;
+  color: #2eae4f !important;
+}
+
+.MuiChip-colorWarning {
+  background-color: rgba(255, 171, 0, 0.2) !important;
+  color: #ffab00 !important;
+}
+
+.MuiChip-colorError {
+  background-color: rgba(255, 79, 79, 0.2) !important;
+  color: var(--color-error) !important;
+}
+
+.MuiChip-colorInfo {
+  background-color: var(--color-primary-transparent) !important;
+  color: var(--color-primary) !important;
+}
+
+/* Search and filter components */
+.MuiTextField-root .MuiOutlinedInput-root,
+.MuiFormControl-root .MuiOutlinedInput-root {
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
+}
+
+.MuiTextField-root .MuiOutlinedInput-notchedOutline,
+.MuiFormControl-root .MuiOutlinedInput-notchedOutline {
+  border-color: var(--color-border);
+}
+
+.MuiTextField-root .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline,
+.MuiFormControl-root .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: var(--color-primary);
+}
+
+/* Input adornment icons in search fields and dropdowns */
+.MuiInputAdornment-root .MuiSvgIcon-root {
+  color: var(--color-text-secondary) !important;
+  opacity: 0.8;
+}
+
+/* Select dropdown icon */
+.MuiSelect-icon {
+  color: var(--color-text-secondary) !important;
+}
+
+.MuiInputLabel-root {
+  color: var(--color-text-muted) !important;
+}
+
+.MuiIconButton-root {
+  color: var(--color-text-muted) !important;
+}
+
+.MuiIconButton-root:hover {
+  color: var(--color-primary) !important;
+  background-color: var(--color-primary-transparent-light) !important;
+}
+
+/* Tasks, submissions and feedback sections */
+.tasks-section,
+.submissions-section,
+.feedback-section,
+.resources-section {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tasks-section__filters,
+.submissions-section__filters {
+  margin-bottom: 1rem;
+}
+
+.tasks-section__table-container,
+.submissions-section__table-container {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.feedback-section__content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.feedback-section__list {
+  max-height: 100%;
+  overflow-y: auto;
+  padding-bottom: 1rem !important;
+}
+
+/* Feedback cards */
+.feedback-section .MuiCard-root {
+  background-color: var(--color-background-dark) !important;
+  border: 1px solid var(--color-border);
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+}
+
+.feedback-section .MuiCard-root:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.feedback-section .MuiCard-root .MuiPaper-root {
+  background-color: var(--color-background-darker) !important;
+}
+
+/* Dialog styling */
+.MuiDialog-paper {
+  background-color: var(--color-background-dark) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.MuiDialogTitle-root {
+  background-color: var(--color-background-darker) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.MuiDialogContent-root {
+  background-color: var(--color-background-dark) !important;
+  color: var(--color-text-secondary) !important;
+}
+
+.MuiDialogActions-root {
+  background-color: var(--color-background-darker) !important;
+}
+
+.MuiButton-root {
+  color: var(--color-primary) !important;
+}
+
+.MuiButton-root:hover {
+  background-color: var(--color-primary-transparent) !important;
+}
+
+/* Custom scrollbar styles */
+.stats__tab-content::-webkit-scrollbar,
+.tasks-section__table-container::-webkit-scrollbar,
+.submissions-section__table-container::-webkit-scrollbar,
+.feedback-section__list::-webkit-scrollbar,
+.resources-section__list-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.stats__tab-content::-webkit-scrollbar-track,
+.tasks-section__table-container::-webkit-scrollbar-track,
+.submissions-section__table-container::-webkit-scrollbar-track,
+.feedback-section__list::-webkit-scrollbar-track,
+.resources-section__list-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.stats__tab-content::-webkit-scrollbar-thumb,
+.tasks-section__table-container::-webkit-scrollbar-thumb,
+.submissions-section__table-container::-webkit-scrollbar-thumb,
+.feedback-section__list::-webkit-scrollbar-thumb,
+.resources-section__list-container::-webkit-scrollbar-thumb {
+  background-color: var(--color-primary);
+  border-radius: 3px;
+}
+
+/* Tab styling */
+.MuiTab-root {
+  color: var(--color-text-muted) !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+  font-size: 0.95rem !important;
+}
+
+.MuiTab-root.Mui-selected {
+  color: var(--color-primary) !important;
+}
+
+.MuiTabs-indicator {
+  background-color: var(--color-primary) !important;
+}
+
+/* Fix for Material-UI LinearProgress */
+.MuiLinearProgress-root {
+  background-color: var(--color-background-darker) !important;
+}
+
+.MuiLinearProgress-barColorPrimary {
+  background-color: var(--color-primary) !important;
+}
+
+/* Resources Section styles */
+.resources-section__title {
+  margin-bottom: 1rem;
+  color: var(--color-text-primary);
+}
+
+.resources-section__task {
+  margin-bottom: 1rem !important;
+  background-color: var(--color-background-dark) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 8px !important;
+}
+
+.resources-section__task-header {
+  background-color: var(--color-background-darker) !important;
+}
+
+.resources-section__task-title {
+  color: var(--color-text-primary) !important;
+  font-weight: 500 !important;
+}
+
+.resources-section__task-resources {
+  background-color: var(--color-background-dark) !important;
+  padding: 0 !important;
+}
+
+.resources-section__empty-card {
+  background-color: var(--color-background-darker) !important;
+  border-radius: 8px !important;
+  border: 1px dashed var(--color-border) !important;
+  padding: 2rem !important;
+}
+
+/* New flat resource list styles */
+.resources-section__list-container {
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.resources-section__list {
+  background-color: var(--color-background-dark) !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--color-border) !important;
+  overflow: hidden !important;
+}
+
+.resources-section__list-item {
+  padding: 12px 16px !important;
+  transition: all 0.2s ease !important;
+}
+
+.resources-section__list-item:hover {
+  background-color: rgba(66, 66, 234, 0.05) !important;
+}
+
+.resources-section__resource-title {
+  color: var(--color-text-primary) !important;
+  font-weight: 500 !important;
+}
+
+.resources-section__resource-description {
+  color: var(--color-text-secondary) !important;
+  margin-bottom: 4px !important;
+}
+
+.resources-section__resource-task {
+  color: var(--color-text-muted) !important;
+}
+
+.resources-section__search .MuiInputBase-root {
+  background-color: var(--color-background-darker) !important;
+  border-color: var(--color-border) !important;
+}
+
+.resources-section__search .MuiOutlinedInput-notchedOutline {
+  border-color: var(--color-border) !important;
+}
+
+.resources-section__search .MuiInputBase-input {
+  color: var(--color-text-primary) !important;
+}
+
+.resources-section__search .MuiInputAdornment-root .MuiSvgIcon-root {
+  color: var(--color-text-secondary) !important;
+} 

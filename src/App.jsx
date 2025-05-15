@@ -5,7 +5,8 @@ import GPT from './pages/GPT/GPT';
 import Calendar from './pages/Calendar/Calendar';
 import Learning from './pages/Learning/Learning';
 import PastSession from './pages/PastSession/PastSession';
-import AdminDashboard from './pages/AdminDashboard';
+import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
+import Stats from './pages/Stats';
 import { useAuth } from './context/AuthContext';
 import './App.css';
 
@@ -69,6 +70,7 @@ function App() {
             <AdminDashboard />
           </AdminRoute>
         } />
+        <Route path="/stats" element={<Stats />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Layout>
