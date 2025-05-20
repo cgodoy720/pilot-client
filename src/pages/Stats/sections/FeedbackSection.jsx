@@ -4,10 +4,15 @@ import {
   Typography, 
   Paper,
   CircularProgress,
-  Divider
+  Divider,
+  Grid,
+  Chip
 } from '@mui/material';
 import { useAuth } from '../../../context/AuthContext';
 import { fetchFeedbackSentiment } from '../../../utils/statsApi';
+import SentimentSatisfiedIcon from '@mui/icons-material/SentimentSatisfied';
+import SentimentNeutralIcon from '@mui/icons-material/SentimentNeutral';
+import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentDissatisfied';
 
 const FeedbackSection = () => {
   const { token } = useAuth();
@@ -35,7 +40,17 @@ const FeedbackSection = () => {
     loadSentimentData();
   }, [token]);
 
-  console.log('Current state:', { loading, error, sentimentData });
+  const getSentimentIcon = (score) => {
+    if (score >= 0.6) return <SentimentSatisfiedIcon color="success" />;
+    if (score >= 0.4) return <SentimentNeutralIcon color="warning" />;
+    return <SentimentDissatisfiedIcon color="error" />;
+  };
+
+  const getSentimentColor = (score) => {
+    if (score >= 0.6) return 'success';
+    if (score >= 0.4) return 'warning';
+    return 'error';
+  };
 
   if (loading) {
     return (
@@ -61,46 +76,93 @@ const FeedbackSection = () => {
   if (!sentimentData || sentimentData.length === 0) {
     return (
       <Box textAlign="center" py={4}>
-        <Typography color="textSecondary">No sentiment analysis available yet.</Typography>
+        <Typography sx={{ color: 'var(--color-text-secondary)' }}>
+          No sentiment analysis available yet.
+        </Typography>
       </Box>
     );
   }
 
   return (
     <Box className="feedback-section">
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" gutterBottom sx={{ color: 'var(--color-text-primary)' }}>
         Feedback Sentiment Analysis
       </Typography>
-      <Paper 
-        variant="outlined" 
-        sx={{ 
-          p: 2, 
-          backgroundColor: 'var(--color-background-darker)',
-          border: '1px solid var(--color-border)'
-        }}
-      >
-        {sentimentData.map((item, index) => {
-          console.log('Rendering sentiment item:', item);
-          return (
-            <Box key={index} mb={index < sentimentData.length - 1 ? 2 : 0}>
-              <Typography variant="subtitle2" color="primary" gutterBottom>
-                {item.sentiment_type}
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                {item.analysis}
-              </Typography>
-              {item.score && (
-                <Box mt={1}>
-                  <Typography variant="caption" color="textSecondary">
-                    Confidence Score: {item.score}%
+      <Grid container spacing={2}>
+        {sentimentData.map((item, index) => (
+          <Grid item xs={12} key={index}>
+            <Paper 
+              variant="outlined" 
+              sx={{ 
+                p: 2, 
+                backgroundColor: 'var(--color-background-darker)',
+                border: '1px solid var(--color-border)'
+              }}
+            >
+              <Box display="flex" alignItems="center" gap={1}>
+                {getSentimentIcon(item.sentiment_score)}
+                <Typography variant="subtitle1" sx={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>
+                  {item.sentiment_type}
+                </Typography>
+                <Chip 
+                  label={`${Math.round(item.sentiment_score * 100)}%`}
+                  color={getSentimentColor(item.sentiment_score)}
+                  size="small"
+                  sx={{ ml: 'auto' }}
+                />
+              </Box>
+              {item.summary && (
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: 'var(--color-text-primary)',
+                    whiteSpace: 'pre-wrap',
+                    p: 2,
+                    pt: 1,
+                    backgroundColor: 'var(--color-background)',
+                    borderRadius: 1
+                  }}
+                >
+                  {item.summary}
+                </Typography>
+              )}
+              {item.analysis && (
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: 'var(--color-text-primary)',
+                    whiteSpace: 'pre-wrap'
+                  }}
+                >
+                  {item.analysis}
+                </Typography>
+              )}
+              {item.key_phrases && item.key_phrases.length > 0 && (
+                <Box mt={2}>
+                  <Typography variant="subtitle2" sx={{ color: 'var(--color-text-primary)', mb: 1 }}>
+                    Key Phrases:
                   </Typography>
+                  <Box display="flex" flexWrap="wrap" gap={1}>
+                    {item.key_phrases.map((phrase, idx) => (
+                      <Chip
+                        key={idx}
+                        label={phrase}
+                        size="small"
+                        variant="outlined"
+                        sx={{ 
+                          backgroundColor: 'var(--color-background)',
+                          borderColor: 'var(--color-border)',
+                          color: 'var(--color-text-primary)'
+                        }}
+                      />
+                    ))}
+                  </Box>
                 </Box>
               )}
-              {index < sentimentData.length - 1 && <Divider sx={{ my: 2 }} />}
-            </Box>
-          );
-        })}
-      </Paper>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
     </Box>
   );
 };
