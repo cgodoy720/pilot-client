@@ -84,7 +84,7 @@ const Stats = () => {
                 aria-label="Statistics tabs"
               >
                 <Tab label="Tasks" id="stats-tab-0" aria-controls="stats-tabpanel-0" />
-                <Tab label="Submissions" id="stats-tab-1" aria-controls="stats-tabpanel-1" />
+                <Tab label="Deliverable Submissions" id="stats-tab-1" aria-controls="stats-tabpanel-1" />
                 <Tab label="Feedback" id="stats-tab-2" aria-controls="stats-tabpanel-2" />
                 <Tab label="Resources" id="stats-tab-3" aria-controls="stats-tabpanel-3" />
               </Tabs>

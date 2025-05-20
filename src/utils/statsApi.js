@@ -63,4 +63,23 @@ export const fetchSubmissionDetails = async (submissionId, token) => {
  */
 export const fetchUserResources = async (token) => {
   return fetchWithAuth('/api/users/resources', { method: 'GET' }, token);
+};
+
+/**
+ * Fetch feedback sentiment analysis for the user
+ * @param {string} token - User's auth token
+ * @returns {Promise} Promise that resolves to sentiment analysis data
+ */
+export const fetchFeedbackSentiment = async (token) => {
+  try {
+    console.log('Making request to /api/users/feedback-sentiment');
+    const response = await fetchWithAuth('/api/users/feedback-sentiment', { method: 'GET' }, token);
+    console.log('Response received:', response);
+    
+    // The response is already parsed JSON data, so we can return it directly
+    return response;
+  } catch (error) {
+    console.error('Error in fetchFeedbackSentiment:', error);
+    throw error;
+  }
 }; 

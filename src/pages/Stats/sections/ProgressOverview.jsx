@@ -3,22 +3,19 @@ import { Grid, Card, CardContent, Typography, Box, LinearProgress } from '@mui/m
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import SendIcon from '@mui/icons-material/Send';
 import RateReviewIcon from '@mui/icons-material/RateReview';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 
 const ProgressOverview = ({ stats }) => {
-  const { tasks, submissions, feedback } = stats;
+  const { tasks, submissions, feedback, promptCount, deliverables } = stats;
   
   // Calculate completion percentages
   const taskCompletionPercentage = tasks && tasks.length > 0
     ? (tasks.filter(task => task.completed).length / tasks.length) * 100
     : 0;
   
-  const submissionCompletionPercentage = tasks && tasks.length > 0
-    ? (submissions.length / tasks.length) * 100
+  const deliverableCompletionPercentage = deliverables && deliverables.total > 0
+    ? (deliverables.submitted / deliverables.total) * 100
     : 0;
-  
-  // Calculate streak (placeholder - actual calculation would depend on your data)
-  const currentStreak = stats.dailyProgress?.currentStreak || 0;
 
   return (
     <Grid container spacing={2}>
@@ -55,33 +52,24 @@ const ProgressOverview = ({ stats }) => {
         </Card>
       </Grid>
 
-      {/* Submissions Card */}
+      {/* Prompts Sent Card */}
       <Grid item xs={12} sm={6} md={3}>
         <Card className="progress-card">
           <CardContent>
             <Box display="flex" justifyContent="space-between" alignItems="center">
               <Box>
                 <Typography className="progress-card__title" gutterBottom>
-                  Submissions
+                  Prompts Sent
                 </Typography>
                 <Typography className="progress-card__value">
-                  {submissions ? submissions.length : '0'}
+                  {promptCount || 0}
                 </Typography>
               </Box>
               <SendIcon fontSize="medium" style={{ opacity: 0.8, color: 'var(--color-primary)' }} />
             </Box>
             <Box mt={1}>
-              <LinearProgress 
-                variant="determinate" 
-                value={submissionCompletionPercentage} 
-                style={{ 
-                  height: 6, 
-                  borderRadius: 3,
-                  backgroundColor: 'var(--color-background-darker)'
-                }}
-              />
-              <Typography variant="body2" className="progress-card__subtitle" align="right">
-                {submissionCompletionPercentage.toFixed(0)}% of Tasks
+              <Typography variant="body2" className="progress-card__subtitle">
+                Messages sent to Claude
               </Typography>
             </Box>
           </CardContent>
@@ -98,41 +86,47 @@ const ProgressOverview = ({ stats }) => {
                   Feedback Received
                 </Typography>
                 <Typography className="progress-card__value">
-                  {feedback?.received?.length || 0}
+                  {feedback?.peerFeedback?.length || 0}
                 </Typography>
               </Box>
               <RateReviewIcon fontSize="medium" style={{ opacity: 0.8, color: 'var(--color-primary)' }} />
             </Box>
             <Box mt={1}>
               <Typography variant="body2" className="progress-card__subtitle">
-                Instructor: {feedback?.instructorFeedback?.length || 0}
-              </Typography>
-              <Typography variant="body2" className="progress-card__subtitle">
-                Peer: {feedback?.peerFeedback?.length || 0}
+                Peer feedback entries
               </Typography>
             </Box>
           </CardContent>
         </Card>
       </Grid>
 
-      {/* Streak Card */}
+      {/* Deliverables Card */}
       <Grid item xs={12} sm={6} md={3}>
         <Card className="progress-card">
           <CardContent>
             <Box display="flex" justifyContent="space-between" alignItems="center">
               <Box>
                 <Typography className="progress-card__title" gutterBottom>
-                  Current Streak
+                  Deliverables Submitted
                 </Typography>
                 <Typography className="progress-card__value">
-                  {currentStreak} Days
+                  {deliverables ? `${deliverables.submitted}/${deliverables.total}` : '0/0'}
                 </Typography>
               </Box>
-              <TrendingUpIcon fontSize="medium" style={{ opacity: 0.8, color: 'var(--color-primary)' }} />
+              <AssignmentTurnedInIcon fontSize="medium" style={{ opacity: 0.8, color: 'var(--color-primary)' }} />
             </Box>
             <Box mt={1}>
-              <Typography variant="body2" className="progress-card__subtitle">
-                Best Streak: {stats.dailyProgress?.bestStreak || 0} Days
+              <LinearProgress 
+                variant="determinate" 
+                value={deliverableCompletionPercentage} 
+                style={{ 
+                  height: 6, 
+                  borderRadius: 3,
+                  backgroundColor: 'var(--color-background-darker)'
+                }}
+              />
+              <Typography variant="body2" className="progress-card__subtitle" align="right">
+                {deliverableCompletionPercentage.toFixed(0)}% Submitted
               </Typography>
             </Box>
           </CardContent>

@@ -22,9 +22,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import PendingIcon from '@mui/icons-material/Pending';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
+import CommentIcon from '@mui/icons-material/Comment';
 
 const SubmissionsSection = ({ submissions = [] }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -51,23 +49,17 @@ const SubmissionsSection = ({ submissions = [] }) => {
     setDialogOpen(false);
   };
 
-  // Get submission status display
-  const getStatusDisplay = (submission) => {
-    if (submission.status === 'approved') {
-      return <Chip icon={<CheckCircleIcon />} label="Approved" color="success" size="small" />;
-    } else if (submission.status === 'rejected') {
-      return <Chip icon={<CancelIcon />} label="Needs Revision" color="error" size="small" />;
-    } else {
-      return <Chip icon={<PendingIcon />} label="Pending Review" color="warning" size="small" />;
-    }
-  };
-
   // Get feedback status
   const getFeedbackStatus = (submission) => {
-    if (submission.feedback) {
-      return <Chip label="Feedback Available" color="info" size="small" variant="outlined" />;
+    // Check for AI feedback in the analysis results
+    if (submission.analysis_results && Object.keys(submission.analysis_results).length > 0) {
+      const firstKey = Object.keys(submission.analysis_results)[0];
+      const analysis = submission.analysis_results[firstKey];
+      if (analysis && analysis.feedback && analysis.feedback.trim() !== '') {
+        return <Chip icon={<CommentIcon fontSize="small" />} label="AI Feedback" color="info" size="small" variant="outlined" />;
+      }
     }
-    return <Chip label="No Feedback Yet" size="small" variant="outlined" sx={{ opacity: 0.6 }} />;
+    return <Chip label="No Feedback" size="small" variant="outlined" sx={{ opacity: 0.6 }} />;
   };
 
   // Format date for better display
@@ -140,9 +132,8 @@ const SubmissionsSection = ({ submissions = [] }) => {
           <Table stickyHeader aria-label="submissions table">
             <TableHead>
               <TableRow>
-                <TableCell width="40%">Task</TableCell>
-                <TableCell width="20%">Submitted Date</TableCell>
-                <TableCell width="15%">Status</TableCell>
+                <TableCell width="50%">Task</TableCell>
+                <TableCell width="25%">Submitted Date</TableCell>
                 <TableCell width="15%">Feedback</TableCell>
                 <TableCell width="10%">Actions</TableCell>
               </TableRow>
@@ -161,7 +152,6 @@ const SubmissionsSection = ({ submissions = [] }) => {
                     <Typography variant="body1" fontWeight="500">{submission.task_title}</Typography>
                   </TableCell>
                   <TableCell>{formatDate(submission.submitted_date)}</TableCell>
-                  <TableCell>{getStatusDisplay(submission)}</TableCell>
                   <TableCell>{getFeedbackStatus(submission)}</TableCell>
                   <TableCell>
                     <IconButton 
@@ -213,23 +203,16 @@ const SubmissionsSection = ({ submissions = [] }) => {
             </DialogTitle>
             <DialogContent dividers>
               <Box mb={3}>
-                <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                  Status
-                </Typography>
-                {getStatusDisplay(selectedSubmission)}
-              </Box>
-              
-              <Box mb={3}>
-                <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                <Typography variant="subtitle2" sx={{ color: 'var(--color-text-primary)', fontWeight: 500 }} gutterBottom>
                   Submitted on
                 </Typography>
-                <Typography>
+                <Typography sx={{ color: 'var(--color-text-primary)' }}>
                   {formatDateTime(selectedSubmission.submitted_date)}
                 </Typography>
               </Box>
               
               <Box mb={3}>
-                <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                <Typography variant="subtitle2" sx={{ color: 'var(--color-text-primary)', fontWeight: 500 }} gutterBottom>
                   Your Submission
                 </Typography>
                 <Paper 
@@ -240,16 +223,28 @@ const SubmissionsSection = ({ submissions = [] }) => {
                     border: '1px solid var(--color-border)'
                   }}
                 >
-                  <Typography whiteSpace="pre-wrap">
+                  <Typography whiteSpace="pre-wrap" sx={{ color: 'var(--color-text-primary)' }}>
                     {selectedSubmission.content}
                   </Typography>
+                  {selectedSubmission.content?.startsWith('http') && (
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      href={selectedSubmission.content}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{ mt: 2 }}
+                    >
+                      Open Submission
+                    </Button>
+                  )}
                 </Paper>
               </Box>
               
-              {selectedSubmission.feedback && (
+              {selectedSubmission.analysis_results && Object.keys(selectedSubmission.analysis_results).length > 0 ? (
                 <Box>
-                  <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                    Feedback
+                  <Typography variant="subtitle2" sx={{ color: 'var(--color-text-primary)', fontWeight: 500 }} gutterBottom>
+                    AI Feedback
                   </Typography>
                   <Paper 
                     variant="outlined" 
@@ -259,8 +254,64 @@ const SubmissionsSection = ({ submissions = [] }) => {
                       border: '1px solid var(--color-primary-transparent)'
                     }}
                   >
-                    <Typography whiteSpace="pre-wrap">
-                      {selectedSubmission.feedback}
+                    {Object.entries(selectedSubmission.analysis_results).map(([key, analysis]) => (
+                      <Box key={key} mb={2}>
+                        {analysis.feedback && (
+                          <Typography whiteSpace="pre-wrap" sx={{ color: 'var(--color-text-primary)' }}>
+                            {analysis.feedback}
+                          </Typography>
+                        )}
+                        {analysis.criteria_met && analysis.criteria_met.length > 0 && (
+                          <Box mt={2}>
+                            <Typography variant="subtitle2" sx={{ color: 'var(--color-text-primary)', fontWeight: 500 }} gutterBottom>
+                              Criteria Met:
+                            </Typography>
+                            <ul style={{ margin: 0, paddingLeft: '20px', listStyleType: 'disc' }}>
+                              {analysis.criteria_met.map((criterion, index) => (
+                                <li key={index} style={{ color: 'var(--color-text-primary)' }}>
+                                  <Typography variant="body2" sx={{ color: 'var(--color-text-primary)' }}>
+                                    {criterion}
+                                  </Typography>
+                                </li>
+                              ))}
+                            </ul>
+                          </Box>
+                        )}
+                        {analysis.areas_for_improvement && analysis.areas_for_improvement.length > 0 && (
+                          <Box mt={2}>
+                            <Typography variant="subtitle2" sx={{ color: 'var(--color-text-primary)', fontWeight: 500 }} gutterBottom>
+                              Areas for Improvement:
+                            </Typography>
+                            <ul style={{ margin: 0, paddingLeft: '20px', listStyleType: 'disc' }}>
+                              {analysis.areas_for_improvement.map((area, index) => (
+                                <li key={index} style={{ color: 'var(--color-text-primary)' }}>
+                                  <Typography variant="body2" sx={{ color: 'var(--color-text-primary)' }}>
+                                    {area}
+                                  </Typography>
+                                </li>
+                              ))}
+                            </ul>
+                          </Box>
+                        )}
+                      </Box>
+                    ))}
+                  </Paper>
+                </Box>
+              ) : (
+                <Box>
+                  <Typography variant="subtitle2" sx={{ color: 'var(--color-text-primary)', fontWeight: 500 }} gutterBottom>
+                    Feedback
+                  </Typography>
+                  <Paper 
+                    variant="outlined" 
+                    sx={{ 
+                      p: 2, 
+                      backgroundColor: 'var(--color-background-darker)',
+                      border: '1px solid var(--color-border)'
+                    }}
+                  >
+                    <Typography sx={{ color: 'var(--color-text-muted)' }}>
+                      No feedback has been provided for this submission.
                     </Typography>
                   </Paper>
                 </Box>
