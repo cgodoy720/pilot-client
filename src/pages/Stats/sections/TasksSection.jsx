@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Box, 
   Typography, 
@@ -27,6 +28,7 @@ import CloseIcon from '@mui/icons-material/Close';
 const TasksSection = ({ tasks = [] }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const navigate = useNavigate();
   
   // Filter tasks based on search and status
   const filteredTasks = tasks.filter(task => {
@@ -46,6 +48,20 @@ const TasksSection = ({ tasks = [] }) => {
 
   const handleStatusChange = (event) => {
     setStatusFilter(event.target.value);
+  };
+
+  // Handle task click - navigate to past session
+  const handleTaskClick = (task) => {
+    console.log('Navigating to task:', task);
+    
+    // Check if we have day_id or day_number
+    if (task.day_id) {
+      navigate(`/past-session?dayId=${task.day_id}`);
+    } else if (task.day_number) {
+      navigate(`/past-session?dayNumber=${task.day_number}`);
+    } else {
+      console.error('No day_id or day_number found for this task');
+    }
   };
 
   // Get task status display
@@ -145,7 +161,9 @@ const TasksSection = ({ tasks = [] }) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredTasks.map((task) => (
+              {filteredTasks.map((task) => {
+                console.log('Task object in Stats:', task);
+                return (
                 <TableRow key={task.task_id} 
                   sx={{ 
                     '&:hover': { 
@@ -153,6 +171,7 @@ const TasksSection = ({ tasks = [] }) => {
                       cursor: 'pointer'
                     }
                   }}
+                  onClick={() => handleTaskClick(task)}
                 >
                   <TableCell>
                     <Typography variant="body1" fontWeight="500">{task.title}</Typography>
@@ -177,7 +196,7 @@ const TasksSection = ({ tasks = [] }) => {
                   <TableCell>{formatDate(task.assigned_date)}</TableCell>
                   <TableCell>{getStatusDisplay(task)}</TableCell>
                 </TableRow>
-              ))}
+              )})}
             </TableBody>
           </Table>
         </TableContainer>
