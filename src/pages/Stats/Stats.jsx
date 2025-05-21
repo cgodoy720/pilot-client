@@ -12,6 +12,8 @@ import { fetchUserStats } from '../../utils/statsApi';
 import TasksSection from './sections/TasksSection';
 import SubmissionsSection from './sections/SubmissionsSection';
 import FeedbackSection from './sections/FeedbackSection';
+import WorkProductSection from './sections/WorkProductSection';
+import ComprehensionSection from './sections/ComprehensionSection';
 import ResourcesSection from './sections/ResourcesSection';
 import ProgressOverview from './sections/ProgressOverview';
 import './Stats.css';
@@ -86,7 +88,9 @@ const Stats = () => {
                 <Tab label="Tasks" id="stats-tab-0" aria-controls="stats-tabpanel-0" />
                 <Tab label="Deliverable Submissions" id="stats-tab-1" aria-controls="stats-tabpanel-1" />
                 <Tab label="Feedback" id="stats-tab-2" aria-controls="stats-tabpanel-2" />
-                <Tab label="Resources" id="stats-tab-3" aria-controls="stats-tabpanel-3" />
+                <Tab label="Work Product" id="stats-tab-3" aria-controls="stats-tabpanel-3" />
+                <Tab label="Comprehension" id="stats-tab-4" aria-controls="stats-tabpanel-4" />
+                <Tab label="Resources" id="stats-tab-5" aria-controls="stats-tabpanel-5" />
               </Tabs>
 
               <Box 
@@ -97,8 +101,10 @@ const Stats = () => {
               >
                 {activeTab === 0 && <TasksSection tasks={stats.tasks} />}
                 {activeTab === 1 && <SubmissionsSection submissions={stats.submissions} />}
-                {activeTab === 2 && <FeedbackSection feedback={stats.feedback} />}
-                {activeTab === 3 && <ResourcesSection />}
+                {activeTab === 2 && <FeedbackSection feedback={stats.feedback} user={user} />}
+                {activeTab === 3 && <WorkProductSection />}
+                {activeTab === 4 && <ComprehensionSection />}
+                {activeTab === 5 && <ResourcesSection />}
               </Box>
             </Box>
           </>
