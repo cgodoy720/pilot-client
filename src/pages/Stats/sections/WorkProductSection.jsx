@@ -329,7 +329,7 @@ const WorkProductSection = () => {
           maxWidth: '800px',
           maxHeight: '90vh',
           overflow: 'auto',
-          bgcolor: 'var(--color-background-darker)',
+          bgcolor: '#171c28',
           border: '1px solid var(--color-border)',
           borderRadius: 1,
           boxShadow: 24,

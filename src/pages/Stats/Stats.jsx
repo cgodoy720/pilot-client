@@ -9,8 +9,6 @@ import {
 } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 import { fetchUserStats } from '../../utils/statsApi';
-import TasksSection from './sections/TasksSection';
-import SubmissionsSection from './sections/SubmissionsSection';
 import FeedbackSection from './sections/FeedbackSection';
 import WorkProductSection from './sections/WorkProductSection';
 import ComprehensionSection from './sections/ComprehensionSection';
@@ -85,12 +83,10 @@ const Stats = () => {
                 variant="fullWidth"
                 aria-label="Statistics tabs"
               >
-                <Tab label="Tasks" id="stats-tab-0" aria-controls="stats-tabpanel-0" />
-                <Tab label="Deliverable Submissions" id="stats-tab-1" aria-controls="stats-tabpanel-1" />
+                <Tab label="Work Product" id="stats-tab-0" aria-controls="stats-tabpanel-0" />
+                <Tab label="Comprehension" id="stats-tab-1" aria-controls="stats-tabpanel-1" />
                 <Tab label="Feedback" id="stats-tab-2" aria-controls="stats-tabpanel-2" />
-                <Tab label="Work Product" id="stats-tab-3" aria-controls="stats-tabpanel-3" />
-                <Tab label="Comprehension" id="stats-tab-4" aria-controls="stats-tabpanel-4" />
-                <Tab label="Resources" id="stats-tab-5" aria-controls="stats-tabpanel-5" />
+                <Tab label="Resources" id="stats-tab-3" aria-controls="stats-tabpanel-3" />
               </Tabs>
 
               <Box 
@@ -99,12 +95,10 @@ const Stats = () => {
                 id={`stats-tabpanel-${activeTab}`}
                 aria-labelledby={`stats-tab-${activeTab}`}
               >
-                {activeTab === 0 && <TasksSection tasks={stats.tasks} />}
-                {activeTab === 1 && <SubmissionsSection submissions={stats.submissions} />}
+                {activeTab === 0 && <WorkProductSection />}
+                {activeTab === 1 && <ComprehensionSection />}
                 {activeTab === 2 && <FeedbackSection feedback={stats.feedback} user={user} />}
-                {activeTab === 3 && <WorkProductSection />}
-                {activeTab === 4 && <ComprehensionSection />}
-                {activeTab === 5 && <ResourcesSection />}
+                {activeTab === 3 && <ResourcesSection />}
               </Box>
             </Box>
           </>
