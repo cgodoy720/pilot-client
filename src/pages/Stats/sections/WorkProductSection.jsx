@@ -90,17 +90,26 @@ const WorkProductSection = ({ cohortMonth }) => {
   };
 
   const getGradeColor = (score) => {
+    if (score === 0) return 'error';
+    if (score === null || score === undefined || isNaN(score)) return 'error';
+    
     if (score >= 80) return 'success';
-    if (score >= 60) return 'warning';
+    if (score >= 50) return 'warning';
     return 'error';
   };
 
   const getGradeLabel = (score) => {
-    if (score >= 90) return 'A';
-    if (score >= 80) return 'B';
-    if (score >= 70) return 'C';
-    if (score >= 60) return 'D';
-    return 'F';
+    if (score === 0) return "Document Access Error";
+    if (score === null || score === undefined || isNaN(score)) return "F";
+    
+    if (score >= 93) return 'A+';
+    if (score >= 85) return 'A';
+    if (score >= 80) return 'A-';
+    if (score >= 70) return 'B+';
+    if (score >= 60) return 'B';
+    if (score >= 50) return 'B-';
+    if (score >= 40) return 'C+';
+    return 'C';
   };
 
   const getCompletionScore = (item) => {
