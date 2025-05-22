@@ -18,14 +18,16 @@ import { useAuth } from '../../../context/AuthContext';
 import { fetchExternalComprehension } from '../../../utils/statsApi';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import CloseIcon from '@mui/icons-material/Close';
+import MonthFilter from '../../../components/MonthFilter';
 
-const ComprehensionSection = () => {
+const ComprehensionSection = ({ cohortMonth }) => {
   const { user, token } = useAuth();
   const [comprehensionData, setComprehensionData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState('all');
 
   useEffect(() => {
     const loadComprehensionData = async () => {
@@ -35,12 +37,13 @@ const ComprehensionSection = () => {
         
         // Debug what's in the auth context
         console.log('Auth context user:', user);
+        console.log('Cohort month:', cohortMonth);
         
         // Extract user ID from auth context
         const userId = user?.user_id || 17; // Use user_id from context or fallback to 17
         console.log('Using user ID:', userId);
         
-        const data = await fetchExternalComprehension(userId);
+        const data = await fetchExternalComprehension(userId, selectedMonth);
         console.log('Received external comprehension data:', data);
         setComprehensionData(data);
         setError(null);
@@ -53,7 +56,11 @@ const ComprehensionSection = () => {
     };
 
     loadComprehensionData();
-  }, [user, token]);
+  }, [user, token, selectedMonth, cohortMonth]);
+
+  const handleMonthChange = (month) => {
+    setSelectedMonth(month);
+  };
 
   const handleOpenModal = (item) => {
     setSelectedItem(item);
@@ -230,8 +237,21 @@ const ComprehensionSection = () => {
   if (!comprehensionData || !Array.isArray(comprehensionData) || comprehensionData.length === 0) {
     return (
       <Box textAlign="center" py={4}>
+        <Box sx={{ position: 'relative', mb: 4 }}>
+          <Typography variant="h6" sx={{ color: 'var(--color-text-primary)', mb: 3 }}>
+            Comprehension Analysis
+          </Typography>
+          
+          <Box sx={{ position: 'absolute', right: 0, top: 0 }}>
+            <MonthFilter 
+              selectedMonth={selectedMonth}
+              onMonthChange={handleMonthChange}
+              cohortMonth={cohortMonth}
+            />
+          </Box>
+        </Box>
         <Typography sx={{ color: 'var(--color-text-secondary)' }}>
-          No comprehension data available yet.
+          No comprehension data available for the selected month.
         </Typography>
       </Box>
     );
@@ -239,9 +259,19 @@ const ComprehensionSection = () => {
 
   return (
     <Box className="comprehension-section">
-      <Typography variant="h6" gutterBottom sx={{ color: 'var(--color-text-primary)' }}>
-        Comprehension Analysis
-      </Typography>
+      <Box sx={{ position: 'relative', mb: 3 }}>
+        <Typography variant="h6" sx={{ color: 'var(--color-text-primary)', mb: 3 }}>
+          Comprehension Analysis
+        </Typography>
+        
+        <Box sx={{ position: 'absolute', right: 0, top: 0 }}>
+          <MonthFilter 
+            selectedMonth={selectedMonth}
+            onMonthChange={handleMonthChange}
+            cohortMonth={cohortMonth}
+          />
+        </Box>
+      </Box>
       
       {/* List view of comprehension items */}
       <Grid container spacing={2}>

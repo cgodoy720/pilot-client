@@ -11,12 +11,14 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import { fetchExternalPeerFeedback } from '../../../utils/statsApi';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import MonthFilter from '../../../components/MonthFilter';
 
-const FeedbackSection = () => {
+const FeedbackSection = ({ cohortMonth }) => {
   const { user, token } = useAuth();
   const [feedbackData, setFeedbackData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState('all');
 
   useEffect(() => {
     const loadFeedbackData = async () => {
@@ -26,13 +28,13 @@ const FeedbackSection = () => {
         
         // Debug what's in the auth context
         console.log('Auth context user:', user);
+        console.log('Cohort month:', cohortMonth);
         
-        // For now, use a hardcoded user ID for testing
-        // Later we can extract from the real user object
-        const userId = 25; // Using hardcoded ID for testing
-        console.log('Using hardcoded user ID:', userId);
+        // Extract user ID from auth context
+        const userId = user?.user_id || 25; // Use user_id from context or fallback to 25
+        console.log('Using user ID:', userId);
         
-        const data = await fetchExternalPeerFeedback(userId);
+        const data = await fetchExternalPeerFeedback(userId, selectedMonth);
         console.log('Received external peer feedback data:', data);
         setFeedbackData(data);
         setError(null);
@@ -45,7 +47,11 @@ const FeedbackSection = () => {
     };
 
     loadFeedbackData();
-  }, [user, token]);
+  }, [user, token, selectedMonth, cohortMonth]);
+
+  const handleMonthChange = (month) => {
+    setSelectedMonth(month);
+  };
 
   const formatDate = (timestamp) => {
     if (!timestamp || !timestamp.value) return 'Unknown date';
@@ -83,8 +89,21 @@ const FeedbackSection = () => {
   if (!feedbackData || !Array.isArray(feedbackData) || feedbackData.length === 0) {
     return (
       <Box textAlign="center" py={4}>
+        <Box sx={{ position: 'relative', mb: 4 }}>
+          <Typography variant="h6" sx={{ color: 'var(--color-text-primary)', mb: 3 }}>
+            Peer Feedback
+          </Typography>
+          
+          <Box sx={{ position: 'absolute', right: 0, top: 0 }}>
+            <MonthFilter 
+              selectedMonth={selectedMonth}
+              onMonthChange={handleMonthChange}
+              cohortMonth={cohortMonth}
+            />
+          </Box>
+        </Box>
         <Typography sx={{ color: 'var(--color-text-secondary)' }}>
-          No peer feedback available yet.
+          No peer feedback available for the selected month.
         </Typography>
       </Box>
     );
@@ -92,9 +111,20 @@ const FeedbackSection = () => {
 
   return (
     <Box className="feedback-section">
-      <Typography variant="h6" gutterBottom sx={{ color: 'var(--color-text-primary)' }}>
-        Peer Feedback
-      </Typography>
+      <Box sx={{ position: 'relative', mb: 3 }}>
+        <Typography variant="h6" sx={{ color: 'var(--color-text-primary)', mb: 3 }}>
+          Peer Feedback
+        </Typography>
+        
+        <Box sx={{ position: 'absolute', right: 0, top: 0 }}>
+          <MonthFilter 
+            selectedMonth={selectedMonth}
+            onMonthChange={handleMonthChange}
+            cohortMonth={cohortMonth}
+          />
+        </Box>
+      </Box>
+      
       <Grid container spacing={2}>
         {feedbackData.map((item, index) => (
           <Grid item xs={12} key={index}>

@@ -123,17 +123,82 @@ export const fetchComprehensionData = async (token) => {
 };
 
 /**
+ * Convert a month filter string (YYYY-MM) to start and end dates
+ * @param {string} month - Month string in format YYYY-MM or 'all' for all time
+ * @returns {Object} Object with startDate and endDate properties
+ */
+export const getDateRangeFromMonth = (month) => {
+  if (!month || month === 'all') {
+    return {
+      startDate: '2025-03-15', // Default start date
+      endDate: new Date().toISOString().split('T')[0] // Current date
+    };
+  }
+
+  const [year, monthNum] = month.split('-');
+  
+  // Create first day of selected month
+  const startDate = `${year}-${monthNum}-01`;
+  
+  // Create last day of selected month
+  const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
+  const endDate = `${year}-${monthNum}-${lastDay}`;
+  
+  return { startDate, endDate };
+};
+
+/**
+ * Fetch work product data from external API using the user ID
+ * @param {number} userId - User's ID to fetch work product data for
+ * @param {string} month - Optional month filter in YYYY-MM format
+ * @returns {Promise} Promise that resolves to work product data
+ */
+export const fetchExternalWorkProduct = async (userId, month) => {
+  try {
+    console.log('Fetching external work product data for user:', userId);
+    
+    // Get date range from month filter
+    const { startDate, endDate } = getDateRangeFromMonth(month);
+    
+    // Use the correct camelCase format for the type parameter
+    const apiUrl = `https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api/builders/${userId}/details?type=workProduct&startDate=${startDate}&endDate=${endDate}`;
+    
+    console.log('Making request to external API:', apiUrl);
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      console.error(`API request failed with status: ${response.status}`);
+      console.error('Response:', await response.text().catch(() => 'Could not read response text'));
+      throw new Error(`External API request failed with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('External work product data received:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching external work product data:', error);
+    throw error;
+  }
+};
+
+/**
  * Fetch comprehension data from external API using the user ID
  * @param {number} userId - User's ID to fetch comprehension data for
+ * @param {string} month - Optional month filter in YYYY-MM format
  * @returns {Promise} Promise that resolves to comprehension data
  */
-export const fetchExternalComprehension = async (userId) => {
+export const fetchExternalComprehension = async (userId, month) => {
   try {
     console.log('Fetching external comprehension data for user:', userId);
     
-    // Use the correct URL parameters
-    const startDate = '2025-03-15';
-    const endDate = '2025-05-21';
+    // Get date range from month filter
+    const { startDate, endDate } = getDateRangeFromMonth(month);
     
     // Construct the API URL with the comprehension type - fixed the domain name
     const apiUrl = `https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api/builders/${userId}/details?type=comprehension&startDate=${startDate}&endDate=${endDate}`;
@@ -165,18 +230,15 @@ export const fetchExternalComprehension = async (userId) => {
 /**
  * Fetch peer feedback from external API using the user ID
  * @param {number} userId - User's ID to fetch feedback for
- * @param {string} token - User's auth token (not used for external API)
+ * @param {string} month - Optional month filter in YYYY-MM format
  * @returns {Promise} Promise that resolves to peer feedback data
  */
-export const fetchExternalPeerFeedback = async (userId) => {
+export const fetchExternalPeerFeedback = async (userId, month) => {
   try {
     console.log('Fetching external peer feedback for user:', userId);
     
-    // Set the start and end dates
-    const startDate = '2025-03-15'; // Fixed start date
-    // Get the current date for the end date in format YYYY-MM-DD
-    const today = new Date();
-    const endDate = today.toISOString().split('T')[0];
+    // Get date range from month filter
+    const { startDate, endDate } = getDateRangeFromMonth(month);
     
     // Construct the API URL
     const apiUrl = `https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api/builders/${userId}/details?type=peer_feedback&startDate=${startDate}&endDate=${endDate}`;
@@ -199,48 +261,6 @@ export const fetchExternalPeerFeedback = async (userId) => {
     return data;
   } catch (error) {
     console.error('Error fetching external peer feedback:', error);
-    throw error;
-  }
-};
-
-/**
- * Fetch work product data from external API using the user ID
- * @param {number} userId - User's ID to fetch work product data for
- * @returns {Promise} Promise that resolves to work product data
- */
-export const fetchExternalWorkProduct = async (userId) => {
-  try {
-    console.log('Fetching external work product data for user:', userId);
-    
-    // Set the start and end dates
-    const startDate = '2025-03-15'; // Fixed start date
-    // Get the current date for the end date in format YYYY-MM-DD
-    const today = new Date();
-    const endDate = today.toISOString().split('T')[0];
-    
-    // Use the correct camelCase format for the type parameter
-    const apiUrl = `https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api/builders/${userId}/details?type=workProduct&startDate=${startDate}&endDate=${endDate}`;
-    
-    console.log('Making request to external API:', apiUrl);
-    
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      console.error(`API request failed with status: ${response.status}`);
-      console.error('Response:', await response.text().catch(() => 'Could not read response text'));
-      throw new Error(`External API request failed with status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('External work product data received:', data);
-    return data;
-  } catch (error) {
-    console.error('Error fetching external work product data:', error);
     throw error;
   }
 }; 

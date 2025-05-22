@@ -19,14 +19,16 @@ import { useAuth } from '../../../context/AuthContext';
 import { fetchExternalWorkProduct } from '../../../utils/statsApi';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import CloseIcon from '@mui/icons-material/Close';
+import MonthFilter from '../../../components/MonthFilter';
 
-const WorkProductSection = () => {
+const WorkProductSection = ({ cohortMonth }) => {
   const { user, token } = useAuth();
   const [workProductData, setWorkProductData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState('all');
 
   useEffect(() => {
     const loadWorkProductData = async () => {
@@ -36,12 +38,13 @@ const WorkProductSection = () => {
         
         // Debug what's in the auth context
         console.log('Auth context user:', user);
+        console.log('Cohort month:', cohortMonth);
         
         // Extract user ID from auth context
         const userId = user?.user_id || 17; // Use user_id from context or fallback to 17
         console.log('Using user ID:', userId);
         
-        const data = await fetchExternalWorkProduct(userId);
+        const data = await fetchExternalWorkProduct(userId, selectedMonth);
         console.log('Received external work product data:', data);
         setWorkProductData(data);
         setError(null);
@@ -54,7 +57,11 @@ const WorkProductSection = () => {
     };
 
     loadWorkProductData();
-  }, [user, token]);
+  }, [user, token, selectedMonth, cohortMonth]);
+
+  const handleMonthChange = (month) => {
+    setSelectedMonth(month);
+  };
 
   const handleOpenModal = (item) => {
     setSelectedItem(item);
@@ -231,8 +238,21 @@ const WorkProductSection = () => {
   if (!workProductData || !Array.isArray(workProductData) || workProductData.length === 0) {
     return (
       <Box textAlign="center" py={4}>
+        <Box sx={{ position: 'relative', mb: 4 }}>
+          <Typography variant="h6" sx={{ color: 'var(--color-text-primary)', mb: 3 }}>
+            Work Product Analysis
+          </Typography>
+          
+          <Box sx={{ position: 'absolute', right: 0, top: 0 }}>
+            <MonthFilter 
+              selectedMonth={selectedMonth}
+              onMonthChange={handleMonthChange}
+              cohortMonth={cohortMonth}
+            />
+          </Box>
+        </Box>
         <Typography sx={{ color: 'var(--color-text-secondary)' }}>
-          No work product data available yet.
+          No work product data available for the selected month.
         </Typography>
       </Box>
     );
@@ -240,9 +260,19 @@ const WorkProductSection = () => {
 
   return (
     <Box className="work-product-section">
-      <Typography variant="h6" gutterBottom sx={{ color: 'var(--color-text-primary)' }}>
-        Work Product Analysis
-      </Typography>
+      <Box sx={{ position: 'relative', mb: 3 }}>
+        <Typography variant="h6" sx={{ color: 'var(--color-text-primary)', mb: 3 }}>
+          Work Product Analysis
+        </Typography>
+        
+        <Box sx={{ position: 'absolute', right: 0, top: 0 }}>
+          <MonthFilter 
+            selectedMonth={selectedMonth}
+            onMonthChange={handleMonthChange}
+            cohortMonth={cohortMonth}
+          />
+        </Box>
+      </Box>
       
       {/* List view of work products */}
       <Grid container spacing={2}>

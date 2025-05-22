@@ -24,7 +24,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { fetchUserResources } from '../../../utils/statsApi';
 import { formatDate } from '../../../utils/dateHelpers';
 
-const ResourcesSection = () => {
+const ResourcesSection = ({ cohortMonth }) => {
   const { token } = useAuth();
   const [taskResources, setTaskResources] = useState([]);
   const [flattenedResources, setFlattenedResources] = useState([]);
@@ -38,6 +38,7 @@ const ResourcesSection = () => {
     const loadResources = async () => {
       try {
         setLoading(true);
+        console.log('Cohort month:', cohortMonth);
         const resourcesData = await fetchUserResources(token);
         setTaskResources(resourcesData);
         
@@ -68,7 +69,7 @@ const ResourcesSection = () => {
     if (token) {
       loadResources();
     }
-  }, [token]);
+  }, [token, cohortMonth]);
 
   useEffect(() => {
     let filtered = flattenedResources;
@@ -217,7 +218,7 @@ const ResourcesSection = () => {
             <CardContent>
               <Typography variant="h6" align="center">No Matching Resources</Typography>
               <Typography variant="body2" align="center" sx={{ mt: 1 }}>
-                No resources match your search criteria. Try another search term.
+                No resources match your filter criteria. Try adjusting your filters.
               </Typography>
             </CardContent>
           </Card>

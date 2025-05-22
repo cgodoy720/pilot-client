@@ -22,6 +22,7 @@ const Stats = () => {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
+  const [cohortMonth, setCohortMonth] = useState(null);
 
   useEffect(() => {
     const loadUserStats = async () => {
@@ -29,6 +30,21 @@ const Stats = () => {
         setLoading(true);
         const userStats = await fetchUserStats(token);
         setStats(userStats);
+        
+        // Extract cohort month from the first task's day date if available
+        if (userStats.tasks && userStats.tasks.length > 0) {
+          const firstTask = userStats.tasks[0];
+          if (firstTask.assigned_date) {
+            const date = new Date(firstTask.assigned_date);
+            // Format as "Month YYYY" (e.g., "March 2025")
+            const cohortMonthStr = date.toLocaleDateString('en-US', { 
+              month: 'long', 
+              year: 'numeric'
+            });
+            setCohortMonth(cohortMonthStr);
+          }
+        }
+        
         setError(null);
       } catch (err) {
         console.error('Failed to fetch user stats:', err);
@@ -95,10 +111,10 @@ const Stats = () => {
                 id={`stats-tabpanel-${activeTab}`}
                 aria-labelledby={`stats-tab-${activeTab}`}
               >
-                {activeTab === 0 && <WorkProductSection />}
-                {activeTab === 1 && <ComprehensionSection />}
-                {activeTab === 2 && <FeedbackSection feedback={stats.feedback} user={user} />}
-                {activeTab === 3 && <ResourcesSection />}
+                {activeTab === 0 && <WorkProductSection cohortMonth={cohortMonth} />}
+                {activeTab === 1 && <ComprehensionSection cohortMonth={cohortMonth} />}
+                {activeTab === 2 && <FeedbackSection feedback={stats.feedback} user={user} cohortMonth={cohortMonth} />}
+                {activeTab === 3 && <ResourcesSection cohortMonth={cohortMonth} />}
               </Box>
             </Box>
           </>

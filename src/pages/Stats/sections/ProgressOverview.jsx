@@ -17,6 +17,9 @@ const ProgressOverview = ({ stats }) => {
     ? (deliverables.submitted / deliverables.total) * 100
     : 0;
 
+  console.log("Tasks data:", tasks);
+  console.log("Completed tasks:", tasks ? tasks.filter(task => task.completed) : []);
+
   return (
     <Grid container spacing={2}>
       {/* Tasks Completion Card */}
