@@ -254,44 +254,59 @@ const ComprehensionSection = () => {
               <Card 
                 variant="outlined" 
                 sx={{ 
-                  backgroundColor: 'var(--color-background-darker)',
-                  border: '1px solid var(--color-border)'
+                  backgroundColor: '#171c28',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 2
                 }}
               >
-                <CardContent>
-                  <Typography variant="h6" sx={{ color: 'var(--color-text-primary)', mb: 1 }}>
-                    {item.task_title || `Comprehension ${item.task_id || ''}`}
+                <CardContent sx={{ pb: 1.5 }}>
+                  {/* Date at top - small */}
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      color: 'var(--color-text-secondary)', 
+                      display: 'block',
+                      mb: 0.5,
+                      textAlign: 'left'
+                    }}
+                  >
+                    {formatDate(item.date?.value || item.analyzed_at || item.curriculum_date)}
                   </Typography>
                   
-                  <Box display="flex" alignItems="center" mb={2}>
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                      <CalendarTodayIcon fontSize="small" sx={{ color: 'var(--color-text-secondary)', fontSize: 14 }} />
-                      <Typography variant="caption" sx={{ color: 'var(--color-text-secondary)' }}>
-                        {formatDate(item.date?.value || item.analyzed_at || item.curriculum_date)}
-                      </Typography>
-                    </Box>
+                  {/* Title and score on same line */}
+                  <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
+                    <Typography 
+                      variant="subtitle1" 
+                      sx={{ 
+                        color: 'var(--color-text-primary)', 
+                        fontWeight: 500,
+                        textAlign: 'left'
+                      }}
+                    >
+                      {item.task_title || `Comprehension ${item.task_id || ''}`}
+                    </Typography>
                     
-                    <Box ml="auto">
-                      <Chip 
-                        label={`${score}% (${getGradeLabel(score)})`}
-                        color={getGradeColor(score)}
-                        size="small"
-                      />
-                    </Box>
+                    <Chip 
+                      label={`${score}% (${getGradeLabel(score)})`}
+                      color={getGradeColor(score)}
+                      size="small"
+                    />
                   </Box>
                   
+                  {/* Feedback summary */}
                   {feedback && (
                     <Typography 
                       variant="body2" 
                       sx={{ 
                         color: 'var(--color-text-primary)',
-                        mb: 2,
-                        maxHeight: '100px',
+                        opacity: 0.8,
+                        maxHeight: '60px',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         display: '-webkit-box',
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: 'vertical'
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        textAlign: 'left'
                       }}
                     >
                       {feedback}
