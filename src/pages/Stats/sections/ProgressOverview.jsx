@@ -93,8 +93,8 @@ const ProgressOverview = ({ stats }) => {
             </Typography>
             
             <Box mt={1}>
-              <Typography variant="caption" className="progress-card__subtitle" sx={{ display: 'block', color: 'var(--color-text-secondary)' }}>
-                Messages sent to Claude
+              <Typography variant="caption" className="progress-card__subtitle" sx={{ display: 'block', color: 'var(--color-text-secondary)', textAlign: 'left' }}>
+                User messages sent
               </Typography>
             </Box>
           </CardContent>
@@ -128,7 +128,7 @@ const ProgressOverview = ({ stats }) => {
             </Typography>
             
             <Box mt={1}>
-              <Typography variant="caption" className="progress-card__subtitle" sx={{ display: 'block', color: 'var(--color-text-secondary)' }}>
+              <Typography variant="caption" className="progress-card__subtitle" sx={{ display: 'block', color: 'var(--color-text-secondary)', textAlign: 'left' }}>
                 Peer feedback entries
               </Typography>
             </Box>

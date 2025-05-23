@@ -182,32 +182,45 @@ const ResourcesSection = ({ cohortMonth }) => {
               </InputAdornment>
             )
           }}
-          sx={{ flexGrow: 1, minWidth: '200px' }}
+          sx={{ 
+            flexGrow: 1, 
+            minWidth: '200px',
+            '& .MuiInputBase-root': {
+              height: '36px',
+              fontSize: '0.85rem',
+              backgroundColor: 'var(--color-background-darker)',
+            }
+          }}
         />
         
-        <FormControl size="small" sx={{ minWidth: '150px' }}>
-          <InputLabel id="resource-type-label">Resource Type</InputLabel>
+        <FormControl 
+          size="small" 
+          sx={{ 
+            minWidth: '160px',
+            '& .MuiInputBase-root': {
+              height: '36px',
+            },
+            '& .MuiOutlinedInput-root': {
+              backgroundColor: 'var(--color-background-darker)',
+            },
+            '& .MuiSelect-icon': {
+              color: 'var(--color-text-secondary)'
+            }
+          }}
+        >
+          <InputLabel id="resource-type-label" sx={{ fontSize: '0.85rem' }}>Resource Type</InputLabel>
           <Select
             labelId="resource-type-label"
             value={resourceType}
             onChange={handleTypeChange}
             label="Resource Type"
-            startAdornment={
-              <InputAdornment position="start">
-                <FilterList fontSize="small" sx={{ color: 'var(--color-text-secondary)', marginRight: '5px' }} />
-              </InputAdornment>
-            }
-            sx={{
-              '& .MuiSelect-icon': {
-                color: 'var(--color-text-secondary)'
-              }
-            }}
+            sx={{ fontSize: '0.85rem' }}
           >
-            <MenuItem value="all">All Resources</MenuItem>
-            <MenuItem value="video">Videos</MenuItem>
-            <MenuItem value="document">Documents</MenuItem>
-            <MenuItem value="article">Articles</MenuItem>
-            <MenuItem value="link">Other Links</MenuItem>
+            <MenuItem value="all" sx={{ fontSize: '0.85rem' }}>All Resources</MenuItem>
+            <MenuItem value="video" sx={{ fontSize: '0.85rem' }}>Videos</MenuItem>
+            <MenuItem value="document" sx={{ fontSize: '0.85rem' }}>Documents</MenuItem>
+            <MenuItem value="article" sx={{ fontSize: '0.85rem' }}>Articles</MenuItem>
+            <MenuItem value="link" sx={{ fontSize: '0.85rem' }}>Other Links</MenuItem>
           </Select>
         </FormControl>
       </Box>
