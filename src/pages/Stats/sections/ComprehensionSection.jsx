@@ -406,20 +406,37 @@ const ComprehensionSection = ({ cohortMonth }) => {
               
               <Divider sx={{ mb: 3 }} />
               
-              {/* Analyzed Content Link */}
+              {/* Analyzed Content */}
               {getAnalyzedContent(selectedItem) && (
                 <Box mb={3}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
                     Analyzed Content:
                   </Typography>
-                  <Link 
-                    href={getAnalyzedContent(selectedItem)} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    sx={{ wordBreak: 'break-all' }}
-                  >
-                    {getAnalyzedContent(selectedItem)}
-                  </Link>
+                  {getAnalyzedContent(selectedItem).startsWith('https://') ? (
+                    <Link 
+                      href={getAnalyzedContent(selectedItem)} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      sx={{ wordBreak: 'break-all' }}
+                    >
+                      {getAnalyzedContent(selectedItem)}
+                    </Link>
+                  ) : (
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: 'var(--color-text-primary)',
+                        whiteSpace: 'pre-wrap',
+                        fontFamily: 'monospace',
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        padding: 2,
+                        borderRadius: 1,
+                        border: '1px solid var(--color-border)'
+                      }}
+                    >
+                      {getAnalyzedContent(selectedItem)}
+                    </Typography>
+                  )}
                 </Box>
               )}
               
