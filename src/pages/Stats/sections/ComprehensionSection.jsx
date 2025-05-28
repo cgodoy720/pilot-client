@@ -29,6 +29,40 @@ const ComprehensionSection = ({ cohortMonth }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('all');
 
+  // Filter out entries with technical errors
+  const filterOutErrors = (data) => {
+    if (!Array.isArray(data)) return data;
+    
+    return data.filter(item => {
+      try {
+        const analysis = parseAnalysis(item);
+        if (!analysis) return true; // Keep items without analysis
+        
+        // Check areas_for_improvement for technical error messages
+        if (analysis.areas_for_improvement && Array.isArray(analysis.areas_for_improvement)) {
+          const hasError = analysis.areas_for_improvement.some(area => 
+            typeof area === 'string' && 
+            area.toLowerCase().includes('technical issue') &&
+            area.toLowerCase().includes('try again')
+          );
+          if (hasError) return false; // Filter out this item
+        }
+        
+        // Check feedback for technical error messages
+        if (analysis.feedback && typeof analysis.feedback === 'string') {
+          const hasError = analysis.feedback.toLowerCase().includes('technical issue') &&
+                           analysis.feedback.toLowerCase().includes('try again');
+          if (hasError) return false; // Filter out this item
+        }
+        
+        return true; // Keep this item
+      } catch (err) {
+        console.error('Error checking for technical errors:', err);
+        return true; // Keep item if we can't parse it
+      }
+    });
+  };
+
   useEffect(() => {
     const loadComprehensionData = async () => {
       try {
@@ -45,7 +79,12 @@ const ComprehensionSection = ({ cohortMonth }) => {
         
         const data = await fetchExternalComprehension(userId, selectedMonth);
         console.log('Received external comprehension data:', data);
-        setComprehensionData(data);
+        
+        // Filter out entries with technical errors
+        const filteredData = filterOutErrors(data);
+        console.log('Filtered comprehension data (removed errors):', filteredData);
+        
+        setComprehensionData(filteredData);
         setError(null);
       } catch (err) {
         console.error('Failed to fetch comprehension data:', err);

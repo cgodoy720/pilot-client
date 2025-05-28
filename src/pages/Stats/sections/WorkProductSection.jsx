@@ -30,6 +30,40 @@ const WorkProductSection = ({ cohortMonth }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('all');
 
+  // Filter out entries with technical errors
+  const filterOutErrors = (data) => {
+    if (!Array.isArray(data)) return data;
+    
+    return data.filter(item => {
+      try {
+        const analysis = parseAnalysis(item);
+        if (!analysis) return true; // Keep items without analysis
+        
+        // Check areas_for_improvement for technical error messages
+        if (analysis.areas_for_improvement && Array.isArray(analysis.areas_for_improvement)) {
+          const hasError = analysis.areas_for_improvement.some(area => 
+            typeof area === 'string' && 
+            area.toLowerCase().includes('technical issue') &&
+            area.toLowerCase().includes('try again')
+          );
+          if (hasError) return false; // Filter out this item
+        }
+        
+        // Check feedback for technical error messages
+        if (analysis.feedback && typeof analysis.feedback === 'string') {
+          const hasError = analysis.feedback.toLowerCase().includes('technical issue') &&
+                           analysis.feedback.toLowerCase().includes('try again');
+          if (hasError) return false; // Filter out this item
+        }
+        
+        return true; // Keep this item
+      } catch (err) {
+        console.error('Error checking for technical errors:', err);
+        return true; // Keep item if we can't parse it
+      }
+    });
+  };
+
   useEffect(() => {
     const loadWorkProductData = async () => {
       try {
@@ -46,7 +80,12 @@ const WorkProductSection = ({ cohortMonth }) => {
         
         const data = await fetchExternalWorkProduct(userId, selectedMonth);
         console.log('Received external work product data:', data);
-        setWorkProductData(data);
+        
+        // Filter out entries with technical errors
+        const filteredData = filterOutErrors(data);
+        console.log('Filtered work product data (removed errors):', filteredData);
+        
+        setWorkProductData(filteredData);
         setError(null);
       } catch (err) {
         console.error('Failed to fetch work product data:', err);
