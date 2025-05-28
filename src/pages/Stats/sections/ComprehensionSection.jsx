@@ -163,6 +163,57 @@ const ComprehensionSection = ({ cohortMonth }) => {
     }
   };
 
+  // Get all section scores from the analysis
+  const getAllSectionScores = (item) => {
+    try {
+      const analysis = parseAnalysis(item);
+      if (!analysis || !analysis.specific_findings) return [];
+      
+      const scores = [];
+      const findings = analysis.specific_findings;
+      
+      // Check for comprehension score (both cases)
+      const comprehensionData = findings.comprehension || findings.Comprehension;
+      if (comprehensionData && comprehensionData.score !== undefined) {
+        scores.push({
+          section: 'Comprehension',
+          score: comprehensionData.score
+        });
+      }
+      
+      // Check for business value score (multiple possible keys)
+      const businessValueData = findings.business_value || findings.Business_value || findings['Business Value'];
+      if (businessValueData && businessValueData.score !== undefined) {
+        scores.push({
+          section: 'Business Value',
+          score: businessValueData.score
+        });
+      }
+      
+      // Check for professional skills score (multiple possible keys)
+      const professionalSkillsData = findings.professional_skills || findings.Professional_skills || findings['Professional Skills'];
+      if (professionalSkillsData && professionalSkillsData.score !== undefined) {
+        scores.push({
+          section: 'Professional Skills',
+          score: professionalSkillsData.score
+        });
+      }
+      
+      // If no section scores found, fall back to overall completion score
+      if (scores.length === 0 && analysis.completion_score !== undefined) {
+        scores.push({
+          section: 'Overall',
+          score: analysis.completion_score
+        });
+      }
+      
+      return scores;
+    } catch (err) {
+      console.error('Error getting section scores:', err);
+      return [];
+    }
+  };
+
   const getFeedback = (item) => {
     try {
       const analysis = parseAnalysis(item);
@@ -482,6 +533,26 @@ const ComprehensionSection = ({ cohortMonth }) => {
               {/* Analysis Content */}
               {parseAnalysis(selectedItem) && (
                 <Box>
+                  {/* Section Scores Summary */}
+                  {getAllSectionScores(selectedItem).length > 0 && (
+                    <Box mb={3}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
+                        Section Scores:
+                      </Typography>
+                      <Box display="flex" flexWrap="wrap" gap={1}>
+                        {getAllSectionScores(selectedItem).map((scoreData, idx) => (
+                          <Chip
+                            key={idx}
+                            label={`${scoreData.section}: ${scoreData.score}% (${getGradeLabel(scoreData.score)})`}
+                            color={getGradeColor(scoreData.score)}
+                            size="medium"
+                            sx={{ fontWeight: 'bold' }}
+                          />
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+                  
                   {/* Submission Summary */}
                   {parseAnalysis(selectedItem).submission_summary && (
                     <Box mb={3}>
@@ -632,6 +703,19 @@ const ComprehensionSection = ({ cohortMonth }) => {
                             Business Value:
                           </Typography>
                           
+                          {/* Display Business Value Score if available */}
+                          {(parseAnalysis(selectedItem).specific_findings.business_value?.score || 
+                            parseAnalysis(selectedItem).specific_findings.Business_value?.score ||
+                            parseAnalysis(selectedItem).specific_findings['Business Value']?.score) && (
+                            <Box ml={2} mt={1}>
+                              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                Score: {parseAnalysis(selectedItem).specific_findings.business_value?.score || 
+                                        parseAnalysis(selectedItem).specific_findings.Business_value?.score ||
+                                        parseAnalysis(selectedItem).specific_findings['Business Value']?.score}
+                              </Typography>
+                            </Box>
+                          )}
+                          
                           {/* Use the first available property for strengths */}
                           {(parseAnalysis(selectedItem).specific_findings.business_value?.strengths || 
                             parseAnalysis(selectedItem).specific_findings.Business_value?.strengths ||
@@ -702,6 +786,19 @@ const ComprehensionSection = ({ cohortMonth }) => {
                           <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mt: 2 }}>
                             Professional Skills:
                           </Typography>
+                          
+                          {/* Display Professional Skills Score if available */}
+                          {(parseAnalysis(selectedItem).specific_findings.professional_skills?.score || 
+                            parseAnalysis(selectedItem).specific_findings.Professional_skills?.score ||
+                            parseAnalysis(selectedItem).specific_findings['Professional Skills']?.score) && (
+                            <Box ml={2} mt={1}>
+                              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                Score: {parseAnalysis(selectedItem).specific_findings.professional_skills?.score || 
+                                        parseAnalysis(selectedItem).specific_findings.Professional_skills?.score ||
+                                        parseAnalysis(selectedItem).specific_findings['Professional Skills']?.score}
+                              </Typography>
+                            </Box>
+                          )}
                           
                           {/* Use the first available property for strengths */}
                           {(parseAnalysis(selectedItem).specific_findings.professional_skills?.strengths || 
