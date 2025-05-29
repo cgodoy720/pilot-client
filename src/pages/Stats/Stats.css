@@ -279,7 +279,7 @@
 }
 
 .MuiButton-root {
-  color: var(--color-primary) !important;
+  color: white !important;
 }
 
 .MuiButton-root:hover {
