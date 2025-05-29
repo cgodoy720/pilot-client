@@ -20,6 +20,7 @@ import { fetchExternalWorkProduct } from '../../../utils/statsApi';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import CloseIcon from '@mui/icons-material/Close';
 import MonthFilter from '../../../components/MonthFilter';
+import AITrendAnalysis from '../../../components/AITrendAnalysis';
 
 const WorkProductSection = ({ cohortMonth }) => {
   const { user, token } = useAuth();
@@ -321,6 +322,13 @@ const WorkProductSection = ({ cohortMonth }) => {
           />
         </Box>
       </Box>
+      
+      {/* AI Trend Analysis */}
+      <AITrendAnalysis 
+        analysisType="work_product"
+        cohortMonth={cohortMonth}
+        title="Work Product"
+      />
       
       {/* List view of work products */}
       <Grid container spacing={2}>

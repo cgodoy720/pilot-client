@@ -19,6 +19,7 @@ import { fetchExternalComprehension } from '../../../utils/statsApi';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import CloseIcon from '@mui/icons-material/Close';
 import MonthFilter from '../../../components/MonthFilter';
+import AITrendAnalysis from '../../../components/AITrendAnalysis';
 
 const ComprehensionSection = ({ cohortMonth }) => {
   const { user, token } = useAuth();
@@ -371,6 +372,13 @@ const ComprehensionSection = ({ cohortMonth }) => {
           />
         </Box>
       </Box>
+      
+      {/* AI Trend Analysis */}
+      <AITrendAnalysis 
+        analysisType="comprehension"
+        cohortMonth={cohortMonth}
+        title="Comprehension"
+      />
       
       {/* List view of comprehension items */}
       <Grid container spacing={2}>
