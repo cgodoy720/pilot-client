@@ -73,14 +73,20 @@
 .progress-card {
   background-color: var(--color-background-dark) !important;
   border-radius: 8px !important;
-  height: 100%;
+  height: 85px !important;
   transition: all 0.3s ease;
   border: 1px solid var(--color-border) !important;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 .progress-card .MuiCardContent-root {
-  padding: 12px !important;
+  padding: 6px 10px !important;
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
 }
 
 .progress-card:hover {

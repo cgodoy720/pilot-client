@@ -234,11 +234,11 @@ const AITrendAnalysis = ({ analysisType, cohortMonth, title }) => {
 
             <Collapse in={expanded}>
               {/* Summary */}
-              <Box mb={3}>
-                <Typography variant="body1" sx={{ color: 'var(--color-text-primary)', mb: 1 }}>
+              <Box mb={3} sx={{ textAlign: 'left' }}>
+                <Typography variant="body1" sx={{ color: 'var(--color-text-primary)', mb: 1, textAlign: 'left' }}>
                   <strong>Summary:</strong>
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'var(--color-text-primary)', opacity: 0.9 }}>
+                <Typography variant="body2" sx={{ color: 'var(--color-text-primary)', opacity: 0.9, textAlign: 'left' }}>
                   {analysis.summary}
                 </Typography>
               </Box>
@@ -247,13 +247,13 @@ const AITrendAnalysis = ({ analysisType, cohortMonth, title }) => {
 
               {/* Trends */}
               {analysis.trends && analysis.trends.length > 0 && (
-                <Box mb={3}>
-                  <Typography variant="subtitle2" sx={{ color: 'var(--color-text-primary)', fontWeight: 'bold', mb: 1 }}>
+                <Box mb={3} sx={{ textAlign: 'left' }}>
+                  <Typography variant="subtitle2" sx={{ color: 'var(--color-text-primary)', fontWeight: 'bold', mb: 1, textAlign: 'left' }}>
                     Key Trends:
                   </Typography>
-                  <Box component="ul" sx={{ pl: 2, m: 0 }}>
+                  <Box component="ul" sx={{ pl: 2, m: 0, textAlign: 'left' }}>
                     {analysis.trends.map((trend, index) => (
-                      <Typography key={index} component="li" variant="body2" sx={{ color: 'var(--color-text-primary)', mb: 0.5 }}>
+                      <Typography key={index} component="li" variant="body2" sx={{ color: 'var(--color-text-primary)', mb: 0.5, textAlign: 'left' }}>
                         {trend}
                       </Typography>
                     ))}
@@ -263,19 +263,25 @@ const AITrendAnalysis = ({ analysisType, cohortMonth, title }) => {
 
               {/* Strengths */}
               {analysis.strengths && analysis.strengths.length > 0 && (
-                <Box mb={3}>
-                  <Typography variant="subtitle2" sx={{ color: 'var(--color-text-primary)', fontWeight: 'bold', mb: 1 }}>
+                <Box mb={3} sx={{ textAlign: 'left' }}>
+                  <Typography variant="subtitle2" sx={{ color: 'var(--color-text-primary)', fontWeight: 'bold', mb: 1, textAlign: 'left' }}>
                     Strengths:
                   </Typography>
-                  <Box display="flex" flexWrap="wrap" gap={1}>
+                  <Box component="ul" sx={{ pl: 2, m: 0, textAlign: 'left' }}>
                     {analysis.strengths.map((strength, index) => (
-                      <Chip
-                        key={index}
-                        label={strength}
-                        size="small"
-                        color="success"
-                        variant="outlined"
-                      />
+                      <Typography 
+                        key={index} 
+                        component="li" 
+                        variant="body2" 
+                        sx={{ 
+                          color: '#2eae4f', 
+                          mb: 0.5, 
+                          textAlign: 'left',
+                          fontWeight: 500
+                        }}
+                      >
+                        {strength}
+                      </Typography>
                     ))}
                   </Box>
                 </Box>
@@ -283,19 +289,25 @@ const AITrendAnalysis = ({ analysisType, cohortMonth, title }) => {
 
               {/* Growth Areas */}
               {analysis.growth_areas && analysis.growth_areas.length > 0 && (
-                <Box mb={3}>
-                  <Typography variant="subtitle2" sx={{ color: 'var(--color-text-primary)', fontWeight: 'bold', mb: 1 }}>
+                <Box mb={3} sx={{ textAlign: 'left' }}>
+                  <Typography variant="subtitle2" sx={{ color: 'var(--color-text-primary)', fontWeight: 'bold', mb: 1, textAlign: 'left' }}>
                     Growth Areas:
                   </Typography>
-                  <Box display="flex" flexWrap="wrap" gap={1}>
+                  <Box component="ul" sx={{ pl: 2, m: 0, textAlign: 'left' }}>
                     {analysis.growth_areas.map((area, index) => (
-                      <Chip
-                        key={index}
-                        label={area}
-                        size="small"
-                        color="warning"
-                        variant="outlined"
-                      />
+                      <Typography 
+                        key={index} 
+                        component="li" 
+                        variant="body2" 
+                        sx={{ 
+                          color: '#ffab00', 
+                          mb: 0.5, 
+                          textAlign: 'left',
+                          fontWeight: 500
+                        }}
+                      >
+                        {area}
+                      </Typography>
                     ))}
                   </Box>
                 </Box>
@@ -303,13 +315,13 @@ const AITrendAnalysis = ({ analysisType, cohortMonth, title }) => {
 
               {/* Recommendations */}
               {analysis.recommendations && analysis.recommendations.length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2" sx={{ color: 'var(--color-text-primary)', fontWeight: 'bold', mb: 1 }}>
+                <Box sx={{ textAlign: 'left' }}>
+                  <Typography variant="subtitle2" sx={{ color: 'var(--color-text-primary)', fontWeight: 'bold', mb: 1, textAlign: 'left' }}>
                     Recommendations:
                   </Typography>
-                  <Box component="ul" sx={{ pl: 2, m: 0 }}>
+                  <Box component="ul" sx={{ pl: 2, m: 0, textAlign: 'left' }}>
                     {analysis.recommendations.map((recommendation, index) => (
-                      <Typography key={index} component="li" variant="body2" sx={{ color: 'var(--color-text-primary)', mb: 0.5 }}>
+                      <Typography key={index} component="li" variant="body2" sx={{ color: 'var(--color-text-primary)', mb: 0.5, textAlign: 'left' }}>
                         {recommendation}
                       </Typography>
                     ))}
