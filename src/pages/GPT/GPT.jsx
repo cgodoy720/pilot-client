@@ -1,12 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './GPT.css';
-import { FaPlus, FaChevronLeft } from 'react-icons/fa';
+import { FaPlus, FaChevronLeft, FaFileAlt, FaVideo } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getThreads, getThreadMessages, createThread, sendMessageToGPT } from '../../utils/api';
+import SummaryModal from '../../components/SummaryModal/SummaryModal';
 
 function GPT() {
   const { token, user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [threads, setThreads] = useState([]);
   const [activeThread, setActiveThread] = useState(null); // Start with no active thread
   const [messages, setMessages] = useState([]);
@@ -16,11 +20,25 @@ function GPT() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Summary-related state
+  const [currentThreadSummary, setCurrentThreadSummary] = useState(null);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [summaryThreadId, setSummaryThreadId] = useState(null); // Track which thread the summary belongs to
+  const [summaryLoading, setSummaryLoading] = useState(false); // Track if we're fetching summary
+  const [modalSummaryData, setModalSummaryData] = useState(null); // Summary data for the modal
+  
   const textareaRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   // Check if user is inactive (in historical access mode)
   const isInactiveUser = user && user.active === false;
+
+  // Get threadId and summary data from URL parameters
+  const threadIdFromUrl = searchParams.get('threadId');
+  const summaryUrl = searchParams.get('summaryUrl');
+  const summaryTitle = searchParams.get('summaryTitle'); 
+  const summaryData = searchParams.get('summaryData');
 
   // Fetch threads on component mount
   useEffect(() => {
@@ -28,6 +46,73 @@ function GPT() {
       fetchThreads();
     }
   }, [token]);
+
+  // Handle summary data from URL parameters
+  useEffect(() => {
+    if (summaryUrl && summaryTitle && summaryData) {
+      try {
+        // Parse the summary data from URL parameter
+        const parsedSummaryData = JSON.parse(decodeURIComponent(summaryData));
+        
+        // Set up the summary for the current thread
+        setCurrentThreadSummary({
+          url: summaryUrl,
+          title: summaryTitle,
+          ...parsedSummaryData
+        });
+        
+        // Wait for threadIdFromUrl to be processed, then set the summary thread ID
+        if (threadIdFromUrl) {
+          setSummaryThreadId(threadIdFromUrl);
+        }
+        
+        // Clean up URL parameters
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.delete('summaryUrl');
+        newSearchParams.delete('summaryTitle');
+        newSearchParams.delete('summaryData');
+        setSearchParams(newSearchParams, { replace: true });
+        
+      } catch (error) {
+        console.error('Error parsing summary data from URL:', error);
+        // Clean up invalid parameters
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.delete('summaryUrl');
+        newSearchParams.delete('summaryTitle');
+        newSearchParams.delete('summaryData');
+        setSearchParams(newSearchParams, { replace: true });
+      }
+    }
+  }, [summaryUrl, summaryTitle, summaryData, searchParams, setSearchParams, threadIdFromUrl]);
+
+  // Handle threadId URL parameter
+  useEffect(() => {
+    if (threadIdFromUrl && threads.length > 0) {
+      // Check if the thread exists in our threads list
+      const targetThread = threads.find(thread => 
+        String(getThreadId(thread)) === String(threadIdFromUrl)
+      );
+      
+      if (targetThread) {
+        setActiveThread(getThreadId(targetThread));
+        // Remove the threadId from URL after loading
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.delete('threadId');
+        setSearchParams(newSearchParams, { replace: true });
+        
+        // If we have summary data waiting, associate it with this thread
+        if (currentThreadSummary && !summaryThreadId) {
+          setSummaryThreadId(getThreadId(targetThread));
+        }
+      } else {
+        // Thread not found, clear the parameter
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.delete('threadId');
+        setSearchParams(newSearchParams, { replace: true });
+        setError('Thread not found or access denied.');
+      }
+    }
+  }, [threadIdFromUrl, threads, searchParams, setSearchParams]);
 
   // Fetch messages when active thread changes
   useEffect(() => {
@@ -37,6 +122,18 @@ function GPT() {
       setMessages([]);
     }
   }, [activeThread, token]);
+
+  // Clear summary data when switching to a thread without summary
+  useEffect(() => {
+    if (activeThread && summaryThreadId && String(activeThread) !== String(summaryThreadId)) {
+      // User switched to a different thread, clear summary data
+      setCurrentThreadSummary(null);
+      setSummaryThreadId(null);
+    }
+    
+    // Clear modal summary data when switching threads
+    setModalSummaryData(null);
+  }, [activeThread, summaryThreadId]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -315,6 +412,170 @@ function GPT() {
     return message.message_role || message.role;
   };
 
+  // Helper function to check if current thread is an article discussion
+  const isArticleDiscussionThread = () => {
+    if (!activeThread || !threads.length) return false;
+    
+    const currentThread = threads.find(thread => getThreadId(thread) === activeThread);
+    if (!currentThread) return false;
+    
+    // Check if thread title indicates it's an article discussion
+    const threadTitle = getThreadTitle(currentThread);
+    return threadTitle && threadTitle.startsWith('Discussion: ');
+  };
+
+  // Helper function to extract article info from thread messages
+  const getArticleInfoFromThread = () => {
+    if (!messages.length) return null;
+    
+    // Look for the assistant's welcome message that contains article info
+    const welcomeMessage = messages.find(msg => 
+      getMessageRole(msg) === 'assistant' && 
+      msg.content && 
+      msg.content.includes('**Article:**') &&
+      msg.content.includes('**URL:**')
+    );
+    
+    if (welcomeMessage) {
+      // Extract URL and title from the welcome message
+      const urlMatch = welcomeMessage.content.match(/\*\*URL:\*\* (.+)/);
+      const titleMatch = welcomeMessage.content.match(/\*\*Article:\*\* (.+)/);
+      
+      if (urlMatch && titleMatch) {
+        return {
+          url: urlMatch[1].trim(),
+          title: titleMatch[1].trim()
+        };
+      }
+    }
+    
+    return null;
+  };
+
+  // Helper function to check if we should show summary button
+  const shouldShowSummaryButton = () => {
+    // Show if we have summary data for current thread
+    if (currentThreadSummary && String(activeThread) === String(summaryThreadId)) {
+      return true;
+    }
+    
+    // Show if current thread is an article discussion (even without summary data)
+    if (isArticleDiscussionThread() && getArticleInfoFromThread()) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  // Helper function to get current article info (from summary or thread)
+  const getCurrentArticleInfo = () => {
+    // First check if we have summary data
+    if (currentThreadSummary && String(activeThread) === String(summaryThreadId)) {
+      return currentThreadSummary;
+    }
+    
+    // Otherwise try to extract from thread messages
+    return getArticleInfoFromThread();
+  };
+
+  // Helper function to get summary data for modal (prioritizes modal-specific data)
+  const getSummaryDataForModal = () => {
+    // First check if we have modal-specific summary data
+    if (modalSummaryData) {
+      return modalSummaryData;
+    }
+    
+    // Fall back to current article info
+    return getCurrentArticleInfo();
+  };
+
+  // Helper function to check if the summary is for a YouTube video
+  const isYouTubeVideo = (url) => {
+    if (!url) return false;
+    return url.includes('youtube.com/watch') || 
+           url.includes('youtu.be/') || 
+           url.includes('youtube.com/embed') ||
+           url.includes('youtube.com/v/');
+  };
+
+  // Helper function to open full summary modal
+  const openSummaryModal = async () => {
+    const articleInfo = getCurrentArticleInfo();
+    if (!articleInfo) return;
+    
+    // If we already have summary data, just show the modal
+    if (articleInfo.summary) {
+      setModalSummaryData(articleInfo);
+      setShowSummaryModal(true);
+      return;
+    }
+    
+    // If we don't have summary data, try to fetch it
+    if (articleInfo.url && articleInfo.title) {
+      // Check if user is active
+      if (!user?.active) {
+        setError('You have historical access only and cannot generate summaries.');
+        return;
+      }
+      
+      setSummaryLoading(true);
+      setShowSummaryModal(true); // Show modal with loading state
+      
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/resources/summarize`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            url: articleInfo.url, 
+            title: articleInfo.title 
+          })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.details || errorData.error || 'Failed to generate summary');
+        }
+        
+        const summaryData = await response.json();
+        
+        // Set modal summary data for display
+        setModalSummaryData({
+          url: articleInfo.url,
+          title: articleInfo.title,
+          summary: summaryData.summary,
+          cached: summaryData.cached
+        });
+        
+        // Also update the current thread summary if this is from URL parameters
+        if (String(activeThread) === String(summaryThreadId)) {
+          setCurrentThreadSummary({
+            ...currentThreadSummary,
+            summary: summaryData.summary,
+            cached: summaryData.cached
+          });
+        }
+        
+      } catch (error) {
+        console.error('Error fetching summary:', error);
+        setError(`Failed to load summary: ${error.message}`);
+      } finally {
+        setSummaryLoading(false);
+      }
+    } else {
+      // Just show modal even without summary data
+      setShowSummaryModal(true);
+    }
+  };
+
+  // Helper function to close summary modal
+  const closeSummaryModal = () => {
+    setShowSummaryModal(false);
+    setModalSummaryData(null); // Clear modal-specific data
+  };
+
   return (
     <div className="gpt">
       {isInactiveUser && (
@@ -379,6 +640,24 @@ function GPT() {
               </button>
             )}
             
+            {/* Summary button for article discussions */}
+            {shouldShowSummaryButton() && (
+              <div className="gpt__chat-header">
+                <div className="gpt__summary-controls">
+                  <button
+                    className="gpt__summary-btn"
+                    onClick={openSummaryModal}
+                    title="View article/video summary"
+                  >
+                    {isYouTubeVideo(getCurrentArticleInfo()?.url) ? <FaVideo /> : <FaFileAlt />}
+                    <span>
+                      View {isYouTubeVideo(getCurrentArticleInfo()?.url) ? 'Video' : 'Article'} Summary
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
+            
             {!activeThread ? (
               <div className="gpt__empty-state">
                 <h3 className="gpt__empty-state-title">Welcome to GPT-4-TURBO</h3>
@@ -411,29 +690,32 @@ function GPT() {
                       </p>
                     </div>
                   ) : (
-                    messages.map((message) => (
-                      <div 
-                        key={getMessageId(message)} 
-                        className={`gpt__message ${getMessageRole(message) === 'user' ? 'gpt__message--user' : 'gpt__message--assistant'}`}
-                      >
-                        <div className="gpt__message-content">
-                          {formatMessageContent(message.content)}
+                    <>
+                      {/* Regular messages */}
+                      {messages.map((message) => (
+                        <div 
+                          key={getMessageId(message)} 
+                          className={`gpt__message ${getMessageRole(message) === 'user' ? 'gpt__message--user' : 'gpt__message--assistant'}`}
+                        >
+                          <div className="gpt__message-content">
+                            {formatMessageContent(message.content)}
+                          </div>
                         </div>
-                      </div>
-                    ))
-                  )}
-                  {isAiThinking && (
-                    <div className="gpt__message gpt__message--assistant">
-                      <div className="gpt__message-content gpt__message-content--thinking">
-                        <div className="gpt__typing-indicator">
-                          <span></span>
-                          <span></span>
-                          <span></span>
+                      ))}
+                      {isAiThinking && (
+                        <div className="gpt__message gpt__message--assistant">
+                          <div className="gpt__message-content gpt__message-content--thinking">
+                            <div className="gpt__typing-indicator">
+                              <span></span>
+                              <span></span>
+                              <span></span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      )}
+                      <div ref={messagesEndRef} />
+                    </>
                   )}
-                  <div ref={messagesEndRef} />
                 </div>
                 <form className="gpt__input-form" onSubmit={handleSendMessage}>
                   <textarea
@@ -468,6 +750,20 @@ function GPT() {
           </div>
         </div>
       </div>
+      
+      {/* Summary Modal */}
+      {getCurrentArticleInfo() && (
+        <SummaryModal
+          isOpen={showSummaryModal}
+          onClose={closeSummaryModal}
+          summary={getSummaryDataForModal()?.summary}
+          title={getSummaryDataForModal()?.title}
+          url={getSummaryDataForModal()?.url}
+          cached={getSummaryDataForModal()?.cached}
+          loading={summaryLoading}
+          error={null}
+        />
+      )}
     </div>
   );
 }

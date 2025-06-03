@@ -1288,4 +1288,83 @@
 
 .past-session__historical-banner p {
   margin: 0;
+}
+
+/* Article Summary Button Styles for PastSession */
+.past-session__resource-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.past-session__resource-content {
+  flex: 1;
+}
+
+.past-session__resource-actions {
+  flex-shrink: 0;
+}
+
+.past-session__summary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.past-session__summary-btn--generate {
+  background-color: #007bff;
+  color: white;
+}
+
+.past-session__summary-btn--generate:hover:not(:disabled) {
+  background-color: #0056b3;
+  transform: translateY(-1px);
+}
+
+.past-session__summary-btn--generate:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.past-session__summary-btn--view {
+  background-color: #28a745;
+  color: white;
+}
+
+.past-session__summary-btn--view:hover {
+  background-color: #1e7e34;
+  transform: translateY(-1px);
+}
+
+.past-session__summary-btn svg {
+  font-size: 0.9rem;
+}
+
+/* Responsive adjustments for resource items */
+@media (max-width: 768px) {
+  .past-session__resource-item {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .past-session__resource-actions {
+    align-self: flex-start;
+  }
+  
+  .past-session__summary-btn {
+    font-size: 0.8rem;
+    padding: 5px 10px;
+  }
 } 
