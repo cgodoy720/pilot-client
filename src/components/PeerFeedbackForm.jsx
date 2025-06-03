@@ -31,7 +31,17 @@ const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
     const fetchUsers = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
+        
+        // Get current user's cohort from auth context
+        const userCohort = user?.cohort;
+        if (!userCohort) {
+          setError('Unable to determine your cohort. Please contact support.');
+          setLoading(false);
+          return;
+        }
+        
+        // Fetch active builders from the same cohort
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users?cohort=${encodeURIComponent(userCohort)}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
@@ -43,8 +53,18 @@ const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
         
         const data = await response.json();
         
+        // Filter out the current user (they shouldn't give feedback to themselves)
+        const otherUsers = data.filter(u => u.user_id !== user.user_id);
+        
+        // Check if there are any other users in this cohort
+        if (otherUsers.length === 0) {
+          setError('No other users found in your cohort. You may be the only active builder in your cohort currently.');
+          setLoading(false);
+          return;
+        }
+        
         // Sort users alphabetically by first name, then last name
-        const sortedUsers = data.sort((a, b) => {
+        const sortedUsers = otherUsers.sort((a, b) => {
           const nameA = `${a.first_name.toLowerCase()} ${a.last_name.toLowerCase()}`;
           const nameB = `${b.first_name.toLowerCase()} ${b.last_name.toLowerCase()}`;
           return nameA.localeCompare(nameB);
@@ -59,7 +79,7 @@ const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
     };
     
     fetchUsers();
-  }, []);
+  }, [user]);
   
   // Filter users based on search term
   const filteredUsers = users.filter(user => {
