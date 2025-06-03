@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { FaTimes, FaClock, FaCheck, FaComments } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import './SummaryModal.css';
 
 function SummaryModal({ isOpen, onClose, summary, title, url, cached, loading, error }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { token, user } = useAuth();
   const [isCreatingDiscussion, setIsCreatingDiscussion] = useState(false);
   
@@ -14,6 +15,9 @@ function SummaryModal({ isOpen, onClose, summary, title, url, cached, loading, e
 
   // Check if user has active status
   const isActive = user?.active !== false;
+
+  // Check if we're currently on the GPT page
+  const isOnGPTPage = location.pathname === '/gpt';
 
   // Helper function to check if URL is a YouTube video
   const isYouTubeVideo = (url) => {
@@ -49,7 +53,8 @@ function SummaryModal({ isOpen, onClose, summary, title, url, cached, loading, e
         },
         body: JSON.stringify({
           url: url,
-          title: title
+          title: title,
+          summary: summary // Include the summary for better AI context
         })
       });
 
@@ -161,15 +166,18 @@ function SummaryModal({ isOpen, onClose, summary, title, url, cached, loading, e
                   >
                     {isVideo ? 'Watch full video →' : 'Read full article →'}
                   </a>
-                  <button
-                    onClick={handleDiscussWithAI}
-                    disabled={isCreatingDiscussion || !isActive}
-                    className="summary-modal__discuss-btn"
-                    title={!isActive ? "Historical access only - cannot create discussions" : "Start an AI discussion about this content"}
-                  >
-                    <FaComments />
-                    {isCreatingDiscussion ? 'Creating Discussion...' : 'Discuss with AI'}
-                  </button>
+                  {/* Only show Discuss with AI button if we're NOT on the GPT page */}
+                  {!isOnGPTPage && (
+                    <button
+                      onClick={handleDiscussWithAI}
+                      disabled={isCreatingDiscussion || !isActive}
+                      className="summary-modal__discuss-btn"
+                      title={!isActive ? "Historical access only - cannot create discussions" : "Start an AI discussion about this content"}
+                    >
+                      <FaComments />
+                      {isCreatingDiscussion ? 'Creating Discussion...' : 'Discuss with AI'}
+                    </button>
+                  )}
                 </div>
               </div>
               
