@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './GPT.css';
-import { FaPlus, FaChevronLeft, FaFileAlt, FaVideo } from 'react-icons/fa';
+import { FaPlus, FaChevronLeft, FaFileAlt, FaVideo, FaLink, FaTimes } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -28,8 +28,20 @@ function GPT() {
   const [summaryLoading, setSummaryLoading] = useState(false); // Track if we're fetching summary
   const [modalSummaryData, setModalSummaryData] = useState(null); // Summary data for the modal
   
+  // Enhanced content management state
+  const [contentSources, setContentSources] = useState({}); // Store multiple content sources per thread
+  const [showUploadDropdown, setShowUploadDropdown] = useState(false);
+  const [isProcessingUpload, setIsProcessingUpload] = useState(false);
+  const [processingFileName, setProcessingFileName] = useState(''); // Track what's being processed
+  const [processingUrl, setProcessingUrl] = useState(''); // Track URL being processed
+  const [processingStep, setProcessingStep] = useState(''); // Track current processing step
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
+  
   const textareaRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const uploadDropdownRef = useRef(null);
 
   // Check if user is inactive (in historical access mode)
   const isInactiveUser = user && user.active === false;
@@ -576,6 +588,262 @@ function GPT() {
     setModalSummaryData(null); // Clear modal-specific data
   };
 
+  // Upload handling functions
+  const handleFileUpload = async (file) => {
+    if (!user?.active) {
+      setError('You have historical access only and cannot upload files.');
+      return;
+    }
+
+    if (!activeThread) {
+      setError('Please select or create a conversation thread first.');
+      return;
+    }
+
+    setIsProcessingUpload(true);
+    setProcessingFileName(file.name);
+    setProcessingStep('Uploading file...');
+    setShowUploadDropdown(false);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('title', `${file.name} Summary`);
+
+      setProcessingStep('Processing content...');
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/resources/summarize`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to process file');
+      }
+
+      setProcessingStep('Generating summary...');
+      const summaryData = await response.json();
+
+      setProcessingStep('Finalizing...');
+      
+      // Add a hidden system message for AI context (not visible to user)
+      const hiddenSummaryMessage = `File uploaded: ${file.name}\nSummary: ${summaryData.summary}`;
+      
+      // Send the summary to the backend as a system message for AI context
+      try {
+        await fetch(`${import.meta.env.VITE_API_URL}/api/chat/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            content: hiddenSummaryMessage,
+            threadId: activeThread,
+            messageType: 'system_content_summary' // Special type for system messages
+          })
+        });
+      } catch (err) {
+        console.warn('Failed to send system message, continuing anyway:', err);
+      }
+
+      // Add content source as a special message-like component (UI only, not stored as message)
+      const contentSourceMessage = {
+        message_id: Date.now(),
+        content: null, // No content, this is a special component
+        message_role: 'content_source',
+        created_at: new Date().toISOString(),
+        contentSource: {
+          id: Date.now(),
+          type: 'file',
+          title: summaryData.title,
+          summary: summaryData.summary,
+          fileName: file.name,
+          contentType: summaryData.contentType || 'document',
+          processedAt: summaryData.created_at
+        }
+      };
+
+      setMessages(prevMessages => [...prevMessages, contentSourceMessage]);
+
+      // Store the file summary in content sources for reference
+      setContentSources(prev => ({
+        ...prev,
+        [activeThread]: [...(prev[activeThread] || []), contentSourceMessage.contentSource]
+      }));
+
+    } catch (error) {
+      console.error('Error processing file:', error);
+      setError(`Failed to process file: ${error.message}`);
+    } finally {
+      setIsProcessingUpload(false);
+      setProcessingFileName('');
+      setProcessingStep('');
+    }
+  };
+
+  const handleUrlSubmit = async () => {
+    if (!urlInput.trim()) return;
+    
+    if (!user?.active) {
+      setError('You have historical access only and cannot process URLs.');
+      return;
+    }
+
+    if (!activeThread) {
+      setError('Please select or create a conversation thread first.');
+      return;
+    }
+
+    setIsProcessingUpload(true);
+    setProcessingUrl(urlInput);
+    setProcessingStep('Analyzing URL...');
+    setShowUrlInput(false);
+    setShowUploadDropdown(false);
+
+    try {
+      setProcessingStep('Extracting content...');
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/resources/summarize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ url: urlInput })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to process URL');
+      }
+
+      setProcessingStep('Generating summary...');
+      const summaryData = await response.json();
+
+      setProcessingStep('Finalizing...');
+      
+      // Add a hidden system message for AI context
+      const isVideo = urlInput.includes('youtube.com') || urlInput.includes('youtu.be');
+      const type = isVideo ? 'Video' : 'Article';
+      const hiddenSummaryMessage = `${type} processed: ${summaryData.title}\nURL: ${urlInput}\nSummary: ${summaryData.summary}`;
+      
+      // Send the summary to the backend as a system message for AI context
+      try {
+        await fetch(`${import.meta.env.VITE_API_URL}/api/chat/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            content: hiddenSummaryMessage,
+            threadId: activeThread,
+            messageType: 'system_content_summary'
+          })
+        });
+      } catch (err) {
+        console.warn('Failed to send system message, continuing anyway:', err);
+      }
+
+      // Add content source as a special message-like component
+      const contentSourceMessage = {
+        message_id: Date.now(),
+        content: null,
+        message_role: 'content_source',
+        created_at: new Date().toISOString(),
+        contentSource: {
+          id: Date.now(),
+          type: 'url',
+          title: summaryData.title,
+          summary: summaryData.summary,
+          url: urlInput,
+          contentType: isVideo ? 'video' : 'article',
+          processedAt: summaryData.created_at,
+          cached: summaryData.cached
+        }
+      };
+
+      setMessages(prevMessages => [...prevMessages, contentSourceMessage]);
+
+      // Store the URL summary in content sources for reference
+      setContentSources(prev => ({
+        ...prev,
+        [activeThread]: [...(prev[activeThread] || []), contentSourceMessage.contentSource]
+      }));
+
+      setUrlInput('');
+
+    } catch (error) {
+      console.error('Error processing URL:', error);
+      setError(`Failed to process URL: ${error.message}`);
+    } finally {
+      setIsProcessingUpload(false);
+      setProcessingUrl('');
+      setProcessingStep('');
+    }
+  };
+
+  const handleFileInputChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+    // Reset file input
+    e.target.value = '';
+  };
+
+  const toggleUploadDropdown = () => {
+    setShowUploadDropdown(!showUploadDropdown);
+    setShowUrlInput(false);
+  };
+
+  const openFileDialog = () => {
+    setShowUploadDropdown(false);
+    fileInputRef.current?.click();
+  };
+
+  const openUrlInput = () => {
+    setShowUrlInput(true);
+    setShowUploadDropdown(false);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (uploadDropdownRef.current && !uploadDropdownRef.current.contains(event.target)) {
+        setShowUploadDropdown(false);
+        setShowUrlInput(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Function to get current content sources for active thread
+  const getCurrentContentSources = () => {
+    return contentSources[activeThread] || [];
+  };
+
+  // Function to show summary for a specific content source
+  const showContentSummary = (source) => {
+    setModalSummaryData({
+      title: source.type === 'file' ? `File Summary: ${source.fileName}` : `Content Summary: ${source.title}`,
+      summary: source.summary,
+      url: source.url,
+      contentType: source.contentType,
+      isAnalysis: false
+    });
+    setShowSummaryModal(true);
+  };
+
   return (
     <div className="gpt">
       {isInactiveUser && (
@@ -691,17 +959,173 @@ function GPT() {
                     </div>
                   ) : (
                     <>
-                      {/* Regular messages */}
-                      {messages.map((message) => (
-                        <div 
-                          key={getMessageId(message)} 
-                          className={`gpt__message ${getMessageRole(message) === 'user' ? 'gpt__message--user' : 'gpt__message--assistant'}`}
-                        >
-                          <div className="gpt__message-content">
-                            {formatMessageContent(message.content)}
+                      {/* Processing Overlay */}
+                      {isProcessingUpload && (
+                        <div className="gpt__processing-overlay">
+                          <div className="gpt__processing-content">
+                            <div className="gpt__processing-spinner">
+                              <div className="gpt__spinner"></div>
+                            </div>
+                            <div className="gpt__processing-text">
+                              <h4>Processing Content</h4>
+                              <p className="gpt__processing-step">{processingStep}</p>
+                              {processingFileName && (
+                                <p className="gpt__processing-file">File: {processingFileName}</p>
+                              )}
+                              {processingUrl && (
+                                <p className="gpt__processing-url">URL: {processingUrl}</p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      ))}
+                      )}
+                      
+                      {/* Regular messages */}
+                      {messages.map((message) => {
+                        // Handle system_content_summary messages to recreate content source cards
+                        if (getMessageRole(message) === 'system_content_summary') {
+                          const content = message.content;
+                          
+                          // Parse the content to extract info
+                          let source = {};
+                          
+                          if (content.startsWith('File uploaded:')) {
+                            // Parse file format: "File uploaded: filename\nSummary: summary"
+                            const lines = content.split('\n');
+                            const fileName = lines[0].replace('File uploaded: ', '');
+                            const summary = lines.slice(1).join('\n').replace('Summary: ', '');
+                            
+                            source = {
+                              id: getMessageId(message),
+                              type: 'file',
+                              fileName: fileName,
+                              title: `${fileName} Summary`,
+                              summary: summary,
+                              contentType: 'document',
+                              processedAt: message.created_at
+                            };
+                          } else if (content.includes(' processed:')) {
+                            // Parse URL format: "Video/Article processed: title\nURL: url\nSummary: summary"
+                            const lines = content.split('\n');
+                            const firstLine = lines[0];
+                            const isVideo = firstLine.startsWith('Video processed:');
+                            const title = firstLine.replace(/^(Video|Article) processed: /, '');
+                            const url = lines.find(line => line.startsWith('URL: '))?.replace('URL: ', '');
+                            const summary = lines.slice(lines.findIndex(line => line.startsWith('Summary: '))).join('\n').replace('Summary: ', '');
+                            
+                            source = {
+                              id: getMessageId(message),
+                              type: 'url',
+                              title: title,
+                              summary: summary,
+                              url: url,
+                              contentType: isVideo ? 'video' : 'article',
+                              processedAt: message.created_at
+                            };
+                          }
+                          
+                          // Only render if we successfully parsed the content
+                          if (source.summary) {
+                            const isVideo = source.contentType === 'video';
+                            const icon = source.type === 'file' ? '📄' : (isVideo ? '🎥' : '📰');
+                            
+                            return (
+                              <div key={getMessageId(message)} className="gpt__message gpt__message--content-source">
+                                <div className="gpt__content-source-card">
+                                  <div className="gpt__content-source-header">
+                                    <span className="gpt__content-source-icon-large">{icon}</span>
+                                    <div className="gpt__content-source-info">
+                                      <h4 className="gpt__content-source-title">
+                                        {source.type === 'file' ? source.fileName : source.title}
+                                      </h4>
+                                      <span className="gpt__content-source-type">{source.contentType}</span>
+                                      {source.url && (
+                                        <a 
+                                          href={source.url} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="gpt__content-source-link"
+                                        >
+                                          View original →
+                                        </a>
+                                      )}
+                                    </div>
+                                    <button
+                                      className="gpt__view-summary-btn"
+                                      onClick={() => showContentSummary(source)}
+                                      title="View summary"
+                                    >
+                                      View Summary
+                                    </button>
+                                  </div>
+                                  <div className="gpt__content-source-footer">
+                                    <small>Content processed and ready for discussion</small>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          
+                          // If parsing failed, don't render anything (hide the system message)
+                          return null;
+                        }
+                        
+                        // Handle content source messages specially (keep existing logic for new uploads)
+                        if (getMessageRole(message) === 'content_source' && message.contentSource) {
+                          const source = message.contentSource;
+                          const isVideo = source.contentType === 'video';
+                          const icon = source.type === 'file' ? '📄' : (isVideo ? '🎥' : '📰');
+                          
+                          return (
+                            <div key={getMessageId(message)} className="gpt__message gpt__message--content-source">
+                              <div className="gpt__content-source-card">
+                                <div className="gpt__content-source-header">
+                                  <span className="gpt__content-source-icon-large">{icon}</span>
+                                  <div className="gpt__content-source-info">
+                                    <h4 className="gpt__content-source-title">
+                                      {source.type === 'file' ? source.fileName : source.title}
+                                    </h4>
+                                    <span className="gpt__content-source-type">{source.contentType}</span>
+                                    {source.url && (
+                                      <a 
+                                        href={source.url} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="gpt__content-source-link"
+                                      >
+                                        View original →
+                                      </a>
+                                    )}
+                                  </div>
+                                  <button
+                                    className="gpt__view-summary-btn"
+                                    onClick={() => showContentSummary(source)}
+                                    title="View summary"
+                                  >
+                                    View Summary
+                                  </button>
+                                </div>
+                                <div className="gpt__content-source-footer">
+                                  <small>Content processed and ready for discussion</small>
+                                  {source.cached && <span className="gpt__cached-indicator">• Cached</span>}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                        
+                        // Regular messages
+                        return (
+                          <div 
+                            key={getMessageId(message)} 
+                            className={`gpt__message ${getMessageRole(message) === 'user' ? 'gpt__message--user' : 'gpt__message--assistant'}`}
+                          >
+                            <div className="gpt__message-content">
+                              {formatMessageContent(message.content)}
+                            </div>
+                          </div>
+                        );
+                      }).filter(Boolean)}
                       {isAiThinking && (
                         <div className="gpt__message gpt__message--assistant">
                           <div className="gpt__message-content gpt__message-content--thinking">
@@ -717,7 +1141,99 @@ function GPT() {
                     </>
                   )}
                 </div>
+                
                 <form className="gpt__input-form" onSubmit={handleSendMessage}>
+                  {/* Upload Controls */}
+                  <div className="gpt__upload-container" ref={uploadDropdownRef}>
+                    <button
+                      type="button"
+                      className={`gpt__upload-btn ${showUploadDropdown ? 'gpt__upload-btn--active' : ''}`}
+                      onClick={toggleUploadDropdown}
+                      disabled={!activeThread || isProcessingUpload || isLoading || isInactiveUser}
+                      title={isInactiveUser ? "Cannot upload in historical access mode" : "Upload file or add URL for AI to summarize and discuss"}
+                    >
+                      <FaPlus size={16} />
+                    </button>
+                    
+                    {/* Upload Dropdown */}
+                    {showUploadDropdown && (
+                      <div className="gpt__upload-dropdown">
+                        <button
+                          type="button"
+                          className="gpt__upload-option"
+                          onClick={openFileDialog}
+                          disabled={isProcessingUpload}
+                        >
+                          <FaFileAlt size={14} />
+                          <span>Upload File</span>
+                          <small>PDF, TXT, MD, DOCX</small>
+                        </button>
+                        <button
+                          type="button"
+                          className="gpt__upload-option"
+                          onClick={openUrlInput}
+                          disabled={isProcessingUpload}
+                        >
+                          <FaLink size={14} />
+                          <span>Add URL</span>
+                          <small>Google Docs, Articles, Videos</small>
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* URL Input */}
+                    {showUrlInput && (
+                      <div className="gpt__url-input-container">
+                        <input
+                          type="url"
+                          value={urlInput}
+                          onChange={(e) => setUrlInput(e.target.value)}
+                          placeholder="Enter URL (Google Docs, article, video...)"
+                          className="gpt__url-input"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleUrlSubmit();
+                            } else if (e.key === 'Escape') {
+                              setShowUrlInput(false);
+                              setUrlInput('');
+                            }
+                          }}
+                          autoFocus
+                        />
+                        <div className="gpt__url-actions">
+                          <button
+                            type="button"
+                            className="gpt__url-submit"
+                            onClick={handleUrlSubmit}
+                            disabled={!urlInput.trim() || isProcessingUpload}
+                          >
+                            Summarize
+                          </button>
+                          <button
+                            type="button"
+                            className="gpt__url-cancel"
+                            onClick={() => {
+                              setShowUrlInput(false);
+                              setUrlInput('');
+                            }}
+                          >
+                            <FaTimes size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Hidden File Input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.txt,.md,.docx"
+                    onChange={handleFileInputChange}
+                    style={{ display: 'none' }}
+                  />
+                  
                   <textarea
                     ref={textareaRef}
                     rows="1"
@@ -752,7 +1268,7 @@ function GPT() {
       </div>
       
       {/* Summary Modal */}
-      {getCurrentArticleInfo() && (
+      {(getCurrentArticleInfo() || modalSummaryData) && (
         <SummaryModal
           isOpen={showSummaryModal}
           onClose={closeSummaryModal}
@@ -762,6 +1278,9 @@ function GPT() {
           cached={getSummaryDataForModal()?.cached}
           loading={summaryLoading}
           error={null}
+          sourceInfo={getSummaryDataForModal()?.sourceInfo}
+          contentType={getSummaryDataForModal()?.contentType}
+          isAnalysis={getSummaryDataForModal()?.isAnalysis || false}
         />
       )}
     </div>
