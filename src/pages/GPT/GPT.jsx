@@ -600,6 +600,13 @@ function GPT() {
       return;
     }
 
+    // Add file size validation (50MB limit)
+    const maxFileSize = 50 * 1024 * 1024; // 50MB in bytes
+    if (file.size > maxFileSize) {
+      setError(`File size too large. Please upload files smaller than 50MB. Your file is ${(file.size / (1024 * 1024)).toFixed(1)}MB.`);
+      return;
+    }
+
     setIsProcessingUpload(true);
     setProcessingFileName(file.name);
     setProcessingStep('Uploading file...');
@@ -621,8 +628,34 @@ function GPT() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details || errorData.error || 'Failed to process file');
+        let errorMessage = 'Failed to process file';
+        
+        try {
+          // Try to parse as JSON first
+          const errorData = await response.json();
+          errorMessage = errorData.details || errorData.error || `Server error: ${response.status}`;
+        } catch (parseError) {
+          // If JSON parsing fails, it might be an HTML error page
+          const textResponse = await response.text();
+          
+          if (response.status === 500) {
+            if (file.size > 10 * 1024 * 1024) { // 10MB
+              errorMessage = `File too large or complex to process. Try uploading a smaller file or splitting large documents into sections.`;
+            } else {
+              errorMessage = `Server error while processing file. The file might be corrupted or in an unsupported format.`;
+            }
+          } else if (response.status === 413) {
+            errorMessage = `File too large. Please upload files smaller than 50MB.`;
+          } else if (response.status === 415) {
+            errorMessage = `Unsupported file type. Please upload PDF, TXT, MD, or DOCX files.`;
+          } else {
+            errorMessage = `Server error (${response.status}). Please try again or contact support if the problem persists.`;
+          }
+          
+          console.error('Server returned non-JSON response:', textResponse.substring(0, 200));
+        }
+        
+        throw new Error(errorMessage);
       }
 
       setProcessingStep('Generating summary...');
@@ -718,8 +751,30 @@ function GPT() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details || errorData.error || 'Failed to process URL');
+        let errorMessage = 'Failed to process URL';
+        
+        try {
+          // Try to parse as JSON first
+          const errorData = await response.json();
+          errorMessage = errorData.details || errorData.error || `Server error: ${response.status}`;
+        } catch (parseError) {
+          // If JSON parsing fails, it might be an HTML error page
+          const textResponse = await response.text();
+          
+          if (response.status === 500) {
+            errorMessage = `Server error while processing URL. The content might be too large, restricted, or in an unsupported format.`;
+          } else if (response.status === 404) {
+            errorMessage = `URL not found or inaccessible. Please check the URL and try again.`;
+          } else if (response.status === 403) {
+            errorMessage = `Access denied. The content might be behind a paywall or login required.`;
+          } else {
+            errorMessage = `Server error (${response.status}). Please try again or contact support if the problem persists.`;
+          }
+          
+          console.error('Server returned non-JSON response:', textResponse.substring(0, 200));
+        }
+        
+        throw new Error(errorMessage);
       }
 
       setProcessingStep('Generating summary...');
@@ -835,7 +890,7 @@ function GPT() {
   // Function to show summary for a specific content source
   const showContentSummary = (source) => {
     setModalSummaryData({
-      title: source.type === 'file' ? `File Summary: ${source.fileName}` : `Content Summary: ${source.title}`,
+      title: source.type === 'file' ? `File Summary: ${source.fileName}` : source.title,
       summary: source.summary,
       url: source.url,
       contentType: source.contentType,
@@ -1035,10 +1090,12 @@ function GPT() {
                                   <div className="gpt__content-source-header">
                                     <span className="gpt__content-source-icon-large">{icon}</span>
                                     <div className="gpt__content-source-info">
-                                      <h4 className="gpt__content-source-title">
-                                        {source.type === 'file' ? source.fileName : source.title}
-                                      </h4>
-                                      <span className="gpt__content-source-type">{source.contentType}</span>
+                                      <div className="gpt__content-source-type-title">
+                                        <span className="gpt__content-source-type">{source.contentType}</span>
+                                        <h4 className="gpt__content-source-title">
+                                          {source.type === 'file' ? source.fileName : source.title}
+                                        </h4>
+                                      </div>
                                       {source.url && (
                                         <a 
                                           href={source.url} 
@@ -1057,9 +1114,6 @@ function GPT() {
                                     >
                                       View Summary
                                     </button>
-                                  </div>
-                                  <div className="gpt__content-source-footer">
-                                    <small>Content processed and ready for discussion</small>
                                   </div>
                                 </div>
                               </div>
@@ -1082,10 +1136,12 @@ function GPT() {
                                 <div className="gpt__content-source-header">
                                   <span className="gpt__content-source-icon-large">{icon}</span>
                                   <div className="gpt__content-source-info">
-                                    <h4 className="gpt__content-source-title">
-                                      {source.type === 'file' ? source.fileName : source.title}
-                                    </h4>
-                                    <span className="gpt__content-source-type">{source.contentType}</span>
+                                    <div className="gpt__content-source-type-title">
+                                      <span className="gpt__content-source-type">{source.contentType}</span>
+                                      <h4 className="gpt__content-source-title">
+                                        {source.type === 'file' ? source.fileName : source.title}
+                                      </h4>
+                                    </div>
                                     {source.url && (
                                       <a 
                                         href={source.url} 
@@ -1104,10 +1160,6 @@ function GPT() {
                                   >
                                     View Summary
                                   </button>
-                                </div>
-                                <div className="gpt__content-source-footer">
-                                  <small>Content processed and ready for discussion</small>
-                                  {source.cached && <span className="gpt__cached-indicator">• Cached</span>}
                                 </div>
                               </div>
                             </div>
@@ -1176,7 +1228,7 @@ function GPT() {
                         >
                           <FaLink size={14} />
                           <span>Add URL</span>
-                          <small>Google Docs, Articles, Videos</small>
+                          <small>Google Docs, Articles, YouTube Videos</small>
                         </button>
                       </div>
                     )}
