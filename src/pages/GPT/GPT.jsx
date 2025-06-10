@@ -709,6 +709,11 @@ function GPT() {
         [activeThread]: [...(prev[activeThread] || []), contentSourceMessage.contentSource]
       }));
 
+      // Refresh threads to update title (especially for new threads)
+      setTimeout(() => {
+        fetchThreads();
+      }, 1000);
+
     } catch (error) {
       console.error('Error processing file:', error);
       setError(`Failed to process file: ${error.message}`);
@@ -832,6 +837,11 @@ function GPT() {
       }));
 
       setUrlInput('');
+
+      // Refresh threads to update title (especially for new threads)
+      setTimeout(() => {
+        fetchThreads();
+      }, 1000);
 
     } catch (error) {
       console.error('Error processing URL:', error);
@@ -1001,6 +1011,27 @@ function GPT() {
               </div>
             ) : (
               <>
+                {/* Processing Overlay - moved outside message conditional to always show when processing */}
+                {isProcessingUpload && (
+                  <div className="gpt__processing-overlay">
+                    <div className="gpt__processing-content">
+                      <div className="gpt__processing-spinner">
+                        <div className="gpt__spinner"></div>
+                      </div>
+                      <div className="gpt__processing-text">
+                        <h4>Processing Content</h4>
+                        <p className="gpt__processing-step">{processingStep}</p>
+                        {processingFileName && (
+                          <p className="gpt__processing-file">File: {processingFileName}</p>
+                        )}
+                        {processingUrl && (
+                          <p className="gpt__processing-url">URL: {processingUrl}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="gpt__messages">
                   {isLoading && messages.length === 0 ? (
                     <div className="gpt__loading-messages">Loading messages...</div>
@@ -1014,27 +1045,6 @@ function GPT() {
                     </div>
                   ) : (
                     <>
-                      {/* Processing Overlay */}
-                      {isProcessingUpload && (
-                        <div className="gpt__processing-overlay">
-                          <div className="gpt__processing-content">
-                            <div className="gpt__processing-spinner">
-                              <div className="gpt__spinner"></div>
-                            </div>
-                            <div className="gpt__processing-text">
-                              <h4>Processing Content</h4>
-                              <p className="gpt__processing-step">{processingStep}</p>
-                              {processingFileName && (
-                                <p className="gpt__processing-file">File: {processingFileName}</p>
-                              )}
-                              {processingUrl && (
-                                <p className="gpt__processing-url">URL: {processingUrl}</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      
                       {/* Regular messages */}
                       {messages.map((message) => {
                         // Handle system_content_summary messages to recreate content source cards
