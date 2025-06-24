@@ -11,6 +11,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import SchoolIcon from '@mui/icons-material/School';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import PersonIcon from '@mui/icons-material/Person';
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 import logo from '../../assets/logo.png'
@@ -107,6 +108,10 @@ const Layout = ({ children }) => {
             <DarkModeIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Theme</span>}
           </a> */}
+          <Link to="/account" className={`layout__nav-item ${location.pathname === '/account' ? 'layout__nav-item--active' : ''}`}>
+            <PersonIcon className="layout__nav-icon" />
+            {isExpanded && <span className="layout__nav-text">Account</span>}
+          </Link>
           <button onClick={handleLogout} className="layout__nav-item layout__logout-btn">
             <LogoutIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Logout</span>}

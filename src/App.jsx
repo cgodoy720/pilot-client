@@ -7,6 +7,7 @@ import Learning from './pages/Learning/Learning';
 import PastSession from './pages/PastSession/PastSession';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
 import Stats from './pages/Stats';
+import Account from './pages/Account/Account';
 import { useAuth } from './context/AuthContext';
 import './App.css';
 
@@ -71,6 +72,7 @@ function App() {
           </AdminRoute>
         } />
         <Route path="/stats" element={<Stats />} />
+        <Route path="/account" element={<Account />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Layout>
