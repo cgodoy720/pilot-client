@@ -61,13 +61,13 @@ const Layout = ({ children }) => {
         </div>
         
         <div className="layout__nav-links">
-          <Link to="/dashboard" className="layout__nav-item">
+          <Link to="/dashboard" className={`layout__nav-item ${location.pathname === '/dashboard' ? 'layout__nav-item--active' : ''}`}>
             <DashboardIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Dashboard</span>}
           </Link>
           
           {isActive ? (
-            <Link to="/learning" className="layout__nav-item">
+            <Link to="/learning" className={`layout__nav-item ${location.pathname === '/learning' ? 'layout__nav-item--active' : ''}`}>
               <SchoolIcon className="layout__nav-icon" />
               {isExpanded && <span className="layout__nav-text">Learning</span>}
             </Link>
@@ -80,22 +80,22 @@ const Layout = ({ children }) => {
             </Tooltip>
           )}
           
-          <Link to="/gpt" className="layout__nav-item">
+          <Link to="/gpt" className={`layout__nav-item ${location.pathname === '/gpt' ? 'layout__nav-item--active' : ''}`}>
             <ChatIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">GPT-4-TURBO</span>}
           </Link>
-          <Link to="/calendar" className="layout__nav-item">
+          <Link to="/calendar" className={`layout__nav-item ${location.pathname === '/calendar' ? 'layout__nav-item--active' : ''}`}>
             <CalendarMonthIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Calendar</span>}
           </Link>
           
-          <Link to="/stats" className="layout__nav-item">
+          <Link to="/stats" className={`layout__nav-item ${location.pathname === '/stats' ? 'layout__nav-item--active' : ''}`}>
             <AssessmentIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">My Progress</span>}
           </Link>
           
           {isAdmin && (
-            <Link to="/admin-dashboard" className="layout__nav-item">
+            <Link to="/admin-dashboard" className={`layout__nav-item ${location.pathname === '/admin-dashboard' ? 'layout__nav-item--active' : ''}`}>
               <AdminPanelSettingsIcon className="layout__nav-icon" />
               {isExpanded && <span className="layout__nav-text">Admin Dashboard</span>}
             </Link>

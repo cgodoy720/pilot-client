@@ -89,6 +89,16 @@
   color: #FFFFFF;
 }
 
+.layout__nav-item--active {
+  background-color: rgba(66, 66, 234, 0.2);
+  color: #FFFFFF;
+}
+
+.layout__nav-item--active .layout__nav-icon {
+  opacity: 1;
+  color: #4242ea;
+}
+
 .layout__bottom-links {
   margin-top: auto;
   display: flex;
