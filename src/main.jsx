@@ -9,6 +9,7 @@ import ResetPassword from './pages/Login/ResetPassword.jsx'
 import VerifyEmail from './pages/Login/VerifyEmail.jsx'
 import ResendVerification from './pages/Login/ResendVerification.jsx'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
+import './utils/globalErrorHandler.js' // Install global auth error handler
 import './index.css'
 
 // Protected route component

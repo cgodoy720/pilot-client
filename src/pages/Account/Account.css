@@ -257,6 +257,127 @@
   font-weight: 600;
 }
 
+.account__github-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+/* GitHub Repositories Styles */
+.account__repos-section {
+  margin-top: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  background-color: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.account__repos-title {
+  margin: 0 0 var(--spacing-lg) 0;
+  color: var(--color-text-primary);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.account__repos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.account__repo-card {
+  padding: var(--spacing-lg);
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.account__repo-card:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.account__repo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-sm);
+}
+
+.account__repo-name {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.account__repo-name a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.account__repo-name a:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+.account__repo-badges {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+}
+
+.account__repo-badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.account__repo-badge--private {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.account__repo-badge--language {
+  background-color: rgba(66, 66, 234, 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(66, 66, 234, 0.2);
+}
+
+.account__repo-description {
+  margin: var(--spacing-sm) 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.account__repo-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.account__repo-date {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.account__repos-empty {
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  padding: var(--spacing-xl);
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .account {

@@ -3,6 +3,7 @@ import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, F
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
+
 import PeerFeedbackForm from '../../components/PeerFeedbackForm';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
 import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
@@ -351,7 +352,10 @@ function Learning() {
         });
         
         if (!response.ok) {
-          throw new Error('Failed to fetch learning data');
+          const errorData = await response.json().catch(() => ({}));
+          const error = new Error(errorData.error || 'Failed to fetch learning data');
+          error.response = { status: response.status, data: errorData };
+          throw error;
         }
         
         const data = await response.json();

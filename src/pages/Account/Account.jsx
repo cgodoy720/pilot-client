@@ -17,20 +17,61 @@ function Account() {
   const [githubConnected, setGithubConnected] = useState(false);
   const [githubUser, setGithubUser] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [githubRepos, setGithubRepos] = useState([]);
+  const [isLoadingRepos, setIsLoadingRepos] = useState(false);
+  const [showRepos, setShowRepos] = useState(false);
 
   useEffect(() => {
     if (user) {
       // Handle both camelCase and snake_case field names
       setFirstName(user.firstName || user.first_name || '');
       setLastName(user.lastName || user.last_name || '');
-      // TODO: Check if user has GitHub connection
       checkGitHubConnection();
     }
   }, [user]);
 
+  // Handle GitHub OAuth callback
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const githubStatus = urlParams.get('github');
+    
+    if (githubStatus === 'success') {
+      setMessage('GitHub account connected successfully!');
+      setTimeout(() => setMessage(''), 3000);
+      checkGitHubConnection(); // Refresh connection status
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (githubStatus === 'error') {
+      setError('Failed to connect GitHub account. Please try again.');
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   const checkGitHubConnection = async () => {
-    // TODO: Implement GitHub connection check
-    console.log('Checking GitHub connection...');
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/github/status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setGithubConnected(data.connected);
+        if (data.connected) {
+          setGithubUser({
+            username: data.username,
+            avatar_url: data.avatar_url
+          });
+        } else {
+          setGithubRepos([]);
+          setShowRepos(false);
+        }
+      }
+    } catch (err) {
+      console.error('Error checking GitHub connection:', err);
+    }
   };
 
   const handleSaveUserInfo = async (e) => {
@@ -79,14 +120,19 @@ function Account() {
   const handleConnectGitHub = async () => {
     setIsConnecting(true);
     try {
-      // TODO: Implement GitHub OAuth flow
-      console.log('Connecting to GitHub...');
-      // For now, just simulate connection
-      setTimeout(() => {
-        setGithubConnected(true);
-        setGithubUser({ username: 'placeholder', avatar_url: '' });
-        setIsConnecting(false);
-      }, 1000);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/github/auth`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Redirect to GitHub OAuth URL
+        window.location.href = data.authUrl;
+      } else {
+        throw new Error('Failed to initiate GitHub OAuth');
+      }
     } catch (err) {
       console.error('Error connecting to GitHub:', err);
       setError('Failed to connect to GitHub. Please try again.');
@@ -96,13 +142,56 @@ function Account() {
 
   const handleDisconnectGitHub = async () => {
     try {
-      // TODO: Implement GitHub disconnect
-      console.log('Disconnecting from GitHub...');
-      setGithubConnected(false);
-      setGithubUser(null);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/github/disconnect`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setGithubConnected(false);
+        setGithubUser(null);
+        setGithubRepos([]);
+        setShowRepos(false);
+        setMessage('GitHub account disconnected successfully!');
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        throw new Error('Failed to disconnect GitHub account');
+      }
     } catch (err) {
       console.error('Error disconnecting from GitHub:', err);
       setError('Failed to disconnect from GitHub. Please try again.');
+    }
+  };
+
+  const handleViewRepos = async () => {
+    if (showRepos) {
+      setShowRepos(false);
+      return;
+    }
+
+    setIsLoadingRepos(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/github/repos`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setGithubRepos(data.repos);
+        setShowRepos(true);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch repositories');
+      }
+    } catch (err) {
+      console.error('Error fetching GitHub repos:', err);
+      setError(err.message || 'Failed to fetch repositories. Please try again.');
+    } finally {
+      setIsLoadingRepos(false);
     }
   };
 
@@ -197,12 +286,21 @@ function Account() {
                     <small>Your repositories are accessible for course projects</small>
                   </div>
                 </div>
-                <button 
-                  onClick={handleDisconnectGitHub}
-                  className="account__button account__button--secondary"
-                >
-                  Disconnect
-                </button>
+                <div className="account__github-actions">
+                  <button 
+                    onClick={handleViewRepos}
+                    className="account__button account__button--primary"
+                    disabled={isLoadingRepos}
+                  >
+                    {isLoadingRepos ? 'Loading...' : showRepos ? 'Hide Repos' : 'View Repos'}
+                  </button>
+                  <button 
+                    onClick={handleDisconnectGitHub}
+                    className="account__button account__button--secondary"
+                  >
+                    Disconnect
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="account__github-disconnected">
@@ -225,6 +323,42 @@ function Account() {
               </div>
             )}
           </div>
+
+          {/* GitHub Repositories Section */}
+          {githubConnected && showRepos && (
+            <div className="account__repos-section">
+              <h3 className="account__repos-title">Your GitHub Repositories ({githubRepos.length})</h3>
+              {githubRepos.length > 0 ? (
+                <div className="account__repos-grid">
+                  {githubRepos.map(repo => (
+                    <div key={repo.id} className="account__repo-card">
+                      <div className="account__repo-header">
+                        <h4 className="account__repo-name">
+                          <a href={repo.html_url} target="_blank" rel="noopener noreferrer">
+                            {repo.name}
+                          </a>
+                        </h4>
+                        <div className="account__repo-badges">
+                          {repo.private && <span className="account__repo-badge account__repo-badge--private">Private</span>}
+                          {repo.language && <span className="account__repo-badge account__repo-badge--language">{repo.language}</span>}
+                        </div>
+                      </div>
+                      {repo.description && (
+                        <p className="account__repo-description">{repo.description}</p>
+                      )}
+                      <div className="account__repo-meta">
+                        <span className="account__repo-date">
+                          Updated {new Date(repo.updated_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="account__repos-empty">No repositories found.</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
