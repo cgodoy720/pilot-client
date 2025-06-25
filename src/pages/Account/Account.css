@@ -1,0 +1,400 @@
+.account {
+  width: 100%;
+  height: 100%;
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+}
+
+.account__container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.account__title {
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-xl);
+  color: var(--color-text-primary);
+}
+
+/* Messages */
+.account__message {
+  padding: var(--spacing-md);
+  border-radius: 6px;
+  margin-bottom: var(--spacing-lg);
+  font-weight: 500;
+}
+
+.account__message--success {
+  background-color: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.account__message--error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Sections */
+.account__section {
+  background-color: var(--color-background-dark);
+  border-radius: 8px;
+  padding: var(--spacing-xl);
+  margin-bottom: var(--spacing-xl);
+  border: 1px solid var(--color-border);
+}
+
+.account__section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-lg);
+  color: var(--color-text-primary);
+}
+
+/* Form Styling */
+.account__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.account__form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+.account__form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.account__label {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.account__input {
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.account__input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(66, 66, 234, 0.1);
+}
+
+.account__input--readonly {
+  background-color: var(--color-background-light);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
+/* Buttons */
+.account__button {
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
+}
+
+.account__button--primary {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.account__button--primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.account__button--secondary {
+  background-color: transparent;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.account__button--secondary:hover:not(:disabled) {
+  background-color: var(--color-background-light);
+}
+
+.account__button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* GitHub Integration Styles */
+.account__github {
+  display: flex;
+  flex-direction: column;
+}
+
+.account__github-connected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-lg);
+  background-color: rgba(34, 197, 94, 0.05);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 8px;
+}
+
+.account__github-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.account__github-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.account__github-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.account__github-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  background-color: var(--color-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.account__github-details h3 {
+  margin: 0 0 4px 0;
+  color: #22c55e;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.account__github-details p {
+  margin: 0 0 4px 0;
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.account__github-details small {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.account__github-disconnected {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  background-color: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.account__github-prompt h3 {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--color-text-primary);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.account__github-prompt p {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.account__github-benefits {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.account__github-benefits li {
+  padding: var(--spacing-xs) 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  position: relative;
+  padding-left: var(--spacing-lg);
+}
+
+.account__github-benefits li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #22c55e;
+  font-weight: 600;
+}
+
+.account__github-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+/* GitHub Repositories Styles */
+.account__repos-section {
+  margin-top: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  background-color: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.account__repos-title {
+  margin: 0 0 var(--spacing-lg) 0;
+  color: var(--color-text-primary);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.account__repos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.account__repo-card {
+  padding: var(--spacing-lg);
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.account__repo-card:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.account__repo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-sm);
+}
+
+.account__repo-name {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.account__repo-name a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.account__repo-name a:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+.account__repo-badges {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+}
+
+.account__repo-badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.account__repo-badge--private {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.account__repo-badge--language {
+  background-color: rgba(66, 66, 234, 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(66, 66, 234, 0.2);
+}
+
+.account__repo-description {
+  margin: var(--spacing-sm) 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.account__repo-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.account__repo-date {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.account__repos-empty {
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  padding: var(--spacing-xl);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .account {
+    padding: var(--spacing-md);
+  }
+
+  .account__form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .account__github-connected {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .account__section {
+    padding: var(--spacing-lg);
+  }
+} 

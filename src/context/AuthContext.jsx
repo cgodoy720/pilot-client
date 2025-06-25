@@ -113,6 +113,15 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
   };
 
+  // Update user function (for profile updates)
+  const updateUser = (updatedUserData) => {
+    const updatedUser = { ...user, ...updatedUserData };
+    setUser(updatedUser);
+    
+    // Update localStorage as well
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
+
   // Value object to be provided to consumers
   const value = {
     user,
@@ -121,7 +130,8 @@ export const AuthProvider = ({ children }) => {
     isLoading,
     login,
     signup,
-    logout
+    logout,
+    updateUser
   };
 
   return (

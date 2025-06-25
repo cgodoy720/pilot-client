@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaArrowRight, FaCheck, FaRegSquare, FaCalendarAlt, FaExclamationTriangle } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
+
 import './Dashboard.css';
 
 function Dashboard() {
@@ -50,7 +51,10 @@ function Dashboard() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to fetch dashboard data');
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(errorData.error || 'Failed to fetch dashboard data');
+        error.response = { status: response.status, data: errorData };
+        throw error;
       }
       
       const data = await response.json();
