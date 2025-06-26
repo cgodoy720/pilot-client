@@ -198,13 +198,30 @@ function Account() {
   return (
     <div className="account">
       <div className="account__container">
-        <h1 className="account__title">Account Settings</h1>
-
         {/* Messages */}
         {message && <div className="account__message account__message--success">{message}</div>}
         {error && <div className="account__message account__message--error">{error}</div>}
 
-        {/* User Information Section */}
+        {/* Account Information Section */}
+        <div className="account__section">
+          <h2 className="account__section-title">Account Information</h2>
+          <div className="account__info-grid">
+            <div className="account__info-item">
+              <label className="account__info-label">Email Address</label>
+              <div className="account__info-value">
+                {user?.email || 'Not specified'}
+              </div>
+            </div>
+            <div className="account__info-item">
+              <label className="account__info-label">Cohort</label>
+              <div className="account__info-value">
+                {user?.cohort || 'Not specified'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Personal Information Section */}
         <div className="account__section">
           <h2 className="account__section-title">Personal Information</h2>
           <form onSubmit={handleSaveUserInfo} className="account__form">
@@ -229,29 +246,6 @@ function Account() {
                   onChange={(e) => setLastName(e.target.value)}
                   className="account__input"
                   placeholder="Enter your last name"
-                />
-              </div>
-            </div>
-            
-            <div className="account__form-row">
-              <div className="account__form-group">
-                <label htmlFor="email" className="account__label">Email Address</label>
-                <input
-                  type="email"
-                  id="email"
-                  value={user?.email || ''}
-                  className="account__input account__input--readonly"
-                  readOnly
-                />
-              </div>
-              <div className="account__form-group">
-                <label htmlFor="cohort" className="account__label">Cohort</label>
-                <input
-                  type="text"
-                  id="cohort"
-                  value={user?.cohort || ''}
-                  className="account__input account__input--readonly"
-                  readOnly
                 />
               </div>
             </div>
