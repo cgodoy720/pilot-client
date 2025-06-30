@@ -1,0 +1,192 @@
+.applicant-dashboard {
+    min-height: 100vh;
+    background: #f8fafc;
+}
+
+.dashboard-header {
+    background: white;
+    padding: 20px 40px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-header h1 {
+    margin: 0;
+    color: #1a202c;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.logout-button {
+    background: #e53e3e;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.logout-button:hover {
+    background: #c53030;
+}
+
+.dashboard-content {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.welcome-section {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.welcome-section h2 {
+    margin: 0 0 10px 0;
+    color: #2d3748;
+    font-size: 28px;
+    font-weight: 600;
+}
+
+.welcome-section p {
+    margin: 0;
+    color: #718096;
+    font-size: 16px;
+}
+
+.application-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    margin-bottom: 40px;
+}
+
+.step-card {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+    border: 1px solid #e2e8f0;
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.step-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.step-number {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.step-content {
+    flex: 1;
+}
+
+.step-content h3 {
+    margin: 0 0 10px 0;
+    color: #2d3748;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.step-content p {
+    margin: 0 0 20px 0;
+    color: #718096;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.step-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.step-button:hover {
+    transform: translateY(-1px);
+}
+
+.applicant-info {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+    border: 1px solid #e2e8f0;
+}
+
+.applicant-info h3 {
+    margin: 0 0 20px 0;
+    color: #2d3748;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.info-item label {
+    color: #718096;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.info-item span {
+    color: #2d3748;
+    font-size: 16px;
+}
+
+@media (max-width: 768px) {
+    .dashboard-header {
+        padding: 15px 20px;
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .dashboard-content {
+        padding: 20px 15px;
+    }
+    
+    .application-steps {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .step-card {
+        padding: 20px;
+    }
+} 

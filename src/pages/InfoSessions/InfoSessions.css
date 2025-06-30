@@ -1,0 +1,158 @@
+.info-sessions-container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.info-sessions-header {
+  margin-bottom: 2rem;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.back-button:hover {
+  color: var(--color-primary);
+}
+
+.padded-lhs {
+  padding-left: 3rem;
+}
+
+@media (max-width: 900px) {
+  .padded-lhs {
+    padding-left: 1rem;
+  }
+}
+
+.add-session-form {
+  background-color: #f5f5f5;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.add-session-form form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.add-session-form input {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  background: #35363a;
+  color: #fff;
+}
+
+.add-session-form input::placeholder {
+  color: #bbb;
+  opacity: 1;
+}
+
+.add-session-form button {
+  padding: 0.5rem 1rem;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-weight: 600;
+}
+
+.add-session-form button:hover {
+  background-color: #0056b3;
+}
+
+.sessions-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.session-card {
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.session-card h4 {
+  margin: 0 0 1rem 0;
+  color: #333;
+}
+
+.session-card p {
+  margin: 0.5rem 0;
+  color: #666;
+}
+
+.session-card button {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.session-card button:hover {
+  background-color: #218838;
+}
+
+.session-card button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.attendance-list {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #ddd;
+}
+
+.user-attendance {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+}
+
+.user-attendance button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  background-color: #17a2b8;
+}
+
+.user-attendance button:hover {
+  background-color: #138496;
+}
+
+.no-sessions-msg {
+  background: #fffbe6;
+  color: #856404;
+  border: 1px solid #ffeeba;
+  border-radius: 8px;
+  padding: 1.2rem 1.5rem;
+  margin-top: 1rem;
+  font-size: 1.1rem;
+  max-width: 600px;
+} 

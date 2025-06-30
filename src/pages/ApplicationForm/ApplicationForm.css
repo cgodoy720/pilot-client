@@ -1,0 +1,298 @@
+.application-form {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.form-section {
+  margin-bottom: 2rem;
+}
+
+.form-section h2 {
+  color: #333;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #555;
+  font-weight: 500;
+}
+
+.required {
+  color: #dc3545;
+  margin-left: 0.25rem;
+}
+
+.form-input,
+textarea.form-input,
+select.form-input {
+  font-family: inherit, Arial, sans-serif;
+  font-size: 1rem;
+  color: var(--color-text-primary);
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  transition: border-color 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+textarea.form-input {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.form-navigation {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.nav-button,
+.save-button,
+.submit-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.nav-button {
+  background-color: #f8f9fa;
+  color: #333;
+}
+
+.nav-button:hover {
+  background-color: #e9ecef;
+}
+
+.save-button {
+  background-color: #6c757d;
+  color: white;
+  margin-right: 1rem;
+}
+
+.save-button:hover {
+  background-color: #5a6268;
+}
+
+.submit-button {
+  background-color: #28a745;
+  color: white;
+}
+
+.submit-button:hover {
+  background-color: #218838;
+}
+
+.submit-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .application-form {
+    padding: 1rem;
+  }
+
+  .form-navigation {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .save-button,
+  .submit-button {
+    width: 100%;
+    margin-right: 0;
+  }
+}
+
+.application-form-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.application-header {
+  margin-bottom: 2rem;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.back-button:hover {
+  color: var(--color-primary);
+}
+
+.progress-container {
+  margin-top: 1rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--color-border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.radio-option {
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.radio-option input[type="radio"] {
+  margin-right: 0.5rem;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  background-color: white;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.radio-option input[type="radio"]:checked {
+  background-color: var(--color-border);
+  border-color: white;
+}
+
+select.form-input option {
+  color: var(--color-text-primary);
+  background-color: var(--color-background-light);
+}
+
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.checkbox-option {
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.checkbox-option input[type="checkbox"] {
+  margin-right: 0.5rem;
+  /* Default state: white background, grey border */
+  appearance: none; /* Hide default checkbox */
+  width: 16px; /* Set size */
+  height: 16px;
+  border-radius: 50%; /* Make it round */
+  border: 2px solid var(--color-border); /* Grey border */
+  background-color: white; /* White background */
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.checkbox-option input[type="checkbox"]:checked {
+  /* Selected state: grey background, white border */
+  background-color: var(--color-border); /* Grey background */
+  border-color: white; /* White border */
+}
+
+/* Loading and Error States */
+.loading-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+  padding: 2rem;
+}
+
+.loading-state h2,
+.error-state h2 {
+  color: var(--color-primary);
+  margin-bottom: 1rem;
+}
+
+.loading-state p,
+.error-state p {
+  color: var(--color-text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.error-state button {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.error-state button:hover {
+  background: var(--color-primary-dark);
+}
+
+/* Session Info */
+.session-info {
+  margin-left: 1rem;
+  padding: 0.25rem 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.session-info small {
+  color: var(--color-text-muted);
+} 

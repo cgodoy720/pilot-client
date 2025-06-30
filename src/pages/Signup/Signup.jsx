@@ -221,6 +221,11 @@ const Signup = () => {
               <Link to="/login" className="signup-link">Log in</Link>
             </div>
             
+            <div className="signup-links">
+              <span>Not a builder yet?</span>
+              <Link to="/apply/signup" className="signup-link">Apply to Pursuit</Link>
+            </div>
+            
             <button 
               type="submit" 
               className="signup-button"

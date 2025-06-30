@@ -8,6 +8,15 @@ import ForgotPassword from './pages/Login/ForgotPassword.jsx'
 import ResetPassword from './pages/Login/ResetPassword.jsx'
 import VerifyEmail from './pages/Login/VerifyEmail.jsx'
 import ResendVerification from './pages/Login/ResendVerification.jsx'
+
+// Applicant pages
+import ApplicantLogin from './pages/ApplicantLogin/index.js'
+import ApplicantSignup from './pages/ApplicantSignup/index.js'
+import ApplicantDashboard from './pages/ApplicantDashboard/index.js'
+import ApplicationForm from './pages/ApplicationForm/index.js'
+import InfoSessions from './pages/InfoSessions/index.js'
+import Workshops from './pages/Workshops/index.js'
+
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import './utils/globalErrorHandler.js' // Install global auth error handler
 import './index.css'
@@ -41,7 +50,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/verify-email/:token" element={<VerifyEmail />} />
           <Route path="/resend-verification" element={<ResendVerification />} />
           
-          {/* Protected routes */}
+          {/* Applicant routes (public, no builder auth required) */}
+          <Route path="/apply/login" element={<ApplicantLogin />} />
+          <Route path="/apply/signup" element={<ApplicantSignup />} />
+          <Route path="/apply" element={<ApplicantDashboard />} />
+          <Route path="/application-form" element={<ApplicationForm />} />
+          <Route path="/info-sessions" element={<InfoSessions />} />
+          <Route path="/workshops" element={<Workshops />} />
+          
+          {/* Protected builder routes */}
           <Route 
             path="/*" 
             element={
