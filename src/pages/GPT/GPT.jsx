@@ -348,27 +348,27 @@ function GPT() {
         <ReactMarkdown 
           key={index}
           components={{
-            p: ({node, children, ...props}) => (
-              <p className="markdown-paragraph" {...props}>{children}</p>
-            ),
-            h1: ({node, children, ...props}) => (
-              <h1 className="markdown-heading" {...props}>{children}</h1>
-            ),
-            h2: ({node, children, ...props}) => (
-              <h2 className="markdown-heading" {...props}>{children}</h2>
-            ),
-            h3: ({node, children, ...props}) => (
-              <h3 className="markdown-heading" {...props}>{children}</h3>
-            ),
-            ul: ({node, children, ...props}) => (
-              <ul className="markdown-list" {...props}>{children}</ul>
-            ),
-            ol: ({node, children, ...props}) => (
-              <ol className="markdown-list" {...props}>{children}</ol>
-            ),
-            li: ({node, children, ...props}) => (
-              <li className="markdown-list-item" {...props}>{children}</li>
-            ),
+                            p: ({node, children, ...props}) => (
+                  <p className="gpt__markdown-paragraph" {...props}>{children}</p>
+                ),
+                h1: ({node, children, ...props}) => (
+                  <h1 className="gpt__markdown-heading" {...props}>{children}</h1>
+                ),
+                h2: ({node, children, ...props}) => (
+                  <h2 className="gpt__markdown-heading" {...props}>{children}</h2>
+                ),
+                h3: ({node, children, ...props}) => (
+                  <h3 className="gpt__markdown-heading" {...props}>{children}</h3>
+                ),
+                ul: ({node, children, ...props}) => (
+                  <ul className="gpt__markdown-list" {...props}>{children}</ul>
+                ),
+                ol: ({node, children, ...props}) => (
+                  <ol className="gpt__markdown-list" {...props}>{children}</ol>
+                ),
+                li: ({node, children, ...props}) => (
+                  <li className="gpt__markdown-list-item" {...props}>{children}</li>
+                ),
             a: ({node, children, ...props}) => (
               <a className="markdown-link" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
             ),
@@ -381,7 +381,7 @@ function GPT() {
             code: ({node, inline, className, children, ...props}) => {
               if (inline) {
                 return (
-                  <code className="inline-code" {...props}>
+                  <code className="gpt__inline-code" {...props}>
                     {children}
                   </code>
                 );

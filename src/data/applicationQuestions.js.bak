@@ -47,21 +47,21 @@ export const applicationQuestions = [
       },
       {
         id: 'work_eligibility',
-        type: 'select',
+        type: 'radio',
         label: 'Are you able to provide documentation that proves you will be able to work in the U.S. legally by the time the program starts?',
         required: true,
         options: ['Yes', 'No']
       },
       {
         id: 'schedule_availability',
-        type: 'select',
+        type: 'radio',
         label: 'Are you available to commute to a fully in-person night + weekend course for at least four to six months?',
         required: true,
         options: ['Yes', 'No']
       },
       {
         id: 'schedule_commitment',
-        type: 'select',
+        type: 'radio',
         label: 'Are you available to commit to the following in-person schedule? Mon-Wed, 6:30 PM - 10 PM Sat-Sun, 10 AM - 4 PM',
         required: true,
         options: [
@@ -109,7 +109,7 @@ export const applicationQuestions = [
       },
       {
         id: 'gender',
-        type: 'select',
+        type: 'radio',
         label: 'What is your gender?',
         required: true,
         options: ['Woman', 'Man', 'Non-binary', 'Not listed']
@@ -130,7 +130,7 @@ export const applicationQuestions = [
       },
       {
         id: 'nycha',
-        type: 'select',
+        type: 'radio',
         label: 'Do you currently live in a NYCHA (New York Housing Authority) development?',
         required: true,
         options: ['Yes', 'No']
@@ -167,7 +167,7 @@ export const applicationQuestions = [
       },
       {
         id: 'commute_time',
-        type: 'select',
+        type: 'radio',
         label: 'Currently, how long is your commute into the office?',
         required: true,
         options: [
@@ -201,21 +201,21 @@ export const applicationQuestions = [
       },
       {
         id: 'english_secondary',
-        type: 'select',
+        type: 'radio',
         label: 'Is English your secondary language?',
         required: true,
         options: ['Yes', 'No']
       },
       {
         id: 'born_outside_us',
-        type: 'select',
+        type: 'radio',
         label: 'Were you born outside of the US and its territories?',
         required: true,
         options: ['Yes', 'No']
       },
       {
         id: 'parents_born_outside_us',
-        type: 'select',
+        type: 'radio',
         label: 'Were your parents born outside of the US and its territories?',
         required: true,
         options: ['Yes', 'No']
@@ -229,7 +229,7 @@ export const applicationQuestions = [
       },
       {
         id: 'household_status',
-        type: 'select',
+        type: 'radio',
         label: 'What is your household Status?',
         required: true,
         options: [
@@ -241,14 +241,14 @@ export const applicationQuestions = [
       },
       {
         id: 'has_dependents',
-        type: 'select',
+        type: 'radio',
         label: 'Do you support any dependents?',
         required: true,
         options: ['Yes', 'No']
       },
       {
         id: 'dependent_type',
-        type: 'select',
+        type: 'radio',
         label: 'If yes, please indicate the type of dependent',
         required: false, // Becomes required if has_dependents = 'Yes'
         options: [
@@ -267,7 +267,7 @@ export const applicationQuestions = [
       },
       {
         id: 'childcare',
-        type: 'select',
+        type: 'radio',
         label: 'Do you currently receive child care for your minor dependents?',
         required: false,
         options: [
@@ -278,7 +278,7 @@ export const applicationQuestions = [
       },
       {
         id: 'government_assistance',
-        type: 'select',
+        type: 'radio',
         label: 'Do you currently receive any government assistance?',
         required: true,
         options: ['Yes', 'No']
@@ -304,7 +304,7 @@ export const applicationQuestions = [
       },
       {
         id: 'veteran',
-        type: 'select',
+        type: 'radio',
         label: 'Are you a veteran?',
         required: true,
         options: ['Yes', 'No']
@@ -331,7 +331,7 @@ export const applicationQuestions = [
     questions: [
       {
         id: 'education_level',
-        type: 'select',
+        type: 'radio',
         label: 'What is your current highest educational attainment? Please include only the degrees that you hold, not the degrees/diplomas that you are pursuing.',
         required: true,
         options: [
@@ -346,14 +346,14 @@ export const applicationQuestions = [
       },
       {
         id: 'enrolled_higher_ed',
-        type: 'select',
+        type: 'radio',
         label: 'Are you currently enrolled in a higher education degree program?',
         required: true,
         options: ['Yes', 'No']
       },
       {
         id: 'first_gen_college',
-        type: 'select',
+        type: 'radio',
         label: 'Are you a first-generation college student? This means that you are currently enrolled in or have graduated from a four-year college or university, and your parent(s)/legal guardian(s) have not completed a bachelor\'s degree at a four-year college or university.',
         required: true,
         options: ['Yes', 'No']
@@ -388,7 +388,7 @@ export const applicationQuestions = [
       },
       {
         id: 'employment_status',
-        type: 'select',
+        type: 'radio',
         label: 'What is your current employment status?',
         required: true,
         options: [
@@ -431,7 +431,7 @@ export const applicationQuestions = [
       },
       {
         id: 'coding_experience',
-        type: 'select',
+        type: 'radio',
         label: 'What\'s your experience with coding?',
         required: true,
         options: [
@@ -443,7 +443,7 @@ export const applicationQuestions = [
       },
       {
         id: 'ai_experience',
-        type: 'select',
+        type: 'radio',
         label: 'What\'s your experience or understanding of AI?',
         required: true,
         options: [

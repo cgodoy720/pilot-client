@@ -1024,28 +1024,28 @@ function Learning() {
             <ReactMarkdown key={index}
               components={{
                 p: ({node, children, ...props}) => (
-                  <p className="markdown-paragraph" {...props}>{children}</p>
+                  <p className="learning__markdown-paragraph" {...props}>{children}</p>
                 ),
                 h1: ({node, children, ...props}) => (
-                  <h1 className="markdown-heading" {...props}>{children}</h1>
+                  <h1 className="learning__markdown-heading" {...props}>{children}</h1>
                 ),
                 h2: ({node, children, ...props}) => (
-                  <h2 className="markdown-heading" {...props}>{children}</h2>
+                  <h2 className="learning__markdown-heading" {...props}>{children}</h2>
                 ),
                 h3: ({node, children, ...props}) => (
-                  <h3 className="markdown-heading" {...props}>{children}</h3>
+                  <h3 className="learning__markdown-heading" {...props}>{children}</h3>
                 ),
                 ul: ({node, children, ...props}) => (
-                  <ul className="markdown-list" {...props}>{children}</ul>
+                  <ul className="learning__markdown-list" {...props}>{children}</ul>
                 ),
                 ol: ({node, children, ...props}) => (
-                  <ol className="markdown-list" {...props}>{children}</ol>
+                  <ol className="learning__markdown-list" {...props}>{children}</ol>
                 ),
                 li: ({node, children, ...props}) => (
-                  <li className="markdown-list-item" {...props}>{children}</li>
+                  <li className="learning__markdown-list-item" {...props}>{children}</li>
                 ),
                 a: ({node, children, ...props}) => (
-                  <a className="markdown-link" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+                  <a className="learning__markdown-link" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
                 ),
                 strong: ({node, children, ...props}) => (
                   <strong {...props}>{children}</strong>
@@ -1055,7 +1055,7 @@ function Learning() {
                 ),
                 code: ({node, inline, className, children, ...props}) => {
                   if (inline) {
-                    return <code className="inline-code" {...props}>{children}</code>;
+                    return <code className="learning__inline-code" {...props}>{children}</code>;
                   }
                   return <code {...props}>{children}</code>;
                 }
@@ -1696,7 +1696,7 @@ function Learning() {
             <h2>{dayId ? `Day ${currentDay?.day_number || ''} Tasks` : "Today's Tasks"}</h2>
             {dayId && (
               <button 
-                className="back-to-calendar-btn"
+                className="learning__back-to-calendar-btn"
                 onClick={() => navigate('/calendar')}
               >
                 <FaArrowLeft /> Back to Calendar
@@ -1708,7 +1708,7 @@ function Learning() {
               {tasks.map((task, index) => (
                 <div
                   key={task.id}
-                  className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''} ${task.completed ? 'completed' : ''}`}
+                  className={`learning__task-item ${index === currentTaskIndex ? 'learning__task-item--current' : ''} ${task.completed ? 'learning__task-item--completed' : ''}`}
                   onClick={() => {
                     if (index !== currentTaskIndex) {
                       setCurrentTaskIndex(index);
@@ -1753,7 +1753,7 @@ function Learning() {
                 </div>
               )}
               
-              <div className={`learning__messages ${isMessagesLoading ? 'loading' : ''} ${editingMessageId !== null ? 'has-editing-message' : ''}`}>
+              <div className={`learning__messages ${isMessagesLoading ? 'learning__messages--loading' : ''} ${editingMessageId !== null ? 'has-editing-message' : ''}`}>
                 {isMessagesLoading ? (
                   <div className="learning__loading-messages">
                     <p>Loading messages...</p>
@@ -1817,9 +1817,9 @@ function Learning() {
                   <div className="learning__message learning__message--assistant">
                     <div className="learning__message-content learning__message-content--thinking">
                       <div className="learning__typing-indicator">
-                        <span></span>
-                        <span></span>
-                        <span></span>
+                        <span className="learning__typing-indicator-dot"></span>
+                        <span className="learning__typing-indicator-dot"></span>
+                        <span className="learning__typing-indicator-dot"></span>
                       </div>
                     </div>
                   </div>

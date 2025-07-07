@@ -48,6 +48,33 @@ class DatabaseService {
     }
   }
 
+  // Get existing application for applicant (if any)
+  async getExistingApplication(applicantId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/applications/applicant/${applicantId}/current`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.status === 404) {
+        // No existing application found
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting existing application:', error);
+      // Don't throw error - just return null to create new application
+      return null;
+    }
+  }
+
   // Create application
   async createApplication(applicantId, cohortId = null) {
     try {
@@ -136,8 +163,15 @@ class DatabaseService {
       // Get or create applicant
       const applicant = await this.createOrGetApplicant(email, firstName, lastName);
       
-      // Create new application for this session
-      const application = await this.createApplication(applicant.applicant_id);
+      // Check for existing in-progress application
+      let application = await this.getExistingApplication(applicant.applicant_id);
+      
+      if (!application) {
+        // Create new application if none exists
+        application = await this.createApplication(applicant.applicant_id);
+      }
+      
+      this.currentApplication = application;
       
       return {
         applicant,
@@ -146,6 +180,29 @@ class DatabaseService {
     } catch (error) {
       console.error('Error initializing application:', error);
       throw error;
+    }
+  }
+
+  // Load form data from existing responses
+  async loadFormData(applicationId) {
+    try {
+      const responses = await this.getApplicationResponses(applicationId);
+      const formData = {};
+      
+      responses.forEach(response => {
+        try {
+          // Try to parse JSON responses (for arrays, objects)
+          formData[response.question_id] = JSON.parse(response.response_value);
+        } catch (e) {
+          // If not JSON, store as string
+          formData[response.question_id] = response.response_value;
+        }
+      });
+      
+      return formData;
+    } catch (error) {
+      console.error('Error loading form data:', error);
+      return {};
     }
   }
 

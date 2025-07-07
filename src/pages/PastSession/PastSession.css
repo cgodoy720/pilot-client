@@ -507,7 +507,7 @@
   border-radius: 4px;
 }
 
-.back-to-calendar-btn {
+.past-session__back-to-calendar-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -525,7 +525,7 @@
   font-weight: 500;
 }
 
-.back-to-calendar-btn:hover {
+.past-session__back-to-calendar-btn:hover {
   background-color: var(--color-primary-hover, #5555ff);
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -987,7 +987,7 @@
   z-index: 1; /* Ensure hovered items appear above others */
 }
 
-.past-session .learning__task-item.current {
+.past-session .learning__task-item--current {
   border-color: var(--color-primary, #4242ea);
   background-color: rgba(66, 66, 234, 0.1);
 }

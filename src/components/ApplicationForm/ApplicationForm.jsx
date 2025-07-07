@@ -16,13 +16,25 @@ const ApplicationForm = () => {
   
   // Initialize formData state by attempting to load from localStorage (fallback)
   const [formData, setFormData] = useState(() => {
-    // Clear old cached data to start fresh
-    localStorage.removeItem('applicationFormData');
-    console.log('Starting with fresh formData state');
+    // Try to load existing saved data instead of clearing it
+    const savedData = localStorage.getItem('applicationFormData');
+    if (savedData) {
+      try {
+        console.log('Loading form data from localStorage:', JSON.parse(savedData));
+        return JSON.parse(savedData);
+      } catch (e) {
+        console.error('Error parsing saved form data:', e);
+        return {};
+      }
+    }
     return {};
   });
   
-  const [currentSection, setCurrentSection] = useState(0);
+  const [currentSection, setCurrentSection] = useState(() => {
+    // Load saved section progress
+    const savedSection = localStorage.getItem('applicationCurrentSection');
+    return savedSection ? parseInt(savedSection, 10) : 0;
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -36,13 +48,38 @@ const ApplicationForm = () => {
         const questions = await databaseService.fetchApplicationQuestions();
         setApplicationQuestions(questions);
         
-        // Initialize user session (you may want to get email from user login)
-        const email = 'jac@pursuit.org'; // Real user email
-        const firstName = 'John'; // Replace with actual user data
-        const lastName = 'Doe'; // Replace with actual user data
+        // Get user info from localStorage or use fallback
+        const savedUser = localStorage.getItem('user');
+        let email = 'jac@pursuit.org'; // Fallback
+        let firstName = 'John'; // Fallback
+        let lastName = 'Doe'; // Fallback
+        
+        if (savedUser) {
+          const userData = JSON.parse(savedUser);
+          email = userData.email || email;
+          firstName = userData.firstName || userData.first_name || firstName;
+          lastName = userData.lastName || userData.last_name || lastName;
+        }
         
         const session = await databaseService.initializeApplication(email, firstName, lastName);
         setCurrentSession(session);
+        
+        // Load existing form data from database if available
+        if (session?.application?.application_id) {
+          console.log('Loading form data from database...');
+          const savedFormData = await databaseService.loadFormData(session.application.application_id);
+          
+          if (Object.keys(savedFormData).length > 0) {
+            console.log('Loaded form data from database:', savedFormData);
+            setFormData(prevData => ({
+              ...prevData, // Keep any localStorage data
+              ...savedFormData // Override with database data
+            }));
+            
+            // Also save to localStorage for offline access
+            localStorage.setItem('applicationFormData', JSON.stringify(savedFormData));
+          }
+        }
         
         console.log('Application initialized:', session);
         
@@ -89,23 +126,48 @@ const ApplicationForm = () => {
     }
   }, [formData, applicationQuestions]);
 
-  // Save to database whenever form data changes
+  // Save to database and localStorage whenever form data changes
   useEffect(() => {
     const saveToDatabase = async () => {
-      // Temporarily disable database saves for debugging
+      if (Object.keys(formData).length === 0) return; // Don't save empty data
+      
       console.log('Form data changed:', formData);
       
-      // Only save to localStorage for now
-      if (Object.keys(formData).length > 0) {
-        localStorage.setItem('applicationFormData', JSON.stringify(formData));
-        console.log('Saved to localStorage:', formData);
+      // Save to localStorage for offline access
+      localStorage.setItem('applicationFormData', JSON.stringify(formData));
+      console.log('Saved to localStorage:', formData);
+      
+      // Save to database if we have a session
+      if (currentSession?.application?.application_id) {
+        try {
+          // Save each response to database
+          for (const [questionId, value] of Object.entries(formData)) {
+            if (value !== null && value !== undefined && value !== '') {
+              const responseValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+              await databaseService.saveResponse(
+                currentSession.application.application_id,
+                questionId,
+                responseValue
+              );
+            }
+          }
+          console.log('Saved to database successfully');
+        } catch (error) {
+          console.error('Error saving to database:', error);
+          // Continue anyway - localStorage backup is available
+        }
       }
     };
 
-    // Debounce saves
-    const timeoutId = setTimeout(saveToDatabase, 500);
+    // Debounce saves to avoid too many API calls
+    const timeoutId = setTimeout(saveToDatabase, 1000);
     return () => clearTimeout(timeoutId);
   }, [formData, currentSession]);
+
+  // Save current section whenever it changes
+  useEffect(() => {
+    localStorage.setItem('applicationCurrentSection', currentSection.toString());
+  }, [currentSection]);
 
   const handleInputChange = (questionId, value) => {
     console.log(`🔄 handleInputChange called for questionId: ${questionId}, value: "${value}" (type: ${typeof value})`);
@@ -161,8 +223,9 @@ const ApplicationForm = () => {
         await databaseService.submitApplication(currentSession.application.application_id);
         console.log('Application submitted successfully via database');
         
-        // Clear saved data after successful submission
+        // Clear saved progress after successful submission
         localStorage.removeItem('applicationFormData');
+        localStorage.removeItem('applicationCurrentSection');
         localStorage.setItem('applicationStatus', 'submitted');
         
         alert('Application submitted successfully!');
@@ -179,8 +242,8 @@ const ApplicationForm = () => {
   };
 
   const handleSave = () => {
-    // Data is already being saved to database automatically
-    alert('Application saved successfully!');
+    // Data is already being saved automatically
+    alert('Application progress saved successfully! You can return anytime to continue where you left off.');
   };
 
   const validateCurrentSection = () => {
@@ -375,39 +438,7 @@ const ApplicationForm = () => {
             step={question.step}
           />
         );
-      case 'radio':
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {question.options && question.options.map(option => (
-              <label key={option} style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '12px 16px',
-                border: '1px solid #e1e5e9',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                backgroundColor: formData[question.id] === option ? '#f0f9ff' : '#ffffff',
-                transition: 'all 0.2s'
-              }}>
-                <input
-                  type="radio"
-                  name={question.id}
-                  value={option}
-                  checked={formData[question.id] === option}
-                  onChange={(e) => handleInputChange(question.id, e.target.value)}
-                  required={question.required}
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    accentColor: 'var(--color-primary)'
-                  }}
-                />
-                <span style={{ color: '#374151', fontSize: '16px' }}>{option}</span>
-              </label>
-            ))}
-          </div>
-        );
+
       case 'select':
         return (
           <select

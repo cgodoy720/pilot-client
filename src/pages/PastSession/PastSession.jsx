@@ -1568,7 +1568,7 @@ function PastSession() {
           )}
           
           <button 
-            className="back-to-calendar-btn"
+                            className="past-session__back-to-calendar-btn"
             onClick={handleBackToCalendar}
           >
             <FaArrowLeft /> Back to Calendar

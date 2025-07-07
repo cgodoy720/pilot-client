@@ -102,12 +102,20 @@ function AdmissionsDashboard() {
   // Update application status when form data changes
   useEffect(() => {
     const formData = localStorage.getItem('applicationFormData');
-    if (formData) {
+    const savedApplicationStatus = localStorage.getItem('applicationStatus');
+    
+    // Check for existing progress or saved status
+    if (formData || savedApplicationStatus === 'in process') {
       setStatuses(prev => ({
         ...prev,
         application: 'in process'
       }));
       localStorage.setItem('applicationStatus', 'in process');
+    } else if (savedApplicationStatus === 'submitted') {
+      setStatuses(prev => ({
+        ...prev,
+        application: 'submitted'
+      }));
     }
   }, []);
 
@@ -180,6 +188,25 @@ function AdmissionsDashboard() {
         </div>
       </div>
     );
+  };
+
+  // Function to get application progress details
+  const getApplicationProgressText = () => {
+    const formData = localStorage.getItem('applicationFormData');
+    const currentSection = localStorage.getItem('applicationCurrentSection');
+    
+    if (formData) {
+      try {
+        const savedData = JSON.parse(formData);
+        const answeredQuestions = Object.keys(savedData).length;
+        const sectionNum = currentSection ? parseInt(currentSection, 10) + 1 : 1;
+        
+        return `You have answered ${answeredQuestions} questions and were on section ${sectionNum}. Continue where you left off!`;
+      } catch (e) {
+        return 'You have saved progress. Continue your application!';
+      }
+    }
+    return null;
   };
 
   const handleLogout = () => {
@@ -315,6 +342,18 @@ function AdmissionsDashboard() {
                   {section.key === 'workshop' && locked && (
                     <div className="locked-message">
                       Workshop sign-up will open once your application is submitted and reviewed.
+                    </div>
+                  )}
+
+                  {section.key === 'application' && status === 'in process' && (
+                    <div className="session-details-container">
+                      <div className="session-details">
+                        <div className="session-details-icon">💾</div>
+                        <div className="session-details-content">
+                          <div className="session-date">Progress Saved</div>
+                          <div className="session-time">{getApplicationProgressText()}</div>
+                        </div>
+                      </div>
                     </div>
                   )}
 
