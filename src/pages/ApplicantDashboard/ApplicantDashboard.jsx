@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import logoFull from '../../assets/logo-full.png';
+import pursuitLogo from '../../assets/logo.png';
 import './ApplicantDashboard.css';
 
 const SECTION_CONFIG = [
@@ -237,7 +237,7 @@ function ApplicantDashboard() {
         <div className="admissions-topbar-left">
           <div className="admissions-logo-section">
             <Link to="/apply">
-              <img src={logoFull} alt="Pursuit Logo" className="admissions-logo" />
+              <img src={pursuitLogo} alt="Pursuit Logo" className="admissions-logo" />
             </Link>
             <span className="admissions-logo-text">PURSUIT</span>
           </div>

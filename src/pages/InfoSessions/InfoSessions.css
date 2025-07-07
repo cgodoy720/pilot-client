@@ -2,27 +2,9 @@
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
-}
-
-.info-sessions-header {
-  margin-bottom: 2rem;
-}
-
-.back-button {
-  background: none;
-  border: none;
+  background-color: var(--color-background-darker);
+  min-height: 100vh;
   color: var(--color-text-primary);
-  font-size: 1rem;
-  cursor: pointer;
-  padding: 0.5rem 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.back-button:hover {
-  color: var(--color-primary);
 }
 
 .padded-lhs {
@@ -35,11 +17,214 @@
   }
 }
 
-.add-session-form {
-  background-color: #f5f5f5;
-  padding: 1.5rem;
+/* Sessions List - Vertical Column Layout (like original) */
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 1rem;
+}
+
+/* Session Cards - Full Width Vertical Layout */
+.session-card {
+  padding: 20px;
+  background-color: var(--color-background-light);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+  position: relative;
+  width: 100%;
+}
+
+.session-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+
+/* Registered Session Cards - Green Border */
+.session-card.registered {
+  border: 2px solid #10b981;
+}
+
+/* Registration Badge */
+.registration-badge {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background-color: #10b981;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Card Content */
+.session-card h4 {
+  margin: 0 0 10px 0;
+  color: var(--color-text-primary);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.session-card p {
+  margin: 5px 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.session-card p strong {
+  font-weight: 600;
+}
+
+/* Meeting Link Styling */
+.session-card a {
+  color: #10b981;
+  text-decoration: none;
+  margin-left: 5px;
+}
+
+.session-card a:hover {
+  text-decoration: underline;
+}
+
+/* Registration Details Box */
+.registration-details {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.registration-details strong {
+  color: var(--color-text-primary);
+}
+
+/* Button Container */
+.button-container {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+}
+
+/* Buttons */
+.session-card button {
+  padding: 0.8rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.session-card button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Register Button */
+.register-btn {
+  background-color: var(--color-primary);
+  color: white;
+  width: 100%;
+  max-width: 280px;
+}
+
+.register-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.register-btn:disabled {
+  background-color: #6c757d;
+}
+
+/* Cancel Button */
+.cancel-btn {
+  background-color: #ef4444;
+  color: white;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background-color: #dc2626;
+}
+
+/* Section Titles */
+.info-sessions-title,
+.available-sessions-title {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text-primary);
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+/* Add spacing between registered and available sections */
+.available-sessions-title {
+  margin-top: 3rem;
+}
+
+/* No Events Message */
+.no-sessions-msg {
+  text-align: center;
+  padding: 40px 20px;
+  background-color: var(--color-background-light);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  color: var(--color-text-secondary);
+  max-width: 600px;
+  margin: 2rem auto;
+}
+
+.no-sessions-msg h3 {
+  color: var(--color-text-primary);
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+}
+
+/* Status Messages */
+.status-message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  z-index: 1000;
+  max-width: 400px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.status-message.success {
+  background-color: #10b981;
+  color: white;
+}
+
+.status-message.error {
+  background-color: #ef4444;
+  color: white;
+}
+
+/* Admin Form Styling */
+.add-session-form {
+  background-color: var(--color-background-light);
+  padding: 20px;
+  border-radius: 16px;
   margin-bottom: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.add-session-form h3 {
+  color: var(--color-text-primary);
+  margin-bottom: 1rem;
 }
 
 .add-session-form form {
@@ -49,110 +234,58 @@
   align-items: end;
 }
 
-.add-session-form input {
+.add-session-form input,
+.add-session-form textarea {
   padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font-size: 1rem;
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  background: #35363a;
-  color: #fff;
+  background: var(--color-background-darker);
+  color: var(--color-text-primary);
 }
 
-.add-session-form input::placeholder {
-  color: #bbb;
+.add-session-form input::placeholder,
+.add-session-form textarea::placeholder {
+  color: var(--color-text-muted);
   opacity: 1;
 }
 
 .add-session-form button {
   padding: 0.5rem 1rem;
-  background-color: #007bff;
+  background-color: var(--color-primary);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   font-weight: 600;
+  transition: all 0.2s;
 }
 
 .add-session-form button:hover {
-  background-color: #0056b3;
+  opacity: 0.9;
 }
 
-.sessions-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
-}
-
-.session-card {
-  background-color: white;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.session-card h4 {
-  margin: 0 0 1rem 0;
-  color: #333;
-}
-
-.session-card p {
-  margin: 0.5rem 0;
-  color: #666;
-}
-
-.session-card button {
-  margin-top: 1rem;
-  padding: 0.5rem 1rem;
-  background-color: #28a745;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.session-card button:hover {
-  background-color: #218838;
-}
-
-.session-card button:disabled {
-  background-color: #6c757d;
-  cursor: not-allowed;
-}
-
-.attendance-list {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #ddd;
-}
-
-.user-attendance {
+.add-session-form label {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 0;
+  gap: 0.5rem;
+  color: var(--color-text-primary);
 }
 
-.user-attendance button {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.875rem;
-  background-color: #17a2b8;
-}
-
-.user-attendance button:hover {
-  background-color: #138496;
-}
-
-.no-sessions-msg {
-  background: #fffbe6;
-  color: #856404;
-  border: 1px solid #ffeeba;
+/* Debug Panel */
+.debug-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 15px;
   border-radius: 8px;
-  padding: 1.2rem 1.5rem;
-  margin-top: 1rem;
-  font-size: 1.1rem;
-  max-width: 600px;
+  font-size: 12px;
+  z-index: 1000;
+  max-width: 300px;
+  border: 1px solid #333;
 } 

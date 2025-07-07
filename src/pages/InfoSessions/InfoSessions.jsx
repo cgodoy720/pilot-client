@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
-import EventService from '../../services/eventService';
-import databaseService from '../../services/databaseService';
+import { useNavigate, Link } from 'react-router-dom';
+import { getUserId, clearUserData } from '../../utils/uuid';
+import pursuitLogo from '../../assets/logo.png';
 import './InfoSessions.css';
-
+import '../ApplicantDashboard/ApplicantDashboard.css';
 // TEMP: Replace with real user/admin logic
 const isAdmin = false;
+const currentUserName = 'You';
 
 const InfoSessions = () => {
     const navigate = useNavigate();
     const [events, setEvents] = useState([]);
+    const [user, setUser] = useState(null);
     const [newEvent, setNewEvent] = useState({
         title: '',
         description: '',
@@ -21,29 +23,48 @@ const InfoSessions = () => {
         is_online: false,
         meeting_link: ''
     });
-    const [currentApplicant, setCurrentApplicant] = useState(null);
+    const [currentUserId, setCurrentUserId] = useState(null);
     const [registrationStatus, setRegistrationStatus] = useState(null); // 'success', 'error', or null
     const [statusMessage, setStatusMessage] = useState('');
     const [processingEventId, setProcessingEventId] = useState(null);
+    const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+    const [rescheduleFromEvent, setRescheduleFromEvent] = useState(null);
+    const [selectedNewSessionId, setSelectedNewSessionId] = useState('');
+    
+    // Self-managed status state (no longer relying on props)
+    const [infoSessionStatus, setInfoSessionStatus] = useState(localStorage.getItem('infoSessionStatus') || 'not signed-up');
+    const [sessionDetails, setSessionDetails] = useState(() => {
+        const saved = localStorage.getItem('infoSessionDetails');
+        return saved ? JSON.parse(saved) : null;
+    });
 
-    // Load current applicant session on mount
+    // Load current user ID on mount
     useEffect(() => {
-        const applicant = databaseService.getCurrentApplicant();
-        if (applicant) {
-            setCurrentApplicant(applicant);
-        } else {
-            // No valid authentication, redirect to login
-            window.location.href = '/apply/login';
+        const userId = getUserId();
+        setCurrentUserId(userId);
+    }, []);
+
+    // Load user data from localStorage on mount
+    useEffect(() => {
+        const savedUser = localStorage.getItem('user');
+        if (savedUser) {
+            const userData = JSON.parse(savedUser);
+            setUser(userData);
         }
     }, []);
 
-    // Clear localStorage and reset applicant data (for debugging)
-    const handleClearData = () => {
-        localStorage.clear();
-        setCurrentApplicant(null);
-        setRegistrationStatus('success');
-        setStatusMessage('Applicant data cleared!');
-        setTimeout(() => setRegistrationStatus(null), 5000);
+    const handleLogout = () => {
+        localStorage.removeItem('user');
+        setUser(null);
+        navigate('/apply/login');
+    };
+
+    const handleBackToMainApp = () => {
+        navigate('/dashboard');
+    };
+
+    const handleBackToDashboard = () => {
+        navigate('/apply');
     };
 
     // Clear status messages after 5 seconds
@@ -61,18 +82,53 @@ const InfoSessions = () => {
     useEffect(() => {
         const fetchEvents = async () => {
             try {
+                console.log('=== STARTING FETCH ===');
+                console.log('API URL:', import.meta.env.VITE_API_URL);
+                console.log('Full URL:', `${import.meta.env.VITE_API_URL}/api/info-sessions`);
+                
                 const response = await fetch(`${import.meta.env.VITE_API_URL}/api/info-sessions`);
-                if (!response.ok) throw new Error('Failed to fetch info sessions');
+                console.log('Response received:', response);
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch info sessions: ${response.status}`);
+                }
                 const data = await response.json();
-                setEvents(data);
+                console.log('=== DATA RECEIVED ===');
+                console.log('Raw data:', data);
+                console.log('Data type:', typeof data);
+                console.log('Is array:', Array.isArray(data));
+                console.log('Number of sessions:', data.length);
+                
+                // Add registrations data to each event
+                const eventsWithRegistrations = data.map(event => ({
+                    ...event,
+                    registrations: event.registrations || []
+                }));
+                
+                console.log('Events with registrations:', eventsWithRegistrations);
+                console.log('About to set events state...');
+                setEvents(eventsWithRegistrations);
+                console.log('setEvents called with:', eventsWithRegistrations.length, 'events');
+                
+                // Force a re-render check
+                setTimeout(() => {
+                    console.log('=== POST-SETSTATE CHECK ===');
+                    console.log('Events state should now be:', eventsWithRegistrations.length);
+                }, 100);
+                
             } catch (error) {
+                console.error('=== FETCH ERROR ===');
                 console.error('Error fetching events:', error);
+                console.error('Error message:', error.message);
                 setEvents([]); // Ensure events is always an array
             }
         };
 
+        console.log('=== USEEFFECT TRIGGERED ===');
         fetchEvents();
-    }, []);
+    }, []); // Remove currentUserId dependency since we don't need it for fetching
 
     // Add new event
     const handleAddEvent = async (e) => {
@@ -86,11 +142,8 @@ const InfoSessions = () => {
             };
 
             await EventService.createEvent(eventToAdd);
-            const createResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/info-sessions`);
-            if (createResponse.ok) {
-                const updatedEvents = await createResponse.json();
-                setEvents(updatedEvents);
-            }
+            const updatedEvents = await EventService.getEvents({ type: 'info_session' });
+            setEvents(updatedEvents);
             setNewEvent({
                 title: '',
                 description: '',
@@ -110,16 +163,14 @@ const InfoSessions = () => {
     const handleSignUp = async (eventId) => {
         setProcessingEventId(eventId);
         try {
-            console.log('Attempting to register with applicant:', currentApplicant);
-            
-            if (!currentApplicant) {
-                throw new Error('No applicant session found. Please fill out the application form first.');
+            if (!currentUserId) {
+                throw new Error('User ID not available');
             }
 
             const registrationData = {
-                userId: currentApplicant.applicant_id,
-                name: `${currentApplicant.first_name} ${currentApplicant.last_name}`,
-                email: currentApplicant.email
+                userId: currentUserId,
+                name: user?.firstName || 'Applicant',
+                email: user?.email || 'jac@pursuit.org'
             };
 
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/info-sessions/${eventId}/register`, {
@@ -131,9 +182,11 @@ const InfoSessions = () => {
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to register for event');
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to register for event');
             }
+
+            const responseData = await response.json();
 
             // SUCCESS - Show success status
             const event = events.find(e => e.event_id === eventId);
@@ -143,12 +196,33 @@ const InfoSessions = () => {
             setRegistrationStatus('success');
             setStatusMessage(`You're registered for the Information Session on ${eventDate} at ${eventTime}!`);
 
-            // Refresh the events list to show updated status
-            const refreshResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/info-sessions`);
-            if (refreshResponse.ok) {
-                const updatedEvents = await refreshResponse.json();
-                setEvents(updatedEvents);
-            }
+            // Update local status state and localStorage
+            setInfoSessionStatus('signed-up');
+            const eventDetails = { eventDate, eventTime, location: event.location };
+            setSessionDetails(eventDetails);
+            localStorage.setItem('infoSessionStatus', 'signed-up');
+            localStorage.setItem('infoSessionDetails', JSON.stringify(eventDetails));
+
+            // IMMEDIATE STATE UPDATE - Add the registration to the event in state
+            setEvents(prevEvents => 
+                prevEvents.map(evt => {
+                    if (evt.event_id === eventId) {
+                        const newRegistration = {
+                            registration_id: responseData.registration_id || `temp-${Date.now()}`,
+                            user_id: currentUserId,
+                            name: user?.firstName || 'Applicant',
+                            email: user?.email || 'jac@pursuit.org',
+                            status: 'registered',
+                            registered_at: new Date().toISOString()
+                        };
+                        return {
+                            ...evt,
+                            registrations: [...(evt.registrations || []), newRegistration]
+                        };
+                    }
+                    return evt;
+                })
+            );
 
             // Update local storage and status
             if (event) {
@@ -159,10 +233,11 @@ const InfoSessions = () => {
                 };
                 localStorage.setItem('infoSessionStatus', 'signed-up');
                 localStorage.setItem('infoSessionDetails', JSON.stringify(eventDetails));
+                setInfoSessionStatus('signed-up');
+                setSessionDetails(eventDetails);
             }
         } catch (error) {
             console.error('Error signing up for event:', error);
-            console.error('Applicant was:', currentApplicant);
             
             // Enhanced error messages based on error type
             let errorMessage = 'Failed to register for this event.';
@@ -188,93 +263,153 @@ const InfoSessions = () => {
     const handleMarkAttendance = async (eventId, registrationId) => {
         try {
             await EventService.updateRegistrationStatus(eventId, registrationId, 'attended');
-            const attendanceResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/info-sessions`);
-            if (attendanceResponse.ok) {
-                const updatedEvents = await attendanceResponse.json();
-                setEvents(updatedEvents);
-            }
+            const updatedEvents = await EventService.getEvents({ type: 'info_session' });
+            setEvents(updatedEvents);
         } catch (error) {
             console.error('Error marking attendance:', error);
         }
     };
 
-    // Check if applicant is registered for an event
-    const isApplicantRegistered = (event) => {
-        if (!currentApplicant) return false;
-        const isRegistered = event.registrations?.some(reg => reg.user_id === currentApplicant.applicant_id);
-        return isRegistered;
+    // Check if user is registered for an event (only active registrations)
+    const isUserRegistered = (event) => {
+        return event.registrations?.some(reg => 
+            reg.user_id === currentUserId && 
+            reg.status !== 'cancelled'
+        );
     };
 
-    // Get applicant's registration for an event
-    const getApplicantRegistration = (event) => {
-        if (!currentApplicant) return null;
-        const registration = event.registrations?.find(reg => reg.user_id === currentApplicant.applicant_id);
-        return registration;
+    // Get user's active registration for an event
+    const getUserRegistration = (event) => {
+        return event.registrations?.find(reg => 
+            reg.user_id === currentUserId && 
+            reg.status !== 'cancelled'
+        );
     };
 
     // Get registered events
-    const registeredEvents = events.filter(event => isApplicantRegistered(event));
-    const availableEvents = events.filter(event => !isApplicantRegistered(event));
+    const registeredEvents = events.filter(event => isUserRegistered(event));
+    const availableEvents = events.filter(event => !isUserRegistered(event));
 
-    const handleBack = () => {
-        navigate('/apply');
+    // Cancel registration
+    const handleCancelRegistration = async (eventId, registrationId) => {
+        setProcessingEventId(eventId);
+        
+        try {
+            console.log('=== CANCELLATION ATTEMPT ===');
+            console.log('Event ID:', eventId);
+            console.log('User ID:', currentUserId);
+            console.log('Registration ID:', registrationId);
+            console.log('Full URL:', `${import.meta.env.VITE_API_URL}/api/info-sessions/${eventId}/register/${currentUserId}`);
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/info-sessions/${eventId}/register/${currentUserId}`, {
+                method: 'DELETE'
+            });
+
+            console.log('Cancel response status:', response.status);
+            console.log('Cancel response ok:', response.ok);
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+                console.error('Cancel response error:', errorData);
+                throw new Error(errorData.message || `Failed to cancel registration (${response.status})`);
+            }
+            
+            const responseData = await response.json();
+            console.log('Cancel response data:', responseData);
+            
+            // IMMEDIATE STATE UPDATE - Mark registration as cancelled
+            setEvents(prevEvents => {
+                return prevEvents.map(evt => {
+                    if (evt.event_id === eventId) {
+                        const updatedRegistrations = (evt.registrations || []).map(reg => {
+                            if (reg.registration_id === registrationId) {
+                                return { ...reg, status: 'cancelled' };
+                            }
+                            return reg;
+                        });
+                        return {
+                            ...evt,
+                            registrations: updatedRegistrations
+                        };
+                    }
+                    return evt;
+                });
+            });
+            
+            setRegistrationStatus('success');
+            setStatusMessage('Registration cancelled successfully.');
+            
+            // Clear status in App and localStorage
+            setInfoSessionStatus('not signed-up');
+            setSessionDetails(null);
+            localStorage.removeItem('infoSessionStatus');
+            localStorage.removeItem('infoSessionDetails');
+
+            // Force refresh to ensure we have the latest data from server
+            setTimeout(async () => {
+                try {
+                    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/info-sessions`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        const eventsWithRegistrations = data.map(event => ({
+                            ...event,
+                            registrations: event.registrations || []
+                        }));
+                        setEvents(eventsWithRegistrations);
+                    }
+                } catch (error) {
+                    console.error('Error refreshing after cancellation:', error);
+                }
+            }, 100); // Small delay to ensure server state is updated
+
+        } catch (error) {
+            console.error('Error cancelling registration:', error);
+            setRegistrationStatus('error');
+            setStatusMessage(`Failed to cancel registration: ${error.message}`);
+        } finally {
+            setProcessingEventId(null);
+        }
     };
 
     return (
-        <div className="info-sessions-container">
-            <div className="info-sessions-header">
-                <button onClick={handleBack} className="back-button">
-                    ← Back to Dashboard
-                </button>
+        <div className="admissions-dashboard">
+            {/* Top Bar */}
+            <div className="admissions-topbar">
+                <div className="admissions-topbar-left">
+                    <div className="admissions-logo-section">
+                        <Link to="/apply/dashboard">
+                            <img src={pursuitLogo} alt="Pursuit Logo" className="admissions-logo" />
+                        </Link>
+                        <span className="admissions-logo-text">PURSUIT</span>
+                    </div>
+                    <div className="welcome-text">
+                        Welcome, {user?.firstName || 'John'}!
+                    </div>
+                </div>
+                <div className="admissions-topbar-right">
+                    <button 
+                        onClick={handleBackToDashboard}
+                        className="admissions-button-secondary"
+                    >
+                        ← Back to Dashboard
+                    </button>
+                    <button 
+                        onClick={handleLogout}
+                        className="admissions-button-primary"
+                    >
+                        Log Out
+                    </button>
+                </div>
             </div>
-            
-            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-                <h2 style={{ color: '#333', marginBottom: '30px' }}>Information Sessions</h2>
-                
-                {/* Applicant Session Info */}
-                {currentApplicant && (
-                    <div style={{
-                        padding: '15px',
-                        marginBottom: '20px',
-                        backgroundColor: '#f0fdf4',
-                        border: '1px solid #10b981',
-                        borderRadius: '6px',
-                        fontSize: '14px'
-                    }}>
-                        <strong>Welcome, {currentApplicant.first_name}!</strong><br />
-                        <small>Email: {currentApplicant.email}</small>
-                    </div>
-                )}
-                
-                {!currentApplicant && (
-                    <div style={{
-                        padding: '15px',
-                        marginBottom: '20px',
-                        backgroundColor: '#fef2f2',
-                        border: '1px solid #ef4444',
-                        borderRadius: '6px',
-                        fontSize: '14px',
-                        color: '#991b1b'
-                    }}>
-                        <strong>⚠️ No applicant session found</strong><br />
-                        Please complete the application form first to register for events.
-                        <br />
-                        <button 
-                            onClick={() => navigate('/application-form')} 
-                            style={{ 
-                                marginTop: '10px', 
-                                padding: '8px 16px', 
-                                backgroundColor: '#ef4444',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            Go to Application Form
-                        </button>
-                    </div>
-                )}
+
+            {/* Information Sessions Title */}
+            <div className="admissions-title-section">
+                <h1 className="admissions-title">
+                    INFORMATION SESSIONS
+                </h1>
+            </div>
+
+            <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem 2rem 0 2rem' }}>
                 
                 {/* Status Messages */}
                 {registrationStatus && (
@@ -295,74 +430,51 @@ const InfoSessions = () => {
                     </div>
                 )}
                 
+
                 {/* Registered Sessions Section */}
                 {registeredEvents.length > 0 && (
-                    <div style={{ marginBottom: '40px' }}>
-                        <h3 style={{ 
-                            color: '#10b981', 
-                            marginBottom: '20px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px'
-                        }}>
+                    <div>
+                        <h3 className="info-sessions-title">
                             ✅ Your Registered Sessions ({registeredEvents.length})
                         </h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                            {registeredEvents.map(event => {
-                                const registration = getApplicantRegistration(event);
+                        <div className="sessions-list">
+                            {registeredEvents.map((event) => {
+                                const registration = getUserRegistration(event);
                                 return (
-                                    <div key={event.event_id} style={{
-                                        padding: '20px',
-                                        backgroundColor: '#f0fdf4',
-                                        border: '2px solid #10b981',
-                                        borderRadius: '10px',
-                                        position: 'relative'
-                                    }}>
-                                        <div style={{ 
-                                            position: 'absolute', 
-                                            top: '15px', 
-                                            right: '15px',
-                                            backgroundColor: '#10b981',
-                                            color: 'white',
-                                            padding: '4px 12px',
-                                            borderRadius: '20px',
-                                            fontSize: '12px',
-                                            fontWeight: 'bold'
-                                        }}>
+                                    <div key={event.event_id} className="session-card registered">
+                                        <div className="registration-badge">
                                             REGISTERED
                                         </div>
-                                        <h4 style={{ 
-                                            margin: '0 0 10px 0', 
-                                            color: '#065f46',
-                                            fontSize: '18px'
-                                        }}>
+                                        <h4>
                                             {format(new Date(event.start_time), 'EEEE, MMMM d, yyyy')} at {format(new Date(event.start_time), 'h:mm a')}
                                         </h4>
-                                        <p style={{ margin: '5px 0', color: '#374151' }}>
+                                        <p>
                                             📍 <strong>Location:</strong> {event.location}
                                         </p>
                                         {event.is_online && event.meeting_link && (
-                                            <p style={{ margin: '5px 0', color: '#374151' }}>
+                                            <p>
                                                 🔗 <strong>Meeting Link:</strong> 
-                                                <a href={event.meeting_link} target="_blank" rel="noopener noreferrer" style={{ marginLeft: '5px', color: '#10b981' }}>
+                                                <a href={event.meeting_link} target="_blank" rel="noopener noreferrer">
                                                     {event.meeting_link}
                                                 </a>
                                             </p>
                                         )}
                                         {registration && (
-                                            <div style={{ 
-                                                marginTop: '15px', 
-                                                padding: '10px', 
-                                                backgroundColor: 'white', 
-                                                borderRadius: '6px',
-                                                fontSize: '14px',
-                                                color: '#6b7280'
-                                            }}>
+                                            <div className="registration-details">
                                                 <strong>Registration Details:</strong><br />
                                                 Registered: {format(new Date(registration.registered_at), 'MMM d, yyyy \'at\' h:mm a')}<br />
                                                 Status: {registration.status === 'attended' ? '✅ Attended' : '📝 Registered'}
                                             </div>
                                         )}
+                                        <div className="button-container">
+                                            <button
+                                                className="cancel-btn"
+                                                onClick={() => handleCancelRegistration(event.event_id, registration?.registration_id)}
+                                                disabled={processingEventId === event.event_id}
+                                            >
+                                                {processingEventId === event.event_id ? 'Cancelling...' : 'Cancel Registration'}
+                                            </button>
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -373,76 +485,37 @@ const InfoSessions = () => {
                 {/* Available Sessions Section */}
                 {availableEvents.length > 0 && (
                     <div>
-                        <h3 style={{ 
-                            color: '#374151', 
-                            marginBottom: '20px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px'
-                        }}>
+                        <h3 className="available-sessions-title">
                             📅 Available Sessions ({availableEvents.length})
                         </h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        <div className="sessions-list">
                             {availableEvents.map((event) => (
-                                <div key={event.event_id} style={{
-                                    padding: '20px',
-                                    backgroundColor: 'white',
-                                    border: '1px solid #e5e7eb',
-                                    borderRadius: '10px',
-                                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                                    transition: 'all 0.2s ease',
-                                    position: 'relative'
-                                }}>
-                                    <h4 style={{ 
-                                        margin: '0 0 10px 0', 
-                                        color: '#111827',
-                                        fontSize: '18px'
-                                    }}>
+                                <div key={event.event_id} className="session-card">
+                                    <h4>
                                         {format(new Date(event.start_time), 'EEEE, MMMM d, yyyy')} at {format(new Date(event.start_time), 'h:mm a')}
                                     </h4>
-                                    <p style={{ margin: '5px 0', color: '#6b7280' }}>
+                                    <p>
                                         📍 <strong>Location:</strong> {event.location}
                                     </p>
-                                    <p style={{ margin: '5px 0', color: '#6b7280' }}>
+                                    <p>
                                         👥 <strong>Capacity:</strong> {event.registered_count || 0}/{event.capacity}
                                     </p>
                                     {event.is_online && event.meeting_link && (
-                                        <p style={{ margin: '5px 0', color: '#6b7280' }}>
+                                        <p>
                                             🔗 <strong>Online Event</strong>
                                         </p>
                                     )}
                                     
                                     <button
+                                        className="register-btn"
                                         onClick={() => handleSignUp(event.event_id)}
-                                        disabled={!currentApplicant || processingEventId === event.event_id || isApplicantRegistered(event)}
-                                        style={{
-                                            marginTop: '15px',
-                                            backgroundColor: !currentApplicant
-                                                ? '#6b7280'
-                                                : isApplicantRegistered(event) 
-                                                    ? '#6b7280' 
-                                                    : processingEventId === event.event_id 
-                                                        ? '#9ca3af' 
-                                                        : '#3b82f6',
-                                            color: 'white',
-                                            border: 'none',
-                                            padding: '12px 24px',
-                                            borderRadius: '6px',
-                                            fontSize: '14px',
-                                            fontWeight: 'bold',
-                                            cursor: !currentApplicant || isApplicantRegistered(event) || processingEventId === event.event_id 
-                                                ? 'not-allowed' 
-                                                : 'pointer',
-                                            transition: 'background-color 0.2s ease'
-                                        }}
+                                        disabled={processingEventId === event.event_id || isUserRegistered(event)}
                                     >
-                                        {!currentApplicant
-                                            ? 'Complete Application First'
-                                            : isApplicantRegistered(event) 
-                                                ? '✅ Already Registered' 
-                                                : processingEventId === event.event_id 
-                                                    ? 'Registering...' 
-                                                    : 'Register Now'}
+                                        {isUserRegistered(event) 
+                                            ? '✅ Already Registered' 
+                                            : processingEventId === event.event_id 
+                                                ? 'Registering...' 
+                                                : 'Register Now'}
                                     </button>
                                 </div>
                             ))}
@@ -455,18 +528,20 @@ const InfoSessions = () => {
                     <div style={{
                         textAlign: 'center',
                         padding: '40px 20px',
-                        backgroundColor: '#f9fafb',
-                        borderRadius: '10px',
-                        color: '#6b7280'
+                        backgroundColor: 'var(--color-background-light)',
+                        borderRadius: '16px',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        color: 'var(--color-text-secondary)'
                     }}>
-                        <h3>No Information Sessions Scheduled</h3>
+                        <h3 style={{ color: 'var(--color-text-primary)', marginBottom: '1rem', fontSize: '1.25rem' }}>No Information Sessions Scheduled</h3>
                         <p>We'll add sessions as soon as they're scheduled. Check back regularly!</p>
                     </div>
                 )}
 
                 {/* Admin form */}
                 {isAdmin && (
-                    <div style={{ marginTop: '40px', padding: '20px', backgroundColor: '#f9fafb', borderRadius: '10px' }}>
+                    <div style={{ marginTop: '40px', padding: '20px', backgroundColor: 'var(--color-background-light)', borderRadius: '16px' }}>
                         <h3>Add New Info Session</h3>
                         <form onSubmit={handleAddEvent}>
                             <input
