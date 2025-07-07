@@ -1,4 +1,4 @@
-const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api/events`;
+const API_BASE_URL = 'http://localhost:7001/api/admissions-events';
 
 class EventService {
     // Get all events with optional filters
@@ -101,6 +101,36 @@ class EventService {
             method: 'DELETE',
         });
         if (!response.ok) throw new Error('Failed to delete event');
+        return response.json();
+    }
+
+    // Cancel event (admin only)
+    static async cancelEvent(eventId, reason = '') {
+        const response = await fetch(`${API_BASE_URL}/${eventId}/cancel`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ reason }),
+        });
+        if (!response.ok) throw new Error('Failed to cancel event');
+        return response.json();
+    }
+
+    // Reschedule event (admin only)
+    static async rescheduleEvent(eventId, newStartTime, newEndTime, reason = '') {
+        const response = await fetch(`${API_BASE_URL}/${eventId}/reschedule`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                start_time: newStartTime,
+                end_time: newEndTime,
+                reason 
+            }),
+        });
+        if (!response.ok) throw new Error('Failed to reschedule event');
         return response.json();
     }
 }

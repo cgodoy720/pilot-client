@@ -12,13 +12,7 @@ const Login = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [needsVerification, setNeedsVerification] = useState(false);
   const navigate = useNavigate();
-  const { login, isAuthenticated } = useAuth();
-
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    navigate('/dashboard');
-    return null;
-  }
+  const { setAuthState } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,18 +21,50 @@ const Login = () => {
     setIsSubmitting(true);
     
     try {
-      const result = await login(email, password);
-      
-      if (result.success) {
-        navigate('/dashboard');
-      } else {
-        // Check if the error is related to email verification
-        if (result.needsVerification) {
-          setNeedsVerification(true);
-        } else {
-          setError(result.error || 'Invalid email or password');
+      // Use the unified auth endpoint
+      const response = await fetch(`http://localhost:7001/api/unified-auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Store user data in localStorage
+        localStorage.setItem('user', JSON.stringify(data.user));
+        if (data.token) {
+          localStorage.setItem('token', data.token);
         }
+        
+        // Update AuthContext state for builder users
+        if (data.user.userType === 'builder') {
+          setAuthState(data.user, data.token);
+        }
+        
+        // Redirect based on user type
+        if (data.user.userType === 'builder') {
+          navigate('/dashboard');
+        } else if (data.user.userType === 'applicant') {
+          navigate('/apply/dashboard');
+        } else {
+          // Fallback based on redirect suggestion from server
+          navigate(data.redirectTo || '/dashboard');
+        }
+        return;
       }
+
+      // Check if it's a verification issue
+      if (response.status === 403 && data.needsVerification) {
+        setNeedsVerification(true);
+        return;
+      }
+
+      // Show error message
+      setError(data.error || 'Invalid email or password');
+      
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
       console.error(err);

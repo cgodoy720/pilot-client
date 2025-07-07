@@ -8,7 +8,7 @@
   max-width: 100%;
   background-color: var(--color-background-darker);
   padding: var(--spacing-md);
-  padding-top: 1vh; /* Further reduced from 3vh to prevent scrolling */
+  padding-top: 10vh;
   box-sizing: border-box;
 }
 
@@ -248,6 +248,17 @@
   .signup-form-container {
     padding: 1.5rem;
   }
+  
+  .user-type-options {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .user-type-option {
+    min-width: 250px;
+    max-width: 300px;
+  }
 }
 
 .signup-success {
@@ -304,4 +315,112 @@
 
 .signup-actions .signup-button {
   margin-bottom: 15px;
+}
+
+/* User Type Selection Styles */
+.user-type-selection {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.user-type-description {
+  font-size: 1.1rem;
+  color: var(--color-text-muted);
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.user-type-options {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  margin-bottom: 2rem;
+  flex-wrap: nowrap;
+  width: 100%;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.user-type-option {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid var(--color-border);
+  border-radius: 16px;
+  padding: 2rem 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  min-width: 220px;
+  max-width: 280px;
+  flex: 1;
+  backdrop-filter: blur(10px);
+}
+
+.user-type-option:hover {
+  border-color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.user-type-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.user-type-option h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.user-type-option p {
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.signup-back-to-login {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Account Type Display Styles */
+.signup-account-type {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.signup-account-type p {
+  margin: 0 0 0.5rem 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.change-account-type {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.change-account-type:hover {
+  color: var(--color-primary-light);
+}
+
+.signup-login-link {
+  margin-top: 1.5rem;
+  text-align: center;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
 } 

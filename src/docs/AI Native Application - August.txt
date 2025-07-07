@@ -1,0 +1,338 @@
+﻿Application Reset 
+* YOUR ELIGIBILITY
+* YOUR PERSONAL INFORMATION 
+* YOUR BACKGROUND
+* YOUR JOURNEY
+* AI ASSESSMENT
+
+
+YOUR ELIGIBILITY
+Let’s see if you are eligible to participate in the program. Our application process is designed to help identify qualified candidates for the Pursuit Fellowship. Throughout the application, we will be looking for demonstrated financial needs and potential. 
+
+
+Will you be 18 years of age or older by the time the program starts?
+Yes
+No
+
+
+Your annual (gross) personal income is in the following range:
+I don't currently have an income
+$1 to $20,000
+$20,000 to $44,999
+$45,000 or greater
+
+
+Please tell us your annual (gross) personal income.
+
+
+What state do you live in?
+Dropdown
+
+
+Are you able to provide documentation that proves you will be able to work in the U.S. legally by the time the program starts?
+Yes
+No
+
+
+Are you available to commute to a fully in-person night + weekend course for at least four to six months?
+Yes
+No
+
+
+
+Are you available to commit to the following in-person schedule? 
+Mon-Wed, 6:30 PM - 10 PM 
+Sat-Sun, 10 AM - 4 PM 
+I can fully commit to this in-person schedule
+I can commit to some of this in-person schedule
+I cannot commit to this in-person schedule
+
+
+Now, tell us what encouraged you to apply.
+Dropdown
+
+
+If a Pursuit Fellow, Alumnus, or community member referred you to Pursuit, please include their full name below. 
+
+
+IMPORTANT: Please review carefully and submit your complete responses. Once this task is submitted, it cannot be modified.
+
+
+PERSONAL INFORMATION
+
+
+What is your date of birth?
+
+
+What is your gender?
+Woman
+Man
+Non-binary
+Not listed 
+
+
+What is your primary phone number?
+
+
+What is your home address? 
+
+
+Do you currently live in a NYCHA (New York Housing Authority) development?
+Yes
+No
+
+
+Which NYCHA Residency?
+
+
+If you live in NYC, what city council district do you live in? Find it here.
+
+
+What is your current mode of transportation across/into the city? Please select all that apply 
+* I drive or use a motor vehicle
+* I use public commuter  transportation
+* I walk
+* I bike 
+
+
+Currently, how long is your commute into the office? 
+* 0-30 mins 
+* 30-60 mins 
+* 60-90 mins 
+* 90+ mins
+
+
+
+
+Pursuit is committed to meeting the requirements of people with disabilities and learning difficulties. Please let us know if you have a disability or learning difficulty and would like to be contacted about accommodations. (optional) Examples can include visual impairment, mental health difficulty, a medical condition such as epilepsy, ME, or if you are hard of hearing, have dyslexia, or are a wheelchair user.
+
+
+Which of the following best represents your racial or ethnic heritage? Choose all that apply.
+African American/Black
+Asian
+Hispanic or Latino
+Middle Eastern
+Native American
+White/Caucasian
+Other
+
+
+Is English your secondary language? 
+Yes
+No
+
+
+Were you born outside of the US and its territories?
+Yes
+No
+
+
+Were your parents born outside of the US and its territories?
+Yes
+No
+What is the total annual income of your household?
+What is your household Status?
+Head of Household 
+Dependent 
+Neither head of household nor dependent
+I’m not sure
+
+
+Do you support any dependents?
+Yes
+No
+
+
+If yes, please indicate the type of dependent 
+Minor (17 and younger) 
+Adult (18 and older) 
+Both minors and adults
+N/A
+
+
+If yes, please indicate the number of dependents you support
+___
+
+
+Do you currently receive child care for your minor dependents? 
+Yes — I provide my child care (stay-at-home parent, primary caregiver)
+Yes — I have external childcare (daycare, babysitter, etc.)
+No — I do not require childcare/not applicable 
+
+
+Do you currently receive any government assistance?
+Yes
+No
+
+
+Which forms of government assistance? Please check all that apply.
+* CILOCA (Child Care in lieu of Cash Assistance)
+* EITC (Earned Income Tax Credit)
+* HEAP (Home Energy Assistance Program)
+* Medicaid
+* SNAP (Supplemental Nutrition Assistance Program / Food Stamps)
+* Section 8 Housing
+* SSDI/SSI (Social Security Disability Insurance and Supplemental Security Income)
+* SSP (New York State Supplement Program)
+* TANF (Temporary Assistance for Needy Families)
+* Unemployment Benefits
+* WIC (Nutrition Program for Women, Infants, and Children)
+
+
+Are you a veteran?
+The Pursuit Fellowship is not eligible for the VA training reimbursement program. This data is for our internal reporting purposes.
+Yes
+No
+
+
+Are you a part of any communities, groups, or organizations? (i.e. church, clubs, meetups, etc.) Please indicate any/all communities you are currently a part of. 
+
+
+Please navigate and read the Pursuit Privacy Policy (https://www.pursuit.org/privacy-policy).
+I have read and acknowledge Pursuit's Privacy Policy.
+
+
+
+YOUR BACKGROUND
+Education
+
+
+What is your current highest educational attainment? Please include only the degrees that you hold, not the degrees/diplomas that you are pursuing.
+* Some High School
+* High School Diploma/GED or Equivalent
+* Trade or Vocational Degree
+* Associate Degree
+* Bachelor's Degree
+* Master's Degree
+* Doctorate
+
+
+Are you currently enrolled in a higher education degree program?
+Yes
+No
+
+
+Are you a first-generation college student? This means that you are currently enrolled in or have graduated from a four-year college or university, and your parent(s)/legal guardian(s) have not completed a bachelor's degree at a four-year college or university.
+Yes
+No
+
+
+Degree Information 
+For "Degree," please enter the type of degree. For example, "Associate of Arts" or "Associate of Science".
+
+Degree (i.e. Bachelor of Arts) 
+Major (i.e. “Art History)
+College/University (CUNY) 
+Other College/University (i.e. “NYU”)
+
+Work Background
+
+
+What is your current employment status?
+* Employed Full-Time
+* Employed Part-Time
+* Self-Employed
+* Not employed, but looking for work
+* Not employed and not looking for work
+* Retired
+
+
+On average, how many hours do you work per week?
+
+
+Please provide the name of your current or your most recent employer.
+
+
+What is your current or most recent job title?
+
+
+Please explain your education and work history in more detail.
+For example, you can give us more context on any fields of study and gaps in work history.
+
+
+What's your experience with coding?
+* Have never coded before
+* Just getting started coding
+* Have built a small coding project
+* Have a CS degree and/or worked as a developer
+
+
+What’s your experience or understanding of AI?
+* Don’t really understand AI
+* Just learning/understanding basic concepts
+* Have tested/worked with basic AI (ie. meta, ChatGPT)
+* Have worked/built with AI for a personal/professional product
+
+
+If you have a LinkedIn profile, please add the link below (if you do not have a profile, mark NA): 
+
+
+Is there anything that you have created in the past that you would like to share with us? Please add a link below. (optional)
+
+
+
+
+YOUR JOURNEY
+Please take this opportunity to add depth to your story and your identity. You may find this blog post helpful. Successful applicants express their ideas with more than a few sentences, but please limit your essays to 350 words or fewer. 
+
+Q.1 INTEREST IN PURSUIT/TECH –
+Question 1:  Pursuit is taking a bold approach to the future by building our AI Native program for the ever-changing landscape of technology. Were there other options you considered before, and what made you decide that Pursuit would be the best vehicle for you? (Please limit your essays to 350 words or less.) 
+
+
+Q.2 CURIOSITY WITH AI & UNKNOWN – 
+Question 2: Share your thoughts and perspectives on AI. Additionally, tell us how you think AI will help in your work search, career journey, or overall professional growth. (Please limit your essays to 350 words or less.) 
+
+
+Q.3 ADDITIONAL INFORMATION – Some applicants have a background, identity, interest, or talent that is so meaningful they believe their application would be incomplete without it. If this sounds like you, then please share your story.
+
+Q4. Building In Public
+This AI Native program will experiment with "Building in Public." Essentially, you will publish and share the progress and outcomes of your builds with the public to build your brand, leapfrog traditional hiring processes, and get hired.  
+
+
+To that end, please create (if you do not already have one) an X account and share your handle here. Note: this is a requirement for the program.
+
+
+
+
+ASSIGNMENT
+
+
+Using AI to Learn 
+A major component of our training is to be able to use AI to learn independently and to demonstrate curiosity. We are looking for people who have a curious mind and want to understand how things work and dig into the details. 
+To give you a bit of that experience, in this task, you will use AI to learn about a new topic  and share your learnings. The topic you'll learn about is: “Neural Networks" in the context of AI.  
+For this assignment, you will be working directly with an AI LLM or Artificial Intelligence Large Learning Model. LLMs are useful for analyzing, summarizing, and creating content across multiple industries, including software development. 
+
+
+You will need to create an account with one of these free-to-use AI LLMs to help you complete one of the tasks of your choice. As you speak or “prompt” the AI, it will provide you with suggestions and solutions that you will record and analyze in the intake sections below. 
+
+
+Instructions: 
+1. Create an account with one of these free-to-use AI LLMs of your choice (ChatGPT or Google Gemini) if you have not already done so.  
+2. Start by asking the LLM questions about Neural Networks to learn more. No question is too basic. Treat the LLM like a person you’re speaking with to learn, like a tutor or a teacher. Some questions you may want to ask are: “What is a neural network?” or “Explain what a neural network is to me like I’m ten years old.” 
+3. Ask follow-up questions to learn as much as you can about Neural Networks. We want to see how curious you are. The deeper you go, the better. 
+4. Share your learnings in the responses below. 
+5. Share your experience on X using the #BuildWithPursuit!
+
+
+1. List all of the questions you used to ask the AI to learn. (The more and the deeper the better.) 
+
+
+2. Explain, in your own words, what a neural network is. 
+
+
+3. What is the basic structure and function of a neural network? 
+
+
+4. What are the main components of a neural network? 
+
+
+5. What aspect of neural networks did you find most intriguing during your research? 
+
+
+6. Name one area you would like to explore further.
+
+
+7. What did you learn about this new aspect you listed above? (optional)
+
+
+8. How did using AI tools to learn about a new topic influence your learning process, and what insights did you gain about integrating AI into your learning practices?​ (META-LEVEL QUESTION)

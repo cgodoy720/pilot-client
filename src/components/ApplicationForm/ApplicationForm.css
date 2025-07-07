@@ -1,7 +1,5 @@
 .application-form {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem;
+  /* Removed max-width and margin constraints to match InfoSessions layout */
   background-color: #ffffff;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -21,6 +19,20 @@
 
 .form-group {
   margin-bottom: 1.5rem;
+  transition: opacity 0.3s ease-in-out, max-height 0.3s ease-in-out;
+}
+
+.form-group.conditional-hidden {
+  opacity: 0;
+  max-height: 0;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.form-group.conditional-show {
+  opacity: 1;
+  max-height: 1000px;
+  transition: opacity 0.3s ease-in-out 0.1s, max-height 0.3s ease-in-out;
 }
 
 .form-group label {
@@ -40,7 +52,7 @@ textarea.form-input,
 select.form-input {
   font-family: inherit, Arial, sans-serif;
   font-size: 1rem;
-  color: var(--color-text-primary);
+  color: #333333;
   width: 100%;
   padding: 0.75rem;
   border: 1px solid #ddd;
@@ -130,9 +142,7 @@ textarea.form-input {
 }
 
 .application-form-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem;
+  /* Removed max-width constraints to match InfoSessions layout */
 }
 
 .application-header {
@@ -199,19 +209,19 @@ textarea.form-input {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 2px solid var(--color-border);
+  border: 2px solid #ddd;
   background-color: white;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .radio-option input[type="radio"]:checked {
-  background-color: var(--color-border);
-  border-color: white;
+  background-color: #4a90e2;
+  border-color: #4a90e2;
 }
 
 select.form-input option {
-  color: var(--color-text-primary);
-  background-color: var(--color-background-light);
+  color: #333333;
+  background-color: white;
 }
 
 .checkbox-group {

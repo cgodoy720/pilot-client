@@ -18,19 +18,30 @@ export const AuthProvider = ({ children }) => {
     const storedToken = localStorage.getItem('token');
     
     if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
-      setToken(storedToken);
-      setIsAuthenticated(true);
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        // Only set auth state for builder users (unified auth handles this)
+        if (parsedUser.userType === 'builder') {
+          setUser(parsedUser);
+          setToken(storedToken);
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        console.error('Error parsing stored user data:', error);
+        // Clear invalid data
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
     }
     
     setIsLoading(false);
   }, []);
 
-  // Login function
+  // Login function - now uses unified auth endpoint
   const login = async (email, password) => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/login`, {
+      const response = await fetch(`http://localhost:7001/api/unified-auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,16 +63,20 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.error || 'Login failed');
       }
       
-      // Save user and token to state
-      setUser(data.user);
-      setToken(data.token);
-      setIsAuthenticated(true);
-      
-      // Save to localStorage for persistence
+      // Store user data in localStorage
       localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('token', data.token);
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
       
-      return { success: true };
+      // Only set auth context state for builder users
+      if (data.user.userType === 'builder') {
+        setUser(data.user);
+        setToken(data.token);
+        setIsAuthenticated(true);
+      }
+      
+      return { success: true, redirectTo: data.redirectTo, userType: data.user.userType };
     } catch (error) {
       return { success: false, error: error.message };
     } finally {
@@ -122,6 +137,19 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('user', JSON.stringify(updatedUser));
   };
 
+  // Manually set authentication state (for external logins like unified auth)
+  const setAuthState = (userData, userToken) => {
+    setUser(userData);
+    setToken(userToken);
+    setIsAuthenticated(true);
+    
+    // Also save to localStorage
+    localStorage.setItem('user', JSON.stringify(userData));
+    if (userToken) {
+      localStorage.setItem('token', userToken);
+    }
+  };
+
   // Value object to be provided to consumers
   const value = {
     user,
@@ -131,7 +159,8 @@ export const AuthProvider = ({ children }) => {
     login,
     signup,
     logout,
-    updateUser
+    updateUser,
+    setAuthState
   };
 
   return (

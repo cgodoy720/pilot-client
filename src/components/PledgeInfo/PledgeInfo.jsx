@@ -6,7 +6,7 @@ const PledgeInfo = () => {
   const navigate = useNavigate();
 
   const handleBack = () => {
-    navigate('/');
+    navigate('/apply/dashboard');
   };
 
   return (

@@ -96,7 +96,7 @@ const Layout = ({ children }) => {
           </Link>
           
           {isAdmin && (
-            <Link to="/admin-dashboard" className={`layout__nav-item ${location.pathname === '/admin-dashboard' ? 'layout__nav-item--active' : ''}`}>
+            <Link to="/admin" className={`layout__nav-item ${location.pathname === '/admin' ? 'layout__nav-item--active' : ''}`}>
               <AdminPanelSettingsIcon className="layout__nav-icon" />
               {isExpanded && <span className="layout__nav-text">Admin Dashboard</span>}
             </Link>

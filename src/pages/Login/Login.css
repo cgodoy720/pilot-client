@@ -172,4 +172,67 @@
   cursor: pointer;
   font-size: 1rem;
   padding: 5px;
+}
+
+/* Admissions Link Styles */
+.login-admissions-link {
+  width: 100%;
+  margin-top: var(--spacing-xl);
+  text-align: center;
+}
+
+.admissions-divider {
+  position: relative;
+  margin: var(--spacing-lg) 0;
+  height: 1px;
+  background-color: var(--color-border);
+}
+
+.admissions-divider span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--color-background-darker);
+  padding: 0 var(--spacing-sm);
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.login-admissions-link p {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin: var(--spacing-sm) 0;
+}
+
+.admissions-login-button {
+  display: inline-block;
+  background-color: transparent;
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all var(--transition-speed);
+  cursor: pointer;
+}
+
+.admissions-login-button:hover {
+  background-color: var(--color-primary);
+  color: white;
+  transform: translateY(-1px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .login-admissions-link {
+    margin-top: var(--spacing-md);
+  }
+  
+  .admissions-login-button {
+    width: 100%;
+    padding: var(--spacing-md);
+  }
 } 
