@@ -1,192 +1,510 @@
-.applicant-dashboard {
+.admissions-dashboard {
     min-height: 100vh;
-    background: #f8fafc;
+    min-width: 100vw;
+    background: var(--color-background-dark);
+    color: var(--color-text-primary);
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
-.dashboard-header {
-    background: white;
-    padding: 20px 40px;
-    border-bottom: 1px solid #e2e8f0;
+/* Top Bar */
+.admissions-topbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem 2vw;
+    background: var(--color-background-dark);
+    width: 100vw;
+    box-sizing: border-box;
 }
 
-.dashboard-header h1 {
-    margin: 0;
-    color: #1a202c;
-    font-size: 24px;
-    font-weight: 600;
-}
-
-.logout-button {
-    background: #e53e3e;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-
-.logout-button:hover {
-    background: #c53030;
-}
-
-.dashboard-content {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 40px 20px;
-}
-
-.welcome-section {
-    text-align: center;
-    margin-bottom: 40px;
-}
-
-.welcome-section h2 {
-    margin: 0 0 10px 0;
-    color: #2d3748;
-    font-size: 28px;
-    font-weight: 600;
-}
-
-.welcome-section p {
-    margin: 0;
-    color: #718096;
-    font-size: 16px;
-}
-
-.application-steps {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 30px;
-    margin-bottom: 40px;
-}
-
-.step-card {
-    background: white;
-    border-radius: 12px;
-    padding: 30px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-    border: 1px solid #e2e8f0;
+.admissions-topbar-left {
     display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    min-width: 0;
+}
+
+.admissions-logo-section {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.admissions-logo {
+    height: 48px;
+    width: 48px;
+    object-fit: contain;
+    background: transparent;
+    display: block;
+    margin: 0 auto;
+    cursor: pointer;
+}
+
+.admissions-logo-text {
+    font-weight: 700;
+    font-size: 2rem;
+    color: #fff;
+    margin-left: 0.5rem;
+    letter-spacing: 0.02em;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.welcome-text {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-left: 2rem;
+}
+
+.admissions-topbar-right {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.admissions-button-primary {
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.2s;
+}
+
+.admissions-button-primary:hover {
+    background: #ff6b35;
+}
+
+.admissions-button-secondary {
+    background: transparent;
+    color: var(--color-text-primary);
+    border: 2px solid var(--color-primary);
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.admissions-button-secondary:hover {
+    background: var(--color-primary);
+    color: #fff;
+}
+
+/* Title Section */
+.admissions-title-section {
+    width: 100vw;
+    text-align: left;
+    padding: 1.5rem 0 0 2vw;
+}
+
+.admissions-title {
+    font-size: 2.8rem;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: -0.04em;
+    margin: 0;
+    font-family: Arial Black, Arial, Helvetica, sans-serif;
+    line-height: 1.1;
+}
+
+/* Main Content */
+.admissions-content {
+    display: flex;
+    gap: 2rem;
+    width: 100%;
+    max-width: none;
+    margin: 2rem 0;
+    padding: 0 2rem 4rem 2rem;
     align-items: flex-start;
-    gap: 20px;
+    min-height: calc(100vh - 200px);
+    box-sizing: border-box;
+}
+
+/* Left Side - Program Information */
+.program-info {
+    flex: 0 0 350px;
+    min-width: 350px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 1.5rem;
+}
+
+.cohort-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 1.2rem;
+    letter-spacing: 0.02em;
+    text-align: left;
+}
+
+.program-details {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.program-detail-item {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.detail-icon {
+    font-size: 1.2rem;
+    min-width: 30px;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 0.2rem;
+    font-size: 0.9rem;
+}
+
+.detail-value {
+    color: #ccc;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.program-description {
+    padding: 1.2rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.program-description p {
+    color: #e0e0e0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
+    text-align: left;
+}
+
+/* Right Side - Action Cards */
+.action-cards {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    justify-content: flex-start;
+    width: 100%;
+    overflow: visible;
+}
+
+.action-card {
+    background: var(--color-background-light);
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    padding: 2rem 1.5rem;
+    flex: 1;
+    min-width: 260px;
+    max-width: 320px;
+    width: 100%;
+    min-height: 420px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    box-sizing: border-box;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: visible;
 }
 
-.step-card:hover {
+.action-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
 }
 
-.step-number {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    width: 40px;
-    height: 40px;
+.action-card.locked {
+    position: relative;
+    opacity: 0.85;
+}
+
+.card-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 0 0 auto;
+    margin-bottom: 1rem;
+}
+
+.card-icon {
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 600;
-    font-size: 18px;
-    flex-shrink: 0;
+    color: #fff;
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+    background: var(--color-border);
+    border: 2px solid var(--color-border);
 }
 
-.step-content {
+.card-icon.complete {
+    background: var(--color-primary);
+    border: none;
+}
+
+.card-icon.locked {
+    background: #f5f5f5;
+    border: 2px dashed #ddd;
+    opacity: 0.6;
+    color: #999;
+}
+
+.card-icon span {
+    font-size: 2rem;
+}
+
+.card-icon.complete span {
+    font-size: 2.2rem;
+}
+
+.card-icon.locked span {
+    font-size: 1.8rem;
+}
+
+.card-title {
+    font-weight: 700;
+    font-size: 1.5rem;
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    text-align: center;
+    letter-spacing: 0.01em;
+}
+
+.card-description {
+    font-size: 0.95rem;
+    color: #666;
+    text-align: center;
+    margin-bottom: 0;
+    line-height: 1.4;
+    padding: 0 0.5rem;
+    word-wrap: break-word;
+    hyphens: auto;
+}
+
+.card-details {
+    flex: 1 1 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.locked-message {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 0.6rem;
+    margin: 0.5rem 0;
+    font-size: 0.8rem;
+    color: #856404;
+    text-align: center;
+    width: 100%;
+    box-sizing: border-box;
+    line-height: 1.3;
+    word-wrap: break-word;
+    overflow: hidden;
+}
+
+.session-details-container {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.session-details {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.session-details-icon {
+    font-size: 1.5rem;
+    color: var(--color-primary);
+}
+
+.session-details-content {
     flex: 1;
 }
 
-.step-content h3 {
-    margin: 0 0 10px 0;
-    color: #2d3748;
-    font-size: 18px;
+.session-date {
     font-weight: 600;
+    color: #333;
+    margin-bottom: 0.25rem;
 }
 
-.step-content p {
-    margin: 0 0 20px 0;
-    color: #718096;
-    font-size: 14px;
-    line-height: 1.5;
+.session-time {
+    color: #666;
+    margin-bottom: 0.25rem;
 }
 
-.step-button {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+.session-location {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.card-button-container {
+    flex: 0 0 auto;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 0 0.5rem;
+    box-sizing: border-box;
+}
+
+.card-button-link {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.card-button-container button {
+    background: var(--color-primary);
+    color: #fff;
     border: none;
-    padding: 10px 20px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 500;
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    font-weight: 600;
+    font-size: 0.9rem;
     cursor: pointer;
-    transition: transform 0.2s ease;
+    margin-top: 0;
+    transition: all 0.2s;
+    width: 100%;
+    max-width: 280px;
+    height: 48px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
 }
 
-.step-button:hover {
+.card-button-container button:disabled {
+    background: var(--color-border);
+    color: var(--color-text-muted);
+    cursor: not-allowed;
+}
+
+.card-button-container button:hover:not(:disabled) {
+    background: #ff6b35;
     transform: translateY(-1px);
 }
 
-.applicant-info {
-    background: white;
-    border-radius: 12px;
-    padding: 30px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-    border: 1px solid #e2e8f0;
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .action-cards {
+        gap: 1.2rem;
+    }
 }
 
-.applicant-info h3 {
-    margin: 0 0 20px 0;
-    color: #2d3748;
-    font-size: 18px;
-    font-weight: 600;
-}
-
-.info-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
-}
-
-.info-item {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.info-item label {
-    color: #718096;
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.info-item span {
-    color: #2d3748;
-    font-size: 16px;
-}
-
-@media (max-width: 768px) {
-    .dashboard-header {
-        padding: 15px 20px;
+@media (max-width: 900px) {
+    .admissions-content {
         flex-direction: column;
-        gap: 15px;
-        text-align: center;
+        align-items: stretch;
+        gap: 2rem;
+        width: 100vw;
+        padding: 0 1vw;
     }
     
-    .dashboard-content {
-        padding: 20px 15px;
+    .program-info {
+        flex: none;
+        min-width: 0;
+        max-width: 100%;
     }
     
-    .application-steps {
-        grid-template-columns: 1fr;
-        gap: 20px;
+    .action-cards {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 2rem;
+        width: 100vw;
+        padding: 0 1vw;
     }
     
-    .step-card {
-        padding: 20px;
+    .action-card {
+        max-width: 100%;
+        min-width: 0;
     }
+}
+
+@media (max-width: 600px) {
+    .admissions-content {
+        padding: 0 0.5vw;
+    }
+    
+    .action-cards {
+        padding: 0 0.5vw;
+    }
+    
+    .action-card {
+        padding: 1.2rem 0.5rem 1.5rem 0.5rem;
+    }
+    
+    .card-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 1.3rem;
+    }
+    
+    .admissions-logo-text {
+        font-size: 1.2rem !important;
+    }
+    
+    .welcome-text {
+        font-size: 1rem;
+        margin-left: 1rem;
+    }
+    
+    .admissions-topbar {
+        padding: 1rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .admissions-topbar-left {
+        flex: 1;
+        min-width: 200px;
+    }
+}
+
+/* Loading state */
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: var(--color-background-dark);
+    color: var(--color-text-primary);
+    font-size: 1.2rem;
 } 
