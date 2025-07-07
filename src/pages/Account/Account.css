@@ -55,6 +55,37 @@
   color: var(--color-text-primary);
 }
 
+/* Account Info Grid */
+.account__info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+.account__info-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.account__info-label {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: left;
+}
+
+.account__info-value {
+  padding: 12px 0;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  font-weight: 500;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
 /* Form Styling */
 .account__form {
   display: flex;
@@ -76,9 +107,11 @@
 
 .account__label {
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
   text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .account__input {
@@ -385,6 +418,10 @@
   }
 
   .account__form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .account__info-grid {
     grid-template-columns: 1fr;
   }
 
