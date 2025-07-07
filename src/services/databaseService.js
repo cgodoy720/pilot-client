@@ -48,7 +48,7 @@ class DatabaseService {
 
   async login(email, password) {
     try {
-      const response = await fetch(`${API_BASE_URL}/applications/login`, {
+      const response = await fetch(`${API_BASE_URL}/unified-auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -63,13 +63,23 @@ class DatabaseService {
 
       const data = await response.json();
       
-      // Store token and applicant data
-      localStorage.setItem('applicantToken', data.token);
-      this.currentApplicant = data.applicant;
-      
-      return data;
+      // Only handle applicant logins in this service
+      if (data.userType === 'applicant') {
+        // Store token and applicant data
+        localStorage.setItem('applicantToken', data.token);
+        this.currentApplicant = data.user;
+        
+        return {
+          success: true,
+          userType: data.userType,
+          redirectTo: data.redirectTo,
+          user: data.user
+        };
+      } else {
+        throw new Error('This login is for builders only. Please use the main login page.');
+      }
     } catch (error) {
-      console.error('Error during login:', error);
+      console.error('Error during applicant login:', error);
       throw error;
     }
   }

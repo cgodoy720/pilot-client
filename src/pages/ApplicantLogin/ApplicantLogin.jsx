@@ -27,9 +27,14 @@ const ApplicantLogin = () => {
         setError('');
 
         try {
-            await databaseService.login(formData.email, formData.password);
-            // Redirect to application dashboard or wherever they came from
-            navigate('/apply');
+            const result = await databaseService.login(formData.email, formData.password);
+            if (result.success) {
+                // Use the redirect path from the server response
+                const redirectPath = result.redirectTo || '/apply';
+                navigate(redirectPath);
+            } else {
+                setError(result.error || 'Login failed');
+            }
         } catch (error) {
             setError(error.message);
         } finally {
