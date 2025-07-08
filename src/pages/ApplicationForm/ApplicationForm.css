@@ -704,24 +704,7 @@ select.form-input option:disabled {
     }
 }
 
-/* Section Navigation */
-.section-nav-item {
-    padding: 0.5rem 0;
-    font-size: 0.875rem;
-    color: #94a3b8;
-    cursor: pointer;
-    transition: color 0.2s;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.section-nav-item.active {
-    color: var(--color-primary);
-    font-weight: 600;
-    background-color: rgba(255, 107, 53, 0.1);
-    border-radius: 4px;
-    padding: 0.75rem;
-    margin: 0.25rem 0;
-}
+/* Section Navigation - Legacy styles removed, using newer styles below */
 
 .section-nav-item.has-errors {
     border-left: 3px solid #ef4444;
@@ -797,19 +780,20 @@ select.form-input option:disabled {
 
 /* Sections bar styling - match app's theme */
 .application-sections-bar {
-  background: var(--color-background-dark);
-  padding: 16px;
+  background: transparent;
+  padding: 0;
   margin-bottom: 24px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
+  border-radius: 0;
+  border: none;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  width: 100%;
 }
 
 /* Section progress counter styling */
 .section-progress {
-  font-size: 0.85em;
+  font-size: 0.7rem;
   color: var(--color-text-muted);
   margin-left: auto;
   font-weight: normal;
@@ -820,16 +804,19 @@ select.form-input option:disabled {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  margin: 0;
-  border-radius: 4px;
+  margin: 4px 0;
+  border-radius: 6px;
   background: var(--color-background-darker);
   border: 1px solid var(--color-border);
   font-weight: 500;
+  font-size: 0.75rem;
   transition: all 0.2s ease;
-  min-width: 180px;
+  min-width: 160px;
+  min-height: 32px;
   flex: 1;
   color: var(--color-text-secondary);
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .section-nav-item:hover:not(.active) {
@@ -844,6 +831,8 @@ select.form-input option:disabled {
   background: var(--color-primary);
   color: white;
   border-color: var(--color-primary);
+  padding: 8px 12px;
+  margin: 4px 0;
 }
 
 .section-nav-item.active .section-progress {

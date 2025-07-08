@@ -7,6 +7,12 @@ import './ApplicationForm.css';
 const ApplicationForm = () => {
   const navigate = useNavigate();
   const saveTimeoutRef = useRef(null);
+
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    navigate('/apply/login');
+  };
   
   // Core state
   const [applicationQuestions, setApplicationQuestions] = useState([]);
@@ -716,7 +722,7 @@ const ApplicationForm = () => {
         <div className="long-text-container">
           <textarea
             {...commonProps}
-              rows={12}
+            rows={12}
             className={`form-input long-text-input ${hasError ? 'form-input-error' : ''}`}
               placeholder={question.placeholder || "Please provide your response..."}
               maxLength={2000}
@@ -738,10 +744,10 @@ const ApplicationForm = () => {
             >
               <option value="">Please select...</option>
               {question.options.map(option => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          );
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        );
         } else {
           return (
             <div className="radio-group">
@@ -752,8 +758,8 @@ const ApplicationForm = () => {
                     name={question.id}
                     value={option}
                     checked={formData[question.id] === option}
-                    onChange={(e) => handleInputChange(question.id, e.target.value)}
-                    required={question.required}
+              onChange={(e) => handleInputChange(question.id, e.target.value)}
+              required={question.required}
                   />
                   {option}
                 </label>
@@ -958,7 +964,13 @@ const ApplicationForm = () => {
             onClick={() => navigate('/apply')} 
             className="admissions-button-secondary"
           >
-            Back to Dashboard
+            ← Back to Dashboard
+          </button>
+          <button 
+            onClick={handleLogout}
+            className="admissions-button-primary"
+          >
+            Log Out
           </button>
         </div>
       </div>
@@ -975,44 +987,10 @@ const ApplicationForm = () => {
           <div className="application-title">
             AI Native Application
             </div>
-          <div className="application-description">
+                    <div className="application-description">
             <p>Welcome to our comprehensive application process. This form will help us understand your background, experience, and goals.</p>
             <p>Please take your time to provide thoughtful and complete responses. Your answers will help us determine if our program is the right fit for you.</p>
             <p>All sections marked with an asterisk (*) are required. You can save your progress at any time and return to complete the application later.</p>
-              </div>
-          
-          {/* Progress Section */}
-          <div className="application-progress-section">
-            <div className="application-progress-title">Progress</div>
-            <div className="application-progress-text">{progress}% Complete</div>
-          <div className="application-progress-bar">
-            <div 
-              className="application-progress-fill" 
-              style={{ width: `${progress}%` }}
-            />
-            </div>
-          </div>
-
-          {/* Session Info */}
-          {currentSession && (
-            <div className="application-session-info">
-              <small>Logged in as: {currentSession.applicant.email}</small>
-            </div>
-          )}
-          
-          {/* Notice */}
-            <div className="application-notice">
-            <p><strong>Important:</strong> Your responses are automatically saved as you progress through the form.</p>
-              </div>
-          
-          {/* Back Button Section */}
-          <div className="application-back-section">
-            <button
-              onClick={() => navigate('/apply')} 
-              className="application-back-button"
-            >
-              <span>←</span> Back to Dashboard
-            </button>
           </div>
         </div>
 
@@ -1038,7 +1016,7 @@ const ApplicationForm = () => {
                   <span className="section-progress">
                     {completedCount} / {totalCount}
                   </span>
-                </div>
+          </div>
               );
             })}
             </div>
@@ -1097,31 +1075,31 @@ const ApplicationForm = () => {
 
                       {/* Conditional Questions */}
                       {currentQuestionGroup.conditionalQuestions.map((question) => (
-                        <div 
-                          key={question.id} 
+                <div 
+                  key={question.id} 
                           className="application-question-group conditional-question"
-                        >
+                >
                           <label htmlFor={question.id} className="application-question-label">
-                            {question.label}
-                            {question.link && (
-                              <a href={question.link.url} target="_blank" rel="noopener noreferrer">
-                                {question.link.text}
-                              </a>
-                            )}
+                    {question.label}
+                    {question.link && (
+                      <a href={question.link.url} target="_blank" rel="noopener noreferrer">
+                        {question.link.text}
+                      </a>
+                    )}
                             {question.required ? (
-                              <span className="application-required">*</span>
+                      <span className="application-required">*</span>
                             ) : (
                               <span className="application-optional">(optional)</span>
-                            )}
-                          </label>
-                          {renderQuestion(question)}
+                    )}
+                  </label>
+                  {renderQuestion(question)}
                           {showValidation && validationErrors[question.id] && (
-                            <div className="application-validation-error">
-                              {validationErrors[question.id]}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                    <div className="application-validation-error">
+                      {validationErrors[question.id]}
+                    </div>
+                  )}
+                </div>
+              ))}
                     </>
                   );
                 })()}
