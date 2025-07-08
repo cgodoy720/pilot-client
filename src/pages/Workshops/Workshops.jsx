@@ -112,33 +112,10 @@ const Workshops = () => {
         fetchEvents();
     }, []); // Remove currentUserId dependency since we don't need it for fetching
 
-    // Add new event
+    // Add new event (admin only - not implemented for applicants)
     const handleAddEvent = async (e) => {
         e.preventDefault();
-        try {
-            const eventToAdd = {
-                ...newEvent,
-                type_id: 'workshop',
-                capacity: newEvent.capacity === '' ? 30 : parseInt(newEvent.capacity),
-                status: 'scheduled'
-            };
-
-            await EventService.createEvent(eventToAdd);
-            const updatedEvents = await EventService.getEvents({ type: 'workshop' });
-            setEvents(updatedEvents);
-            setNewEvent({
-                title: '',
-                description: '',
-                start_time: '',
-                end_time: '',
-                location: '',
-                capacity: '',
-                is_online: false,
-                meeting_link: ''
-            });
-        } catch (error) {
-            console.error('Error adding event:', error);
-        }
+        console.log('Event creation not available for applicants');
     };
 
     // Sign up for an event
@@ -149,11 +126,26 @@ const Workshops = () => {
                 throw new Error('User ID not available');
             }
 
-            const response = await EventService.registerForEvent(eventId, {
-                user_id: currentUserId,
-                name: 'Jacqueline Reverand',
-                email: 'jac@pursuit.org'
+            const registrationData = {
+                userId: currentUserId,
+                name: user?.firstName || 'Applicant',
+                email: user?.email || 'jac@pursuit.org'
+            };
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops/${eventId}/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(registrationData),
             });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to register for event');
+            }
+
+            const responseData = await response.json();
 
             // SUCCESS - Show success status
             const event = events.find(e => e.event_id === eventId);
@@ -163,15 +155,27 @@ const Workshops = () => {
             setRegistrationStatus('success');
             setStatusMessage(`You're registered for the Workshop on ${eventDate} at ${eventTime}!`);
 
+            // Update local status state and localStorage
+            setWorkshopStatus('signed-up');
+            if (event) {
+                const eventDetails = {
+                    date: eventDate,
+                    time: eventTime,
+                    location: event.location
+                };
+                localStorage.setItem('workshopStatus', 'signed-up');
+                localStorage.setItem('workshopDetails', JSON.stringify(eventDetails));
+            }
+
             // IMMEDIATE STATE UPDATE - Add the registration to the event in state
             setEvents(prevEvents => 
                 prevEvents.map(evt => {
                     if (evt.event_id === eventId) {
                         const newRegistration = {
-                            registration_id: response.registration_id || `temp-${Date.now()}`,
+                            registration_id: responseData.registration_id || `temp-${Date.now()}`,
                             user_id: currentUserId,
-                            name: 'Jacqueline Reverand',
-                            email: 'jac@pursuit.org',
+                            name: user?.firstName || 'Applicant',
+                            email: user?.email || 'jac@pursuit.org',
                             status: 'registered',
                             registered_at: new Date().toISOString()
                         };
@@ -183,26 +187,14 @@ const Workshops = () => {
                     return evt;
                 })
             );
-
-            // Update local storage and status
-            if (event) {
-                const eventDetails = {
-                    date: eventDate,
-                    time: eventTime,
-                    location: event.location
-                };
-                localStorage.setItem('workshopStatus', 'signed-up');
-                localStorage.setItem('workshopDetails', JSON.stringify(eventDetails));
-                setWorkshopStatus('signed-up');
-            }
         } catch (error) {
             console.error('Error signing up for event:', error);
             
             // Enhanced error messages based on error type
             let errorMessage = 'Failed to register for this workshop.';
             
-            if (error.message.includes('already registered') || error.message.includes('User already registered')) {
-                errorMessage = 'You are already registered for this workshop! Check your registered workshops below.';
+            if (error.message.includes('already registered') || error.message.includes('User already registered') || error.message.includes("You're already registered for an event")) {
+                errorMessage = error.message; // Use the backend message directly
             } else if (error.message.includes('capacity') || error.message.includes('full')) {
                 errorMessage = 'Sorry, this workshop is fully booked. Please try registering for another session.';
             } else if (error.message.includes('not found')) {
@@ -218,15 +210,9 @@ const Workshops = () => {
         }
     };
 
-    // Mark attendance
+    // Mark attendance (admin only - not implemented for applicants)
     const handleMarkAttendance = async (eventId, registrationId) => {
-        try {
-            await EventService.updateRegistrationStatus(eventId, registrationId, 'attended');
-            const updatedEvents = await EventService.getEvents({ type: 'workshop' });
-            setEvents(updatedEvents);
-        } catch (error) {
-            console.error('Error marking attendance:', error);
-        }
+        console.log('Attendance marking not available for applicants');
     };
 
     // Check if user is registered for an event (only active registrations)
@@ -263,15 +249,33 @@ const Workshops = () => {
     // Cancel user registration
     const handleCancelRegistration = async (eventId, registrationId) => {
         setProcessingEventId(eventId);
-        console.log('[DEBUG WORKSHOPS] Cancelling registration:', { eventId, registrationId, currentUserId });
         
         try {
-            await EventService.cancelRegistration(eventId, registrationId);
-            console.log('[DEBUG WORKSHOPS] Server cancellation successful');
+            console.log('=== CANCELLATION ATTEMPT ===');
+            console.log('Event ID:', eventId);
+            console.log('User ID:', currentUserId);
+            console.log('Registration ID:', registrationId);
+            console.log('Full URL:', `${import.meta.env.VITE_API_URL}/api/workshops/${eventId}/register/${currentUserId}`);
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops/${eventId}/register/${currentUserId}`, {
+                method: 'DELETE'
+            });
+
+            console.log('Response status:', response.status);
+            console.log('Response ok:', response.ok);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to cancel registration');
+            }
+
+            // SUCCESS - Show success status
+            setRegistrationStatus('success');
+            setStatusMessage('Workshop registration cancelled successfully.');
             
             // IMMEDIATE STATE UPDATE - Mark registration as cancelled
-            setEvents(prevEvents => {
-                const updatedEvents = prevEvents.map(evt => {
+            setEvents(prevEvents => 
+                prevEvents.map(evt => {
                     if (evt.event_id === eventId) {
                         const updatedRegistrations = (evt.registrations || []).map(reg => {
                             if (reg.registration_id === registrationId) {
@@ -279,76 +283,37 @@ const Workshops = () => {
                             }
                             return reg;
                         });
-                        console.log('[DEBUG WORKSHOPS] Updated registrations for event', eventId, ':', updatedRegistrations);
                         return {
                             ...evt,
                             registrations: updatedRegistrations
                         };
                     }
                     return evt;
-                });
-                console.log('[DEBUG WORKSHOPS] Updated events state:', updatedEvents);
-                return updatedEvents;
-            });
+                })
+            );
             
-            setRegistrationStatus('success');
-            setStatusMessage('Workshop registration cancelled successfully.');
-            
-            // Clear status in App and localStorage
+            // Clear status and localStorage
             setWorkshopStatus('not signed-up');
             localStorage.removeItem('workshopStatus');
             localStorage.removeItem('workshopDetails');
-            console.log('[DEBUG WORKSHOPS] LocalStorage and app state cleared');
 
         } catch (error) {
-            console.error('[DEBUG WORKSHOPS] Cancellation failed:', error);
+            console.error('Cancellation failed:', error);
             setRegistrationStatus('error');
-            setStatusMessage('Failed to cancel workshop registration.');
+            setStatusMessage(`Failed to cancel registration: ${error.message}`);
         } finally {
             setProcessingEventId(null);
         }
     };
 
-    // Cancel event
+    // Cancel event (admin only - not available for applicants)
     const handleCancelEvent = async (eventId) => {
-        setProcessingEventId(eventId);
-        try {
-            await EventService.cancelEvent(eventId, cancelReason);
-            const updatedEvents = await EventService.getEvents({ type: 'workshop' });
-            setEvents(updatedEvents);
-            setShowCancelModal(false);
-            setCancelReason('');
-            setRegistrationStatus('success');
-            setStatusMessage('Event cancelled successfully');
-        } catch (error) {
-            console.error('Error cancelling event:', error);
-            setRegistrationStatus('error');
-            setStatusMessage('Failed to cancel event');
-        } finally {
-            setProcessingEventId(null);
-        }
+        console.log('Event cancellation not available for applicants');
     };
 
-    // Reschedule event
+    // Reschedule event (admin only - not available for applicants)
     const handleRescheduleEvent = async (eventId) => {
-        setProcessingEventId(eventId);
-        try {
-            const { start_time, end_time } = rescheduleEvent;
-            await EventService.rescheduleEvent(eventId, start_time, end_time, cancelReason);
-            const updatedEvents = await EventService.getEvents({ type: 'workshop' });
-            setEvents(updatedEvents);
-            setShowRescheduleModal(false);
-            setRescheduleEvent(null);
-            setCancelReason('');
-            setRegistrationStatus('success');
-            setStatusMessage('Event rescheduled successfully');
-        } catch (error) {
-            console.error('Error rescheduling event:', error);
-            setRegistrationStatus('error');
-            setStatusMessage('Failed to reschedule event');
-        } finally {
-            setProcessingEventId(null);
-        }
+        console.log('Event rescheduling not available for applicants');
     };
 
     const handleLogout = () => {
@@ -362,107 +327,34 @@ const Workshops = () => {
     };
 
     const handleBackToDashboard = () => {
-        navigate('/apply/dashboard');
+        navigate('/apply');
     };
 
     return (
-        <div className="workshops-container" style={{
-            backgroundColor: 'var(--color-background-dark)',
-            minHeight: '100vh',
-            width: '100vw',
-            margin: 0,
-            padding: 0,
-            color: 'var(--color-text-primary)',
-            fontFamily: 'system-ui, Avenir, Helvetica, Arial, sans-serif',
-            position: 'relative'
-        }}>
+        <div className="admissions-dashboard">
             {/* Top Bar */}
-            <div className="admissions-topbar" style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '1.5rem 2vw',
-                background: 'var(--color-background-dark)',
-                width: '100vw',
-                boxSizing: 'border-box'
-            }}>
-                <div className="admissions-topbar-left" style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '1.5rem',
-                    minWidth: 0
-                }}>
-                    <div className="admissions-logo-section" style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        minWidth: 0
-                    }}>
-                        <Link to="/apply/dashboard">
-                            <img src={pursuitLogo} alt="Pursuit Logo" style={{
-                                height: '48px',
-                                width: '48px',
-                                objectFit: 'contain',
-                                background: 'transparent',
-                                display: 'block',
-                                margin: '0 auto',
-                                cursor: 'pointer'
-                            }} />
+            <div className="admissions-topbar">
+                <div className="admissions-topbar-left">
+                    <div className="admissions-logo-section">
+                        <Link to="/apply">
+                            <img src={pursuitLogo} alt="Pursuit Logo" className="admissions-logo" />
                         </Link>
-                        <span style={{
-                            fontWeight: '700',
-                            fontSize: '2rem',
-                            color: '#fff',
-                            marginLeft: '0.5rem',
-                            letterSpacing: '0.02em',
-                            fontFamily: 'Arial, Helvetica, sans-serif'
-                        }}>PURSUIT</span>
+                        <span className="admissions-logo-text">PURSUIT</span>
                     </div>
-                    <div className="welcome-text" style={{
-                        fontSize: '1.3rem',
-                        fontWeight: '600',
-                        color: 'var(--color-text-primary)',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        marginLeft: '2rem'
-                    }}>
+                    <div className="welcome-text">
                         Welcome, {user?.firstName || 'John'}!
                     </div>
                 </div>
-                <div className="admissions-topbar-right" style={{
-                    display: 'flex',
-                    gap: '1rem',
-                    alignItems: 'center'
-                }}>
+                <div className="admissions-topbar-right">
                     <button 
                         onClick={handleBackToDashboard}
-                        style={{
-                            background: 'transparent',
-                            color: 'var(--color-text-primary)',
-                            border: '2px solid var(--color-primary)',
-                            padding: '0.4rem 1rem',
-                            borderRadius: '8px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                            transition: 'all 0.2s'
-                        }}
+                        className="admissions-button-secondary"
                     >
                         ← Back to Dashboard
                     </button>
                     <button 
                         onClick={handleLogout}
-                        style={{
-                            background: 'var(--color-primary)',
-                            color: '#fff',
-                            border: 'none',
-                            padding: '0.5rem 1.2rem',
-                            borderRadius: '8px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                            transition: 'background-color 0.2s'
-                        }}
+                        className="admissions-button-primary"
                     >
                         Log Out
                     </button>
@@ -470,20 +362,8 @@ const Workshops = () => {
             </div>
 
             {/* Workshops Title */}
-            <div className="admissions-title-section" style={{
-                width: '100vw',
-                textAlign: 'left',
-                padding: '1.5rem 0 0 2vw'
-            }}>
-                <h1 className="admissions-title" style={{
-                    fontSize: '2.8rem',
-                    fontWeight: '900',
-                    color: '#fff',
-                    letterSpacing: '-0.04em',
-                    margin: 0,
-                    fontFamily: 'Arial Black, Arial, Helvetica, sans-serif',
-                    lineHeight: 1.1
-                }}>
+            <div className="admissions-title-section">
+                <h1 className="admissions-title">
                     WORKSHOPS
                 </h1>
             </div>

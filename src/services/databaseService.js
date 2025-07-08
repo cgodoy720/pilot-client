@@ -179,10 +179,31 @@ class DatabaseService {
   // Create application
   async createApplication(cohortId = null) {
     try {
-      const response = await fetch(`${API_BASE_URL}/applications/application`, {
+      // Use authenticated endpoint if we have a token, otherwise use anonymous
+      const useAnonymous = !this.isAuthenticated();
+      const url = useAnonymous 
+        ? `${API_BASE_URL}/applications/application/anonymous`
+        : `${API_BASE_URL}/applications/application`;
+      
+      const headers = useAnonymous 
+        ? { 'Content-Type': 'application/json' }
+        : this.getAuthHeaders();
+      
+      // For anonymous, we need the applicant_id
+      if (useAnonymous && !this.currentApplicant?.applicant_id) {
+        throw new Error('No applicant available for anonymous application creation. Please create applicant first.');
+      }
+      
+      const body = useAnonymous 
+        ? { applicantId: this.currentApplicant.applicant_id, cohortId }
+        : { cohortId };
+
+      console.log('Creating application with:', { url, body, useAnonymous });
+
+      const response = await fetch(url, {
         method: 'POST',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify({ cohortId }),
+        headers,
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -190,6 +211,7 @@ class DatabaseService {
       }
 
       this.currentApplication = await response.json();
+      console.log('Application created:', this.currentApplication);
       return this.currentApplication;
     } catch (error) {
       console.error('Error creating application:', error);
@@ -200,9 +222,19 @@ class DatabaseService {
   // Save user response to database
   async saveResponse(applicationId, questionId, responseValue) {
     try {
-      const response = await fetch(`${API_BASE_URL}/applications/response`, {
+      // Use authenticated endpoint if we have a token, otherwise use anonymous
+      const useAnonymous = !this.isAuthenticated();
+      const url = useAnonymous 
+        ? `${API_BASE_URL}/applications/response/anonymous`
+        : `${API_BASE_URL}/applications/response`;
+      
+      const headers = useAnonymous 
+        ? { 'Content-Type': 'application/json' }
+        : this.getAuthHeaders();
+
+      const response = await fetch(url, {
         method: 'POST',
-        headers: this.getAuthHeaders(),
+        headers,
         body: JSON.stringify({ applicationId, questionId, responseValue }),
       });
 
@@ -220,9 +252,19 @@ class DatabaseService {
   // Submit application
   async submitApplication(applicationId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/applications/${applicationId}/submit`, {
+      // Use authenticated endpoint if we have a token, otherwise use anonymous
+      const useAnonymous = !this.isAuthenticated();
+      const url = useAnonymous 
+        ? `${API_BASE_URL}/applications/application/${applicationId}/submit/anonymous`
+        : `${API_BASE_URL}/applications/${applicationId}/submit`;
+      
+      const headers = useAnonymous 
+        ? { 'Content-Type': 'application/json' }
+        : this.getAuthHeaders();
+
+      const response = await fetch(url, {
         method: 'PUT',
-        headers: this.getAuthHeaders(),
+        headers,
       });
 
       if (!response.ok) {
@@ -239,8 +281,18 @@ class DatabaseService {
   // Get all responses for an application
   async getApplicationResponses(applicationId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/applications/${applicationId}/responses`, {
-        headers: this.getAuthHeaders(),
+      // Use authenticated endpoint if we have a token, otherwise use anonymous
+      const useAnonymous = !this.isAuthenticated();
+      const url = useAnonymous 
+        ? `${API_BASE_URL}/applications/application/${applicationId}/responses/anonymous`
+        : `${API_BASE_URL}/applications/${applicationId}/responses`;
+      
+      const headers = useAnonymous 
+        ? { 'Content-Type': 'application/json' }
+        : this.getAuthHeaders();
+
+      const response = await fetch(url, {
+        headers,
       });
       
       if (!response.ok) {
@@ -251,6 +303,29 @@ class DatabaseService {
     } catch (error) {
       console.error('Error fetching application responses:', error);
       throw error;
+    }
+  }
+
+  // Load form data (transform responses back to form data format)
+  async loadFormData(applicationId) {
+    try {
+      const responses = await this.getApplicationResponses(applicationId);
+      const formData = {};
+      
+      responses.forEach(response => {
+        try {
+          // Try to parse as JSON first (for arrays/objects)
+          formData[response.question_id] = JSON.parse(response.response_value);
+        } catch (e) {
+          // If not JSON, use as string
+          formData[response.question_id] = response.response_value;
+        }
+      });
+      
+      return formData;
+    } catch (error) {
+      console.error('Error loading form data:', error);
+      return {}; // Return empty object on error
     }
   }
 

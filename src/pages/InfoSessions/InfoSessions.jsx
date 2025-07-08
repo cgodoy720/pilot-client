@@ -242,8 +242,8 @@ const InfoSessions = () => {
             // Enhanced error messages based on error type
             let errorMessage = 'Failed to register for this event.';
             
-            if (error.message.includes('already registered') || error.message.includes('User already registered')) {
-                errorMessage = 'You are already registered for this event! Check your registered sessions below.';
+            if (error.message.includes('already registered') || error.message.includes('User already registered') || error.message.includes("You're already registered for an event")) {
+                errorMessage = error.message; // Use the backend message directly
             } else if (error.message.includes('capacity') || error.message.includes('full')) {
                 errorMessage = 'Sorry, this event is fully booked. Please try registering for another session.';
             } else if (error.message.includes('not found')) {
