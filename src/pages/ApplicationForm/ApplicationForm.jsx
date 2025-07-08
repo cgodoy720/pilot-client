@@ -1101,17 +1101,15 @@ const ApplicationForm = () => {
         {/* Left Column - Info Panel */}
         <div className="application-left-column">
           <div className="application-description">
-            <p className="first-paragraph"><strong>You're taking the first step toward joining the Pursuit AI-Native Pilot - an accelerated pathway and an immersive learning experience designed to help you gain the skills to build technology in an AI-powered world.</strong></p>
+            <p className="first-paragraph"><strong>You're taking the first step toward joining the Pursuit AI-Native Program - an accelerated pathway and an immersive learning experience designed to help you gain the skills to build technology in an AI-powered world.</strong></p>
             
-            <p>This 7-month program begins is grounded in an AI-native learning model, where AI helps personalize and accelerate your learning journey. It begins with AI literacy and ends with career support.</p>
-            
-            <p>We are building this program 'in public', sharing our progress and learnings online to foster transparency, gain feedback, and increase visibility for participants in today's tech job market.</p>
+            <p>This 7-month program is grounded in an AI-native learning model, where AI helps personalize and accelerate your learning journey. It begins with AI literacy and ends with career support.</p>
             
             <p>No coding experience is required.</p>
             
-            <p>We're looking for curious thinkers—people who don't just want answers, but want to understand how and why things work. If you're open to learning, excited by new ideas, and eager to explore the potential of AI, this program is for you.</p>
+            <p>If you're open to learning, excited by new ideas, and eager to explore the potential of AI, this program is for you.</p>
             
-            <p>We highly encourage women, non-binary and trans-identifying people, communities underrepresented in tech, and those without college degrees to apply.</p>
+            <p>We highly encourage communities underrepresented in tech and those without college degrees to apply.</p>
           </div>
         </div>
 
