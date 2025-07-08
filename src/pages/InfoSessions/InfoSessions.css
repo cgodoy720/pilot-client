@@ -211,27 +211,28 @@
 }
 
 .select-btn {
-  background-color: var(--color-primary);
-  color: var(--color-text-primary);
-  border: none;
+  width: 100%;
   padding: 0.75rem 1.5rem;
+  background: var(--color-primary);
+  color: white;
+  border: none;
   border-radius: 8px;
   font-weight: 600;
+  font-size: 1rem;
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.9rem;
-  width: 100%;
+  transition: background 0.2s, box-shadow 0.2s;
 }
 
 .select-btn:hover:not(:disabled) {
-  background-color: var(--color-primary-hover);
+  background: var(--color-primary-hover);
+  box-shadow: 0 4px 16px rgba(66, 66, 234, 0.15);
 }
 
 .select-btn:disabled,
-.select-btn.full-btn {
-  background-color: var(--color-background-light);
-  color: var(--color-text-muted);
+.full-btn {
+  background: #a0aec0;
   cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .cancel-selection-btn {

@@ -10,7 +10,6 @@ import VerifyEmail from './pages/Login/VerifyEmail.jsx'
 import ResendVerification from './pages/Login/ResendVerification.jsx'
 
 // Applicant pages
-import ApplicantLogin from './pages/ApplicantLogin/index.js'
 import ApplicantSignup from './pages/ApplicantSignup/index.js'
 import ApplicantDashboard from './pages/ApplicantDashboard/index.js'
 import ApplicationForm from './pages/ApplicationForm/index.js'
@@ -52,7 +51,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/resend-verification" element={<ResendVerification />} />
           
           {/* Applicant routes (public, no builder auth required) */}
-          <Route path="/apply/login" element={<ApplicantLogin />} />
           <Route path="/apply/signup" element={<ApplicantSignup />} />
           <Route path="/apply" element={<ApplicantDashboard />} />
           <Route path="/application-form" element={<ApplicationForm />} />

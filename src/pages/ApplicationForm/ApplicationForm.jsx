@@ -12,7 +12,7 @@ const ApplicationForm = () => {
   // Handle logout
   const handleLogout = () => {
     localStorage.removeItem('user');
-    navigate('/apply/login');
+    navigate('/login');
   };
   
   // Core state

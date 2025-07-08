@@ -17,7 +17,7 @@ const SECTION_CONFIG = [
       if (status === 'attended') return 'Completed';
       return 'Sign Up Here';
     },
-    buttonEnabled: (status) => status === 'not signed-up',
+    buttonEnabled: (status) => status !== 'attended',
   },
   {
     key: 'application',
@@ -41,14 +41,17 @@ const SECTION_CONFIG = [
     statusOptions: ['locked', 'not signed-up', 'signed-up', 'attended'],
     defaultStatus: 'locked',
     getButtonLabel: (status) => {
-      if (status === 'locked') return 'Application Required';
+      if (status === 'locked') return 'Invitation Required';
       if (status === 'not signed-up') return 'Sign Up Here';
       if (status === 'signed-up') return 'You\'re Signed Up';
       if (status === 'attended') return 'Completed';
       return 'Sign Up Here';
     },
-    buttonEnabled: (status, applicationStatus) => applicationStatus === 'submitted' && status !== 'attended',
-    lockedLabel: 'Application Required',
+    buttonEnabled: (status, applicationStatus) => {
+      // Workshops are always locked until manually enabled by admin
+      return false;
+    },
+    lockedLabel: 'Invitation Required',
   },
   {
     key: 'pledge',
@@ -70,17 +73,17 @@ const SECTION_CONFIG = [
 function ApplicantDashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [currentApplicantId, setCurrentApplicantId] = useState(null);
   const [statuses, setStatuses] = useState({
     infoSession: 'not signed-up',
     application: 'not started',
     workshop: 'locked',
     pledge: 'locked',
-  })
-  const [infoSessionStatus, setInfoSessionStatus] = useState(localStorage.getItem('infoSessionStatus') || 'not signed-up');
-  const [workshopStatus, setWorkshopStatus] = useState(localStorage.getItem('workshopStatus') || 'locked');
-  const [pledgeStatus, setPledgeStatus] = useState(localStorage.getItem('pledgeStatus') || 'locked');
-  const [sessionDetails, setSessionDetails] = useState(null)
-  const [workshopDetails, setWorkshopDetails] = useState(null)
+  });
+  const [sessionDetails, setSessionDetails] = useState(null);
+  const [workshopDetails, setWorkshopDetails] = useState(null);
+  const [applicationProgress, setApplicationProgress] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load user data from localStorage on mount
   useEffect(() => {
@@ -88,86 +91,246 @@ function ApplicantDashboard() {
     if (savedUser) {
       const userData = JSON.parse(savedUser);
       setUser(userData);
+      
+      // Clear any old localStorage status data to prevent cross-account confusion
+      // The dashboard now loads fresh data from the database for each user
+      console.log('Dashboard: Clearing old localStorage status data');
     } else {
       // Redirect to login if no user data
       navigate('/login');
     }
   }, [navigate]);
 
-  // Load status and session details from localStorage on mount
+  // Load current applicant ID when user is set
   useEffect(() => {
-    const savedInfoSessionStatus = localStorage.getItem('infoSessionStatus');
-    const savedWorkshopStatus = localStorage.getItem('workshopStatus');
-    const savedInfoSessionDetails = localStorage.getItem('infoSessionDetails');
-    const savedWorkshopDetails = localStorage.getItem('workshopDetails');
-    const savedApplicationStatus = localStorage.getItem('applicationStatus');
+    const loadApplicantId = async () => {
+      if (!user?.email) return;
+      
+      try {
+        console.log('Loading applicant ID for dashboard:', user.email);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/applicant/by-email/${user.email}`);
+        if (response.ok) {
+          const applicant = await response.json();
+          setCurrentApplicantId(applicant.applicant_id);
+          console.log('Dashboard loaded applicant ID:', applicant.applicant_id);
+        } else {
+          console.warn('Could not load applicant ID for dashboard');
+        }
+      } catch (error) {
+        console.error('Error loading applicant ID for dashboard:', error);
+      }
+    };
     
-    if (savedInfoSessionStatus) {
-      setInfoSessionStatus(savedInfoSessionStatus);
+    if (user) {
+      loadApplicantId();
     }
-    if (savedWorkshopStatus) {
-      setWorkshopStatus(savedWorkshopStatus);
-    }
-    if (savedInfoSessionDetails) {
-      setSessionDetails(JSON.parse(savedInfoSessionDetails));
-    }
-    if (savedWorkshopDetails) {
-      setWorkshopDetails(JSON.parse(savedWorkshopDetails));
-    }
-    if (savedApplicationStatus) {
-      setStatuses(prev => ({
-        ...prev,
-        application: savedApplicationStatus
-      }));
-    }
-  }, []);
+  }, [user]);
 
-  // Update application status when form data changes
+  // Load real data from database when applicant ID is available
   useEffect(() => {
-    const formData = localStorage.getItem('applicationFormData');
-    const savedApplicationStatus = localStorage.getItem('applicationStatus');
+    const loadDashboardData = async () => {
+      if (!currentApplicantId) return;
+      
+      console.log('Loading dashboard data for applicant:', currentApplicantId);
+      setIsLoading(true);
+      
+      try {
+        // Load info session status
+        await loadInfoSessionStatus();
+        
+        // Load application status
+        await loadApplicationStatus();
+        
+        // Load workshop status
+        await loadWorkshopStatus();
+        
+        // Load pledge status (placeholder for now)
+        await loadPledgeStatus();
+        
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    // Check for existing progress or saved status
-    if (savedApplicationStatus === 'ineligible') {
-      setStatuses(prev => ({
-        ...prev,
-        application: 'ineligible'
-      }));
-    } else if (savedApplicationStatus === 'submitted') {
-      setStatuses(prev => ({
-        ...prev,
-        application: 'submitted'
-      }));
-    } else if (formData || savedApplicationStatus === 'in process') {
-      setStatuses(prev => ({
-        ...prev,
-        application: 'in process'
-      }));
-      localStorage.setItem('applicationStatus', 'in process');
+    if (currentApplicantId) {
+      loadDashboardData();
     }
-  }, []);
+  }, [currentApplicantId]);
 
-  // Update workshop status when application status changes
-  useEffect(() => {
-    if (statuses.application === 'submitted' && workshopStatus === 'locked') {
-      setWorkshopStatus('not signed-up');
-      localStorage.setItem('workshopStatus', 'not signed-up');
-    } else if (statuses.application !== 'submitted' && workshopStatus !== 'locked') {
-      setWorkshopStatus('locked');
-      localStorage.setItem('workshopStatus', 'locked');
+  const loadInfoSessionStatus = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/info-sessions`);
+      if (!response.ok) return;
+      
+      const events = await response.json();
+      let foundRegistration = null;
+      let registeredEvent = null;
+      
+      // Check all events for current user's registration
+      for (const event of events) {
+        const registrations = event.registrations || [];
+        const userRegistration = registrations.find(reg => 
+          reg.applicant_id === currentApplicantId && reg.status === 'registered'
+        );
+        
+        if (userRegistration) {
+          foundRegistration = userRegistration;
+          registeredEvent = event;
+          break;
+        }
+      }
+      
+      if (foundRegistration && registeredEvent) {
+        const eventDate = new Date(registeredEvent.start_time);
+        const eventDetails = {
+          date: eventDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+          time: eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+          location: registeredEvent.location
+        };
+        
+        setStatuses(prev => ({ ...prev, infoSession: 'signed-up' }));
+        setSessionDetails(eventDetails);
+        console.log('Dashboard: Found info session registration', eventDetails);
+      } else {
+        setStatuses(prev => ({ ...prev, infoSession: 'not signed-up' }));
+        setSessionDetails(null);
+        console.log('Dashboard: No info session registration found');
+      }
+    } catch (error) {
+      console.error('Error loading info session status for dashboard:', error);
     }
-  }, [statuses.application, workshopStatus]);
+  };
 
-  // Update pledge status when workshop status changes
-  useEffect(() => {
-    if (workshopStatus === 'attended' && pledgeStatus === 'locked') {
-      setPledgeStatus('not completed');
-      localStorage.setItem('pledgeStatus', 'not completed');
-    } else if (workshopStatus !== 'attended' && pledgeStatus !== 'locked') {
-      setPledgeStatus('locked');
-      localStorage.setItem('pledgeStatus', 'locked');
+  const loadApplicationStatus = async () => {
+    try {
+      const applicant = await databaseService.createOrGetApplicant(
+        user.email,
+        user.firstName || user.first_name,
+        user.lastName || user.last_name
+      );
+      
+      const application = await databaseService.getApplicationByApplicantId(applicant.applicant_id);
+      
+      if (!application) {
+        setStatuses(prev => ({ ...prev, application: 'not started' }));
+        setApplicationProgress(null);
+        console.log('Dashboard: No application found');
+        return;
+      }
+      
+      console.log('Dashboard: Application found:', application.status);
+      
+      if (application.status === 'ineligible') {
+        setStatuses(prev => ({ ...prev, application: 'ineligible' }));
+        setApplicationProgress(null);
+        console.log('Dashboard: Application is ineligible');
+      } else if (application.status === 'submitted') {
+        setStatuses(prev => ({ ...prev, application: 'submitted' }));
+        setApplicationProgress(null);
+        console.log('Dashboard: Application is submitted');
+      } else {
+        // Check if there's progress
+        const responses = await databaseService.getApplicationResponses(application.application_id);
+        console.log('Dashboard: Application responses:', responses?.length || 0);
+        
+        // Check localStorage for current section progress
+        const currentSection = localStorage.getItem('applicationCurrentSection');
+        console.log('Dashboard: Current section from localStorage:', currentSection);
+        
+        if (responses && responses.length > 0) {
+          setStatuses(prev => ({ ...prev, application: 'in process' }));
+          
+          // Calculate progress
+          let completedSections = 0;
+          if (currentSection !== null) {
+            completedSections = parseInt(currentSection, 10) + 1;
+          } else {
+            // Fallback: estimate based on responses
+            completedSections = Math.min(Math.ceil(responses.length / 5), 5);
+          }
+          
+          setApplicationProgress({
+            completedSections,
+            totalSections: 5
+          });
+          
+          console.log('Dashboard: Application in process with progress:', completedSections + '/5');
+        } else if (currentSection !== null) {
+          // Even if no responses in DB, if localStorage shows progress, show in process
+          setStatuses(prev => ({ ...prev, application: 'in process' }));
+          const completedSections = parseInt(currentSection, 10) + 1;
+          setApplicationProgress({
+            completedSections,
+            totalSections: 5
+          });
+          console.log('Dashboard: Application in process (localStorage only):', completedSections + '/5');
+        } else {
+          setStatuses(prev => ({ ...prev, application: 'not started' }));
+          setApplicationProgress(null);
+          console.log('Dashboard: Application not started');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading application status for dashboard:', error);
+      setStatuses(prev => ({ ...prev, application: 'not started' }));
+      setApplicationProgress(null);
     }
-  }, [workshopStatus, pledgeStatus]);
+  };
+
+  const loadWorkshopStatus = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops`);
+      if (!response.ok) return;
+      
+      const workshops = await response.json();
+      let foundRegistration = null;
+      let registeredWorkshop = null;
+      
+      // Check all workshops for current user's registration
+      for (const workshop of workshops) {
+        const registrations = workshop.registrations || [];
+        const userRegistration = registrations.find(reg => 
+          reg.applicant_id === currentApplicantId && reg.status === 'registered'
+        );
+        
+        if (userRegistration) {
+          foundRegistration = userRegistration;
+          registeredWorkshop = workshop;
+          break;
+        }
+      }
+      
+      if (foundRegistration && registeredWorkshop) {
+        const workshopDate = new Date(registeredWorkshop.start_time);
+        const workshopEventDetails = {
+          date: workshopDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+          time: workshopDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+          location: registeredWorkshop.location
+        };
+        
+        setStatuses(prev => ({ ...prev, workshop: 'signed-up' }));
+        setWorkshopDetails(workshopEventDetails);
+        console.log('Dashboard: Found workshop registration', workshopEventDetails);
+      } else {
+        // Workshops remain locked until manually enabled by admin
+        setStatuses(prev => ({ ...prev, workshop: 'locked' }));
+        setWorkshopDetails(null);
+        console.log('Dashboard: Workshop locked');
+      }
+    } catch (error) {
+      console.error('Error loading workshop status for dashboard:', error);
+      setStatuses(prev => ({ ...prev, workshop: 'locked' }));
+    }
+  };
+
+  const loadPledgeStatus = async () => {
+    // For now, just check if workshop is attended to unlock pledge
+    // This would need to be implemented based on your pledge system
+    setStatuses(prev => ({ ...prev, pledge: 'locked' }));
+    console.log('Dashboard: Pledge status loaded (placeholder)');
+  };
 
   const isComplete = (key, status) => {
     if (key === 'infoSession') return status === 'attended'
@@ -183,17 +346,17 @@ function ApplicantDashboard() {
   }
 
   const isLocked = (key, status) => {
-    if (key === 'workshop') return status === 'locked' || statuses.application !== 'submitted'
-    if (key === 'pledge') return status === 'locked' || workshopStatus !== 'attended'
+    if (key === 'workshop') return true // Workshops are always locked
+    if (key === 'pledge') return status === 'locked' || statuses.workshop !== 'attended'
     return false
   }
 
   const isButtonEnabled = (section) => {
     if (section.key === 'workshop') {
-      return section.buttonEnabled(workshopStatus, statuses.application)
+      return section.buttonEnabled(statuses.workshop, statuses.application)
     }
     if (section.key === 'pledge') {
-      return section.buttonEnabled(pledgeStatus, workshopStatus)
+      return section.buttonEnabled(statuses.pledge, statuses.workshop)
     }
     return section.buttonEnabled(statuses[section.key])
   }
@@ -246,11 +409,8 @@ function ApplicantDashboard() {
 
   // Function to get application progress details
   const getApplicationProgressText = () => {
-    const currentSection = localStorage.getItem('applicationCurrentSection');
-    
-    if (currentSection !== null) {
-      const completedSections = parseInt(currentSection, 10) + 1;
-      return `${completedSections}/5 sections complete`;
+    if (applicationProgress) {
+      return `${applicationProgress.completedSections}/${applicationProgress.totalSections} sections complete`;
     }
     return '0/5 sections complete';
   };
@@ -260,6 +420,12 @@ function ApplicantDashboard() {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     localStorage.removeItem('applicantToken');
+    // Clear old localStorage status items that might cause confusion
+    localStorage.removeItem('infoSessionStatus');
+    localStorage.removeItem('infoSessionDetails');
+    localStorage.removeItem('workshopStatus');
+    localStorage.removeItem('workshopDetails');
+    localStorage.removeItem('applicationStatus');
     setUser(null);
     navigate('/login');
   };
@@ -330,6 +496,14 @@ function ApplicantDashboard() {
     return <div className="loading">Loading...</div>;
   }
 
+  if (isLoading) {
+    return (
+      <div className="admissions-dashboard">
+        <div className="loading">Loading your dashboard...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="admissions-dashboard">
       {/* Top Bar */}
@@ -377,10 +551,7 @@ function ApplicantDashboard() {
         {/* Action Cards */}
         <div className="action-cards">
           {SECTION_CONFIG.map((section, index) => {
-            const status = section.key === 'infoSession' ? infoSessionStatus : 
-                         section.key === 'workshop' ? workshopStatus : 
-                         section.key === 'pledge' ? pledgeStatus :
-                         statuses[section.key];
+            const status = statuses[section.key];
             const complete = isComplete(section.key, status)
             const ineligible = isIneligible(section.key, status)
             const enabled = isButtonEnabled(section)
@@ -417,7 +588,7 @@ function ApplicantDashboard() {
                   {/* Locked state message for workshop */}
                   {section.key === 'workshop' && locked && (
                     <div className="locked-message">
-                      Workshop sign-up will open once your application is submitted and reviewed.
+                      Workshop sign-up will be available after your application is reviewed and you are invited to the next stage.
                     </div>
                   )}
                   
@@ -437,6 +608,13 @@ function ApplicantDashboard() {
                           <div className="session-time">{getApplicationProgressText()}</div>
                         </div>
                       </div>
+                    </div>
+                  )}
+                  
+                  {/* DEBUG: Show application status and progress info */}
+                  {section.key === 'application' && (
+                    <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.5rem' }}>
+                      Debug: Status = "{status}" | Progress = {applicationProgress ? `${applicationProgress.completedSections}/${applicationProgress.totalSections}` : 'null'}
                     </div>
                   )}
 

@@ -148,7 +148,7 @@ const ApplicantSignup = () => {
 
                 <div className="applicant-signup-footer">
                     <p>
-                        Already have an account? <Link to="/apply/login">Sign in here</Link>
+                        Already have an account? <Link to="/login">Sign in here</Link>
                     </p>
                 </div>
             </div>

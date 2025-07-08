@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useNavigate, Link } from 'react-router-dom';
-import { getUserId, clearUserData } from '../../utils/uuid';
 import pursuitLogo from '../../assets/logo.png';
 import './Workshops.css';
 import '../ApplicantDashboard/ApplicantDashboard.css';
@@ -24,7 +23,7 @@ const Workshops = () => {
         is_online: false,
         meeting_link: ''
     });
-    const [currentUserId, setCurrentUserId] = useState(null);
+    const [currentApplicantId, setCurrentApplicantId] = useState(null);
     const [registrationStatus, setRegistrationStatus] = useState(null);
     const [statusMessage, setStatusMessage] = useState('');
     const [processingEventId, setProcessingEventId] = useState(null);
@@ -40,19 +39,31 @@ const Workshops = () => {
         return saved ? JSON.parse(saved) : null;
     });
 
-    // Load current user ID on mount
+    // Load current applicant ID on mount
     useEffect(() => {
-        const userId = getUserId();
-        setCurrentUserId(userId);
-    }, []);
-
-    // Load user data from localStorage on mount
-    useEffect(() => {
-        const savedUser = localStorage.getItem('user');
-        if (savedUser) {
-            const userData = JSON.parse(savedUser);
-            setUser(userData);
-        }
+        const loadApplicantId = async () => {
+            try {
+                const savedUser = localStorage.getItem('user');
+                if (savedUser) {
+                    const userData = JSON.parse(savedUser);
+                    setUser(userData);
+                    
+                    // Get applicant ID from the database using email
+                    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/applicant/by-email/${userData.email}`);
+                    if (response.ok) {
+                        const applicant = await response.json();
+                        setCurrentApplicantId(applicant.applicant_id);
+                        console.log('Loaded applicant ID:', applicant.applicant_id);
+                    } else {
+                        console.warn('Could not load applicant ID');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading applicant ID:', error);
+            }
+        };
+        
+        loadApplicantId();
     }, []);
 
     // Clear status messages after 5 seconds
@@ -122,12 +133,12 @@ const Workshops = () => {
     const handleSignUp = async (eventId) => {
         setProcessingEventId(eventId);
         try {
-            if (!currentUserId) {
-                throw new Error('User ID not available');
+            if (!currentApplicantId) {
+                throw new Error('Applicant ID not available');
             }
 
             const registrationData = {
-                userId: currentUserId,
+                applicantId: currentApplicantId,
                 name: user?.firstName || 'Applicant',
                 email: user?.email || 'jac@pursuit.org'
             };
@@ -173,7 +184,7 @@ const Workshops = () => {
                     if (evt.event_id === eventId) {
                         const newRegistration = {
                             registration_id: responseData.registration_id || `temp-${Date.now()}`,
-                            user_id: currentUserId,
+                            applicant_id: currentApplicantId,
                             name: user?.firstName || 'Applicant',
                             email: user?.email || 'jac@pursuit.org',
                             status: 'registered',
@@ -210,72 +221,67 @@ const Workshops = () => {
         }
     };
 
-    // Mark attendance (admin only - not implemented for applicants)
+    // Mark attendance
     const handleMarkAttendance = async (eventId, registrationId) => {
-        console.log('Attendance marking not available for applicants');
+        try {
+            await EventService.updateRegistrationStatus(eventId, registrationId, 'attended');
+            const updatedEvents = await EventService.getEvents({ type: 'workshop' });
+            setEvents(updatedEvents);
+        } catch (error) {
+            console.error('Error marking attendance:', error);
+        }
     };
 
     // Check if user is registered for an event (only active registrations)
     const isUserRegistered = (event) => {
         return event.registrations?.some(reg => 
-            reg.user_id === currentUserId && 
+            reg.applicant_id === currentApplicantId && 
             reg.status !== 'cancelled'
         );
     };
 
     // Get user's active registration for an event
     const getUserRegistration = (event) => {
-        const registration = event.registrations?.find(reg => 
-            reg.user_id === currentUserId && 
+        return event.registrations?.find(reg => 
+            reg.applicant_id === currentApplicantId && 
             reg.status !== 'cancelled'
         );
-        console.log(`[DEBUG WORKSHOPS] getUserRegistration for event ${event.event_id}:`, registration);
-        return registration;
     };
 
     // Get registered events
     const registeredEvents = events.filter(event => isUserRegistered(event));
     const availableEvents = events.filter(event => !isUserRegistered(event));
 
-    console.log('[DEBUG WORKSHOPS] Current state:', {
-        currentUserId,
-        eventsCount: events.length,
-        registeredEventsCount: registeredEvents.length,
-        availableEventsCount: availableEvents.length,
-        processingEventId,
-        registrationStatus
-    });
-
-    // Cancel user registration
+    // Cancel registration
     const handleCancelRegistration = async (eventId, registrationId) => {
         setProcessingEventId(eventId);
         
         try {
-            console.log('=== CANCELLATION ATTEMPT ===');
+            console.log('=== WORKSHOP CANCELLATION ATTEMPT ===');
             console.log('Event ID:', eventId);
-            console.log('User ID:', currentUserId);
+            console.log('Applicant ID:', currentApplicantId);
             console.log('Registration ID:', registrationId);
-            console.log('Full URL:', `${import.meta.env.VITE_API_URL}/api/workshops/${eventId}/register/${currentUserId}`);
+            console.log('Full URL:', `${import.meta.env.VITE_API_URL}/api/workshops/${eventId}/register/${currentApplicantId}`);
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops/${eventId}/register/${currentUserId}`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops/${eventId}/register/${currentApplicantId}`, {
                 method: 'DELETE'
             });
 
-            console.log('Response status:', response.status);
-            console.log('Response ok:', response.ok);
+            console.log('Cancel response status:', response.status);
+            console.log('Cancel response ok:', response.ok);
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to cancel registration');
+                const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+                console.error('Cancel response error:', errorData);
+                throw new Error(errorData.message || `Failed to cancel registration (${response.status})`);
             }
-
-            // SUCCESS - Show success status
-            setRegistrationStatus('success');
-            setStatusMessage('Workshop registration cancelled successfully.');
+            
+            const responseData = await response.json();
+            console.log('Cancel response data:', responseData);
             
             // IMMEDIATE STATE UPDATE - Mark registration as cancelled
-            setEvents(prevEvents => 
-                prevEvents.map(evt => {
+            setEvents(prevEvents => {
+                return prevEvents.map(evt => {
                     if (evt.event_id === eventId) {
                         const updatedRegistrations = (evt.registrations || []).map(reg => {
                             if (reg.registration_id === registrationId) {
@@ -289,16 +295,37 @@ const Workshops = () => {
                         };
                     }
                     return evt;
-                })
-            );
+                });
+            });
             
-            // Clear status and localStorage
-            setWorkshopStatus('not signed-up');
+            setRegistrationStatus('success');
+            setStatusMessage('Registration cancelled successfully.');
+            
+            // Clear status and localStorage - workshops remain locked
+            setWorkshopStatus('locked');
+            setWorkshopDetails(null);
             localStorage.removeItem('workshopStatus');
             localStorage.removeItem('workshopDetails');
 
+            // Force refresh to ensure we have the latest data from server
+            setTimeout(async () => {
+                try {
+                    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        const eventsWithRegistrations = data.map(event => ({
+                            ...event,
+                            registrations: event.registrations || []
+                        }));
+                        setEvents(eventsWithRegistrations);
+                    }
+                } catch (error) {
+                    console.error('Error refreshing after cancellation:', error);
+                }
+            }, 100); // Small delay to ensure server state is updated
+
         } catch (error) {
-            console.error('Cancellation failed:', error);
+            console.error('Error cancelling registration:', error);
             setRegistrationStatus('error');
             setStatusMessage(`Failed to cancel registration: ${error.message}`);
         } finally {
@@ -319,7 +346,7 @@ const Workshops = () => {
     const handleLogout = () => {
         localStorage.removeItem('user');
         setUser(null);
-        navigate('/apply/login');
+        navigate('/login');
     };
 
     const handleBackToMainApp = () => {
@@ -336,7 +363,7 @@ const Workshops = () => {
             <div className="admissions-topbar">
                 <div className="admissions-topbar-left">
                     <div className="admissions-logo-section">
-                        <Link to="/apply">
+                        <Link to="/apply/dashboard">
                             <img src={pursuitLogo} alt="Pursuit Logo" className="admissions-logo" />
                         </Link>
                         <span className="admissions-logo-text">PURSUIT</span>
@@ -361,466 +388,160 @@ const Workshops = () => {
                 </div>
             </div>
 
-            {/* Workshops Title */}
-            <div className="admissions-title-section">
-                <h1 className="admissions-title">
-                    WORKSHOPS
-                </h1>
-            </div>
+            {/* Workshops Container */}
+            <div className="workshops-main">
+                {/* Title */}
+                <div className="admissions-title-section">
+                    <h1 className="admissions-title">
+                        Select a time slot for your workshop at Pursuit HQ.
+                    </h1>
+                </div>
 
-            <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem 2rem 0 2rem' }}>
-                
-
-                
-                {/* Status Messages */}
-                {registrationStatus && (
-                    <div style={{
-                        padding: '15px 20px',
-                        marginBottom: '25px',
-                        borderRadius: '8px',
-                        border: registrationStatus === 'success' ? '2px solid #10b981' : '2px solid #ef4444',
-                        backgroundColor: registrationStatus === 'success' ? '#f0fdf4' : '#fef2f2',
-                        color: registrationStatus === 'success' ? '#065f46' : '#991b1b'
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: '20px' }}>
-                                {registrationStatus === 'success' ? '🎉' : '⚠️'}
-                            </span>
-                            <strong>{statusMessage}</strong>
+                <div className="workshops-content">
+                    {/* Status Messages */}
+                    {registrationStatus && (
+                        <div className={`status-banner ${registrationStatus}`}>
+                            <div className="status-content">
+                                <span className="status-icon">
+                                    {registrationStatus === 'success' ? '🎉' : '⚠️'}
+                                </span>
+                                <strong>{statusMessage}</strong>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {/* Registered Workshops Section */}
-                {registeredEvents.length > 0 && (
-                    <div style={{ marginBottom: '40px' }}>
-                        <h3 style={{ 
-                            color: '#10b981', 
-                            marginBottom: '20px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px'
-                        }}>
-                            ✅ Your Registered Workshops ({registeredEvents.length})
-                        </h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                            {registeredEvents.map(event => {
+                    {/* Time Slots Grid */}
+                    <div className="time-slots-grid">
+                        {events.length === 0 ? (
+                            <div className="no-sessions-message">
+                                <h3>No Workshops Scheduled</h3>
+                                <p>We'll add workshops as soon as they're scheduled. Check back regularly!</p>
+                            </div>
+                        ) : (
+                            events.map((event) => {
+                                const isRegistered = isUserRegistered(event);
+                                const isFull = (event.registered_count || 0) >= event.capacity;
                                 const registration = getUserRegistration(event);
+                                const eventDate = new Date(event.start_time);
+                                const month = format(eventDate, 'MMMM');
+                                const day = format(eventDate, 'd');
+                                const dayOfWeek = format(eventDate, 'EEEE');
+                                const timeRange = `${format(eventDate, 'h:mm a')} - ${format(new Date(event.end_time), 'h:mm a')}`;
                                 return (
-                                    <div key={event.event_id} style={{
-                                        padding: '20px',
-                                        backgroundColor: 'var(--color-background-light)',
-                                        border: '2px solid #10b981',
-                                        borderRadius: '16px',
-                                        position: 'relative',
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                                    }}>
-                                        <div style={{ 
-                                            position: 'absolute', 
-                                            top: '15px', 
-                                            right: '15px',
-                                            backgroundColor: '#10b981',
-                                            color: 'white',
-                                            padding: '4px 12px',
-                                            borderRadius: '20px',
-                                            fontSize: '12px',
-                                            fontWeight: 'bold'
-                                        }}>
-                                            REGISTERED
+                                    <div 
+                                        key={event.event_id} 
+                                        className={`time-slot-card ${isRegistered ? 'selected' : ''} ${isFull && !isRegistered ? 'full' : ''}`}
+                                    >
+                                        <div className="time-slot-header">
+                                            <div className="date-info">
+                                                <span className="month">{month}</span>
+                                                <span className="day">{day}</span>
+                                                <span className="day-of-week">{dayOfWeek}</span>
+                                            </div>
+                                            <div className="time-info">
+                                                <span className="time-range">{timeRange}</span>
+                                            </div>
                                         </div>
-                                        <h4 style={{ 
-                                            margin: '0 0 10px 0', 
-                                            color: 'var(--color-text-primary)',
-                                            fontSize: '18px'
-                                        }}>
-                                            {format(new Date(event.start_time), 'EEEE, MMMM d, yyyy')} at {format(new Date(event.start_time), 'h:mm a')}
-                                        </h4>
-                                        <p style={{ margin: '5px 0', color: 'var(--color-text-secondary)' }}>
-                                            📍 <strong>Location:</strong> {event.location}
-                                        </p>
-                                        {event.is_online && event.meeting_link && (
-                                            <p style={{ margin: '5px 0', color: 'var(--color-text-secondary)' }}>
-                                                🔗 <strong>Meeting Link:</strong> 
-                                                <a href={event.meeting_link} target="_blank" rel="noopener noreferrer" style={{ marginLeft: '5px', color: '#10b981' }}>
-                                                    {event.meeting_link}
-                                                </a>
-                                            </p>
-                                        )}
-                                        {registration && (
-                                            <div style={{ 
-                                                marginTop: '15px', 
-                                                padding: '10px', 
-                                                backgroundColor: 'rgba(255, 255, 255, 0.05)', 
-                                                borderRadius: '8px',
-                                                fontSize: '14px',
-                                                color: 'var(--color-text-muted)'
-                                            }}>
-                                                <strong>Registration Details:</strong><br />
-                                                Registered: {format(new Date(registration.registered_at), 'MMM d, yyyy \'at\' h:mm a')}<br />
-                                                Status: {registration.status === 'attended' ? '✅ Attended' : '📝 Registered'}
+                                        <div className="location-info">
+                                            <span className="location-type">
+                                                {event.is_online ? '💻 Online' : '🏢 In-Person'}
+                                            </span>
+                                        </div>
+                                        {isRegistered ? (
+                                            <div className="slot-actions registered-actions">
+                                                <div className="selected-indicator">Selected</div>
+                                                <button
+                                                    className="cancel-selection-btn"
+                                                    onClick={() => handleCancelRegistration(event.event_id, registration?.registration_id)}
+                                                    disabled={processingEventId === event.event_id}
+                                                >
+                                                    {processingEventId === event.event_id ? 'Cancelling...' : 'Cancel'}
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="slot-actions">
+                                                <button
+                                                    className={`select-btn ${isFull ? 'full-btn' : ''}`}
+                                                    onClick={() => !isFull && handleSignUp(event.event_id)}
+                                                    disabled={processingEventId === event.event_id || isFull}
+                                                >
+                                                    {isFull ? 'Full' : 
+                                                     processingEventId === event.event_id ? 'Selecting...' : 'Select'}
+                                                </button>
                                             </div>
                                         )}
-                                        {/* Cancel Button */}
-                                        <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
-                                            <button
-                                                onClick={() => handleCancelRegistration(event.event_id, registration.registration_id)}
-                                                disabled={processingEventId === event.event_id}
-                                                style={{
-                                                    backgroundColor: '#ef4444',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    padding: '8px 16px',
-                                                    borderRadius: '8px',
-                                                    fontWeight: '600',
-                                                    cursor: processingEventId === event.event_id ? 'not-allowed' : 'pointer'
-                                                }}
-                                            >
-                                                {processingEventId === event.event_id ? 'Cancelling...' : 'Cancel Registration'}
-                                            </button>
-                                        </div>
+                                        {event.is_online && event.meeting_link && isRegistered && (
+                                            <div className="meeting-link-section">
+                                                <a href={event.meeting_link} target="_blank" rel="noopener noreferrer" className="meeting-link">
+                                                    Join Meeting
+                                                </a>
+                                            </div>
+                                        )}
                                     </div>
                                 );
-                            })}
-                        </div>
+                            })
+                        )}
                     </div>
-                )}
 
-                {/* Available Workshops Section */}
-                {availableEvents.length > 0 && (
-                    <div>
-                        <h3 style={{ 
-                            color: 'var(--color-text-primary)', 
-                            marginBottom: '20px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            fontSize: '1.5rem',
-                            fontWeight: 'bold'
-                        }}>
-                            🔧 Available Workshops ({availableEvents.length})
-                        </h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                            {availableEvents.map((event) => (
-                                <div key={event.event_id} style={{
-                                    padding: '20px',
-                                    backgroundColor: 'var(--color-background-light)',
-                                    borderRadius: '16px',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                    transition: 'all 0.2s ease',
-                                    position: 'relative'
-                                }}>
-                                    <h4 style={{ 
-                                        margin: '0 0 10px 0', 
-                                        color: 'var(--color-text-primary)',
-                                        fontSize: '18px'
-                                    }}>
-                                        {format(new Date(event.start_time), 'EEEE, MMMM d, yyyy')} at {format(new Date(event.start_time), 'h:mm a')}
-                                    </h4>
-                                    <p style={{ margin: '5px 0', color: 'var(--color-text-secondary)' }}>
-                                        📍 <strong>Location:</strong> {event.location}
-                                    </p>
-                                    <p style={{ margin: '5px 0', color: 'var(--color-text-secondary)' }}>
-                                        👥 <strong>Capacity:</strong> {event.registered_count || 0}/{event.capacity}
-                                    </p>
-                                    {event.is_online && event.meeting_link && (
-                                        <p style={{ margin: '5px 0', color: 'var(--color-text-secondary)' }}>
-                                            🔗 <strong>Online Event</strong>
-                                        </p>
-                                    )}
-                                    
-                                    <button
-                                        onClick={() => handleSignUp(event.event_id)}
-                                        disabled={processingEventId === event.event_id || isUserRegistered(event)}
-                                        style={{
-                                            marginTop: '15px',
-                                            backgroundColor: 'var(--color-primary)',
-                                            color: '#fff',
-                                            border: 'none',
-                                            padding: '0.8rem 1rem',
-                                            borderRadius: '8px',
-                                            fontWeight: '600',
-                                            fontSize: '0.9rem',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s',
-                                            width: '100%',
-                                            maxWidth: '280px',
-                                            opacity: isUserRegistered(event) || processingEventId === event.event_id ? 0.6 : 1
-                                        }}
-                                    >
-                                        {isUserRegistered(event) 
-                                            ? '✅ Already Registered' 
-                                            : processingEventId === event.event_id 
-                                                ? 'Registering...' 
-                                                : 'Register Now'}
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* No events message */}
-                {events.length === 0 && (
-                    <div style={{
-                        textAlign: 'center',
-                        padding: '40px 20px',
-                        backgroundColor: 'var(--color-background-light)',
-                        borderRadius: '16px',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                        color: 'var(--color-text-secondary)'
-                    }}>
-                        <h3 style={{ color: 'var(--color-text-primary)', marginBottom: '1rem', fontSize: '1.25rem' }}>No Workshops Scheduled</h3>
-                        <p>We'll add workshops as soon as they're scheduled. Check back regularly!</p>
-                    </div>
-                )}
-
-                {/* Admin form */}
-                {isAdmin && (
-                    <div style={{ 
-                        marginTop: '40px', 
-                        padding: '20px', 
-                        backgroundColor: 'var(--color-background-light)', 
-                        borderRadius: '16px',
-                        border: '1px solid rgba(255, 255, 255, 0.1)'
-                    }}>
-                        <h3 style={{ color: 'var(--color-text-primary)' }}>Add New Workshop</h3>
-                        <form onSubmit={handleAddEvent}>
-                            <input
-                                type="text"
-                                placeholder="Title"
-                                value={newEvent.title}
-                                onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                                required
-                            />
-                            <input
-                                type="datetime-local"
-                                value={newEvent.start_time}
-                                onChange={(e) => setNewEvent({ ...newEvent, start_time: e.target.value })}
-                                required
-                            />
-                            <input
-                                type="datetime-local"
-                                value={newEvent.end_time}
-                                onChange={(e) => setNewEvent({ ...newEvent, end_time: e.target.value })}
-                                required
-                            />
-                            <input
-                                type="text"
-                                placeholder="Location"
-                                value={newEvent.location}
-                                onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
-                                required
-                            />
-                            <input
-                                type="number"
-                                placeholder="Capacity"
-                                value={newEvent.capacity}
-                                onChange={(e) => setNewEvent({ ...newEvent, capacity: e.target.value })}
-                            />
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    checked={newEvent.is_online}
-                                    onChange={(e) => setNewEvent({ ...newEvent, is_online: e.target.checked })}
-                                />
-                                Online Event
-                            </label>
-                            {newEvent.is_online && (
+                    {/* Admin form */}
+                    {isAdmin && (
+                        <div className="admin-form-section">
+                            <h3>Add New Workshop</h3>
+                            <form onSubmit={handleAddEvent}>
                                 <input
                                     type="text"
-                                    placeholder="Meeting Link"
-                                    value={newEvent.meeting_link}
-                                    onChange={(e) => setNewEvent({ ...newEvent, meeting_link: e.target.value })}
+                                    placeholder="Title"
+                                    value={newEvent.title}
+                                    onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                                    required
                                 />
-                            )}
-                            <button type="submit">Add Workshop</button>
-                        </form>
-                    </div>
-                )}
-
-                {/* Cancel Modal */}
-                {showCancelModal && (
-                    <div className="modal">
-                        <div className="modal-content">
-                            <h3>Cancel Event</h3>
-                            <textarea
-                                placeholder="Reason for cancellation"
-                                value={cancelReason}
-                                onChange={(e) => setCancelReason(e.target.value)}
-                                rows={4}
-                            />
-                            <div className="modal-actions">
-                                <button onClick={() => setShowCancelModal(false)}>Cancel</button>
-                                <button 
-                                    onClick={() => handleCancelEvent(processingEventId)}
-                                    disabled={!cancelReason.trim()}
-                                >
-                                    Confirm Cancellation
-                                </button>
-                            </div>
+                                <input
+                                    type="datetime-local"
+                                    value={newEvent.start_time}
+                                    onChange={(e) => setNewEvent({ ...newEvent, start_time: e.target.value })}
+                                    required
+                                />
+                                <input
+                                    type="datetime-local"
+                                    value={newEvent.end_time}
+                                    onChange={(e) => setNewEvent({ ...newEvent, end_time: e.target.value })}
+                                    required
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Location"
+                                    value={newEvent.location}
+                                    onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
+                                    required
+                                />
+                                <input
+                                    type="number"
+                                    placeholder="Capacity"
+                                    value={newEvent.capacity}
+                                    onChange={(e) => setNewEvent({ ...newEvent, capacity: e.target.value })}
+                                />
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={newEvent.is_online}
+                                        onChange={(e) => setNewEvent({ ...newEvent, is_online: e.target.checked })}
+                                    />
+                                    Online Event
+                                </label>
+                                {newEvent.is_online && (
+                                    <input
+                                        type="text"
+                                        placeholder="Meeting Link"
+                                        value={newEvent.meeting_link}
+                                        onChange={(e) => setNewEvent({ ...newEvent, meeting_link: e.target.value })}
+                                    />
+                                )}
+                                <button type="submit">Add Workshop</button>
+                            </form>
                         </div>
-                    </div>
-                )}
-
-                {/* Reschedule Modal */}
-                {showRescheduleModal && (
-                    <div className="modal">
-                        <div className="modal-content">
-                            <h3>Reschedule Event</h3>
-                            <input
-                                type="datetime-local"
-                                value={rescheduleEvent?.start_time || ''}
-                                onChange={(e) => setRescheduleEvent({
-                                    ...rescheduleEvent,
-                                    start_time: e.target.value
-                                })}
-                            />
-                            <input
-                                type="datetime-local"
-                                value={rescheduleEvent?.end_time || ''}
-                                onChange={(e) => setRescheduleEvent({
-                                    ...rescheduleEvent,
-                                    end_time: e.target.value
-                                })}
-                            />
-                            <textarea
-                                placeholder="Reason for rescheduling"
-                                value={cancelReason}
-                                onChange={(e) => setCancelReason(e.target.value)}
-                                rows={4}
-                            />
-                            <div className="modal-actions">
-                                <button onClick={() => setShowRescheduleModal(false)}>Cancel</button>
-                                <button 
-                                    onClick={() => handleRescheduleEvent(processingEventId)}
-                                    disabled={!rescheduleEvent?.start_time || !rescheduleEvent?.end_time || !cancelReason.trim()}
-                                >
-                                    Confirm Reschedule
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
-
-            <style jsx>{`
-                .modal {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background-color: rgba(0, 0, 0, 0.5);
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    z-index: 1000;
-                }
-
-                .modal-content {
-                    background-color: white;
-                    padding: 20px;
-                    border-radius: 8px;
-                    width: 90%;
-                    max-width: 500px;
-                }
-
-                .modal-content h3 {
-                    margin-top: 0;
-                    color: #374151;
-                }
-
-                .modal-content textarea {
-                    width: 100%;
-                    padding: 8px;
-                    margin: 10px 0;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 4px;
-                    resize: vertical;
-                }
-
-                .modal-content input {
-                    width: 100%;
-                    padding: 8px;
-                    margin: 10px 0;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 4px;
-                }
-
-                .modal-actions {
-                    display: flex;
-                    justify-content: flex-end;
-                    gap: 10px;
-                    margin-top: 20px;
-                }
-
-                .modal-actions button {
-                    padding: 8px 16px;
-                    border-radius: 4px;
-                    border: none;
-                    cursor: pointer;
-                    font-weight: 500;
-                }
-
-                .modal-actions button:first-child {
-                    background-color: #e5e7eb;
-                    color: #374151;
-                }
-
-                .modal-actions button:last-child {
-                    background-color: #ef4444;
-                    color: white;
-                }
-
-                .modal-actions button:disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                }
-
-                .cancelled-badge {
-                    position: absolute;
-                    top: 10px;
-                    right: 10px;
-                    background-color: #ef4444;
-                    color: white;
-                    padding: 4px 12px;
-                    border-radius: 20px;
-                    font-size: 12px;
-                    font-weight: bold;
-                }
-
-                .admin-actions {
-                    display: flex;
-                    gap: 10px;
-                    margin-top: 10px;
-                }
-
-                .admin-actions button {
-                    padding: 6px 12px;
-                    border-radius: 4px;
-                    border: none;
-                    cursor: pointer;
-                    font-weight: 500;
-                    font-size: 14px;
-                }
-
-                .admin-actions button:first-child {
-                    background-color: #ef4444;
-                    color: white;
-                }
-
-                .admin-actions button:last-child {
-                    background-color: #3b82f6;
-                    color: white;
-                }
-
-                .admin-actions button:disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                }
-            `}</style>
         </div>
     );
 };

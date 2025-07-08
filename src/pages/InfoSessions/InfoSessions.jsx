@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useNavigate, Link } from 'react-router-dom';
-import { getUserId, clearUserData } from '../../utils/uuid';
 import pursuitLogo from '../../assets/logo.png';
 import './InfoSessions.css';
 import '../ApplicantDashboard/ApplicantDashboard.css';
@@ -23,7 +22,7 @@ const InfoSessions = () => {
         is_online: false,
         meeting_link: ''
     });
-    const [currentUserId, setCurrentUserId] = useState(null);
+    const [currentApplicantId, setCurrentApplicantId] = useState(null);
     const [registrationStatus, setRegistrationStatus] = useState(null); // 'success', 'error', or null
     const [statusMessage, setStatusMessage] = useState('');
     const [processingEventId, setProcessingEventId] = useState(null);
@@ -38,19 +37,31 @@ const InfoSessions = () => {
         return saved ? JSON.parse(saved) : null;
     });
 
-    // Load current user ID on mount
+    // Load current applicant ID on mount
     useEffect(() => {
-        const userId = getUserId();
-        setCurrentUserId(userId);
-    }, []);
-
-    // Load user data from localStorage on mount
-    useEffect(() => {
-        const savedUser = localStorage.getItem('user');
-        if (savedUser) {
-            const userData = JSON.parse(savedUser);
-            setUser(userData);
-        }
+        const loadApplicantId = async () => {
+            try {
+                const savedUser = localStorage.getItem('user');
+                if (savedUser) {
+                    const userData = JSON.parse(savedUser);
+                    setUser(userData);
+                    
+                    // Get applicant ID from the database using email
+                    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/applicant/by-email/${userData.email}`);
+                    if (response.ok) {
+                        const applicant = await response.json();
+                        setCurrentApplicantId(applicant.applicant_id);
+                        console.log('Loaded applicant ID:', applicant.applicant_id);
+                    } else {
+                        console.warn('Could not load applicant ID');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading applicant ID:', error);
+            }
+        };
+        
+        loadApplicantId();
     }, []);
 
     const handleLogout = () => {
@@ -119,14 +130,11 @@ const InfoSessions = () => {
                 }, 100);
                 
             } catch (error) {
-                console.error('=== FETCH ERROR ===');
                 console.error('Error fetching events:', error);
-                console.error('Error message:', error.message);
                 setEvents([]); // Ensure events is always an array
             }
         };
 
-        console.log('=== USEEFFECT TRIGGERED ===');
         fetchEvents();
     }, []); // Remove currentUserId dependency since we don't need it for fetching
 
@@ -136,14 +144,32 @@ const InfoSessions = () => {
         try {
             const eventToAdd = {
                 ...newEvent,
-                type_id: 'info_session',
-                capacity: newEvent.capacity === '' ? 50 : parseInt(newEvent.capacity),
-                status: 'scheduled'
+                capacity: newEvent.capacity === '' ? 50 : parseInt(newEvent.capacity)
             };
 
-            await EventService.createEvent(eventToAdd);
-            const updatedEvents = await EventService.getEvents({ type: 'info_session' });
-            setEvents(updatedEvents);
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/info-sessions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventToAdd),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create info session');
+            }
+
+            // Refresh the events list
+            const refreshResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/info-sessions`);
+            if (refreshResponse.ok) {
+                const updatedData = await refreshResponse.json();
+                const eventsWithRegistrations = updatedData.map(event => ({
+                    ...event,
+                    registrations: event.registrations || []
+                }));
+                setEvents(eventsWithRegistrations);
+            }
+
             setNewEvent({
                 title: '',
                 description: '',
@@ -163,12 +189,12 @@ const InfoSessions = () => {
     const handleSignUp = async (eventId) => {
         setProcessingEventId(eventId);
         try {
-            if (!currentUserId) {
-                throw new Error('User ID not available');
+            if (!currentApplicantId) {
+                throw new Error('Applicant ID not available');
             }
 
             const registrationData = {
-                userId: currentUserId,
+                applicantId: currentApplicantId,
                 name: user?.firstName || 'Applicant',
                 email: user?.email || 'jac@pursuit.org'
             };
@@ -209,7 +235,7 @@ const InfoSessions = () => {
                     if (evt.event_id === eventId) {
                         const newRegistration = {
                             registration_id: responseData.registration_id || `temp-${Date.now()}`,
-                            user_id: currentUserId,
+                            applicant_id: currentApplicantId,
                             name: user?.firstName || 'Applicant',
                             email: user?.email || 'jac@pursuit.org',
                             status: 'registered',
@@ -273,7 +299,7 @@ const InfoSessions = () => {
     // Check if user is registered for an event (only active registrations)
     const isUserRegistered = (event) => {
         return event.registrations?.some(reg => 
-            reg.user_id === currentUserId && 
+            reg.applicant_id === currentApplicantId && 
             reg.status !== 'cancelled'
         );
     };
@@ -281,7 +307,7 @@ const InfoSessions = () => {
     // Get user's active registration for an event
     const getUserRegistration = (event) => {
         return event.registrations?.find(reg => 
-            reg.user_id === currentUserId && 
+            reg.applicant_id === currentApplicantId && 
             reg.status !== 'cancelled'
         );
     };
@@ -297,11 +323,11 @@ const InfoSessions = () => {
         try {
             console.log('=== CANCELLATION ATTEMPT ===');
             console.log('Event ID:', eventId);
-            console.log('User ID:', currentUserId);
+            console.log('Applicant ID:', currentApplicantId);
             console.log('Registration ID:', registrationId);
-            console.log('Full URL:', `${import.meta.env.VITE_API_URL}/api/info-sessions/${eventId}/register/${currentUserId}`);
+            console.log('Full URL:', `${import.meta.env.VITE_API_URL}/api/info-sessions/${eventId}/register/${currentApplicantId}`);
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/info-sessions/${eventId}/register/${currentUserId}`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/info-sessions/${eventId}/register/${currentApplicantId}`, {
                 method: 'DELETE'
             });
 
@@ -407,7 +433,7 @@ const InfoSessions = () => {
                 {/* Title */}
                 <div className="admissions-title-section">
                     <h1 className="admissions-title">
-                        Select a time slot for your in-person info session at Pursuit HQ.
+                        Select a time slot for your info session at Pursuit HQ.
                     </h1>
                 </div>
 
