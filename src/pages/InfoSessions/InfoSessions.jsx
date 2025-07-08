@@ -402,200 +402,165 @@ const InfoSessions = () => {
                 </div>
             </div>
 
-            {/* Information Sessions Title */}
-            <div className="admissions-title-section">
-                <h1 className="admissions-title">
-                    INFORMATION SESSIONS
-                </h1>
-            </div>
+            {/* Info Sessions Container */}
+            <div className="info-sessions-main">
+                {/* Title */}
+                <div className="admissions-title-section">
+                    <h1 className="admissions-title">
+                        Select a time slot for your in-person info session at Pursuit HQ.
+                    </h1>
+                </div>
 
-            <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem 2rem 0 2rem' }}>
-                
-                {/* Status Messages */}
-                {registrationStatus && (
-                    <div style={{
-                        padding: '15px 20px',
-                        marginBottom: '25px',
-                        borderRadius: '8px',
-                        border: registrationStatus === 'success' ? '2px solid #10b981' : '2px solid #ef4444',
-                        backgroundColor: registrationStatus === 'success' ? '#f0fdf4' : '#fef2f2',
-                        color: registrationStatus === 'success' ? '#065f46' : '#991b1b'
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: '20px' }}>
-                                {registrationStatus === 'success' ? '🎉' : '⚠️'}
-                            </span>
-                            <strong>{statusMessage}</strong>
+                <div className="info-sessions-content">
+                    
+                    {/* Status Messages */}
+                    {registrationStatus && (
+                        <div className={`status-banner ${registrationStatus}`}>
+                            <div className="status-content">
+                                <span className="status-icon">
+                                    {registrationStatus === 'success' ? '🎉' : '⚠️'}
+                                </span>
+                                <strong>{statusMessage}</strong>
+                            </div>
                         </div>
-                    </div>
-                )}
-                
+                    )}
 
-                {/* Registered Sessions Section */}
-                {registeredEvents.length > 0 && (
-                    <div>
-                        <h3 className="info-sessions-title">
-                            ✅ Your Registered Sessions ({registeredEvents.length})
-                        </h3>
-                        <div className="sessions-list">
-                            {registeredEvents.map((event) => {
+                    {/* Time Slots Grid */}
+                    <div className="time-slots-grid">
+                        {events.length === 0 ? (
+                            <div className="no-sessions-message">
+                                <h3>No Information Sessions Scheduled</h3>
+                                <p>We'll add sessions as soon as they're scheduled. Check back regularly!</p>
+                            </div>
+                        ) : (
+                            events.map((event) => {
+                                const isRegistered = isUserRegistered(event);
+                                const isFull = (event.registered_count || 0) >= event.capacity;
                                 const registration = getUserRegistration(event);
+                                
+                                const eventDate = new Date(event.start_time);
+                                const month = format(eventDate, 'MMMM');
+                                const day = format(eventDate, 'd');
+                                const dayOfWeek = format(eventDate, 'EEEE');
+                                const timeRange = `${format(eventDate, 'h:mm a')} - ${format(new Date(event.end_time), 'h:mm a')}`;
+                                
                                 return (
-                                    <div key={event.event_id} className="session-card registered">
-                                        <div className="registration-badge">
-                                            REGISTERED
+                                    <div 
+                                        key={event.event_id} 
+                                        className={`time-slot-card ${isRegistered ? 'selected' : ''} ${isFull && !isRegistered ? 'full' : ''}`}
+                                    >
+                                        <div className="time-slot-header">
+                                            <div className="date-info">
+                                                <span className="month">{month}</span>
+                                                <span className="day">{day}</span>
+                                                <span className="day-of-week">{dayOfWeek}</span>
+                                            </div>
+                                            <div className="time-info">
+                                                <span className="time-range">{timeRange}</span>
+                                            </div>
                                         </div>
-                                        <h4>
-                                            {format(new Date(event.start_time), 'EEEE, MMMM d, yyyy')} at {format(new Date(event.start_time), 'h:mm a')}
-                                        </h4>
-                                        <p>
-                                            📍 <strong>Location:</strong> {event.location}
-                                        </p>
-                                        {event.is_online && event.meeting_link && (
-                                            <p>
-                                                🔗 <strong>Meeting Link:</strong> 
-                                                <a href={event.meeting_link} target="_blank" rel="noopener noreferrer">
-                                                    {event.meeting_link}
-                                                </a>
-                                            </p>
-                                        )}
-                                        {registration && (
-                                            <div className="registration-details">
-                                                <strong>Registration Details:</strong><br />
-                                                Registered: {format(new Date(registration.registered_at), 'MMM d, yyyy \'at\' h:mm a')}<br />
-                                                Status: {registration.status === 'attended' ? '✅ Attended' : '📝 Registered'}
+                                        
+                                        <div className="location-info">
+                                            <span className="location-type">
+                                                {event.is_online ? '💻 Online' : '🏢 In-Person'}
+                                            </span>
+                                        </div>
+                                        
+                                        {isRegistered ? (
+                                            <div className="slot-actions registered-actions">
+                                                <div className="selected-indicator">Selected</div>
+                                                <button
+                                                    className="cancel-selection-btn"
+                                                    onClick={() => handleCancelRegistration(event.event_id, registration?.registration_id)}
+                                                    disabled={processingEventId === event.event_id}
+                                                >
+                                                    {processingEventId === event.event_id ? 'Cancelling...' : 'Cancel'}
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="slot-actions">
+                                                <button
+                                                    className={`select-btn ${isFull ? 'full-btn' : ''}`}
+                                                    onClick={() => !isFull && handleSignUp(event.event_id)}
+                                                    disabled={processingEventId === event.event_id || isFull}
+                                                >
+                                                    {isFull ? 'Full' : 
+                                                     processingEventId === event.event_id ? 'Selecting...' : 'Select'}
+                                                </button>
                                             </div>
                                         )}
-                                        <div className="button-container">
-                                            <button
-                                                className="cancel-btn"
-                                                onClick={() => handleCancelRegistration(event.event_id, registration?.registration_id)}
-                                                disabled={processingEventId === event.event_id}
-                                            >
-                                                {processingEventId === event.event_id ? 'Cancelling...' : 'Cancel Registration'}
-                                            </button>
-                                        </div>
+                                        
+                                        {event.is_online && event.meeting_link && isRegistered && (
+                                            <div className="meeting-link-section">
+                                                <a href={event.meeting_link} target="_blank" rel="noopener noreferrer" className="meeting-link">
+                                                    Join Meeting
+                                                </a>
+                                            </div>
+                                        )}
                                     </div>
                                 );
-                            })}
-                        </div>
+                            })
+                        )}
                     </div>
-                )}
 
-                {/* Available Sessions Section */}
-                {availableEvents.length > 0 && (
-                    <div>
-                        <h3 className="available-sessions-title">
-                            📅 Available Sessions ({availableEvents.length})
-                        </h3>
-                        <div className="sessions-list">
-                            {availableEvents.map((event) => (
-                                <div key={event.event_id} className="session-card">
-                                    <h4>
-                                        {format(new Date(event.start_time), 'EEEE, MMMM d, yyyy')} at {format(new Date(event.start_time), 'h:mm a')}
-                                    </h4>
-                                    <p>
-                                        📍 <strong>Location:</strong> {event.location}
-                                    </p>
-                                    <p>
-                                        👥 <strong>Capacity:</strong> {event.registered_count || 0}/{event.capacity}
-                                    </p>
-                                    {event.is_online && event.meeting_link && (
-                                        <p>
-                                            🔗 <strong>Online Event</strong>
-                                        </p>
-                                    )}
-                                    
-                                    <button
-                                        className="register-btn"
-                                        onClick={() => handleSignUp(event.event_id)}
-                                        disabled={processingEventId === event.event_id || isUserRegistered(event)}
-                                    >
-                                        {isUserRegistered(event) 
-                                            ? '✅ Already Registered' 
-                                            : processingEventId === event.event_id 
-                                                ? 'Registering...' 
-                                                : 'Register Now'}
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* No events message */}
-                {events.length === 0 && (
-                    <div style={{
-                        textAlign: 'center',
-                        padding: '40px 20px',
-                        backgroundColor: 'var(--color-background-light)',
-                        borderRadius: '16px',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                        color: 'var(--color-text-secondary)'
-                    }}>
-                        <h3 style={{ color: 'var(--color-text-primary)', marginBottom: '1rem', fontSize: '1.25rem' }}>No Information Sessions Scheduled</h3>
-                        <p>We'll add sessions as soon as they're scheduled. Check back regularly!</p>
-                    </div>
-                )}
-
-                {/* Admin form */}
-                {isAdmin && (
-                    <div style={{ marginTop: '40px', padding: '20px', backgroundColor: 'var(--color-background-light)', borderRadius: '16px' }}>
-                        <h3>Add New Info Session</h3>
-                        <form onSubmit={handleAddEvent}>
-                            <input
-                                type="text"
-                                placeholder="Title"
-                                value={newEvent.title}
-                                onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                                required
-                            />
-                            <input
-                                type="datetime-local"
-                                value={newEvent.start_time}
-                                onChange={(e) => setNewEvent({ ...newEvent, start_time: e.target.value })}
-                                required
-                            />
-                            <input
-                                type="datetime-local"
-                                value={newEvent.end_time}
-                                onChange={(e) => setNewEvent({ ...newEvent, end_time: e.target.value })}
-                                required
-                            />
-                            <input
-                                type="text"
-                                placeholder="Location"
-                                value={newEvent.location}
-                                onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
-                                required
-                            />
-                            <input
-                                type="number"
-                                placeholder="Capacity"
-                                value={newEvent.capacity}
-                                onChange={(e) => setNewEvent({ ...newEvent, capacity: e.target.value })}
-                            />
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    checked={newEvent.is_online}
-                                    onChange={(e) => setNewEvent({ ...newEvent, is_online: e.target.checked })}
-                                />
-                                Online Event
-                            </label>
-                            {newEvent.is_online && (
+                    {/* Admin form */}
+                    {isAdmin && (
+                        <div className="admin-form-section">
+                            <h3>Add New Info Session</h3>
+                            <form onSubmit={handleAddEvent}>
                                 <input
                                     type="text"
-                                    placeholder="Meeting Link"
-                                    value={newEvent.meeting_link}
-                                    onChange={(e) => setNewEvent({ ...newEvent, meeting_link: e.target.value })}
+                                    placeholder="Title"
+                                    value={newEvent.title}
+                                    onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                                    required
                                 />
-                            )}
-                            <button type="submit">Add Session</button>
-                        </form>
-                    </div>
-                )}
+                                <input
+                                    type="datetime-local"
+                                    value={newEvent.start_time}
+                                    onChange={(e) => setNewEvent({ ...newEvent, start_time: e.target.value })}
+                                    required
+                                />
+                                <input
+                                    type="datetime-local"
+                                    value={newEvent.end_time}
+                                    onChange={(e) => setNewEvent({ ...newEvent, end_time: e.target.value })}
+                                    required
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Location"
+                                    value={newEvent.location}
+                                    onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
+                                    required
+                                />
+                                <input
+                                    type="number"
+                                    placeholder="Capacity"
+                                    value={newEvent.capacity}
+                                    onChange={(e) => setNewEvent({ ...newEvent, capacity: e.target.value })}
+                                />
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={newEvent.is_online}
+                                        onChange={(e) => setNewEvent({ ...newEvent, is_online: e.target.checked })}
+                                    />
+                                    Online Event
+                                </label>
+                                {newEvent.is_online && (
+                                    <input
+                                        type="text"
+                                        placeholder="Meeting Link"
+                                        value={newEvent.meeting_link}
+                                        onChange={(e) => setNewEvent({ ...newEvent, meeting_link: e.target.value })}
+                                    />
+                                )}
+                                <button type="submit">Add Session</button>
+                            </form>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

@@ -16,6 +16,7 @@ import ApplicantDashboard from './pages/ApplicantDashboard/index.js'
 import ApplicationForm from './pages/ApplicationForm/index.js'
 import InfoSessions from './pages/InfoSessions/index.js'
 import Workshops from './pages/Workshops/index.js'
+import ProgramDetails from './pages/ProgramDetails/index.js'
 
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import './utils/globalErrorHandler.js' // Install global auth error handler
@@ -57,6 +58,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/application-form" element={<ApplicationForm />} />
           <Route path="/info-sessions" element={<InfoSessions />} />
           <Route path="/workshops" element={<Workshops />} />
+          <Route path="/program-details" element={<ProgramDetails />} />
           
           {/* Protected builder routes */}
           <Route 

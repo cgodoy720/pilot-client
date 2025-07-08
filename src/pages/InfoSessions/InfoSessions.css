@@ -1,3 +1,419 @@
+/* Info Sessions Main Container */
+.info-sessions-main {
+  background-color: var(--color-background-dark); /* Match header color */
+  min-height: 100vh;
+  padding: 0 1rem 2rem 1rem;
+  color: var(--color-text-primary);
+}
+
+.info-sessions-content {
+  max-width: 1000px;
+  margin: 3rem auto 0 auto; /* Added top margin to move cards down like dashboard */
+  padding: 0 2rem 6rem 2rem; /* Match dashboard content padding */
+}
+
+/* Status Banner */
+.status-banner {
+  padding: 15px 20px;
+  margin-bottom: 25px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.status-banner.success {
+  border: 2px solid #10b981;
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.status-banner.error {
+  border: 2px solid #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.status-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.status-icon {
+  font-size: 20px;
+}
+
+/* Time Slots Grid */
+.time-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+@media (max-width: 768px) {
+  .time-slots-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+/* Time Slot Cards - Exact Dashboard Card Match */
+.time-slot-card {
+  background: #1a1a1a; /* Exact dashboard card background */
+  border-radius: 24px; /* Exact dashboard card border radius */
+  padding: 2rem 1.5rem; /* Exact dashboard card padding */
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  transition: transform 0.2s ease, box-shadow 0.2s ease; /* Exact dashboard transition */
+  overflow: visible;
+  position: relative;
+}
+
+/* Gradient border effect - Exact Dashboard Match */
+.time-slot-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 24px;
+  padding: 2px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  z-index: -1;
+}
+
+.time-slot-card:hover {
+  transform: translateY(-4px); /* Exact dashboard hover effect */
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 20px rgba(102, 126, 234, 0.3); /* Exact dashboard shadow */
+}
+
+.time-slot-card:hover::before {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 20%, #f093fb 40%, #f5576c 60%, #4facfe 80%, #00f2fe 100%);
+  animation: gradient-rotate 3s ease-in-out infinite;
+}
+
+@keyframes gradient-rotate {
+  0%, 100% {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+  }
+  25% {
+    background: linear-gradient(180deg, #764ba2 0%, #f093fb 25%, #f5576c 50%, #4facfe 75%, #667eea 100%);
+  }
+  50% {
+    background: linear-gradient(225deg, #f093fb 0%, #f5576c 25%, #4facfe 50%, #667eea 75%, #764ba2 100%);
+  }
+  75% {
+    background: linear-gradient(270deg, #f5576c 0%, #4facfe 25%, #667eea 50%, #764ba2 75%, #f093fb 100%);
+  }
+}
+
+/* Selected card styling - Match dashboard completed state */
+.time-slot-card.selected::before {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 25%, #68d391 50%, #38a169 75%, #48bb78 100%);
+  animation: none;
+}
+
+.time-slot-card.full {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #151515; /* Match dashboard locked state */
+}
+
+.time-slot-card.full::before {
+  background: linear-gradient(135deg, #2d3748 0%, #4a5568 50%, #2d3748 100%);
+  animation: none;
+}
+
+/* Card Header */
+.time-slot-header {
+  margin-bottom: 1rem;
+}
+
+.date-info {
+  margin-bottom: 0.75rem;
+}
+
+.month {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+}
+
+.day {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1;
+  margin: 0.25rem 0;
+  display: block;
+}
+
+.day-of-week {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+  display: block;
+}
+
+.time-info {
+  margin-bottom: 1rem;
+}
+
+.time-range {
+  font-size: 1.1rem;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+/* Location Info */
+.location-info {
+  margin-bottom: 1.5rem;
+}
+
+.location-type {
+  display: block;
+  font-size: 1rem;
+  color: var(--color-primary);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+/* Slot Actions */
+.slot-actions {
+  margin-top: auto;
+}
+
+.registered-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.selected-indicator {
+  background-color: var(--color-primary);
+  color: var(--color-text-primary);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.select-btn {
+  background-color: var(--color-primary);
+  color: var(--color-text-primary);
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.select-btn:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.select-btn:disabled,
+.select-btn.full-btn {
+  background-color: var(--color-background-light);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.cancel-selection-btn {
+  background-color: transparent;
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.85rem;
+}
+
+.cancel-selection-btn:hover:not(:disabled) {
+  background-color: rgba(255, 79, 79, 0.1);
+}
+
+.cancel-selection-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Meeting Link Section */
+.meeting-link-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.meeting-link {
+  display: inline-block;
+  background-color: var(--color-background-light);
+  color: var(--color-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid var(--color-primary);
+  transition: all 0.2s ease;
+}
+
+.meeting-link:hover {
+  background-color: var(--color-primary-transparent);
+}
+
+/* No Sessions Message */
+.no-sessions-message {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: #1a1a1a; /* Match dashboard card background */
+  border-radius: 24px; /* Match dashboard card border radius */
+  color: var(--color-text-muted);
+  grid-column: 1 / -1;
+  position: relative;
+}
+
+.no-sessions-message::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 24px;
+  padding: 2px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  z-index: -1;
+}
+
+.no-sessions-message h3 {
+  color: var(--color-text-primary);
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.no-sessions-message p {
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Admin Form Section */
+.admin-form-section {
+  margin-top: 3rem;
+  padding: 2rem;
+  background: #1a1a1a; /* Match dashboard card background */
+  border-radius: 24px; /* Match dashboard card border radius */
+  position: relative;
+}
+
+.admin-form-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 24px;
+  padding: 2px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  z-index: -1;
+}
+
+.admin-form-section h3 {
+  color: var(--color-text-primary);
+  margin-bottom: 1.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.admin-form-section form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.admin-form-section input,
+.admin-form-section textarea {
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  background: var(--color-background-light);
+  color: var(--color-text-primary);
+}
+
+.admin-form-section input::placeholder,
+.admin-form-section textarea::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.admin-form-section input:focus,
+.admin-form-section textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.admin-form-section button {
+  padding: 0.75rem 1.5rem;
+  background-color: var(--color-primary);
+  color: var(--color-text-primary);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.admin-form-section button:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.admin-form-section label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+}
+
+.admin-form-section label input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+/* Legacy styles to maintain compatibility */
 .info-sessions-container {
   padding: 2rem;
   max-width: 1200px;
@@ -17,7 +433,7 @@
   }
 }
 
-/* Sessions List - Vertical Column Layout (like original) */
+/* Legacy session list styles (for fallback) */
 .sessions-list {
   display: flex;
   flex-direction: column;
@@ -25,7 +441,6 @@
   margin-top: 1rem;
 }
 
-/* Session Cards - Full Width Vertical Layout */
 .session-card {
   padding: 20px;
   background-color: var(--color-background-light);
@@ -42,12 +457,10 @@
   box-shadow: 0 6px 20px rgba(0,0,0,0.15);
 }
 
-/* Registered Session Cards - Green Border */
 .session-card.registered {
   border: 2px solid #10b981;
 }
 
-/* Registration Badge */
 .registration-badge {
   position: absolute;
   top: 15px;
@@ -60,7 +473,6 @@
   font-weight: bold;
 }
 
-/* Card Content */
 .session-card h4 {
   margin: 0 0 10px 0;
   color: var(--color-text-primary);
@@ -79,7 +491,6 @@
   font-weight: 600;
 }
 
-/* Meeting Link Styling */
 .session-card a {
   color: #10b981;
   text-decoration: none;
@@ -90,7 +501,6 @@
   text-decoration: underline;
 }
 
-/* Registration Details Box */
 .registration-details {
   margin-top: 15px;
   padding: 10px;
@@ -104,14 +514,12 @@
   color: var(--color-text-primary);
 }
 
-/* Button Container */
 .button-container {
   margin-top: 15px;
   display: flex;
   gap: 10px;
 }
 
-/* Buttons */
 .session-card button {
   padding: 0.8rem 1rem;
   border: none;
@@ -127,7 +535,6 @@
   opacity: 0.6;
 }
 
-/* Register Button */
 .register-btn {
   background-color: var(--color-primary);
   color: white;
@@ -144,7 +551,6 @@
   background-color: #6c757d;
 }
 
-/* Cancel Button */
 .cancel-btn {
   background-color: #ef4444;
   color: white;
@@ -154,7 +560,6 @@
   background-color: #dc2626;
 }
 
-/* Section Titles */
 .info-sessions-title,
 .available-sessions-title {
   margin-bottom: 20px;
@@ -166,12 +571,10 @@
   font-weight: bold;
 }
 
-/* Add spacing between registered and available sections */
 .available-sessions-title {
   margin-top: 3rem;
 }
 
-/* No Events Message */
 .no-sessions-msg {
   text-align: center;
   padding: 40px 20px;
@@ -190,7 +593,6 @@
   font-size: 1.25rem;
 }
 
-/* Status Messages */
 .status-message {
   position: fixed;
   top: 20px;
@@ -213,7 +615,6 @@
   color: white;
 }
 
-/* Admin Form Styling */
 .add-session-form {
   background-color: var(--color-background-light);
   padding: 20px;
@@ -275,7 +676,6 @@
   color: var(--color-text-primary);
 }
 
-/* Debug Panel */
 .debug-panel {
   position: fixed;
   bottom: 20px;

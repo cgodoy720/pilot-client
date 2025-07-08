@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import databaseService from '../../services/databaseService';
 import AddressAutocomplete from '../../components/AddressAutocomplete/AddressAutocomplete';
+import IneligibleModal from '../../components/IneligibleScreen/IneligibleScreen';
 import './ApplicationForm.css';
 
 const ApplicationForm = () => {
@@ -27,6 +28,8 @@ const ApplicationForm = () => {
   const [isOneQuestionMode, setIsOneQuestionMode] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
   const [showValidation, setShowValidation] = useState(false);
+  const [isIneligible, setIsIneligible] = useState(false);
+  const [eligibilityFailures, setEligibilityFailures] = useState([]);
 
   // Initialize application
   useEffect(() => {
@@ -83,6 +86,22 @@ const ApplicationForm = () => {
           databaseService.currentApplicant = applicant;
           application = await databaseService.createApplication();
           console.log('Created new application:', application);
+        }
+        
+        // Check if application is ineligible and handle accordingly
+        if (application && application.status === 'ineligible') {
+          console.log('Application is marked as ineligible, redirecting to dashboard');
+          localStorage.setItem('applicationStatus', 'ineligible');
+          navigate('/apply');
+          return;
+        }
+
+        // If application was recently reset from ineligible, navigate to eligibility section
+        const wasResetForEditing = localStorage.getItem('eligibilityResetForEditing');
+        if (wasResetForEditing === 'true') {
+          console.log('Application was reset for eligibility editing, navigating to eligibility section');
+          localStorage.removeItem('eligibilityResetForEditing');
+          // We'll set the section to eligibility after questions load
         }
         
         const session = {
@@ -219,15 +238,32 @@ const ApplicationForm = () => {
   // Initialize navigation when questions load
   useEffect(() => {
     if (applicationQuestions.length > 0) {
-      // Only initialize if we don't have a saved position or if the saved position is invalid
-      const savedSection = localStorage.getItem('applicationCurrentSection');
-      const savedQuestionIndex = localStorage.getItem('applicationCurrentQuestionIndex');
-      
-      if (!savedSection || !savedQuestionIndex) {
-        initializeNavigation();
+      // Check if we need to navigate to eligibility section for editing
+      const wasResetForEditing = localStorage.getItem('eligibilityResetForEditing');
+      if (wasResetForEditing === 'true') {
+        console.log('Navigating to eligibility section for editing');
+        localStorage.removeItem('eligibilityResetForEditing');
+        // Find the eligibility section and navigate to it
+        const eligibilitySection = applicationQuestions.findIndex(section => 
+          section.title === 'YOUR ELIGIBILITY'
+        );
+        if (eligibilitySection !== -1) {
+          setCurrentSection(eligibilitySection);
+          setCurrentQuestionIndex(0);
+          localStorage.setItem('applicationCurrentSection', eligibilitySection.toString());
+          localStorage.setItem('applicationCurrentQuestionIndex', '0');
+        }
       } else {
-        // Ensure the saved position points to a root question
-        ensureRootQuestionPosition();
+        // Only initialize if we don't have a saved position or if the saved position is invalid
+        const savedSection = localStorage.getItem('applicationCurrentSection');
+        const savedQuestionIndex = localStorage.getItem('applicationCurrentQuestionIndex');
+        
+        if (!savedSection || !savedQuestionIndex) {
+          initializeNavigation();
+        } else {
+          // Ensure the saved position points to a root question
+          ensureRootQuestionPosition();
+        }
       }
     }
   }, [applicationQuestions]);
@@ -286,7 +322,7 @@ const ApplicationForm = () => {
     if (!value || value === '' || 
         (Array.isArray(value) && value.length === 0) ||
         (typeof value === 'string' && value.trim() === '')) {
-      return `${question.label.replace(/\*$/, '').trim()} is required`;
+      return "This question is required.";
     }
     
     return null;
@@ -509,7 +545,7 @@ const ApplicationForm = () => {
   };
 
   // Navigation functions
-  const handleNext = () => {
+  const handleNext = async () => {
     // Validate current questions before proceeding
     const errors = validateCurrentQuestions();
     
@@ -532,20 +568,34 @@ const ApplicationForm = () => {
     setValidationErrors({});
     setShowValidation(false);
 
-    moveToNextQuestion();
+    await moveToNextQuestion();
   };
 
   const handlePrevious = () => {
     moveToPreviousQuestion();
   };
 
-  const moveToNextQuestion = () => {
+  const moveToNextQuestion = async () => {
     const allQuestions = getAllRootQuestions();
     const currentGlobalIndex = getCurrentQuestionGlobalIndex();
     
     if (currentGlobalIndex < allQuestions.length - 1) {
-      // Move to next question
+      // Check if we're moving from eligibility section to next section
       const nextGlobalIndex = currentGlobalIndex + 1;
+      const { sectionIndex: nextSectionIndex } = getLocalIndicesFromGlobal(nextGlobalIndex);
+      
+      // If we're currently in eligibility section and moving to a different section
+      if (isEligibilitySection() && nextSectionIndex !== currentSection) {
+        console.log('Moving from eligibility section to next section, checking eligibility...');
+        const isEligible = await checkEligibility();
+        
+        if (!isEligible) {
+          // User is not eligible, eligibility state will be set in checkEligibility
+          return;
+        }
+      }
+      
+      // Move to next question
       const { sectionIndex, questionIndex } = getLocalIndicesFromGlobal(nextGlobalIndex);
       
       setCurrentSection(sectionIndex);
@@ -690,6 +740,49 @@ const ApplicationForm = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Check if current section is "YOUR ELIGIBILITY"
+  const isEligibilitySection = () => {
+    if (!applicationQuestions[currentSection]) return false;
+    return applicationQuestions[currentSection].title === 'YOUR ELIGIBILITY';
+  };
+
+  // Check eligibility
+  const checkEligibility = async () => {
+    try {
+      if (!currentSession?.applicant?.applicant_id) {
+        console.warn('No applicant ID available for eligibility check');
+        return true; // Allow to continue if we can't check
+      }
+
+      const eligibilityResults = await databaseService.checkEligibility(
+        formData, 
+        currentSession.applicant.applicant_id
+      );
+
+      if (!eligibilityResults.isEligible) {
+        setIsIneligible(true);
+        setEligibilityFailures(eligibilityResults.failedCriteria || []);
+        
+        // Set application status to ineligible
+        localStorage.setItem('applicationStatus', 'ineligible');
+        
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error checking eligibility:', error);
+      // On error, allow user to continue rather than block them
+      return true;
+    }
+  };
+
+  // Handle modal close - navigate back to dashboard
+  const handleIneligibleModalClose = () => {
+    setIsIneligible(false);
+    navigate('/apply');
   };
 
   // Render different input types
@@ -944,6 +1037,14 @@ const ApplicationForm = () => {
     };
   };
 
+  // Check if user is ineligible and redirect
+  if (currentSession?.application?.status === 'ineligible') {
+    console.log('Application is ineligible, redirecting to dashboard');
+    localStorage.setItem('applicationStatus', 'ineligible');
+    navigate('/apply');
+    return null;
+  }
+
   return (
     <div className="admissions-dashboard">
       {/* Top Bar */}
@@ -1139,6 +1240,13 @@ const ApplicationForm = () => {
           </div>
         </div>
       </div>
+      
+      {/* Ineligible Modal */}
+      <IneligibleModal 
+        isOpen={isIneligible}
+        onClose={handleIneligibleModalClose}
+        failedCriteria={eligibilityFailures}
+      />
     </div>
   );
 };

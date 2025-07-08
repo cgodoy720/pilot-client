@@ -355,6 +355,50 @@ class DatabaseService {
       application: this.currentApplication
     };
   }
+
+  // Check eligibility
+  async checkEligibility(formData, applicantId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/applications/check-eligibility`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ formData, applicantId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error checking eligibility:', error);
+      throw error;
+    }
+  }
+
+  // Reset eligibility status to allow editing
+  async resetEligibility(applicantId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/applications/reset-eligibility`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ applicantId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error resetting eligibility:', error);
+      throw error;
+    }
+  }
 }
 
 export default new DatabaseService(); 
