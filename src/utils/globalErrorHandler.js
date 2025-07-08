@@ -18,6 +18,20 @@ const enhancedFetch = async (...args) => {
     // Only handle auth errors for our API calls
     if (isApiCall && (response.status === 401 || response.status === 403)) {
       
+      // First, check if this is an email verification error that should be handled by Login component
+      try {
+        const errorData = await response.clone().json().catch(() => ({}));
+        
+        // Skip global handling for email verification errors - let Login component handle it
+        if (response.status === 403 && errorData.needsVerification) {
+          console.log('📧 Email verification error detected, skipping global handler...');
+          return response;
+        }
+      } catch (parseError) {
+        // If we can't parse the error, continue with normal global handling
+        console.log('⚠️ Could not parse error data for verification check');
+      }
+      
       // Prevent multiple auth error modals - only trigger once per session
       if (hasTriggeredAuthModal) {
         console.log('🚫 Auth modal already triggered this session, skipping...');
