@@ -205,22 +205,28 @@ function ApplicantDashboard() {
 
   const loadApplicationStatus = async () => {
     try {
+      console.log('Dashboard: Loading application status for user:', user.email);
+      
       const applicant = await databaseService.createOrGetApplicant(
         user.email,
         user.firstName || user.first_name,
         user.lastName || user.last_name
       );
       
+      console.log('Dashboard: Applicant data:', applicant);
+      
       const application = await databaseService.getApplicationByApplicantId(applicant.applicant_id);
+      
+      console.log('Dashboard: Application data:', application);
       
       if (!application) {
         setStatuses(prev => ({ ...prev, application: 'not started' }));
         setApplicationProgress(null);
-        console.log('Dashboard: No application found');
+        console.log('Dashboard: No application found for applicant ID:', applicant.applicant_id);
         return;
       }
       
-      console.log('Dashboard: Application found:', application.status);
+      console.log('Dashboard: Application found:', application.status, 'ID:', application.application_id);
       
       if (application.status === 'ineligible') {
         setStatuses(prev => ({ ...prev, application: 'ineligible' }));
@@ -237,7 +243,12 @@ function ApplicantDashboard() {
         
         // Check localStorage for current section progress
         const currentSection = localStorage.getItem('applicationCurrentSection');
+        const formData = localStorage.getItem('applicationFormData');
+        const applicationStatus = localStorage.getItem('applicationStatus');
+        
         console.log('Dashboard: Current section from localStorage:', currentSection);
+        console.log('Dashboard: Form data in localStorage:', formData ? 'exists' : 'not found');
+        console.log('Dashboard: Application status in localStorage:', applicationStatus);
         
         if (responses && responses.length > 0) {
           setStatuses(prev => ({ ...prev, application: 'in process' }));
@@ -611,12 +622,6 @@ function ApplicantDashboard() {
                     </div>
                   )}
                   
-                  {/* DEBUG: Show application status and progress info */}
-                  {section.key === 'application' && (
-                    <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.5rem' }}>
-                      Debug: Status = "{status}" | Progress = {applicationProgress ? `${applicationProgress.completedSections}/${applicationProgress.totalSections}` : 'null'}
-                    </div>
-                  )}
 
                   {section.key === 'infoSession' && status === 'signed-up' && sessionDetails && (
                     <div className="session-details-container">
