@@ -7,6 +7,7 @@ import Calendar from './pages/Calendar/Calendar';
 import Learning from './pages/Learning/Learning';
 import PastSession from './pages/PastSession/PastSession';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
+import SessionDataTester from './pages/SessionDataTester';
 import Stats from './pages/Stats';
 import Account from './pages/Account/Account';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
@@ -150,6 +151,13 @@ function App() {
           <Layout>
             <AdminRoute>
               <AdminDashboard />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/session-data-tester" element={
+          <Layout>
+            <AdminRoute>
+              <SessionDataTester />
             </AdminRoute>
           </Layout>
         } />
