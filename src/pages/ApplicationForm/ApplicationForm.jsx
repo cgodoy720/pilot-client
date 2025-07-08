@@ -314,6 +314,9 @@ const ApplicationForm = () => {
 
   // Validation functions
   const validateQuestion = (question) => {
+    // Skip validation for info cards
+    if (question.type === 'info') return null;
+    
     if (!question.required) return null;
     
     const value = formData[question.id];
@@ -951,6 +954,18 @@ const ApplicationForm = () => {
           />
         );
 
+      case 'info':
+        // For info cards - display content without input fields
+        return (
+          <div className="info-card">
+            <div className="info-card-content">
+              {question.label.split('\n').map((line, index) => (
+                <p key={index}>{line}</p>
+              ))}
+            </div>
+          </div>
+        );
+
       default:
         return (
           <input
@@ -1078,20 +1093,25 @@ const ApplicationForm = () => {
 
       {/* Title Section */}
       <div className="admissions-title-section">
-        <h1 className="admissions-title">Application Form</h1>
+        <h1 className="admissions-title">Welcome to your AI-Native Application!</h1>
       </div>
 
       {/* Main Content - Two Column Layout */}
       <div className="application-main">
         {/* Left Column - Info Panel */}
         <div className="application-left-column">
-          <div className="application-title">
-            AI Native Application
-            </div>
-                    <div className="application-description">
-            <p>Welcome to our comprehensive application process. This form will help us understand your background, experience, and goals.</p>
-            <p>Please take your time to provide thoughtful and complete responses. Your answers will help us determine if our program is the right fit for you.</p>
-            <p>All sections marked with an asterisk (*) are required. You can save your progress at any time and return to complete the application later.</p>
+          <div className="application-description">
+            <p className="first-paragraph"><strong>You're taking the first step toward joining the Pursuit AI-Native Pilot - an accelerated pathway and an immersive learning experience designed to help you gain the skills to build technology in an AI-powered world.</strong></p>
+            
+            <p>This 7-month program begins is grounded in an AI-native learning model, where AI helps personalize and accelerate your learning journey. It begins with AI literacy and ends with career support.</p>
+            
+            <p>We are building this program 'in public', sharing our progress and learnings online to foster transparency, gain feedback, and increase visibility for participants in today's tech job market.</p>
+            
+            <p>No coding experience is required.</p>
+            
+            <p>We're looking for curious thinkers—people who don't just want answers, but want to understand how and why things work. If you're open to learning, excited by new ideas, and eager to explore the potential of AI, this program is for you.</p>
+            
+            <p>We highly encourage women, non-binary and trans-identifying people, communities underrepresented in tech, and those without college degrees to apply.</p>
           </div>
         </div>
 
@@ -1149,58 +1169,72 @@ const ApplicationForm = () => {
                   return (
                     <>
                       {/* Root Question */}
-                      <div 
-                        key={currentQuestionGroup.rootQuestion.id} 
-                        className="application-question-group root-question"
-                      >
-                        <label htmlFor={currentQuestionGroup.rootQuestion.id} className="application-question-label">
-                          {currentQuestionGroup.rootQuestion.label}
-                          {currentQuestionGroup.rootQuestion.link && (
-                            <a href={currentQuestionGroup.rootQuestion.link.url} target="_blank" rel="noopener noreferrer">
-                              {currentQuestionGroup.rootQuestion.link.text}
-                            </a>
+                      {currentQuestionGroup.rootQuestion.type === 'info' ? (
+                        // Special handling for info cards - no labels or form structure
+                        <div key={currentQuestionGroup.rootQuestion.id} className="application-question-group info-question">
+                          {renderQuestion(currentQuestionGroup.rootQuestion)}
+                        </div>
+                      ) : (
+                        <div 
+                          key={currentQuestionGroup.rootQuestion.id} 
+                          className="application-question-group root-question"
+                        >
+                          <label htmlFor={currentQuestionGroup.rootQuestion.id} className="application-question-label">
+                            {currentQuestionGroup.rootQuestion.label}
+                            {currentQuestionGroup.rootQuestion.link && (
+                              <a href={currentQuestionGroup.rootQuestion.link.url} target="_blank" rel="noopener noreferrer">
+                                {currentQuestionGroup.rootQuestion.link.text}
+                              </a>
+                            )}
+                            {currentQuestionGroup.rootQuestion.required ? (
+                              <span className="application-required">*</span>
+                            ) : (
+                              <span className="application-optional">(optional)</span>
+                            )}
+                          </label>
+                          {renderQuestion(currentQuestionGroup.rootQuestion)}
+                          {showValidation && validationErrors[currentQuestionGroup.rootQuestion.id] && (
+                            <div className="application-validation-error">
+                              {validationErrors[currentQuestionGroup.rootQuestion.id]}
+                            </div>
                           )}
-                          {currentQuestionGroup.rootQuestion.required ? (
-                            <span className="application-required">*</span>
-                          ) : (
-                            <span className="application-optional">(optional)</span>
-                          )}
-                        </label>
-                        {renderQuestion(currentQuestionGroup.rootQuestion)}
-                        {showValidation && validationErrors[currentQuestionGroup.rootQuestion.id] && (
-                          <div className="application-validation-error">
-                            {validationErrors[currentQuestionGroup.rootQuestion.id]}
-                          </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
                       {/* Conditional Questions */}
                       {currentQuestionGroup.conditionalQuestions.map((question) => (
-                <div 
-                  key={question.id} 
-                          className="application-question-group conditional-question"
-                >
-                          <label htmlFor={question.id} className="application-question-label">
-                    {question.label}
-                    {question.link && (
-                      <a href={question.link.url} target="_blank" rel="noopener noreferrer">
-                        {question.link.text}
-                      </a>
-                    )}
-                            {question.required ? (
-                      <span className="application-required">*</span>
-                            ) : (
-                              <span className="application-optional">(optional)</span>
-                    )}
-                  </label>
-                  {renderQuestion(question)}
-                          {showValidation && validationErrors[question.id] && (
-                    <div className="application-validation-error">
-                      {validationErrors[question.id]}
-                    </div>
-                  )}
-                </div>
-              ))}
+                        question.type === 'info' ? (
+                          // Special handling for info cards - no labels or form structure
+                          <div key={question.id} className="application-question-group info-question">
+                            {renderQuestion(question)}
+                          </div>
+                        ) : (
+                          <div 
+                            key={question.id} 
+                            className="application-question-group conditional-question"
+                          >
+                            <label htmlFor={question.id} className="application-question-label">
+                              {question.label}
+                              {question.link && (
+                                <a href={question.link.url} target="_blank" rel="noopener noreferrer">
+                                  {question.link.text}
+                                </a>
+                              )}
+                              {question.required ? (
+                                <span className="application-required">*</span>
+                              ) : (
+                                <span className="application-optional">(optional)</span>
+                              )}
+                            </label>
+                            {renderQuestion(question)}
+                            {showValidation && validationErrors[question.id] && (
+                              <div className="application-validation-error">
+                                {validationErrors[question.id]}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      ))}
                     </>
                   );
                 })()}

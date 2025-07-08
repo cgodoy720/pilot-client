@@ -116,6 +116,8 @@
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     line-height: 1.1;
+    width: 40%;
+    max-width: 40vw;
 }
 
 /* Main Content - Two Column Layout */
@@ -137,19 +139,61 @@
 }
 
 .application-title {
-    font-size: 2rem;
+    font-size: 2.2rem;
     font-weight: 600;
     color: #ffffff;
-    margin: 0 0 1rem 0;
+    margin: 0 0 1.5rem 0;
     line-height: 1.2;
+    text-align: left;
 }
 
 .application-description {
-    font-size: 0.875rem;
-    line-height: 1.5;
-    color: #64748b;
+    font-size: 1.2rem;
+    line-height: 1.6;
+    color: #ffffff;
     margin: 0;
     flex-grow: 1;
+    text-align: left;
+}
+
+.application-description p {
+    margin-bottom: 1rem;
+    text-align: left;
+}
+
+/* Info Card Styling */
+.info-card {
+    background: rgba(76, 81, 191, 0.1);
+    border: 2px solid rgba(76, 81, 191, 0.3);
+    border-radius: 16px;
+    padding: 2rem;
+    margin: 1rem 0;
+    font-family: inherit;
+}
+
+.info-card-content {
+    color: var(--color-text-primary);
+    line-height: 1.6;
+    text-align: left;
+}
+
+.info-card-content p {
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.info-card-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* Special styling for info question containers */
+.application-question-group.info-question {
+    margin: 0;
+    padding: 0;
+}
+
+.application-question-group.info-question .info-card {
+    margin: 0 0 1.5rem 0;
 }
 
 .application-notice {

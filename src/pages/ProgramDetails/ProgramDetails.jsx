@@ -50,19 +50,16 @@ const ProgramDetails = () => {
         </div>
       </div>
 
-      {/* AI-NATIVE PROGRAM Title */}
+      {/* Program Description Title */}
       <div className="admissions-title-section">
         <h1 className="admissions-title">
-          AI-NATIVE PROGRAM
+          Pursuit AI-Native Program is a 7-month intensive program designed to transform you into an AI-native builder. Learn cutting-edge technologies, build real-world projects, and join a community of builders shaping the future of software development.
         </h1>
       </div>
 
       {/* Main Content */}
       <div className="program-details-content">
         <div className="program-text-box">
-          <p>
-            Pursuit AI-Native Program is a 7-month intensive program designed to transform you into an AI-native builder. Learn cutting-edge technologies, build real-world projects, and join a community of builders shaping the future of software development.
-          </p>
           <p>
             Cohort:
           </p>
