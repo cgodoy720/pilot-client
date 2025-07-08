@@ -132,24 +132,6 @@ const ApplicationForm = () => {
     const loadQuestions = async () => {
       try {
         const questionsData = await databaseService.getQuestions();
-        console.log('All questions loaded from backend:', questionsData);
-        
-        // Log conditional questions specifically
-        questionsData.forEach((section, sectionIndex) => {
-          section.questions.forEach((question, questionIndex) => {
-            if (question.parentQuestionId) {
-              console.log(`Conditional question found:`, {
-                section: section.title,
-                questionId: question.id,
-                label: question.label.substring(0, 50) + '...',
-                parentQuestionId: question.parentQuestionId,
-                showWhenParentEquals: question.showWhenParentEquals,
-                conditionType: question.conditionType
-              });
-            }
-          });
-        });
-        
         setApplicationQuestions(questionsData);
       } catch (error) {
         console.error('Error loading questions:', error);
@@ -162,7 +144,7 @@ const ApplicationForm = () => {
   // Calculate progress
   useEffect(() => {
     if (applicationQuestions.length > 0) {
-      const allQuestions = getAllQuestions();
+      const allQuestions = getAllRootQuestions();
       const totalQuestions = allQuestions.length;
       const answeredQuestions = Object.keys(formData).filter(key => {
         const value = formData[key];
@@ -228,14 +210,55 @@ const ApplicationForm = () => {
     };
   }, [formData, currentSession]);
 
+  // Initialize navigation when questions load
+  useEffect(() => {
+    if (applicationQuestions.length > 0) {
+      // Only initialize if we don't have a saved position or if the saved position is invalid
+      const savedSection = localStorage.getItem('applicationCurrentSection');
+      const savedQuestionIndex = localStorage.getItem('applicationCurrentQuestionIndex');
+      
+      if (!savedSection || !savedQuestionIndex) {
+        initializeNavigation();
+      } else {
+        // Ensure the saved position points to a root question
+        ensureRootQuestionPosition();
+      }
+    }
+  }, [applicationQuestions]);
+
+  // Ensure we stay on root questions when navigation changes
+  useEffect(() => {
+    ensureRootQuestionPosition();
+  }, [currentSection, currentQuestionIndex, applicationQuestions]);
+
   // Handle input changes with immediate saving
   const handleInputChange = (questionId, value) => {
     console.log(`Input changed: ${questionId} = ${value}`);
     
-    setFormData(prev => ({
-      ...prev,
+    // Find if this question has any conditional children
+    const currentSection = applicationQuestions.find(section => 
+      section.questions && section.questions.find(q => q.id === questionId)
+    );
+    
+    let updatedFormData = {
+      ...formData,
       [questionId]: value
-    }));
+    };
+
+    // If this question has conditional children, clear their values when parent changes
+    if (currentSection) {
+      const conditionalChildren = currentSection.questions.filter(q => 
+        q.parentQuestionId === questionId
+      );
+      
+      conditionalChildren.forEach(child => {
+        // Clear the child question's value
+        console.log(`Clearing conditional question ${child.id} due to parent change`);
+        updatedFormData[child.id] = '';
+      });
+    }
+    
+    setFormData(updatedFormData);
 
     // Clear validation error for this field when user starts typing
     if (validationErrors[questionId]) {
@@ -264,10 +287,19 @@ const ApplicationForm = () => {
   };
 
   const validateCurrentQuestions = () => {
-    const currentQuestions = getCurrentQuestions();
+    const currentQuestionGroup = getCurrentQuestions();
     const errors = {};
     
-    currentQuestions.forEach(question => {
+    // Validate the root question
+    if (currentQuestionGroup.rootQuestion) {
+      const error = validateQuestion(currentQuestionGroup.rootQuestion);
+      if (error) {
+        errors[currentQuestionGroup.rootQuestion.id] = error;
+      }
+    }
+    
+    // Validate all visible conditional questions
+    currentQuestionGroup.conditionalQuestions.forEach(question => {
       const error = validateQuestion(question);
       if (error) {
         errors[question.id] = error;
@@ -302,20 +334,6 @@ const ApplicationForm = () => {
     if (!question.parentQuestionId) return true;
     
     const parentValue = formData[question.parentQuestionId];
-    
-    // Debug logging for conditional questions
-    if (question.parentQuestionId) {
-      console.log(`Conditional question debug:`, {
-        questionId: question.id,
-        questionLabel: question.label.substring(0, 50) + '...',
-        parentQuestionId: question.parentQuestionId,
-        parentValue: parentValue,
-        showWhenParentEquals: question.showWhenParentEquals,
-        conditionType: question.conditionType,
-        shouldShow: parentValue === question.showWhenParentEquals
-      });
-    }
-    
     if (!parentValue) return false;
     
     switch (question.conditionType) {
@@ -338,13 +356,16 @@ const ApplicationForm = () => {
     return sectionQuestions.filter(shouldShowQuestion);
   };
 
-  // Get all questions flattened across all sections
-  const getAllQuestions = () => {
+  // Get all root questions (non-conditional) flattened across all sections
+  const getAllRootQuestions = () => {
     let allQuestions = [];
     applicationQuestions.forEach((section, sectionIndex) => {
       if (section.questions) {
-      const visibleQuestions = getVisibleQuestions(section.questions);
-        visibleQuestions.forEach(question => {
+        // Only include root questions (non-conditional) in the main flow
+        const rootQuestions = section.questions.filter(q => !q.parentQuestionId);
+        const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
+        
+        visibleRootQuestions.forEach(question => {
           allQuestions.push({
             ...question,
             sectionIndex,
@@ -356,35 +377,129 @@ const ApplicationForm = () => {
     return allQuestions;
   };
 
-  // Get current question to display (always one question per page)
-  const getCurrentQuestions = () => {
-    const allQuestions = getAllQuestions();
+  // Get conditional questions for a specific parent question
+  const getConditionalQuestionsForParent = (parentQuestionId, sectionQuestions) => {
+    if (!sectionQuestions) return [];
     
-    if (allQuestions.length === 0) return [];
-    
-    // Always show one question at a time
-    const currentQuestionGlobalIndex = getCurrentQuestionGlobalIndex();
-    if (currentQuestionGlobalIndex >= 0 && currentQuestionGlobalIndex < allQuestions.length) {
-      return [allQuestions[currentQuestionGlobalIndex]];
-    }
-    
-    return [];
+    return sectionQuestions.filter(question => 
+      question.parentQuestionId === parentQuestionId && shouldShowQuestion(question)
+    );
   };
 
-  // Get the global index of the current question across all sections
+  // Get current question group (parent + its visible conditional children)
+  const getCurrentQuestions = () => {
+    const allRootQuestions = getAllRootQuestions();
+    
+    if (allRootQuestions.length === 0) return { rootQuestion: null, conditionalQuestions: [] };
+    
+    // Get the current root question
+    const currentQuestionGlobalIndex = getCurrentQuestionGlobalIndex();
+    if (currentQuestionGlobalIndex >= 0 && currentQuestionGlobalIndex < allRootQuestions.length) {
+      const currentRootQuestion = allRootQuestions[currentQuestionGlobalIndex];
+      
+      // Find the section this question belongs to
+      const section = applicationQuestions[currentRootQuestion.sectionIndex];
+      
+      // Get any conditional questions for this parent
+      const conditionalQuestions = getConditionalQuestionsForParent(
+        currentRootQuestion.id, 
+        section.questions
+      );
+      
+      // Return the parent question with its conditional children
+      return {
+        rootQuestion: currentRootQuestion,
+        conditionalQuestions: conditionalQuestions
+      };
+    }
+    
+    return { rootQuestion: null, conditionalQuestions: [] };
+  };
+
+  // Get the global index of the current root question
   const getCurrentQuestionGlobalIndex = () => {
-    const allQuestions = getAllQuestions();
+    if (applicationQuestions.length === 0) return 0;
+    
     let globalIndex = 0;
     
+    // Count root questions in previous sections
     for (let sectionIndex = 0; sectionIndex < currentSection; sectionIndex++) {
       if (applicationQuestions[sectionIndex]?.questions) {
-        const sectionVisibleQuestions = getVisibleQuestions(applicationQuestions[sectionIndex].questions);
-        globalIndex += sectionVisibleQuestions.length;
+        const rootQuestions = applicationQuestions[sectionIndex].questions.filter(q => !q.parentQuestionId);
+        const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
+        globalIndex += visibleRootQuestions.length;
       }
     }
     
-    globalIndex += currentQuestionIndex;
+    // Add the current question index within the current section (only for root questions)
+    if (applicationQuestions[currentSection]?.questions) {
+      const currentSectionQuestions = applicationQuestions[currentSection].questions;
+      const currentQuestion = currentSectionQuestions[currentQuestionIndex];
+      
+      // Only add to global index if the current question is a root question
+      if (currentQuestion && !currentQuestion.parentQuestionId) {
+        const rootQuestions = currentSectionQuestions.filter(q => !q.parentQuestionId);
+        const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
+        const rootQuestionIndex = visibleRootQuestions.findIndex(q => q.id === currentQuestion.id);
+        
+        if (rootQuestionIndex !== -1) {
+          globalIndex += rootQuestionIndex;
+        }
+      }
+    }
+    
     return globalIndex;
+  };
+
+  // Initialize navigation to first root question
+  const initializeNavigation = () => {
+    if (applicationQuestions.length === 0) return;
+    
+    // Find the first section with root questions
+    for (let sectionIndex = 0; sectionIndex < applicationQuestions.length; sectionIndex++) {
+      const section = applicationQuestions[sectionIndex];
+      if (section?.questions) {
+        const rootQuestions = section.questions.filter(q => !q.parentQuestionId);
+        const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
+        
+        if (visibleRootQuestions.length > 0) {
+          // Find the index of the first root question in the section's questions array
+          const firstRootQuestion = visibleRootQuestions[0];
+          const questionIndex = section.questions.findIndex(q => q.id === firstRootQuestion.id);
+          
+          setCurrentSection(sectionIndex);
+          setCurrentQuestionIndex(questionIndex);
+          localStorage.setItem('applicationCurrentSection', sectionIndex.toString());
+          localStorage.setItem('applicationCurrentQuestionIndex', questionIndex.toString());
+          return;
+        }
+      }
+    }
+  };
+
+  // Ensure we're always on a root question when navigation changes
+  const ensureRootQuestionPosition = () => {
+    if (applicationQuestions.length === 0) return;
+    
+    const currentSectionData = applicationQuestions[currentSection];
+    if (!currentSectionData?.questions) return;
+    
+    const currentQuestion = currentSectionData.questions[currentQuestionIndex];
+    
+    // If current question is conditional, find the nearest root question
+    if (currentQuestion?.parentQuestionId) {
+      const rootQuestions = currentSectionData.questions.filter(q => !q.parentQuestionId);
+      const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
+      
+      if (visibleRootQuestions.length > 0) {
+        // Move to the first root question in this section
+        const firstRootQuestion = visibleRootQuestions[0];
+        const questionIndex = currentSectionData.questions.findIndex(q => q.id === firstRootQuestion.id);
+        
+        setCurrentQuestionIndex(questionIndex);
+        localStorage.setItem('applicationCurrentQuestionIndex', questionIndex.toString());
+      }
+    }
   };
 
   // Navigation functions
@@ -419,7 +534,7 @@ const ApplicationForm = () => {
   };
 
   const moveToNextQuestion = () => {
-    const allQuestions = getAllQuestions();
+    const allQuestions = getAllRootQuestions();
     const currentGlobalIndex = getCurrentQuestionGlobalIndex();
     
     if (currentGlobalIndex < allQuestions.length - 1) {
@@ -449,26 +564,55 @@ const ApplicationForm = () => {
     }
   };
 
-  // Convert global question index to section and question indices
+  // Convert global question index to section and question indices (root questions only)
   const getLocalIndicesFromGlobal = (globalIndex) => {
     let currentGlobal = 0;
     
     for (let sectionIndex = 0; sectionIndex < applicationQuestions.length; sectionIndex++) {
       if (applicationQuestions[sectionIndex]?.questions) {
-        const sectionVisibleQuestions = getVisibleQuestions(applicationQuestions[sectionIndex].questions);
+        const rootQuestions = applicationQuestions[sectionIndex].questions.filter(q => !q.parentQuestionId);
+        const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
         
-        if (currentGlobal + sectionVisibleQuestions.length > globalIndex) {
+        if (currentGlobal + visibleRootQuestions.length > globalIndex) {
           // The target question is in this section
           const questionIndex = globalIndex - currentGlobal;
-          return { sectionIndex, questionIndex };
+          
+          // Find the actual index of this root question within all questions in the section
+          const targetRootQuestion = visibleRootQuestions[questionIndex];
+          const actualQuestionIndex = applicationQuestions[sectionIndex].questions.findIndex(
+            q => q.id === targetRootQuestion.id
+          );
+          
+          return { sectionIndex, questionIndex: actualQuestionIndex };
         }
         
-        currentGlobal += sectionVisibleQuestions.length;
+        currentGlobal += visibleRootQuestions.length;
       }
     }
     
     // Default to last section and question if not found
     return { sectionIndex: applicationQuestions.length - 1, questionIndex: 0 };
+  };
+
+  // Navigate to first question of a specific section
+  const navigateToSection = (targetSectionIndex) => {
+    // Calculate the global index of the first question in the target section
+    let globalIndex = 0;
+    
+    for (let sectionIndex = 0; sectionIndex < targetSectionIndex; sectionIndex++) {
+      const sectionQuestions = applicationQuestions[sectionIndex].questions || [];
+      const rootQuestions = sectionQuestions.filter(q => !q.parentQuestionId);
+      const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
+      globalIndex += visibleRootQuestions.length;
+    }
+    
+    // Set current question to first question of the target section
+    setCurrentQuestionIndex(globalIndex);
+    setCurrentSection(targetSectionIndex);
+    
+    // Save to localStorage
+    localStorage.setItem('applicationCurrentQuestionIndex', globalIndex.toString());
+    localStorage.setItem('applicationCurrentSection', targetSectionIndex.toString());
   };
 
   // Submit application
@@ -572,7 +716,7 @@ const ApplicationForm = () => {
         <div className="long-text-container">
           <textarea
             {...commonProps}
-              rows={8}
+              rows={12}
             className={`form-input long-text-input ${hasError ? 'form-input-error' : ''}`}
               placeholder={question.placeholder || "Please provide your response..."}
               maxLength={2000}
@@ -584,23 +728,39 @@ const ApplicationForm = () => {
       );
       
       case 'radio':
+        // Use dropdown if more than 6 options, otherwise use radio buttons
+        if (question.options && question.options.length > 6) {
           return (
-          <div className="radio-group">
-            {question.options && question.options.map(option => (
-              <label key={option} className="radio-option">
-                <input
-                  type="radio"
-                  name={question.id}
-                  value={option}
-                  checked={formData[question.id] === option}
+            <select
+              {...commonProps}
+              value={formData[question.id] || ''}
               onChange={(e) => handleInputChange(question.id, e.target.value)}
-              required={question.required}
-                />
-                {option}
-              </label>
-            ))}
-          </div>
-        );
+            >
+              <option value="">Please select...</option>
+              {question.options.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          );
+        } else {
+          return (
+            <div className="radio-group">
+              {question.options && question.options.map(option => (
+                <label key={option} className="radio-option">
+                  <input
+                    type="radio"
+                    name={question.id}
+                    value={option}
+                    checked={formData[question.id] === option}
+                    onChange={(e) => handleInputChange(question.id, e.target.value)}
+                    required={question.required}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+          );
+        }
 
       case 'checkbox':
         return (
@@ -744,29 +904,37 @@ const ApplicationForm = () => {
   const currentQuestions = getCurrentQuestions();
   const currentSectionData = applicationQuestions[currentSection];
 
-  // Get completed questions count for a specific section
+  // Get completed questions count for a specific section (only root questions)
   const getCompletedQuestionsInSection = (sectionQuestions) => {
-    const visibleQuestions = getVisibleQuestions(sectionQuestions);
-    return visibleQuestions.filter(question => {
+    const rootQuestions = sectionQuestions.filter(q => !q.parentQuestionId);
+    const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
+    return visibleRootQuestions.filter(question => {
       const value = formData[question.id];
       return value !== null && value !== undefined && value !== '' && 
              !(Array.isArray(value) && value.length === 0);
     }).length;
   };
 
-  // Get current question info within its section
+  // Get current question info within its section (only count root questions)
   const getCurrentQuestionInfo = () => {
-    if (currentQuestions.length === 0) return { sectionName: '', questionNumber: 1, totalInSection: 1 };
+    const currentQuestionGroup = getCurrentQuestions();
     
-    const currentQuestion = currentQuestions[0];
-    const sectionQuestions = applicationQuestions[currentSection]?.questions || [];
-    const visibleSectionQuestions = getVisibleQuestions(sectionQuestions);
-    const questionNumberInSection = currentQuestionIndex + 1;
+    if (!currentQuestionGroup.rootQuestion) {
+      return { sectionName: '', questionNumber: 1, totalInSection: 1 };
+    }
+    
+    const currentQuestion = currentQuestionGroup.rootQuestion;
+    const sectionQuestions = applicationQuestions[currentQuestion.sectionIndex]?.questions || [];
+    const rootQuestions = sectionQuestions.filter(q => !q.parentQuestionId);
+    const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
+    
+    // Find the position of the current question within the visible root questions
+    const questionPosition = visibleRootQuestions.findIndex(q => q.id === currentQuestion.id) + 1;
     
     return {
-      sectionName: currentQuestion.sectionTitle || applicationQuestions[currentSection]?.title || 'Section',
-      questionNumber: questionNumberInSection,
-      totalInSection: visibleSectionQuestions.length
+      sectionName: currentQuestion.sectionTitle || '',
+      questionNumber: questionPosition,
+      totalInSection: visibleRootQuestions.length
     };
   };
 
@@ -854,20 +1022,23 @@ const ApplicationForm = () => {
           <div className="application-sections-bar">
             {applicationQuestions.map((section, index) => {
               const sectionQuestions = section.questions || [];
-              const visibleQuestions = getVisibleQuestions(sectionQuestions);
+              const rootQuestions = sectionQuestions.filter(q => !q.parentQuestionId);
+              const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
               const completedCount = getCompletedQuestionsInSection(sectionQuestions);
-              const totalCount = visibleQuestions.length;
+              const totalCount = visibleRootQuestions.length;
               
               return (
                 <div 
                   key={section.id} 
                   className={`section-nav-item ${index === currentSection ? 'active' : ''}`}
+                  onClick={() => navigateToSection(index)}
+                  style={{ cursor: 'pointer' }}
                 >
                   {index + 1}. {section.title}
                   <span className="section-progress">
                     {completedCount} / {totalCount}
                   </span>
-          </div>
+                </div>
               );
             })}
             </div>
@@ -889,32 +1060,71 @@ const ApplicationForm = () => {
                   })()}
                 </h2>
                 
-                {currentQuestions.map((question) => (
-                <div 
-                  key={question.id} 
-                    className={`application-question-group ${question.parentQuestionId ? 'conditional' : ''}`}
-                >
-                    <label htmlFor={question.id} className="application-question-label">
-                    {question.label}
-                    {question.link && (
-                      <a href={question.link.url} target="_blank" rel="noopener noreferrer">
-                        {question.link.text}
-                      </a>
-                    )}
-                      {question.required ? (
-                      <span className="application-required">*</span>
-                      ) : (
-                        <span className="application-optional">(optional)</span>
-                    )}
-                  </label>
-                  {renderQuestion(question)}
-                    {showValidation && validationErrors[question.id] && (
-                    <div className="application-validation-error">
-                      {validationErrors[question.id]}
-                    </div>
-                  )}
-                </div>
-              ))}
+                {(() => {
+                  const currentQuestionGroup = getCurrentQuestions();
+                  
+                  if (!currentQuestionGroup.rootQuestion) {
+                    return <div>Loading...</div>;
+                  }
+
+                  return (
+                    <>
+                      {/* Root Question */}
+                      <div 
+                        key={currentQuestionGroup.rootQuestion.id} 
+                        className="application-question-group root-question"
+                      >
+                        <label htmlFor={currentQuestionGroup.rootQuestion.id} className="application-question-label">
+                          {currentQuestionGroup.rootQuestion.label}
+                          {currentQuestionGroup.rootQuestion.link && (
+                            <a href={currentQuestionGroup.rootQuestion.link.url} target="_blank" rel="noopener noreferrer">
+                              {currentQuestionGroup.rootQuestion.link.text}
+                            </a>
+                          )}
+                          {currentQuestionGroup.rootQuestion.required ? (
+                            <span className="application-required">*</span>
+                          ) : (
+                            <span className="application-optional">(optional)</span>
+                          )}
+                        </label>
+                        {renderQuestion(currentQuestionGroup.rootQuestion)}
+                        {showValidation && validationErrors[currentQuestionGroup.rootQuestion.id] && (
+                          <div className="application-validation-error">
+                            {validationErrors[currentQuestionGroup.rootQuestion.id]}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Conditional Questions */}
+                      {currentQuestionGroup.conditionalQuestions.map((question) => (
+                        <div 
+                          key={question.id} 
+                          className="application-question-group conditional-question"
+                        >
+                          <label htmlFor={question.id} className="application-question-label">
+                            {question.label}
+                            {question.link && (
+                              <a href={question.link.url} target="_blank" rel="noopener noreferrer">
+                                {question.link.text}
+                              </a>
+                            )}
+                            {question.required ? (
+                              <span className="application-required">*</span>
+                            ) : (
+                              <span className="application-optional">(optional)</span>
+                            )}
+                          </label>
+                          {renderQuestion(question)}
+                          {showValidation && validationErrors[question.id] && (
+                            <div className="application-validation-error">
+                              {validationErrors[question.id]}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </>
+                  );
+                })()}
               </div>
               
               {/* Navigation */}
@@ -929,7 +1139,7 @@ const ApplicationForm = () => {
                   </button>
                 )}
                 
-                {getCurrentQuestionGlobalIndex() < getAllQuestions().length - 1 ? (
+                {getCurrentQuestionGlobalIndex() < getAllRootQuestions().length - 1 ? (
                   <button
                     type="button"
                     onClick={handleNext}

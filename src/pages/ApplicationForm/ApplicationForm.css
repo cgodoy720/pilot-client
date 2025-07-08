@@ -276,17 +276,40 @@
 }
 
 /* Conditional question styling */
-.application-question-group.conditional {
-    margin-left: 1.5rem;
-    padding-left: 1rem;
-    border-left: 3px solid var(--color-primary);
-    background-color: rgba(255, 107, 53, 0.05);
-    border-radius: 0 8px 8px 0;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    position: relative;
+.conditional-question {
+  margin-top: 20px;
+  padding-left: 20px;
+  border-left: 3px solid var(--color-primary);
+  background: var(--color-background-darker);
+  border-radius: 0 8px 8px 0;
+  position: relative;
 }
 
+.conditional-question .application-question-label {
+  font-size: 0.95em;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.root-question {
+  margin-bottom: 0;
+}
+
+/* Ensure conditional questions animate in smoothly */
+.conditional-question {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
 
 
 .application-question-label {
@@ -396,7 +419,7 @@ textarea.form-input {
 }
 
 textarea.long-text-input {
-    min-height: 300px;
+    min-height: 450px;
     padding: 1.5rem;
     font-size: 1.1rem;
     line-height: 1.6;
@@ -430,7 +453,7 @@ textarea.long-text-input::placeholder {
 }
 
 .application-form-section .application-question-group:only-child .long-text-input {
-    min-height: 400px;
+    min-height: 550px;
 }
 
 /* Character counter for long text */
@@ -806,6 +829,15 @@ select.form-input option:disabled {
   min-width: 180px;
   flex: 1;
   color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.section-nav-item:hover:not(.active) {
+  background: var(--color-background-medium);
+  border-color: var(--color-primary);
+  color: var(--color-text-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .section-nav-item.active {
