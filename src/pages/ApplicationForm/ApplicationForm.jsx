@@ -127,6 +127,38 @@ const ApplicationForm = () => {
     initializeApplication();
   }, []);
 
+  // Load questions from backend
+  useEffect(() => {
+    const loadQuestions = async () => {
+      try {
+        const questionsData = await databaseService.getQuestions();
+        console.log('All questions loaded from backend:', questionsData);
+        
+        // Log conditional questions specifically
+        questionsData.forEach((section, sectionIndex) => {
+          section.questions.forEach((question, questionIndex) => {
+            if (question.parentQuestionId) {
+              console.log(`Conditional question found:`, {
+                section: section.title,
+                questionId: question.id,
+                label: question.label.substring(0, 50) + '...',
+                parentQuestionId: question.parentQuestionId,
+                showWhenParentEquals: question.showWhenParentEquals,
+                conditionType: question.conditionType
+              });
+            }
+          });
+        });
+        
+        setApplicationQuestions(questionsData);
+      } catch (error) {
+        console.error('Error loading questions:', error);
+      }
+    };
+
+    loadQuestions();
+  }, []);
+
   // Calculate progress
   useEffect(() => {
     if (applicationQuestions.length > 0) {
@@ -270,6 +302,20 @@ const ApplicationForm = () => {
     if (!question.parentQuestionId) return true;
     
     const parentValue = formData[question.parentQuestionId];
+    
+    // Debug logging for conditional questions
+    if (question.parentQuestionId) {
+      console.log(`Conditional question debug:`, {
+        questionId: question.id,
+        questionLabel: question.label.substring(0, 50) + '...',
+        parentQuestionId: question.parentQuestionId,
+        parentValue: parentValue,
+        showWhenParentEquals: question.showWhenParentEquals,
+        conditionType: question.conditionType,
+        shouldShow: parentValue === question.showWhenParentEquals
+      });
+    }
+    
     if (!parentValue) return false;
     
     switch (question.conditionType) {
@@ -821,10 +867,10 @@ const ApplicationForm = () => {
                   <span className="section-progress">
                     {completedCount} / {totalCount}
                   </span>
-                </div>
+          </div>
               );
             })}
-          </div>
+            </div>
 
           <div className="application-form">
             <form onSubmit={handleSubmit}>
