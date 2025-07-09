@@ -61,14 +61,12 @@ const ProgramDetails = () => {
       <div className="program-details-content">
         <div className="program-text-box">
           <p>
-            Cohort:<br/>
-            September 2025<br/><br/>
-            Start Date:<br/>
+            <strong>Start Date:</strong><br/>
             September 6, 2025<br/><br/>
-            Schedule:<br/>
+            <strong>Schedule:</strong><br/>
             Mon - Wed: 6:00 - 10:30 PM<br/>
             Sat - Sun: 10:00AM - 6:00 PM<br/><br/>
-            Location:<br/>
+            <strong>Location:</strong><br/>
             47-10 Austell Pl. Long Island City, NY 11101
           </p>
         </div>

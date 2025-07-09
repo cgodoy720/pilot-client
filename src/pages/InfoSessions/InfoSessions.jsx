@@ -67,7 +67,7 @@ const InfoSessions = () => {
     const handleLogout = () => {
         localStorage.removeItem('user');
         setUser(null);
-        navigate('/apply/login');
+        navigate('/login');
     };
 
     const handleBackToMainApp = () => {

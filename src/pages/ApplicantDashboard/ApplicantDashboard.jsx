@@ -22,7 +22,7 @@ const SECTION_CONFIG = [
   {
     key: 'application',
     label: 'Application',
-    description: 'Apply to join the August cohort',
+    description: 'Apply to join the September cohort',
     statusOptions: ['not started', 'in process', 'submitted', 'ineligible'],
     defaultStatus: 'not started',
     getButtonLabel: (status) => {

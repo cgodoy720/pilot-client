@@ -141,7 +141,9 @@ class DatabaseService {
   // Fetch all sections and questions from database via API
   async fetchApplicationQuestions() {
     try {
-      const response = await fetch(`${API_BASE_URL}/applications/questions`);
+      // Add cache-busting parameter to ensure fresh data
+      const cacheBuster = new Date().getTime();
+      const response = await fetch(`${API_BASE_URL}/applications/questions?t=${cacheBuster}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

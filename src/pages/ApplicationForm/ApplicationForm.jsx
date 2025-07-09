@@ -1131,11 +1131,13 @@ const ApplicationForm = () => {
                   onClick={() => navigateToSection(index)}
                   style={{ cursor: 'pointer' }}
                 >
-                  {index + 1}. {section.title}
+                  <span className="section-title">
+                    {index + 1}. {section.title}
+                  </span>
                   <span className="section-progress">
                     {completedCount} / {totalCount}
                   </span>
-          </div>
+                </div>
               );
             })}
             </div>
