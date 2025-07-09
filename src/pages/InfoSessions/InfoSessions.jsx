@@ -403,7 +403,7 @@ const InfoSessions = () => {
             <div className="admissions-topbar">
                 <div className="admissions-topbar-left">
                     <div className="admissions-logo-section">
-                        <Link to="/apply/dashboard">
+                        <Link to="/apply">
                             <img src={pursuitLogo} alt="Pursuit Logo" className="admissions-logo" />
                         </Link>
                         <span className="admissions-logo-text">PURSUIT</span>

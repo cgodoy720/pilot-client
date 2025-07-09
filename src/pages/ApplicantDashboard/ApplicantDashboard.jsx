@@ -7,8 +7,8 @@ import './ApplicantDashboard.css';
 const SECTION_CONFIG = [
   {
     key: 'infoSession',
-    label: 'Info Session',
-    description: 'Sign up to learn more about the program',
+    label: 'Attend an Info Session',
+    description: 'Learn more about the org, our goals, and the program. All applicants are required to attend one Info Session.',
     statusOptions: ['not signed-up', 'signed-up', 'attended'],
     defaultStatus: 'not signed-up',
     getButtonLabel: (status) => {
@@ -21,8 +21,8 @@ const SECTION_CONFIG = [
   },
   {
     key: 'application',
-    label: 'Application',
-    description: 'Apply to join the September cohort',
+    label: 'Complete your Application',
+    description: 'Tell us about yourself and your background. Complete an exercise to learn more about AI.',
     statusOptions: ['not started', 'in process', 'submitted', 'ineligible'],
     defaultStatus: 'not started',
     getButtonLabel: (status) => {
@@ -36,8 +36,8 @@ const SECTION_CONFIG = [
   },
   {
     key: 'workshop',
-    label: 'Workshop',
-    description: 'Experience a day in the life of a builder',
+    label: 'Complete a Workshop',
+    description: 'Get introduced to AI and experience a day in the life of a Builder.',
     statusOptions: ['locked', 'not signed-up', 'signed-up', 'attended'],
     defaultStatus: 'locked',
     getButtonLabel: (status) => {
@@ -55,7 +55,7 @@ const SECTION_CONFIG = [
   },
   {
     key: 'pledge',
-    label: 'Pledge',
+    label: 'Complete your Pledge',
     description: 'Commit to the program expectations',
     statusOptions: ['locked', 'not completed', 'completed'],
     defaultStatus: 'locked',
@@ -553,7 +553,7 @@ function ApplicantDashboard() {
       {/* Title */}
       <div className="admissions-title-section">
         <h1 className="admissions-title">
-          Get ready to start your AI-Native journey by completing the following steps.
+          Start your AI-Native journey by completing the following steps.
         </h1>
       </div>
       
