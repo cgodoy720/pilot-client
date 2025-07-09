@@ -245,7 +245,7 @@ const ApplicationForm = () => {
         localStorage.removeItem('eligibilityResetForEditing');
         // Find the eligibility section and navigate to it
         const eligibilitySection = applicationQuestions.findIndex(section => 
-          section.title === 'YOUR ELIGIBILITY'
+          section.id === 'eligibility'
         );
         if (eligibilitySection !== -1) {
           setCurrentSection(eligibilitySection);
@@ -582,18 +582,35 @@ const ApplicationForm = () => {
     const allQuestions = getAllRootQuestions();
     const currentGlobalIndex = getCurrentQuestionGlobalIndex();
     
+    console.log('=== moveToNextQuestion DEBUG ===');
+    console.log('Current section:', currentSection);
+    console.log('Current section title:', applicationQuestions[currentSection]?.title);
+    console.log('isEligibilitySection():', isEligibilitySection());
+    console.log('Current global index:', currentGlobalIndex);
+    console.log('All questions length:', allQuestions.length);
+    
     if (currentGlobalIndex < allQuestions.length - 1) {
       // Check if we're moving from eligibility section to next section
       const nextGlobalIndex = currentGlobalIndex + 1;
       const { sectionIndex: nextSectionIndex } = getLocalIndicesFromGlobal(nextGlobalIndex);
       
+      console.log('Next section index:', nextSectionIndex);
+      console.log('Current section index:', currentSection);
+      console.log('Will move to different section:', nextSectionIndex !== currentSection);
+      
       // If we're currently in eligibility section and moving to a different section
       if (isEligibilitySection() && nextSectionIndex !== currentSection) {
         console.log('Moving from eligibility section to next section, checking eligibility...');
+        console.log('Form data for eligibility check:', formData);
+        console.log('Current session:', currentSession);
+        
         const isEligible = await checkEligibility();
+        
+        console.log('Eligibility check result:', isEligible);
         
         if (!isEligible) {
           // User is not eligible, eligibility state will be set in checkEligibility
+          console.log('User is not eligible, stopping navigation');
           return;
         }
       }
@@ -601,10 +618,14 @@ const ApplicationForm = () => {
       // Move to next question
       const { sectionIndex, questionIndex } = getLocalIndicesFromGlobal(nextGlobalIndex);
       
+      console.log('Moving to section:', sectionIndex, 'question:', questionIndex);
+      
       setCurrentSection(sectionIndex);
       setCurrentQuestionIndex(questionIndex);
       localStorage.setItem('applicationCurrentSection', sectionIndex.toString());
       localStorage.setItem('applicationCurrentQuestionIndex', questionIndex.toString());
+    } else {
+      console.log('At last question, cannot move to next');
     }
   };
 
@@ -745,26 +766,37 @@ const ApplicationForm = () => {
     }
   };
 
-  // Check if current section is "YOUR ELIGIBILITY"
+  // Check if current section is the eligibility section (section ID 'eligibility')
   const isEligibilitySection = () => {
     if (!applicationQuestions[currentSection]) return false;
-    return applicationQuestions[currentSection].title === 'YOUR ELIGIBILITY';
+    return applicationQuestions[currentSection].id === 'eligibility';
   };
 
   // Check eligibility
   const checkEligibility = async () => {
     try {
+      console.log('=== checkEligibility DEBUG ===');
+      console.log('Current session:', currentSession);
+      console.log('Applicant ID:', currentSession?.applicant?.applicant_id);
+      console.log('Form data being sent:', formData);
+      
       if (!currentSession?.applicant?.applicant_id) {
         console.warn('No applicant ID available for eligibility check');
         return true; // Allow to continue if we can't check
       }
 
+      console.log('Calling databaseService.checkEligibility...');
       const eligibilityResults = await databaseService.checkEligibility(
         formData, 
         currentSession.applicant.applicant_id
       );
 
+      console.log('Eligibility results received:', eligibilityResults);
+
       if (!eligibilityResults.isEligible) {
+        console.log('User is ineligible, showing modal');
+        console.log('Failed criteria:', eligibilityResults.failedCriteria);
+        
         setIsIneligible(true);
         setEligibilityFailures(eligibilityResults.failedCriteria || []);
         
@@ -774,6 +806,7 @@ const ApplicationForm = () => {
         return false;
       }
 
+      console.log('User is eligible, continuing navigation');
       return true;
     } catch (error) {
       console.error('Error checking eligibility:', error);

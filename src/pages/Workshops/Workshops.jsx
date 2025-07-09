@@ -43,10 +43,10 @@ const Workshops = () => {
     useEffect(() => {
         const loadApplicantId = async () => {
             try {
-                const savedUser = localStorage.getItem('user');
-                if (savedUser) {
-                    const userData = JSON.parse(savedUser);
-                    setUser(userData);
+        const savedUser = localStorage.getItem('user');
+        if (savedUser) {
+            const userData = JSON.parse(savedUser);
+            setUser(userData);
                     
                     // Get applicant ID from the database using email
                     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/applicant/by-email/${userData.email}`);
@@ -275,7 +275,7 @@ const Workshops = () => {
                 console.error('Cancel response error:', errorData);
                 throw new Error(errorData.message || `Failed to cancel registration (${response.status})`);
             }
-            
+
             const responseData = await response.json();
             console.log('Cancel response data:', responseData);
             
