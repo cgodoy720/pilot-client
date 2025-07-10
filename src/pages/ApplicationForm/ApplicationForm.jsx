@@ -322,41 +322,8 @@ const ApplicationForm = () => {
       });
     }
 
-    // Check eligibility immediately if we're in the eligibility section
-    if (isEligibilitySection() && currentSession?.applicant?.applicant_id) {
-      // List of questions that can disqualify immediately
-      const currentQuestion = currentSectionData?.questions?.find(q => q.id === questionId);
-      if (currentQuestion) {
-        const isEligibilityQuestion = 
-          currentQuestion.label?.toLowerCase().includes('date of birth') ||
-          currentQuestion.label?.toLowerCase().includes('annual') && currentQuestion.label?.toLowerCase().includes('income') ||
-          currentQuestion.label?.toLowerCase().includes('home address') ||
-          currentQuestion.label?.toLowerCase().includes('work in the u.s. legally') ||
-          currentQuestion.label?.toLowerCase().includes('commute to a fully in-person') ||
-          currentQuestion.label?.toLowerCase().includes('commit to that in-person schedule') ||
-          currentQuestion.label?.toLowerCase().includes('privacy policy');
-
-        if (isEligibilityQuestion) {
-          console.log('Checking eligibility immediately for question:', currentQuestion.label);
-          try {
-            const eligibilityResults = await databaseService.checkEligibility(
-              updatedFormData, 
-              currentSession.applicant.applicant_id
-            );
-
-            if (!eligibilityResults.isEligible) {
-              console.log('User is ineligible, showing modal immediately');
-              setIsIneligible(true);
-              setEligibilityFailures(eligibilityResults.failedCriteria || []);
-              localStorage.setItem('applicationStatus', 'ineligible');
-            }
-          } catch (error) {
-            console.error('Error checking eligibility on input change:', error);
-            // Don't block the user if eligibility check fails
-          }
-        }
-      }
-    }
+        // Note: Eligibility checking moved to moveToNextQuestion() when leaving eligibility section
+    // This allows users to complete all questions before being checked
   };
 
   // Validation functions
