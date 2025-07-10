@@ -28,7 +28,7 @@ const SECTION_CONFIG = [
     getButtonLabel: (status) => {
       if (status === 'not started') return 'Apply';
       if (status === 'in process') return 'Continue Application';
-      if (status === 'submitted') return 'Application Submitted';
+      if (status === 'submitted') return '✓ Successfully Applied';
       if (status === 'ineligible') return 'Not Eligible';
       return 'Apply';
     },
@@ -372,11 +372,13 @@ function ApplicantDashboard() {
     return section.buttonEnabled(statuses[section.key])
   }
 
-  const getButtonStyle = (enabled, isLockedState = false, isIneligibleState = false) => ({
-    background: enabled ? 'var(--color-primary)' : 
+  const getButtonStyle = (enabled, isLockedState = false, isIneligibleState = false, isSubmittedState = false) => ({
+    background: isSubmittedState ? '#48bb78' :
+                enabled ? 'var(--color-primary)' : 
                 isIneligibleState ? 'var(--color-background-darker)' : 
                 isLockedState ? '#f5f5f5' : 'var(--color-border)',
-    color: enabled ? '#fff' : 
+    color: isSubmittedState ? '#fff' :
+           enabled ? '#fff' : 
            isIneligibleState ? 'var(--color-text-secondary)' :
            isLockedState ? '#999' : 'var(--color-text-muted)',
     border: isLockedState ? '2px dashed #ddd' : 
@@ -657,7 +659,7 @@ function ApplicantDashboard() {
                         Made a mistake?
                       </div>
                       <button
-                        style={getButtonStyle(true, false, false)}
+                        style={getButtonStyle(true, false, false, false)}
                         onClick={handleEditEligibility}
                       >
                         <span>
@@ -667,7 +669,7 @@ function ApplicantDashboard() {
                     </div>
                   ) : ineligible ? (
                     <button
-                      style={getButtonStyle(false, false, true)}
+                      style={getButtonStyle(false, false, true, false)}
                       disabled={true}
                     >
                       <span>
@@ -676,7 +678,7 @@ function ApplicantDashboard() {
                     </button>
                   ) : locked ? (
                     <button
-                      style={getButtonStyle(false, true)}
+                      style={getButtonStyle(false, true, false, false)}
                       disabled={true}
                     >
                       <span>
@@ -684,13 +686,13 @@ function ApplicantDashboard() {
                       </span>
                     </button>
                   ) : (
-                    <Link to={section.key === 'infoSession' ? '/info-sessions' : 
+                    <Link to={enabled ? (section.key === 'infoSession' ? '/info-sessions' : 
                             section.key === 'workshop' ? '/workshops' :
                             section.key === 'application' ? '/application-form' : 
-                            section.key === 'pledge' ? '/pledge' : '#'} 
+                            section.key === 'pledge' ? '/pledge' : '#') : '#'} 
                           className="action-card__button-link">
                       <button
-                        style={getButtonStyle(enabled)}
+                        style={getButtonStyle(enabled, false, false, section.key === 'application' && status === 'submitted')}
                         disabled={!enabled}
                       >
                         {section.getButtonLabel(status)}
