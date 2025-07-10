@@ -215,7 +215,7 @@ function ApplicantDashboard() {
       
       console.log('Dashboard: Applicant data:', applicant);
       
-      const application = await databaseService.getApplicationByApplicantId(applicant.applicant_id);
+      const application = await databaseService.getLatestApplicationByApplicantId(applicant.applicant_id);
       
       console.log('Dashboard: Application data:', application);
       

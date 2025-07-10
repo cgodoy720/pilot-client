@@ -301,6 +301,27 @@ class DatabaseService {
     }
   }
 
+  // Get latest application by applicant ID (all statuses, for dashboard)
+  async getLatestApplicationByApplicantId(applicantId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/applications/applicant/${applicantId}/latest-application`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null; // No application found
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching latest application by applicant ID:', error);
+      throw error;
+    }
+  }
+
   // Get all responses for an application
   async getApplicationResponses(applicationId) {
     try {

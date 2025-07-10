@@ -246,7 +246,7 @@ const ApplicationForm = () => {
         localStorage.removeItem('eligibilityResetForEditing');
         // Find the eligibility section and navigate to it
         const eligibilitySection = applicationQuestions.findIndex(section => 
-          section.id === 'eligibility'
+          section.id === 'your_eligibility'
         );
         if (eligibilitySection !== -1) {
           setCurrentSection(eligibilitySection);
@@ -285,11 +285,11 @@ const ApplicationForm = () => {
   }, [currentSection, currentQuestionIndex, applicationQuestions]);
 
   // Handle input changes with immediate saving
-  const handleInputChange = (questionId, value) => {
+  const handleInputChange = async (questionId, value) => {
     console.log(`Input changed: ${questionId} = ${value}`);
     
     // Find if this question has any conditional children
-    const currentSection = applicationQuestions.find(section => 
+    const currentSectionData = applicationQuestions.find(section => 
       section.questions && section.questions.find(q => q.id === questionId)
     );
     
@@ -299,8 +299,8 @@ const ApplicationForm = () => {
     };
 
     // If this question has conditional children, clear their values when parent changes
-    if (currentSection) {
-      const conditionalChildren = currentSection.questions.filter(q => 
+    if (currentSectionData) {
+      const conditionalChildren = currentSectionData.questions.filter(q => 
         q.parentQuestionId === questionId
       );
       
@@ -320,6 +320,42 @@ const ApplicationForm = () => {
         delete newErrors[questionId];
         return newErrors;
       });
+    }
+
+    // Check eligibility immediately if we're in the eligibility section
+    if (isEligibilitySection() && currentSession?.applicant?.applicant_id) {
+      // List of questions that can disqualify immediately
+      const currentQuestion = currentSectionData?.questions?.find(q => q.id === questionId);
+      if (currentQuestion) {
+        const isEligibilityQuestion = 
+          currentQuestion.label?.toLowerCase().includes('date of birth') ||
+          currentQuestion.label?.toLowerCase().includes('annual') && currentQuestion.label?.toLowerCase().includes('income') ||
+          currentQuestion.label?.toLowerCase().includes('home address') ||
+          currentQuestion.label?.toLowerCase().includes('work in the u.s. legally') ||
+          currentQuestion.label?.toLowerCase().includes('commute to a fully in-person') ||
+          currentQuestion.label?.toLowerCase().includes('commit to that in-person schedule') ||
+          currentQuestion.label?.toLowerCase().includes('privacy policy');
+
+        if (isEligibilityQuestion) {
+          console.log('Checking eligibility immediately for question:', currentQuestion.label);
+          try {
+            const eligibilityResults = await databaseService.checkEligibility(
+              updatedFormData, 
+              currentSession.applicant.applicant_id
+            );
+
+            if (!eligibilityResults.isEligible) {
+              console.log('User is ineligible, showing modal immediately');
+              setIsIneligible(true);
+              setEligibilityFailures(eligibilityResults.failedCriteria || []);
+              localStorage.setItem('applicationStatus', 'ineligible');
+            }
+          } catch (error) {
+            console.error('Error checking eligibility on input change:', error);
+            // Don't block the user if eligibility check fails
+          }
+        }
+      }
     }
   };
 
@@ -790,10 +826,10 @@ const ApplicationForm = () => {
     }
   };
 
-  // Check if current section is the eligibility section (section ID 'eligibility')
+  // Check if current section is the eligibility section (section ID 'your_eligibility')
   const isEligibilitySection = () => {
     if (!applicationQuestions[currentSection]) return false;
-    return applicationQuestions[currentSection].id === 'eligibility';
+    return applicationQuestions[currentSection].id === 'your_eligibility';
   };
 
   // Check eligibility
@@ -940,20 +976,14 @@ const ApplicationForm = () => {
                   onChange={(e) => {
                     const value = e.target.value;
                     const checked = e.target.checked;
-                    setFormData(prev => {
-                      const currentOptions = prev[question.id] || [];
-                      if (checked) {
-                        return {
-                          ...prev,
-                          [question.id]: [...currentOptions, value]
-                        };
-                      } else {
-                        return {
-                          ...prev,
-                          [question.id]: currentOptions.filter(item => item !== value)
-                        };
-                      }
-                    });
+                    const currentOptions = formData[question.id] || [];
+                    let newValue;
+                    if (checked) {
+                      newValue = [...currentOptions, value];
+                    } else {
+                      newValue = currentOptions.filter(item => item !== value);
+                    }
+                    handleInputChange(question.id, newValue);
                   }}
                   required={question.required}
                 />
