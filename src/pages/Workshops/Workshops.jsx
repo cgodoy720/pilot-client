@@ -363,7 +363,7 @@ const Workshops = () => {
             <div className="admissions-topbar">
                 <div className="admissions-topbar-left">
                     <div className="admissions-logo-section">
-                        <Link to="/apply/dashboard">
+                        <Link to="/apply">
                             <img src={pursuitLogo} alt="Pursuit Logo" className="admissions-logo" />
                         </Link>
                         <span className="admissions-logo-text">PURSUIT</span>
@@ -393,7 +393,7 @@ const Workshops = () => {
                 {/* Title */}
                 <div className="admissions-title-section">
                     <h1 className="admissions-title">
-                        Select a time slot for your workshop at Pursuit HQ.
+                        Select a time slot for your workshop at Pursuit HQ in Long Island City, Queens.
                     </h1>
                 </div>
 

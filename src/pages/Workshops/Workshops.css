@@ -1,9 +1,10 @@
 /* Workshops Main Container */
 .workshops-main {
   background-color: var(--color-background-dark); /* Match header color */
-  min-height: 100vh;
+  min-height: calc(100vh - 120px); /* Account for nav bar height */
   padding: 0 1rem 2rem 1rem;
   color: var(--color-text-primary);
+  box-sizing: border-box;
 }
 
 .workshops-content {
