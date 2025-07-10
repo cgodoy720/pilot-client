@@ -15,7 +15,7 @@
 }
 
 /* Top Bar - Same as Dashboard */
-.admissions-topbar {
+.admissions-dashboard__topbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -25,20 +25,20 @@
     box-sizing: border-box;
 }
 
-.admissions-topbar-left {
+.admissions-dashboard__topbar-left {
     display: flex;
     align-items: center;
     gap: 1.5rem;
     min-width: 0;
 }
 
-.admissions-logo-section {
+.admissions-dashboard__logo-section {
     display: flex;
     align-items: center;
     min-width: 0;
 }
 
-.admissions-logo {
+.admissions-dashboard__logo {
     height: 48px;
     width: 48px;
     object-fit: contain;
@@ -48,7 +48,7 @@
     cursor: pointer;
 }
 
-.admissions-logo-text {
+.admissions-dashboard__logo-text {
     font-weight: 700;
     font-size: 2rem;
     color: #fff;
@@ -57,7 +57,7 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-.welcome-text {
+.admissions-dashboard__welcome-text {
     font-size: 1.3rem;
     font-weight: 600;
     color: var(--color-text-primary);
@@ -67,13 +67,13 @@
     margin-left: 2rem;
 }
 
-.admissions-topbar-right {
+.admissions-dashboard__topbar-right {
     display: flex;
     gap: 1rem;
     align-items: center;
 }
 
-.admissions-button-primary {
+.admissions-dashboard__button--primary {
     background: var(--color-primary);
     color: #fff;
     border: none;
@@ -85,11 +85,11 @@
     transition: background-color 0.2s;
 }
 
-.admissions-button-primary:hover {
+.admissions-dashboard__button--primary:hover {
     background: #ff6b35;
 }
 
-.admissions-button-secondary {
+.admissions-dashboard__button--secondary {
     background: transparent;
     color: var(--color-text-primary);
     border: 2px solid var(--color-primary);
@@ -101,19 +101,19 @@
     transition: all 0.2s;
 }
 
-.admissions-button-secondary:hover {
+.admissions-dashboard__button--secondary:hover {
     background: var(--color-primary);
     color: #fff;
 }
 
 /* Title Section - Same as Dashboard */
-.admissions-title-section {
+.admissions-dashboard__title-section {
     width: 100vw;
     text-align: left;
     padding: 1.5rem 0 0 2vw;
 }
 
-.admissions-title {
+.admissions-dashboard__title {
     font-size: 2.8rem;
     font-weight: 700;
     color: #fff;
@@ -125,49 +125,138 @@
     max-width: 40vw;
 }
 
-/* Main Content - Two Column Layout */
-.application-main {
+/* Intro Screen Styles */
+.application-form__intro {
     display: flex;
-    height: calc(100vh - 180px);
-    width: 100vw;
-    box-sizing: border-box;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 200px);
+    padding: 2rem;
 }
 
-/* Left Column - 40% width - Description Panel */
-.application-left-column {
-    width: 40%;
-    padding: 2rem 1.5rem;
-    background-color: var(--color-background-dark);
-    display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
+.application-form__intro-content {
+    max-width: 800px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 3rem;
 }
 
-.application-title {
-    font-size: 2.2rem;
-    font-weight: 600;
-    color: #ffffff;
-    margin: 0 0 1.5rem 0;
-    line-height: 1.2;
+.application-form__intro-description {
+    margin-bottom: 3rem;
     text-align: left;
 }
 
-.application-description {
+.application-form__intro-description p {
     font-size: 1.2rem;
     line-height: 1.6;
     color: #ffffff;
-    margin: 0;
-    flex-grow: 1;
+    margin-bottom: 1.5rem;
+}
+
+.application-form__intro-description .first-paragraph {
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.application-form__intro-actions {
+    text-align: center;
+}
+
+.application-form__intro-button {
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    transition: background-color 0.2s ease;
+    background-color: var(--color-primary);
+    color: #ffffff;
+}
+
+.application-form__intro-button:hover {
+    background-color: #ff6b35;
+}
+
+/* Intro Tab Styles - Match Form Section Styling */
+.application-form__intro-tab {
+    background: #1a1a1a;
+    border-radius: 24px;
+    padding: 2rem 1.5rem;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    position: relative;
+    overflow: visible;
+}
+
+.application-form__intro-tab::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 24px;
+    padding: 2px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: xor;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    z-index: -1;
+}
+
+.application-form__intro-tab-content {
+    width: 100%;
+    background-color: transparent;
+    padding: 0;
+}
+
+.application-form__intro-tab-title {
+    font-size: 1.7rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.application-form__intro-tab-description {
+    margin-bottom: 1.5rem;
     text-align: left;
 }
 
-.application-description p {
+.application-form__intro-tab-description p {
+    font-size: 1.15rem;
+    line-height: 1.6;
+    color: #ffffff;
     margin-bottom: 1rem;
-    text-align: left;
+}
+
+.application-form__intro-tab-description .first-paragraph {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.application-form__intro-tab-actions {
+    margin-top: 1.5rem;
+}
+
+/* Main Content - Single Column Layout */
+.application-form__main {
+    display: flex;
+    justify-content: center;
+    width: 100vw;
+    box-sizing: border-box;
+    padding: 2rem 0;
 }
 
 /* Info Card Styling */
-.info-card {
+.application-form__info-card {
     background: rgba(76, 81, 191, 0.1);
     border: 2px solid rgba(76, 81, 191, 0.3);
     border-radius: 16px;
@@ -176,32 +265,32 @@
     font-family: inherit;
 }
 
-.info-card-content {
+.application-form__info-card-content {
     color: var(--color-text-primary);
     line-height: 1.6;
     text-align: left;
 }
 
-.info-card-content p {
+.application-form__info-card-content p {
     margin-bottom: 1rem;
     font-size: 1.2rem;
 }
 
-.info-card-content p:last-child {
+.application-form__info-card-content p:last-child {
     margin-bottom: 0;
 }
 
 /* Special styling for info question containers */
-.application-question-group.info-question {
+.application-form__question-group--info {
     margin: 0;
     padding: 0;
 }
 
-.application-question-group.info-question .info-card {
+.application-form__question-group--info .application-form__info-card {
     margin: 0 0 1.5rem 0;
 }
 
-.application-notice {
+.application-form__notice {
     background-color: rgba(251, 191, 36, 0.1);
     border: 1px solid rgba(251, 191, 36, 0.3);
     border-radius: 8px;
@@ -209,17 +298,17 @@
     margin: 1rem 0;
 }
 
-.application-notice p {
+.application-form__notice p {
     color: #fbbf24;
     margin: 0;
     font-size: 0.875rem;
 }
 
-.application-back-section {
+.application-form__back-section {
     margin-top: auto;
 }
 
-.application-back-button {
+.application-form__back-button {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -233,46 +322,46 @@
     transition: color 0.2s;
 }
 
-.application-back-button:hover {
+.application-form__back-button:hover {
     color: #ffffff;
 }
 
-.application-back-button span {
+.application-form__back-button span {
     font-size: 1rem;
 }
 
-/* Right Column - 60% width - Form Content */
-.application-right-column {
-    width: 60%;
-    padding: 2rem 1.5rem;
+/* Form Content - Full Width */
+.application-form__column {
+    width: 100%;
+    max-width: 900px;
+    padding: 0 2rem;
     background-color: var(--color-background-dark);
-    overflow-y: auto;
     box-sizing: border-box;
 }
 
 /* Progress Section */
-.application-progress-section {
+.application-form__progress-section {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1rem;
 }
 
-.application-progress-title {
+.application-form__progress-title {
     font-size: 1rem;
     font-weight: 500;
     color: #ffffff;
     margin: 0;
 }
 
-.application-progress-text {
+.application-form__progress-text {
     font-size: 1rem;
     font-weight: 400;
     color: #64748b;
 }
 
 /* Progress Bar */
-.application-progress-bar {
+.application-form__progress-bar {
     width: 100%;
     height: 8px;
     background-color: #475569;
@@ -281,7 +370,7 @@
     overflow: hidden;
 }
 
-.application-progress-fill {
+.application-form__progress-fill {
     height: 100%;
     background-color: var(--color-primary);
     border-radius: 4px;
@@ -289,7 +378,7 @@
 }
 
 /* Session Info */
-.application-session-info {
+.application-form__session-info {
     margin-bottom: 2rem;
     padding: 0.25rem 0.75rem;
     background: rgba(255, 255, 255, 0.1);
@@ -297,7 +386,7 @@
     font-size: 0.875rem;
 }
 
-.application-session-info small {
+.application-form__session-info small {
     color: #64748b;
 }
 
@@ -306,11 +395,11 @@
     width: 100%;
 }
 
-.application-form-section {
+.application-form__section {
     background-color: transparent;
 }
 
-.application-section-title {
+.application-form__section-title {
     font-size: 1.25rem;
     font-weight: 600;
     color: #ffffff;
@@ -319,13 +408,13 @@
 }
 
 /* Question Groups */
-.application-question-group {
+.application-form__question-group {
     margin-bottom: 1.5rem;
     text-align: left;
 }
 
 /* Conditional question styling */
-.conditional-question {
+.application-form__question-group--conditional {
   margin-top: 32px;
   margin-bottom: 24px;
   padding: 20px;
@@ -336,18 +425,18 @@
   position: relative;
 }
 
-.conditional-question .application-question-label {
+.application-form__question-group--conditional .application-form__question-label {
   font-size: 0.95em;
   color: var(--color-text-secondary);
   font-weight: 500;
 }
 
-.root-question {
+.application-form__question-group--root {
   margin-bottom: 0;
 }
 
 /* Ensure conditional questions animate in smoothly */
-.conditional-question {
+.application-form__question-group--conditional {
   animation: slideIn 0.3s ease-out;
 }
 
@@ -362,41 +451,40 @@
   }
 }
 
-
-.application-question-label {
+.application-form__question-label {
     display: block;
     margin-bottom: 0.5rem;
     color: #ffffff;
-    font-size: 0.875rem;
-    font-weight: 400;
+    font-size: 1.1rem;
+    font-weight: 500;
     line-height: 1.4;
     text-align: left;
 }
 
-.application-question-label a {
+.application-form__question-label a {
     color: var(--color-primary);
     text-decoration: none;
     margin-left: 0.5rem;
 }
 
-.application-question-label a:hover {
+.application-form__question-label a:hover {
     text-decoration: underline;
 }
 
-.application-required {
+.application-form__question-required {
     color: var(--color-primary);
     margin-left: 0.25rem;
     font-weight: 600;
 }
 
-.application-optional {
+.application-form__question-optional {
     color: rgba(255, 255, 255, 0.6);
     margin-left: 0.25rem;
     font-size: 0.8rem;
     font-style: italic;
 }
 
-.application-validation-error {
+.application-form__validation-error {
     color: #ff4444;
     font-size: 0.8rem;
     margin-top: 0.25rem;
@@ -417,7 +505,7 @@
 }
 
 /* Input Styling */
-.form-input {
+.application-form__input {
     width: 100%;
     padding: 0.75rem;
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -430,13 +518,13 @@
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.form-input:focus {
+.application-form__input:focus {
     outline: none;
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
 }
 
-.form-input-error {
+.application-form__input--error {
     border-color: #ff4444 !important;
     box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.1) !important;
     animation: pulseError 0.5s ease-in-out;
@@ -454,22 +542,22 @@
     }
 }
 
-.form-input::placeholder {
+.application-form__input::placeholder {
     color: rgba(255, 255, 255, 0.5);
 }
 
 /* Textarea specific */
-textarea.form-input {
+textarea.application-form__input {
     resize: vertical;
     min-height: 120px;
 }
 
 /* Long text input styling for essay questions */
-.long-text-container {
+.application-form__long-text-container {
   width: 100%;
 }
 
-textarea.long-text-input {
+textarea.application-form__long-text-input {
     min-height: 450px;
     padding: 1.5rem;
     font-size: 1.1rem;
@@ -480,51 +568,51 @@ textarea.long-text-input {
     transition: all 0.3s ease;
 }
 
-textarea.long-text-input:focus {
+textarea.application-form__long-text-input:focus {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.15);
     background-color: rgba(255, 255, 255, 0.1);
 }
 
-textarea.long-text-input::placeholder {
+textarea.application-form__long-text-input::placeholder {
     color: rgba(255, 255, 255, 0.6);
     font-style: italic;
 }
 
 /* Enhanced styling for single long-text question pages */
-.application-form-section .application-question-group:only-child {
+.application-form__section .application-form__question-group:only-child {
     margin-bottom: 3rem;
 }
 
-.application-form-section .application-question-group:only-child .application-question-label {
+.application-form__section .application-form__question-group:only-child .application-form__question-label {
     font-size: 1.1rem;
     font-weight: 500;
     margin-bottom: 1rem;
     line-height: 1.5;
 }
 
-.application-form-section .application-question-group:only-child .long-text-input {
+.application-form__section .application-form__question-group:only-child .application-form__long-text-input {
     min-height: 550px;
 }
 
 /* Character counter for long text */
-.long-text-counter {
+.application-form__long-text-counter {
     text-align: right;
     font-size: 0.8rem;
     color: rgba(255, 255, 255, 0.6);
     margin-top: 0.5rem;
 }
 
-.long-text-counter.warning {
+.application-form__long-text-counter--warning {
     color: #fbbf24;
 }
 
-.long-text-counter.danger {
+.application-form__long-text-counter--danger {
     color: #ff4444;
 }
 
 /* Select dropdown styling */
-select.form-input {
+select.application-form__input {
     cursor: pointer;
     background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
     background-position: right 0.5rem center;
@@ -534,24 +622,24 @@ select.form-input {
     appearance: none;
 }
 
-select.form-input:focus {
+select.application-form__input:focus {
     background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23ff6b35' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
 }
 
 /* Disabled placeholder option styling */
-select.form-input option:disabled {
+select.application-form__input option:disabled {
     color: rgba(255, 255, 255, 0.5);
     font-style: italic;
 }
 
 /* Radio Button Groups */
-.radio-group {
+.application-form__radio-group {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
 }
 
-.radio-option {
+.application-form__radio-option {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -562,23 +650,23 @@ select.form-input option:disabled {
     transition: background-color 0.2s;
 }
 
-.radio-option:hover {
+.application-form__radio-option:hover {
     background-color: rgba(255, 255, 255, 0.05);
 }
 
-.radio-option input[type="radio"] {
+.application-form__radio-option input[type="radio"] {
     margin: 0;
     accent-color: var(--color-primary);
 }
 
 /* Checkbox Groups */
-.checkbox-group {
+.application-form__checkbox-group {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
 }
 
-.checkbox-group-error {
+.application-form__checkbox-group--error {
     border: 2px solid #ef4444;
     border-radius: 8px;
     padding: 0.75rem;
@@ -586,7 +674,7 @@ select.form-input option:disabled {
     animation: pulseError 0.5s ease-in-out;
 }
 
-.checkbox-option {
+.application-form__checkbox-option {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -597,23 +685,23 @@ select.form-input option:disabled {
     transition: background-color 0.2s;
 }
 
-.checkbox-option:hover {
+.application-form__checkbox-option:hover {
     background-color: rgba(255, 255, 255, 0.05);
 }
 
-.checkbox-option input[type="checkbox"] {
+.application-form__checkbox-option input[type="checkbox"] {
     margin: 0;
     accent-color: var(--color-primary);
 }
 
 /* Navigation Buttons */
-.application-navigation {
+.application-form__navigation {
     display: flex;
     gap: 0.75rem;
     margin-top: 1.5rem;
 }
 
-.application-nav-button {
+.application-form__nav-button {
     border: none;
     padding: 0.75rem 1rem;
     border-radius: 8px;
@@ -624,33 +712,42 @@ select.form-input option:disabled {
     transition: background-color 0.2s ease;
 }
 
-.application-nav-previous {
+.application-form__nav-button--intro {
+    background-color: #6366f1;
+    color: #ffffff;
+}
+
+.application-form__nav-button--intro:hover {
+    background-color: #4f46e5;
+}
+
+.application-form__nav-button--previous {
     background-color: #475569;
     color: #ffffff;
 }
 
-.application-nav-previous:hover {
+.application-form__nav-button--previous:hover {
     background-color: #64748b;
 }
 
-.application-nav-next,
-.application-submit-button {
+.application-form__nav-button--next,
+.application-form__submit-button {
     background-color: var(--color-primary);
     color: #ffffff;
 }
 
-.application-nav-next:hover,
-.application-submit-button:hover {
+.application-form__nav-button--next:hover,
+.application-form__submit-button:hover {
     background-color: #ff6b35;
 }
 
-.application-submit-button:disabled {
+.application-form__submit-button:disabled {
     background-color: #666;
     cursor: not-allowed;
 }
 
 /* Loading and Error States */
-.loading-state, .error-state {
+.application-form__loading-state, .application-form__error-state {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -660,17 +757,17 @@ select.form-input option:disabled {
     padding: 2rem;
 }
 
-.loading-state h2, .error-state h2 {
+.application-form__loading-state h2, .application-form__error-state h2 {
     color: #fff;
     margin-bottom: 1rem;
 }
 
-.loading-state p, .error-state p {
+.application-form__loading-state p, .application-form__error-state p {
     color: rgba(255, 255, 255, 0.7);
     margin-bottom: 1.5rem;
 }
 
-.error-state button {
+.application-form__error-state button {
     background-color: var(--color-primary);
     color: white;
     border: none;
@@ -683,91 +780,79 @@ select.form-input option:disabled {
     transition: background-color 0.2s;
 }
 
-.error-state button:hover {
+.application-form__error-state button:hover {
     background-color: #ff6b35;
 }
 
 /* Responsive Design */
 @media (max-width: 1024px) {
-    .application-main {
+    .application-form__main {
         flex-direction: column;
         height: auto;
     }
     
-    .application-left-column,
-    .application-right-column {
+    .application-form__column {
         width: 100%;
-    }
-    
-    .application-left-column {
-        padding: 1.5rem;
-    }
-    
-    .application-back-section {
-        margin-top: 1.5rem;
-    }
-    
-    .application-right-column {
         padding: 1.5rem;
     }
 }
 
 @media (max-width: 900px) {
-    .admissions-topbar {
+    .admissions-dashboard__topbar {
         flex-direction: column;
         gap: 1rem;
         text-align: center;
     }
     
-    .admissions-topbar-left {
+    .admissions-dashboard__topbar-left {
         flex-direction: column;
         gap: 1rem;
     }
     
-    .welcome-text {
+    .admissions-dashboard__welcome-text {
         margin-left: 0;
     }
     
-    .admissions-title {
+    .admissions-dashboard__title {
         font-size: 2.2rem;
     }
     
-    .application-title {
+    .application-form__title {
         font-size: 1.5rem;
     }
     
-    .application-description {
+    .application-form__description {
         font-size: 0.8rem;
     }
     
-    .application-left-column,
-    .application-right-column {
+    .application-form__left-column,
+    .application-form__right-column {
         padding: 1rem;
     }
     
-    .application-navigation {
+    .application-form__navigation {
         flex-direction: column;
         gap: 1rem;
     }
     
-    .application-nav-button {
+    .application-form__nav-button {
         width: 100%;
     }
 }
 
 /* Section Navigation - Legacy styles removed, using newer styles below */
 
-.section-nav-item.has-errors {
+.section-nav__item--has-errors {
     border-left: 3px solid #ef4444;
     background-color: rgba(239, 68, 68, 0.1);
 }
 
-.section-nav-item.has-errors.active {
+.section-nav__item--has-errors.section-nav__item--active {
     border-left: 3px solid #ef4444;
     background-color: rgba(239, 68, 68, 0.2);
 }
 
-.section-warning-indicator {
+.section-nav__warning-indicator {
     color: #ef4444;
     font-weight: bold;
     margin-left: 0.5rem;
@@ -782,16 +867,16 @@ select.form-input option:disabled {
     font-size: 0.8rem;
 }
 
-.section-nav-item:hover {
+.section-nav__item:hover {
     color: #fff;
 }
 
-.section-nav-item.has-errors:hover {
+.section-nav__item--has-errors:hover {
     background-color: rgba(239, 68, 68, 0.15);
 }
 
 /* Validation error styling */
-.application-validation-error {
+.application-form__validation-error {
     color: #ef4444;
     font-size: 0.8rem;
     margin-top: 0.25rem;
@@ -802,13 +887,13 @@ select.form-input option:disabled {
 }
 
 /* Enhanced error input styling */
-.form-input-error {
+.application-form__input--error {
     border-color: #ef4444 !important;
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
     animation: pulseError 0.5s ease-in-out;
 }
 
-.checkbox-group-error {
+.application-form__checkbox-group--error {
     border: 2px solid #ef4444;
     border-radius: 8px;
     padding: 0.75rem;
@@ -816,13 +901,13 @@ select.form-input option:disabled {
     animation: pulseError 0.5s ease-in-out;
 }
 
-.question-indicator {
+.application-form__question-indicator {
     font-size: 0.75rem;
     color: #64748b;
     font-weight: 400;
 }
 
-.question-counter {
+.application-form__question-counter {
     font-size: 1rem;
     font-weight: 400;
     color: #64748b;
@@ -830,7 +915,7 @@ select.form-input option:disabled {
 }
 
 /* Sections bar styling - match app's theme */
-.application-sections-bar {
+.section-nav {
   background: transparent;
   padding: 0;
   margin-bottom: 24px;
@@ -838,52 +923,59 @@ select.form-input option:disabled {
   border: none;
   display: flex;
   flex-wrap: nowrap;
-  gap: 8px;
+  gap: 3px;
   width: 100%;
-  justify-content: space-between;
+  justify-content: center;
 }
 
 /* Section title styling */
-.section-title {
+.section-nav__title {
   font-weight: 500;
   line-height: 1.2;
-  word-wrap: break-word;
-  hyphens: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: left;
 }
 
 /* Section progress counter styling */
-.section-progress {
-  font-size: 0.7rem;
+.section-nav__progress {
+  font-size: 0.75rem;
   color: var(--color-text-muted);
   margin-top: 4px;
   font-weight: normal;
   flex-shrink: 0;
   white-space: nowrap;
+  opacity: 0.8;
+  text-align: left;
+  width: 100%;
 }
 
-.section-nav-item {
+.section-nav__item {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  padding: 12px 16px;
+  padding: 10px 16px;
   margin: 4px 0;
   border-radius: 8px;
   background: var(--color-background-darker);
   border: 1px solid var(--color-border);
   font-weight: 500;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   transition: all 0.2s ease;
-  width: calc(20% - 8px);
-  min-height: 60px;
+  min-width: 200px;
+  flex: 1;
+  min-height: 50px;
   color: var(--color-text-secondary);
   cursor: pointer;
   box-sizing: border-box;
   flex-shrink: 0;
-  line-height: 1.3;
+  line-height: 1.2;
 }
 
-.section-nav-item:hover:not(.active) {
+.section-nav__item:hover:not(.section-nav__item--active) {
   background: var(--color-background-medium);
   border-color: var(--color-primary);
   color: var(--color-text-primary);
@@ -891,20 +983,20 @@ select.form-input option:disabled {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.section-nav-item.active {
+.section-nav__item--active {
   background: var(--color-primary);
   color: white;
   border-color: var(--color-primary);
-  padding: 8px 12px;
+  padding: 10px 16px;
   margin: 4px 0;
 }
 
-.section-nav-item.active .section-progress {
+.section-nav__item--active .section-nav__progress {
   color: rgba(255, 255, 255, 0.8);
 }
 
 /* Question card styling - match dashboard cards (no interactive effects) */
-.application-form-section {
+.application-form__form-section {
   background: #1a1a1a;
   border-radius: 24px;
   padding: 2rem 1.5rem;
@@ -914,7 +1006,7 @@ select.form-input option:disabled {
   overflow: visible;
 }
 
-.application-form-section::before {
+.application-form__form-section::before {
   content: '';
   position: absolute;
   top: 0;
@@ -931,8 +1023,8 @@ select.form-input option:disabled {
   z-index: -1;
 }
 
-.application-section-title {
-  font-size: 1.5rem;
+.application-form__form-section-title {
+  font-size: 1.7rem;
   font-weight: 600;
   color: var(--color-text-primary);
   margin-bottom: 24px;
@@ -943,30 +1035,30 @@ select.form-input option:disabled {
   align-items: center;
 }
 
-.question-counter {
-  font-size: 0.9rem;
+.application-form__question-counter {
+  font-size: 1rem;
   color: var(--color-text-muted);
   font-weight: 400;
 }
 
 /* Keep original progress bar styling */
-.application-progress-section {
+.application-form__progress-section {
   margin-bottom: 1rem;
 }
 
-.application-progress-title {
+.application-form__progress-title {
   font-weight: 600;
   margin-bottom: 0.5rem;
   color: #2c3e50;
 }
 
-.application-progress-text {
+.application-form__progress-text {
   font-size: 0.9rem;
   color: #6c757d;
   margin-bottom: 0.5rem;
 }
 
-.application-progress-bar {
+.application-form__progress-bar {
   width: 100%;
   height: 8px;
   background-color: #e9ecef;
@@ -974,38 +1066,38 @@ select.form-input option:disabled {
   overflow: hidden;
 }
 
-.application-progress-fill {
+.application-form__progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #007bff 0%, #0056b3 100%);
   transition: width 0.3s ease;
 }
 
 @media (max-width: 600px) {
-    .admissions-logo-text {
+    .admissions-dashboard__logo-text {
         font-size: 1.5rem;
     }
     
-    .welcome-text {
+    .admissions-dashboard__welcome-text {
         font-size: 1.1rem;
     }
     
-    .admissions-title {
+    .admissions-dashboard__title {
         font-size: 1.8rem;
     }
     
-    .question-counter {
+    .application-form__question-counter {
         display: block;
         margin-left: 0;
         margin-top: 0.5rem;
-        font-size: 0.875rem;
+        font-size: 0.95rem;
     }
     
-    .section-nav-item {
+    .section-nav__item {
         font-size: 0.8rem;
         padding: 0.4rem 0;
     }
     
-    .section-nav-item.active {
+    .section-nav__item--active {
         padding: 0.5rem;
     }
 }

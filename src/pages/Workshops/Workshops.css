@@ -1,7 +1,135 @@
+/* Workshops Page - Fix for root padding */
+.admissions-dashboard {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100vh;
+  width: 100vw;
+  background: var(--color-background-dark);
+  color: var(--color-text-primary);
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* Top Bar */
+.admissions-dashboard__topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2vw;
+  background: var(--color-background-dark);
+  width: 100vw;
+  box-sizing: border-box;
+}
+
+.admissions-dashboard__topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.admissions-dashboard__logo-section {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.admissions-dashboard__logo {
+  height: 48px;
+  width: 48px;
+  object-fit: contain;
+  background: transparent;
+  display: block;
+  margin: 0 auto;
+  cursor: pointer;
+}
+
+.admissions-dashboard__logo-text {
+  font-weight: 700;
+  font-size: 2rem;
+  color: #fff;
+  margin-left: 0.5rem;
+  letter-spacing: 0.02em;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.admissions-dashboard__welcome-text {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: 2rem;
+}
+
+.admissions-dashboard__topbar-right {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.admissions-dashboard__button--primary {
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+}
+
+.admissions-dashboard__button--primary:hover {
+  background: #ff6b35;
+}
+
+.admissions-dashboard__button--secondary {
+  background: transparent;
+  color: var(--color-text-primary);
+  border: 2px solid var(--color-primary);
+  padding: 0.4rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.admissions-dashboard__button--secondary:hover {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+/* Title Section */
+.admissions-dashboard__title-section {
+  width: 100vw;
+  text-align: left;
+  padding: 1.25rem 0 0.5rem 2vw;
+  height: fit-content;
+}
+
+.admissions-dashboard__title {
+  font-size: 2.8rem;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: -0.04em;
+  margin: 0;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.2;
+  width: 40%;
+  max-width: 40vw;
+}
+
 /* Workshops Main Container */
 .workshops-main {
   background-color: var(--color-background-dark); /* Match header color */
-  min-height: calc(100vh - 120px); /* Account for nav bar height */
+  min-height: 100vh;
   padding: 0 1rem 2rem 1rem;
   color: var(--color-text-primary);
   box-sizing: border-box;
@@ -9,7 +137,7 @@
 
 .workshops-content {
   max-width: 1000px;
-  margin: 3rem auto 0 auto; /* Added top margin to move cards down like dashboard */
+  margin: 1rem auto 0 auto; /* Consistent spacing with dashboard */
   padding: 0 2rem 6rem 2rem; /* Match dashboard content padding */
 }
 
@@ -56,6 +184,60 @@
   .time-slots-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
+  }
+  
+  .admissions-dashboard__topbar {
+    padding: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  .admissions-dashboard__topbar-left {
+    flex: 1;
+    min-width: 200px;
+  }
+  
+  .admissions-dashboard__welcome-text {
+    font-size: 1rem;
+    margin-left: 1rem;
+  }
+  
+  .admissions-dashboard__logo-text {
+    font-size: 1.2rem;
+  }
+  
+  .admissions-dashboard__title {
+    font-size: 2rem;
+    width: 60%;
+    max-width: 60vw;
+  }
+}
+
+@media (max-width: 600px) {
+  .admissions-dashboard__topbar {
+    padding: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  .admissions-dashboard__topbar-left {
+    flex: 1;
+    min-width: 200px;
+  }
+  
+  .admissions-dashboard__logo-text {
+    font-size: 1.2rem !important;
+  }
+  
+  .admissions-dashboard__welcome-text {
+    font-size: 1rem;
+    margin-left: 1rem;
+  }
+  
+  .admissions-dashboard__title {
+    font-size: 1.8rem;
+    width: 90%;
+    max-width: 90vw;
   }
 }
 

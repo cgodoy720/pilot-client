@@ -3,7 +3,6 @@ import { format } from 'date-fns';
 import { useNavigate, Link } from 'react-router-dom';
 import pursuitLogo from '../../assets/logo.png';
 import './InfoSessions.css';
-import '../ApplicantDashboard/ApplicantDashboard.css';
 // TEMP: Replace with real user/admin logic
 const isAdmin = false;
 const currentUserName = 'You';
@@ -400,28 +399,28 @@ const InfoSessions = () => {
     return (
         <div className="admissions-dashboard">
             {/* Top Bar */}
-            <div className="admissions-topbar">
-                <div className="admissions-topbar-left">
-                    <div className="admissions-logo-section">
+            <div className="admissions-dashboard__topbar">
+                <div className="admissions-dashboard__topbar-left">
+                    <div className="admissions-dashboard__logo-section">
                         <Link to="/apply">
-                            <img src={pursuitLogo} alt="Pursuit Logo" className="admissions-logo" />
+                            <img src={pursuitLogo} alt="Pursuit Logo" className="admissions-dashboard__logo" />
                         </Link>
-                        <span className="admissions-logo-text">PURSUIT</span>
+                        <span className="admissions-dashboard__logo-text">PURSUIT</span>
                     </div>
-                    <div className="welcome-text">
+                    <div className="admissions-dashboard__welcome-text">
                         Welcome, {user?.firstName || 'John'}!
                     </div>
                 </div>
-                <div className="admissions-topbar-right">
+                <div className="admissions-dashboard__topbar-right">
                     <button 
                         onClick={handleBackToDashboard}
-                        className="admissions-button-secondary"
+                        className="admissions-dashboard__button--secondary"
                     >
                         ← Back to Dashboard
                     </button>
                     <button 
                         onClick={handleLogout}
-                        className="admissions-button-primary"
+                        className="admissions-dashboard__button--primary"
                     >
                         Log Out
                     </button>
@@ -429,21 +428,21 @@ const InfoSessions = () => {
             </div>
 
             {/* Info Sessions Container */}
-            <div className="info-sessions-main">
+            <div className="info-sessions__main">
                 {/* Title */}
-                <div className="admissions-title-section">
-                    <h1 className="admissions-title">
+                <div className="admissions-dashboard__title-section">
+                    <h1 className="admissions-dashboard__title">
                         Select a time slot for your info session at Pursuit HQ.
                     </h1>
                 </div>
 
-                <div className="info-sessions-content">
+                <div className="info-sessions__content">
                     
                     {/* Status Messages */}
                     {registrationStatus && (
-                        <div className={`status-banner ${registrationStatus}`}>
-                            <div className="status-content">
-                                <span className="status-icon">
+                        <div className={`info-sessions__status-banner info-sessions__status-banner--${registrationStatus}`}>
+                            <div className="info-sessions__status-content">
+                                <span className="info-sessions__status-icon">
                                     {registrationStatus === 'success' ? '🎉' : '⚠️'}
                                 </span>
                                 <strong>{statusMessage}</strong>
@@ -452,9 +451,9 @@ const InfoSessions = () => {
                     )}
 
                     {/* Time Slots Grid */}
-                    <div className="time-slots-grid">
+                    <div className="info-sessions__time-slots-grid">
                         {events.length === 0 ? (
-                            <div className="no-sessions-message">
+                            <div className="info-sessions__no-sessions-message">
                                 <h3>No Information Sessions Scheduled</h3>
                                 <p>We'll add sessions as soon as they're scheduled. Check back regularly!</p>
                             </div>
@@ -473,30 +472,30 @@ const InfoSessions = () => {
                                 return (
                                     <div 
                                         key={event.event_id} 
-                                        className={`time-slot-card ${isRegistered ? 'selected' : ''} ${isFull && !isRegistered ? 'full' : ''}`}
+                                        className={`info-sessions__time-slot-card ${isRegistered ? 'info-sessions__time-slot-card--selected' : ''} ${isFull && !isRegistered ? 'info-sessions__time-slot-card--full' : ''}`}
                                     >
-                                        <div className="time-slot-header">
-                                            <div className="date-info">
-                                                <span className="month">{month}</span>
-                                                <span className="day">{day}</span>
-                                                <span className="day-of-week">{dayOfWeek}</span>
+                                        <div className="info-sessions__time-slot-header">
+                                            <div className="info-sessions__date-info">
+                                                <span className="info-sessions__month">{month}</span>
+                                                <span className="info-sessions__day">{day}</span>
+                                                <span className="info-sessions__day-of-week">{dayOfWeek}</span>
                                             </div>
-                                            <div className="time-info">
-                                                <span className="time-range">{timeRange}</span>
+                                            <div className="info-sessions__time-info">
+                                                <span className="info-sessions__time-range">{timeRange}</span>
                                             </div>
                                         </div>
                                         
-                                        <div className="location-info">
-                                            <span className="location-type">
+                                        <div className="info-sessions__location-info">
+                                            <span className="info-sessions__location-type">
                                                 {event.is_online ? '💻 Online' : '🏢 In-Person'}
                                             </span>
                                         </div>
                                         
                                         {isRegistered ? (
-                                            <div className="slot-actions registered-actions">
-                                                <div className="selected-indicator">Selected</div>
+                                            <div className="info-sessions__slot-actions info-sessions__registered-actions">
+                                                <div className="info-sessions__selected-indicator">Selected</div>
                                                 <button
-                                                    className="cancel-selection-btn"
+                                                    className="info-sessions__cancel-selection-btn"
                                                     onClick={() => handleCancelRegistration(event.event_id, registration?.registration_id)}
                                                     disabled={processingEventId === event.event_id}
                                                 >
@@ -504,9 +503,9 @@ const InfoSessions = () => {
                                                 </button>
                                             </div>
                                         ) : (
-                                            <div className="slot-actions">
+                                            <div className="info-sessions__slot-actions">
                                                 <button
-                                                    className={`select-btn ${isFull ? 'full-btn' : ''}`}
+                                                    className={`info-sessions__select-btn ${isFull ? 'info-sessions__select-btn--full' : ''}`}
                                                     onClick={() => !isFull && handleSignUp(event.event_id)}
                                                     disabled={processingEventId === event.event_id || isFull}
                                                 >
@@ -517,8 +516,8 @@ const InfoSessions = () => {
                                         )}
                                         
                                         {event.is_online && event.meeting_link && isRegistered && (
-                                            <div className="meeting-link-section">
-                                                <a href={event.meeting_link} target="_blank" rel="noopener noreferrer" className="meeting-link">
+                                            <div className="info-sessions__meeting-link-section">
+                                                <a href={event.meeting_link} target="_blank" rel="noopener noreferrer" className="info-sessions__meeting-link">
                                                     Join Meeting
                                                 </a>
                                             </div>
@@ -531,7 +530,7 @@ const InfoSessions = () => {
 
                     {/* Admin form */}
                     {isAdmin && (
-                        <div className="admin-form-section">
+                        <div className="info-sessions__admin-form-section">
                             <h3>Add New Info Session</h3>
                             <form onSubmit={handleAddEvent}>
                                 <input

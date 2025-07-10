@@ -18,7 +18,7 @@ const ApplicationForm = () => {
   // Core state
   const [applicationQuestions, setApplicationQuestions] = useState([]);
   const [formData, setFormData] = useState({});
-  const [currentSection, setCurrentSection] = useState(0);
+  const [currentSection, setCurrentSection] = useState(-1); // Start at -1 for intro tab
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -123,10 +123,11 @@ const ApplicationForm = () => {
             // Automatically load saved data
             setFormData(savedFormData);
             
-            // Restore current section
+            // Restore current section (including intro section -1)
             const savedSection = localStorage.getItem('applicationCurrentSection');
             if (savedSection) {
-              setCurrentSection(parseInt(savedSection, 10));
+              const sectionIndex = parseInt(savedSection, 10);
+              setCurrentSection(sectionIndex);
             }
             
             // Restore question index for one-question mode
@@ -261,8 +262,18 @@ const ApplicationForm = () => {
         if (!savedSection || !savedQuestionIndex) {
           initializeNavigation();
         } else {
+          const sectionIndex = parseInt(savedSection, 10);
+          // Handle intro section (-1) or validate normal sections
+          if (sectionIndex === -1) {
+            setCurrentSection(-1);
+            setCurrentQuestionIndex(0);
+          } else if (sectionIndex >= 0 && sectionIndex < applicationQuestions.length) {
           // Ensure the saved position points to a root question
           ensureRootQuestionPosition();
+          } else {
+            // Invalid saved position, initialize navigation
+            initializeNavigation();
+          }
         }
       }
     }
@@ -676,6 +687,19 @@ const ApplicationForm = () => {
 
   // Navigate to first question of a specific section
   const navigateToSection = (targetSectionIndex) => {
+    // Handle intro section
+    if (targetSectionIndex === -1) {
+      console.log('Navigating to intro section');
+      setCurrentSection(-1);
+      setCurrentQuestionIndex(0);
+      setShowValidation(false);
+      setValidationErrors({});
+      // Save to localStorage
+      localStorage.setItem('applicationCurrentSection', '-1');
+      localStorage.setItem('applicationCurrentQuestionIndex', '0');
+      return;
+    }
+    
     // Calculate the global index of the first question in the target section
     let globalIndex = 0;
     
@@ -821,6 +845,12 @@ const ApplicationForm = () => {
     navigate('/apply');
   };
 
+  // Handle starting the application from intro
+  const handleBeginApplication = () => {
+    setCurrentSection(0);
+    setCurrentQuestionIndex(0);
+  };
+
   // Render different input types
   const renderQuestion = (question) => {
     const hasError = showValidation && validationErrors[question.id];
@@ -829,7 +859,7 @@ const ApplicationForm = () => {
       value: formData[question.id] || '',
       onChange: (e) => handleInputChange(question.id, e.target.value),
       required: question.required,
-      className: `form-input ${hasError ? 'form-input-error' : ''}`
+      className: `application-form__input ${hasError ? 'application-form__input--error' : ''}`
     };
 
     // Address question with Google Maps
@@ -840,7 +870,7 @@ const ApplicationForm = () => {
           onChange={(value) => handleInputChange(question.id, value)}
           placeholder="Enter your address"
           required={question.required}
-          className={hasError ? 'form-input-error' : ''}
+          className={hasError ? 'application-form__input--error' : ''}
         />
       );
     }
@@ -848,15 +878,15 @@ const ApplicationForm = () => {
     switch (question.type) {
       case 'textarea':
       return (
-        <div className="long-text-container">
+        <div className="application-form__long-text-container">
           <textarea
             {...commonProps}
             rows={12}
-            className={`form-input long-text-input ${hasError ? 'form-input-error' : ''}`}
+            className={`application-form__input application-form__long-text-input ${hasError ? 'application-form__input--error' : ''}`}
               placeholder={question.placeholder || "Please provide your response..."}
               maxLength={2000}
           />
-            <div className="long-text-counter">
+            <div className="application-form__long-text-counter">
               {(formData[question.id] || '').length} / 2000 characters
           </div>
         </div>
@@ -879,9 +909,9 @@ const ApplicationForm = () => {
         );
         } else {
           return (
-            <div className="radio-group">
+            <div className="application-form__radio-group">
               {question.options && question.options.map(option => (
-                <label key={option} className="radio-option">
+                <label key={option} className="application-form__radio-option">
                   <input
                     type="radio"
                     name={question.id}
@@ -899,9 +929,9 @@ const ApplicationForm = () => {
 
       case 'checkbox':
         return (
-          <div className={`checkbox-group ${hasError ? 'checkbox-group-error' : ''}`}>
+          <div className={`application-form__checkbox-group ${hasError ? 'application-form__checkbox-group--error' : ''}`}>
             {question.options && question.options.map(option => (
-              <label key={option} className="checkbox-option">
+              <label key={option} className="application-form__checkbox-option">
                 <input
                   type="checkbox"
                   name={question.id}
@@ -935,9 +965,9 @@ const ApplicationForm = () => {
 
       case 'select':
         return (
-          <div className="radio-group">
+          <div className="application-form__radio-group">
             {question.options && question.options.map(option => (
-              <label key={option} className="radio-option">
+              <label key={option} className="application-form__radio-option">
                 <input
                   type="radio"
                   name={question.id}
@@ -990,8 +1020,8 @@ const ApplicationForm = () => {
       case 'info':
         // For info cards - display content without input fields
         return (
-          <div className="info-card">
-            <div className="info-card-content">
+          <div className="application-form__info-card">
+            <div className="application-form__info-card-content">
               {question.label.split('\n').map((line, index) => (
                 <p key={index}>{line}</p>
               ))}
@@ -1014,7 +1044,7 @@ const ApplicationForm = () => {
   if (isLoading) {
   return (
     <div className="admissions-dashboard">
-        <div className="loading-state">
+        <div className="application-form__loading-state">
           <h2>Loading Application...</h2>
           <p>Please wait while we prepare your application form.</p>
         </div>
@@ -1026,7 +1056,7 @@ const ApplicationForm = () => {
   if (error) {
     return (
       <div className="admissions-dashboard">
-        <div className="error-state">
+        <div className="application-form__error-state">
           <h2>Error Loading Application</h2>
           <p>{error}</p>
           <button onClick={() => window.location.reload()}>Retry</button>
@@ -1039,7 +1069,7 @@ const ApplicationForm = () => {
   if (applicationQuestions.length === 0) {
     return (
       <div className="admissions-dashboard">
-        <div className="error-state">
+        <div className="application-form__error-state">
           <h2>No Questions Available</h2>
           <p>There are no application questions available at this time.</p>
           <button onClick={() => navigate('/apply')}>Back to Dashboard</button>
@@ -1093,63 +1123,60 @@ const ApplicationForm = () => {
     return null;
   }
 
+
+
   return (
     <div className="admissions-dashboard">
       {/* Top Bar */}
-      <div className="admissions-topbar">
-        <div className="admissions-topbar-left">
-          <div className="admissions-logo-section">
-            <img src="/logo.png" alt="Pursuit Logo" className="admissions-logo" />
-            <span className="admissions-logo-text">Pursuit</span>
+      <div className="admissions-dashboard__topbar">
+        <div className="admissions-dashboard__topbar-left">
+          <div className="admissions-dashboard__logo-section">
+            <img src="/logo.png" alt="Pursuit Logo" className="admissions-dashboard__logo" />
+            <span className="admissions-dashboard__logo-text">Pursuit</span>
           </div>
           {currentSession && (
-          <div className="welcome-text">
+          <div className="admissions-dashboard__welcome-text">
               Welcome, {currentSession.applicant.first_name}
           </div>
           )}
         </div>
-        <div className="admissions-topbar-right">
+        <div className="admissions-dashboard__topbar-right">
           <button 
             onClick={() => navigate('/apply')} 
-            className="admissions-button-secondary"
+            className="admissions-dashboard__button--secondary"
           >
             ← Back to Dashboard
           </button>
           <button 
             onClick={handleLogout}
-            className="admissions-button-primary"
+            className="admissions-dashboard__button--primary"
           >
             Log Out
           </button>
         </div>
       </div>
 
-      {/* Title Section */}
-      <div className="admissions-title-section">
-        <h1 className="admissions-title">Welcome to your AI-Native Application!</h1>
-      </div>
-
-      {/* Main Content - Two Column Layout */}
-      <div className="application-main">
-        {/* Left Column - Info Panel */}
-        <div className="application-left-column">
-          <div className="application-description">
-            <p className="first-paragraph"><strong>You're taking the first step toward joining the Pursuit AI-Native Program - an accelerated pathway and an immersive learning experience designed to help you gain the skills to build technology in an AI-powered world.</strong></p>
-            
-            <p>This 7-month program is grounded in an AI-native learning model, where AI helps personalize and accelerate your learning journey. It begins with AI literacy and ends with career support.</p>
-            
-            <p>No coding experience is required.</p>
-            
-            <p>If you're open to learning, excited by new ideas, and eager to explore the potential of AI, this program is for you.</p>
-            
-            <p>We highly encourage communities underrepresented in tech and those without college degrees to apply.</p>
-          </div>
+      {/* Main Content - Single Column Layout */}
+      <div className="application-form__main">
+        {/* Form Content - Full Width */}
+        <div className="application-form__column">
+          {/* Section Navigation - Moved here from left sidebar */}
+          <div className="section-nav">
+            {/* Intro Tab */}
+            <div 
+              className={`section-nav__item ${currentSection === -1 ? 'section-nav__item--active' : ''}`}
+              onClick={() => navigateToSection(-1)}
+              style={{ cursor: 'pointer' }}
+            >
+              <span className="section-nav__title">
+                0. INTRODUCTION
+              </span>
+              <span className="section-nav__progress">
+                
+              </span>
         </div>
 
-        {/* Right Column - Form Content */}
-        <div className="application-right-column">
-          {/* Section Navigation - Moved here from left sidebar */}
-          <div className="application-sections-bar">
+            {/* Form Section Tabs */}
             {applicationQuestions.map((section, index) => {
               const sectionQuestions = section.questions || [];
               const rootQuestions = sectionQuestions.filter(q => !q.parentQuestionId);
@@ -1160,14 +1187,14 @@ const ApplicationForm = () => {
               return (
                 <div 
                   key={section.id} 
-                  className={`section-nav-item ${index === currentSection ? 'active' : ''}`}
+                  className={`section-nav__item ${index === currentSection ? 'section-nav__item--active' : ''}`}
                   onClick={() => navigateToSection(index)}
                   style={{ cursor: 'pointer' }}
                 >
-                  <span className="section-title">
+                  <span className="section-nav__title">
                     {index + 1}. {section.title}
                   </span>
-                  <span className="section-progress">
+                  <span className="section-nav__progress">
                     {completedCount} / {totalCount}
                   </span>
                 </div>
@@ -1176,15 +1203,42 @@ const ApplicationForm = () => {
             </div>
 
           <div className="application-form">
+            {/* Show intro content when on intro tab */}
+            {currentSection === -1 ? (
+              <div className="application-form__intro-tab">
+                <div className="application-form__intro-tab-content">
+                  <h2 className="application-form__intro-tab-title">WELCOME TO YOUR AI-NATIVE APPLICATION!</h2>
+                  <div className="application-form__intro-tab-description">
+                    <p className="first-paragraph"><strong>The goal of this program is to train AI-natives. It's about approaching problems using AI first, knowing how to engage with it effectively, and being comfortable adapting as the technology evolves.</strong></p>
+
+                    <p><strong>No coding experience is required.</strong></p>
+                    
+                    <p>If you're open to learning, excited by new ideas, and eager to explore the potential of AI, this program is for you.</p>
+                    
+                    <p>We highly encourage communities underrepresented in tech and those without college degrees to apply.</p>
+                  </div>
+                  
+                  <div className="application-form__intro-tab-actions">
+                    <button 
+                      onClick={handleBeginApplication}
+                      className="application-form__intro-button"
+                      type="button"
+                    >
+                      Begin Application
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
             <form onSubmit={handleSubmit}>
-            <div className="application-form-section">
-                <h2 className="application-section-title">
+              <div className="application-form__form-section">
+                  <h2 className="application-form__form-section-title">
                   {(() => {
                     const questionInfo = getCurrentQuestionInfo();
                     return (
                       <>
                         {questionInfo.sectionName}
-                        <span className="question-counter">
+                          <span className="application-form__question-counter">
                           Question {questionInfo.questionNumber} of {questionInfo.totalInSection}
                         </span>
                       </>
@@ -1204,15 +1258,15 @@ const ApplicationForm = () => {
                       {/* Root Question */}
                       {currentQuestionGroup.rootQuestion.type === 'info' ? (
                         // Special handling for info cards - no labels or form structure
-                        <div key={currentQuestionGroup.rootQuestion.id} className="application-question-group info-question">
+                        <div key={currentQuestionGroup.rootQuestion.id} className="application-form__question-group application-form__question-group--info">
                           {renderQuestion(currentQuestionGroup.rootQuestion)}
                         </div>
                       ) : (
                         <div 
                           key={currentQuestionGroup.rootQuestion.id} 
-                          className="application-question-group root-question"
+                          className="application-form__question-group application-form__question-group--root"
                         >
-                          <label htmlFor={currentQuestionGroup.rootQuestion.id} className="application-question-label">
+                          <label htmlFor={currentQuestionGroup.rootQuestion.id} className="application-form__question-label">
                             {currentQuestionGroup.rootQuestion.label}
                             {currentQuestionGroup.rootQuestion.link && (
                               <a href={currentQuestionGroup.rootQuestion.link.url} target="_blank" rel="noopener noreferrer">
@@ -1220,14 +1274,14 @@ const ApplicationForm = () => {
                               </a>
                             )}
                             {currentQuestionGroup.rootQuestion.required ? (
-                              <span className="application-required">*</span>
+                              <span className="application-form__question-required">*</span>
                             ) : (
-                              <span className="application-optional">(optional)</span>
+                              <span className="application-form__question-optional">(optional)</span>
                             )}
                           </label>
                           {renderQuestion(currentQuestionGroup.rootQuestion)}
                           {showValidation && validationErrors[currentQuestionGroup.rootQuestion.id] && (
-                            <div className="application-validation-error">
+                            <div className="application-form__validation-error">
                               {validationErrors[currentQuestionGroup.rootQuestion.id]}
                             </div>
                           )}
@@ -1238,15 +1292,15 @@ const ApplicationForm = () => {
                       {currentQuestionGroup.conditionalQuestions.map((question) => (
                         question.type === 'info' ? (
                           // Special handling for info cards - no labels or form structure
-                          <div key={question.id} className="application-question-group info-question">
+                          <div key={question.id} className="application-form__question-group application-form__question-group--info">
                             {renderQuestion(question)}
                           </div>
                         ) : (
                           <div 
                             key={question.id} 
-                            className="application-question-group conditional-question"
+                            className="application-form__question-group application-form__question-group--conditional"
                           >
-                            <label htmlFor={question.id} className="application-question-label">
+                            <label htmlFor={question.id} className="application-form__question-label">
                               {question.label}
                               {question.link && (
                                 <a href={question.link.url} target="_blank" rel="noopener noreferrer">
@@ -1254,14 +1308,14 @@ const ApplicationForm = () => {
                                 </a>
                               )}
                               {question.required ? (
-                                <span className="application-required">*</span>
+                                <span className="application-form__question-required">*</span>
                               ) : (
-                                <span className="application-optional">(optional)</span>
+                                <span className="application-form__question-optional">(optional)</span>
                               )}
                             </label>
                             {renderQuestion(question)}
                             {showValidation && validationErrors[question.id] && (
-                              <div className="application-validation-error">
+                              <div className="application-form__validation-error">
                                 {validationErrors[question.id]}
                               </div>
                             )}
@@ -1274,12 +1328,12 @@ const ApplicationForm = () => {
               </div>
               
               {/* Navigation */}
-              <div className="application-navigation">
+              <div className="application-form__navigation">
                 {getCurrentQuestionGlobalIndex() > 0 && (
                   <button
                     type="button"
                     onClick={handlePrevious}
-                    className="application-nav-button application-nav-previous"
+                    className="application-form__nav-button application-form__nav-button--previous"
                   >
                     Previous
                   </button>
@@ -1289,7 +1343,7 @@ const ApplicationForm = () => {
                   <button
                     type="button"
                     onClick={handleNext}
-                    className="application-nav-button application-nav-next"
+                    className="application-form__nav-button application-form__nav-button--next"
                   >
                     Next
                   </button>
@@ -1297,13 +1351,14 @@ const ApplicationForm = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="application-nav-button application-nav-next"
+                    className="application-form__nav-button application-form__nav-button--next"
                   >
                     {isSubmitting ? 'Submitting...' : 'Submit Application'}
                   </button>
                 )}
             </div>
           </form>
+            )}
           </div>
         </div>
       </div>

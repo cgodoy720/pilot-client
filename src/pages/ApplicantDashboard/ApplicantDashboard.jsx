@@ -408,11 +408,11 @@ function ApplicantDashboard() {
     if (!sessionDetails) return null;
     return (
       <div className="session-details">
-        <div className="session-details-icon">📅</div>
-        <div className="session-details-content">
-          <div className="session-date">{sessionDetails.date}</div>
-          <div className="session-time">{sessionDetails.time}</div>
-          <div className="session-location">{sessionDetails.location}</div>
+        <div className="session-details__icon">📅</div>
+        <div className="session-details__content">
+          <div className="session-details__date">{sessionDetails.date}</div>
+          <div className="session-details__time">{sessionDetails.time}</div>
+          <div className="session-details__location">{sessionDetails.location}</div>
         </div>
       </div>
     );
@@ -504,13 +504,13 @@ function ApplicantDashboard() {
   };
 
   if (!user) {
-    return <div className="loading">Loading...</div>;
+    return <div className="admissions-dashboard__loading">Loading...</div>;
   }
 
   if (isLoading) {
     return (
       <div className="admissions-dashboard">
-        <div className="loading">Loading your dashboard...</div>
+        <div className="admissions-dashboard__loading">Loading your dashboard...</div>
       </div>
     );
   }
@@ -518,32 +518,32 @@ function ApplicantDashboard() {
   return (
     <div className="admissions-dashboard">
       {/* Top Bar */}
-      <div className="admissions-topbar">
-        <div className="admissions-topbar-left">
-          <div className="admissions-logo-section">
+      <div className="admissions-dashboard__topbar">
+        <div className="admissions-dashboard__topbar-left">
+          <div className="admissions-dashboard__logo-section">
             <Link to="/apply">
-              <img src={pursuitLogo} alt="Pursuit Logo" className="admissions-logo" />
+              <img src={pursuitLogo} alt="Pursuit Logo" className="admissions-dashboard__logo" />
             </Link>
-            <span className="admissions-logo-text">PURSUIT</span>
+            <span className="admissions-dashboard__logo-text">PURSUIT</span>
           </div>
-          <div className="welcome-text">
+          <div className="admissions-dashboard__welcome-text">
             Welcome, {user.firstName || user.first_name}!
           </div>
         </div>
-        <div className="admissions-topbar-right">
-          <Link to="/apply" className="nav-link active">Apply</Link>
+        <div className="admissions-dashboard__topbar-right">
+          <Link to="/apply" className="nav-link nav-link--active">Apply</Link>
           <Link to="/program-details" className="nav-link">Details</Link>
           {user.userType === 'builder' && (
             <button 
               onClick={handleBackToMainApp}
-              className="admissions-button-secondary"
+              className="admissions-dashboard__button--secondary"
             >
               Main App
             </button>
           )}
           <button 
             onClick={handleLogout}
-            className="admissions-button-primary"
+            className="admissions-dashboard__button--primary"
           >
             Log Out
           </button>
@@ -551,14 +551,14 @@ function ApplicantDashboard() {
       </div>
 
       {/* Title */}
-      <div className="admissions-title-section">
-        <h1 className="admissions-title">
+      <div className="admissions-dashboard__title-section">
+        <h1 className="admissions-dashboard__title">
           Start your AI-Native journey by completing the following steps.
         </h1>
       </div>
       
       {/* Main Content Layout */}
-      <div className="admissions-content">
+      <div className="admissions-dashboard__content">
         {/* Action Cards */}
         <div className="action-cards">
           {SECTION_CONFIG.map((section, index) => {
@@ -569,54 +569,54 @@ function ApplicantDashboard() {
             const locked = isLocked(section.key, status)
             
             return (
-              <div key={section.key} className={`action-card ${locked ? 'locked' : ''} ${ineligible ? 'ineligible' : ''} ${complete ? 'completed' : ''}`}>
+              <div key={section.key} className={`action-card ${locked ? 'action-card--locked' : ''} ${ineligible ? 'action-card--ineligible' : ''} ${complete ? 'action-card--completed' : ''}`}>
                 {/* Icon and title */}
-                <div className="card-header">
-                  <div className={`card-icon ${complete ? 'complete' : ineligible ? 'ineligible' : locked ? 'locked' : ''}`}>
+                <div className="action-card__header">
+                  <div className={`action-card__icon ${complete ? 'action-card__icon--complete' : ineligible ? 'action-card__icon--ineligible' : locked ? 'action-card__icon--locked' : ''}`}>
                     {complete ? (
                       <span>✔</span>
                     ) : ineligible ? (
                       <span>❌</span>
                     ) : (
-                      <span className="card-number">
+                      <span className="action-card__number">
                         {index + 1}
                       </span>
                     )}
                   </div>
-                  <div className="card-title">{section.label}</div>
-                  <div className="card-description">{section.description}</div>
+                  <div className="action-card__title">{section.label}</div>
+                  <div className="action-card__description">{section.description}</div>
                 </div>
                 
                 {/* Details section */}
-                <div className="card-details">
+                <div className="action-card__details">
                   {/* Ineligible state message */}
                   {section.key === 'application' && ineligible && (
-                    <div className="ineligible-message">
+                    <div className="action-card__ineligible-message">
                       You do not meet our current eligibility requirements.
                     </div>
                   )}
                   
                   {/* Locked state message for workshop */}
                   {section.key === 'workshop' && locked && (
-                    <div className="locked-message">
+                    <div className="action-card__locked-message">
                       Workshop sign-up will be available after your application is reviewed and you are invited to the next stage.
                     </div>
                   )}
                   
                   {/* Locked state message for pledge */}
                   {section.key === 'pledge' && locked && (
-                    <div className="locked-message">
+                    <div className="action-card__locked-message">
                       Pledge will be available after completing the workshop.
                     </div>
                   )}
 
                   {section.key === 'application' && status === 'in process' && (
-                    <div className="session-details-container">
+                    <div className="session-details__container">
                       <div className="session-details">
-                        <div className="session-details-icon">💾</div>
-                        <div className="session-details-content">
-                          <div className="session-date">Progress Saved</div>
-                          <div className="session-time">{getApplicationProgressText()}</div>
+                        <div className="session-details__icon">💾</div>
+                        <div className="session-details__content">
+                          <div className="session-details__date">Progress Saved</div>
+                          <div className="session-details__time">{getApplicationProgressText()}</div>
                         </div>
                       </div>
                     </div>
@@ -624,19 +624,19 @@ function ApplicantDashboard() {
                   
 
                   {section.key === 'infoSession' && status === 'signed-up' && sessionDetails && (
-                    <div className="session-details-container">
+                    <div className="session-details__container">
                       {getSessionDetailsText()}
                     </div>
                   )}
                   
                   {section.key === 'workshop' && status === 'signed-up' && workshopDetails && (
-                    <div className="session-details-container">
+                    <div className="session-details__container">
                       <div className="session-details">
-                        <div className="session-details-icon">📅</div>
-                        <div className="session-details-content">
-                          <div className="session-date">{workshopDetails.date}</div>
-                          <div className="session-time">{workshopDetails.time}</div>
-                          <div className="session-location">{workshopDetails.location}</div>
+                        <div className="session-details__icon">📅</div>
+                        <div className="session-details__content">
+                          <div className="session-details__date">{workshopDetails.date}</div>
+                          <div className="session-details__time">{workshopDetails.time}</div>
+                          <div className="session-details__location">{workshopDetails.location}</div>
                         </div>
                       </div>
                     </div>
@@ -644,7 +644,7 @@ function ApplicantDashboard() {
                 </div>
                 
                 {/* Button */}
-                <div className="card-button-container">
+                <div className="action-card__button-container">
                   {ineligible && section.key === 'application' ? (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                       <div style={{ 
@@ -688,7 +688,7 @@ function ApplicantDashboard() {
                             section.key === 'workshop' ? '/workshops' :
                             section.key === 'application' ? '/application-form' : 
                             section.key === 'pledge' ? '/pledge' : '#'} 
-                          className="card-button-link">
+                          className="action-card__button-link">
                       <button
                         style={getButtonStyle(enabled)}
                         disabled={!enabled}
