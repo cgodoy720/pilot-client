@@ -1,0 +1,1103 @@
+/* Use same dashboard structure */
+.admissions-dashboard {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 100vh;
+    width: 100vw;
+    background: var(--color-background-dark);
+    color: var(--color-text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+/* Top Bar - Same as Dashboard */
+.admissions-dashboard__topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2vw;
+    background: var(--color-background-dark);
+    width: 100vw;
+    box-sizing: border-box;
+}
+
+.admissions-dashboard__topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    min-width: 0;
+}
+
+.admissions-dashboard__logo-section {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.admissions-dashboard__logo {
+    height: 48px;
+    width: 48px;
+    object-fit: contain;
+    background: transparent;
+    display: block;
+    margin: 0 auto;
+    cursor: pointer;
+}
+
+.admissions-dashboard__logo-text {
+    font-weight: 700;
+    font-size: 2rem;
+    color: #fff;
+    margin-left: 0.5rem;
+    letter-spacing: 0.02em;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.admissions-dashboard__welcome-text {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-left: 2rem;
+}
+
+.admissions-dashboard__topbar-right {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.admissions-dashboard__button--primary {
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.2s;
+}
+
+.admissions-dashboard__button--primary:hover {
+    background: #ff6b35;
+}
+
+.admissions-dashboard__button--secondary {
+    background: transparent;
+    color: var(--color-text-primary);
+    border: 2px solid var(--color-primary);
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.admissions-dashboard__button--secondary:hover {
+    background: var(--color-primary);
+    color: #fff;
+}
+
+/* Title Section - Same as Dashboard */
+.admissions-dashboard__title-section {
+    width: 100vw;
+    text-align: left;
+    padding: 1.5rem 0 0 2vw;
+}
+
+.admissions-dashboard__title {
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: .035rem;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.1;
+    width: 40%;
+    max-width: 40vw;
+}
+
+/* Intro Screen Styles */
+.application-form__intro {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 200px);
+    padding: 2rem;
+}
+
+.application-form__intro-content {
+    max-width: 800px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 3rem;
+}
+
+.application-form__intro-description {
+    margin-bottom: 3rem;
+    text-align: left;
+}
+
+.application-form__intro-description p {
+    font-size: 1.2rem;
+    line-height: 1.6;
+    color: #ffffff;
+    margin-bottom: 1.5rem;
+}
+
+.application-form__intro-description .first-paragraph {
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.application-form__intro-actions {
+    text-align: center;
+}
+
+.application-form__intro-button {
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    transition: background-color 0.2s ease;
+    background-color: var(--color-primary);
+    color: #ffffff;
+}
+
+.application-form__intro-button:hover {
+    background-color: #ff6b35;
+}
+
+/* Intro Tab Styles - Match Form Section Styling */
+.application-form__intro-tab {
+    background: #1a1a1a;
+    border-radius: 24px;
+    padding: 2rem 1.5rem;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    position: relative;
+    overflow: visible;
+}
+
+.application-form__intro-tab::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 24px;
+    padding: 2px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: xor;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    z-index: -1;
+}
+
+.application-form__intro-tab-content {
+    width: 100%;
+    background-color: transparent;
+    padding: 0;
+}
+
+.application-form__intro-tab-title {
+    font-size: 1.7rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.application-form__intro-tab-description {
+    margin-bottom: 1.5rem;
+    text-align: left;
+}
+
+.application-form__intro-tab-description p {
+    font-size: 1.15rem;
+    line-height: 1.6;
+    color: #ffffff;
+    margin-bottom: 1rem;
+}
+
+.application-form__intro-tab-description .first-paragraph {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.application-form__intro-tab-actions {
+    margin-top: 1.5rem;
+}
+
+/* Main Content - Single Column Layout */
+.application-form__main {
+    display: flex;
+    justify-content: center;
+    width: 100vw;
+    box-sizing: border-box;
+    padding: 2rem 0;
+}
+
+/* Info Card Styling */
+.application-form__info-card {
+    background: rgba(76, 81, 191, 0.1);
+    border: 2px solid rgba(76, 81, 191, 0.3);
+    border-radius: 16px;
+    padding: 2rem;
+    margin: 1rem 0;
+    font-family: inherit;
+}
+
+.application-form__info-card-content {
+    color: var(--color-text-primary);
+    line-height: 1.6;
+    text-align: left;
+}
+
+.application-form__info-card-content p {
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.application-form__info-card-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* Special styling for info question containers */
+.application-form__question-group--info {
+    margin: 0;
+    padding: 0;
+}
+
+.application-form__question-group--info .application-form__info-card {
+    margin: 0 0 1.5rem 0;
+}
+
+.application-form__notice {
+    background-color: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.application-form__notice p {
+    color: #fbbf24;
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.application-form__back-section {
+    margin-top: auto;
+}
+
+.application-form__back-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: transparent;
+    color: #64748b;
+    border: none;
+    padding: 0.5rem 0;
+    font-size: 0.875rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.application-form__back-button:hover {
+    color: #ffffff;
+}
+
+.application-form__back-button span {
+    font-size: 1rem;
+}
+
+/* Form Content - Full Width */
+.application-form__column {
+    width: 100%;
+    max-width: 900px;
+    padding: 0 2rem;
+    background-color: var(--color-background-dark);
+    box-sizing: border-box;
+}
+
+/* Progress Section */
+.application-form__progress-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.application-form__progress-title {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #ffffff;
+    margin: 0;
+}
+
+.application-form__progress-text {
+    font-size: 1rem;
+    font-weight: 400;
+    color: #64748b;
+}
+
+/* Progress Bar */
+.application-form__progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: #475569;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.application-form__progress-fill {
+    height: 100%;
+    background-color: var(--color-primary);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* Session Info */
+.application-form__session-info {
+    margin-bottom: 2rem;
+    padding: 0.25rem 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.application-form__session-info small {
+    color: #64748b;
+}
+
+/* Form Section */
+.application-form {
+    width: 100%;
+}
+
+.application-form__section {
+    background-color: transparent;
+}
+
+.application-form__section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0 0 1.5rem 0;
+    line-height: 1.3;
+}
+
+/* Question Groups */
+.application-form__question-group {
+    margin-bottom: 1.5rem;
+    text-align: left;
+}
+
+/* Conditional question styling */
+.application-form__question-group--conditional {
+  margin-top: 32px;
+  margin-bottom: 24px;
+  padding: 20px;
+  padding-left: 24px;
+  border-left: 3px solid var(--color-primary);
+  background: var(--color-background-darker);
+  border-radius: 0 8px 8px 0;
+  position: relative;
+}
+
+.application-form__question-group--conditional .application-form__question-label {
+  font-size: 0.95em;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.application-form__question-group--root {
+  margin-bottom: 0;
+}
+
+/* Ensure conditional questions animate in smoothly */
+.application-form__question-group--conditional {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.application-form__question-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #ffffff;
+    font-size: 1.1rem;
+    font-weight: 500;
+    line-height: 1.4;
+    text-align: left;
+}
+
+.application-form__question-label a {
+    color: var(--color-primary);
+    text-decoration: none;
+    margin-left: 0.5rem;
+}
+
+.application-form__question-label a:hover {
+    text-decoration: underline;
+}
+
+.application-form__question-required {
+    color: var(--color-primary);
+    margin-left: 0.25rem;
+    font-weight: 600;
+}
+
+.application-form__question-optional {
+    color: rgba(255, 255, 255, 0.6);
+    margin-left: 0.25rem;
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.application-form__validation-error {
+    color: #ff4444;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    padding: 0.25rem 0;
+    text-align: left;
+    animation: fadeInError 0.3s ease-in;
+}
+
+@keyframes fadeInError {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Input Styling */
+.application-form__input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    font-size: 1rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.application-form__input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+}
+
+.application-form__input--error {
+    border-color: #ff4444 !important;
+    box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.1) !important;
+    animation: pulseError 0.5s ease-in-out;
+}
+
+@keyframes pulseError {
+    0% {
+        box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.1);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(255, 68, 68, 0.2);
+    }
+    100% {
+        box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.1);
+    }
+}
+
+.application-form__input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* Textarea specific */
+textarea.application-form__input {
+    resize: vertical;
+    min-height: 120px;
+}
+
+/* Long text input styling for essay questions */
+.application-form__long-text-container {
+  width: 100%;
+}
+
+textarea.application-form__long-text-input {
+    min-height: 450px;
+    padding: 1.5rem;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    background-color: rgba(255, 255, 255, 0.08);
+    transition: all 0.3s ease;
+}
+
+textarea.application-form__long-text-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.15);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+textarea.application-form__long-text-input::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+    font-style: italic;
+}
+
+/* Enhanced styling for single long-text question pages */
+.application-form__section .application-form__question-group:only-child {
+    margin-bottom: 3rem;
+}
+
+.application-form__section .application-form__question-group:only-child .application-form__question-label {
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.application-form__section .application-form__question-group:only-child .application-form__long-text-input {
+    min-height: 550px;
+}
+
+/* Character counter for long text */
+.application-form__long-text-counter {
+    text-align: right;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 0.5rem;
+}
+
+.application-form__long-text-counter--warning {
+    color: #fbbf24;
+}
+
+.application-form__long-text-counter--danger {
+    color: #ff4444;
+}
+
+/* Select dropdown styling */
+select.application-form__input {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+    appearance: none;
+}
+
+select.application-form__input:focus {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23ff6b35' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+}
+
+/* Disabled placeholder option styling */
+select.application-form__input option:disabled {
+    color: rgba(255, 255, 255, 0.5);
+    font-style: italic;
+}
+
+/* Radio Button Groups */
+.application-form__radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.application-form__radio-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #fff;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+}
+
+.application-form__radio-option:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.application-form__radio-option input[type="radio"] {
+    margin: 0;
+    accent-color: var(--color-primary);
+}
+
+/* Checkbox Groups */
+.application-form__checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.application-form__checkbox-group--error {
+    border: 2px solid #ef4444;
+    border-radius: 8px;
+    padding: 0.75rem;
+    background-color: rgba(239, 68, 68, 0.05);
+    animation: pulseError 0.5s ease-in-out;
+}
+
+.application-form__checkbox-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #fff;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+}
+
+.application-form__checkbox-option:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.application-form__checkbox-option input[type="checkbox"] {
+    margin: 0;
+    accent-color: var(--color-primary);
+}
+
+/* Navigation Buttons */
+.application-form__navigation {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.application-form__nav-button {
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    transition: background-color 0.2s ease;
+}
+
+.application-form__nav-button--intro {
+    background-color: #6366f1;
+    color: #ffffff;
+}
+
+.application-form__nav-button--intro:hover {
+    background-color: #4f46e5;
+}
+
+.application-form__nav-button--previous {
+    background-color: #475569;
+    color: #ffffff;
+}
+
+.application-form__nav-button--previous:hover {
+    background-color: #64748b;
+}
+
+.application-form__nav-button--next,
+.application-form__submit-button {
+    background-color: var(--color-primary);
+    color: #ffffff;
+}
+
+.application-form__nav-button--next:hover,
+.application-form__submit-button:hover {
+    background-color: #ff6b35;
+}
+
+.application-form__submit-button:disabled {
+    background-color: #666;
+    cursor: not-allowed;
+}
+
+/* Loading and Error States */
+.application-form__loading-state, .application-form__error-state {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+    text-align: center;
+    padding: 2rem;
+}
+
+.application-form__loading-state h2, .application-form__error-state h2 {
+    color: #fff;
+    margin-bottom: 1rem;
+}
+
+.application-form__loading-state p, .application-form__error-state p {
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 1.5rem;
+}
+
+.application-form__error-state button {
+    background-color: var(--color-primary);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.application-form__error-state button:hover {
+    background-color: #ff6b35;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .application-form__main {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    .application-form__column {
+        width: 100%;
+        padding: 1.5rem;
+    }
+}
+
+@media (max-width: 900px) {
+    .admissions-dashboard__topbar {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .admissions-dashboard__topbar-left {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .admissions-dashboard__welcome-text {
+        margin-left: 0;
+    }
+    
+    .admissions-dashboard__title {
+        font-size: 2.2rem;
+    }
+    
+    .application-form__title {
+        font-size: 1.5rem;
+    }
+    
+    .application-form__description {
+        font-size: 0.8rem;
+    }
+    
+    .application-form__left-column,
+    .application-form__right-column {
+        padding: 1rem;
+    }
+    
+    .application-form__navigation {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .application-form__nav-button {
+        width: 100%;
+    }
+}
+
+/* Section Navigation - Legacy styles removed, using newer styles below */
+
+.section-nav__item--has-errors {
+    border-left: 3px solid #ef4444;
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+.section-nav__item--has-errors.section-nav__item--active {
+    border-left: 3px solid #ef4444;
+    background-color: rgba(239, 68, 68, 0.2);
+}
+
+.section-nav__warning-indicator {
+    color: #ef4444;
+    font-weight: bold;
+    margin-left: 0.5rem;
+    background-color: #ef4444;
+    color: white;
+    border-radius: 50%;
+    width: 1.2rem;
+    height: 1.2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+}
+
+.section-nav__item:hover {
+    color: #fff;
+}
+
+.section-nav__item--has-errors:hover {
+    background-color: rgba(239, 68, 68, 0.15);
+}
+
+/* Validation error styling */
+.application-form__validation-error {
+    color: #ef4444;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    padding: 0.25rem 0;
+    text-align: left;
+    animation: fadeInError 0.3s ease-in;
+    font-weight: 500;
+}
+
+/* Enhanced error input styling */
+.application-form__input--error {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+    animation: pulseError 0.5s ease-in-out;
+}
+
+.application-form__checkbox-group--error {
+    border: 2px solid #ef4444;
+    border-radius: 8px;
+    padding: 0.75rem;
+    background-color: rgba(239, 68, 68, 0.05);
+    animation: pulseError 0.5s ease-in-out;
+}
+
+.application-form__question-indicator {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 400;
+}
+
+.application-form__question-counter {
+    font-size: 1rem;
+    font-weight: 400;
+    color: #64748b;
+    margin-left: 1rem;
+}
+
+/* Sections bar styling - match app's theme */
+.section-nav {
+  background: transparent;
+  padding: 0;
+  margin-bottom: 24px;
+  border-radius: 0;
+  border: none;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 3px;
+  width: 100%;
+  justify-content: center;
+}
+
+/* Section title styling */
+.section-nav__title {
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: left;
+}
+
+/* Section progress counter styling */
+.section-nav__progress {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+  font-weight: normal;
+  flex-shrink: 0;
+  white-space: nowrap;
+  opacity: 0.8;
+  text-align: left;
+  width: 100%;
+}
+
+.section-nav__item {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 10px 16px;
+  margin: 4px 0;
+  border-radius: 8px;
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  min-width: 200px;
+  flex: 1;
+  min-height: 50px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.section-nav__item:hover:not(.section-nav__item--active) {
+  background: var(--color-background-medium);
+  border-color: var(--color-primary);
+  color: var(--color-text-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.section-nav__item--active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  padding: 10px 16px;
+  margin: 4px 0;
+}
+
+.section-nav__item--active .section-nav__progress {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Question card styling - match dashboard cards (no interactive effects) */
+.application-form__form-section {
+  background: #1a1a1a;
+  border-radius: 24px;
+  padding: 2rem 1.5rem;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  position: relative;
+  overflow: visible;
+}
+
+.application-form__form-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 24px;
+  padding: 2px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  z-index: -1;
+}
+
+.application-form__form-section-title {
+  font-size: 1.7rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.application-form__question-counter {
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+/* Keep original progress bar styling */
+.application-form__progress-section {
+  margin-bottom: 1rem;
+}
+
+.application-form__progress-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #2c3e50;
+}
+
+.application-form__progress-text {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin-bottom: 0.5rem;
+}
+
+.application-form__progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.application-form__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #007bff 0%, #0056b3 100%);
+  transition: width 0.3s ease;
+}
+
+@media (max-width: 600px) {
+    .admissions-dashboard__logo-text {
+        font-size: 1.5rem;
+    }
+    
+    .admissions-dashboard__welcome-text {
+        font-size: 1.1rem;
+    }
+    
+    .admissions-dashboard__title {
+        font-size: 1.8rem;
+    }
+    
+    .application-form__question-counter {
+        display: block;
+        margin-left: 0;
+        margin-top: 0.5rem;
+        font-size: 0.95rem;
+    }
+    
+    .section-nav__item {
+        font-size: 0.8rem;
+        padding: 0.4rem 0;
+    }
+    
+    .section-nav__item--active {
+        padding: 0.5rem;
+    }
+}

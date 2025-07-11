@@ -478,7 +478,7 @@
 .learning__tasks-list::-webkit-scrollbar,
 .learning__quick-replies-list::-webkit-scrollbar,
 .learning__input::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .learning__messages::-webkit-scrollbar-track,
@@ -486,7 +486,7 @@
 .learning__quick-replies-list::-webkit-scrollbar-track,
 .learning__input::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.1);
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 .learning__messages::-webkit-scrollbar-thumb,
@@ -494,7 +494,7 @@
 .learning__quick-replies-list::-webkit-scrollbar-thumb,
 .learning__input::-webkit-scrollbar-thumb {
   background-color: var(--color-primary, #4242ea);
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 .learning__messages::-webkit-scrollbar-thumb:hover,
@@ -502,6 +502,12 @@
 .learning__quick-replies-list::-webkit-scrollbar-thumb:hover,
 .learning__input::-webkit-scrollbar-thumb:hover {
   background-color: var(--color-primary-hover, #5555ff);
+}
+
+/* Force scrollbars to always be visible */
+.learning__messages,
+.learning__tasks-list {
+  overflow-y: scroll;
 }
 
 /* Firefox scrollbar styling */

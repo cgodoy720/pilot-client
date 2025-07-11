@@ -7,9 +7,11 @@ import Calendar from './pages/Calendar/Calendar';
 import Learning from './pages/Learning/Learning';
 import PastSession from './pages/PastSession/PastSession';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
+import SessionDataTester from './pages/SessionDataTester';
 import Stats from './pages/Stats';
 import Account from './pages/Account/Account';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
+
 import { useAuth } from './context/AuthContext';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import './App.css';
@@ -116,27 +118,61 @@ function App() {
 
   return (
     <>
-      <Layout>
-        <Routes>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/gpt" element={<GPT />} />
-          <Route path="/calendar" element={<Calendar />} />
-          <Route path="/learning" element={
+      <Routes>
+        {/* Builder routes (with layout) */}
+        <Route path="/dashboard" element={
+          <Layout>
+            <Dashboard />
+          </Layout>
+        } />
+        <Route path="/gpt" element={
+          <Layout>
+            <GPT />
+          </Layout>
+        } />
+        <Route path="/calendar" element={
+          <Layout>
+            <Calendar />
+          </Layout>
+        } />
+        <Route path="/learning" element={
+          <Layout>
             <ActiveUserRoute>
               <Learning />
             </ActiveUserRoute>
-          } />
-          <Route path="/past-session" element={<PastSession />} />
-          <Route path="/admin-dashboard" element={
+          </Layout>
+        } />
+        <Route path="/past-session" element={
+          <Layout>
+            <PastSession />
+          </Layout>
+        } />
+        <Route path="/admin-dashboard" element={
+          <Layout>
             <AdminRoute>
               <AdminDashboard />
             </AdminRoute>
-          } />
-          <Route path="/stats" element={<Stats />} />
-          <Route path="/account" element={<Account />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </Layout>
+          </Layout>
+        } />
+        <Route path="/session-data-tester" element={
+          <Layout>
+            <AdminRoute>
+              <SessionDataTester />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/stats" element={
+          <Layout>
+            <Stats />
+          </Layout>
+        } />
+        <Route path="/account" element={
+          <Layout>
+            <Account />
+          </Layout>
+        } />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
       
       {/* Global Auth Error Modal */}
       <ExpiredTokenModal

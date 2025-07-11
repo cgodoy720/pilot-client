@@ -10,6 +10,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import SchoolIcon from '@mui/icons-material/School';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import BugReportIcon from '@mui/icons-material/BugReport';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import PersonIcon from '@mui/icons-material/Person';
 import { useAuth } from '../../context/AuthContext';
@@ -96,10 +97,16 @@ const Layout = ({ children }) => {
           </Link>
           
           {isAdmin && (
-            <Link to="/admin-dashboard" className={`layout__nav-item ${location.pathname === '/admin-dashboard' ? 'layout__nav-item--active' : ''}`}>
-              <AdminPanelSettingsIcon className="layout__nav-icon" />
-              {isExpanded && <span className="layout__nav-text">Admin Dashboard</span>}
-            </Link>
+            <>
+              <Link to="/admin-dashboard" className={`layout__nav-item ${location.pathname === '/admin-dashboard' ? 'layout__nav-item--active' : ''}`}>
+                <AdminPanelSettingsIcon className="layout__nav-icon" />
+                {isExpanded && <span className="layout__nav-text">Admin Dashboard</span>}
+              </Link>
+              <Link to="/session-data-tester" className={`layout__nav-item ${location.pathname === '/session-data-tester' ? 'layout__nav-item--active' : ''}`}>
+                <BugReportIcon className="layout__nav-icon" />
+                {isExpanded && <span className="layout__nav-text">Session Data Tester</span>}
+              </Link>
+            </>
           )}
         </div>
 

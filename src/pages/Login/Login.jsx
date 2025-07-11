@@ -12,7 +12,7 @@ const Login = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [needsVerification, setNeedsVerification] = useState(false);
   const navigate = useNavigate();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, setAuthState } = useAuth();
 
   // Redirect if already authenticated
   if (isAuthenticated) {
@@ -30,7 +30,20 @@ const Login = () => {
       const result = await login(email, password);
       
       if (result.success) {
-        navigate('/dashboard');
+        // Use the redirectTo from unified auth response
+        const redirectPath = result.redirectTo || '/dashboard';
+        
+        // For builder users, the AuthContext will handle the state
+        // For applicants, we redirect but don't set AuthContext state
+        if (result.userType === 'builder') {
+          navigate(redirectPath);
+        } else if (result.userType === 'applicant') {
+          // Redirect to applicant dashboard
+          navigate(redirectPath);
+        } else {
+          // Fallback to dashboard
+          navigate('/dashboard');
+        }
       } else {
         // Check if the error is related to email verification
         if (result.needsVerification) {
