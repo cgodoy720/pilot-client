@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useNavigate, Link } from 'react-router-dom';
 import pursuitLogo from '../../assets/logo.png';
+import { getEasternTimeParts, formatInEasternTime } from '../../utils/dateHelpers';
 import './Workshops.css';
 
 // TEMP: Replace with real user/admin logic
@@ -159,8 +160,9 @@ const Workshops = () => {
 
             // SUCCESS - Show success status
             const event = events.find(e => e.event_id === eventId);
-            const eventDate = format(new Date(event.start_time), 'MMMM d, yyyy');
-            const eventTime = format(new Date(event.start_time), 'h:mm a');
+            const easternEventTime = getEasternTimeParts(event.start_time);
+            const eventDate = format(easternEventTime, 'MMMM d, yyyy');
+            const eventTime = formatInEasternTime(event.start_time, 'time');
             
             setRegistrationStatus('success');
             setStatusMessage(`You're registered for the Workshop on ${eventDate} at ${eventTime}!`);
@@ -421,11 +423,15 @@ const Workshops = () => {
                                 const isRegistered = isUserRegistered(event);
                                 const isFull = (event.registered_count || 0) >= event.capacity;
                                 const registration = getUserRegistration(event);
-                                const eventDate = new Date(event.start_time);
-                                const month = format(eventDate, 'MMMM');
-                                const day = format(eventDate, 'd');
-                                const dayOfWeek = format(eventDate, 'EEEE');
-                                const timeRange = `${format(eventDate, 'h:mm a')} - ${format(new Date(event.end_time), 'h:mm a')}`;
+                                
+                                // Convert UTC times to Eastern Time for display
+                                const easternStartTime = getEasternTimeParts(event.start_time);
+                                const easternEndTime = getEasternTimeParts(event.end_time);
+                                
+                                const month = format(easternStartTime, 'MMMM');
+                                const day = format(easternStartTime, 'd');
+                                const dayOfWeek = format(easternStartTime, 'EEEE');
+                                const timeRange = `${formatInEasternTime(event.start_time, 'time')} - ${formatInEasternTime(event.end_time, 'time')}`;
                                 return (
                                     <div 
                                         key={event.event_id} 
