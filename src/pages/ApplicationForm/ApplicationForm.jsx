@@ -1163,8 +1163,7 @@ const ApplicationForm = () => {
       <div className="admissions-dashboard__topbar">
         <div className="admissions-dashboard__topbar-left">
           <div className="admissions-dashboard__logo-section">
-            <img src="/logo.png" alt="Pursuit Logo" className="admissions-dashboard__logo" />
-            <span className="admissions-dashboard__logo-text">Pursuit</span>
+            <img src="/logo-full.png" alt="Pursuit Logo" className="admissions-dashboard__logo-full" />
           </div>
           {currentSession && (
           <div className="admissions-dashboard__welcome-text">

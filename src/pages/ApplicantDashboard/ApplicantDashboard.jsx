@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import pursuitLogo from '../../assets/logo.png';
+import pursuitLogoFull from '../../assets/logo-full.png';
 import databaseService from '../../services/databaseService';
 import './ApplicantDashboard.css';
 
@@ -540,9 +540,8 @@ function ApplicantDashboard() {
         <div className="admissions-dashboard__topbar-left">
           <div className="admissions-dashboard__logo-section">
             <Link to="/apply">
-              <img src={pursuitLogo} alt="Pursuit Logo" className="admissions-dashboard__logo" />
+              <img src={pursuitLogoFull} alt="Pursuit Logo" className="admissions-dashboard__logo-full" />
             </Link>
-            <span className="admissions-dashboard__logo-text">PURSUIT</span>
           </div>
           <div className="admissions-dashboard__welcome-text">
             Welcome, {user.firstName || user.first_name}!

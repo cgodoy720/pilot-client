@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useNavigate, Link } from 'react-router-dom';
-import pursuitLogo from '../../assets/logo.png';
+import pursuitLogoFull from '../../assets/logo-full.png';
 import { getEasternTimeParts, formatInEasternTime } from '../../utils/dateHelpers';
 import './Workshops.css';
 
@@ -363,12 +363,11 @@ const Workshops = () => {
             {/* Top Bar */}
             <div className="admissions-dashboard__topbar">
                 <div className="admissions-dashboard__topbar-left">
-                    <div className="admissions-dashboard__logo-section">
-                        <Link to="/apply">
-                            <img src={pursuitLogo} alt="Pursuit Logo" className="admissions-dashboard__logo" />
-                        </Link>
-                        <span className="admissions-dashboard__logo-text">PURSUIT</span>
-                    </div>
+                            <div className="admissions-dashboard__logo-section">
+          <Link to="/apply">
+            <img src={pursuitLogoFull} alt="Pursuit Logo" className="admissions-dashboard__logo-full" />
+          </Link>
+        </div>
                     <div className="admissions-dashboard__welcome-text">
                         Welcome, {user?.firstName || 'John'}!
                     </div>
