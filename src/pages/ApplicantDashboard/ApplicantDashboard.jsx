@@ -183,10 +183,18 @@ function ApplicantDashboard() {
       }
       
       if (foundRegistration && registeredEvent) {
-        const eventDate = new Date(registeredEvent.start_time);
+        // Treat database time as Eastern Time (extract UTC components and use as Eastern)
+        const dbDate = new Date(registeredEvent.start_time);
+        const year = dbDate.getUTCFullYear();
+        const month = dbDate.getUTCMonth();
+        const day = dbDate.getUTCDate();
+        const hour = dbDate.getUTCHours();
+        const minute = dbDate.getUTCMinutes();
+        const easternDate = new Date(year, month, day, hour, minute);
+
         const eventDetails = {
-          date: eventDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-          time: eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+          date: easternDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+          time: easternDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
           location: registeredEvent.location
         };
         
@@ -314,10 +322,18 @@ function ApplicantDashboard() {
       }
       
       if (foundRegistration && registeredWorkshop) {
-        const workshopDate = new Date(registeredWorkshop.start_time);
+        // Treat database time as Eastern Time (extract UTC components and use as Eastern)
+        const dbDate = new Date(registeredWorkshop.start_time);
+        const year = dbDate.getUTCFullYear();
+        const month = dbDate.getUTCMonth();
+        const day = dbDate.getUTCDate();
+        const hour = dbDate.getUTCHours();
+        const minute = dbDate.getUTCMinutes();
+        const easternDate = new Date(year, month, day, hour, minute);
+
         const workshopEventDetails = {
-          date: workshopDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-          time: workshopDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+          date: easternDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+          time: easternDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
           location: registeredWorkshop.location
         };
         
