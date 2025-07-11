@@ -65,11 +65,12 @@ export const fetchUserResources = async (token) => {
   return fetchWithAuth('/api/users/resources', { method: 'GET' }, token);
 };
 
-/**
- * Fetch feedback sentiment analysis for the user
- * @param {string} token - User's auth token
- * @returns {Promise} Promise that resolves to sentiment analysis data
+/*
+ * COMMENTED OUT: These functions were for BigQuery endpoints that are no longer used
+ * The frontend now uses external APIs instead
  */
+
+/*
 export const fetchFeedbackSentiment = async (token) => {
   try {
     console.log('Making request to /api/users/feedback-sentiment');
@@ -84,11 +85,6 @@ export const fetchFeedbackSentiment = async (token) => {
   }
 };
 
-/**
- * Fetch task analysis results for the user
- * @param {string} token - User's auth token
- * @returns {Promise} Promise that resolves to task analysis results data
- */
 export const fetchTaskAnalysisResults = async (token) => {
   try {
     console.log('Making request to /api/users/task-analysis');
@@ -103,11 +99,6 @@ export const fetchTaskAnalysisResults = async (token) => {
   }
 };
 
-/**
- * Fetch comprehension data for the user
- * @param {string} token - User's auth token
- * @returns {Promise} Promise that resolves to comprehension data
- */
 export const fetchComprehensionData = async (token) => {
   try {
     console.log('Making request to /api/users/comprehension');
@@ -121,6 +112,7 @@ export const fetchComprehensionData = async (token) => {
     throw error;
   }
 };
+*/
 
 /**
  * Convert a month filter string (YYYY-MM) to start and end dates

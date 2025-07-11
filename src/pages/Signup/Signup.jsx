@@ -5,6 +5,7 @@ import logoFull from '../../assets/logo-full.png';
 import './Signup.css';
 
 const Signup = () => {
+  const [userType, setUserType] = useState(''); // 'builder' or 'applicant'
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -47,10 +48,21 @@ const Signup = () => {
     });
   }, [password, confirmPassword]);
 
+  const handleUserTypeSelect = (type) => {
+    setUserType(type);
+    setError('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccessMessage('');
+    
+    // Check if user type is selected
+    if (!userType) {
+      setError('Please select an account type');
+      return;
+    }
     
     // Check if all password validations pass
     const allValidationsPass = Object.values(passwordValidation).every(value => value);
@@ -63,13 +75,42 @@ const Signup = () => {
     setIsSubmitting(true);
     
     try {
-      const result = await signup(firstName, lastName, email, password);
-      
-      if (result.success) {
-        setRegistrationComplete(true);
-        setSuccessMessage(result.message || 'Account created successfully! Please check your email to verify your account.');
+      let response;
+      let endpoint;
+      let requestBody;
+
+      if (userType === 'builder') {
+        // Create builder account using the existing AuthContext signup
+        const result = await signup(firstName, lastName, email, password);
+        
+        if (result.success) {
+          setRegistrationComplete(true);
+          setSuccessMessage(result.message || 'Builder account created successfully! Please check your email to verify your account.');
+        } else {
+          setError(result.error || 'Failed to create account');
+        }
+        return;
       } else {
-        setError(result.error || 'Failed to create account');
+        // Create applicant account in admissions app
+        endpoint = `${import.meta.env.VITE_API_URL}/api/applications/signup`;
+        requestBody = { firstName, lastName, email, password };
+        
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setRegistrationComplete(true);
+          setSuccessMessage('Applicant account created successfully! You can now log in to access the admissions portal.');
+        } else {
+          setError(data.error || data.message || 'Failed to create account');
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -84,6 +125,53 @@ const Signup = () => {
     return null;
   }
 
+  // User type selection screen
+  if (!userType) {
+    return (
+      <div className="signup-container">
+        <div className="signup-form-container">
+          <div className="signup-logo-container">
+            <img src={logoFull} alt="Pursuit Logo" className="signup-logo" />
+          </div>
+          
+          <div className="signup-headline">
+            <h1>CHOOSE YOUR<br />ACCOUNT TYPE</h1>
+          </div>
+          
+          <div className="user-type-selection">
+            <p className="user-type-description">
+              Select the type of account you'd like to create:
+            </p>
+            
+            <div className="user-type-options">
+              <button 
+                onClick={() => handleUserTypeSelect('applicant')}
+                className="user-type-option"
+              >
+                <div className="user-type-icon">📝</div>
+                <h3>Applicant</h3>
+                <p>For prospective students applying to the AI-Native Program</p>
+              </button>
+              
+              <button 
+                onClick={() => handleUserTypeSelect('builder')}
+                className="user-type-option"
+              >
+                <div className="user-type-icon">🔧</div>
+                <h3>Builder</h3>
+                <p>For current Pursuit students and alumni who want to access the main learning platform</p>
+              </button>
+            </div>
+            
+            <div className="signup-back-to-login">
+              <Link to="/login" className="login-link">Already have an account? Log in</Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="signup-container">
       <div className="signup-form-container">
@@ -92,30 +180,45 @@ const Signup = () => {
         </div>
         
         <div className="signup-headline">
-          <h1>CREATE YOUR<br />BUILDER<br />ACCOUNT</h1>
+          <h1>CREATE YOUR<br />{userType.toUpperCase()}<br />ACCOUNT</h1>
         </div>
         
         {registrationComplete ? (
           <div className="signup-success">
             <p className="signup-success-message">{successMessage}</p>
-            <div className="signup-verification-instructions">
-              <h3>What's next?</h3>
-              <ol>
-                <li>Check your email inbox for a verification message</li>
-                <li>Click the verification link in the email</li>
-                <li>Once verified, you can log into your account</li>
-              </ol>
-              <p>Don't see the email? Check your spam folder or request a new verification link.</p>
-            </div>
+            {userType === 'builder' && (
+              <div className="signup-verification-instructions">
+                <h3>What's next?</h3>
+                <ol>
+                  <li>Check your email inbox for a verification message</li>
+                  <li>Click the verification link in the email</li>
+                  <li>Once verified, you can log into your account</li>
+                </ol>
+                <p>Don't see the email? Check your spam folder or request a new verification link.</p>
+              </div>
+            )}
             <div className="signup-actions">
               <Link to="/login" className="signup-button">Go to Login</Link>
-              <Link to="/resend-verification" className="signup-link">Resend Verification Email</Link>
+              {userType === 'builder' && (
+                <Link to="/resend-verification" className="signup-link">Resend Verification Email</Link>
+              )}
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="signup-form">
             {error && <div className="signup-error">{error}</div>}
             {successMessage && <div className="signup-success-message">{successMessage}</div>}
+            
+            <div className="signup-account-type">
+              <p>Creating a <strong>{userType}</strong> account</p>
+              <button 
+                type="button" 
+                onClick={() => setUserType('')} 
+                className="change-account-type"
+              >
+                Change account type
+              </button>
+            </div>
             
             <div className="signup-input-group">
               <input
@@ -219,6 +322,17 @@ const Signup = () => {
             <div className="signup-links">
               <span>Already have an account?</span>
               <Link to="/login" className="signup-link">Log in</Link>
+            </div>
+            
+            <div className="signup-links">
+              <span>Changed your mind?</span>
+              <button 
+                type="button" 
+                onClick={() => setUserType('')} 
+                className="signup-link change-type-button"
+              >
+                Change account type
+              </button>
             </div>
             
             <button 
