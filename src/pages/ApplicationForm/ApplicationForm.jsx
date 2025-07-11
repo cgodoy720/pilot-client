@@ -854,6 +854,41 @@ const ApplicationForm = () => {
     setCurrentQuestionIndex(0);
   };
 
+  // Helper function to render question label with inline links
+  const renderQuestionLabel = (question) => {
+    if (question.link && question.link.replaceInLabel) {
+      // Replace the link text in the label with an actual clickable link
+      const parts = question.label.split(question.link.text);
+      
+      return (
+        <>
+          {parts[0]?.trimEnd() || ''}
+          <a 
+            href={question.link.url} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{ color: 'var(--color-primary)', textDecoration: 'none' }}
+          >
+            {question.link.text}
+          </a>
+          {parts[1]?.trimStart() || ''}
+        </>
+      );
+    } else {
+      // Regular label + separate link
+      return (
+        <>
+          {question.label}
+          {question.link && (
+            <a href={question.link.url} target="_blank" rel="noopener noreferrer">
+              {question.link.text}
+            </a>
+          )}
+        </>
+      );
+    }
+  };
+
   // Render different input types
   const renderQuestion = (question) => {
     const hasError = showValidation && validationErrors[question.id];
@@ -1264,12 +1299,7 @@ const ApplicationForm = () => {
                           className="application-form__question-group application-form__question-group--root"
                         >
                           <label htmlFor={currentQuestionGroup.rootQuestion.id} className="application-form__question-label">
-                            {currentQuestionGroup.rootQuestion.label}
-                            {currentQuestionGroup.rootQuestion.link && (
-                              <a href={currentQuestionGroup.rootQuestion.link.url} target="_blank" rel="noopener noreferrer">
-                                {currentQuestionGroup.rootQuestion.link.text}
-                              </a>
-                            )}
+                            {renderQuestionLabel(currentQuestionGroup.rootQuestion)}
                             {currentQuestionGroup.rootQuestion.required ? (
                               <span className="application-form__question-required">*</span>
                             ) : (
@@ -1298,12 +1328,7 @@ const ApplicationForm = () => {
                             className="application-form__question-group application-form__question-group--conditional"
                           >
                             <label htmlFor={question.id} className="application-form__question-label">
-                              {question.label}
-                              {question.link && (
-                                <a href={question.link.url} target="_blank" rel="noopener noreferrer">
-                                  {question.link.text}
-                                </a>
-                              )}
+                              {renderQuestionLabel(question)}
                               {question.required ? (
                                 <span className="application-form__question-required">*</span>
                               ) : (
