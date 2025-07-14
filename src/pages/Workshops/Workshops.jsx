@@ -453,7 +453,6 @@ const Workshops = () => {
                                         </div>
                                         {isRegistered ? (
                                             <div className="slot-actions registered-actions">
-                                                <div className="selected-indicator">Selected</div>
                                                 <button
                                                     className="cancel-selection-btn"
                                                     onClick={() => handleCancelRegistration(event.event_id, registration?.registration_id)}
@@ -461,15 +460,17 @@ const Workshops = () => {
                                                 >
                                                     {processingEventId === event.event_id ? 'Cancelling...' : 'Cancel'}
                                                 </button>
+                                                <div className="selected-indicator">Selected</div>
                                             </div>
                                         ) : (
                                             <div className="slot-actions">
                                                 <button
-                                                    className={`select-btn ${isFull ? 'full-btn' : ''}`}
-                                                    onClick={() => !isFull && handleSignUp(event.event_id)}
-                                                    disabled={processingEventId === event.event_id || isFull}
+                                                    className={`select-btn ${isFull ? 'full-btn' : ''} ${registeredEvents.length > 0 ? 'select-btn--disabled' : ''}`}
+                                                    onClick={() => !isFull && registeredEvents.length === 0 && handleSignUp(event.event_id)}
+                                                    disabled={processingEventId === event.event_id || isFull || registeredEvents.length > 0}
                                                 >
                                                     {isFull ? 'Full' : 
+                                                     registeredEvents.length > 0 ? 'Another Selected' :
                                                      processingEventId === event.event_id ? 'Selecting...' : 'Select'}
                                                 </button>
                                             </div>
