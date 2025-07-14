@@ -300,6 +300,11 @@
 }
 
 /* Selected card styling - Match dashboard completed state */
+.time-slot-card.selected {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 20px rgba(72, 187, 120, 0.3);
+}
+
 .time-slot-card.selected::before {
   background: linear-gradient(135deg, #48bb78 0%, #38a169 25%, #68d391 50%, #38a169 75%, #48bb78 100%);
   animation: none;
@@ -396,24 +401,35 @@
 .select-btn {
   width: 100%;
   padding: 0.75rem 1.5rem;
-  background: var(--color-primary);
-  color: white;
-  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
   border-radius: 8px;
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
-  transition: background 0.2s, box-shadow 0.2s;
+  transition: all 0.2s ease;
 }
 
 .select-btn:hover:not(:disabled) {
-  background: var(--color-primary-hover);
+  background: var(--color-primary);
+  color: white;
   box-shadow: 0 4px 16px rgba(66, 66, 234, 0.15);
 }
 
 .select-btn:disabled,
 .full-btn {
-  background: #a0aec0;
+  background: transparent;
+  color: #a0aec0;
+  border-color: #a0aec0;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.select-btn--disabled {
+  background: transparent;
+  color: #a0aec0;
+  border-color: #a0aec0;
   cursor: not-allowed;
   opacity: 0.7;
 }
@@ -421,10 +437,10 @@
 .cancel-selection-btn {
   width: 100%;
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
+  background: transparent;
+  color: var(--color-error);
+  border: 2px solid var(--color-error);
+  border-radius: 8px;
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
@@ -432,13 +448,17 @@
 }
 
 .cancel-selection-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(245, 101, 101, 0.4);
+  background: var(--color-error);
+  color: white;
+  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
 }
 
 .cancel-selection-btn:disabled {
-  opacity: 0.6;
+  background: transparent;
+  color: #a0aec0;
+  border-color: #a0aec0;
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .meeting-link-section {
