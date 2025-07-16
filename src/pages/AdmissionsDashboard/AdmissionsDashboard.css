@@ -1,0 +1,924 @@
+/* Admissions Dashboard */
+.admissions-dashboard {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 4rem); /* Subtract padding from Layout */
+  overflow-y: auto;
+}
+
+
+
+/* Tab Navigation */
+.admissions-dashboard__tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  background-color: #1a1f2c;
+  z-index: 10;
+}
+
+.admissions-dashboard__tab {
+  background: none;
+  border: none;
+  padding: 1rem 1.5rem;
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+
+.admissions-dashboard__tab:hover {
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.admissions-dashboard__tab--active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.admissions-dashboard__back-btn {
+  background: transparent;
+  border: 1px solid #6b7280;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: auto;
+}
+
+.admissions-dashboard__back-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* Content Area */
+.admissions-dashboard__content {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 2rem;
+}
+
+/* Statistics Grid */
+.admissions-dashboard__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.stat-card--wide {
+  grid-column: span 2;
+}
+
+@media (max-width: 992px) {
+  .stat-card--wide {
+    grid-column: span 1;
+  }
+}
+
+.stat-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.stat-card__header h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+  text-align: left;
+}
+
+.stat-card__icon {
+  font-size: 1.5rem;
+  opacity: 0.7;
+  margin-left: auto;
+}
+
+.stat-card__value {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 0.25rem;
+  text-align: left;
+}
+
+.stat-card__subtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  opacity: 0.8;
+  text-align: left;
+}
+
+/* Applications Breakdown */
+.applications-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.application-status-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-indicator--submitted {
+  background: #48bb78;
+}
+
+.status-indicator--in_progress {
+  background: #ed8936;
+}
+
+.status-indicator--ineligible {
+  background: #f56565;
+}
+
+.status-label {
+  flex: 1;
+  font-weight: 500;
+  text-transform: capitalize;
+  font-size: 0.9rem;
+}
+
+.status-count {
+  font-weight: 600;
+  color: var(--color-primary);
+  font-size: 0.9rem;
+}
+
+/* Loading State */
+.admissions-dashboard__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 1rem;
+}
+
+.admissions-dashboard__loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(102, 126, 234, 0.2);
+  border-top: 3px solid var(--color-primary);
+  border-radius: 50%;
+  animation: admissions-dashboard-spin 1s linear infinite;
+}
+
+@keyframes admissions-dashboard-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.admissions-dashboard__loading p {
+  color: var(--color-text-secondary);
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+/* Error State */
+.admissions-dashboard__error {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 12px;
+  margin: 2rem 0;
+}
+
+.admissions-dashboard__error h2 {
+  color: #ef4444;
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+}
+
+.admissions-dashboard__error p {
+  color: var(--color-text-secondary);
+  margin: 0 0 1.5rem 0;
+  font-size: 1rem;
+}
+
+.admissions-dashboard__retry-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.admissions-dashboard__retry-btn:hover {
+  background: #dc2626;
+}
+
+/* No Access State */
+.admissions-dashboard__no-access {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: rgba(251, 146, 60, 0.1);
+  border: 1px solid rgba(251, 146, 60, 0.3);
+  border-radius: 12px;
+  margin: 2rem 0;
+}
+
+.admissions-dashboard__no-access h2 {
+  color: #f59e0b;
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+}
+
+.admissions-dashboard__no-access p {
+  color: var(--color-text-secondary);
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Tab Content Sections */
+.admissions-dashboard__overview,
+.admissions-dashboard__applications,
+.admissions-dashboard__info-sessions,
+.admissions-dashboard__workshops {
+  padding: 2rem;
+  background: var(--color-background-light);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.admissions-dashboard__overview h2,
+.admissions-dashboard__applications h2,
+.admissions-dashboard__info-sessions h2,
+.admissions-dashboard__workshops h2 {
+  color: var(--color-text-primary);
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.admissions-dashboard__overview p,
+.admissions-dashboard__applications p,
+.admissions-dashboard__info-sessions p,
+.admissions-dashboard__workshops p {
+  color: var(--color-text-secondary);
+  margin: 0 0 1rem 0;
+  line-height: 1.6;
+}
+
+.admissions-dashboard__overview pre {
+  background: var(--color-background-darker);
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .admissions-dashboard {
+    padding: 0;
+    height: calc(100vh - 2rem);
+  }
+
+  .admissions-dashboard__tabs {
+    overflow-x: auto;
+    padding-bottom: 0;
+    margin-bottom: 1rem;
+  }
+
+  .admissions-dashboard__tab {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+
+  .stat-card__value {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .admissions-dashboard__tabs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .admissions-dashboard__tab {
+    text-align: center;
+    border-bottom: none;
+    border-left: 3px solid transparent;
+  }
+  
+  .admissions-dashboard__tab--active {
+    border-bottom: none;
+    border-left-color: var(--color-primary);
+  }
+}
+
+/* Data Section Headers */
+.data-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.data-section__header h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.data-section__controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.filter-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--color-text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.refresh-btn, .retry-btn, .clear-filter-btn {
+  background: transparent;
+  border: 1px solid var(--color-primary);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refresh-btn:hover, .retry-btn:hover, .clear-filter-btn:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* Data Tables */
+.data-table-container {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th, .data-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.data-table th {
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.data-table td {
+  color: var(--color-text-secondary);
+}
+
+.data-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.clickable-row {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clickable-row:hover {
+  background: rgba(102, 126, 234, 0.1) !important;
+  transform: scale(1.005);
+}
+
+.applicant-name {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-badge--submitted {
+  background: rgba(72, 187, 120, 0.2);
+  color: #48bb78;
+}
+
+.status-badge--in_progress {
+  background: rgba(237, 137, 54, 0.2);
+  color: #ed8936;
+}
+
+.status-badge--ineligible {
+  background: rgba(245, 101, 101, 0.2);
+  color: #f56565;
+}
+
+.table-footer {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.table-count {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+/* Pagination Controls */
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pagination-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--color-text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.show-all-btn {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+  margin-left: 0.5rem;
+}
+
+.show-all-btn:hover {
+  background: #5a6bc4;
+  border-color: #5a6bc4;
+}
+
+.pagination-info {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  padding: 0 0.5rem;
+}
+
+/* Events Grid */
+.events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+
+.event-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.event-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.event-card__header h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 0.5rem 0;
+}
+
+.event-date {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 1rem;
+}
+
+.event-stats {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.event-actions {
+  margin-bottom: 1rem;
+}
+
+.view-registrations-btn, .mark-attendance-btn {
+  background: transparent;
+  border: 1px solid var(--color-primary);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-registrations-btn:hover, .mark-attendance-btn:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+.mark-attendance-btn {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.75rem;
+}
+
+/* Registrations List */
+.registrations-list {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.registrations-list h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 1rem 0;
+}
+
+.mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.mini-table th, .mini-table td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.mini-table th {
+  background: rgba(255, 255, 255, 0.03);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.attendance-status {
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.attendance-status--registered {
+  background: rgba(237, 137, 54, 0.2);
+  color: #ed8936;
+}
+
+.attendance-status--attended {
+  background: rgba(72, 187, 120, 0.2);
+  color: #48bb78;
+}
+
+/* Loading and Error States */
+.table-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: var(--color-text-secondary);
+  gap: 1rem;
+}
+
+.no-data-message {
+  text-align: center;
+  padding: 3rem;
+  color: var(--color-text-secondary);
+} 
+
+/* Notes Button */
+.notes-btn {
+  background: transparent;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.notes-btn:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* Clickable cells for table rows */
+.clickable-cell {
+  cursor: pointer;
+}
+
+.clickable-row {
+  transition: background-color 0.2s ease;
+}
+
+.clickable-row:hover .clickable-cell {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Events Table Layout */
+.events-table {
+  margin-top: 1rem;
+  min-width: 900px; /* Ensure table is wide enough */
+}
+
+/* Make Info Sessions container wider */
+.admissions-dashboard__info-sessions .data-table-container {
+  width: 100%;
+  max-width: none; /* Remove any max-width constraints */
+  overflow-x: auto; /* Allow horizontal scrolling if needed */
+}
+
+.event-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.event-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  width: 35%; /* Give event name more space */
+}
+
+.event-status {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.event-status--past {
+  background: rgba(156, 163, 175, 0.2);
+  color: #9ca3af;
+}
+
+.event-datetime {
+  text-align: left;
+  width: 25%; /* Give date/time adequate space */
+}
+
+.date-time-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.event-date {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+.event-time {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.stat-cell {
+  text-align: center;
+  width: 10%; /* Compact columns for numbers */
+}
+
+.stat-number {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--color-text-primary);
+}
+
+.stat-number--attended {
+  color: var(--color-success);
+}
+
+.stat-number--pending {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.actions-cell {
+  text-align: center;
+  width: 20%; /* Give actions button adequate space */
+}
+
+.view-registrations-btn {
+  background: transparent;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.view-registrations-btn:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* Registrations expanded row */
+.registrations-row {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.registrations-cell {
+  padding: 1.5rem !important;
+}
+
+.registrations-list h4 {
+  margin: 0 0 1rem 0;
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
+}
+
+.registrations-table {
+  margin-top: 0.5rem;
+}
+
+.mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mini-table th,
+.mini-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.mini-table th {
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mini-table td {
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+.attendance-status {
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.attendance-status--registered {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.attendance-status--attended {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.mark-attendance-btn {
+  background: var(--color-success);
+  border: none;
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mark-attendance-btn:hover {
+  background: #16a34a;
+} 

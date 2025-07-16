@@ -7,6 +7,8 @@ import Calendar from './pages/Calendar/Calendar';
 import Learning from './pages/Learning/Learning';
 import PastSession from './pages/PastSession/PastSession';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
+import AdmissionsDashboard from './pages/AdmissionsDashboard';
+import ApplicationDetail from './pages/AdmissionsDashboard/ApplicationDetail';
 import SessionDataTester from './pages/SessionDataTester';
 import Stats from './pages/Stats';
 import Account from './pages/Account/Account';
@@ -151,6 +153,20 @@ function App() {
           <Layout>
             <AdminRoute>
               <AdminDashboard />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/admissions-dashboard" element={
+          <Layout>
+            <AdminRoute>
+              <AdmissionsDashboard />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/admissions-dashboard/application/:applicationId" element={
+          <Layout>
+            <AdminRoute>
+              <ApplicationDetail />
             </AdminRoute>
           </Layout>
         } />

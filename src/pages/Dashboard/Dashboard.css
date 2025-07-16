@@ -35,7 +35,7 @@
   height: calc(100vh - 150px); /* Set a specific height based on viewport */
 }
 
-/* Left Panel Styles - Objectives and Progress */
+/* Left Panel Styles - Objectives */
 .dashboard__left-panel {
   width: 300px;
   display: flex;
@@ -47,27 +47,15 @@
   height: 100%;
 }
 
-.dashboard__objectives,
-.dashboard__progress {
+.dashboard__objectives {
   background-color: var(--color-background-dark);
   border-radius: 8px;
   padding: var(--spacing-lg);
   border: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
-}
-
-/* Make objectives take most of the space */
-.dashboard__objectives {
   flex: 1;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Keep progress at its natural height */
-.dashboard__progress {
-  flex-shrink: 0;
 }
 
 /* Schedule Panel Styles */
@@ -197,33 +185,7 @@
   text-align: right; /* Right align duration */
 }
 
-/* Add styles for the checkbox */
-.schedule-checkbox {
-  margin-left: var(--spacing-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  flex-shrink: 0; /* Prevent checkbox from shrinking */
-  width: 30px; /* Fixed width for checkbox */
-  height: 30px; /* Fixed height for checkbox */
-}
 
-.schedule-checkbox:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.checkbox-icon {
-  font-size: 1.2rem;
-  color: var(--color-text-muted);
-}
-
-.checkbox-icon.completed {
-  color: #4caf50;
-}
 
 /* Objectives Styles */
 .objectives-list {
@@ -260,27 +222,7 @@
   text-align: center; /* Center the bullet */
 }
 
-/* Progress Styles */
-.progress-bar-container {
-  height: 8px;
-  background-color: var(--color-background-darker);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: var(--spacing-sm);
-}
 
-.progress-bar {
-  height: 100%;
-  background-color: var(--color-primary);
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-.progress-text {
-  font-size: 0.9rem;
-  color: var(--color-text-secondary);
-  text-align: right;
-}
 
 /* Continue Button Styles */
 .dashboard__continue {
