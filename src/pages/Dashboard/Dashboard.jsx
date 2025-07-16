@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaArrowRight, FaCheck, FaRegSquare, FaCalendarAlt, FaExclamationTriangle } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaArrowRight, FaCalendarAlt, FaExclamationTriangle } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 
 import './Dashboard.css';
@@ -17,9 +17,6 @@ function Dashboard() {
   const [currentDay, setCurrentDay] = useState(null);
   const [dailyTasks, setDailyTasks] = useState([]);
   const [objectives, setObjectives] = useState([]);
-  const [progressPercentage, setProgressPercentage] = useState(0);
-  const [completedTasks, setCompletedTasks] = useState(0);
-  const [totalTasks, setTotalTasks] = useState(0);
   const [cohortFilter, setCohortFilter] = useState(null);
 
   useEffect(() => {
@@ -105,13 +102,6 @@ function Dashboard() {
         data.day.learning_objectives : [];
       setObjectives(dayObjectives);
       
-      // Set progress data
-      const completed = allTasks.filter(task => task.completed).length;
-      const total = allTasks.length;
-      setCompletedTasks(completed);
-      setTotalTasks(total);
-      setProgressPercentage(total > 0 ? (completed / total) * 100 : 0);
-      
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setError('Failed to load dashboard data. Please try again later.');
@@ -180,57 +170,6 @@ function Dashboard() {
     }
   };
 
-  // Handle task completion toggle
-  const handleTaskCompletion = async (e, taskId, currentStatus) => {
-    e.stopPropagation(); // Prevent the click from navigating to the task
-    
-    // If user is inactive, don't allow task completion
-    if (!isActive) {
-      e.preventDefault();
-      setError('You have historical access only and cannot update task status.');
-      return;
-    }
-    
-    try {
-      const newStatus = currentStatus ? 'in_progress' : 'completed';
-      
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/progress/tasks/${taskId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          status: newStatus,
-          user_notes: ''
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update task status');
-      }
-      
-      // Update local state
-      setDailyTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.id === taskId ? { ...task, completed: !currentStatus } : task
-        )
-      );
-      
-      // Update progress
-      const newCompleted = currentStatus 
-        ? completedTasks - 1 
-        : completedTasks + 1;
-      
-      setCompletedTasks(newCompleted);
-      setProgressPercentage((newCompleted / totalTasks) * 100);
-      
-    } catch (err) {
-      console.error('Error updating task status:', err);
-      setError('Failed to update task status. Please try again.');
-    }
-  };
-
   // Add a helper function to format time from 24-hour to 12-hour format
   const formatTime = (timeString) => {
     if (!timeString) return '';
@@ -275,7 +214,7 @@ function Dashboard() {
     return (
       <>
         <div className="dashboard__content">
-          {/* Left panel - Objectives and Progress */}
+          {/* Left panel - Objectives */}
           <div className="dashboard__left-panel">
             {/* Objectives */}
             <div className="dashboard__objectives">
@@ -291,26 +230,6 @@ function Dashboard() {
                 </ul>
               ) : (
                 <p className="no-content-message">No objectives for today.</p>
-              )}
-            </div>
-            
-            {/* Progress */}
-            <div className="dashboard__progress">
-              <h2 className="panel-title">Progress</h2>
-              {totalTasks > 0 ? (
-                <>
-                  <div className="progress-bar-container">
-                    <div 
-                      className="progress-bar" 
-                      style={{ width: `${progressPercentage}%` }}
-                    ></div>
-                  </div>
-                  <div className="progress-text">
-                    {completedTasks}/{totalTasks} tasks completed
-                  </div>
-                </>
-              ) : (
-                <p className="no-content-message">No tasks scheduled for today.</p>
               )}
             </div>
           </div>
@@ -333,15 +252,6 @@ function Dashboard() {
                         <span>{task.title}</span>
                       </div>
                       <div className="schedule-duration">{task.duration}</div>
-                    </div>
-                    <div 
-                      className="schedule-checkbox"
-                      onClick={(e) => handleTaskCompletion(e, task.id, task.completed)}
-                    >
-                      {task.completed ? 
-                        <FaCheck className="checkbox-icon completed" /> : 
-                        <FaRegSquare className="checkbox-icon" />
-                      }
                     </div>
                   </div>
                 ))}
