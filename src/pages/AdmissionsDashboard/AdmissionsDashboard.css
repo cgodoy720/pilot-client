@@ -744,8 +744,9 @@
   min-width: 900px; /* Ensure table is wide enough */
 }
 
-/* Make Info Sessions container wider */
-.admissions-dashboard__info-sessions .data-table-container {
+/* Make Info Sessions and Workshops containers wider */
+.admissions-dashboard__info-sessions .data-table-container,
+.admissions-dashboard__workshops .data-table-container {
   width: 100%;
   max-width: none; /* Remove any max-width constraints */
   overflow-x: auto; /* Allow horizontal scrolling if needed */
@@ -824,9 +825,9 @@
 }
 
 .view-registrations-btn {
-  background: transparent;
+  background: var(--color-primary);
   border: 1px solid var(--color-primary);
-  color: var(--color-primary);
+  color: white;
   padding: 0.5rem 1rem;
   border-radius: 6px;
   font-size: 0.8rem;
@@ -921,4 +922,125 @@
 
 .mark-attendance-btn:hover {
   background: #16a34a;
+}
+
+/* Attendance Status Dropdown */
+.attendance-status-dropdown {
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background-color: white;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  min-width: 120px;
+}
+
+.attendance-status-dropdown:hover {
+  border-color: var(--color-primary);
+}
+
+.attendance-status-dropdown:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+/* Additional Attendance Status Styles */
+.attendance-status--attended_late {
+  background: rgba(251, 191, 36, 0.2);
+  color: #f59e0b;
+}
+
+.attendance-status--very_late {
+  background: rgba(249, 115, 22, 0.2);
+  color: #ea580c;
+}
+
+.attendance-status--no_show {
+  background: rgba(239, 68, 68, 0.2);
+  color: #dc2626;
+}
+
+.attendance-action-completed {
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  font-style: italic;
+}
+
+/* Unified Attendance Status Dropdown */
+.attendance-status-dropdown-unified {
+  padding: 0.4rem 1.8rem 0.4rem 0.8rem;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 130px;
+  appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 14px;
+  text-transform: capitalize;
+  
+  /* Down arrow icon - darker for better visibility */
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+}
+
+.attendance-status-dropdown-unified:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.attendance-status-dropdown-unified:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* Color-coded dropdown backgrounds - stronger theme colors */
+.attendance-status-dropdown-unified.status-registered {
+  background: 
+    url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.6rem center,
+    linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%);
+  background-size: 14px, 100%;
+  color: #60a5fa !important;
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.attendance-status-dropdown-unified.status-attended {
+  background: 
+    url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.6rem center,
+    linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.1) 100%);
+  background-size: 14px, 100%;
+  color: #16a34a !important;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.attendance-status-dropdown-unified.status-attended_late {
+  background: 
+    url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.6rem center,
+    linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(251, 191, 36, 0.15) 100%);
+  background-size: 14px, 100%;
+  color: #d97706 !important;
+  border-color: rgba(251, 191, 36, 0.5);
+}
+
+.attendance-status-dropdown-unified.status-very_late {
+  background: 
+    url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.6rem center,
+    linear-gradient(135deg, rgba(249, 115, 22, 0.25) 0%, rgba(249, 115, 22, 0.15) 100%);
+  background-size: 14px, 100%;
+  color: #fb923c !important;
+  border-color: rgba(249, 115, 22, 0.5);
+}
+
+.attendance-status-dropdown-unified.status-no_show {
+  background: 
+    url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.6rem center,
+    linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(239, 68, 68, 0.15) 100%);
+  background-size: 14px, 100%;
+  color: #dc2626 !important;
+  border-color: rgba(239, 68, 68, 0.5);
 } 

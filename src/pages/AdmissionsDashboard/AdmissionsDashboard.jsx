@@ -298,7 +298,7 @@ const AdmissionsDashboard = () => {
     };
 
     // Handle marking attendance  
-    const handleMarkAttendance = async (eventType, eventId, applicantId) => {
+    const handleMarkAttendance = async (eventType, eventId, applicantId, status) => {
         setAttendanceLoading(true);
         
         try {
@@ -308,36 +308,53 @@ const AdmissionsDashboard = () => {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ attended: true })
+                body: JSON.stringify({ status })
             });
 
             if (response.ok) {
+                // Get the previous status to determine count changes
+                const previousRegistration = eventRegistrations.find(reg => reg.applicant_id === applicantId);
+                const previousStatus = previousRegistration?.status;
+                
                 // Update the registration in the local state instead of refetching
                 setEventRegistrations(prevRegistrations => 
                     prevRegistrations.map(reg => 
                         reg.applicant_id === applicantId 
-                            ? { ...reg, status: 'attended' }
+                            ? { ...reg, status }
                             : reg
                     )
                 );
 
-                // Update the event stats in local state
-                if (eventType === 'info-session') {
-                    setInfoSessions(prevSessions => 
-                        prevSessions.map(session => 
-                            session.event_id === eventId 
-                                ? { ...session, attended_count: session.attended_count + 1 }
-                                : session
-                        )
-                    );
-                } else if (eventType === 'workshop') {
-                    setWorkshops(prevWorkshops => 
-                        prevWorkshops.map(workshop => 
-                            workshop.event_id === eventId 
-                                ? { ...workshop, attended_count: workshop.attended_count + 1 }
-                                : workshop
-                        )
-                    );
+                // Update the event stats in local state based on status transitions
+                const isNewStatusAttended = status === 'attended' || status === 'attended_late' || status === 'very_late';
+                const wasPreviousStatusAttended = previousStatus === 'attended' || previousStatus === 'attended_late' || previousStatus === 'very_late';
+                
+                let countChange = 0;
+                if (isNewStatusAttended && !wasPreviousStatusAttended) {
+                    countChange = 1; // Moving to attended status
+                } else if (!isNewStatusAttended && wasPreviousStatusAttended) {
+                    countChange = -1; // Moving away from attended status
+                }
+                // If both are attended or both are non-attended, no change needed (countChange = 0)
+
+                if (countChange !== 0) {
+                    if (eventType === 'info-session') {
+                        setInfoSessions(prevSessions => 
+                            prevSessions.map(session => 
+                                session.event_id === eventId 
+                                    ? { ...session, attended_count: session.attended_count + countChange }
+                                    : session
+                            )
+                        );
+                    } else if (eventType === 'workshop') {
+                        setWorkshops(prevWorkshops => 
+                            prevWorkshops.map(workshop => 
+                                workshop.event_id === eventId 
+                                    ? { ...workshop, attended_count: workshop.attended_count + countChange }
+                                    : workshop
+                            )
+                        );
+                    }
                 }
             } else {
                 console.error('Failed to mark attendance');
@@ -749,11 +766,7 @@ const AdmissionsDashboard = () => {
                                                         <span className="stat-number">{session.registration_count}</span>
                                                     </td>
                                                     <td className="stat-cell">
-                                                        {isEventPast(session.event_date, session.event_time) ? (
-                                                            <span className="stat-number stat-number--attended">{session.attended_count}</span>
-                                                        ) : (
-                                                            <span className="stat-number stat-number--pending">-</span>
-                                                        )}
+                                                        <span className="stat-number stat-number--attended">{session.attended_count}</span>
                                                     </td>
                                                     <td className="actions-cell">
                                                         <button 
@@ -778,7 +791,6 @@ const AdmissionsDashboard = () => {
                                                                                     <th>Name</th>
                                                                                     <th>Email</th>
                                                                                     <th>Status</th>
-                                                                                    <th>Actions</th>
                                                                                 </tr>
                                                                             </thead>
                                                                             <tbody>
@@ -787,19 +799,21 @@ const AdmissionsDashboard = () => {
                                                                                         <td>{reg.first_name} {reg.last_name}</td>
                                                                                         <td>{reg.email}</td>
                                                                                         <td>
-                                                                                            <span className={`attendance-status attendance-status--${reg.status}`}>
-                                                                                                {reg.status}
-                                                                                            </span>
-                                                                                        </td>
-                                                                                        <td>
-                                                                                            {reg.status !== 'attended' && (
-                                                                                                <button 
-                                                                                                    className="mark-attendance-btn"
-                                                                                                    onClick={() => handleMarkAttendance('info-session', session.event_id, reg.applicant_id)}
-                                                                                                >
-                                                                                                    Mark Attended
-                                                                                                </button>
-                                                                                            )}
+                                                                                            <select
+                                                                                                className={`attendance-status-dropdown-unified status-${reg.status}`}
+                                                                                                value={reg.status}
+                                                                                                onChange={(e) => {
+                                                                                                    if (e.target.value !== reg.status) {
+                                                                                                        handleMarkAttendance('info-session', session.event_id, reg.applicant_id, e.target.value);
+                                                                                                    }
+                                                                                                }}
+                                                                                            >
+                                                                                                <option value="registered">Registered</option>
+                                                                                                <option value="attended">Attended</option>
+                                                                                                <option value="attended_late">Attended Late</option>
+                                                                                                <option value="very_late">Very Late</option>
+                                                                                                <option value="no_show">No Show</option>
+                                                                                            </select>
                                                                                         </td>
                                                                                     </tr>
                                                                                 ))}
@@ -839,80 +853,109 @@ const AdmissionsDashboard = () => {
                                 <p>Loading workshops...</p>
                             </div>
                         ) : workshops?.length > 0 ? (
-                            <div className="events-grid">
-                                {workshops.map((workshop) => (
-                                    <div key={workshop.event_id} className="event-card">
-                                        <div className="event-card__header">
-                                            <h3>{workshop.event_name}</h3>
-                                            <div className="event-date">
-                                                {new Date(workshop.event_date).toLocaleDateString()} at {workshop.event_time}
-                                            </div>
-                                        </div>
-                                        <div className="event-stats">
-                                            <div className="stat-item">
-                                                <span className="stat-label">Registered:</span>
-                                                <span className="stat-value">{workshop.registration_count}</span>
-                                            </div>
-                                            <div className="stat-item">
-                                                <span className="stat-label">Attended:</span>
-                                                <span className="stat-value">{workshop.attended_count}</span>
-                                            </div>
-                                        </div>
-                                        <div className="event-actions">
-                                            <button 
-                                                className="view-registrations-btn"
-                                                onClick={() => handleViewRegistrations('workshop', workshop.event_id)}
-                                            >
-                                                View Registrations
-                                            </button>
-                                        </div>
-                                        
-                                        {selectedEvent === workshop.event_id && (
-                                            <div className="registrations-list">
-                                                <h4>Registrations</h4>
-                                                {eventRegistrations.length > 0 ? (
-                                                    <div className="registrations-table">
-                                                        <table className="mini-table">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th>Name</th>
-                                                                    <th>Email</th>
-                                                                    <th>Status</th>
-                                                                    <th>Actions</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {eventRegistrations.map((reg) => (
-                                                                    <tr key={reg.registration_id}>
-                                                                        <td>{reg.first_name} {reg.last_name}</td>
-                                                                        <td>{reg.email}</td>
-                                                                        <td>
-                                                                            <span className={`attendance-status attendance-status--${reg.status}`}>
-                                                                                {reg.status}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td>
-                                                                            {reg.status !== 'attended' && (
-                                                                                <button 
-                                                                                    className="mark-attendance-btn"
-                                                                                    onClick={() => handleMarkAttendance('workshop', workshop.event_id, reg.applicant_id)}
-                                                                                >
-                                                                                    Mark Attended
-                                                                                </button>
-                                                                            )}
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                ) : (
-                                                    <p>No registrations found</p>
+                            <div className="data-table-container">
+                                <table className="data-table events-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Event Name</th>
+                                            <th>Date & Time</th>
+                                            <th>Registered</th>
+                                            <th>Attended</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {sortEventsByDate(workshops).map((workshop) => (
+                                            <React.Fragment key={workshop.event_id}>
+                                                <tr className="event-row">
+                                                    <td className="event-name">
+                                                        {workshop.event_name}
+                                                        {isEventPast(workshop.event_date, workshop.event_time) && (
+                                                            <span className="event-status event-status--past">Past Event</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="event-datetime">
+                                                        <div className="date-time-info">
+                                                            <div className="event-date">
+                                                                {new Date(workshop.event_date).toLocaleDateString('en-US', {
+                                                                    weekday: 'short',
+                                                                    month: 'short', 
+                                                                    day: 'numeric',
+                                                                    year: 'numeric'
+                                                                })}
+                                                            </div>
+                                                            <div className="event-time">{formatEventTime(workshop.event_time)}</div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="stat-cell">
+                                                        <span className="stat-number">{workshop.registration_count}</span>
+                                                    </td>
+                                                    <td className="stat-cell">
+                                                        <span className="stat-number stat-number--attended">{workshop.attended_count}</span>
+                                                    </td>
+                                                    <td className="actions-cell">
+                                                        <button 
+                                                            className="view-registrations-btn"
+                                                            onClick={() => handleViewRegistrations('workshop', workshop.event_id)}
+                                                        >
+                                                            {selectedEvent === workshop.event_id ? 'Hide Registrations' : 'View Registrations'}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                                
+                                                {selectedEvent === workshop.event_id && (
+                                                    <tr className="registrations-row">
+                                                        <td colSpan="5" className="registrations-cell">
+                                                            <div className="registrations-list">
+                                                                <h4>Registrations</h4>
+                                                                {eventRegistrations.length > 0 ? (
+                                                                    <div className="registrations-table">
+                                                                        <table className="mini-table">
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th>Name</th>
+                                                                                    <th>Email</th>
+                                                                                    <th>Status</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                {eventRegistrations.map((reg) => (
+                                                                                    <tr key={reg.registration_id}>
+                                                                                        <td>{reg.first_name} {reg.last_name}</td>
+                                                                                        <td>{reg.email}</td>
+                                                                                        <td>
+                                                                                            <select
+                                                                                                className={`attendance-status-dropdown-unified status-${reg.status}`}
+                                                                                                value={reg.status}
+                                                                                                onChange={(e) => {
+                                                                                                    if (e.target.value !== reg.status) {
+                                                                                                        handleMarkAttendance('workshop', workshop.event_id, reg.applicant_id, e.target.value);
+                                                                                                    }
+                                                                                                }}
+                                                                                            >
+                                                                                                <option value="registered">Registered</option>
+                                                                                                <option value="attended">Attended</option>
+                                                                                                <option value="attended_late">Attended Late</option>
+                                                                                                <option value="very_late">Very Late</option>
+                                                                                                <option value="no_show">No Show</option>
+                                                                                            </select>
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                ))}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                ) : (
+                                                                    <p>No registrations found</p>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
                                                 )}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
+                                            </React.Fragment>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         ) : (
                             <div className="no-data-message">
