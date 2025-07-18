@@ -299,6 +299,13 @@ const InfoSessions = () => {
         );
     };
 
+    // Check if an event has already passed
+    const isEventPassed = (event) => {
+        const easternEventTime = getEasternTimeParts(event.start_time);
+        const now = new Date();
+        return easternEventTime && easternEventTime < now;
+    };
+
     // Get registered events
     const registeredEvents = events.filter(event => isUserRegistered(event));
     const availableEvents = events.filter(event => !isUserRegistered(event));
@@ -456,6 +463,7 @@ const InfoSessions = () => {
                             events.map((event) => {
                                 const isRegistered = isUserRegistered(event);
                                 const isFull = (event.registered_count || 0) >= event.capacity;
+                                const isPassed = isEventPassed(event);
                                 const registration = getUserRegistration(event);
                                 
                                 // Convert UTC times to Eastern Time for display
@@ -470,7 +478,7 @@ const InfoSessions = () => {
                                 return (
                                     <div 
                                         key={event.event_id} 
-                                        className={`info-sessions__time-slot-card ${isRegistered ? 'info-sessions__time-slot-card--selected' : ''} ${isFull && !isRegistered ? 'info-sessions__time-slot-card--full' : ''}`}
+                                        className={`info-sessions__time-slot-card ${isRegistered ? 'info-sessions__time-slot-card--selected' : ''} ${isFull && !isRegistered ? 'info-sessions__time-slot-card--full' : ''} ${isPassed ? 'info-sessions__time-slot-card--passed' : ''}`}
                                     >
                                         <div className="info-sessions__time-slot-header">
                                             <div className="info-sessions__date-info">
@@ -503,11 +511,12 @@ const InfoSessions = () => {
                                         ) : (
                                             <div className="info-sessions__slot-actions">
                                                 <button
-                                                    className={`info-sessions__select-btn ${isFull ? 'info-sessions__select-btn--full' : ''}`}
-                                                    onClick={() => !isFull && handleSignUp(event.event_id)}
-                                                    disabled={processingEventId === event.event_id || isFull}
+                                                    className={`info-sessions__select-btn ${isFull ? 'info-sessions__select-btn--full' : ''} ${isPassed ? 'info-sessions__select-btn--disabled' : ''}`}
+                                                    onClick={() => !isFull && !isPassed && handleSignUp(event.event_id)}
+                                                    disabled={processingEventId === event.event_id || isFull || isPassed}
                                                 >
-                                                    {isFull ? 'Full' : 
+                                                    {isPassed ? 'Event Passed' :
+                                                     isFull ? 'Full' : 
                                                      processingEventId === event.event_id ? 'Reserving...' : 'Reserve'}
                                                 </button>
                                             </div>

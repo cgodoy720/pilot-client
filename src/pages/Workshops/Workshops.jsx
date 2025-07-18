@@ -240,6 +240,13 @@ const Workshops = () => {
         );
     };
 
+    // Check if an event has already passed
+    const isEventPassed = (event) => {
+        const easternEventTime = getEasternTimeParts(event.start_time);
+        const now = new Date();
+        return easternEventTime && easternEventTime < now;
+    };
+
     // Get registered events
     const registeredEvents = events.filter(event => isUserRegistered(event));
     const availableEvents = events.filter(event => !isUserRegistered(event));
@@ -420,6 +427,7 @@ const Workshops = () => {
                             events.map((event) => {
                                 const isRegistered = isUserRegistered(event);
                                 const isFull = (event.registered_count || 0) >= event.capacity;
+                                const isPassed = isEventPassed(event);
                                 const registration = getUserRegistration(event);
                                 
                                 // Convert UTC times to Eastern Time for display
@@ -433,7 +441,7 @@ const Workshops = () => {
                                 return (
                                     <div 
                                         key={event.event_id} 
-                                        className={`time-slot-card ${isRegistered ? 'selected' : ''} ${isFull && !isRegistered ? 'full' : ''}`}
+                                        className={`time-slot-card ${isRegistered ? 'selected' : ''} ${isFull && !isRegistered ? 'full' : ''} ${isPassed ? 'passed' : ''}`}
                                     >
                                         <div className="time-slot-header">
                                             <div className="date-info">
@@ -464,11 +472,12 @@ const Workshops = () => {
                                         ) : (
                                             <div className="slot-actions">
                                                 <button
-                                                    className={`select-btn ${isFull ? 'full-btn' : ''}`}
-                                                    onClick={() => !isFull && handleSignUp(event.event_id)}
-                                                    disabled={processingEventId === event.event_id || isFull}
+                                                    className={`select-btn ${isFull ? 'full-btn' : ''} ${isPassed ? 'select-btn--disabled' : ''}`}
+                                                    onClick={() => !isFull && !isPassed && handleSignUp(event.event_id)}
+                                                    disabled={processingEventId === event.event_id || isFull || isPassed}
                                                 >
-                                                    {isFull ? 'Full' : 
+                                                    {isPassed ? 'Event Passed' :
+                                                     isFull ? 'Full' : 
                                                      processingEventId === event.event_id ? 'Reserving...' : 'Reserve'}
                                                 </button>
                                             </div>
