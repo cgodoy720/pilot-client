@@ -167,17 +167,8 @@ const Workshops = () => {
             setRegistrationStatus('success');
             setStatusMessage(`You're registered for the Workshop on ${eventDate} at ${eventTime}!`);
 
-            // Update local status state and localStorage
+            // Update local status state (multiple registrations now allowed)
             setWorkshopStatus('signed-up');
-            if (event) {
-                const eventDetails = {
-                    date: eventDate,
-                    time: eventTime,
-                    location: event.location
-                };
-                localStorage.setItem('workshopStatus', 'signed-up');
-                localStorage.setItem('workshopDetails', JSON.stringify(eventDetails));
-            }
 
             // IMMEDIATE STATE UPDATE - Add the registration to the event in state
             setEvents(prevEvents => 
@@ -302,11 +293,19 @@ const Workshops = () => {
             setRegistrationStatus('success');
             setStatusMessage('Registration cancelled successfully.');
             
-            // Clear status and localStorage - workshops remain locked
-            setWorkshopStatus('locked');
-            setWorkshopDetails(null);
-            localStorage.removeItem('workshopStatus');
-            localStorage.removeItem('workshopDetails');
+            // Check if user still has other workshop registrations
+            const remainingRegistrations = events.filter(evt => 
+                evt.event_id !== eventId && 
+                evt.registrations?.some(reg => 
+                    reg.applicant_id === currentApplicantId && 
+                    reg.status !== 'cancelled'
+                )
+            );
+            
+            // Only clear status if no other registrations exist
+            if (remainingRegistrations.length === 0) {
+                setWorkshopStatus('locked');
+            }
 
             // Force refresh to ensure we have the latest data from server
             setTimeout(async () => {
@@ -460,18 +459,17 @@ const Workshops = () => {
                                                 >
                                                     {processingEventId === event.event_id ? 'Cancelling...' : 'Cancel'}
                                                 </button>
-                                                <div className="selected-indicator">Selected</div>
+                                                <div className="selected-indicator">Reserved</div>
                                             </div>
                                         ) : (
                                             <div className="slot-actions">
                                                 <button
-                                                    className={`select-btn ${isFull ? 'full-btn' : ''} ${registeredEvents.length > 0 ? 'select-btn--disabled' : ''}`}
-                                                    onClick={() => !isFull && registeredEvents.length === 0 && handleSignUp(event.event_id)}
-                                                    disabled={processingEventId === event.event_id || isFull || registeredEvents.length > 0}
+                                                    className={`select-btn ${isFull ? 'full-btn' : ''}`}
+                                                    onClick={() => !isFull && handleSignUp(event.event_id)}
+                                                    disabled={processingEventId === event.event_id || isFull}
                                                 >
                                                     {isFull ? 'Full' : 
-                                                     registeredEvents.length > 0 ? 'Another Selected' :
-                                                     processingEventId === event.event_id ? 'Selecting...' : 'Select'}
+                                                     processingEventId === event.event_id ? 'Reserving...' : 'Reserve'}
                                                 </button>
                                             </div>
                                         )}
