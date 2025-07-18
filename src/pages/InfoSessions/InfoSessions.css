@@ -321,6 +321,28 @@
   animation: none;
 }
 
+.info-sessions__time-slot-card--passed {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #0f0f0f; /* Darker background for passed events */
+  color: #6b7280; /* Muted text color */
+  pointer-events: none; /* Prevent any interactions */
+}
+
+.info-sessions__time-slot-card--passed::before {
+  background: linear-gradient(135deg, #1f1f1f 0%, #2a2a2a 50%, #1f1f1f 100%);
+  animation: none;
+}
+
+.info-sessions__time-slot-card--passed:hover {
+  transform: none; /* Disable hover effects */
+  box-shadow: none;
+}
+
+.info-sessions__time-slot-card--passed * {
+  color: #6b7280 !important; /* Mute all text inside passed cards */
+}
+
 /* Card Header */
 .info-sessions__time-slot-header {
   margin-bottom: 1rem;

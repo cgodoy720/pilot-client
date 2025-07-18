@@ -223,12 +223,8 @@ const InfoSessions = () => {
             setRegistrationStatus('success');
             setStatusMessage(`You're registered for the Information Session on ${eventDate} at ${eventTime}!`);
 
-            // Update local status state and localStorage
+            // Update local status state (multiple registrations now allowed)
             setInfoSessionStatus('signed-up');
-            const eventDetails = { eventDate, eventTime, location: event.location };
-            setSessionDetails(eventDetails);
-            localStorage.setItem('infoSessionStatus', 'signed-up');
-            localStorage.setItem('infoSessionDetails', JSON.stringify(eventDetails));
 
             // IMMEDIATE STATE UPDATE - Add the registration to the event in state
             setEvents(prevEvents => 
@@ -251,18 +247,8 @@ const InfoSessions = () => {
                 })
             );
 
-            // Update local storage and status
-            if (event) {
-                const eventDetails = {
-                    date: eventDate,
-                    time: eventTime,
-                    location: event.location
-                };
-                localStorage.setItem('infoSessionStatus', 'signed-up');
-                localStorage.setItem('infoSessionDetails', JSON.stringify(eventDetails));
-                setInfoSessionStatus('signed-up');
-                setSessionDetails(eventDetails);
-            }
+            // Update status (multiple registrations now allowed)
+            setInfoSessionStatus('signed-up');
         } catch (error) {
             console.error('Error signing up for event:', error);
             
@@ -311,6 +297,13 @@ const InfoSessions = () => {
             reg.applicant_id === currentApplicantId && 
             reg.status !== 'cancelled'
         );
+    };
+
+    // Check if an event has already passed
+    const isEventPassed = (event) => {
+        const easternEventTime = getEasternTimeParts(event.start_time);
+        const now = new Date();
+        return easternEventTime && easternEventTime < now;
     };
 
     // Get registered events
@@ -366,11 +359,19 @@ const InfoSessions = () => {
             setRegistrationStatus('success');
             setStatusMessage('Registration cancelled successfully.');
             
-            // Clear status in App and localStorage
-            setInfoSessionStatus('not signed-up');
-            setSessionDetails(null);
-            localStorage.removeItem('infoSessionStatus');
-            localStorage.removeItem('infoSessionDetails');
+            // Check if user still has other info session registrations
+            const remainingRegistrations = events.filter(evt => 
+                evt.event_id !== eventId && 
+                evt.registrations?.some(reg => 
+                    reg.applicant_id === currentApplicantId && 
+                    reg.status !== 'cancelled'
+                )
+            );
+            
+            // Only clear status if no other registrations exist
+            if (remainingRegistrations.length === 0) {
+                setInfoSessionStatus('not signed-up');
+            }
 
             // Force refresh to ensure we have the latest data from server
             setTimeout(async () => {
@@ -462,6 +463,7 @@ const InfoSessions = () => {
                             events.map((event) => {
                                 const isRegistered = isUserRegistered(event);
                                 const isFull = (event.registered_count || 0) >= event.capacity;
+                                const isPassed = isEventPassed(event);
                                 const registration = getUserRegistration(event);
                                 
                                 // Convert UTC times to Eastern Time for display
@@ -476,7 +478,7 @@ const InfoSessions = () => {
                                 return (
                                     <div 
                                         key={event.event_id} 
-                                        className={`info-sessions__time-slot-card ${isRegistered ? 'info-sessions__time-slot-card--selected' : ''} ${isFull && !isRegistered ? 'info-sessions__time-slot-card--full' : ''}`}
+                                        className={`info-sessions__time-slot-card ${isRegistered ? 'info-sessions__time-slot-card--selected' : ''} ${isFull && !isRegistered ? 'info-sessions__time-slot-card--full' : ''} ${isPassed ? 'info-sessions__time-slot-card--passed' : ''}`}
                                     >
                                         <div className="info-sessions__time-slot-header">
                                             <div className="info-sessions__date-info">
@@ -504,18 +506,18 @@ const InfoSessions = () => {
                                                 >
                                                     {processingEventId === event.event_id ? 'Cancelling...' : 'Cancel'}
                                                 </button>
-                                                <div className="info-sessions__selected-indicator">Selected</div>
+                                                <div className="info-sessions__selected-indicator">Reserved</div>
                                             </div>
                                         ) : (
                                             <div className="info-sessions__slot-actions">
                                                 <button
-                                                    className={`info-sessions__select-btn ${isFull ? 'info-sessions__select-btn--full' : ''} ${registeredEvents.length > 0 ? 'info-sessions__select-btn--disabled' : ''}`}
-                                                    onClick={() => !isFull && registeredEvents.length === 0 && handleSignUp(event.event_id)}
-                                                    disabled={processingEventId === event.event_id || isFull || registeredEvents.length > 0}
+                                                    className={`info-sessions__select-btn ${isFull ? 'info-sessions__select-btn--full' : ''} ${isPassed ? 'info-sessions__select-btn--disabled' : ''}`}
+                                                    onClick={() => !isFull && !isPassed && handleSignUp(event.event_id)}
+                                                    disabled={processingEventId === event.event_id || isFull || isPassed}
                                                 >
-                                                    {isFull ? 'Full' : 
-                                                     registeredEvents.length > 0 ? 'Another Selected' :
-                                                     processingEventId === event.event_id ? 'Selecting...' : 'Select'}
+                                                    {isPassed ? 'Event Passed' :
+                                                     isFull ? 'Full' : 
+                                                     processingEventId === event.event_id ? 'Reserving...' : 'Reserve'}
                                                 </button>
                                             </div>
                                         )}
