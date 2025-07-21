@@ -267,6 +267,84 @@ const AdmissionsDashboard = () => {
         }
     };
 
+    // Format phone number to (000) 000-0000 format
+    const formatPhoneNumber = (phoneNumber) => {
+        if (!phoneNumber) return 'N/A';
+        
+        // Remove all non-digit characters
+        const cleaned = phoneNumber.replace(/\D/g, '');
+        
+        // Check if it's a valid 10-digit US phone number
+        if (cleaned.length === 10) {
+            return `(${cleaned.substring(0, 3)})${cleaned.substring(3, 6)}-${cleaned.substring(6, 10)}`;
+        }
+        
+        // If not 10 digits, return the original value or 'Invalid'
+        return phoneNumber || 'N/A';
+    };
+
+    // Copy text to clipboard with feedback
+    const copyToClipboard = async (text, type) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            // You could add a toast notification here
+            console.log(`${type} copied to clipboard: ${text}`);
+        } catch (err) {
+            console.error('Failed to copy to clipboard:', err);
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+        }
+    };
+
+    // Handle phone number click - copy raw digits
+    const handlePhoneClick = (phoneNumber) => {
+        if (!phoneNumber || phoneNumber === 'N/A') return;
+        const cleaned = phoneNumber.replace(/\D/g, '');
+        copyToClipboard(cleaned, 'Phone number');
+    };
+
+    // Handle email click - copy email
+    const handleEmailClick = (email) => {
+        if (!email) return;
+        copyToClipboard(email, 'Email');
+    };
+
+    // Copy all emails for current event registrations
+    const copyAllEmails = () => {
+        const emails = eventRegistrations
+            .filter(reg => reg.email && reg.email.trim() !== '')
+            .map(reg => reg.email);
+        
+        if (emails.length === 0) {
+            console.log('No emails to copy');
+            return;
+        }
+        
+        const emailList = emails.join(', ');
+        copyToClipboard(emailList, `${emails.length} emails`);
+    };
+
+    // Copy all phone numbers for current event registrations
+    const copyAllPhoneNumbers = () => {
+        const phoneNumbers = eventRegistrations
+            .filter(reg => reg.phone_number && reg.phone_number !== 'N/A' && reg.phone_number.trim() !== '')
+            .map(reg => reg.phone_number.replace(/\D/g, '')) // Remove formatting
+            .filter(phone => phone.length === 10); // Only valid 10-digit numbers
+        
+        if (phoneNumbers.length === 0) {
+            console.log('No valid phone numbers to copy');
+            return;
+        }
+        
+        const phoneList = phoneNumbers.join(', ');
+        copyToClipboard(phoneList, `${phoneNumbers.length} phone numbers`);
+    };
+
     // Handle viewing registrations for an event
     const handleViewRegistrations = async (eventType, eventId) => {
         if (selectedEvent === eventId) {
@@ -789,7 +867,26 @@ const AdmissionsDashboard = () => {
                                                                             <thead>
                                                                                 <tr>
                                                                                     <th>Name</th>
-                                                                                    <th>Email</th>
+                                                                                    <th>
+                                                                                        Email
+                                                                                        <button 
+                                                                                            className="copy-all-btn" 
+                                                                                            onClick={copyAllEmails}
+                                                                                            title="Copy all emails"
+                                                                                        >
+                                                                                            📧 Copy All
+                                                                                        </button>
+                                                                                    </th>
+                                                                                    <th>
+                                                                                        Phone
+                                                                                        <button 
+                                                                                            className="copy-all-btn" 
+                                                                                            onClick={copyAllPhoneNumbers}
+                                                                                            title="Copy all phone numbers"
+                                                                                        >
+                                                                                            📞 Copy All
+                                                                                        </button>
+                                                                                    </th>
                                                                                     <th>Status</th>
                                                                                 </tr>
                                                                             </thead>
@@ -797,7 +894,24 @@ const AdmissionsDashboard = () => {
                                                                                 {eventRegistrations.map((reg) => (
                                                                                     <tr key={reg.registration_id}>
                                                                                         <td>{reg.first_name} {reg.last_name}</td>
-                                                                                        <td>{reg.email}</td>
+                                                                                        <td>
+                                                                                            <span 
+                                                                                                className="copyable-email" 
+                                                                                                onClick={() => handleEmailClick(reg.email)}
+                                                                                                title="Click to copy email"
+                                                                                            >
+                                                                                                {reg.email}
+                                                                                            </span>
+                                                                                        </td>
+                                                                                        <td>
+                                                                                            <span 
+                                                                                                className="copyable-phone" 
+                                                                                                onClick={() => handlePhoneClick(reg.phone_number)}
+                                                                                                title="Click to copy phone number"
+                                                                                            >
+                                                                                                {formatPhoneNumber(reg.phone_number)}
+                                                                                            </span>
+                                                                                        </td>
                                                                                         <td>
                                                                                             <select
                                                                                                 className={`attendance-status-dropdown-unified status-${reg.status}`}
@@ -914,7 +1028,26 @@ const AdmissionsDashboard = () => {
                                                                             <thead>
                                                                                 <tr>
                                                                                     <th>Name</th>
-                                                                                    <th>Email</th>
+                                                                                    <th>
+                                                                                        Email
+                                                                                        <button 
+                                                                                            className="copy-all-btn" 
+                                                                                            onClick={copyAllEmails}
+                                                                                            title="Copy all emails"
+                                                                                        >
+                                                                                            📧 Copy All
+                                                                                        </button>
+                                                                                    </th>
+                                                                                    <th>
+                                                                                        Phone
+                                                                                        <button 
+                                                                                            className="copy-all-btn" 
+                                                                                            onClick={copyAllPhoneNumbers}
+                                                                                            title="Copy all phone numbers"
+                                                                                        >
+                                                                                            📞 Copy All
+                                                                                        </button>
+                                                                                    </th>
                                                                                     <th>Status</th>
                                                                                 </tr>
                                                                             </thead>
@@ -922,7 +1055,24 @@ const AdmissionsDashboard = () => {
                                                                                 {eventRegistrations.map((reg) => (
                                                                                     <tr key={reg.registration_id}>
                                                                                         <td>{reg.first_name} {reg.last_name}</td>
-                                                                                        <td>{reg.email}</td>
+                                                                                        <td>
+                                                                                            <span 
+                                                                                                className="copyable-email" 
+                                                                                                onClick={() => handleEmailClick(reg.email)}
+                                                                                                title="Click to copy email"
+                                                                                            >
+                                                                                                {reg.email}
+                                                                                            </span>
+                                                                                        </td>
+                                                                                        <td>
+                                                                                            <span 
+                                                                                                className="copyable-phone" 
+                                                                                                onClick={() => handlePhoneClick(reg.phone_number)}
+                                                                                                title="Click to copy phone number"
+                                                                                            >
+                                                                                                {formatPhoneNumber(reg.phone_number)}
+                                                                                            </span>
+                                                                                        </td>
                                                                                         <td>
                                                                                             <select
                                                                                                 className={`attendance-status-dropdown-unified status-${reg.status}`}
