@@ -890,6 +890,69 @@
   font-size: 0.9rem;
 }
 
+/* Phone column styling */
+.mini-table th:nth-child(3),
+.mini-table td:nth-child(3) {
+  width: 120px;
+  white-space: nowrap;
+  font-family: 'Courier New', monospace;
+}
+
+/* Copyable elements styling */
+.copyable-email,
+.copyable-phone {
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+  display: inline-block;
+}
+
+.copyable-email:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  transform: translateY(-1px);
+}
+
+.copyable-phone:hover {
+  background-color: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  transform: translateY(-1px);
+}
+
+.copyable-email:active,
+.copyable-phone:active {
+  transform: translateY(0);
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+/* Copy All buttons styling */
+.copy-all-btn {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #3b82f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-left: 8px;
+  transition: all 0.2s ease;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.copy-all-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+  transform: translateY(-1px);
+}
+
+.copy-all-btn:active {
+  transform: translateY(0);
+  background: rgba(59, 130, 246, 0.3);
+}
+
 .attendance-status {
   padding: 0.2rem 0.6rem;
   border-radius: 4px;
