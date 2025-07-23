@@ -107,9 +107,9 @@ const Layout = ({ children }) => {
                 <GroupsIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">Admissions</span>}
               </Link>
-              <Link to="/session-data-tester" className={`layout__nav-item ${location.pathname === '/session-data-tester' ? 'layout__nav-item--active' : ''}`}>
+              <Link to="/content" className={`layout__nav-item ${location.pathname.startsWith('/content') ? 'layout__nav-item--active' : ''}`}>
                 <BugReportIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Session Data Tester</span>}
+                {isExpanded && <span className="layout__nav-text">Content Generation</span>}
               </Link>
             </>
           )}

@@ -9,7 +9,7 @@ import PastSession from './pages/PastSession/PastSession';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
 import AdmissionsDashboard from './pages/AdmissionsDashboard';
 import ApplicationDetail from './pages/AdmissionsDashboard/ApplicationDetail';
-import SessionDataTester from './pages/SessionDataTester';
+import Content from './pages/Content';
 import Stats from './pages/Stats';
 import Account from './pages/Account/Account';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
@@ -170,10 +170,10 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
-        <Route path="/session-data-tester" element={
+        <Route path="/content/*" element={
           <Layout>
             <AdminRoute>
-              <SessionDataTester />
+              <Content />
             </AdminRoute>
           </Layout>
         } />
