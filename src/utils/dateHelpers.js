@@ -48,7 +48,7 @@ export const formatDateTime = (date) => {
 /**
  * Format submission timestamp consistently across environments
  * This ensures the same display in both local and production
- * @param {Date|string} timestamp - Database timestamp
+ * @param {Date|string} timestamp - Database timestamp (in UTC)
  * @returns {string} Formatted timestamp string
  */
 export const formatSubmissionTimestamp = (timestamp) => {
@@ -59,8 +59,8 @@ export const formatSubmissionTimestamp = (timestamp) => {
   // Check if date is valid
   if (isNaN(date.getTime())) return 'Invalid date';
   
-  // Use Intl.DateTimeFormat for consistent timezone handling
-  // This ensures the same behavior regardless of server timezone
+  // The database stores UTC timestamps, so we need to convert to Eastern Time
+  // Use Intl.DateTimeFormat to properly handle timezone conversion
   return new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
     year: 'numeric',
