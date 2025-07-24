@@ -48,7 +48,7 @@ export const formatDateTime = (date) => {
 /**
  * Format submission timestamp consistently across environments
  * This ensures the same display in both local and production
- * @param {Date|string} timestamp - Database timestamp (in UTC)
+ * @param {Date|string} timestamp - Database timestamp (stored as Eastern time but labeled as UTC)
  * @returns {string} Formatted timestamp string
  */
 export const formatSubmissionTimestamp = (timestamp) => {
@@ -59,77 +59,38 @@ export const formatSubmissionTimestamp = (timestamp) => {
   // Check if date is valid
   if (isNaN(date.getTime())) return 'Invalid date';
   
-  // Comprehensive debugging for production vs local differences
-  const debugInfo = {
-    environment: import.meta.env.MODE || 'unknown',
-    apiUrl: import.meta.env.VITE_API_URL || 'unknown',
-    originalTimestamp: timestamp,
-    parsedDate: date.toString(),
-    utcString: date.toUTCString(),
-    isoString: date.toISOString(),
-    userAgent: navigator.userAgent,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    locale: navigator.language,
-    dateSupportsTimezone: typeof Intl.DateTimeFormat().resolvedOptions === 'function'
-  };
+  // TEMPORARY DEBUG: Let's see what's happening with the time
+  console.log('🕐 Time Debug:');
+  console.log('  Database timestamp:', timestamp);
+  console.log('  Current local time:', new Date().toLocaleString());
+  console.log('  UTC parts from DB:', {
+    hour: date.getUTCHours(),
+    minute: date.getUTCMinutes()
+  });
   
-  console.log('🐛 COMPREHENSIVE DEBUG - formatSubmissionTimestamp:', debugInfo);
+  // ISSUE: Database stores Eastern time as if it were UTC
+  // So we need to treat the UTC components as Eastern time components
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
+  const hour = date.getUTCHours();
+  const minute = date.getUTCMinutes();
   
-  // Test multiple approaches to see which one works in production
-  const approaches = {};
+  // Create a new date treating these UTC components as Eastern time
+  const easternDate = new Date(year, month, day, hour, minute);
   
-  try {
-    // Approach 1: Intl.DateTimeFormat with Eastern timezone
-    approaches.intlEastern = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    }).format(date);
-  } catch (e) {
-    approaches.intlEastern = `Error: ${e.message}`;
-  }
+  const result = easternDate.toLocaleString("en-US", {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
   
-  try {
-    // Approach 2: Manual UTC to Eastern conversion (like existing codebase)
-    const year = date.getUTCFullYear();
-    const month = date.getUTCMonth();
-    const day = date.getUTCDate();
-    const hour = date.getUTCHours();
-    const minute = date.getUTCMinutes();
-    
-    // Subtract 4 hours for EDT (or 5 for EST) - simplified for debugging
-    const adjustedHour = hour - 4; // Assuming EDT for now
-    const easternDate = new Date(year, month, day, adjustedHour, minute);
-    
-    approaches.manualConversion = easternDate.toLocaleString("en-US", {
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  } catch (e) {
-    approaches.manualConversion = `Error: ${e.message}`;
-  }
+  console.log('  Final result:', result);
   
-  try {
-    // Approach 3: Simple local time (what was happening before)
-    approaches.simpleLocal = date.toLocaleString();
-  } catch (e) {
-    approaches.simpleLocal = `Error: ${e.message}`;
-  }
-  
-  console.log('🧪 All approaches tested:', approaches);
-  
-  // Return the Intl.DateTimeFormat approach (should be most reliable)
-  return approaches.intlEastern.includes('Error') ? 
-    approaches.manualConversion : 
-    approaches.intlEastern;
+  return result;
 };
 
 /**
