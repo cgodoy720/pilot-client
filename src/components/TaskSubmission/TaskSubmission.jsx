@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { formatSubmissionTimestamp } from '../../utils/dateHelpers';
 import './TaskSubmission.css';
 
 // Confirmation Modal Component
@@ -383,7 +384,7 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
 
             {submission && (
               <div className="task-submission__status">
-                <p>Last updated: {new Date(submission.updated_at).toLocaleString()}</p>
+                <p>Last updated: {formatSubmissionTimestamp(submission.updated_at)}</p>
               </div>
             )}
 
