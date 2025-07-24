@@ -41,6 +41,28 @@ const SessionTester = () => {
     };
   }, []);
 
+  // Handle escape key for modal
+  useEffect(() => {
+    const handleEscape = (event) => {
+      if (event.key === 'Escape' && isModalOpen) {
+        setIsModalOpen(false);
+      }
+    };
+
+    if (isModalOpen) {
+      document.addEventListener('keydown', handleEscape);
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isModalOpen]);
+
   // Sample JSON data for quick testing
   const sampleData = {
     "date": "2025-06-24",
@@ -386,6 +408,19 @@ const SessionTester = () => {
         <div className="session-data-tester__preview-panel">
           {sessionData ? (
             <>
+              {/* Preview Header with Fullscreen Button */}
+              <div className="session-data-tester__preview-header">
+                <h2>Session Preview</h2>
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="session-data-tester__btn session-data-tester__btn--fullscreen"
+                  title="Open in fullscreen"
+                  disabled={!sessionData}
+                >
+                  <FaExpand />
+                  Fullscreen
+                </button>
+              </div>
               {/* Multi-Day Navigation */}
               {allDays.length > 1 && (
                 <div className="session-data-tester__day-nav">
@@ -544,6 +579,210 @@ const SessionTester = () => {
           )}
         </div>
       </div>
+
+      {/* Fullscreen Modal */}
+      {isModalOpen && sessionData && (
+        <div 
+          className="session-data-tester__modal-overlay"
+          onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}
+        >
+          <div className="session-data-tester__modal">
+            <div className="session-data-tester__modal-header">
+              <div>
+                <h1>Day {currentDay?.day_number}: {currentDay?.daily_goal}</h1>
+                {currentTask && (
+                  <p className="session-data-tester__modal-current-task">
+                    Viewing Task: {currentTask.title}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="session-data-tester__modal-close"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            
+            <div className="session-data-tester__modal-content">
+              {/* Left Sidebar - Day Navigation */}
+              <div className="session-data-tester__modal-sidebar">
+                {allDays.length > 1 && (
+                  <>
+                    <h3>Days ({allDays.length})</h3>
+                    <div className="session-data-tester__modal-day-list">
+                      {allDays.map((day, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleDayChange(index)}
+                          className={`session-data-tester__modal-day-item ${
+                            index === currentDayIndex ? 'active' : ''
+                          }`}
+                        >
+                          <div className="session-data-tester__modal-day-number">
+                            Day {day.day_number}
+                          </div>
+                          <div className="session-data-tester__modal-day-date">
+                            {day.date}
+                          </div>
+                          <div className="session-data-tester__modal-day-goal">
+                            {day.daily_goal}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* Task Navigation */}
+                {tasks.length > 0 && (
+                  <>
+                    <h3>Tasks ({tasks.length})</h3>
+                    <div className="session-data-tester__modal-task-list">
+                      {tasks.map((task, index) => (
+                        <button
+                          key={task.id}
+                          onClick={() => handleTaskChange(index)}
+                          className={`session-data-tester__modal-task-item ${
+                            index === currentTaskIndex ? 'active' : ''
+                          }`}
+                        >
+                          {getTaskIcon(task.type)}
+                          <div className="session-data-tester__modal-task-info">
+                            <div className="session-data-tester__modal-task-title">
+                              {task.title}
+                            </div>
+                            <div className="session-data-tester__modal-task-time">
+                              {formatTime(task.startTime)} - {formatTime(task.endTime)}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Right Content - Current Day/Task Content */}
+              <div className="session-data-tester__modal-main">
+                {/* Day Meta Info */}
+                <div className="session-data-tester__modal-day-header">
+                  <div className="session-data-tester__modal-day-meta">
+                    {currentDay?.date} • {currentDay?.cohort}
+                  </div>
+                  
+                  {currentDay?.learning_objectives && (
+                    <div className="session-data-tester__modal-objectives">
+                      <h4>Learning Objectives</h4>
+                      <ul>
+                        {currentDay.learning_objectives.map((objective, index) => (
+                          <li key={index}>{objective}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Task Navigation Bar */}
+                {tasks.length > 0 && (
+                  <div className="session-data-tester__modal-task-nav">
+                    <h4>Tasks for Day {currentDay?.day_number}</h4>
+                    <div className="session-data-tester__modal-task-nav-list">
+                      {tasks.map((task, index) => (
+                        <button
+                          key={task.id}
+                          onClick={() => handleTaskChange(index)}
+                          className={`session-data-tester__modal-task-nav-item ${
+                            index === currentTaskIndex ? 'active' : ''
+                          }`}
+                        >
+                          {getTaskIcon(task.type)}
+                          <div className="session-data-tester__modal-task-nav-info">
+                            <div className="session-data-tester__modal-task-nav-title">
+                              {task.title}
+                            </div>
+                            <div className="session-data-tester__modal-task-nav-time">
+                              {formatTime(task.startTime)} - {formatTime(task.endTime)}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Current Task Preview */}
+                {currentTask && (
+                  <div className="session-data-tester__modal-task-preview">
+                    <div className="session-data-tester__modal-task-header">
+                      <div className="session-data-tester__modal-task-title-section">
+                        {getTaskIcon(currentTask.type)}
+                        <div>
+                          <h3>{currentTask.title}</h3>
+                          <p>{currentTask.description}</p>
+                        </div>
+                      </div>
+                      
+                      {currentTask.startTime && (
+                        <div className="session-data-tester__modal-task-time">
+                          {formatTime(currentTask.startTime)} - {formatTime(currentTask.endTime)}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Resources */}
+                    {currentTask.linked_resources && currentTask.linked_resources.length > 0 && (
+                      <div className="session-data-tester__modal-resources">
+                        <h4>Resources</h4>
+                        <div className="session-data-tester__modal-resource-list">
+                          {currentTask.linked_resources.map((resource, index) => (
+                            <div key={index} className="session-data-tester__modal-resource">
+                              {getResourceIcon(resource.type)}
+                              <div className="session-data-tester__modal-resource-content">
+                                <a 
+                                  href={resource.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="session-data-tester__modal-resource-title"
+                                >
+                                  {resource.title}
+                                  <FaExternalLinkAlt />
+                                </a>
+                                {resource.description && (
+                                  <p className="session-data-tester__modal-resource-description">
+                                    {resource.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Messages Preview */}
+                    <div className="session-data-tester__modal-messages">
+                      <h4>Conversation Flow</h4>
+                      <div className="session-data-tester__modal-message-list">
+                        {messages.map((message) => (
+                          <div 
+                            key={message.id}
+                            className={`session-data-tester__modal-message session-data-tester__modal-message--${message.role}`}
+                          >
+                            <div className="session-data-tester__modal-message-content">
+                              <ReactMarkdown>{message.content}</ReactMarkdown>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
