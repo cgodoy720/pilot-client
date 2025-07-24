@@ -46,6 +46,33 @@ export const formatDateTime = (date) => {
 };
 
 /**
+ * Format submission timestamp consistently across environments
+ * This ensures the same display in both local and production
+ * @param {Date|string} timestamp - Database timestamp
+ * @returns {string} Formatted timestamp string
+ */
+export const formatSubmissionTimestamp = (timestamp) => {
+  if (!timestamp) return 'N/A';
+  
+  const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+  
+  // Check if date is valid
+  if (isNaN(date.getTime())) return 'Invalid date';
+  
+  // Use Intl.DateTimeFormat for consistent timezone handling
+  // This ensures the same behavior regardless of server timezone
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  }).format(date);
+};
+
+/**
  * Treat database time as Eastern Time (not UTC conversion)
  * @param {Date|string} dbDate - Database date that should be treated as Eastern time
  * @returns {Date} Date object with database time treated as Eastern
