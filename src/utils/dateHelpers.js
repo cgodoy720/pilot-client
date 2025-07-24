@@ -47,8 +47,8 @@ export const formatDateTime = (date) => {
 
 /**
  * Format submission timestamp consistently across environments
- * This ensures the same display in both local and production
- * @param {Date|string} timestamp - Database timestamp (now stores Eastern time correctly)
+ * Backend stores Eastern time, so convert properly to display
+ * @param {Date|string} timestamp - Database timestamp
  * @returns {string} Formatted timestamp string
  */
 export const formatSubmissionTimestamp = (timestamp) => {
@@ -59,18 +59,10 @@ export const formatSubmissionTimestamp = (timestamp) => {
   // Check if date is valid
   if (isNaN(date.getTime())) return 'Invalid date';
   
-  // The server now stores Eastern time correctly, so we can format it directly
-  // But we need to treat the stored timestamp as Eastern time (not UTC)
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth();
-  const day = date.getUTCDate();
-  const hour = date.getUTCHours();
-  const minute = date.getUTCMinutes();
-  
-  // Create a new date treating these UTC components as Eastern time
-  const easternDate = new Date(year, month, day, hour, minute);
-  
-  return easternDate.toLocaleString("en-US", {
+  // Backend now stores Eastern time correctly as timestamp
+  // Just format it normally
+  return date.toLocaleString("en-US", {
+    timeZone: 'America/New_York',
     year: 'numeric',
     month: 'numeric',
     day: 'numeric',
