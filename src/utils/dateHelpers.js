@@ -59,17 +59,77 @@ export const formatSubmissionTimestamp = (timestamp) => {
   // Check if date is valid
   if (isNaN(date.getTime())) return 'Invalid date';
   
-  // The database stores UTC timestamps, so we need to convert to Eastern Time
-  // Use Intl.DateTimeFormat to properly handle timezone conversion
-  return new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  }).format(date);
+  // Comprehensive debugging for production vs local differences
+  const debugInfo = {
+    environment: import.meta.env.MODE || 'unknown',
+    apiUrl: import.meta.env.VITE_API_URL || 'unknown',
+    originalTimestamp: timestamp,
+    parsedDate: date.toString(),
+    utcString: date.toUTCString(),
+    isoString: date.toISOString(),
+    userAgent: navigator.userAgent,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    locale: navigator.language,
+    dateSupportsTimezone: typeof Intl.DateTimeFormat().resolvedOptions === 'function'
+  };
+  
+  console.log('🐛 COMPREHENSIVE DEBUG - formatSubmissionTimestamp:', debugInfo);
+  
+  // Test multiple approaches to see which one works in production
+  const approaches = {};
+  
+  try {
+    // Approach 1: Intl.DateTimeFormat with Eastern timezone
+    approaches.intlEastern = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    }).format(date);
+  } catch (e) {
+    approaches.intlEastern = `Error: ${e.message}`;
+  }
+  
+  try {
+    // Approach 2: Manual UTC to Eastern conversion (like existing codebase)
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth();
+    const day = date.getUTCDate();
+    const hour = date.getUTCHours();
+    const minute = date.getUTCMinutes();
+    
+    // Subtract 4 hours for EDT (or 5 for EST) - simplified for debugging
+    const adjustedHour = hour - 4; // Assuming EDT for now
+    const easternDate = new Date(year, month, day, adjustedHour, minute);
+    
+    approaches.manualConversion = easternDate.toLocaleString("en-US", {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  } catch (e) {
+    approaches.manualConversion = `Error: ${e.message}`;
+  }
+  
+  try {
+    // Approach 3: Simple local time (what was happening before)
+    approaches.simpleLocal = date.toLocaleString();
+  } catch (e) {
+    approaches.simpleLocal = `Error: ${e.message}`;
+  }
+  
+  console.log('🧪 All approaches tested:', approaches);
+  
+  // Return the Intl.DateTimeFormat approach (should be most reliable)
+  return approaches.intlEastern.includes('Error') ? 
+    approaches.manualConversion : 
+    approaches.intlEastern;
 };
 
 /**
