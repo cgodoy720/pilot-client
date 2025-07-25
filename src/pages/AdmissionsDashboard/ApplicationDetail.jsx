@@ -172,7 +172,7 @@ const ApplicationDetail = () => {
         );
     }
 
-    const { applicant, application, responses, questions } = applicationData;
+    const { applicant, application, assessment, responses, questions } = applicationData;
 
     return (
         <div className="application-detail">
@@ -183,10 +183,10 @@ const ApplicationDetail = () => {
                         onClick={() => navigate('/admissions-dashboard?tab=applications')} 
                         className="application-detail__back-btn"
                     >
-                        ← Back to Admissions
+                        ← Back to Applicants
                     </button>
                     <div className="application-detail__title">
-                        <h1>Application Details</h1>
+                        <h1>Applicant Details</h1>
                         <span className={`status-badge status-badge--${application.status}`}>
                             {application.status}
                         </span>
@@ -195,11 +195,11 @@ const ApplicationDetail = () => {
             </div>
 
             <div className="application-detail__content">
-                {/* Applicant Information */}
-                <div className="application-detail__section">
+                {/* Applicant Information - Compact */}
+                <div className="application-detail__section application-detail__section--compact">
                     <h2>Applicant Information</h2>
-                    <div className="applicant-info">
-                        <div className="applicant-info__grid">
+                    <div className="applicant-info applicant-info--compact">
+                        <div className="applicant-info__grid applicant-info__grid--compact">
                             <div className="info-item">
                                 <label>Name:</label>
                                 <span>{applicant.first_name} {applicant.last_name}</span>
@@ -209,33 +209,99 @@ const ApplicationDetail = () => {
                                 <span>{applicant.email}</span>
                             </div>
                             <div className="info-item">
-                                <label>Notes:</label>
-                                <button 
-                                    className="notes-btn notes-btn--primary"
-                                    onClick={openNotesModal}
-                                >
-                                    📝 View Notes
-                                </button>
-                            </div>
-                            <div className="info-item date-info">
-                                <label>Applied Date:</label>
+                                <label>Applied:</label>
                                 <span>{new Date(application.created_at).toLocaleDateString()}</span>
                             </div>
-                            {application.submitted_at && (
-                                <div className="info-item date-info">
-                                    <label>Submitted Date:</label>
-                                    <span>{new Date(application.submitted_at).toLocaleDateString()}</span>
-                                </div>
-                            )}
-                            {application.updated_at && (
-                                <div className="info-item date-info">
-                                    <label>Last Updated:</label>
-                                    <span>{new Date(application.updated_at).toLocaleDateString()}</span>
-                                </div>
-                            )}
+                            <div className="info-item">
+                                <button 
+                                    className="notes-btn notes-btn--compact"
+                                    onClick={openNotesModal}
+                                >
+                                    📝 Notes
+                                </button>
+                            </div>
                         </div>
-
                     </div>
+                </div>
+
+                {/* Application Assessment */}
+                <div className="application-detail__section">
+                    <h2>Application Assessment</h2>
+                    {assessment && assessment.recommendation ? (
+                        <div className="assessment-details">
+                            <div className="assessment-overview">
+                                <div className="assessment-scores">
+                                    <div className="score-item">
+                                        <label>Learning Score:</label>
+                                        <span className="score-value">{assessment.learning_score}/100</span>
+                                    </div>
+                                    <div className="score-item">
+                                        <label>Grit Score:</label>
+                                        <span className="score-value">{assessment.grit_score}/100</span>
+                                    </div>
+                                    <div className="score-item">
+                                        <label>Critical Thinking:</label>
+                                        <span className="score-value">{assessment.critical_thinking_score}/100</span>
+                                    </div>
+                                    <div className="score-item score-item--overall">
+                                        <label>Overall Score:</label>
+                                        <span className="score-value score-value--overall">{assessment.overall_score}/100</span>
+                                    </div>
+                                </div>
+                                <div className="assessment-recommendation">
+                                    <label>Recommendation:</label>
+                                    <span className={`assessment-badge assessment-badge--${assessment.recommendation}`}>
+                                        {assessment.recommendation.replace('_', ' ')}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="assessment-details-expandable">
+                                <details className="assessment-expandable">
+                                    <summary className="assessment-expandable__summary">
+                                        📋 View Detailed Analysis
+                                    </summary>
+                                    <div className="assessment-expandable__content">
+                                        {assessment.strengths && (
+                                            <div className="assessment-detail-item">
+                                                <h4>Strengths</h4>
+                                                <p>{assessment.strengths}</p>
+                                            </div>
+                                        )}
+                                        {assessment.concerns && (
+                                            <div className="assessment-detail-item">
+                                                <h4>Concerns</h4>
+                                                <p>{assessment.concerns}</p>
+                                            </div>
+                                        )}
+                                        {assessment.areas_for_development && (
+                                            <div className="assessment-detail-item">
+                                                <h4>Areas for Development</h4>
+                                                <p>{assessment.areas_for_development}</p>
+                                            </div>
+                                        )}
+                                        {assessment.analysis_notes && (
+                                            <div className="assessment-detail-item">
+                                                <h4>Analysis Notes</h4>
+                                                <p>{assessment.analysis_notes}</p>
+                                            </div>
+                                        )}
+                                        <div className="assessment-metadata">
+                                            <p className="assessment-meta">
+                                                <strong>Responses Analyzed:</strong> {assessment.target_responses_found}/{assessment.total_responses} | 
+                                                <strong> Analyzer Version:</strong> {assessment.analyzer_version} | 
+                                                <strong> Analyzed:</strong> {assessment.created_at ? new Date(assessment.created_at).toLocaleDateString() : 'N/A'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="assessment-pending">
+                            <p>Assessment pending - AI analysis has not been completed yet.</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Application Responses */}
@@ -268,29 +334,7 @@ const ApplicationDetail = () => {
                     )}
                 </div>
 
-                {/* Application Statistics */}
-                <div className="application-detail__section">
-                    <h2>Application Statistics</h2>
-                    <div className="application-stats">
-                        <div className="stat-item">
-                            <span className="stat-label">Total Questions:</span>
-                            <span className="stat-value">{questions?.length || 0}</span>
-                        </div>
-                        <div className="stat-item">
-                            <span className="stat-label">Responses Provided:</span>
-                            <span className="stat-value">{responses?.length || 0}</span>
-                        </div>
-                        <div className="stat-item">
-                            <span className="stat-label">Completion Rate:</span>
-                            <span className="stat-value">
-                                {questions?.length > 0 
-                                    ? Math.round(((responses?.length || 0) / questions.length) * 100)
-                                    : 0
-                                }%
-                            </span>
-                        </div>
-                    </div>
-                </div>
+
             </div>
 
             {/* Notes Modal */}

@@ -490,6 +490,69 @@
   color: #f56565;
 }
 
+/* Assessment badges */
+.assessment-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.assessment-badge--strong_recommend {
+  background: rgba(56, 178, 172, 0.2);
+  color: #38b2ac;
+}
+
+.assessment-badge--recommend {
+  background: rgba(72, 187, 120, 0.2);
+  color: #48bb78;
+}
+
+.assessment-badge--review_needed {
+  background: rgba(237, 137, 54, 0.2);
+  color: #ed8936;
+}
+
+.assessment-badge--not_recommend {
+  background: rgba(245, 101, 101, 0.2);
+  color: #f56565;
+}
+
+.assessment-badge--pending {
+  background: rgba(160, 174, 192, 0.2);
+  color: #a0aec0;
+}
+
+/* Info session badges */
+.info-session-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.info-session-badge--attended {
+  background: rgba(72, 187, 120, 0.2);
+  color: #48bb78;
+}
+
+.info-session-badge--registered {
+  background: rgba(66, 153, 225, 0.2);
+  color: #4299e1;
+}
+
+.info-session-badge--no_show {
+  background: rgba(245, 101, 101, 0.2);
+  color: #f56565;
+}
+
+.info-session-badge--not_registered {
+  background: rgba(160, 174, 192, 0.2);
+  color: #a0aec0;
+}
+
 .table-footer {
   padding: 1rem;
   background: rgba(255, 255, 255, 0.02);

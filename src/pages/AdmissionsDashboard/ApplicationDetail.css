@@ -443,4 +443,183 @@
   .stat-value {
     font-size: 1.5rem;
   }
-} 
+}
+
+/* Compact applicant information styles */
+.application-detail__section--compact {
+  margin-bottom: 1rem;
+}
+
+.applicant-info--compact {
+  padding: 1rem;
+}
+
+.applicant-info__grid--compact {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.notes-btn--compact {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notes-btn--compact:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+/* Assessment section styles */
+.assessment-details {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.assessment-overview {
+  margin-bottom: 2rem;
+}
+
+.assessment-scores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.score-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.score-item--overall {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.score-item label {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.score-value {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--color-text-primary);
+}
+
+.score-value--overall {
+  color: #3b82f6;
+  font-size: 1.2rem;
+}
+
+.assessment-recommendation {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.assessment-recommendation label {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+/* Assessment expandable details */
+.assessment-details-expandable {
+  margin-top: 1.5rem;
+}
+
+.assessment-expandable summary {
+  cursor: pointer;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  transition: all 0.2s ease;
+}
+
+.assessment-expandable summary:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.assessment-expandable__content {
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.assessment-detail-item {
+  margin-bottom: 1.5rem;
+}
+
+.assessment-detail-item h4 {
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.assessment-detail-item p {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.assessment-metadata {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.assessment-meta {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.assessment-pending {
+  padding: 2rem;
+  text-align: center;
+  background: rgba(160, 174, 192, 0.1);
+  border: 1px solid rgba(160, 174, 192, 0.2);
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+}
+
+/* Responsive adjustments for assessment */
+@media (max-width: 768px) {
+  .applicant-info__grid--compact {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .assessment-scores {
+    grid-template-columns: 1fr;
+  }
+  
+  .assessment-recommendation {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
