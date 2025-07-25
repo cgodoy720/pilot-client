@@ -765,6 +765,24 @@
   text-align: left;
 }
 
+/* Bullet point styling */
+.bullet-list {
+  margin: 0;
+  padding-left: 1.5rem;
+  color: var(--color-text-secondary);
+  line-height: 1.7;
+  text-align: left;
+}
+
+.bullet-list li {
+  margin-bottom: 0.5rem;
+  padding-left: 0.25rem;
+}
+
+.bullet-list li:last-child {
+  margin-bottom: 0;
+}
+
 .assessment-metadata {
   margin-top: 1.5rem;
   padding-top: 1rem;

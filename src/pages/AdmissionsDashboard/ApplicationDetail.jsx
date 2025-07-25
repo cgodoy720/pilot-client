@@ -140,7 +140,9 @@ const ApplicationDetail = () => {
         if (lowercasePrompt.includes('first name')) return 'First Name';
         if (lowercasePrompt.includes('last name')) return 'Last Name';
         if (lowercasePrompt.includes('date of birth') || lowercasePrompt.includes('birthday')) return 'Date of Birth';
-        if (lowercasePrompt.includes('annual') && lowercasePrompt.includes('income')) return 'Annual Income';
+        if (lowercasePrompt.includes('annual') && lowercasePrompt.includes('personal income')) return 'Personal Annual Income';
+        if (lowercasePrompt.includes('annual') && lowercasePrompt.includes('household income')) return 'Household Annual Income';
+        if (lowercasePrompt.includes('annual') && lowercasePrompt.includes('income') && !lowercasePrompt.includes('personal') && !lowercasePrompt.includes('household')) return 'Annual Income';
         if (lowercasePrompt.includes('home address') || lowercasePrompt.includes('street address')) return 'Address';
         if (lowercasePrompt.includes('phone') || lowercasePrompt.includes('mobile')) return 'Phone';
         if (lowercasePrompt.includes('email')) return 'Email';
@@ -163,6 +165,23 @@ const ApplicationDetail = () => {
         }
         
         return prompt;
+    };
+
+    // Helper function to convert semicolon-separated text to bullet points
+    const formatBulletPoints = (text) => {
+        if (!text) return null;
+        
+        // Split by semicolons and trim each item
+        const points = text.split(';').map(item => item.trim()).filter(item => item);
+        
+        // Return as bullet point list
+        return (
+            <ul className="bullet-list">
+                {points.map((point, index) => (
+                    <li key={index}>{point}</li>
+                ))}
+            </ul>
+        );
     };
 
     // Create logical groupings based on question content instead of database sections
@@ -441,19 +460,19 @@ const ApplicationDetail = () => {
                                         {assessment.strengths && (
                                             <div className="assessment-detail-item">
                                                 <h4>Strengths</h4>
-                                                <p>{assessment.strengths}</p>
+                                                {formatBulletPoints(assessment.strengths)}
                                             </div>
                                         )}
                                         {assessment.concerns && (
                                             <div className="assessment-detail-item">
                                                 <h4>Concerns</h4>
-                                                <p>{assessment.concerns}</p>
+                                                {formatBulletPoints(assessment.concerns)}
                                             </div>
                                         )}
                                         {assessment.areas_for_development && (
                                             <div className="assessment-detail-item">
                                                 <h4>Areas for Development</h4>
-                                                <p>{assessment.areas_for_development}</p>
+                                                {formatBulletPoints(assessment.areas_for_development)}
                                             </div>
                                         )}
                                         {assessment.analysis_notes && (

@@ -36,7 +36,15 @@ const FeedbackSection = ({ cohortMonth }) => {
         
         const data = await fetchExternalPeerFeedback(userId, selectedMonth);
         console.log('Received external peer feedback data:', data);
-        setFeedbackData(data);
+        
+        // Filter out feedback items with error messages
+        const filteredData = data.filter(item => 
+          item.summary && 
+          !item.summary.includes('Error analyzing feedback')
+        );
+        console.log('Filtered feedback data:', filteredData);
+        
+        setFeedbackData(filteredData);
         setError(null);
       } catch (err) {
         console.error('Failed to fetch peer feedback data:', err);
