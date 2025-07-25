@@ -231,28 +231,118 @@ const ApplicationDetail = () => {
                         <div className="assessment-details">
                             <div className="assessment-overview">
                                 <div className="assessment-scores">
-                                    <div className="score-item">
-                                        <label>Learning Score:</label>
-                                        <span className="score-value">{assessment.learning_score}/100</span>
+                                    <div className="assessment-scores-top">
+                                        <div className="score-item score-item--overall">
+                                            <div className="score-circle">
+                                                <svg viewBox="0 0 100 100">
+                                                    <defs>
+                                                        <linearGradient id="overallGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                            <stop offset="0%" stopColor="#06d6a0" />
+                                                            <stop offset="50%" stopColor="#4ecdc4" />
+                                                            <stop offset="100%" stopColor="#45b7d1" />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <circle cx="50" cy="50" r="40" className="score-circle-bg" />
+                                                    <circle 
+                                                        cx="50" 
+                                                        cy="50" 
+                                                        r="40" 
+                                                        className="score-circle-progress score-circle-progress--overall"
+                                                        strokeDasharray={`${(assessment.overall_score / 100) * 251.2} 251.2`}
+                                                    />
+                                                </svg>
+                                                <div className="score-value score-value--overall">{assessment.overall_score}</div>
+                                            </div>
+                                            <div className="score-label">Overall<br/>Score</div>
+                                        </div>
+                                        <div className="recommendation-display">
+                                            <div className="recommendation-card">
+                                                <div className="recommendation-label">Final Recommendation</div>
+                                                <div className={`recommendation-badge recommendation-badge--${assessment.recommendation}`}>
+                                                    <div className="recommendation-icon">
+                                                        {assessment.recommendation === 'strong_recommend' && '✓'}
+                                                        {assessment.recommendation === 'recommend' && '✓'}
+                                                        {assessment.recommendation === 'review_needed' && '⚠️'}
+                                                        {assessment.recommendation === 'not_recommend' && '✗'}
+                                                    </div>
+                                                    <div className="recommendation-text">
+                                                        {assessment.recommendation.replace('_', ' ')}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="score-item">
-                                        <label>Grit Score:</label>
-                                        <span className="score-value">{assessment.grit_score}/100</span>
+                                    <div className="assessment-scores-bottom">
+                                        <div className="score-item">
+                                            <div className="score-circle">
+                                                <svg viewBox="0 0 100 100">
+                                                    <defs>
+                                                        <linearGradient id="learningGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                            <stop offset="0%" stopColor="#ff6b6b" />
+                                                            <stop offset="50%" stopColor="#4ecdc4" />
+                                                            <stop offset="100%" stopColor="#45b7d1" />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <circle cx="50" cy="50" r="40" className="score-circle-bg" />
+                                                    <circle 
+                                                        cx="50" 
+                                                        cy="50" 
+                                                        r="40" 
+                                                        className="score-circle-progress score-circle-progress--learning"
+                                                        strokeDasharray={`${(assessment.learning_score / 100) * 251.2} 251.2`}
+                                                    />
+                                                </svg>
+                                                <div className="score-value">{assessment.learning_score}</div>
+                                            </div>
+                                            <div className="score-label">Learning<br/>Ability</div>
+                                        </div>
+                                        <div className="score-item">
+                                            <div className="score-circle">
+                                                <svg viewBox="0 0 100 100">
+                                                    <defs>
+                                                        <linearGradient id="gritGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                            <stop offset="0%" stopColor="#ffd93d" />
+                                                            <stop offset="50%" stopColor="#ff9a3c" />
+                                                            <stop offset="100%" stopColor="#ff6b6b" />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <circle cx="50" cy="50" r="40" className="score-circle-bg" />
+                                                    <circle 
+                                                        cx="50" 
+                                                        cy="50" 
+                                                        r="40" 
+                                                        className="score-circle-progress score-circle-progress--grit"
+                                                        strokeDasharray={`${(assessment.grit_score / 100) * 251.2} 251.2`}
+                                                    />
+                                                </svg>
+                                                <div className="score-value">{assessment.grit_score}</div>
+                                            </div>
+                                            <div className="score-label">Grit &<br/>Perseverance</div>
+                                        </div>
+                                        <div className="score-item">
+                                            <div className="score-circle">
+                                                <svg viewBox="0 0 100 100">
+                                                    <defs>
+                                                        <linearGradient id="thinkingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                            <stop offset="0%" stopColor="#a855f7" />
+                                                            <stop offset="50%" stopColor="#3b82f6" />
+                                                            <stop offset="100%" stopColor="#06b6d4" />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <circle cx="50" cy="50" r="40" className="score-circle-bg" />
+                                                    <circle 
+                                                        cx="50" 
+                                                        cy="50" 
+                                                        r="40" 
+                                                        className="score-circle-progress score-circle-progress--thinking"
+                                                        strokeDasharray={`${(assessment.critical_thinking_score / 100) * 251.2} 251.2`}
+                                                    />
+                                                </svg>
+                                                <div className="score-value">{assessment.critical_thinking_score}</div>
+                                            </div>
+                                            <div className="score-label">Critical<br/>Thinking</div>
+                                        </div>
                                     </div>
-                                    <div className="score-item">
-                                        <label>Critical Thinking:</label>
-                                        <span className="score-value">{assessment.critical_thinking_score}/100</span>
-                                    </div>
-                                    <div className="score-item score-item--overall">
-                                        <label>Overall Score:</label>
-                                        <span className="score-value score-value--overall">{assessment.overall_score}/100</span>
-                                    </div>
-                                </div>
-                                <div className="assessment-recommendation">
-                                    <label>Recommendation:</label>
-                                    <span className={`assessment-badge assessment-badge--${assessment.recommendation}`}>
-                                        {assessment.recommendation.replace('_', ' ')}
-                                    </span>
                                 </div>
                             </div>
 
