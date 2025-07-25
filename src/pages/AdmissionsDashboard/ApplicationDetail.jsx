@@ -165,6 +165,23 @@ const ApplicationDetail = () => {
         return prompt;
     };
 
+    // Helper function to convert semicolon-separated text to bullet points
+    const formatBulletPoints = (text) => {
+        if (!text) return null;
+        
+        // Split by semicolons and trim each item
+        const points = text.split(';').map(item => item.trim()).filter(item => item);
+        
+        // Return as bullet point list
+        return (
+            <ul className="bullet-list">
+                {points.map((point, index) => (
+                    <li key={index}>{point}</li>
+                ))}
+            </ul>
+        );
+    };
+
     // Create logical groupings based on question content instead of database sections
     const getQuestionCategory = (prompt) => {
         if (!prompt) return 'Other';
@@ -441,19 +458,19 @@ const ApplicationDetail = () => {
                                         {assessment.strengths && (
                                             <div className="assessment-detail-item">
                                                 <h4>Strengths</h4>
-                                                <p>{assessment.strengths}</p>
+                                                {formatBulletPoints(assessment.strengths)}
                                             </div>
                                         )}
                                         {assessment.concerns && (
                                             <div className="assessment-detail-item">
                                                 <h4>Concerns</h4>
-                                                <p>{assessment.concerns}</p>
+                                                {formatBulletPoints(assessment.concerns)}
                                             </div>
                                         )}
                                         {assessment.areas_for_development && (
                                             <div className="assessment-detail-item">
                                                 <h4>Areas for Development</h4>
-                                                <p>{assessment.areas_for_development}</p>
+                                                {formatBulletPoints(assessment.areas_for_development)}
                                             </div>
                                         )}
                                         {assessment.analysis_notes && (
