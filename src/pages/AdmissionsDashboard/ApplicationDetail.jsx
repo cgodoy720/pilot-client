@@ -140,7 +140,9 @@ const ApplicationDetail = () => {
         if (lowercasePrompt.includes('first name')) return 'First Name';
         if (lowercasePrompt.includes('last name')) return 'Last Name';
         if (lowercasePrompt.includes('date of birth') || lowercasePrompt.includes('birthday')) return 'Date of Birth';
-        if (lowercasePrompt.includes('annual') && lowercasePrompt.includes('income')) return 'Annual Income';
+        if (lowercasePrompt.includes('annual') && lowercasePrompt.includes('personal income')) return 'Personal Annual Income';
+        if (lowercasePrompt.includes('annual') && lowercasePrompt.includes('household income')) return 'Household Annual Income';
+        if (lowercasePrompt.includes('annual') && lowercasePrompt.includes('income') && !lowercasePrompt.includes('personal') && !lowercasePrompt.includes('household')) return 'Annual Income';
         if (lowercasePrompt.includes('home address') || lowercasePrompt.includes('street address')) return 'Address';
         if (lowercasePrompt.includes('phone') || lowercasePrompt.includes('mobile')) return 'Phone';
         if (lowercasePrompt.includes('email')) return 'Email';
