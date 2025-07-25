@@ -30,6 +30,7 @@ const AdmissionsDashboard = () => {
     // Pagination and filters
     const [applicationFilters, setApplicationFilters] = useState({
         status: '',
+        recommendation: '',
         limit: 50,
         offset: 0
     });
@@ -110,6 +111,7 @@ const AdmissionsDashboard = () => {
             setLoading(true);
             const params = new URLSearchParams();
             if (applicationFilters.status) params.append('status', applicationFilters.status);
+            if (applicationFilters.recommendation) params.append('recommendation', applicationFilters.recommendation);
             params.append('limit', applicationFilters.limit);
             params.append('offset', applicationFilters.offset);
 
@@ -524,9 +526,9 @@ const AdmissionsDashboard = () => {
                 <button 
                     className={`admissions-dashboard__tab ${activeTab === 'applications' ? 'admissions-dashboard__tab--active' : ''}`}
                     onClick={() => handleTabChange('applications')}
-                >
-                    Applications
-                </button>
+                                        >
+                            Applicants
+                        </button>
                 <button 
                     className={`admissions-dashboard__tab ${activeTab === 'info-sessions' ? 'admissions-dashboard__tab--active' : ''}`}
                     onClick={() => handleTabChange('info-sessions')}
@@ -577,7 +579,7 @@ const AdmissionsDashboard = () => {
                                 {/* Applications by Status */}
                                 <div className="stat-card stat-card--wide">
                                     <div className="stat-card__header">
-                                        <h3>Applications</h3>
+                                        <h3>Applicants</h3>
                                         <div className="stat-card__icon">📝</div>
                                     </div>
                                     <div className="applications-breakdown">
@@ -626,7 +628,7 @@ const AdmissionsDashboard = () => {
                 {activeTab === 'applications' && (
                     <div className="admissions-dashboard__applications">
                         <div className="data-section__header">
-                            <h2>Applications Management</h2>
+                            <h2>Applicant Management</h2>
                             <div className="data-section__controls">
                                 <select 
                                     value={applicationFilters.status} 
@@ -639,12 +641,23 @@ const AdmissionsDashboard = () => {
                                     <option value="ineligible">Ineligible</option>
                                 </select>
                                 <select 
+                                    value={applicationFilters.recommendation} 
+                                    onChange={(e) => setApplicationFilters({...applicationFilters, recommendation: e.target.value})}
+                                    className="filter-select"
+                                >
+                                    <option value="">All Assessments</option>
+                                    <option value="strong_recommend">Strong Recommend</option>
+                                    <option value="recommend">Recommend</option>
+                                    <option value="review_needed">Review Needed</option>
+                                    <option value="not_recommend">Not Recommend</option>
+                                </select>
+                                <select 
                                     value={applicationSort} 
                                     onChange={(e) => setApplicationSort(e.target.value)}
                                     className="filter-select"
                                 >
-                                    <option value="latest">Latest Applications</option>
-                                    <option value="oldest">Oldest Applications</option>
+                                    <option value="latest">Latest Applicants</option>
+                                    <option value="oldest">Oldest Applicants</option>
                                     <option value="alphabetic">Alphabetic (A-Z)</option>
                                 </select>
                                 <button onClick={fetchApplications} className="refresh-btn">Refresh</button>
@@ -654,7 +667,7 @@ const AdmissionsDashboard = () => {
                         {loading ? (
                             <div className="table-loading">
                                 <div className="spinner"></div>
-                                <p>Loading applications...</p>
+                                <p>Loading applicants...</p>
                             </div>
                         ) : applications?.applications?.length > 0 ? (
                             <div className="data-table-container">
@@ -663,9 +676,10 @@ const AdmissionsDashboard = () => {
                                         <tr>
                                             <th>Name</th>
                                             <th>Email</th>
+                                            <th>Phone</th>
                                             <th>Status</th>
-                                            <th>Applied</th>
-                                            <th>Last Updated</th>
+                                            <th>Assessment</th>
+                                            <th>Info Session</th>
                                             <th>Notes</th>
                                         </tr>
                                     </thead>
@@ -683,11 +697,29 @@ const AdmissionsDashboard = () => {
                                                         {app.first_name} {app.last_name}
                                                     </div>
                                                 </td>
-                                                <td
-                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
-                                                >
-                                                    {app.email}
+                                                <td className="clickable-cell">
+                                                    <span 
+                                                        className="copyable-email" 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleEmailClick(app.email);
+                                                        }}
+                                                        title="Click to copy email"
+                                                    >
+                                                        {app.email}
+                                                    </span>
+                                                </td>
+                                                <td className="clickable-cell">
+                                                    <span 
+                                                        className="copyable-phone" 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handlePhoneClick(app.phone_number);
+                                                        }}
+                                                        title="Click to copy phone number"
+                                                    >
+                                                        {formatPhoneNumber(app.phone_number)}
+                                                    </span>
                                                 </td>
                                                 <td
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
@@ -701,13 +733,23 @@ const AdmissionsDashboard = () => {
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className="clickable-cell"
                                                 >
-                                                    {new Date(app.created_at).toLocaleDateString()}
+                                                    {app.recommendation ? (
+                                                        <span className={`assessment-badge assessment-badge--${app.recommendation}`}>
+                                                            {app.recommendation.replace('_', ' ')}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="assessment-badge assessment-badge--pending">
+                                                            pending
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className="clickable-cell"
                                                 >
-                                                    {new Date(app.updated_at).toLocaleDateString()}
+                                                    <span className={`info-session-badge info-session-badge--${app.info_session_status || 'not_registered'}`}>
+                                                        {(app.info_session_status || 'not_registered').replace('_', ' ')}
+                                                    </span>
                                                 </td>
                                                 <td>
                                                     <button 
@@ -730,7 +772,7 @@ const AdmissionsDashboard = () => {
                                 
                                 <div className="table-footer">
                                     <span className="table-count">
-                                        Showing {applications.applications.length} applications
+                                        Showing {applications.applications.length} applicants
                                         {applications.total > applications.applications.length && 
                                             ` of ${applications.total} total`
                                         }
@@ -779,7 +821,7 @@ const AdmissionsDashboard = () => {
                             </div>
                         ) : (
                             <div className="no-data-message">
-                                <p>No applications found</p>
+                                <p>No applicants found</p>
                                 {applicationFilters.status && (
                                     <button 
                                         onClick={() => setApplicationFilters({...applicationFilters, status: ''})}
