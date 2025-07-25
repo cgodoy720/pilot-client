@@ -676,10 +676,10 @@ const AdmissionsDashboard = () => {
                                         <tr>
                                             <th>Name</th>
                                             <th>Email</th>
+                                            <th>Phone</th>
                                             <th>Status</th>
                                             <th>Assessment</th>
                                             <th>Info Session</th>
-                                            <th>Applied</th>
                                             <th>Notes</th>
                                         </tr>
                                     </thead>
@@ -697,11 +697,29 @@ const AdmissionsDashboard = () => {
                                                         {app.first_name} {app.last_name}
                                                     </div>
                                                 </td>
-                                                <td
-                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
-                                                >
-                                                    {app.email}
+                                                <td className="clickable-cell">
+                                                    <span 
+                                                        className="copyable-email" 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleEmailClick(app.email);
+                                                        }}
+                                                        title="Click to copy email"
+                                                    >
+                                                        {app.email}
+                                                    </span>
+                                                </td>
+                                                <td className="clickable-cell">
+                                                    <span 
+                                                        className="copyable-phone" 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handlePhoneClick(app.phone_number);
+                                                        }}
+                                                        title="Click to copy phone number"
+                                                    >
+                                                        {formatPhoneNumber(app.phone_number)}
+                                                    </span>
                                                 </td>
                                                 <td
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
@@ -732,12 +750,6 @@ const AdmissionsDashboard = () => {
                                                     <span className={`info-session-badge info-session-badge--${app.info_session_status || 'not_registered'}`}>
                                                         {(app.info_session_status || 'not_registered').replace('_', ' ')}
                                                     </span>
-                                                </td>
-                                                <td
-                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
-                                                >
-                                                    {new Date(app.created_at).toLocaleDateString()}
                                                 </td>
                                                 <td>
                                                     <button 
