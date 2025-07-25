@@ -130,6 +130,92 @@ const ApplicationDetail = () => {
         setNotesModalOpen(false);
     };
 
+    // Create shorthand labels for common questions
+    const getShorthandLabel = (prompt) => {
+        if (!prompt) return 'Unknown Question';
+        
+        const lowercasePrompt = prompt.toLowerCase();
+        
+        // Common question mappings
+        if (lowercasePrompt.includes('first name')) return 'First Name';
+        if (lowercasePrompt.includes('last name')) return 'Last Name';
+        if (lowercasePrompt.includes('date of birth') || lowercasePrompt.includes('birthday')) return 'Date of Birth';
+        if (lowercasePrompt.includes('annual') && lowercasePrompt.includes('income')) return 'Annual Income';
+        if (lowercasePrompt.includes('home address') || lowercasePrompt.includes('street address')) return 'Address';
+        if (lowercasePrompt.includes('phone') || lowercasePrompt.includes('mobile')) return 'Phone';
+        if (lowercasePrompt.includes('email')) return 'Email';
+        if (lowercasePrompt.includes('gender')) return 'Gender';
+        if (lowercasePrompt.includes('race') || lowercasePrompt.includes('ethnicity')) return 'Race/Ethnicity';
+        if (lowercasePrompt.includes('education') && lowercasePrompt.includes('level')) return 'Education Level';
+        if (lowercasePrompt.includes('work') && lowercasePrompt.includes('experience')) return 'Work Experience';
+        if (lowercasePrompt.includes('why') && lowercasePrompt.includes('pursuit')) return 'Why Pursuit?';
+        if (lowercasePrompt.includes('programming') && lowercasePrompt.includes('experience')) return 'Programming Experience';
+        if (lowercasePrompt.includes('obstacle') || lowercasePrompt.includes('challenge')) return 'Challenges/Obstacles';
+        if (lowercasePrompt.includes('goal') || lowercasePrompt.includes('career')) return 'Career Goals';
+        if (lowercasePrompt.includes('reference') || lowercasePrompt.includes('contact')) return 'Reference Contact';
+        if (lowercasePrompt.includes('privacy') && lowercasePrompt.includes('policy')) return 'Privacy Policy Agreement';
+        if (lowercasePrompt.includes('citizen') || lowercasePrompt.includes('authorized')) return 'Work Authorization';
+        if (lowercasePrompt.includes('conviction') || lowercasePrompt.includes('criminal')) return 'Criminal Background';
+        
+        // If no match found, try to create a shortened version
+        if (prompt.length > 50) {
+            return prompt.substring(0, 47) + '...';
+        }
+        
+        return prompt;
+    };
+
+    // Create logical groupings based on question content instead of database sections
+    const getQuestionCategory = (prompt) => {
+        if (!prompt) return 'Other';
+        
+        const lowercasePrompt = prompt.toLowerCase();
+        
+        // Personal/Basic Information
+        if (lowercasePrompt.includes('first name') || lowercasePrompt.includes('last name') || 
+            lowercasePrompt.includes('date of birth') || lowercasePrompt.includes('email') ||
+            lowercasePrompt.includes('phone') || lowercasePrompt.includes('address') ||
+            lowercasePrompt.includes('gender')) {
+            return 'Personal Information';
+        }
+        
+        // Background & Demographics
+        if (lowercasePrompt.includes('race') || lowercasePrompt.includes('ethnicity') ||
+            lowercasePrompt.includes('education') || lowercasePrompt.includes('income') ||
+            lowercasePrompt.includes('citizen') || lowercasePrompt.includes('authorized')) {
+            return 'Background & Demographics';
+        }
+        
+        // Experience & Work
+        if (lowercasePrompt.includes('work') || lowercasePrompt.includes('job') ||
+            lowercasePrompt.includes('experience') || lowercasePrompt.includes('programming') ||
+            lowercasePrompt.includes('technical')) {
+            return 'Experience & Background';
+        }
+        
+        // Program Interest & Motivation
+        if (lowercasePrompt.includes('why') || lowercasePrompt.includes('pursuit') ||
+            lowercasePrompt.includes('goal') || lowercasePrompt.includes('career') ||
+            lowercasePrompt.includes('motivation') || lowercasePrompt.includes('interest')) {
+            return 'Program Interest';
+        }
+        
+        // Challenges & Personal
+        if (lowercasePrompt.includes('obstacle') || lowercasePrompt.includes('challenge') ||
+            lowercasePrompt.includes('overcome') || lowercasePrompt.includes('difficult')) {
+            return 'Personal Story';
+        }
+        
+        // References & Additional
+        if (lowercasePrompt.includes('reference') || lowercasePrompt.includes('contact') ||
+            lowercasePrompt.includes('privacy') || lowercasePrompt.includes('conviction') ||
+            lowercasePrompt.includes('criminal')) {
+            return 'Additional Information';
+        }
+        
+        return 'Other';
+    };
+
     // Loading state
     if (loading) {
         return (
@@ -398,24 +484,60 @@ const ApplicationDetail = () => {
                 <div className="application-detail__section">
                     <h2>Application Responses</h2>
                     {responses && responses.length > 0 ? (
-                        <div className="responses-list">
-                            {responses.map((response, index) => {
-                                const question = questions?.find(q => q.question_id === response.question_id);
-                                return (
-                                    <div key={response.question_id || index} className="response-item">
-                                        <div className="response-item__question">
-                                            <h3>{question?.prompt || `Question ${response.question_id}`}</h3>
+                        <div className="responses-by-section">
+                            {(() => {
+                                // Group responses by logical categories
+                                const responsesByCategory = {};
+                                const categoryOrder = [
+                                    'Personal Information',
+                                    'Background & Demographics', 
+                                    'Experience & Background',
+                                    'Program Interest',
+                                    'Personal Story',
+                                    'Additional Information',
+                                    'Other'
+                                ];
+                                
+                                responses.forEach(response => {
+                                    const question = questions?.find(q => q.question_id === response.question_id);
+                                    if (question) {
+                                        const category = getQuestionCategory(question.prompt);
+                                        if (!responsesByCategory[category]) {
+                                            responsesByCategory[category] = [];
+                                        }
+                                        responsesByCategory[category].push({
+                                            response,
+                                            question,
+                                            shortLabel: getShorthandLabel(question.prompt)
+                                        });
+                                    }
+                                });
+
+                                // Return sections in logical order
+                                return categoryOrder
+                                    .filter(category => responsesByCategory[category]?.length > 0)
+                                    .map(category => (
+                                        <div key={category} className="response-section">
+                                            <h3 className="response-section__title">{category}</h3>
+                                            <div className="responses-list responses-list--compact">
+                                                {responsesByCategory[category].map(({ response, question, shortLabel }, index) => (
+                                                    <div key={response.question_id || index} className="response-item response-item--compact">
+                                                        <div className="response-item__question">
+                                                            <h4>{shortLabel}</h4>
+                                                        </div>
+                                                        <div className="response-item__answer">
+                                                            {response.response_value ? (
+                                                                <p>{formatResponseValue(response.response_value, question?.response_type)}</p>
+                                                            ) : (
+                                                                <p className="no-response">No response provided</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                        <div className="response-item__answer">
-                                            {response.response_value ? (
-                                                <p>{formatResponseValue(response.response_value, question?.response_type)}</p>
-                                            ) : (
-                                                <p className="no-response">No response provided</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                                    ));
+                            })()}
                         </div>
                     ) : (
                         <div className="no-responses">
