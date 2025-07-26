@@ -370,7 +370,7 @@ const AdmissionsDashboard = () => {
             description: 'Information session about Pursuit programs',
             start_time: '',
             end_time: '',
-            location: '',
+            location: 'Pursuit NYC Campus - 47-10 Austell Pl 2nd floor, Long Island City, NY',
             capacity: 50,
             is_online: false,
             meeting_link: ''
