@@ -45,6 +45,21 @@ const AdmissionsDashboard = () => {
     const [notesModalOpen, setNotesModalOpen] = useState(false);
     const [selectedApplicant, setSelectedApplicant] = useState(null);
 
+    // Info session form state
+    const [infoSessionModalOpen, setInfoSessionModalOpen] = useState(false);
+    const [editingInfoSession, setEditingInfoSession] = useState(null);
+    const [infoSessionForm, setInfoSessionForm] = useState({
+        title: '',
+        description: '',
+        start_time: '',
+        end_time: '',
+        location: '',
+        capacity: 50,
+        is_online: false,
+        meeting_link: ''
+    });
+    const [infoSessionSubmitting, setInfoSessionSubmitting] = useState(false);
+
     // Check if user has admin access
     const hasAdminAccess = user?.role === 'admin' || user?.role === 'staff';
 
@@ -347,6 +362,97 @@ const AdmissionsDashboard = () => {
         copyToClipboard(phoneList, `${phoneNumbers.length} phone numbers`);
     };
 
+    // Info session modal management
+    const openCreateInfoSessionModal = () => {
+        // Reset form to default values
+        setInfoSessionForm({
+            title: '',
+            description: 'Information session about Pursuit programs',
+            start_time: '',
+            end_time: '',
+            location: '',
+            capacity: 50,
+            is_online: false,
+            meeting_link: ''
+        });
+        setEditingInfoSession(null);
+        setInfoSessionModalOpen(true);
+    };
+
+    const openEditInfoSessionModal = (session) => {
+        // Format date and time for datetime-local input
+        const startTime = new Date(session.start_time);
+        const endTime = new Date(session.end_time || session.start_time);
+        
+        // Format to YYYY-MM-DDThh:mm
+        const formatDateForInput = (date) => {
+            return date.toISOString().slice(0, 16);
+        };
+
+        setInfoSessionForm({
+            title: session.event_name,
+            description: session.description || '',
+            start_time: formatDateForInput(startTime),
+            end_time: formatDateForInput(endTime),
+            location: session.location || '',
+            capacity: session.capacity || 50,
+            is_online: session.is_online || false,
+            meeting_link: session.meeting_link || '',
+            status: session.status || 'scheduled'
+        });
+        setEditingInfoSession(session.event_id);
+        setInfoSessionModalOpen(true);
+    };
+
+    const closeInfoSessionModal = () => {
+        setInfoSessionModalOpen(false);
+        setEditingInfoSession(null);
+    };
+
+    const handleInfoSessionFormChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setInfoSessionForm(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value
+        }));
+    };
+
+    const handleInfoSessionSubmit = async (e) => {
+        e.preventDefault();
+        setInfoSessionSubmitting(true);
+        
+        try {
+            const endpoint = editingInfoSession 
+                ? `${import.meta.env.VITE_API_URL}/api/admissions/info-sessions/${editingInfoSession}`
+                : `${import.meta.env.VITE_API_URL}/api/admissions/info-sessions`;
+                
+            const method = editingInfoSession ? 'PUT' : 'POST';
+            
+            const response = await fetch(endpoint, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(infoSessionForm)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to ${editingInfoSession ? 'update' : 'create'} info session`);
+            }
+            
+            // Refresh info sessions list
+            await fetchInfoSessions();
+            closeInfoSessionModal();
+            
+        } catch (error) {
+            console.error('Error submitting info session:', error);
+            setError(`Failed to ${editingInfoSession ? 'update' : 'create'} info session. ${error.message}`);
+        } finally {
+            setInfoSessionSubmitting(false);
+        }
+    };
+
     // Handle viewing registrations for an event
     const handleViewRegistrations = async (eventType, eventId) => {
         if (selectedEvent === eventId) {
@@ -526,9 +632,9 @@ const AdmissionsDashboard = () => {
                 <button 
                     className={`admissions-dashboard__tab ${activeTab === 'applications' ? 'admissions-dashboard__tab--active' : ''}`}
                     onClick={() => handleTabChange('applications')}
-                                        >
-                            Applicants
-                        </button>
+                >
+                    Applications
+                </button>
                 <button 
                     className={`admissions-dashboard__tab ${activeTab === 'info-sessions' ? 'admissions-dashboard__tab--active' : ''}`}
                     onClick={() => handleTabChange('info-sessions')}
@@ -548,6 +654,13 @@ const AdmissionsDashboard = () => {
                     ← Back
                 </button>
             </div>
+
+            {error && (
+                <div className="error-message">
+                    <p>{error}</p>
+                    <button onClick={() => setError(null)}>Dismiss</button>
+                </div>
+            )}
 
             {/* Tab Content */}
             <div className="admissions-dashboard__content">
@@ -839,7 +952,20 @@ const AdmissionsDashboard = () => {
                     <div className="admissions-dashboard__info-sessions">
                         <div className="data-section__header">
                             <h2>Info Sessions Management</h2>
-                            <button onClick={fetchInfoSessions} className="refresh-btn">Refresh</button>
+                            <div className="data-section__actions">
+                                <button 
+                                    onClick={openCreateInfoSessionModal} 
+                                    className="create-btn"
+                                >
+                                    Create New Session
+                                </button>
+                                <button 
+                                    onClick={fetchInfoSessions} 
+                                    className="refresh-btn"
+                                >
+                                    Refresh
+                                </button>
+                            </div>
                         </div>
                         
                         {loading ? (
@@ -889,6 +1015,12 @@ const AdmissionsDashboard = () => {
                                                         <span className="stat-number stat-number--attended">{session.attended_count}</span>
                                                     </td>
                                                     <td className="actions-cell">
+                                                        <button 
+                                                            className="edit-btn"
+                                                            onClick={() => openEditInfoSessionModal(session)}
+                                                        >
+                                                            Edit
+                                                        </button>
                                                         <button 
                                                             className="view-registrations-btn"
                                                             onClick={() => handleViewRegistrations('info-session', session.event_id)}
@@ -1158,13 +1290,149 @@ const AdmissionsDashboard = () => {
                 )}
             </div>
 
+            {/* Info Session Modal */}
+            {infoSessionModalOpen && (
+                <div className="modal-overlay">
+                    <div className="modal info-session-modal">
+                        <div className="modal-header">
+                            <h2>{editingInfoSession ? 'Edit Info Session' : 'Create New Info Session'}</h2>
+                            <button className="close-btn" onClick={closeInfoSessionModal}>×</button>
+                        </div>
+                        <form onSubmit={handleInfoSessionSubmit}>
+                            <div className="form-group">
+                                <label htmlFor="title">Title</label>
+                                <input 
+                                    type="text" 
+                                    id="title"
+                                    name="title"
+                                    value={infoSessionForm.title} 
+                                    onChange={handleInfoSessionFormChange}
+                                    placeholder="Info Session Title"
+                                    required
+                                />
+                            </div>
+                            
+                            <div className="form-group">
+                                <label htmlFor="description">Description</label>
+                                <textarea 
+                                    id="description"
+                                    name="description"
+                                    value={infoSessionForm.description} 
+                                    onChange={handleInfoSessionFormChange}
+                                    placeholder="Session description"
+                                    rows={3}
+                                />
+                            </div>
+                            
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="start_time">Start Time</label>
+                                    <input 
+                                        type="datetime-local" 
+                                        id="start_time"
+                                        name="start_time"
+                                        value={infoSessionForm.start_time} 
+                                        onChange={handleInfoSessionFormChange}
+                                        required
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label htmlFor="end_time">End Time</label>
+                                    <input 
+                                        type="datetime-local" 
+                                        id="end_time"
+                                        name="end_time"
+                                        value={infoSessionForm.end_time} 
+                                        onChange={handleInfoSessionFormChange}
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="form-group">
+                                <label htmlFor="capacity">Capacity</label>
+                                <input 
+                                    type="number" 
+                                    id="capacity"
+                                    name="capacity"
+                                    value={infoSessionForm.capacity} 
+                                    onChange={handleInfoSessionFormChange}
+                                    min="1"
+                                    required
+                                />
+                            </div>
+                            
+                            <div className="form-group checkbox-group">
+                                <input 
+                                    type="checkbox" 
+                                    id="is_online"
+                                    name="is_online"
+                                    checked={infoSessionForm.is_online} 
+                                    onChange={handleInfoSessionFormChange}
+                                />
+                                <label htmlFor="is_online">Online Event</label>
+                            </div>
+                            
+                            <div className="form-group">
+                                <label htmlFor="location">Location</label>
+                                <input 
+                                    type="text" 
+                                    id="location"
+                                    name="location"
+                                    value={infoSessionForm.location} 
+                                    onChange={handleInfoSessionFormChange}
+                                    placeholder={infoSessionForm.is_online ? "Online" : "Physical location"}
+                                    required
+                                />
+                            </div>
+                            
+                            {infoSessionForm.is_online && (
+                                <div className="form-group">
+                                    <label htmlFor="meeting_link">Meeting Link</label>
+                                    <input 
+                                        type="url" 
+                                        id="meeting_link"
+                                        name="meeting_link"
+                                        value={infoSessionForm.meeting_link} 
+                                        onChange={handleInfoSessionFormChange}
+                                        placeholder="https://zoom.us/j/..."
+                                    />
+                                </div>
+                            )}
+                            
+                            <div className="modal-actions">
+                                <button 
+                                    type="button" 
+                                    className="cancel-btn" 
+                                    onClick={closeInfoSessionModal}
+                                    disabled={infoSessionSubmitting}
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    type="submit" 
+                                    className="submit-btn"
+                                    disabled={infoSessionSubmitting}
+                                >
+                                    {infoSessionSubmitting 
+                                        ? (editingInfoSession ? 'Updating...' : 'Creating...') 
+                                        : (editingInfoSession ? 'Update Session' : 'Create Session')}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {/* Notes Modal */}
-            <NotesModal
-                isOpen={notesModalOpen}
-                onClose={closeNotesModal}
-                applicantId={selectedApplicant?.applicant_id}
-                applicantName={selectedApplicant?.name}
-            />
+            {notesModalOpen && selectedApplicant && (
+                <NotesModal 
+                    applicantId={selectedApplicant.applicant_id}
+                    applicantName={`${selectedApplicant.first_name} ${selectedApplicant.last_name}`}
+                    onClose={closeNotesModal}
+                />
+            )}
         </div>
     );
 };
