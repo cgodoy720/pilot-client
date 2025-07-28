@@ -60,6 +60,21 @@ const AdmissionsDashboard = () => {
     });
     const [infoSessionSubmitting, setInfoSessionSubmitting] = useState(false);
 
+    // Workshop form state
+    const [workshopModalOpen, setWorkshopModalOpen] = useState(false);
+    const [editingWorkshop, setEditingWorkshop] = useState(null);
+    const [workshopForm, setWorkshopForm] = useState({
+        title: '',
+        description: '',
+        start_time: '',
+        end_time: '',
+        location: 'Pursuit NYC Campus - 47-10 Austell Pl 2nd floor, Long Island City, NY',
+        capacity: 50,
+        is_online: false,
+        meeting_link: ''
+    });
+    const [workshopSubmitting, setWorkshopSubmitting] = useState(false);
+
     // Check if user has admin access
     const hasAdminAccess = user?.role === 'admin' || user?.role === 'staff';
 
@@ -450,6 +465,97 @@ const AdmissionsDashboard = () => {
             setError(`Failed to ${editingInfoSession ? 'update' : 'create'} info session. ${error.message}`);
         } finally {
             setInfoSessionSubmitting(false);
+        }
+    };
+
+    // Workshop modal management
+    const openCreateWorkshopModal = () => {
+        // Reset form to default values
+        setWorkshopForm({
+            title: '',
+            description: 'Workshop about Pursuit programs and tech careers',
+            start_time: '',
+            end_time: '',
+            location: 'Pursuit NYC Campus - 47-10 Austell Pl 2nd floor, Long Island City, NY',
+            capacity: 50,
+            is_online: false,
+            meeting_link: ''
+        });
+        setEditingWorkshop(null);
+        setWorkshopModalOpen(true);
+    };
+
+    const openEditWorkshopModal = (workshop) => {
+        // Format date and time for datetime-local input
+        const startTime = new Date(workshop.start_time);
+        const endTime = new Date(workshop.end_time || workshop.start_time);
+        
+        // Format to YYYY-MM-DDThh:mm
+        const formatDateForInput = (date) => {
+            return date.toISOString().slice(0, 16);
+        };
+
+        setWorkshopForm({
+            title: workshop.event_name,
+            description: workshop.description || '',
+            start_time: formatDateForInput(startTime),
+            end_time: formatDateForInput(endTime),
+            location: workshop.location || '',
+            capacity: workshop.capacity || 50,
+            is_online: workshop.is_online || false,
+            meeting_link: workshop.meeting_link || '',
+            status: workshop.status || 'scheduled'
+        });
+        setEditingWorkshop(workshop.event_id);
+        setWorkshopModalOpen(true);
+    };
+
+    const closeWorkshopModal = () => {
+        setWorkshopModalOpen(false);
+        setEditingWorkshop(null);
+    };
+
+    const handleWorkshopFormChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setWorkshopForm(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value
+        }));
+    };
+
+    const handleWorkshopSubmit = async (e) => {
+        e.preventDefault();
+        setWorkshopSubmitting(true);
+        
+        try {
+            const endpoint = editingWorkshop 
+                ? `${import.meta.env.VITE_API_URL}/api/admissions/workshops/${editingWorkshop}`
+                : `${import.meta.env.VITE_API_URL}/api/admissions/workshops`;
+                
+            const method = editingWorkshop ? 'PUT' : 'POST';
+            
+            const response = await fetch(endpoint, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(workshopForm)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to ${editingWorkshop ? 'update' : 'create'} workshop`);
+            }
+            
+            // Refresh workshops list
+            await fetchWorkshops();
+            closeWorkshopModal();
+            
+        } catch (error) {
+            console.error('Error submitting workshop:', error);
+            setError(`Failed to ${editingWorkshop ? 'update' : 'create'} workshop. ${error.message}`);
+        } finally {
+            setWorkshopSubmitting(false);
         }
     };
 
@@ -1132,7 +1238,20 @@ const AdmissionsDashboard = () => {
                     <div className="admissions-dashboard__workshops">
                         <div className="data-section__header">
                             <h2>Workshops Management</h2>
-                            <button onClick={fetchWorkshops} className="refresh-btn">Refresh</button>
+                            <div className="data-section__actions">
+                                <button 
+                                    onClick={openCreateWorkshopModal} 
+                                    className="create-btn"
+                                >
+                                    Create New Workshop
+                                </button>
+                                <button 
+                                    onClick={fetchWorkshops} 
+                                    className="refresh-btn"
+                                >
+                                    Refresh
+                                </button>
+                            </div>
                         </div>
                         
                         {loading ? (
@@ -1182,6 +1301,12 @@ const AdmissionsDashboard = () => {
                                                         <span className="stat-number stat-number--attended">{workshop.attended_count}</span>
                                                     </td>
                                                     <td className="actions-cell">
+                                                        <button 
+                                                            className="edit-btn"
+                                                            onClick={() => openEditWorkshopModal(workshop)}
+                                                        >
+                                                            Edit
+                                                        </button>
                                                         <button 
                                                             className="view-registrations-btn"
                                                             onClick={() => handleViewRegistrations('workshop', workshop.event_id)}
@@ -1418,6 +1543,141 @@ const AdmissionsDashboard = () => {
                                     {infoSessionSubmitting 
                                         ? (editingInfoSession ? 'Updating...' : 'Creating...') 
                                         : (editingInfoSession ? 'Update Session' : 'Create Session')}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Workshop Modal */}
+            {workshopModalOpen && (
+                <div className="modal-overlay">
+                    <div className="modal workshop-modal">
+                        <div className="modal-header">
+                            <h2>{editingWorkshop ? 'Edit Workshop' : 'Create New Workshop'}</h2>
+                            <button className="close-btn" onClick={closeWorkshopModal}>×</button>
+                        </div>
+                        <form onSubmit={handleWorkshopSubmit}>
+                            <div className="form-group">
+                                <label htmlFor="workshop-title">Title</label>
+                                <input 
+                                    type="text" 
+                                    id="workshop-title"
+                                    name="title"
+                                    value={workshopForm.title} 
+                                    onChange={handleWorkshopFormChange}
+                                    placeholder="Workshop Title"
+                                    required
+                                />
+                            </div>
+                            
+                            <div className="form-group">
+                                <label htmlFor="workshop-description">Description</label>
+                                <textarea 
+                                    id="workshop-description"
+                                    name="description"
+                                    value={workshopForm.description} 
+                                    onChange={handleWorkshopFormChange}
+                                    placeholder="Workshop description"
+                                    rows={3}
+                                />
+                            </div>
+                            
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="workshop-start_time">Start Time</label>
+                                    <input 
+                                        type="datetime-local" 
+                                        id="workshop-start_time"
+                                        name="start_time"
+                                        value={workshopForm.start_time} 
+                                        onChange={handleWorkshopFormChange}
+                                        required
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label htmlFor="workshop-end_time">End Time</label>
+                                    <input 
+                                        type="datetime-local" 
+                                        id="workshop-end_time"
+                                        name="end_time"
+                                        value={workshopForm.end_time} 
+                                        onChange={handleWorkshopFormChange}
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="form-group">
+                                <label htmlFor="workshop-capacity">Capacity</label>
+                                <input 
+                                    type="number" 
+                                    id="workshop-capacity"
+                                    name="capacity"
+                                    value={workshopForm.capacity} 
+                                    onChange={handleWorkshopFormChange}
+                                    min="1"
+                                    required
+                                />
+                            </div>
+                            
+                            <div className="form-group checkbox-group">
+                                <input 
+                                    type="checkbox" 
+                                    id="workshop-is_online"
+                                    name="is_online"
+                                    checked={workshopForm.is_online} 
+                                    onChange={handleWorkshopFormChange}
+                                />
+                                <label htmlFor="workshop-is_online">Online Event</label>
+                            </div>
+                            
+                            <div className="form-group">
+                                <label htmlFor="workshop-location">Location</label>
+                                <input 
+                                    type="text" 
+                                    id="workshop-location"
+                                    name="location"
+                                    value={workshopForm.location} 
+                                    onChange={handleWorkshopFormChange}
+                                    placeholder={workshopForm.is_online ? "Online" : "Physical location"}
+                                    required
+                                />
+                            </div>
+                            
+                            {workshopForm.is_online && (
+                                <div className="form-group">
+                                    <label htmlFor="workshop-meeting_link">Meeting Link</label>
+                                    <input 
+                                        type="url" 
+                                        id="workshop-meeting_link"
+                                        name="meeting_link"
+                                        value={workshopForm.meeting_link} 
+                                        onChange={handleWorkshopFormChange}
+                                        placeholder="https://zoom.us/j/..."
+                                    />
+                                </div>
+                            )}
+                            
+                            <div className="modal-actions">
+                                <button 
+                                    type="button" 
+                                    className="cancel-btn" 
+                                    onClick={closeWorkshopModal}
+                                    disabled={workshopSubmitting}
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    type="submit" 
+                                    className="submit-btn"
+                                    disabled={workshopSubmitting}
+                                >
+                                    {workshopSubmitting 
+                                        ? (editingWorkshop ? 'Updating...' : 'Creating...') 
+                                        : (editingWorkshop ? 'Update Workshop' : 'Create Workshop')}
                                 </button>
                             </div>
                         </form>
