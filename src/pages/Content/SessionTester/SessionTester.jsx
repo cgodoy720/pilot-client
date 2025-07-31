@@ -3,7 +3,7 @@ import { FaUpload, FaEye, FaTrash, FaCheckCircle, FaUsers, FaBook, FaPaperPlane,
 import ReactMarkdown from 'react-markdown';
 import './SessionTester.css';
 
-const SessionTester = () => {
+const SessionTester = ({ sharedData, updateSharedData }) => {
   const [sessionData, setSessionData] = useState(null);
   const [jsonInput, setJsonInput] = useState('');
   const [error, setError] = useState('');
@@ -28,6 +28,12 @@ const SessionTester = () => {
 
   // Listen for generated JSON from JSON Generator
   useEffect(() => {
+    // Initialize with shared data first
+    if (sharedData?.generatedJSON) {
+      setJsonInput(sharedData.generatedJSON);
+      handleLoadFromInput(sharedData.generatedJSON);
+    }
+    
     const handleSwitchToSessionTester = (event) => {
       if (event.detail?.generatedJSON) {
         setJsonInput(event.detail.generatedJSON);
@@ -35,12 +41,11 @@ const SessionTester = () => {
       }
     };
 
-    // Check for pre-loaded JSON from sessionStorage
+    // Check for pre-loaded JSON from sessionStorage (fallback)
     const savedJSON = sessionStorage.getItem('generatedSessionData');
-    if (savedJSON) {
+    if (savedJSON && !sharedData?.generatedJSON) {
       setJsonInput(savedJSON);
       handleLoadFromInput(savedJSON);
-      sessionStorage.removeItem('generatedSessionData'); // Clean up
     }
 
     window.addEventListener('switchToSessionTester', handleSwitchToSessionTester);
@@ -48,7 +53,7 @@ const SessionTester = () => {
     return () => {
       window.removeEventListener('switchToSessionTester', handleSwitchToSessionTester);
     };
-  }, []);
+  }, [sharedData]);
 
   // Handle escape key for modal
   useEffect(() => {
@@ -272,6 +277,13 @@ const SessionTester = () => {
     const newJsonInput = JSON.stringify(updatedAllDays.length === 1 ? updatedAllDays[0] : updatedAllDays, null, 2);
     setJsonInput(newJsonInput);
     setHasUnsavedChanges(true);
+    
+    // Save to sessionStorage and update shared data
+    sessionStorage.setItem('generatedSessionData', newJsonInput);
+    updateSharedData?.({
+      editedJSON: newJsonInput,
+      generatedJSON: newJsonInput
+    });
     
     // Clear the flag after a brief delay to allow state updates to complete
     setTimeout(() => setIsUpdatingFromEdit(false), 100);

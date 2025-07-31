@@ -1,16 +1,28 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { FaUpload, FaFileAlt, FaLink, FaPlay, FaDownload, FaCopy, FaCheck, FaSpinner } from 'react-icons/fa';
 import { useAuth } from '../../../context/AuthContext';
 import './JSONGenerator.css';
 
-const JSONGenerator = () => {
+const JSONGenerator = ({ sharedData, updateSharedData }) => {
   const { token } = useAuth();
-  const [inputMethod, setInputMethod] = useState('text'); // 'text', 'url', 'file'
-  const [textInput, setTextInput] = useState('');
-  const [urlInput, setUrlInput] = useState('');
-  const [fileInput, setFileInput] = useState(null);
-  const [generatedJSON, setGeneratedJSON] = useState('');
+  const [inputMethod, setInputMethod] = useState(sharedData?.inputMethod || 'text');
+  const [textInput, setTextInput] = useState(sharedData?.textInput || '');
+  const [urlInput, setUrlInput] = useState(sharedData?.urlInput || '');
+  const [fileInput, setFileInput] = useState(sharedData?.fileInput || null);
+  const [generatedJSON, setGeneratedJSON] = useState(sharedData?.generatedJSON || '');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Sync local state with shared state when shared data changes
+  useEffect(() => {
+    if (sharedData) {
+      setInputMethod(sharedData.inputMethod || 'text');
+      setTextInput(sharedData.textInput || '');
+      setUrlInput(sharedData.urlInput || '');
+      setFileInput(sharedData.fileInput || null);
+      setGeneratedJSON(sharedData.generatedJSON || '');
+    }
+  }, [sharedData]);
+
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef(null);
@@ -68,6 +80,12 @@ const JSONGenerator = () => {
       reader.onload = (e) => {
         const content = e.target.result;
         setTextInput(content); // Store content in textInput for processing
+        
+        // Update shared data
+        updateSharedData?.({
+          fileInput: file,
+          textInput: content
+        });
       };
       reader.readAsText(file);
     }
@@ -107,10 +125,20 @@ const JSONGenerator = () => {
         throw new Error('No content provided for generation');
       }
       
+      // Store original content for Phase 3 (Facilitator Notes)
+      sessionStorage.setItem('originalContent', content);
+      
       // For now, generate a sample JSON structure
       // This will be replaced with actual AI processing later
       const generatedData = await generateJSONFromContent(content);
-      setGeneratedJSON(JSON.stringify(generatedData, null, 2));
+      const jsonString = JSON.stringify(generatedData, null, 2);
+      setGeneratedJSON(jsonString);
+      
+      // Update shared data
+      updateSharedData?.({
+        originalContent: content,
+        generatedJSON: jsonString
+      });
       
     } catch (err) {
       setError(err.message);
@@ -226,6 +254,8 @@ const JSONGenerator = () => {
     }
   };
 
+
+
   return (
     <div className="json-generator">
       <div className="json-generator__content">
@@ -270,7 +300,10 @@ const JSONGenerator = () => {
                 <textarea
                   id="textContent"
                   value={textInput}
-                  onChange={(e) => setTextInput(e.target.value)}
+                  onChange={(e) => {
+                    setTextInput(e.target.value);
+                    updateSharedData?.({ textInput: e.target.value });
+                  }}
                   placeholder="Enter your curriculum content, learning objectives, activities, etc..."
                   rows={12}
                 />
@@ -286,7 +319,10 @@ const JSONGenerator = () => {
                   id="urlContent"
                   type="url"
                   value={urlInput}
-                  onChange={(e) => setUrlInput(e.target.value)}
+                  onChange={(e) => {
+                    setUrlInput(e.target.value);
+                    updateSharedData?.({ urlInput: e.target.value });
+                  }}
                   placeholder="https://docs.google.com/document/d/..."
                 />
                 <p className="json-generator__url-help">
@@ -433,6 +469,7 @@ const JSONGenerator = () => {
                   <FaDownload />
                   Download
                 </button>
+
                 <button
                   onClick={handleUseInTester}
                   className="json-generator__action-btn json-generator__action-btn--primary"
