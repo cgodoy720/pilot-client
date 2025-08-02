@@ -1,0 +1,194 @@
+/* Bulk Actions Modal - BEM naming convention */
+.bulk-actions-modal__overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.bulk-actions-modal__container {
+  background: #1a1f2c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.bulk-actions-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bulk-actions-modal__header h2 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.bulk-actions-modal__close {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+
+.bulk-actions-modal__close:hover {
+  color: var(--color-text-primary);
+}
+
+.bulk-actions-modal__content {
+  padding: 1.5rem;
+}
+
+.bulk-actions-modal__content p {
+  margin: 0 0 1.5rem 0;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+}
+
+.bulk-actions-modal__field {
+  margin-bottom: 1.5rem;
+}
+
+.bulk-actions-modal__field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--color-text-primary);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.bulk-actions-modal__select,
+.bulk-actions-modal__input,
+.bulk-actions-modal__textarea {
+  width: 100%;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease;
+}
+
+.bulk-actions-modal__select:focus,
+.bulk-actions-modal__input:focus,
+.bulk-actions-modal__textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.bulk-actions-modal__textarea {
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
+}
+
+.bulk-actions-modal__action-description {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 1rem;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin-top: 1rem;
+}
+
+.bulk-actions-modal__action-summary {
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 6px;
+  padding: 0.75rem;
+  color: var(--color-primary);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.bulk-actions-modal__email-preview {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: 1rem;
+  font-size: 0.85rem;
+}
+
+.bulk-actions-modal__email-preview div {
+  margin-bottom: 0.5rem;
+  color: var(--color-text-secondary);
+}
+
+.bulk-actions-modal__email-preview div:last-child {
+  margin-bottom: 0;
+}
+
+.bulk-actions-modal__email-preview strong {
+  color: var(--color-text-primary);
+}
+
+.bulk-actions-modal__footer {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  justify-content: flex-end;
+}
+
+.bulk-actions-modal__btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 100px;
+}
+
+.bulk-actions-modal__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bulk-actions-modal__btn--secondary {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--color-text-secondary);
+}
+
+.bulk-actions-modal__btn--secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-primary);
+}
+
+.bulk-actions-modal__btn--primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.bulk-actions-modal__btn--primary:hover:not(:disabled) {
+  background: #5a67d8;
+  transform: translateY(-1px);
+}
+
+.bulk-actions-modal__btn--primary:disabled {
+  background: #4a5568;
+}

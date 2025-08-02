@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotesModal from '../../components/NotesModal';
+import BulkActionsModal from '../../components/BulkActionsModal';
 import './AdmissionsDashboard.css';
 
 const AdmissionsDashboard = () => {
@@ -31,6 +32,8 @@ const AdmissionsDashboard = () => {
     const [applicationFilters, setApplicationFilters] = useState({
         status: '',
         recommendation: '',
+        final_status: '',
+        workshop_status: '',
         limit: 50,
         offset: 0
     });
@@ -74,6 +77,11 @@ const AdmissionsDashboard = () => {
         meeting_link: ''
     });
     const [workshopSubmitting, setWorkshopSubmitting] = useState(false);
+
+    // Bulk actions state
+    const [selectedApplicants, setSelectedApplicants] = useState([]);
+    const [bulkActionsModalOpen, setBulkActionsModalOpen] = useState(false);
+    const [bulkActionInProgress, setBulkActionInProgress] = useState(false);
 
     // Check if user has admin access
     const hasAdminAccess = user?.role === 'admin' || user?.role === 'staff';
@@ -142,6 +150,8 @@ const AdmissionsDashboard = () => {
             const params = new URLSearchParams();
             if (applicationFilters.status) params.append('status', applicationFilters.status);
             if (applicationFilters.recommendation) params.append('recommendation', applicationFilters.recommendation);
+            if (applicationFilters.final_status) params.append('final_status', applicationFilters.final_status);
+            if (applicationFilters.workshop_status) params.append('workshop_status', applicationFilters.workshop_status);
             params.append('limit', applicationFilters.limit);
             params.append('offset', applicationFilters.offset);
 
@@ -217,6 +227,93 @@ const AdmissionsDashboard = () => {
     // Handle tab switching
     const handleTabChange = (tab) => {
         setActiveTab(tab);
+    };
+
+    // Handle status change (human override)
+    const handleStatusChange = async (applicationId, newStatus) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applications/${applicationId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ final_status: newStatus })
+            });
+
+            if (response.ok) {
+                // Update the local state
+                setApplications(prev => ({
+                    ...prev,
+                    applications: prev.applications.map(app => 
+                        app.application_id === applicationId 
+                            ? { 
+                                ...app, 
+                                final_status: newStatus,
+                                has_human_override: app.recommendation !== newStatus
+                            }
+                            : app
+                    )
+                }));
+            } else {
+                console.error('Failed to update status');
+                setError('Failed to update status. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error updating status:', error);
+            setError('Failed to update status. Please try again.');
+        }
+    };
+
+    // Handle bulk actions
+    const handleBulkAction = async (action, customSubject = '', customBody = '') => {
+        if (selectedApplicants.length === 0) return;
+
+        setBulkActionInProgress(true);
+        try {
+            const requestBody = {
+                action,
+                applicant_ids: selectedApplicants
+            };
+
+            if (action === 'send_custom_email') {
+                requestBody.custom_subject = customSubject;
+                requestBody.custom_body = customBody;
+            }
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/bulk-actions`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('Bulk action completed:', result);
+                
+                // Refresh applications data
+                await fetchApplications();
+                
+                // Clear selection
+                setSelectedApplicants([]);
+                setBulkActionsModalOpen(false);
+                
+                // Show success message
+                setError(null);
+            } else {
+                const errorData = await response.json();
+                console.error('Bulk action failed:', errorData);
+                setError(`Bulk action failed: ${errorData.error}`);
+            }
+        } catch (error) {
+            console.error('Error performing bulk action:', error);
+            setError('Failed to perform bulk action. Please try again.');
+        } finally {
+            setBulkActionInProgress(false);
+        }
     };
 
     // Handle application filter changes
@@ -835,6 +932,49 @@ const AdmissionsDashboard = () => {
                                         {stats.workshops?.totalRegistrations || 0} registrations, {stats.workshops?.totalAttended || 0} attended
                                     </div>
                                 </div>
+
+                                {/* Assessment Funnel */}
+                                <div className="stat-card stat-card--wide">
+                                    <div className="stat-card__header">
+                                        <h3>Assessment Funnel</h3>
+                                        <div className="stat-card__icon">🎯</div>
+                                    </div>
+                                    <div className="assessment-funnel">
+                                        {stats.assessmentFunnel?.map((assessment) => (
+                                            <div key={assessment.status} className="assessment-funnel__item">
+                                                <span className={`assessment-funnel__indicator assessment-funnel__indicator--${assessment.status.replace('_', '-')}`}></span>
+                                                <span className="assessment-funnel__label">
+                                                    {assessment.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                </span>
+                                                <span className="assessment-funnel__count">{assessment.count}</span>
+                                                {stats.finalStatusCounts?.find(f => f.status === assessment.status)?.count !== assessment.count && (
+                                                    <span className="assessment-funnel__override" title="Human override detected">
+                                                        🔀 {stats.finalStatusCounts?.find(f => f.status === assessment.status)?.count || 0}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Workshop Invitations */}
+                                <div className="stat-card">
+                                    <div className="stat-card__header">
+                                        <h3>Workshop Pipeline</h3>
+                                        <div className="stat-card__icon">📊</div>
+                                    </div>
+                                    <div className="workshop-pipeline">
+                                        {stats.workshopInvitations?.map((workshop) => (
+                                            <div key={workshop.status} className="workshop-pipeline__item">
+                                                <span className={`workshop-pipeline__indicator workshop-pipeline__indicator--${workshop.status}`}></span>
+                                                <span className="workshop-pipeline__label">
+                                                    {workshop.status.charAt(0).toUpperCase() + workshop.status.slice(1)}
+                                                </span>
+                                                <span className="workshop-pipeline__count">{workshop.count}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         ) : (
                             <div className="admissions-dashboard__no-data">
@@ -854,21 +994,33 @@ const AdmissionsDashboard = () => {
                                     onChange={(e) => setApplicationFilters({...applicationFilters, status: e.target.value})}
                                     className="filter-select"
                                 >
-                                    <option value="">All Statuses</option>
+                                    <option value="">Status: All</option>
                                     <option value="submitted">Submitted</option>
                                     <option value="in_progress">In Progress</option>
                                     <option value="ineligible">Ineligible</option>
                                 </select>
                                 <select 
-                                    value={applicationFilters.recommendation} 
-                                    onChange={(e) => setApplicationFilters({...applicationFilters, recommendation: e.target.value})}
+                                    value={applicationFilters.final_status || applicationFilters.recommendation} 
+                                    onChange={(e) => setApplicationFilters({...applicationFilters, final_status: e.target.value, recommendation: ''})}
                                     className="filter-select"
                                 >
-                                    <option value="">All Assessments</option>
+                                    <option value="">Assessment: All</option>
                                     <option value="strong_recommend">Strong Recommend</option>
                                     <option value="recommend">Recommend</option>
                                     <option value="review_needed">Review Needed</option>
                                     <option value="not_recommend">Not Recommend</option>
+                                </select>
+                                <select 
+                                    value={applicationFilters.workshop_status || ''} 
+                                    onChange={(e) => setApplicationFilters({...applicationFilters, workshop_status: e.target.value})}
+                                    className="filter-select"
+                                >
+                                    <option value="">Workshop: All</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="invited">Invited</option>
+                                    <option value="registered">Registered</option>
+                                    <option value="attended">Attended</option>
+                                    <option value="no_show">No Show</option>
                                 </select>
                                 <select 
                                     value={applicationSort} 
@@ -879,6 +1031,13 @@ const AdmissionsDashboard = () => {
                                     <option value="oldest">Oldest Applicants</option>
                                     <option value="alphabetic">Alphabetic (A-Z)</option>
                                 </select>
+                                <button 
+                                    className="admissions-dashboard__bulk-actions-btn"
+                                    disabled={selectedApplicants.length === 0}
+                                    onClick={() => setBulkActionsModalOpen(true)}
+                                >
+                                    Actions ({selectedApplicants.length})
+                                </button>
                                 <button onClick={fetchApplications} className="refresh-btn">Refresh</button>
                             </div>
                         </div>
@@ -893,12 +1052,27 @@ const AdmissionsDashboard = () => {
                                 <table className="data-table">
                                     <thead>
                                         <tr>
+                                            <th className="admissions-dashboard__checkbox-column">
+                                                <input
+                                                    type="checkbox"
+                                                    className="admissions-dashboard__select-all-checkbox"
+                                                    checked={selectedApplicants.length === applications.applications?.length && applications.applications?.length > 0}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setSelectedApplicants(applications.applications?.map(app => app.applicant_id) || []);
+                                                        } else {
+                                                            setSelectedApplicants([]);
+                                                        }
+                                                    }}
+                                                />
+                                            </th>
                                             <th>Name</th>
                                             <th>Email</th>
                                             <th>Phone</th>
                                             <th>Status</th>
                                             <th>Assessment</th>
                                             <th>Info Session</th>
+                                            <th>Workshop</th>
                                             <th>Notes</th>
                                         </tr>
                                     </thead>
@@ -906,14 +1080,37 @@ const AdmissionsDashboard = () => {
                                         {sortApplications(applications.applications, applicationSort).map((app) => (
                                             <tr 
                                                 key={app.application_id}
-                                                className="clickable-row"
+                                                className={`clickable-row ${selectedApplicants.includes(app.applicant_id) ? 'admissions-dashboard__row--selected' : ''}`}
                                             >
+                                                <td className="admissions-dashboard__checkbox-column">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="admissions-dashboard__row-checkbox"
+                                                        checked={selectedApplicants.includes(app.applicant_id)}
+                                                        onChange={(e) => {
+                                                            e.stopPropagation();
+                                                            if (e.target.checked) {
+                                                                setSelectedApplicants([...selectedApplicants, app.applicant_id]);
+                                                            } else {
+                                                                setSelectedApplicants(selectedApplicants.filter(id => id !== app.applicant_id));
+                                                            }
+                                                        }}
+                                                    />
+                                                </td>
                                                 <td
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className="clickable-cell"
                                                 >
                                                     <div className="applicant-name">
-                                                        {app.first_name} {app.last_name}
+                                                        {app.full_name || `${app.first_name} ${app.last_name}`}
+                                                        {app.has_masters_degree && (
+                                                            <span className="admissions-dashboard__masters-flag" title="Has Masters Degree">🎓</span>
+                                                        )}
+                                                        {app.missing_count > 0 && (
+                                                            <span className="admissions-dashboard__missing-flag" title={`${app.missing_count} key questions incomplete`}>
+                                                                ⚠️ {app.missing_count}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </td>
                                                 <td className="clickable-cell">
@@ -948,19 +1145,29 @@ const AdmissionsDashboard = () => {
                                                         {app.status}
                                                     </span>
                                                 </td>
-                                                <td
-                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
-                                                >
-                                                    {app.recommendation ? (
-                                                        <span className={`assessment-badge assessment-badge--${app.recommendation}`}>
-                                                            {app.recommendation.replace('_', ' ')}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="assessment-badge assessment-badge--pending">
-                                                            pending
-                                                        </span>
-                                                    )}
+                                                <td className="admissions-dashboard__assessment-cell">
+                                                    <div className="admissions-dashboard__assessment-container">
+                                                        {app.final_status || app.recommendation ? (
+                                                            <select
+                                                                className={`admissions-dashboard__assessment-select assessment-badge--${app.final_status || app.recommendation}`}
+                                                                value={app.final_status || app.recommendation}
+                                                                onChange={(e) => handleStatusChange(app.application_id, e.target.value)}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                <option value="strong_recommend">Strong Recommend</option>
+                                                                <option value="recommend">Recommend</option>
+                                                                <option value="review_needed">Review Needed</option>
+                                                                <option value="not_recommend">Not Recommend</option>
+                                                            </select>
+                                                        ) : (
+                                                            <span className="assessment-badge assessment-badge--pending">
+                                                                pending
+                                                            </span>
+                                                        )}
+                                                        {app.has_human_override && (
+                                                            <span className="admissions-dashboard__override-indicator" title="Human override applied">🔀</span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
@@ -970,6 +1177,14 @@ const AdmissionsDashboard = () => {
                                                         {(app.info_session_status || 'not_registered').replace('_', ' ')}
                                                     </span>
                                                 </td>
+                                                <td
+                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                    className="clickable-cell"
+                                                >
+                                                    <span className={`workshop-badge workshop-badge--${app.workshop_status || 'pending'}`}>
+                                                        {(app.workshop_status || 'pending').replace('_', ' ')}
+                                                    </span>
+                                                </td>
                                                 <td>
                                                     <button 
                                                         className="notes-btn"
@@ -977,7 +1192,7 @@ const AdmissionsDashboard = () => {
                                                             e.stopPropagation();
                                                             openNotesModal({
                                                                 applicant_id: app.applicant_id,
-                                                                name: `${app.first_name} ${app.last_name}`
+                                                                name: app.full_name || `${app.first_name} ${app.last_name}`
                                                             });
                                                         }}
                                                     >
@@ -1685,11 +1900,21 @@ const AdmissionsDashboard = () => {
                 </div>
             )}
 
+            {/* Bulk Actions Modal */}
+            {bulkActionsModalOpen && (
+                <BulkActionsModal
+                    selectedCount={selectedApplicants.length}
+                    onClose={() => setBulkActionsModalOpen(false)}
+                    onAction={handleBulkAction}
+                    isLoading={bulkActionInProgress}
+                />
+            )}
+
             {/* Notes Modal */}
             {notesModalOpen && selectedApplicant && (
                 <NotesModal 
                     applicantId={selectedApplicant.applicant_id}
-                    applicantName={`${selectedApplicant.first_name} ${selectedApplicant.last_name}`}
+                    applicantName={selectedApplicant.name || `${selectedApplicant.first_name} ${selectedApplicant.last_name}`}
                     onClose={closeNotesModal}
                 />
             )}
