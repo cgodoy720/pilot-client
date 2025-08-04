@@ -300,8 +300,41 @@ function ApplicantDashboard() {
 
   const loadWorkshopStatus = async () => {
     try {
+      // First check if the applicant has been invited to workshops by checking their stage
+      const stageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/stage`);
+      let isInvited = false;
+      
+      if (stageResponse.ok) {
+        const stageData = await stageResponse.json();
+        console.log('Dashboard: Applicant stage data:', stageData);
+        
+        // If current_stage is workshop_invited or any workshop-related stage, unlock workshops
+        if (stageData.current_stage && 
+            (stageData.current_stage.includes('workshop') || 
+             stageData.current_stage === 'workshop_invited' ||
+             stageData.current_stage === 'workshop_registered' ||
+             stageData.current_stage === 'workshop_attended')) {
+          isInvited = true;
+          console.log('Dashboard: Workshop unlocked due to stage:', stageData.current_stage);
+        }
+      }
+      
+      // If not invited, keep workshop locked
+      if (!isInvited) {
+        setStatuses(prev => ({ ...prev, workshop: 'locked' }));
+        setWorkshopDetails(null);
+        console.log('Dashboard: Workshop locked - no invitation found');
+        return;
+      }
+      
+      // If invited, check for existing registrations
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops`);
-      if (!response.ok) return;
+      if (!response.ok) {
+        // If we can't load workshops but they're invited, show as available
+        setStatuses(prev => ({ ...prev, workshop: 'not signed-up' }));
+        setWorkshopDetails(null);
+        return;
+      }
       
       const workshops = await response.json();
       let foundRegistration = null;
@@ -341,10 +374,10 @@ function ApplicantDashboard() {
         setWorkshopDetails(workshopEventDetails);
         console.log('Dashboard: Found workshop registration', workshopEventDetails);
       } else {
-        // Workshops remain locked until manually enabled by admin
-        setStatuses(prev => ({ ...prev, workshop: 'locked' }));
+        // Invited but not registered yet
+        setStatuses(prev => ({ ...prev, workshop: 'not signed-up' }));
         setWorkshopDetails(null);
-        console.log('Dashboard: Workshop locked');
+        console.log('Dashboard: Workshop available for signup');
       }
     } catch (error) {
       console.error('Error loading workshop status for dashboard:', error);
@@ -373,7 +406,7 @@ function ApplicantDashboard() {
   }
 
   const isLocked = (key, status) => {
-    if (key === 'workshop') return true // Workshops are always locked
+    if (key === 'workshop') return status === 'locked' // Workshop is locked only if status is 'locked'
     if (key === 'pledge') return status === 'locked' || statuses.workshop !== 'attended'
     return false
   }
