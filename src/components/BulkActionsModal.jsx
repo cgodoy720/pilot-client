@@ -14,6 +14,8 @@ const BulkActionsModal = ({ selectedCount, onClose, onAction, isLoading }) => {
         { value: 'remind_application', label: 'Remind to submit application' },
         { value: 'admit_to_program', label: 'Admit to program' },
         { value: 'reject_from_program', label: 'Reject from program' },
+        { value: 'waitlist_applicant', label: 'Add to waitlist' },
+        { value: 'defer_applicant', label: 'Defer application' },
         { value: 'send_custom_email', label: 'Send custom email' }
     ];
 
@@ -36,7 +38,7 @@ const BulkActionsModal = ({ selectedCount, onClose, onAction, isLoading }) => {
     const getActionDescription = (action) => {
         switch (action) {
             case 'invite_to_workshop':
-                return 'Update stage to "workshop_invited" and send workshop invitation email';
+                return 'Update workshop status to "invited" and send workshop invitation email';
             case 'remind_info_session':
                 return 'Send reminder email about registering for info sessions';
             case 'remind_workshop':
@@ -44,9 +46,13 @@ const BulkActionsModal = ({ selectedCount, onClose, onAction, isLoading }) => {
             case 'remind_application':
                 return 'Send reminder email to complete application';
             case 'admit_to_program':
-                return 'Update stage to "decision_accepted" and send acceptance email';
+                return 'Update admission status to "accepted" and send acceptance email';
             case 'reject_from_program':
-                return 'Update stage to "decision_rejected" and send rejection email';
+                return 'Update admission status to "rejected" and send rejection email';
+            case 'waitlist_applicant':
+                return 'Update admission status to "waitlisted" and send waitlist notification';
+            case 'defer_applicant':
+                return 'Update admission status to "deferred" for future consideration';
             case 'send_custom_email':
                 return 'Send custom email with your provided subject and body';
             default:

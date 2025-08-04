@@ -34,6 +34,7 @@ const AdmissionsDashboard = () => {
         recommendation: '',
         final_status: '',
         workshop_status: '',
+        program_admission_status: '',
         limit: 50,
         offset: 0
     });
@@ -152,6 +153,7 @@ const AdmissionsDashboard = () => {
             if (applicationFilters.recommendation) params.append('recommendation', applicationFilters.recommendation);
             if (applicationFilters.final_status) params.append('final_status', applicationFilters.final_status);
             if (applicationFilters.workshop_status) params.append('workshop_status', applicationFilters.workshop_status);
+            if (applicationFilters.program_admission_status) params.append('program_admission_status', applicationFilters.program_admission_status);
             params.append('limit', applicationFilters.limit);
             params.append('offset', applicationFilters.offset);
 
@@ -1023,6 +1025,18 @@ const AdmissionsDashboard = () => {
                                     <option value="no_show">No Show</option>
                                 </select>
                                 <select 
+                                    value={applicationFilters.program_admission_status || ''} 
+                                    onChange={(e) => setApplicationFilters({...applicationFilters, program_admission_status: e.target.value})}
+                                    className="filter-select"
+                                >
+                                    <option value="">Admission: All</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="accepted">Accepted</option>
+                                    <option value="rejected">Rejected</option>
+                                    <option value="waitlisted">Waitlisted</option>
+                                    <option value="deferred">Deferred</option>
+                                </select>
+                                <select 
                                     value={applicationSort} 
                                     onChange={(e) => setApplicationSort(e.target.value)}
                                     className="filter-select"
@@ -1073,6 +1087,7 @@ const AdmissionsDashboard = () => {
                                             <th>Assessment</th>
                                             <th>Info Session</th>
                                             <th>Workshop</th>
+                                            <th>Admission</th>
                                             <th>Notes</th>
                                         </tr>
                                     </thead>
@@ -1183,6 +1198,14 @@ const AdmissionsDashboard = () => {
                                                 >
                                                     <span className={`workshop-badge workshop-badge--${app.workshop_status || 'pending'}`}>
                                                         {(app.workshop_status || 'pending').replace('_', ' ')}
+                                                    </span>
+                                                </td>
+                                                <td
+                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                    className="clickable-cell"
+                                                >
+                                                    <span className={`admission-badge admission-badge--${app.program_admission_status || 'pending'}`}>
+                                                        {(app.program_admission_status || 'pending').replace('_', ' ')}
                                                     </span>
                                                 </td>
                                                 <td>
