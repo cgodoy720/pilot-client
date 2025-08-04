@@ -32,7 +32,8 @@ const BulkActionsModal = ({ selectedCount, onClose, onAction, isLoading }) => {
 
     const handleConfirm = () => {
         onAction(selectedAction, customSubject, customBody);
-        setShowConfirmation(false);
+        // Keep confirmation state true so we show loading state
+        // The parent component will close the modal when done
     };
 
     const getActionDescription = (action) => {
@@ -60,6 +61,34 @@ const BulkActionsModal = ({ selectedCount, onClose, onAction, isLoading }) => {
         }
     };
 
+    // Show loading state when processing
+    if (showConfirmation && isLoading) {
+        return (
+            <div className="bulk-actions-modal__overlay">
+                <div className="bulk-actions-modal__container">
+                    <div className="bulk-actions-modal__header">
+                        <h2>Sending Emails</h2>
+                    </div>
+                    <div className="bulk-actions-modal__content">
+                        <div className="bulk-actions-modal__loading">
+                            <div className="bulk-actions-modal__spinner"></div>
+                            <div className="bulk-actions-modal__loading-text">
+                                <p>Sending emails to <strong>{selectedCount}</strong> applicant{selectedCount !== 1 ? 's' : ''}...</p>
+                                <p className="bulk-actions-modal__loading-subtext">
+                                    Action: {actions.find(a => a.value === selectedAction)?.label}
+                                </p>
+                                <p className="bulk-actions-modal__loading-note">
+                                    Please wait while we process your request. This may take a few moments.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Show confirmation state
     if (showConfirmation) {
         return (
             <div className="bulk-actions-modal__overlay">
@@ -95,7 +124,7 @@ const BulkActionsModal = ({ selectedCount, onClose, onAction, isLoading }) => {
                             onClick={handleConfirm}
                             disabled={isLoading}
                         >
-                            {isLoading ? 'Processing...' : 'Confirm'}
+                            Confirm
                         </button>
                     </div>
                 </div>

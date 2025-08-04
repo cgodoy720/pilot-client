@@ -1,10 +1,13 @@
-/* Admissions Dashboard */
+/* Admissions Dashboard - Full width utilization */
 .admissions-dashboard {
   width: 100%;
+  max-width: none; /* Remove any max-width constraints */
   display: flex;
   flex-direction: column;
   height: calc(100vh - 4rem); /* Subtract padding from Layout */
   overflow-y: auto;
+  margin: 0; /* Remove any default margins */
+  padding: 0 1rem; /* Add minimal horizontal padding for edge spacing */
 }
 
 
@@ -65,11 +68,14 @@
   color: var(--color-primary);
 }
 
-/* Content Area */
+/* Content Area - Full width utilization */
 .admissions-dashboard__content {
   flex: 1;
   overflow-y: auto;
   padding-bottom: 2rem;
+  width: 100%;
+  max-width: none; /* Remove any max-width constraints */
+  margin: 0; /* Remove any default margins */
 }
 
 /* Statistics Grid */
@@ -1529,17 +1535,17 @@ Assessment Funnel Styles */
 }
 
 .admissions-dashboard__masters-flag {
-  margin-left: 0.5rem;
-  font-size: 0.8rem;
+  margin-left: 0.3rem;
+  font-size: 0.7rem;
 }
 
 .admissions-dashboard__missing-flag {
-  margin-left: 0.5rem;
-  font-size: 0.7rem;
+  margin-left: 0.3rem;
+  font-size: 0.65rem;
   color: #ed8936;
   background: rgba(237, 137, 54, 0.1);
-  padding: 0.1rem 0.3rem;
-  border-radius: 3px;
+  padding: 0.1rem 0.25rem;
+  border-radius: 2px;
 }
 
 .admissions-dashboard__assessment-cell {
@@ -1556,12 +1562,13 @@ Assessment Funnel Styles */
   background: transparent;
   border: none;
   color: white;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
   cursor: pointer;
   text-transform: capitalize;
+  white-space: nowrap;
 }
 
 .admissions-dashboard__assessment-select.assessment-badge--strong_recommend {
@@ -1589,14 +1596,15 @@ Assessment Funnel Styles */
   cursor: help;
 }
 
-/* Workshop Badge Styles */
+/* Workshop Badge Styles - Extra Compact */
 .workshop-badge {
   display: inline-block;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 2px;
+  font-size: 0.65rem;
   font-weight: 500;
   text-transform: capitalize;
+  white-space: nowrap;
 }
 
 .workshop-badge--pending {
@@ -1624,14 +1632,15 @@ Assessment Funnel Styles */
   color: #ef4444;
 }
 
-/* Program Admission Badge Styles */
+/* Program Admission Badge Styles - Extra Compact */
 .admission-badge {
   display: inline-block;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 2px;
+  font-size: 0.65rem;
   font-weight: 500;
   text-transform: capitalize;
+  white-space: nowrap;
 }
 
 .admission-badge--pending {
@@ -1761,4 +1770,109 @@ Assessment Funnel Styles */
   font-weight: 700;
   color: #22c55e;
   font-size: 1.1rem;
+}
+
+/* Compact Applications Table Styles */
+.admissions-dashboard__applications .data-table {
+  font-size: 0.8rem;
+}
+
+.admissions-dashboard__applications .data-table th {
+  font-size: 0.75rem;
+  padding: 0.6rem 0.4rem;
+  font-weight: 600;
+}
+
+.admissions-dashboard__applications .data-table td {
+  font-size: 0.8rem;
+  padding: 0.6rem 0.4rem;
+  line-height: 1.3;
+  vertical-align: middle;
+}
+
+/* Compact copyable elements */
+.copyable-email,
+.copyable-phone {
+  font-size: 0.8rem;
+  padding: 1px 3px;
+}
+
+/* Extra compact info session badges */
+.info-session-badge {
+  display: inline-block;
+  padding: 0.15rem 0.35rem;
+  border-radius: 2px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.info-session-badge--not_registered {
+  background: rgba(156, 163, 175, 0.2);
+  color: #9ca3af;
+}
+
+.info-session-badge--registered {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.info-session-badge--attended {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.info-session-badge--no_show {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+/* Compact status badges */
+.status-badge {
+  display: inline-block;
+  padding: 0.15rem 0.35rem;
+  border-radius: 2px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.status-badge--submitted {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.status-badge--in_progress {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.status-badge--ineligible {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+/* Compact notes button */
+.notes-btn {
+  font-size: 0.65rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-secondary);
+  transition: all 0.2s ease;
+}
+
+.notes-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
+}
+
+/* Larger applicant name for better readability */
+.applicant-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
 }

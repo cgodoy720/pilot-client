@@ -192,3 +192,49 @@
 .bulk-actions-modal__btn--primary:disabled {
   background: #4a5568;
 }
+
+/* Loading State Styles */
+.bulk-actions-modal__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.bulk-actions-modal__spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(102, 126, 234, 0.2);
+  border-top: 3px solid var(--color-primary);
+  border-radius: 50%;
+  animation: bulk-actions-modal-spin 1s linear infinite;
+  margin-bottom: 1.5rem;
+}
+
+@keyframes bulk-actions-modal-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.bulk-actions-modal__loading-text {
+  color: var(--color-text-primary);
+}
+
+.bulk-actions-modal__loading-text p {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+}
+
+.bulk-actions-modal__loading-subtext {
+  color: var(--color-text-secondary) !important;
+  font-size: 0.9rem !important;
+  font-weight: 500;
+}
+
+.bulk-actions-modal__loading-note {
+  color: var(--color-text-secondary) !important;
+  font-size: 0.85rem !important;
+  font-style: italic;
+  margin-top: 1rem !important;
+}
