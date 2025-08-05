@@ -13,7 +13,7 @@ const SECTION_CONFIG = [
     defaultStatus: 'not signed-up',
     getButtonLabel: (status) => {
       if (status === 'not signed-up') return 'Sign Up Here';
-      if (status === 'signed-up') return 'You\'re Signed Up';
+      if (status === 'signed-up') return 'Manage Registration';
       if (status === 'attended') return 'Completed';
       return 'Sign Up Here';
     },
@@ -43,13 +43,13 @@ const SECTION_CONFIG = [
     getButtonLabel: (status) => {
       if (status === 'locked') return 'Invitation Required';
       if (status === 'not signed-up') return 'Sign Up Here';
-      if (status === 'signed-up') return 'You\'re Signed Up';
+      if (status === 'signed-up') return 'Manage Registration';
       if (status === 'attended') return 'Completed';
       return 'Sign Up Here';
     },
     buttonEnabled: (status, applicationStatus) => {
-      // Workshops are always locked until manually enabled by admin
-      return false;
+      // Enable button if not locked and not attended
+      return status !== 'locked' && status !== 'attended';
     },
     lockedLabel: 'Invitation Required',
   },
