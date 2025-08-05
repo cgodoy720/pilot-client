@@ -7,7 +7,7 @@
   height: calc(100vh - 4rem); /* Subtract padding from Layout */
   overflow-y: auto;
   margin: 0; /* Remove any default margins */
-  padding: 0 1rem; /* Add minimal horizontal padding for edge spacing */
+  padding: 0 2rem; /* Increase horizontal padding slightly for better edge spacing */
 }
 
 
@@ -78,19 +78,50 @@
   margin: 0; /* Remove any default margins */
 }
 
-/* Statistics Grid */
+/* Overview Section - Optimized layout */
+.admissions-dashboard__overview {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.admissions-dashboard__overview .admissions-dashboard__stats-grid {
+  flex: 1;
+  align-content: start; /* Align grid items to the top */
+}
+
+/* Statistics Grid - Optimized for wider layout */
 .admissions-dashboard__stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(4, 1fr); /* Force 4 columns for better width utilization */
+  gap: 1.25rem; /* Slightly reduce gap to fit more content */
+  margin-bottom: 1.5rem; /* Reduce bottom margin */
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: repeat(3, 1fr); /* 3 columns on medium screens */
+  }
+}
+
+@media (max-width: 1024px) {
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: repeat(2, 1fr); /* 2 columns on tablets */
+  }
+}
+
+@media (max-width: 768px) {
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: 1fr; /* Single column on mobile */
+  }
 }
 
 .stat-card {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  padding: 1.25rem;
+  padding: 1rem; /* Reduce padding for more compact cards */
   transition: all 0.2s ease;
 }
 
@@ -100,12 +131,24 @@
 }
 
 .stat-card--wide {
-  grid-column: span 2;
+  grid-column: span 2; /* Span 2 columns in 4-column layout */
 }
 
-@media (max-width: 992px) {
+@media (max-width: 1400px) {
   .stat-card--wide {
-    grid-column: span 1;
+    grid-column: span 2; /* Still span 2 in 3-column layout */
+  }
+}
+
+@media (max-width: 1024px) {
+  .stat-card--wide {
+    grid-column: span 2; /* Span both columns in 2-column layout */
+  }
+}
+
+@media (max-width: 768px) {
+  .stat-card--wide {
+    grid-column: span 1; /* Single column on mobile */
   }
 }
 
