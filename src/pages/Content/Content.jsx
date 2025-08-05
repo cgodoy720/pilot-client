@@ -1,26 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import JSONGenerator from './JSONGenerator/JSONGenerator';
 import SessionTester from './SessionTester/SessionTester';
+import FacilitatorNotesGenerator from './FacilitatorNotesGenerator/FacilitatorNotesGenerator';
 import './Content.css';
 
 const Content = () => {
   const location = useLocation();
   const navigate = useNavigate();
   
+  // Shared state for data continuity between tabs
+  const [sharedData, setSharedData] = useState({
+    originalContent: '',
+    generatedJSON: '',
+    editedJSON: '',
+    inputMethod: 'text',
+    textInput: '',
+    urlInput: '',
+    fileInput: null
+  });
+  
   // Determine active tab from URL path
   const getActiveTabFromPath = () => {
     if (location.pathname.includes('/content/session-tester')) {
       return 'session-tester';
+    } else if (location.pathname.includes('/content/facilitator-notes')) {
+      return 'facilitator-notes';
     }
     return 'json-generator'; // default
   };
 
   const [activeTab, setActiveTab] = useState(getActiveTabFromPath());
 
+  // Load data from sessionStorage on mount
+  useEffect(() => {
+    const originalContent = sessionStorage.getItem('originalContent') || '';
+    const generatedSessionData = sessionStorage.getItem('generatedSessionData') || '';
+    
+    setSharedData(prev => ({
+      ...prev,
+      originalContent,
+      generatedJSON: generatedSessionData,
+      editedJSON: generatedSessionData
+    }));
+  }, []);
+
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    navigate(`/content/${tab === 'json-generator' ? 'json-generator' : 'session-tester'}`);
+    // Update URL without losing tab-specific routes
+    if (tab === 'facilitator-notes') {
+      navigate('/content/facilitator-notes');
+    } else if (tab === 'session-tester') {
+      navigate('/content/session-tester');
+    } else {
+      navigate('/content');
+    }
+  };
+
+  // Callback functions for child components to update shared data
+  const updateSharedData = (updates) => {
+    setSharedData(prev => ({ ...prev, ...updates }));
   };
 
   return (
@@ -49,19 +88,34 @@ const Content = () => {
             Session Tester
           </button>
           <button
-            className="content-generation__tab content-generation__tab--disabled"
-            disabled
+            className={`content-generation__tab ${activeTab === 'facilitator-notes' ? 'content-generation__tab--active' : ''}`}
+            onClick={() => handleTabChange('facilitator-notes')}
           >
             <span className="content-generation__tab-number">3</span>
-            Enhancement Suite
-            <span className="content-generation__tab-badge">Coming Soon</span>
+            Facilitator Notes
           </button>
         </div>
       </div>
 
       <div className="content-generation__content">
-        {activeTab === 'json-generator' && <JSONGenerator />}
-        {activeTab === 'session-tester' && <SessionTester />}
+        {activeTab === 'json-generator' && (
+          <JSONGenerator 
+            sharedData={sharedData}
+            updateSharedData={updateSharedData}
+          />
+        )}
+        {activeTab === 'session-tester' && (
+          <SessionTester 
+            sharedData={sharedData}
+            updateSharedData={updateSharedData}
+          />
+        )}
+        {activeTab === 'facilitator-notes' && (
+          <FacilitatorNotesGenerator 
+            sharedData={sharedData}
+            updateSharedData={updateSharedData}
+          />
+        )}
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import { FaUpload, FaEye, FaTrash, FaCheckCircle, FaUsers, FaBook, FaPaperPlane,
 import ReactMarkdown from 'react-markdown';
 import './SessionTester.css';
 
-const SessionTester = () => {
+const SessionTester = ({ sharedData, updateSharedData }) => {
   const [sessionData, setSessionData] = useState(null);
   const [jsonInput, setJsonInput] = useState('');
   const [error, setError] = useState('');
@@ -24,10 +24,18 @@ const SessionTester = () => {
   const [editingResourceValue, setEditingResourceValue] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isUpdatingFromEdit, setIsUpdatingFromEdit] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
   const fileInputRef = useRef(null);
 
   // Listen for generated JSON from JSON Generator
   useEffect(() => {
+    // Initialize with shared data first
+    if (sharedData?.generatedJSON) {
+      setJsonInput(sharedData.generatedJSON);
+      handleLoadFromInput(sharedData.generatedJSON);
+    }
+    
     const handleSwitchToSessionTester = (event) => {
       if (event.detail?.generatedJSON) {
         setJsonInput(event.detail.generatedJSON);
@@ -35,12 +43,11 @@ const SessionTester = () => {
       }
     };
 
-    // Check for pre-loaded JSON from sessionStorage
+    // Check for pre-loaded JSON from sessionStorage (fallback)
     const savedJSON = sessionStorage.getItem('generatedSessionData');
-    if (savedJSON) {
+    if (savedJSON && !sharedData?.generatedJSON) {
       setJsonInput(savedJSON);
       handleLoadFromInput(savedJSON);
-      sessionStorage.removeItem('generatedSessionData'); // Clean up
     }
 
     window.addEventListener('switchToSessionTester', handleSwitchToSessionTester);
@@ -48,7 +55,7 @@ const SessionTester = () => {
     return () => {
       window.removeEventListener('switchToSessionTester', handleSwitchToSessionTester);
     };
-  }, []);
+  }, [sharedData]);
 
   // Handle escape key for modal
   useEffect(() => {
@@ -272,6 +279,13 @@ const SessionTester = () => {
     const newJsonInput = JSON.stringify(updatedAllDays.length === 1 ? updatedAllDays[0] : updatedAllDays, null, 2);
     setJsonInput(newJsonInput);
     setHasUnsavedChanges(true);
+    
+    // Save to sessionStorage and update shared data
+    sessionStorage.setItem('generatedSessionData', newJsonInput);
+    updateSharedData?.({
+      editedJSON: newJsonInput,
+      generatedJSON: newJsonInput
+    });
     
     // Clear the flag after a brief delay to allow state updates to complete
     setTimeout(() => setIsUpdatingFromEdit(false), 100);
@@ -538,6 +552,73 @@ const SessionTester = () => {
     setEditingResourceIndex(-1); // -1 indicates a new resource
     setEditingResourceField('title');
     setEditingResourceValue('New Resource - click to edit');
+  };
+
+  // Show delete confirmation modal
+  const showDeleteTaskConfirmation = (taskIndex) => {
+    setTaskToDelete(taskIndex);
+    setShowDeleteConfirm(true);
+  };
+
+  // Cancel delete task
+  const cancelDeleteTask = () => {
+    setTaskToDelete(null);
+    setShowDeleteConfirm(false);
+  };
+
+  // Confirm delete task
+  const confirmDeleteTask = () => {
+    if (taskToDelete === null) return;
+    
+    const updatedAllDays = [...allDays];
+    const currentDayData = updatedAllDays[currentDayIndex];
+    
+    // Remove the time block at the specified index
+    if (currentDayData.time_blocks && currentDayData.time_blocks[taskToDelete]) {
+      currentDayData.time_blocks.splice(taskToDelete, 1);
+      
+      // Update tasks array - rebuild from remaining time blocks
+      const updatedTasks = [];
+      currentDayData.time_blocks.forEach((block, blockIndex) => {
+        if (block.task) {
+          updatedTasks.push({
+            ...block.task,
+            id: `task-${blockIndex}`,
+            blockIndex,
+            startTime: block.start_time,
+            endTime: block.end_time,
+            category: block.category
+          });
+        }
+      });
+      
+      setTasks(updatedTasks);
+      
+      // Adjust current task index if necessary
+      let newTaskIndex = currentTaskIndex;
+      if (taskToDelete <= currentTaskIndex && currentTaskIndex > 0) {
+        newTaskIndex = currentTaskIndex - 1;
+      } else if (taskToDelete < currentTaskIndex) {
+        newTaskIndex = currentTaskIndex - 1;
+      } else if (currentTaskIndex >= updatedTasks.length) {
+        newTaskIndex = Math.max(0, updatedTasks.length - 1);
+      }
+      
+      setCurrentTaskIndex(newTaskIndex);
+      
+      // Initialize messages for the new current task
+      if (updatedTasks.length > 0 && updatedTasks[newTaskIndex]) {
+        initializeMessages(updatedTasks[newTaskIndex]);
+      } else {
+        setMessages([]);
+      }
+      
+      updateSessionData(updatedAllDays);
+    }
+    
+    // Close confirmation modal
+    setTaskToDelete(null);
+    setShowDeleteConfirm(false);
   };
 
   // Export edited JSON
@@ -1286,6 +1367,16 @@ const SessionTester = () => {
                               {formatTime(task.startTime)} - {formatTime(task.endTime)}
                             </div>
                           </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              showDeleteTaskConfirmation(index);
+                            }}
+                            className="session-data-tester__modal-task-delete-btn"
+                            title="Delete this task"
+                          >
+                            <FaTrash />
+                          </button>
                         </button>
                       ))}
                     </div>
@@ -1701,6 +1792,57 @@ const SessionTester = () => {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Task Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="session-data-tester__delete-confirm-overlay">
+          <div className="session-data-tester__delete-confirm-modal">
+            <div className="session-data-tester__delete-confirm-header">
+              <h3>Delete Task</h3>
+              <button
+                onClick={cancelDeleteTask}
+                className="session-data-tester__delete-confirm-close"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            
+            <div className="session-data-tester__delete-confirm-content">
+              <div className="session-data-tester__delete-confirm-icon">
+                <FaTrash />
+              </div>
+              <div className="session-data-tester__delete-confirm-text">
+                <p>Are you sure you want to delete this task?</p>
+                {taskToDelete !== null && tasks[taskToDelete] && (
+                  <div className="session-data-tester__delete-confirm-task-info">
+                    <strong>{tasks[taskToDelete].title}</strong>
+                    <span>{formatTime(tasks[taskToDelete].startTime)} - {formatTime(tasks[taskToDelete].endTime)}</span>
+                  </div>
+                )}
+                <p className="session-data-tester__delete-confirm-warning">
+                  <strong>This action cannot be undone.</strong>
+                </p>
+              </div>
+            </div>
+            
+            <div className="session-data-tester__delete-confirm-actions">
+              <button
+                onClick={cancelDeleteTask}
+                className="session-data-tester__btn session-data-tester__btn--cancel"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteTask}
+                className="session-data-tester__btn session-data-tester__btn--delete"
+              >
+                <FaTrash />
+                Delete Task
+              </button>
             </div>
           </div>
         </div>

@@ -10,6 +10,7 @@ import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
 import AdmissionsDashboard from './pages/AdmissionsDashboard';
 import ApplicationDetail from './pages/AdmissionsDashboard/ApplicationDetail';
 import Content from './pages/Content';
+import FacilitatorView from './pages/FacilitatorView';
 import Stats from './pages/Stats';
 import Account from './pages/Account/Account';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
@@ -174,6 +175,13 @@ function App() {
           <Layout>
             <AdminRoute>
               <Content />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/facilitator-view" element={
+          <Layout>
+            <AdminRoute>
+              <FacilitatorView />
             </AdminRoute>
           </Layout>
         } />

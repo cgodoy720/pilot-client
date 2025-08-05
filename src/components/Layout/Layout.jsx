@@ -111,6 +111,10 @@ const Layout = ({ children }) => {
                 <BugReportIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">Content Generation</span>}
               </Link>
+              <Link to="/facilitator-view" className={`layout__nav-item ${location.pathname === '/facilitator-view' ? 'layout__nav-item--active' : ''}`}>
+                <PersonIcon className="layout__nav-icon" />
+                {isExpanded && <span className="layout__nav-text">Facilitator View</span>}
+              </Link>
             </>
           )}
         </div>

@@ -266,6 +266,21 @@
   background: var(--color-primary-hover);
 }
 
+.json-generator__action-btn--secondary {
+  background: var(--color-secondary);
+  color: white;
+  border-color: var(--color-secondary);
+}
+
+.json-generator__action-btn--secondary:hover:not(:disabled) {
+  background: var(--color-secondary-hover);
+}
+
+.json-generator__action-btn--secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .json-generator__json-display {
   background: var(--color-background-darker);
   border: 1px solid var(--color-border);
