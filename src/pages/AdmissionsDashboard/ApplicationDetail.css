@@ -208,7 +208,11 @@
 }
 
 .response-item__question {
+  /* color: red; */
   margin-bottom: 0.5rem;
+  text-align: left;
+  font-weight: 550;
+  font-size: .95rem;
 }
 
 .response-item__question h3 {
@@ -943,4 +947,719 @@
   color: var(--color-text-muted);
   font-style: italic;
   font-size: 0.85rem;
+}
+/* Key Analysis Questions Styles (without green theme) */
+
+.question-number {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--color-text-primary);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  min-width: 2rem;
+  text-align: center;
+  margin-right: 0.5rem;
+}
+
+.response-item__full-question {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  border-left: 3px solid rgba(255, 255, 255, 0.2);
+}
+
+.response-item__full-question em {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+/* Coll
+apsible Section Styles */
+.response-section__title--collapsible {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+  padding: 0.75rem;
+  margin: -0.75rem -0.75rem 0.75rem -0.75rem;
+  border-radius: 8px;
+}
+
+.response-section__title--collapsible:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+
+
+.section-toggle-arrow {
+  font-size: 0.8rem;
+  transition: transform 0.2s ease;
+  color: var(--color-text-secondary);
+  min-width: 1rem;
+  text-align: center;
+}
+
+.section-count {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  margin-left: auto;
+}
+
+
+
+/* Smooth expand/collapse animation */
+.responses-list {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Improved section spacing when collapsed */
+.response-section {
+  transition: margin-bottom 0.2s ease;
+}
+
+.response-section:not(:last-child) {
+  margin-bottom: 1.5rem;
+}/* Asse
+ssment Flags */
+.assessment-flags {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.assessment-flag {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.assessment-flag--positive {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #22c55e;
+}
+
+.assessment-flag--warning {
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+
+.assessment-flag--info {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #3b82f6;
+}
+
+.flag-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.flag-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.creation-link {
+  color: inherit;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.creation-link:hover {
+  text-decoration: none;
+}
+
+.creation-text {
+  font-style: italic;
+  word-break: break-word;
+}
+
+/* Responsive flags */
+@media (max-width: 768px) {
+  .assessment-flags {
+    margin: 1rem 0;
+    padding: 0.75rem;
+  }
+  
+  .assessment-flag {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+  }
+  
+  .flag-icon {
+    font-size: 1rem;
+  }
+}
+
+/* Masters Degree Flag in Applicant Info */
+.masters-flag {
+  margin-left: 0.5rem;
+  font-size: 1.2rem;
+  vertical-align: middle;
+  cursor: help;
+  transition: transform 0.2s ease;
+}
+
+.masters-flag:hover {
+  transform: scale(1.1);
+}
+
+/* Condensed Header Layout */
+.application-detail__section--condensed {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.application-detail__condensed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+}
+
+.application-detail__condensed-header-left {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex: 1;
+}
+
+.application-detail__applicant-name-section {
+  flex: 1;
+}
+
+.application-detail__applicant-name {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+}
+
+.application-detail__applicant-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+}
+
+.application-detail__applicant-email {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.application-detail__applicant-applied {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.8;
+}
+
+.application-detail__notes-btn--header {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.application-detail__notes-btn--header:hover {
+  background: rgba(59, 130, 246, 0.2);
+  transform: translateY(-1px);
+}
+
+.application-detail__condensed-header-right {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+/* Recommendation Badge - Condensed */
+.application-detail__recommendation-badge-condensed {
+  display: flex;
+  align-items: center;
+}
+
+.application-detail__recommendation-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: capitalize;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.application-detail__recommendation-status:hover {
+  transform: scale(1.02);
+}
+
+.application-detail__recommendation-status--strong_recommend {
+  background: linear-gradient(135deg, #059669, #10b981);
+  color: #ffffff;
+  border: 1px solid rgba(5, 150, 105, 0.3);
+}
+
+.application-detail__recommendation-status--recommend {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  color: #064e3b;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.application-detail__recommendation-status--review_needed {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  color: #92400e;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.application-detail__recommendation-status--not_recommend {
+  background: linear-gradient(135deg, #ef4444, #f87171);
+  color: #7f1d1d;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Assessment Scores - Condensed */
+.application-detail__assessment-scores-condensed {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.application-detail__score-item-condensed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.application-detail__score-item-condensed--overall {
+  margin-right: 0.5rem;
+}
+
+.application-detail__score-circle-condensed {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1));
+  transition: transform 0.3s ease;
+}
+
+.application-detail__score-circle-condensed--small {
+  width: 60px;
+  height: 60px;
+}
+
+.application-detail__score-circle-condensed:hover {
+  transform: scale(1.05);
+}
+
+.application-detail__score-circle-condensed svg {
+  transform: rotate(-90deg);
+  width: 100%;
+  height: 100%;
+}
+
+.application-detail__score-circle-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 8;
+}
+
+.application-detail__score-circle-progress {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dasharray 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: scoreAnimation 2s ease-out;
+}
+
+.application-detail__score-circle-progress--learning {
+  stroke: url(#learningGradient);
+}
+
+.application-detail__score-circle-progress--grit {
+  stroke: url(#gritGradient);
+}
+
+.application-detail__score-circle-progress--thinking {
+  stroke: url(#thinkingGradient);
+}
+
+.application-detail__score-circle-progress--overall {
+  stroke: url(#overallGradient);
+  stroke-width: 10;
+}
+
+.application-detail__score-value-condensed {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.application-detail__score-value-condensed--small {
+  font-size: 1rem;
+}
+
+.application-detail__score-label-condensed {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-align: center;
+  line-height: 1.1;
+}
+
+.application-detail__score-arrow {
+  font-size: 1.5rem;
+  color: var(--color-text-secondary);
+  margin: 0 0.5rem;
+  opacity: 0.6;
+}
+
+.application-detail__detailed-scores {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Assessment Pending - Condensed */
+.application-detail__assessment-pending-condensed {
+  display: flex;
+  align-items: center;
+}
+
+.application-detail__pending-badge {
+  padding: 0.75rem 1.25rem;
+  background: rgba(160, 174, 192, 0.1);
+  border: 1px solid rgba(160, 174, 192, 0.3);
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Responsive Design for Condensed Header */
+@media (max-width: 1024px) {
+  .application-detail__condensed-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+  
+  .application-detail__condensed-header-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .application-detail__condensed-header-right {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  .application-detail__assessment-scores-condensed {
+    gap: 1rem;
+  }
+  
+  .application-detail__detailed-scores {
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .application-detail__applicant-name {
+    font-size: 1.5rem;
+  }
+  
+  .application-detail__condensed-header-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .application-detail__condensed-header-right {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .application-detail__assessment-scores-condensed {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .application-detail__detailed-scores {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .application-detail__score-arrow {
+    display: none;
+  }
+  
+  .application-detail__score-circle-condensed {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .application-detail__score-circle-condensed--small {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .application-detail__score-value-condensed {
+    font-size: 1.1rem;
+  }
+  
+  .application-detail__score-value-condensed--small {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .application-detail__section--condensed {
+    padding: 1.5rem;
+  }
+  
+  .application-detail__applicant-name {
+    font-size: 1.3rem;
+  }
+  
+  .application-detail__applicant-email {
+    font-size: 0.9rem;
+  }
+  
+  .application-detail__notes-btn--header {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+  
+  .application-detail__recommendation-status {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+  
+  .application-detail__score-circle-condensed {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .application-detail__score-circle-condensed--small {
+    width: 45px;
+    height: 45px;
+  }
+  
+  .application-detail__score-value-condensed {
+    font-size: 1rem;
+  }
+  
+  .application-detail__score-value-condensed--small {
+    font-size: 0.8rem;
+  }
+  
+  .application-detail__score-label-condensed {
+    font-size: 0.7rem;
+  }
+}
+
+/* Detailed Analysis within Condensed Header */
+.application-detail__detailed-analysis {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.application-detail__detailed-analysis .assessment-expandable__summary {
+  cursor: pointer;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+  transition: all 0.3s ease;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.application-detail__detailed-analysis .assessment-expandable__summary::-webkit-details-marker {
+  display: none;
+}
+
+.application-detail__detailed-analysis .assessment-expandable__summary:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.application-detail__detailed-analysis .assessment-expandable__content {
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.01);
+  border-radius: 8px;
+  margin-top: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Responsive for detailed analysis */
+@media (max-width: 768px) {
+  .application-detail__detailed-analysis {
+    margin-top: 1rem;
+    padding-top: 1rem;
+  }
+  
+  .application-detail__detailed-analysis .assessment-expandable__summary {
+    padding: 0.75rem;
+    font-size: 0.85rem;
+  }
+  
+  .application-detail__detailed-analysis .assessment-expandable__content {
+    padding: 1rem;
+  }
+}
+
+/* Assessment Flags - Condensed */
+.application-detail__assessment-flags-condensed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.application-detail__assessment-flags-condensed .application-detail__assessment-flag {
+  margin: 0;
+}
+
+.application-detail__assessment-flag {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.application-detail__assessment-flag--warning {
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+
+.application-detail__assessment-flag--info {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #3b82f6;
+}
+
+.application-detail__flag-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.application-detail__flag-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.application-detail__creation-link {
+  color: inherit;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.application-detail__creation-link:hover {
+  text-decoration: none;
+}
+
+.application-detail__creation-text {
+  font-style: italic;
+  word-break: break-word;
+}
+
+.application-detail__masters-flag {
+  margin-left: 0.5rem;
+  font-size: 1.2rem;
+  vertical-align: middle;
+  cursor: help;
+  transition: transform 0.2s ease;
+}
+
+.application-detail__masters-flag:hover {
+  transform: scale(1.1);
+}
+
+/* Responsive flags for condensed layout */
+@media (max-width: 768px) {
+  .application-detail__assessment-flags-condensed {
+    margin-top: 1rem;
+    padding-top: 1rem;
+  }
+  
+  .application-detail__assessment-flag {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.75rem;
+  }
 }

@@ -1536,7 +1536,13 @@ Assessment Funnel Styles */
 
 .admissions-dashboard__masters-flag {
   margin-left: 0.3rem;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
+  cursor: help;
+  transition: transform 0.2s ease;
+}
+
+.admissions-dashboard__masters-flag:hover {
+  transform: scale(1.1);
 }
 
 .admissions-dashboard__missing-flag {

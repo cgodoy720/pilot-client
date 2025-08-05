@@ -29,10 +29,10 @@ const formatResponseValue = (value, questionType) => {
         try {
             const date = new Date(value);
             if (!isNaN(date.getTime())) {
-                return date.toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
+                return date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
                 });
             }
         } catch (e) {
@@ -50,8 +50,8 @@ const formatResponseValue = (value, questionType) => {
     if (/^\$?\d+(\.\d{2})?$/.test(value.replace(/,/g, ''))) {
         const amount = parseFloat(value.replace(/[$,]/g, ''));
         if (!isNaN(amount)) {
-            return new Intl.NumberFormat('en-US', { 
-                style: 'currency', 
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
                 currency: 'USD',
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 0
@@ -63,8 +63,8 @@ const formatResponseValue = (value, questionType) => {
     if (/^\d+(\.\d+)?$/.test(value) && questionType?.toLowerCase().includes('income')) {
         const number = parseFloat(value);
         if (!isNaN(number)) {
-            return new Intl.NumberFormat('en-US', { 
-                style: 'currency', 
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
                 currency: 'USD',
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 0
@@ -80,13 +80,24 @@ const ApplicationDetail = () => {
     const { applicationId } = useParams();
     const { token } = useAuth();
     const navigate = useNavigate();
-    
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [applicationData, setApplicationData] = useState(null);
 
     // Notes modal management
     const [notesModalOpen, setNotesModalOpen] = useState(false);
+
+    // Collapsible sections state - all collapsed by default
+    const [expandedSections, setExpandedSections] = useState({});
+
+    // Toggle section expansion
+    const toggleSection = (sectionKey) => {
+        setExpandedSections(prev => ({
+            ...prev,
+            [sectionKey]: !prev[sectionKey]
+        }));
+    };
 
     // Fetch application details
     const fetchApplicationDetail = async () => {
@@ -131,11 +142,28 @@ const ApplicationDetail = () => {
     };
 
     // Create shorthand labels for common questions
-    const getShorthandLabel = (prompt) => {
+    const getShorthandLabel = (prompt, questionId) => {
         if (!prompt) return 'Unknown Question';
-        
+
+        // Special handling for key analysis questions
+        const keyQuestionLabels = {
+            1046: 'Education & Work History',
+            1052: 'AI Perspectives & Career Impact',
+            1053: 'Personal Background Story',
+            1055: 'AI Learning Questions Used',
+            1056: 'Neural Network Definition',
+            1057: 'Neural Network Structure & Function',
+            1059: 'Most Intriguing Neural Network Aspect',
+            1061: 'Learning About Intriguing Aspect',
+            1062: 'AI Tools Learning Process Impact'
+        };
+
+        if (questionId && keyQuestionLabels[questionId]) {
+            return keyQuestionLabels[questionId];
+        }
+
         const lowercasePrompt = prompt.toLowerCase();
-        
+
         // Common question mappings
         if (lowercasePrompt.includes('first name')) return 'First Name';
         if (lowercasePrompt.includes('last name')) return 'Last Name';
@@ -158,22 +186,42 @@ const ApplicationDetail = () => {
         if (lowercasePrompt.includes('privacy') && lowercasePrompt.includes('policy')) return 'Privacy Policy Agreement';
         if (lowercasePrompt.includes('citizen') || lowercasePrompt.includes('authorized')) return 'Work Authorization';
         if (lowercasePrompt.includes('conviction') || lowercasePrompt.includes('criminal')) return 'Criminal Background';
-        
+
         // If no match found, try to create a shortened version
         if (prompt.length > 50) {
             return prompt.substring(0, 47) + '...';
         }
-        
+
         return prompt;
     };
 
-    // Helper function to convert semicolon-separated text to bullet points
-    const formatBulletPoints = (text) => {
-        if (!text) return null;
-        
-        // Split by semicolons and trim each item
-        const points = text.split(';').map(item => item.trim()).filter(item => item);
-        
+    // Helper function to convert arrays or semicolon-separated text to bullet points
+    const formatBulletPoints = (data) => {
+        if (!data) return null;
+
+        let points = [];
+
+        // Check if data is already an array
+        if (Array.isArray(data)) {
+            points = data.filter(item => item && item.trim());
+        } else if (typeof data === 'string') {
+            // Try to parse as JSON first (in case it's a JSON string)
+            try {
+                const parsed = JSON.parse(data);
+                if (Array.isArray(parsed)) {
+                    points = parsed.filter(item => item && item.trim());
+                } else {
+                    // Fall back to semicolon-separated splitting
+                    points = data.split(';').map(item => item.trim()).filter(item => item);
+                }
+            } catch (e) {
+                // Not valid JSON, split by semicolons
+                points = data.split(';').map(item => item.trim()).filter(item => item);
+            }
+        }
+
+        if (points.length === 0) return null;
+
         // Return as bullet point list
         return (
             <ul className="bullet-list">
@@ -187,51 +235,51 @@ const ApplicationDetail = () => {
     // Create logical groupings based on question content instead of database sections
     const getQuestionCategory = (prompt) => {
         if (!prompt) return 'Other';
-        
+
         const lowercasePrompt = prompt.toLowerCase();
-        
+
         // Personal/Basic Information
-        if (lowercasePrompt.includes('first name') || lowercasePrompt.includes('last name') || 
+        if (lowercasePrompt.includes('first name') || lowercasePrompt.includes('last name') ||
             lowercasePrompt.includes('date of birth') || lowercasePrompt.includes('email') ||
             lowercasePrompt.includes('phone') || lowercasePrompt.includes('address') ||
             lowercasePrompt.includes('gender')) {
             return 'Personal Information';
         }
-        
+
         // Background & Demographics
         if (lowercasePrompt.includes('race') || lowercasePrompt.includes('ethnicity') ||
             lowercasePrompt.includes('education') || lowercasePrompt.includes('income') ||
             lowercasePrompt.includes('citizen') || lowercasePrompt.includes('authorized')) {
             return 'Background & Demographics';
         }
-        
+
         // Experience & Work
         if (lowercasePrompt.includes('work') || lowercasePrompt.includes('job') ||
             lowercasePrompt.includes('experience') || lowercasePrompt.includes('programming') ||
             lowercasePrompt.includes('technical')) {
             return 'Experience & Background';
         }
-        
-        // Program Interest & Motivation
-        if (lowercasePrompt.includes('why') || lowercasePrompt.includes('pursuit') ||
-            lowercasePrompt.includes('goal') || lowercasePrompt.includes('career') ||
-            lowercasePrompt.includes('motivation') || lowercasePrompt.includes('interest')) {
-            return 'Program Interest';
-        }
-        
-        // Challenges & Personal
-        if (lowercasePrompt.includes('obstacle') || lowercasePrompt.includes('challenge') ||
-            lowercasePrompt.includes('overcome') || lowercasePrompt.includes('difficult')) {
-            return 'Personal Story';
-        }
-        
+
+        // Program Interest & Motivation - now grouped into Other
+        // if (lowercasePrompt.includes('why') || lowercasePrompt.includes('pursuit') ||
+        //     lowercasePrompt.includes('goal') || lowercasePrompt.includes('career') ||
+        //     lowercasePrompt.includes('motivation') || lowercasePrompt.includes('interest')) {
+        //     return 'Program Interest';
+        // }
+
+        // Challenges & Personal - now grouped into Other
+        // if (lowercasePrompt.includes('obstacle') || lowercasePrompt.includes('challenge') ||
+        //     lowercasePrompt.includes('overcome') || lowercasePrompt.includes('difficult')) {
+        //     return 'Personal Story';
+        // }
+
         // References & Additional
         if (lowercasePrompt.includes('reference') || lowercasePrompt.includes('contact') ||
             lowercasePrompt.includes('privacy') || lowercasePrompt.includes('conviction') ||
             lowercasePrompt.includes('criminal')) {
             return 'Additional Information';
         }
-        
+
         return 'Other';
     };
 
@@ -284,8 +332,8 @@ const ApplicationDetail = () => {
             {/* Header */}
             <div className="application-detail__header">
                 <div className="application-detail__header-content">
-                    <button 
-                        onClick={() => navigate('/admissions-dashboard?tab=applications')} 
+                    <button
+                        onClick={() => navigate('/admissions-dashboard?tab=applications')}
                         className="application-detail__back-btn"
                     >
                         ← Back to Applicants
@@ -300,45 +348,54 @@ const ApplicationDetail = () => {
             </div>
 
             <div className="application-detail__content">
-                {/* Applicant Information - Compact */}
-                <div className="application-detail__section application-detail__section--compact">
-                    <h2>Applicant Information</h2>
-                    <div className="applicant-info applicant-info--compact">
-                        <div className="applicant-info__grid applicant-info__grid--compact">
-                            <div className="info-item">
-                                <label>Name:</label>
-                                <span>{applicant.first_name} {applicant.last_name}</span>
+                {/* Condensed Header with Applicant Info and Assessment */}
+                <div className="application-detail__section application-detail__section--condensed">
+                    <div className="application-detail__condensed-header">
+                        <div className="application-detail__condensed-header-left">
+                            <div className="application-detail__applicant-name-section">
+                                <h1 className="application-detail__applicant-name">
+                                    {applicant.first_name} {applicant.last_name}
+                                    {assessment?.has_masters_degree && (
+                                        <span className="application-detail__masters-flag" title="Has Masters Degree">🎓</span>
+                                    )}
+                                </h1>
+                                <div className="application-detail__applicant-details">
+                                    <span className="application-detail__applicant-email">{applicant.email}</span>
+                                    <span className="application-detail__applicant-applied">
+                                        APPLIED: {new Date(application.created_at).toLocaleDateString('en-US', {
+                                            month: 'numeric',
+                                            day: 'numeric',
+                                            year: 'numeric'
+                                        })}
+                                    </span>
+                                </div>
                             </div>
-                            <div className="info-item">
-                                <label>Email:</label>
-                                <span>{applicant.email}</span>
-                            </div>
-                            <div className="info-item">
-                                <label>Applied:</label>
-                                <span>{new Date(application.created_at).toLocaleDateString()}</span>
-                            </div>
-                            <div className="info-item">
-                                <button 
-                                    className="notes-btn notes-btn--compact"
-                                    onClick={openNotesModal}
-                                >
-                                    📝 Notes
-                                </button>
-                            </div>
+                            <button
+                                className="application-detail__notes-btn application-detail__notes-btn--header"
+                                onClick={openNotesModal}
+                            >
+                                📝 Notes
+                            </button>
                         </div>
-                    </div>
-                </div>
 
-                {/* Application Assessment */}
-                <div className="application-detail__section">
-                    <h2>Application Assessment</h2>
-                    {assessment && assessment.recommendation ? (
-                        <div className="assessment-details">
-                            <div className="assessment-overview">
-                                <div className="assessment-scores">
-                                    <div className="assessment-scores-top">
-                                        <div className="score-item score-item--overall">
-                                            <div className="score-circle">
+                        <div className="application-detail__condensed-header-right">
+                            {assessment && assessment.recommendation ? (
+                                <>
+                                    <div className="application-detail__recommendation-badge-condensed">
+                                        <div className={`application-detail__recommendation-status application-detail__recommendation-status--${assessment.recommendation}`}>
+                                            <div className="application-detail__recommendation-icon">
+                                                {assessment.recommendation === 'strong_recommend' && '✓'}
+                                                {assessment.recommendation === 'recommend' && '✓'}
+                                                {assessment.recommendation === 'review_needed' && '⚠️'}
+                                                {assessment.recommendation === 'not_recommend' && '✗'}
+                                            </div>
+                                            <span>{assessment.recommendation.replace('_', ' ')}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="application-detail__assessment-scores-condensed">
+                                        <div className="application-detail__score-item-condensed application-detail__score-item-condensed--overall">
+                                            <div className="application-detail__score-circle-condensed">
                                                 <svg viewBox="0 0 100 100">
                                                     <defs>
                                                         <linearGradient id="overallGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -347,157 +404,219 @@ const ApplicationDetail = () => {
                                                             <stop offset="100%" stopColor="#45b7d1" />
                                                         </linearGradient>
                                                     </defs>
-                                                    <circle cx="50" cy="50" r="40" className="score-circle-bg" />
-                                                    <circle 
-                                                        cx="50" 
-                                                        cy="50" 
-                                                        r="40" 
-                                                        className="score-circle-progress score-circle-progress--overall"
+                                                    <circle cx="50" cy="50" r="40" className="application-detail__score-circle-bg" />
+                                                    <circle
+                                                        cx="50"
+                                                        cy="50"
+                                                        r="40"
+                                                        className="application-detail__score-circle-progress application-detail__score-circle-progress--overall"
                                                         strokeDasharray={`${(assessment.overall_score / 100) * 251.2} 251.2`}
                                                     />
                                                 </svg>
-                                                <div className="score-value score-value--overall">{assessment.overall_score}</div>
+                                                <div className="application-detail__score-value-condensed">{assessment.overall_score}</div>
                                             </div>
-                                            <div className="score-label">Overall<br/>Score</div>
+                                            <div className="application-detail__score-label-condensed">Overall<br />Score</div>
                                         </div>
-                                        <div className="recommendation-display">
-                                            <div className="recommendation-card">
-                                                <div className="recommendation-label">Final Recommendation</div>
-                                                <div className={`recommendation-badge recommendation-badge--${assessment.recommendation}`}>
-                                                    <div className="recommendation-icon">
-                                                        {assessment.recommendation === 'strong_recommend' && '✓'}
-                                                        {assessment.recommendation === 'recommend' && '✓'}
-                                                        {assessment.recommendation === 'review_needed' && '⚠️'}
-                                                        {assessment.recommendation === 'not_recommend' && '✗'}
-                                                    </div>
-                                                    <div className="recommendation-text">
-                                                        {assessment.recommendation.replace('_', ' ')}
-                                                    </div>
+
+                                        <div className="application-detail__score-arrow">→</div>
+
+                                        <div className="application-detail__detailed-scores">
+                                            <div className="application-detail__score-item-condensed">
+                                                <div className="application-detail__score-circle-condensed application-detail__score-circle-condensed--small">
+                                                    <svg viewBox="0 0 100 100">
+                                                        <defs>
+                                                            <linearGradient id="learningGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                                <stop offset="0%" stopColor="#ff6b6b" />
+                                                                <stop offset="50%" stopColor="#4ecdc4" />
+                                                                <stop offset="100%" stopColor="#45b7d1" />
+                                                            </linearGradient>
+                                                        </defs>
+                                                        <circle cx="50" cy="50" r="40" className="application-detail__score-circle-bg" />
+                                                        <circle
+                                                            cx="50"
+                                                            cy="50"
+                                                            r="40"
+                                                            className="application-detail__score-circle-progress application-detail__score-circle-progress--learning"
+                                                            strokeDasharray={`${(assessment.learning_score / 100) * 251.2} 251.2`}
+                                                        />
+                                                    </svg>
+                                                    <div className="application-detail__score-value-condensed application-detail__score-value-condensed--small">{assessment.learning_score}</div>
                                                 </div>
+                                                <div className="application-detail__score-label-condensed">Learning<br />Ability</div>
+                                            </div>
+
+                                            <div className="application-detail__score-item-condensed">
+                                                <div className="application-detail__score-circle-condensed application-detail__score-circle-condensed--small">
+                                                    <svg viewBox="0 0 100 100">
+                                                        <defs>
+                                                            <linearGradient id="gritGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                                <stop offset="0%" stopColor="#ffd93d" />
+                                                                <stop offset="50%" stopColor="#ff9a3c" />
+                                                                <stop offset="100%" stopColor="#ff6b6b" />
+                                                            </linearGradient>
+                                                        </defs>
+                                                        <circle cx="50" cy="50" r="40" className="application-detail__score-circle-bg" />
+                                                        <circle
+                                                            cx="50"
+                                                            cy="50"
+                                                            r="40"
+                                                            className="application-detail__score-circle-progress application-detail__score-circle-progress--grit"
+                                                            strokeDasharray={`${(assessment.grit_score / 100) * 251.2} 251.2`}
+                                                        />
+                                                    </svg>
+                                                    <div className="application-detail__score-value-condensed application-detail__score-value-condensed--small">{assessment.grit_score}</div>
+                                                </div>
+                                                <div className="application-detail__score-label-condensed">Grit &<br />Perseverance</div>
+                                            </div>
+
+                                            <div className="application-detail__score-item-condensed">
+                                                <div className="application-detail__score-circle-condensed application-detail__score-circle-condensed--small">
+                                                    <svg viewBox="0 0 100 100">
+                                                        <defs>
+                                                            <linearGradient id="thinkingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                                <stop offset="0%" stopColor="#a855f7" />
+                                                                <stop offset="50%" stopColor="#3b82f6" />
+                                                                <stop offset="100%" stopColor="#06b6d4" />
+                                                            </linearGradient>
+                                                        </defs>
+                                                        <circle cx="50" cy="50" r="40" className="application-detail__score-circle-bg" />
+                                                        <circle
+                                                            cx="50"
+                                                            cy="50"
+                                                            r="40"
+                                                            className="application-detail__score-circle-progress application-detail__score-circle-progress--thinking"
+                                                            strokeDasharray={`${(assessment.critical_thinking_score / 100) * 251.2} 251.2`}
+                                                        />
+                                                    </svg>
+                                                    <div className="application-detail__score-value-condensed application-detail__score-value-condensed--small">{assessment.critical_thinking_score}</div>
+                                                </div>
+                                                <div className="application-detail__score-label-condensed">Critical<br />Thinking</div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="assessment-scores-bottom">
-                                        <div className="score-item">
-                                            <div className="score-circle">
-                                                <svg viewBox="0 0 100 100">
-                                                    <defs>
-                                                        <linearGradient id="learningGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                            <stop offset="0%" stopColor="#ff6b6b" />
-                                                            <stop offset="50%" stopColor="#4ecdc4" />
-                                                            <stop offset="100%" stopColor="#45b7d1" />
-                                                        </linearGradient>
-                                                    </defs>
-                                                    <circle cx="50" cy="50" r="40" className="score-circle-bg" />
-                                                    <circle 
-                                                        cx="50" 
-                                                        cy="50" 
-                                                        r="40" 
-                                                        className="score-circle-progress score-circle-progress--learning"
-                                                        strokeDasharray={`${(assessment.learning_score / 100) * 251.2} 251.2`}
-                                                    />
-                                                </svg>
-                                                <div className="score-value">{assessment.learning_score}</div>
-                                            </div>
-                                            <div className="score-label">Learning<br/>Ability</div>
+                                </>
+                            ) : (
+                                <div className="application-detail__assessment-pending-condensed">
+                                    <div className="application-detail__pending-badge">Assessment Pending</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Assessment Flags */}
+                    {assessment && (
+                        <div className="application-detail__assessment-flags-condensed">
+                            {(() => {
+                                const flags = [];
+
+                                // Missing questions flag
+                                if (assessment.missing_count > 0) {
+                                    flags.push(
+                                        <div key="missing" className="application-detail__assessment-flag application-detail__assessment-flag--warning">
+                                            <span className="application-detail__flag-icon">⚠️</span>
+                                            <span className="application-detail__flag-text">{assessment.missing_count} key question{assessment.missing_count > 1 ? 's' : ''} incomplete</span>
                                         </div>
-                                        <div className="score-item">
-                                            <div className="score-circle">
-                                                <svg viewBox="0 0 100 100">
-                                                    <defs>
-                                                        <linearGradient id="gritGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                            <stop offset="0%" stopColor="#ffd93d" />
-                                                            <stop offset="50%" stopColor="#ff9a3c" />
-                                                            <stop offset="100%" stopColor="#ff6b6b" />
-                                                        </linearGradient>
-                                                    </defs>
-                                                    <circle cx="50" cy="50" r="40" className="score-circle-bg" />
-                                                    <circle 
-                                                        cx="50" 
-                                                        cy="50" 
-                                                        r="40" 
-                                                        className="score-circle-progress score-circle-progress--grit"
-                                                        strokeDasharray={`${(assessment.grit_score / 100) * 251.2} 251.2`}
-                                                    />
-                                                </svg>
-                                                <div className="score-value">{assessment.grit_score}</div>
-                                            </div>
-                                            <div className="score-label">Grit &<br/>Perseverance</div>
+                                    );
+                                }
+
+                                // Creation sharing link flag
+                                const creationQuestion = responses?.find(r => {
+                                    const question = questions?.find(q => q.question_id === r.question_id);
+                                    return question?.prompt?.toLowerCase().includes('created') &&
+                                        question?.prompt?.toLowerCase().includes('share') &&
+                                        question?.prompt?.toLowerCase().includes('link');
+                                });
+
+                                if (creationQuestion?.response_value && creationQuestion.response_value.trim()) {
+                                    const isUrl = /^https?:\/\//.test(creationQuestion.response_value.trim());
+                                    flags.push(
+                                        <div key="creation" className="application-detail__assessment-flag application-detail__assessment-flag--info">
+                                            <span className="application-detail__flag-icon">🔗</span>
+                                            <span className="application-detail__flag-text">
+                                                Shared creation: {isUrl ? (
+                                                    <a
+                                                        href={creationQuestion.response_value.trim()}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="application-detail__creation-link"
+                                                    >
+                                                        {creationQuestion.response_value.trim()}
+                                                    </a>
+                                                ) : (
+                                                    <span className="application-detail__creation-text">{creationQuestion.response_value.trim()}</span>
+                                                )}
+                                            </span>
                                         </div>
-                                        <div className="score-item">
-                                            <div className="score-circle">
-                                                <svg viewBox="0 0 100 100">
-                                                    <defs>
-                                                        <linearGradient id="thinkingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                            <stop offset="0%" stopColor="#a855f7" />
-                                                            <stop offset="50%" stopColor="#3b82f6" />
-                                                            <stop offset="100%" stopColor="#06b6d4" />
-                                                        </linearGradient>
-                                                    </defs>
-                                                    <circle cx="50" cy="50" r="40" className="score-circle-bg" />
-                                                    <circle 
-                                                        cx="50" 
-                                                        cy="50" 
-                                                        r="40" 
-                                                        className="score-circle-progress score-circle-progress--thinking"
-                                                        strokeDasharray={`${(assessment.critical_thinking_score / 100) * 251.2} 251.2`}
-                                                    />
-                                                </svg>
-                                                <div className="score-value">{assessment.critical_thinking_score}</div>
-                                            </div>
-                                            <div className="score-label">Critical<br/>Thinking</div>
+                                    );
+                                }
+
+                                return flags.length > 0 ? flags : null;
+                            })()}
+                        </div>
+                    )}
+
+                    {/* Detailed Analysis - Expandable */}
+                    {assessment && assessment.recommendation && (
+                        <div className="application-detail__detailed-analysis">
+                            <details className="assessment-expandable">
+                                <summary className="assessment-expandable__summary">
+                                    📋 View Detailed Analysis
+                                </summary>
+                                <div className="assessment-expandable__content">
+                                    {assessment.strengths && (
+                                        <div className="assessment-detail-item">
+                                            <h4>Strengths</h4>
+                                            {formatBulletPoints(assessment.strengths)}
                                         </div>
+                                    )}
+
+                                    {assessment.concerns && (
+                                        <div className="assessment-detail-item">
+                                            <h4>Areas of Concern</h4>
+                                            {formatBulletPoints(assessment.concerns)}
+                                        </div>
+                                    )}
+
+                                    {assessment.weaknesses && (
+                                        <div className="assessment-detail-item">
+                                            <h4>Weaknesses</h4>
+                                            {formatBulletPoints(assessment.weaknesses)}
+                                        </div>
+                                    )}
+
+                                    {assessment.areas_for_development && (
+                                        <div className="assessment-detail-item">
+                                            <h4>Areas for Development</h4>
+                                            {formatBulletPoints(assessment.areas_for_development)}
+                                        </div>
+                                    )}
+
+                                    {assessment.analysis_notes && (
+                                        <div className="assessment-detail-item">
+                                            <h4>Analysis Notes</h4>
+                                            <p>{assessment.analysis_notes}</p>
+                                        </div>
+                                    )}
+
+                                    {assessment.recommendation_reason && (
+                                        <div className="assessment-detail-item">
+                                            <h4>Recommendation Reasoning</h4>
+                                            <p>{assessment.recommendation_reason}</p>
+                                        </div>
+                                    )}
+
+                                    <div className="assessment-metadata">
+                                        <p className="assessment-meta">
+                                            Assessment completed on {new Date(assessment.created_at).toLocaleDateString()}
+                                        </p>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="assessment-details-expandable">
-                                <details className="assessment-expandable">
-                                    <summary className="assessment-expandable__summary">
-                                        📋 View Detailed Analysis
-                                    </summary>
-                                    <div className="assessment-expandable__content">
-                                        {assessment.strengths && (
-                                            <div className="assessment-detail-item">
-                                                <h4>Strengths</h4>
-                                                {formatBulletPoints(assessment.strengths)}
-                                            </div>
-                                        )}
-                                        {assessment.concerns && (
-                                            <div className="assessment-detail-item">
-                                                <h4>Concerns</h4>
-                                                {formatBulletPoints(assessment.concerns)}
-                                            </div>
-                                        )}
-                                        {assessment.areas_for_development && (
-                                            <div className="assessment-detail-item">
-                                                <h4>Areas for Development</h4>
-                                                {formatBulletPoints(assessment.areas_for_development)}
-                                            </div>
-                                        )}
-                                        {assessment.analysis_notes && (
-                                            <div className="assessment-detail-item">
-                                                <h4>Analysis Notes</h4>
-                                                <p>{assessment.analysis_notes}</p>
-                                            </div>
-                                        )}
-                                        <div className="assessment-metadata">
-                                            <p className="assessment-meta">
-                                                <strong>Responses Analyzed:</strong> {assessment.target_responses_found}/{assessment.total_responses} | 
-                                                <strong> Analyzer Version:</strong> {assessment.analyzer_version} | 
-                                                <strong> Analyzed:</strong> {assessment.created_at ? new Date(assessment.created_at).toLocaleDateString() : 'N/A'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </details>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="assessment-pending">
-                            <p>Assessment pending - AI analysis has not been completed yet.</p>
+                            </details>
                         </div>
                     )}
                 </div>
+
+
 
                 {/* Application Responses */}
                 <div className="application-detail__section">
@@ -505,57 +624,154 @@ const ApplicationDetail = () => {
                     {responses && responses.length > 0 ? (
                         <div className="responses-by-section">
                             {(() => {
-                                // Group responses by logical categories
-                                const responsesByCategory = {};
-                                const categoryOrder = [
-                                    'Personal Information',
-                                    'Background & Demographics', 
-                                    'Experience & Background',
-                                    'Program Interest',
-                                    'Personal Story',
-                                    'Additional Information',
-                                    'Other'
+                                // Define the 9 key analysis questions in order
+                                const keyAnalysisQuestions = [
+                                    1046, // "Please explain your education and work history in more detail."
+                                    1052, // "Share your thoughts and perspectives on AI..."
+                                    1053, // "Some applicants have a background, identity, interest, or talent..."
+                                    1055, // "List all of the questions you used to ask the AI to learn."
+                                    1056, // "Explain, in your own words, what a neural network is."
+                                    1057, // "What is the basic structure and function of a neural network?"
+                                    1059, // "What aspect of neural networks did you find most intriguing..."
+                                    1061, // "What did you learn about this new aspect you listed above? (optional)"
+                                    1062  // "How did using AI tools to learn about a new topic influence your learning process?"
                                 ];
-                                
+
+                                // Separate key analysis questions from other responses
+                                const keyResponses = [];
+                                const otherResponses = [];
+
                                 responses.forEach(response => {
                                     const question = questions?.find(q => q.question_id === response.question_id);
                                     if (question) {
-                                        const category = getQuestionCategory(question.prompt);
-                                        if (!responsesByCategory[category]) {
-                                            responsesByCategory[category] = [];
-                                        }
-                                        responsesByCategory[category].push({
+                                        const responseData = {
                                             response,
                                             question,
-                                            shortLabel: getShorthandLabel(question.prompt)
-                                        });
+                                            shortLabel: getShorthandLabel(question.prompt, question.question_id)
+                                        };
+
+                                        if (keyAnalysisQuestions.includes(question.question_id)) {
+                                            keyResponses.push(responseData);
+                                        } else {
+                                            otherResponses.push(responseData);
+                                        }
                                     }
                                 });
 
-                                // Return sections in logical order
-                                return categoryOrder
-                                    .filter(category => responsesByCategory[category]?.length > 0)
-                                    .map(category => (
-                                        <div key={category} className="response-section">
-                                            <h3 className="response-section__title">{category}</h3>
-                                            <div className="responses-list responses-list--compact">
-                                                {responsesByCategory[category].map(({ response, question, shortLabel }, index) => (
-                                                    <div key={response.question_id || index} className="response-item response-item--compact">
-                                                        <div className="response-item__question">
-                                                            <h4>{shortLabel}</h4>
+                                // Sort key responses by the defined order
+                                keyResponses.sort((a, b) => {
+                                    const indexA = keyAnalysisQuestions.indexOf(a.question.question_id);
+                                    const indexB = keyAnalysisQuestions.indexOf(b.question.question_id);
+                                    return indexA - indexB;
+                                });
+
+                                // Group other responses by logical categories
+                                const responsesByCategory = {};
+                                const categoryOrder = [
+                                    'Personal Information',
+                                    'Background & Demographics',
+                                    'Experience & Background',
+                                    'Additional Information',
+                                    'Other'
+                                ];
+
+                                otherResponses.forEach(responseData => {
+                                    const category = getQuestionCategory(responseData.question.prompt);
+                                    if (!responsesByCategory[category]) {
+                                        responsesByCategory[category] = [];
+                                    }
+                                    responsesByCategory[category].push(responseData);
+                                });
+
+                                const sections = [];
+
+                                // First section: Key Analysis Questions
+                                if (keyResponses.length > 0) {
+                                    const sectionKey = 'key-analysis';
+                                    const isExpanded = expandedSections[sectionKey];
+
+                                    sections.push(
+                                        <div key="key-analysis" className="response-section">
+                                            <h3
+                                                className="response-section__title response-section__title--collapsible"
+                                                onClick={() => toggleSection(sectionKey)}
+                                            >
+                                                <span className="section-toggle-arrow">
+                                                    {isExpanded ? '▼' : '▶'}
+                                                </span>
+                                                Key Analysis Questions
+                                                <span className="section-count">({keyResponses.length})</span>
+                                            </h3>
+                                            {isExpanded && (
+                                                <div className="responses-list responses-list--compact">
+                                                    {keyResponses.map(({ response, question, shortLabel }, index) => (
+                                                        <div key={response.question_id || index} className="response-item response-item--compact">
+                                                            <div className="response-item__question">
+                                                                <h4>
+                                                                    <span className="question-number">Q{keyAnalysisQuestions.indexOf(question.question_id) + 1}</span>
+                                                                    {shortLabel}
+                                                                </h4>
+                                                                <div className="response-item__full-question">
+                                                                    {question.prompt}
+                                                                </div>
+                                                            </div>
+                                                            <div className="response-item__answer">
+                                                                {response.response_value ? (
+                                                                    <p>{formatResponseValue(response.response_value, question?.response_type)}</p>
+                                                                ) : (
+                                                                    <p className="no-response">No response provided</p>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                        <div className="response-item__answer">
-                                                            {response.response_value ? (
-                                                                <p>{formatResponseValue(response.response_value, question?.response_type)}</p>
-                                                            ) : (
-                                                                <p className="no-response">No response provided</p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
-                                    ));
+                                    );
+                                }
+
+                                // Then add other sections in logical order
+                                categoryOrder
+                                    .filter(category => responsesByCategory[category]?.length > 0)
+                                    .forEach(category => {
+                                        const sectionKey = category.toLowerCase().replace(/\s+/g, '-');
+                                        const isExpanded = expandedSections[sectionKey];
+
+                                        sections.push(
+                                            <div key={category} className="response-section">
+                                                <h3
+                                                    className="response-section__title response-section__title--collapsible"
+                                                    onClick={() => toggleSection(sectionKey)}
+                                                >
+                                                    <span className="section-toggle-arrow">
+                                                        {isExpanded ? '▼' : '▶'}
+                                                    </span>
+                                                    {category}
+                                                    <span className="section-count">({responsesByCategory[category].length})</span>
+                                                </h3>
+                                                {isExpanded && (
+                                                    <div className="responses-list responses-list--compact">
+                                                        {responsesByCategory[category].map(({ response, question, shortLabel }, index) => (
+                                                            <div key={response.question_id || index} className="response-item response-item--compact">
+                                                                <div className="response-item__question">
+                                                                    <h4>{shortLabel}</h4>
+                                                                </div>
+                                                                <div className="response-item__answer">
+                                                                    {response.response_value ? (
+                                                                        <p>{formatResponseValue(response.response_value, question?.response_type)}</p>
+                                                                    ) : (
+                                                                        <p className="no-response">No response provided</p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    });
+
+                                return sections;
                             })()}
                         </div>
                     ) : (
@@ -564,7 +780,6 @@ const ApplicationDetail = () => {
                         </div>
                     )}
                 </div>
-
 
             </div>
 
