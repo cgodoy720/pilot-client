@@ -30,15 +30,16 @@ const AdmissionsDashboard = () => {
     
     // Pagination and filters
     const [applicationFilters, setApplicationFilters] = useState({
-        status: '',
-        recommendation: '',
-        final_status: '',
         workshop_status: '',
         program_admission_status: '',
         limit: 50,
         offset: 0
     });
-    const [applicationSort, setApplicationSort] = useState('latest'); // latest, oldest, alphabetic
+    const [nameSearch, setNameSearch] = useState('');
+    const [columnSort, setColumnSort] = useState({
+        column: 'created_at',
+        direction: 'desc' // 'asc' or 'desc'
+    });
     
     // Event registrations management
     const [selectedEvent, setSelectedEvent] = useState(null);
@@ -338,25 +339,65 @@ const AdmissionsDashboard = () => {
         setSelectedApplicant(null);
     };
 
-    // Sort applications based on the selected sort type
-    const sortApplications = (apps, sortType) => {
+    // Handle column sorting
+    const handleColumnSort = (column) => {
+        setColumnSort(prev => ({
+            column,
+            direction: prev.column === column && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    // Sort and filter applications
+    const sortAndFilterApplications = (apps) => {
         if (!apps || !Array.isArray(apps)) return apps;
         
-        const sortedApps = [...apps];
+        let filteredApps = [...apps];
         
-        switch (sortType) {
-            case 'alphabetic':
-                return sortedApps.sort((a, b) => {
-                    const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
-                    const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
-                    return nameA.localeCompare(nameB);
-                });
-            case 'oldest':
-                return sortedApps.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-            case 'latest':
-            default:
-                return sortedApps.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        // Apply name search filter
+        if (nameSearch) {
+            filteredApps = filteredApps.filter(app => 
+                `${app.first_name} ${app.last_name}`.toLowerCase().includes(nameSearch.toLowerCase())
+            );
         }
+        
+        // Apply sorting
+        return filteredApps.sort((a, b) => {
+            let valueA, valueB;
+            
+            switch (columnSort.column) {
+                case 'name':
+                    valueA = `${a.first_name} ${a.last_name}`.toLowerCase();
+                    valueB = `${b.first_name} ${b.last_name}`.toLowerCase();
+                    break;
+                case 'status':
+                    valueA = a.status || '';
+                    valueB = b.status || '';
+                    break;
+                case 'assessment':
+                    valueA = a.final_status || a.recommendation || '';
+                    valueB = b.final_status || b.recommendation || '';
+                    break;
+                case 'info_session':
+                    valueA = a.info_session_status || '';
+                    valueB = b.info_session_status || '';
+                    break;
+                case 'workshop':
+                    valueA = a.workshop_status || '';
+                    valueB = b.workshop_status || '';
+                    break;
+                case 'created_at':
+                default:
+                    valueA = new Date(a.created_at);
+                    valueB = new Date(b.created_at);
+                    break;
+            }
+            
+            if (columnSort.direction === 'asc') {
+                return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
+            } else {
+                return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
+            }
+        });
     };
 
     // Sort events by date (earliest to latest)
@@ -873,84 +914,84 @@ const AdmissionsDashboard = () => {
                     <div className="admissions-dashboard__overview">
                         {loading ? (
                             <div className="admissions-dashboard__loading">
-                                <div className="spinner"></div>
+                                <div className="admissions-dashboard__loading-spinner"></div>
                                 <p>Loading statistics...</p>
                             </div>
                         ) : error ? (
                             <div className="admissions-dashboard__error">
                                 <h3>Error Loading Data</h3>
                                 <p>{error}</p>
-                                <button onClick={fetchAdmissionsData} className="retry-btn">Retry</button>
+                                <button onClick={fetchAdmissionsData} className="admissions-dashboard__retry-btn">Retry</button>
                             </div>
                         ) : stats ? (
                             <div className="admissions-dashboard__stats-grid">
                                 {/* Overall Applicants */}
-                                <div className="stat-card">
-                                    <div className="stat-card__header">
-                                        <h3>Total Applicants</h3>
-                                        <div className="stat-card__icon">👥</div>
+                                <div className="admissions-dashboard__stat-card">
+                                    <div className="admissions-dashboard__stat-card-header">
+                                        <h3 className="admissions-dashboard__stat-card-title">Total Applicants</h3>
+                                        <div className="admissions-dashboard__stat-card-icon">👥</div>
                                     </div>
-                                    <div className="stat-card__value">{stats.totalApplicants || 0}</div>
-                                    <div className="stat-card__subtitle">All registered applicants</div>
+                                    <div className="admissions-dashboard__stat-card-value">{stats.totalApplicants || 0}</div>
+                                    <div className="admissions-dashboard__stat-card-subtitle">All registered applicants</div>
                                 </div>
 
                                 {/* Applications by Status */}
-                                <div className="stat-card stat-card--wide">
-                                    <div className="stat-card__header">
-                                        <h3>Applicants</h3>
-                                        <div className="stat-card__icon">📝</div>
+                                <div className="admissions-dashboard__stat-card admissions-dashboard__stat-card--wide">
+                                    <div className="admissions-dashboard__stat-card-header">
+                                        <h3 className="admissions-dashboard__stat-card-title">Applicants</h3>
+                                        <div className="admissions-dashboard__stat-card-icon">📝</div>
                                     </div>
-                                    <div className="applications-breakdown">
+                                    <div className="admissions-dashboard__applications-breakdown">
                                         {stats.applicationStats?.map((statusGroup) => (
-                                            <div key={statusGroup.status} className="application-status-item">
-                                                <span className={`status-indicator status-indicator--${statusGroup.status}`}></span>
-                                                <span className="status-label">{statusGroup.status}</span>
-                                                <span className="status-count">{statusGroup.count}</span>
+                                            <div key={statusGroup.status} className="admissions-dashboard__application-status-item">
+                                                <span className={`admissions-dashboard__status-indicator admissions-dashboard__status-indicator--${statusGroup.status}`}></span>
+                                                <span className="admissions-dashboard__status-label">{statusGroup.status}</span>
+                                                <span className="admissions-dashboard__status-count">{statusGroup.count}</span>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
 
                                 {/* Info Sessions */}
-                                <div className="stat-card">
-                                    <div className="stat-card__header">
-                                        <h3>Info Sessions</h3>
-                                        <div className="stat-card__icon">ℹ️</div>
+                                <div className="admissions-dashboard__stat-card">
+                                    <div className="admissions-dashboard__stat-card-header">
+                                        <h3 className="admissions-dashboard__stat-card-title">Info Sessions</h3>
+                                        <div className="admissions-dashboard__stat-card-icon">ℹ️</div>
                                     </div>
-                                    <div className="stat-card__value">{stats.infoSessions?.totalSessions || 0}</div>
-                                    <div className="stat-card__subtitle">
+                                    <div className="admissions-dashboard__stat-card-value">{stats.infoSessions?.totalSessions || 0}</div>
+                                    <div className="admissions-dashboard__stat-card-subtitle">
                                         {stats.infoSessions?.totalRegistrations || 0} registrations, {stats.infoSessions?.totalAttended || 0} attended
                                     </div>
                                 </div>
 
                                 {/* Workshops */}
-                                <div className="stat-card">
-                                    <div className="stat-card__header">
-                                        <h3>Workshops</h3>
-                                        <div className="stat-card__icon">🛠️</div>
+                                <div className="admissions-dashboard__stat-card">
+                                    <div className="admissions-dashboard__stat-card-header">
+                                        <h3 className="admissions-dashboard__stat-card-title">Workshops</h3>
+                                        <div className="admissions-dashboard__stat-card-icon">🛠️</div>
                                     </div>
-                                    <div className="stat-card__value">{stats.workshops?.totalWorkshops || 0}</div>
-                                    <div className="stat-card__subtitle">
+                                    <div className="admissions-dashboard__stat-card-value">{stats.workshops?.totalWorkshops || 0}</div>
+                                    <div className="admissions-dashboard__stat-card-subtitle">
                                         {stats.workshops?.totalRegistrations || 0} registrations, {stats.workshops?.totalAttended || 0} attended
                                     </div>
                                 </div>
 
                                 {/* Assessment Funnel */}
-                                <div className="stat-card stat-card--wide">
-                                    <div className="stat-card__header">
-                                        <h3>Assessment Funnel</h3>
-                                        <div className="stat-card__icon">🎯</div>
+                                <div className="admissions-dashboard__stat-card admissions-dashboard__stat-card--wide">
+                                    <div className="admissions-dashboard__stat-card-header">
+                                        <h3 className="admissions-dashboard__stat-card-title">Assessment Funnel</h3>
+                                        <div className="admissions-dashboard__stat-card-icon">🎯</div>
                                     </div>
-                                    <div className="assessment-funnel">
+                                    <div className="admissions-dashboard__assessment-funnel">
                                         {stats.assessmentFunnel?.map((assessment) => (
-                                            <div key={assessment.status} className="assessment-funnel__item">
-                                                <span className={`assessment-funnel__indicator assessment-funnel__indicator--${assessment.status.replace('_', '-')}`}></span>
-                                                <span className="assessment-funnel__label">
+                                            <div key={assessment.status} className="admissions-dashboard__assessment-funnel-item">
+                                                <span className={`admissions-dashboard__assessment-funnel-indicator admissions-dashboard__assessment-funnel-indicator--${assessment.status.replace('_', '-')}`}></span>
+                                                <span className="admissions-dashboard__assessment-funnel-label">
                                                     {assessment.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                                 </span>
-                                                <span className="assessment-funnel__count">{assessment.count}</span>
+                                                <span className="admissions-dashboard__assessment-funnel-count">{assessment.count}</span>
                                                 {stats.finalStatusCounts?.find(f => f.status === assessment.status)?.count !== assessment.count && (
-                                                    <span className="assessment-funnel__override" title="Human override detected">
+                                                    <span className="admissions-dashboard__assessment-funnel-override" title="Human override detected">
                                                         🔀 {stats.finalStatusCounts?.find(f => f.status === assessment.status)?.count || 0}
                                                     </span>
                                                 )}
@@ -960,19 +1001,19 @@ const AdmissionsDashboard = () => {
                                 </div>
 
                                 {/* Workshop Invitations */}
-                                <div className="stat-card">
-                                    <div className="stat-card__header">
-                                        <h3>Workshop Pipeline</h3>
-                                        <div className="stat-card__icon">📊</div>
+                                <div className="admissions-dashboard__stat-card">
+                                    <div className="admissions-dashboard__stat-card-header">
+                                        <h3 className="admissions-dashboard__stat-card-title">Workshop Pipeline</h3>
+                                        <div className="admissions-dashboard__stat-card-icon">📊</div>
                                     </div>
-                                    <div className="workshop-pipeline">
+                                    <div className="admissions-dashboard__workshop-pipeline">
                                         {stats.workshopInvitations?.map((workshop) => (
-                                            <div key={workshop.status} className="workshop-pipeline__item">
-                                                <span className={`workshop-pipeline__indicator workshop-pipeline__indicator--${workshop.status}`}></span>
-                                                <span className="workshop-pipeline__label">
+                                            <div key={workshop.status} className="admissions-dashboard__workshop-pipeline-item">
+                                                <span className={`admissions-dashboard__workshop-pipeline-indicator admissions-dashboard__workshop-pipeline-indicator--${workshop.status}`}></span>
+                                                <span className="admissions-dashboard__workshop-pipeline-label">
                                                     {workshop.status.charAt(0).toUpperCase() + workshop.status.slice(1)}
                                                 </span>
-                                                <span className="workshop-pipeline__count">{workshop.count}</span>
+                                                <span className="admissions-dashboard__workshop-pipeline-count">{workshop.count}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -991,27 +1032,13 @@ const AdmissionsDashboard = () => {
                         <div className="data-section__header">
                             <h2>Applicant Management</h2>
                             <div className="data-section__controls">
-                                <select 
-                                    value={applicationFilters.status} 
-                                    onChange={(e) => setApplicationFilters({...applicationFilters, status: e.target.value})}
-                                    className="filter-select"
-                                >
-                                    <option value="">Status: All</option>
-                                    <option value="submitted">Submitted</option>
-                                    <option value="in_progress">In Progress</option>
-                                    <option value="ineligible">Ineligible</option>
-                                </select>
-                                <select 
-                                    value={applicationFilters.final_status || applicationFilters.recommendation} 
-                                    onChange={(e) => setApplicationFilters({...applicationFilters, final_status: e.target.value, recommendation: ''})}
-                                    className="filter-select"
-                                >
-                                    <option value="">Assessment: All</option>
-                                    <option value="strong_recommend">Strong Recommend</option>
-                                    <option value="recommend">Recommend</option>
-                                    <option value="review_needed">Review Needed</option>
-                                    <option value="not_recommend">Not Recommend</option>
-                                </select>
+                                <input
+                                    type="text"
+                                    placeholder="Search by name..."
+                                    value={nameSearch}
+                                    onChange={(e) => setNameSearch(e.target.value)}
+                                    className="name-search-input"
+                                />
                                 <select 
                                     value={applicationFilters.workshop_status || ''} 
                                     onChange={(e) => setApplicationFilters({...applicationFilters, workshop_status: e.target.value})}
@@ -1036,15 +1063,6 @@ const AdmissionsDashboard = () => {
                                     <option value="waitlisted">Waitlisted</option>
                                     <option value="deferred">Deferred</option>
                                 </select>
-                                <select 
-                                    value={applicationSort} 
-                                    onChange={(e) => setApplicationSort(e.target.value)}
-                                    className="filter-select"
-                                >
-                                    <option value="latest">Latest Applicants</option>
-                                    <option value="oldest">Oldest Applicants</option>
-                                    <option value="alphabetic">Alphabetic (A-Z)</option>
-                                </select>
                                 <button 
                                     className="admissions-dashboard__bulk-actions-btn"
                                     disabled={selectedApplicants.length === 0}
@@ -1057,8 +1075,8 @@ const AdmissionsDashboard = () => {
                         </div>
                         
                         {loading ? (
-                            <div className="table-loading">
-                                <div className="spinner"></div>
+                            <div className="admissions-dashboard__loading">
+                                <div className="admissions-dashboard__loading-spinner"></div>
                                 <p>Loading applicants...</p>
                             </div>
                         ) : applications?.applications?.length > 0 ? (
@@ -1080,19 +1098,54 @@ const AdmissionsDashboard = () => {
                                                     }}
                                                 />
                                             </th>
-                                            <th>Name</th>
+                                            <th className="sortable-header" onClick={() => handleColumnSort('name')}>
+                                                Name
+                                                {columnSort.column === 'name' && (
+                                                    <span className="sort-indicator">
+                                                        {columnSort.direction === 'asc' ? ' ↑' : ' ↓'}
+                                                    </span>
+                                                )}
+                                            </th>
                                             <th>Email</th>
                                             <th>Phone</th>
-                                            <th>Status</th>
-                                            <th>Assessment</th>
-                                            <th>Info Session</th>
-                                            <th>Workshop</th>
+                                            <th className="sortable-header" onClick={() => handleColumnSort('status')}>
+                                                Status
+                                                {columnSort.column === 'status' && (
+                                                    <span className="sort-indicator">
+                                                        {columnSort.direction === 'asc' ? ' ↑' : ' ↓'}
+                                                    </span>
+                                                )}
+                                            </th>
+                                            <th className="sortable-header" onClick={() => handleColumnSort('assessment')}>
+                                                Assessment
+                                                {columnSort.column === 'assessment' && (
+                                                    <span className="sort-indicator">
+                                                        {columnSort.direction === 'asc' ? ' ↑' : ' ↓'}
+                                                    </span>
+                                                )}
+                                            </th>
+                                            <th className="sortable-header" onClick={() => handleColumnSort('info_session')}>
+                                                Info Session
+                                                {columnSort.column === 'info_session' && (
+                                                    <span className="sort-indicator">
+                                                        {columnSort.direction === 'asc' ? ' ↑' : ' ↓'}
+                                                    </span>
+                                                )}
+                                            </th>
+                                            <th className="sortable-header" onClick={() => handleColumnSort('workshop')}>
+                                                Workshop
+                                                {columnSort.column === 'workshop' && (
+                                                    <span className="sort-indicator">
+                                                        {columnSort.direction === 'asc' ? ' ↑' : ' ↓'}
+                                                    </span>
+                                                )}
+                                            </th>
                                             <th>Admission</th>
                                             <th>Notes</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {sortApplications(applications.applications, applicationSort).map((app) => (
+                                        {sortAndFilterApplications(applications.applications).map((app) => (
                                             <tr 
                                                 key={app.application_id}
                                                 className={`clickable-row ${selectedApplicants.includes(app.applicant_id) ? 'admissions-dashboard__row--selected' : ''}`}
@@ -1219,7 +1272,7 @@ const AdmissionsDashboard = () => {
                                                             });
                                                         }}
                                                     >
-                                                        📝 Notes
+                                                        Notes
                                                     </button>
                                                 </td>
                                             </tr>
@@ -1934,13 +1987,12 @@ const AdmissionsDashboard = () => {
             )}
 
             {/* Notes Modal */}
-            {notesModalOpen && selectedApplicant && (
-                <NotesModal 
-                    applicantId={selectedApplicant.applicant_id}
-                    applicantName={selectedApplicant.name || `${selectedApplicant.first_name} ${selectedApplicant.last_name}`}
-                    onClose={closeNotesModal}
-                />
-            )}
+            <NotesModal 
+                isOpen={notesModalOpen && selectedApplicant}
+                applicantId={selectedApplicant?.applicant_id}
+                applicantName={selectedApplicant?.name || `${selectedApplicant?.first_name} ${selectedApplicant?.last_name}`}
+                onClose={closeNotesModal}
+            />
         </div>
     );
 };

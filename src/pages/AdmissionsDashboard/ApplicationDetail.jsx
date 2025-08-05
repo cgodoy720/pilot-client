@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotesModal from '../../components/NotesModal';
+import BulkActionsModal from '../../components/BulkActionsModal';
 import './ApplicationDetail.css';
 
 // Utility functions for formatting response values
@@ -88,6 +89,10 @@ const ApplicationDetail = () => {
     // Notes modal management
     const [notesModalOpen, setNotesModalOpen] = useState(false);
 
+    // Actions modal management
+    const [actionsModalOpen, setActionsModalOpen] = useState(false);
+    const [actionInProgress, setActionInProgress] = useState(false);
+
     // Collapsible sections state - all collapsed by default
     const [expandedSections, setExpandedSections] = useState({});
 
@@ -139,6 +144,65 @@ const ApplicationDetail = () => {
 
     const closeNotesModal = () => {
         setNotesModalOpen(false);
+    };
+
+    // Handle actions modal
+    const openActionsModal = () => {
+        setActionsModalOpen(true);
+    };
+
+    const closeActionsModal = () => {
+        setActionsModalOpen(false);
+    };
+
+    // Handle single applicant action
+    const handleApplicantAction = async (action, customSubject = '', customBody = '') => {
+        if (!applicant?.applicant_id) return;
+
+        setActionInProgress(true);
+        try {
+            const requestBody = {
+                action,
+                applicant_ids: [applicant.applicant_id]
+            };
+
+            if (action === 'send_custom_email') {
+                requestBody.custom_subject = customSubject;
+                requestBody.custom_body = customBody;
+            }
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/bulk-actions`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('Action completed:', result);
+                
+                // Refresh application data
+                await fetchApplicationDetail();
+                
+                // Close modal
+                setActionsModalOpen(false);
+                
+                // Show success message (you could add a toast notification here)
+                console.log('Action completed successfully');
+            } else {
+                const errorData = await response.json();
+                console.error('Action failed:', errorData);
+                // You could show an error message here
+            }
+        } catch (error) {
+            console.error('Error performing action:', error);
+            // You could show an error message here
+        } finally {
+            setActionInProgress(false);
+        }
     };
 
     // Create shorthand labels for common questions
@@ -370,12 +434,20 @@ const ApplicationDetail = () => {
                                     </span>
                                 </div>
                             </div>
-                            <button
-                                className="application-detail__notes-btn application-detail__notes-btn--header"
-                                onClick={openNotesModal}
-                            >
-                                📝 Notes
-                            </button>
+                            <div className="application-detail__action-buttons">
+                                <button
+                                    className="application-detail__notes-btn application-detail__notes-btn--header"
+                                    onClick={openNotesModal}
+                                >
+                                    📝 Notes
+                                </button>
+                                <button
+                                    className="application-detail__actions-btn"
+                                    onClick={openActionsModal}
+                                >
+                                    ⚡ Actions
+                                </button>
+                            </div>
                         </div>
 
                         <div className="application-detail__condensed-header-right">
@@ -782,6 +854,16 @@ const ApplicationDetail = () => {
                 </div>
 
             </div>
+
+            {/* Actions Modal */}
+            {actionsModalOpen && (
+                <BulkActionsModal
+                    selectedCount={1}
+                    onClose={closeActionsModal}
+                    onAction={handleApplicantAction}
+                    isLoading={actionInProgress}
+                />
+            )}
 
             {/* Notes Modal */}
             <NotesModal
