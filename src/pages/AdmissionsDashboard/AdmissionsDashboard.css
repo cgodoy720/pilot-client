@@ -2537,4 +2537,108 @@ onsive table adjustments */
 .admissions-dashboard__applications .data-table-container {
   width: 100%;
   box-sizing: border-box;
+}/* Inf
+o Sessions and Workshops Table Column Widths */
+.admissions-dashboard__info-sessions .data-table th:nth-child(1),
+.admissions-dashboard__info-sessions .data-table td:nth-child(1),
+.admissions-dashboard__workshops .data-table th:nth-child(1),
+.admissions-dashboard__workshops .data-table td:nth-child(1) {
+  width: 30%; /* Event Name - wider but balanced */
+}
+
+.admissions-dashboard__info-sessions .data-table th:nth-child(2),
+.admissions-dashboard__info-sessions .data-table td:nth-child(2),
+.admissions-dashboard__workshops .data-table th:nth-child(2),
+.admissions-dashboard__workshops .data-table td:nth-child(2) {
+  width: 20%; /* Date & Time */
+}
+
+.admissions-dashboard__info-sessions .data-table th:nth-child(3),
+.admissions-dashboard__info-sessions .data-table td:nth-child(3),
+.admissions-dashboard__workshops .data-table th:nth-child(3),
+.admissions-dashboard__workshops .data-table td:nth-child(3) {
+  width: 12%; /* Registered count */
+}
+
+.admissions-dashboard__info-sessions .data-table th:nth-child(4),
+.admissions-dashboard__info-sessions .data-table td:nth-child(4),
+.admissions-dashboard__workshops .data-table th:nth-child(4),
+.admissions-dashboard__workshops .data-table td:nth-child(4) {
+  width: 12%; /* Attended count */
+}
+
+.admissions-dashboard__info-sessions .data-table th:nth-child(5),
+.admissions-dashboard__info-sessions .data-table td:nth-child(5),
+.admissions-dashboard__workshops .data-table th:nth-child(5),
+.admissions-dashboard__workshops .data-table td:nth-child(5) {
+  width: 26%; /* Actions - much more space for both buttons */
+}
+
+/* Allow event names to wrap and show full text */
+.admissions-dashboard__info-sessions .data-table td:nth-child(1),
+.admissions-dashboard__workshops .data-table td:nth-child(1) {
+  white-space: normal;
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+
+/* Responsive adjustments for Info Sessions and Workshops */
+@media (max-width: 1024px) {
+  .admissions-dashboard__info-sessions .data-table th:nth-child(1),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(1),
+  .admissions-dashboard__workshops .data-table th:nth-child(1),
+  .admissions-dashboard__workshops .data-table td:nth-child(1) {
+    width: 28%; /* Slightly smaller on tablets */
+  }
+  
+  .admissions-dashboard__info-sessions .data-table th:nth-child(2),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(2),
+  .admissions-dashboard__workshops .data-table th:nth-child(2),
+  .admissions-dashboard__workshops .data-table td:nth-child(2) {
+    width: 22%; /* More space for date/time */
+  }
+  
+  .admissions-dashboard__info-sessions .data-table th:nth-child(5),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(5),
+  .admissions-dashboard__workshops .data-table th:nth-child(5),
+  .admissions-dashboard__workshops .data-table td:nth-child(5) {
+    width: 26%; /* Keep actions space consistent */
+  }
+}
+
+@media (max-width: 768px) {
+  .admissions-dashboard__info-sessions .data-table th:nth-child(1),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(1),
+  .admissions-dashboard__workshops .data-table th:nth-child(1),
+  .admissions-dashboard__workshops .data-table td:nth-child(1) {
+    width: 25%; /* Smaller on mobile */
+  }
+  
+  .admissions-dashboard__info-sessions .data-table th:nth-child(2),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(2),
+  .admissions-dashboard__workshops .data-table th:nth-child(2),
+  .admissions-dashboard__workshops .data-table td:nth-child(2) {
+    width: 25%; /* Balanced date/time space */
+  }
+  
+  .admissions-dashboard__info-sessions .data-table th:nth-child(3),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(3),
+  .admissions-dashboard__workshops .data-table th:nth-child(3),
+  .admissions-dashboard__workshops .data-table td:nth-child(3) {
+    width: 10%; /* Compact numbers */
+  }
+  
+  .admissions-dashboard__info-sessions .data-table th:nth-child(4),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(4),
+  .admissions-dashboard__workshops .data-table th:nth-child(4),
+  .admissions-dashboard__workshops .data-table td:nth-child(4) {
+    width: 10%; /* Compact numbers */
+  }
+  
+  .admissions-dashboard__info-sessions .data-table th:nth-child(5),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(5),
+  .admissions-dashboard__workshops .data-table th:nth-child(5),
+  .admissions-dashboard__workshops .data-table td:nth-child(5) {
+    width: 30%; /* Adequate space for actions on mobile */
+  }
 }
