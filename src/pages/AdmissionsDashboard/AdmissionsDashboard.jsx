@@ -12,7 +12,7 @@ const AdmissionsDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
-    
+
     // Check for tab parameter in URL
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
@@ -21,13 +21,13 @@ const AdmissionsDashboard = () => {
             setActiveTab(tabParam);
         }
     }, [location.search]);
-    
+
     // Data state
     const [stats, setStats] = useState(null);
     const [applications, setApplications] = useState([]);
     const [infoSessions, setInfoSessions] = useState([]);
     const [workshops, setWorkshops] = useState([]);
-    
+
     // Pagination and filters
     const [applicationFilters, setApplicationFilters] = useState({
         workshop_status: '',
@@ -40,7 +40,7 @@ const AdmissionsDashboard = () => {
         column: 'created_at',
         direction: 'desc' // 'asc' or 'desc'
     });
-    
+
     // Event registrations management
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [eventRegistrations, setEventRegistrations] = useState([]);
@@ -146,7 +146,7 @@ const AdmissionsDashboard = () => {
     // Individual fetch functions for refresh buttons
     const fetchApplications = async () => {
         if (!hasAdminAccess || !token) return;
-        
+
         try {
             setLoading(true);
             const params = new URLSearchParams();
@@ -178,7 +178,7 @@ const AdmissionsDashboard = () => {
 
     const fetchInfoSessions = async () => {
         if (!hasAdminAccess || !token) return;
-        
+
         try {
             setLoading(true);
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/info-sessions`, {
@@ -201,7 +201,7 @@ const AdmissionsDashboard = () => {
 
     const fetchWorkshops = async () => {
         if (!hasAdminAccess || !token) return;
-        
+
         try {
             setLoading(true);
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/workshops`, {
@@ -248,10 +248,10 @@ const AdmissionsDashboard = () => {
                 // Update the local state
                 setApplications(prev => ({
                     ...prev,
-                    applications: prev.applications.map(app => 
-                        app.application_id === applicationId 
-                            ? { 
-                                ...app, 
+                    applications: prev.applications.map(app =>
+                        app.application_id === applicationId
+                            ? {
+                                ...app,
                                 final_status: newStatus,
                                 has_human_override: app.recommendation !== newStatus
                             }
@@ -296,14 +296,14 @@ const AdmissionsDashboard = () => {
             if (response.ok) {
                 const result = await response.json();
                 console.log('Bulk action completed:', result);
-                
+
                 // Refresh applications data
                 await fetchApplications();
-                
+
                 // Clear selection
                 setSelectedApplicants([]);
                 setBulkActionsModalOpen(false);
-                
+
                 // Show success message
                 setError(null);
             } else {
@@ -350,20 +350,20 @@ const AdmissionsDashboard = () => {
     // Sort and filter applications
     const sortAndFilterApplications = (apps) => {
         if (!apps || !Array.isArray(apps)) return apps;
-        
+
         let filteredApps = [...apps];
-        
+
         // Apply name search filter
         if (nameSearch) {
-            filteredApps = filteredApps.filter(app => 
+            filteredApps = filteredApps.filter(app =>
                 `${app.first_name} ${app.last_name}`.toLowerCase().includes(nameSearch.toLowerCase())
             );
         }
-        
+
         // Apply sorting
         return filteredApps.sort((a, b) => {
             let valueA, valueB;
-            
+
             switch (columnSort.column) {
                 case 'name':
                     valueA = `${a.first_name} ${a.last_name}`.toLowerCase();
@@ -391,7 +391,7 @@ const AdmissionsDashboard = () => {
                     valueB = new Date(b.created_at);
                     break;
             }
-            
+
             if (columnSort.direction === 'asc') {
                 return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
             } else {
@@ -403,12 +403,12 @@ const AdmissionsDashboard = () => {
     // Sort events by date (earliest to latest)
     const sortEventsByDate = (events) => {
         if (!events || !Array.isArray(events)) return events;
-        
+
         return [...events].sort((a, b) => {
             // Since event_date is in ISO format, just parse it directly
             const dateA = new Date(a.event_date);
             const dateB = new Date(b.event_date);
-            
+
             // For earliest to latest: smaller date - larger date gives negative (comes first)
             return dateA.getTime() - dateB.getTime();
         });
@@ -427,7 +427,7 @@ const AdmissionsDashboard = () => {
             const [hours, minutes] = timeString.split(':');
             const date = new Date();
             date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-            
+
             return date.toLocaleTimeString('en-US', {
                 hour: 'numeric',
                 minute: '2-digit',
@@ -442,15 +442,15 @@ const AdmissionsDashboard = () => {
     // Format phone number to (000) 000-0000 format
     const formatPhoneNumber = (phoneNumber) => {
         if (!phoneNumber) return 'N/A';
-        
+
         // Remove all non-digit characters
         const cleaned = phoneNumber.replace(/\D/g, '');
-        
+
         // Check if it's a valid 10-digit US phone number
         if (cleaned.length === 10) {
             return `(${cleaned.substring(0, 3)})${cleaned.substring(3, 6)}-${cleaned.substring(6, 10)}`;
         }
-        
+
         // If not 10 digits, return the original value or 'Invalid'
         return phoneNumber || 'N/A';
     };
@@ -491,12 +491,12 @@ const AdmissionsDashboard = () => {
         const emails = eventRegistrations
             .filter(reg => reg.email && reg.email.trim() !== '')
             .map(reg => reg.email);
-        
+
         if (emails.length === 0) {
             console.log('No emails to copy');
             return;
         }
-        
+
         const emailList = emails.join(', ');
         copyToClipboard(emailList, `${emails.length} emails`);
     };
@@ -507,12 +507,12 @@ const AdmissionsDashboard = () => {
             .filter(reg => reg.phone_number && reg.phone_number !== 'N/A' && reg.phone_number.trim() !== '')
             .map(reg => reg.phone_number.replace(/\D/g, '')) // Remove formatting
             .filter(phone => phone.length === 10); // Only valid 10-digit numbers
-        
+
         if (phoneNumbers.length === 0) {
             console.log('No valid phone numbers to copy');
             return;
         }
-        
+
         const phoneList = phoneNumbers.join(', ');
         copyToClipboard(phoneList, `${phoneNumbers.length} phone numbers`);
     };
@@ -538,7 +538,7 @@ const AdmissionsDashboard = () => {
         // Format date and time for datetime-local input
         const startTime = new Date(session.start_time);
         const endTime = new Date(session.end_time || session.start_time);
-        
+
         // Format to YYYY-MM-DDThh:mm
         const formatDateForInput = (date) => {
             return date.toISOString().slice(0, 16);
@@ -575,14 +575,14 @@ const AdmissionsDashboard = () => {
     const handleInfoSessionSubmit = async (e) => {
         e.preventDefault();
         setInfoSessionSubmitting(true);
-        
+
         try {
-            const endpoint = editingInfoSession 
+            const endpoint = editingInfoSession
                 ? `${import.meta.env.VITE_API_URL}/api/admissions/info-sessions/${editingInfoSession}`
                 : `${import.meta.env.VITE_API_URL}/api/admissions/info-sessions`;
-                
+
             const method = editingInfoSession ? 'PUT' : 'POST';
-            
+
             const response = await fetch(endpoint, {
                 method,
                 headers: {
@@ -591,15 +591,15 @@ const AdmissionsDashboard = () => {
                 },
                 body: JSON.stringify(infoSessionForm)
             });
-            
+
             if (!response.ok) {
                 throw new Error(`Failed to ${editingInfoSession ? 'update' : 'create'} info session`);
             }
-            
+
             // Refresh info sessions list
             await fetchInfoSessions();
             closeInfoSessionModal();
-            
+
         } catch (error) {
             console.error('Error submitting info session:', error);
             setError(`Failed to ${editingInfoSession ? 'update' : 'create'} info session. ${error.message}`);
@@ -629,7 +629,7 @@ const AdmissionsDashboard = () => {
         // Format date and time for datetime-local input
         const startTime = new Date(workshop.start_time);
         const endTime = new Date(workshop.end_time || workshop.start_time);
-        
+
         // Format to YYYY-MM-DDThh:mm
         const formatDateForInput = (date) => {
             return date.toISOString().slice(0, 16);
@@ -666,14 +666,14 @@ const AdmissionsDashboard = () => {
     const handleWorkshopSubmit = async (e) => {
         e.preventDefault();
         setWorkshopSubmitting(true);
-        
+
         try {
-            const endpoint = editingWorkshop 
+            const endpoint = editingWorkshop
                 ? `${import.meta.env.VITE_API_URL}/api/admissions/workshops/${editingWorkshop}`
                 : `${import.meta.env.VITE_API_URL}/api/admissions/workshops`;
-                
+
             const method = editingWorkshop ? 'PUT' : 'POST';
-            
+
             const response = await fetch(endpoint, {
                 method,
                 headers: {
@@ -682,15 +682,15 @@ const AdmissionsDashboard = () => {
                 },
                 body: JSON.stringify(workshopForm)
             });
-            
+
             if (!response.ok) {
                 throw new Error(`Failed to ${editingWorkshop ? 'update' : 'create'} workshop`);
             }
-            
+
             // Refresh workshops list
             await fetchWorkshops();
             closeWorkshopModal();
-            
+
         } catch (error) {
             console.error('Error submitting workshop:', error);
             setError(`Failed to ${editingWorkshop ? 'update' : 'create'} workshop. ${error.message}`);
@@ -709,7 +709,7 @@ const AdmissionsDashboard = () => {
 
         setSelectedEvent(eventId);
         setEventRegistrations([]);
-        
+
         try {
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/registrations/${eventType}/${eventId}`, {
                 headers: {
@@ -732,7 +732,7 @@ const AdmissionsDashboard = () => {
     // Handle marking attendance  
     const handleMarkAttendance = async (eventType, eventId, applicantId, status) => {
         setAttendanceLoading(true);
-        
+
         try {
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/attendance/${eventType}/${eventId}/${applicantId}`, {
                 method: 'PUT',
@@ -747,11 +747,11 @@ const AdmissionsDashboard = () => {
                 // Get the previous status to determine count changes
                 const previousRegistration = eventRegistrations.find(reg => reg.applicant_id === applicantId);
                 const previousStatus = previousRegistration?.status;
-                
+
                 // Update the registration in the local state instead of refetching
-                setEventRegistrations(prevRegistrations => 
-                    prevRegistrations.map(reg => 
-                        reg.applicant_id === applicantId 
+                setEventRegistrations(prevRegistrations =>
+                    prevRegistrations.map(reg =>
+                        reg.applicant_id === applicantId
                             ? { ...reg, status }
                             : reg
                     )
@@ -760,7 +760,7 @@ const AdmissionsDashboard = () => {
                 // Update the event stats in local state based on status transitions
                 const isNewStatusAttended = status === 'attended' || status === 'attended_late' || status === 'very_late';
                 const wasPreviousStatusAttended = previousStatus === 'attended' || previousStatus === 'attended_late' || previousStatus === 'very_late';
-                
+
                 let countChange = 0;
                 if (isNewStatusAttended && !wasPreviousStatusAttended) {
                     countChange = 1; // Moving to attended status
@@ -771,17 +771,17 @@ const AdmissionsDashboard = () => {
 
                 if (countChange !== 0) {
                     if (eventType === 'info-session') {
-                        setInfoSessions(prevSessions => 
-                            prevSessions.map(session => 
-                                session.event_id === eventId 
+                        setInfoSessions(prevSessions =>
+                            prevSessions.map(session =>
+                                session.event_id === eventId
                                     ? { ...session, attended_count: session.attended_count + countChange }
                                     : session
                             )
                         );
                     } else if (eventType === 'workshop') {
-                        setWorkshops(prevWorkshops => 
-                            prevWorkshops.map(workshop => 
-                                workshop.event_id === eventId 
+                        setWorkshops(prevWorkshops =>
+                            prevWorkshops.map(workshop =>
+                                workshop.event_id === eventId
                                     ? { ...workshop, attended_count: workshop.attended_count + countChange }
                                     : workshop
                             )
@@ -816,7 +816,7 @@ const AdmissionsDashboard = () => {
 
             // Refresh data after marking attendance
             await fetchAdmissionsData();
-            
+
         } catch (error) {
             console.error('Error marking attendance:', error);
             setError('Failed to mark attendance. Please try again.');
@@ -842,7 +842,7 @@ const AdmissionsDashboard = () => {
                 <div className="admissions-dashboard__error">
                     <h2>Error</h2>
                     <p>{error}</p>
-                    <button 
+                    <button
                         onClick={fetchAdmissionsData}
                         className="admissions-dashboard__retry-btn"
                     >
@@ -869,31 +869,31 @@ const AdmissionsDashboard = () => {
         <div className="admissions-dashboard">
             {/* Tab Navigation */}
             <div className="admissions-dashboard__tabs">
-                <button 
+                <button
                     className={`admissions-dashboard__tab ${activeTab === 'overview' ? 'admissions-dashboard__tab--active' : ''}`}
                     onClick={() => handleTabChange('overview')}
                 >
                     Overview
                 </button>
-                <button 
+                <button
                     className={`admissions-dashboard__tab ${activeTab === 'applications' ? 'admissions-dashboard__tab--active' : ''}`}
                     onClick={() => handleTabChange('applications')}
                 >
                     Applications
                 </button>
-                <button 
+                <button
                     className={`admissions-dashboard__tab ${activeTab === 'info-sessions' ? 'admissions-dashboard__tab--active' : ''}`}
                     onClick={() => handleTabChange('info-sessions')}
                 >
                     Info Sessions
                 </button>
-                <button 
+                <button
                     className={`admissions-dashboard__tab ${activeTab === 'workshops' ? 'admissions-dashboard__tab--active' : ''}`}
                     onClick={() => handleTabChange('workshops')}
                 >
                     Workshops
                 </button>
-                <button 
+                <button
                     className="admissions-dashboard__back-btn"
                     onClick={() => navigate('/dashboard')}
                 >
@@ -1039,9 +1039,9 @@ const AdmissionsDashboard = () => {
                                     onChange={(e) => setNameSearch(e.target.value)}
                                     className="name-search-input"
                                 />
-                                <select 
-                                    value={applicationFilters.workshop_status || ''} 
-                                    onChange={(e) => setApplicationFilters({...applicationFilters, workshop_status: e.target.value})}
+                                <select
+                                    value={applicationFilters.workshop_status || ''}
+                                    onChange={(e) => setApplicationFilters({ ...applicationFilters, workshop_status: e.target.value })}
                                     className="filter-select"
                                 >
                                     <option value="">Workshop: All</option>
@@ -1051,9 +1051,9 @@ const AdmissionsDashboard = () => {
                                     <option value="attended">Attended</option>
                                     <option value="no_show">No Show</option>
                                 </select>
-                                <select 
-                                    value={applicationFilters.program_admission_status || ''} 
-                                    onChange={(e) => setApplicationFilters({...applicationFilters, program_admission_status: e.target.value})}
+                                <select
+                                    value={applicationFilters.program_admission_status || ''}
+                                    onChange={(e) => setApplicationFilters({ ...applicationFilters, program_admission_status: e.target.value })}
                                     className="filter-select"
                                 >
                                     <option value="">Admission: All</option>
@@ -1063,7 +1063,7 @@ const AdmissionsDashboard = () => {
                                     <option value="waitlisted">Waitlisted</option>
                                     <option value="deferred">Deferred</option>
                                 </select>
-                                <button 
+                                <button
                                     className="admissions-dashboard__bulk-actions-btn"
                                     disabled={selectedApplicants.length === 0}
                                     onClick={() => setBulkActionsModalOpen(true)}
@@ -1073,7 +1073,7 @@ const AdmissionsDashboard = () => {
                                 <button onClick={fetchApplications} className="refresh-btn">Refresh</button>
                             </div>
                         </div>
-                        
+
                         {loading ? (
                             <div className="admissions-dashboard__loading">
                                 <div className="admissions-dashboard__loading-spinner"></div>
@@ -1146,7 +1146,7 @@ const AdmissionsDashboard = () => {
                                     </thead>
                                     <tbody>
                                         {sortAndFilterApplications(applications.applications).map((app) => (
-                                            <tr 
+                                            <tr
                                                 key={app.application_id}
                                                 className={`clickable-row ${selectedApplicants.includes(app.applicant_id) ? 'admissions-dashboard__row--selected' : ''}`}
                                             >
@@ -1182,8 +1182,8 @@ const AdmissionsDashboard = () => {
                                                     </div>
                                                 </td>
                                                 <td className="clickable-cell">
-                                                    <span 
-                                                        className="copyable-email" 
+                                                    <span
+                                                        className="copyable-email"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             handleEmailClick(app.email);
@@ -1194,8 +1194,8 @@ const AdmissionsDashboard = () => {
                                                     </span>
                                                 </td>
                                                 <td className="clickable-cell">
-                                                    <span 
-                                                        className="copyable-phone" 
+                                                    <span
+                                                        className="copyable-phone"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             handlePhoneClick(app.phone_number);
@@ -1262,7 +1262,7 @@ const AdmissionsDashboard = () => {
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <button 
+                                                    <button
                                                         className="notes-btn"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -1279,19 +1279,19 @@ const AdmissionsDashboard = () => {
                                         ))}
                                     </tbody>
                                 </table>
-                                
+
                                 <div className="table-footer">
                                     <span className="table-count">
                                         Showing {applications.applications.length} applicants
-                                        {applications.total > applications.applications.length && 
+                                        {applications.total > applications.applications.length &&
                                             ` of ${applications.total} total`
                                         }
                                     </span>
                                     {applications.total > applicationFilters.limit && (
                                         <div className="pagination-controls">
-                                            <button 
+                                            <button
                                                 onClick={() => setApplicationFilters(prev => ({
-                                                    ...prev, 
+                                                    ...prev,
                                                     offset: Math.max(0, prev.offset - prev.limit)
                                                 }))}
                                                 disabled={applicationFilters.offset === 0}
@@ -1299,14 +1299,14 @@ const AdmissionsDashboard = () => {
                                             >
                                                 ← Previous
                                             </button>
-                                            
+
                                             <span className="pagination-info">
                                                 Page {Math.floor(applicationFilters.offset / applicationFilters.limit) + 1} of {Math.ceil(applications.total / applicationFilters.limit)}
                                             </span>
-                                            
-                                            <button 
+
+                                            <button
                                                 onClick={() => setApplicationFilters(prev => ({
-                                                    ...prev, 
+                                                    ...prev,
                                                     offset: prev.offset + prev.limit
                                                 }))}
                                                 disabled={applicationFilters.offset + applicationFilters.limit >= applications.total}
@@ -1314,10 +1314,10 @@ const AdmissionsDashboard = () => {
                                             >
                                                 Next →
                                             </button>
-                                            
-                                            <button 
+
+                                            <button
                                                 onClick={() => setApplicationFilters(prev => ({
-                                                    ...prev, 
+                                                    ...prev,
                                                     limit: applications.total,
                                                     offset: 0
                                                 }))}
@@ -1333,8 +1333,8 @@ const AdmissionsDashboard = () => {
                             <div className="no-data-message">
                                 <p>No applicants found</p>
                                 {applicationFilters.status && (
-                                    <button 
-                                        onClick={() => setApplicationFilters({...applicationFilters, status: ''})}
+                                    <button
+                                        onClick={() => setApplicationFilters({ ...applicationFilters, status: '' })}
                                         className="clear-filter-btn"
                                     >
                                         Clear filters
@@ -1350,21 +1350,21 @@ const AdmissionsDashboard = () => {
                         <div className="data-section__header">
                             <h2>Info Sessions Management</h2>
                             <div className="data-section__actions">
-                                <button 
-                                    onClick={openCreateInfoSessionModal} 
+                                <button
+                                    onClick={openCreateInfoSessionModal}
                                     className="create-btn"
                                 >
                                     Create New Session
                                 </button>
-                                <button 
-                                    onClick={fetchInfoSessions} 
+                                <button
+                                    onClick={fetchInfoSessions}
                                     className="refresh-btn"
                                 >
                                     Refresh
                                 </button>
                             </div>
                         </div>
-                        
+
                         {loading ? (
                             <div className="table-loading">
                                 <div className="spinner"></div>
@@ -1397,7 +1397,7 @@ const AdmissionsDashboard = () => {
                                                             <div className="event-date">
                                                                 {new Date(session.event_date).toLocaleDateString('en-US', {
                                                                     weekday: 'short',
-                                                                    month: 'short', 
+                                                                    month: 'short',
                                                                     day: 'numeric',
                                                                     year: 'numeric'
                                                                 })}
@@ -1412,13 +1412,13 @@ const AdmissionsDashboard = () => {
                                                         <span className="stat-number stat-number--attended">{session.attended_count}</span>
                                                     </td>
                                                     <td className="actions-cell">
-                                                        <button 
+                                                        <button
                                                             className="edit-btn"
                                                             onClick={() => openEditInfoSessionModal(session)}
                                                         >
                                                             Edit
                                                         </button>
-                                                        <button 
+                                                        <button
                                                             className="view-registrations-btn"
                                                             onClick={() => handleViewRegistrations('info-session', session.event_id)}
                                                         >
@@ -1426,7 +1426,7 @@ const AdmissionsDashboard = () => {
                                                         </button>
                                                     </td>
                                                 </tr>
-                                        
+
                                                 {selectedEvent === session.event_id && (
                                                     <tr className="registrations-row">
                                                         <td colSpan="5" className="registrations-cell">
@@ -1440,8 +1440,8 @@ const AdmissionsDashboard = () => {
                                                                                     <th>Name</th>
                                                                                     <th>
                                                                                         Email
-                                                                                        <button 
-                                                                                            className="copy-all-btn" 
+                                                                                        <button
+                                                                                            className="copy-all-btn"
                                                                                             onClick={copyAllEmails}
                                                                                             title="Copy all emails"
                                                                                         >
@@ -1450,8 +1450,8 @@ const AdmissionsDashboard = () => {
                                                                                     </th>
                                                                                     <th>
                                                                                         Phone
-                                                                                        <button 
-                                                                                            className="copy-all-btn" 
+                                                                                        <button
+                                                                                            className="copy-all-btn"
                                                                                             onClick={copyAllPhoneNumbers}
                                                                                             title="Copy all phone numbers"
                                                                                         >
@@ -1466,8 +1466,8 @@ const AdmissionsDashboard = () => {
                                                                                     <tr key={reg.registration_id}>
                                                                                         <td>{reg.first_name} {reg.last_name}</td>
                                                                                         <td>
-                                                                                            <span 
-                                                                                                className="copyable-email" 
+                                                                                            <span
+                                                                                                className="copyable-email"
                                                                                                 onClick={() => handleEmailClick(reg.email)}
                                                                                                 title="Click to copy email"
                                                                                             >
@@ -1475,8 +1475,8 @@ const AdmissionsDashboard = () => {
                                                                                             </span>
                                                                                         </td>
                                                                                         <td>
-                                                                                            <span 
-                                                                                                className="copyable-phone" 
+                                                                                            <span
+                                                                                                className="copyable-phone"
                                                                                                 onClick={() => handlePhoneClick(reg.phone_number)}
                                                                                                 title="Click to copy phone number"
                                                                                             >
@@ -1530,21 +1530,21 @@ const AdmissionsDashboard = () => {
                         <div className="data-section__header">
                             <h2>Workshops Management</h2>
                             <div className="data-section__actions">
-                                <button 
-                                    onClick={openCreateWorkshopModal} 
+                                <button
+                                    onClick={openCreateWorkshopModal}
                                     className="create-btn"
                                 >
                                     Create New Workshop
                                 </button>
-                                <button 
-                                    onClick={fetchWorkshops} 
+                                <button
+                                    onClick={fetchWorkshops}
                                     className="refresh-btn"
                                 >
                                     Refresh
                                 </button>
                             </div>
                         </div>
-                        
+
                         {loading ? (
                             <div className="table-loading">
                                 <div className="spinner"></div>
@@ -1559,6 +1559,7 @@ const AdmissionsDashboard = () => {
                                             <th>Date & Time</th>
                                             <th>Registered</th>
                                             <th>Attended</th>
+                                            <th>Laptops Needed</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
@@ -1577,7 +1578,7 @@ const AdmissionsDashboard = () => {
                                                             <div className="event-date">
                                                                 {new Date(workshop.event_date).toLocaleDateString('en-US', {
                                                                     weekday: 'short',
-                                                                    month: 'short', 
+                                                                    month: 'short',
                                                                     day: 'numeric',
                                                                     year: 'numeric'
                                                                 })}
@@ -1591,14 +1592,19 @@ const AdmissionsDashboard = () => {
                                                     <td className="stat-cell">
                                                         <span className="stat-number stat-number--attended">{workshop.attended_count}</span>
                                                     </td>
+                                                    <td className="stat-cell">
+                                                        <span className="stat-number stat-number--laptops">
+                                                            {workshop.registrations?.filter(reg => reg.needs_laptop).length || 0}
+                                                        </span>
+                                                    </td>
                                                     <td className="actions-cell">
-                                                        <button 
+                                                        <button
                                                             className="edit-btn"
                                                             onClick={() => openEditWorkshopModal(workshop)}
                                                         >
                                                             Edit
                                                         </button>
-                                                        <button 
+                                                        <button
                                                             className="view-registrations-btn"
                                                             onClick={() => handleViewRegistrations('workshop', workshop.event_id)}
                                                         >
@@ -1606,10 +1612,10 @@ const AdmissionsDashboard = () => {
                                                         </button>
                                                     </td>
                                                 </tr>
-                                                
+
                                                 {selectedEvent === workshop.event_id && (
                                                     <tr className="registrations-row">
-                                                        <td colSpan="5" className="registrations-cell">
+                                                        <td colSpan="6" className="registrations-cell">
                                                             <div className="registrations-list">
                                                                 <h4>Registrations</h4>
                                                                 {eventRegistrations.length > 0 ? (
@@ -1620,8 +1626,8 @@ const AdmissionsDashboard = () => {
                                                                                     <th>Name</th>
                                                                                     <th>
                                                                                         Email
-                                                                                        <button 
-                                                                                            className="copy-all-btn" 
+                                                                                        <button
+                                                                                            className="copy-all-btn"
                                                                                             onClick={copyAllEmails}
                                                                                             title="Copy all emails"
                                                                                         >
@@ -1630,14 +1636,15 @@ const AdmissionsDashboard = () => {
                                                                                     </th>
                                                                                     <th>
                                                                                         Phone
-                                                                                        <button 
-                                                                                            className="copy-all-btn" 
+                                                                                        <button
+                                                                                            className="copy-all-btn"
                                                                                             onClick={copyAllPhoneNumbers}
                                                                                             title="Copy all phone numbers"
                                                                                         >
                                                                                             📞 Copy All
                                                                                         </button>
                                                                                     </th>
+                                                                                    <th>Laptop</th>
                                                                                     <th>Status</th>
                                                                                 </tr>
                                                                             </thead>
@@ -1646,8 +1653,8 @@ const AdmissionsDashboard = () => {
                                                                                     <tr key={reg.registration_id}>
                                                                                         <td>{reg.first_name} {reg.last_name}</td>
                                                                                         <td>
-                                                                                            <span 
-                                                                                                className="copyable-email" 
+                                                                                            <span
+                                                                                                className="copyable-email"
                                                                                                 onClick={() => handleEmailClick(reg.email)}
                                                                                                 title="Click to copy email"
                                                                                             >
@@ -1655,13 +1662,26 @@ const AdmissionsDashboard = () => {
                                                                                             </span>
                                                                                         </td>
                                                                                         <td>
-                                                                                            <span 
-                                                                                                className="copyable-phone" 
+                                                                                            <span
+                                                                                                className="copyable-phone"
                                                                                                 onClick={() => handlePhoneClick(reg.phone_number)}
                                                                                                 title="Click to copy phone number"
                                                                                             >
                                                                                                 {formatPhoneNumber(reg.phone_number)}
                                                                                             </span>
+                                                                                        </td>
+                                                                                        <td className="laptop-indicator-cell">
+                                                                                            {reg.needs_laptop ? (
+                                                                                                <span className="laptop-needed" title="Needs to borrow a laptop">
+                                                                                                    <span className="laptop-icon">💻</span>
+                                                                                                    <span className="laptop-text">Needs</span>
+                                                                                                </span>
+                                                                                            ) : (
+                                                                                                <span className="laptop-own" title="Has own laptop">
+                                                                                                    <span className="laptop-icon">✓</span>
+                                                                                                    <span className="laptop-text">Own</span>
+                                                                                                </span>
+                                                                                            )}
                                                                                         </td>
                                                                                         <td>
                                                                                             <select
@@ -1717,122 +1737,122 @@ const AdmissionsDashboard = () => {
                         <form onSubmit={handleInfoSessionSubmit}>
                             <div className="form-group">
                                 <label htmlFor="title">Title</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     id="title"
                                     name="title"
-                                    value={infoSessionForm.title} 
+                                    value={infoSessionForm.title}
                                     onChange={handleInfoSessionFormChange}
                                     placeholder="Info Session Title"
                                     required
                                 />
                             </div>
-                            
+
                             <div className="form-group">
                                 <label htmlFor="description">Description</label>
-                                <textarea 
+                                <textarea
                                     id="description"
                                     name="description"
-                                    value={infoSessionForm.description} 
+                                    value={infoSessionForm.description}
                                     onChange={handleInfoSessionFormChange}
                                     placeholder="Session description"
                                     rows={3}
                                 />
                             </div>
-                            
+
                             <div className="form-row">
                                 <div className="form-group">
                                     <label htmlFor="start_time">Start Time</label>
-                                    <input 
-                                        type="datetime-local" 
+                                    <input
+                                        type="datetime-local"
                                         id="start_time"
                                         name="start_time"
-                                        value={infoSessionForm.start_time} 
+                                        value={infoSessionForm.start_time}
                                         onChange={handleInfoSessionFormChange}
                                         required
                                     />
                                 </div>
-                                
+
                                 <div className="form-group">
                                     <label htmlFor="end_time">End Time</label>
-                                    <input 
-                                        type="datetime-local" 
+                                    <input
+                                        type="datetime-local"
                                         id="end_time"
                                         name="end_time"
-                                        value={infoSessionForm.end_time} 
+                                        value={infoSessionForm.end_time}
                                         onChange={handleInfoSessionFormChange}
                                         required
                                     />
                                 </div>
                             </div>
-                            
+
                             <div className="form-group">
                                 <label htmlFor="capacity">Capacity</label>
-                                <input 
-                                    type="number" 
+                                <input
+                                    type="number"
                                     id="capacity"
                                     name="capacity"
-                                    value={infoSessionForm.capacity} 
+                                    value={infoSessionForm.capacity}
                                     onChange={handleInfoSessionFormChange}
                                     min="1"
                                     required
                                 />
                             </div>
-                            
+
                             <div className="form-group checkbox-group">
-                                <input 
-                                    type="checkbox" 
+                                <input
+                                    type="checkbox"
                                     id="is_online"
                                     name="is_online"
-                                    checked={infoSessionForm.is_online} 
+                                    checked={infoSessionForm.is_online}
                                     onChange={handleInfoSessionFormChange}
                                 />
                                 <label htmlFor="is_online">Online Event</label>
                             </div>
-                            
+
                             <div className="form-group">
                                 <label htmlFor="location">Location</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     id="location"
                                     name="location"
-                                    value={infoSessionForm.location} 
+                                    value={infoSessionForm.location}
                                     onChange={handleInfoSessionFormChange}
                                     placeholder={infoSessionForm.is_online ? "Online" : "Physical location"}
                                     required
                                 />
                             </div>
-                            
+
                             {infoSessionForm.is_online && (
                                 <div className="form-group">
                                     <label htmlFor="meeting_link">Meeting Link</label>
-                                    <input 
-                                        type="url" 
+                                    <input
+                                        type="url"
                                         id="meeting_link"
                                         name="meeting_link"
-                                        value={infoSessionForm.meeting_link} 
+                                        value={infoSessionForm.meeting_link}
                                         onChange={handleInfoSessionFormChange}
                                         placeholder="https://zoom.us/j/..."
                                     />
                                 </div>
                             )}
-                            
+
                             <div className="modal-actions">
-                                <button 
-                                    type="button" 
-                                    className="cancel-btn" 
+                                <button
+                                    type="button"
+                                    className="cancel-btn"
                                     onClick={closeInfoSessionModal}
                                     disabled={infoSessionSubmitting}
                                 >
                                     Cancel
                                 </button>
-                                <button 
-                                    type="submit" 
+                                <button
+                                    type="submit"
                                     className="submit-btn"
                                     disabled={infoSessionSubmitting}
                                 >
-                                    {infoSessionSubmitting 
-                                        ? (editingInfoSession ? 'Updating...' : 'Creating...') 
+                                    {infoSessionSubmitting
+                                        ? (editingInfoSession ? 'Updating...' : 'Creating...')
                                         : (editingInfoSession ? 'Update Session' : 'Create Session')}
                                 </button>
                             </div>
@@ -1852,122 +1872,122 @@ const AdmissionsDashboard = () => {
                         <form onSubmit={handleWorkshopSubmit}>
                             <div className="form-group">
                                 <label htmlFor="workshop-title">Title</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     id="workshop-title"
                                     name="title"
-                                    value={workshopForm.title} 
+                                    value={workshopForm.title}
                                     onChange={handleWorkshopFormChange}
                                     placeholder="Workshop Title"
                                     required
                                 />
                             </div>
-                            
+
                             <div className="form-group">
                                 <label htmlFor="workshop-description">Description</label>
-                                <textarea 
+                                <textarea
                                     id="workshop-description"
                                     name="description"
-                                    value={workshopForm.description} 
+                                    value={workshopForm.description}
                                     onChange={handleWorkshopFormChange}
                                     placeholder="Workshop description"
                                     rows={3}
                                 />
                             </div>
-                            
+
                             <div className="form-row">
                                 <div className="form-group">
                                     <label htmlFor="workshop-start_time">Start Time</label>
-                                    <input 
-                                        type="datetime-local" 
+                                    <input
+                                        type="datetime-local"
                                         id="workshop-start_time"
                                         name="start_time"
-                                        value={workshopForm.start_time} 
+                                        value={workshopForm.start_time}
                                         onChange={handleWorkshopFormChange}
                                         required
                                     />
                                 </div>
-                                
+
                                 <div className="form-group">
                                     <label htmlFor="workshop-end_time">End Time</label>
-                                    <input 
-                                        type="datetime-local" 
+                                    <input
+                                        type="datetime-local"
                                         id="workshop-end_time"
                                         name="end_time"
-                                        value={workshopForm.end_time} 
+                                        value={workshopForm.end_time}
                                         onChange={handleWorkshopFormChange}
                                         required
                                     />
                                 </div>
                             </div>
-                            
+
                             <div className="form-group">
                                 <label htmlFor="workshop-capacity">Capacity</label>
-                                <input 
-                                    type="number" 
+                                <input
+                                    type="number"
                                     id="workshop-capacity"
                                     name="capacity"
-                                    value={workshopForm.capacity} 
+                                    value={workshopForm.capacity}
                                     onChange={handleWorkshopFormChange}
                                     min="1"
                                     required
                                 />
                             </div>
-                            
+
                             <div className="form-group checkbox-group">
-                                <input 
-                                    type="checkbox" 
+                                <input
+                                    type="checkbox"
                                     id="workshop-is_online"
                                     name="is_online"
-                                    checked={workshopForm.is_online} 
+                                    checked={workshopForm.is_online}
                                     onChange={handleWorkshopFormChange}
                                 />
                                 <label htmlFor="workshop-is_online">Online Event</label>
                             </div>
-                            
+
                             <div className="form-group">
                                 <label htmlFor="workshop-location">Location</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     id="workshop-location"
                                     name="location"
-                                    value={workshopForm.location} 
+                                    value={workshopForm.location}
                                     onChange={handleWorkshopFormChange}
                                     placeholder={workshopForm.is_online ? "Online" : "Physical location"}
                                     required
                                 />
                             </div>
-                            
+
                             {workshopForm.is_online && (
                                 <div className="form-group">
                                     <label htmlFor="workshop-meeting_link">Meeting Link</label>
-                                    <input 
-                                        type="url" 
+                                    <input
+                                        type="url"
                                         id="workshop-meeting_link"
                                         name="meeting_link"
-                                        value={workshopForm.meeting_link} 
+                                        value={workshopForm.meeting_link}
                                         onChange={handleWorkshopFormChange}
                                         placeholder="https://zoom.us/j/..."
                                     />
                                 </div>
                             )}
-                            
+
                             <div className="modal-actions">
-                                <button 
-                                    type="button" 
-                                    className="cancel-btn" 
+                                <button
+                                    type="button"
+                                    className="cancel-btn"
                                     onClick={closeWorkshopModal}
                                     disabled={workshopSubmitting}
                                 >
                                     Cancel
                                 </button>
-                                <button 
-                                    type="submit" 
+                                <button
+                                    type="submit"
                                     className="submit-btn"
                                     disabled={workshopSubmitting}
                                 >
-                                    {workshopSubmitting 
-                                        ? (editingWorkshop ? 'Updating...' : 'Creating...') 
+                                    {workshopSubmitting
+                                        ? (editingWorkshop ? 'Updating...' : 'Creating...')
                                         : (editingWorkshop ? 'Update Workshop' : 'Create Workshop')}
                                 </button>
                             </div>
@@ -1987,7 +2007,7 @@ const AdmissionsDashboard = () => {
             )}
 
             {/* Notes Modal */}
-            <NotesModal 
+            <NotesModal
                 isOpen={notesModalOpen && selectedApplicant}
                 applicantId={selectedApplicant?.applicant_id}
                 applicantName={selectedApplicant?.name || `${selectedApplicant?.first_name} ${selectedApplicant?.last_name}`}

@@ -2567,11 +2567,19 @@ o Sessions and Workshops Table Column Widths */
   width: 12%; /* Attended count */
 }
 
-.admissions-dashboard__info-sessions .data-table th:nth-child(5),
-.admissions-dashboard__info-sessions .data-table td:nth-child(5),
 .admissions-dashboard__workshops .data-table th:nth-child(5),
 .admissions-dashboard__workshops .data-table td:nth-child(5) {
-  width: 26%; /* Actions - much more space for both buttons */
+  width: 10%; /* Laptops Needed count */
+}
+
+.admissions-dashboard__info-sessions .data-table th:nth-child(5),
+.admissions-dashboard__info-sessions .data-table td:nth-child(5) {
+  width: 26%; /* Actions - Info Sessions (5 columns) */
+}
+
+.admissions-dashboard__workshops .data-table th:nth-child(6),
+.admissions-dashboard__workshops .data-table td:nth-child(6) {
+  width: 24%; /* Actions - Workshops (6 columns) */
 }
 
 /* Allow event names to wrap and show full text */
@@ -2599,10 +2607,18 @@ o Sessions and Workshops Table Column Widths */
   }
   
   .admissions-dashboard__info-sessions .data-table th:nth-child(5),
-  .admissions-dashboard__info-sessions .data-table td:nth-child(5),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(5) {
+    width: 26%; /* Keep actions space consistent - Info Sessions */
+  }
+  
   .admissions-dashboard__workshops .data-table th:nth-child(5),
   .admissions-dashboard__workshops .data-table td:nth-child(5) {
-    width: 26%; /* Keep actions space consistent */
+    width: 10%; /* Laptops Needed - Workshops */
+  }
+  
+  .admissions-dashboard__workshops .data-table th:nth-child(6),
+  .admissions-dashboard__workshops .data-table td:nth-child(6) {
+    width: 24%; /* Actions - Workshops */
   }
 }
 
@@ -2636,9 +2652,57 @@ o Sessions and Workshops Table Column Widths */
   }
   
   .admissions-dashboard__info-sessions .data-table th:nth-child(5),
-  .admissions-dashboard__info-sessions .data-table td:nth-child(5),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(5) {
+    width: 30%; /* Adequate space for actions on mobile - Info Sessions */
+  }
+  
   .admissions-dashboard__workshops .data-table th:nth-child(5),
   .admissions-dashboard__workshops .data-table td:nth-child(5) {
-    width: 30%; /* Adequate space for actions on mobile */
+    width: 8%; /* Laptops Needed - Workshops mobile */
   }
+  
+  .admissions-dashboard__workshops .data-table th:nth-child(6),
+  .admissions-dashboard__workshops .data-table td:nth-child(6) {
+    width: 27%; /* Actions - Workshops mobile */
+  }
+}/* Lapto
+p indicator styles */
+.laptop-indicator-cell {
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.laptop-needed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #3b82f6;
+  cursor: help;
+  font-size: 0.8rem;
+}
+
+.laptop-own {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #10b981;
+  cursor: help;
+  font-size: 0.8rem;
+}
+
+.laptop-icon {
+  font-size: 1.1rem;
+  margin-bottom: 2px;
+}
+
+.laptop-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-number--laptops {
+  color: #3b82f6;
+  font-weight: 600;
 }
