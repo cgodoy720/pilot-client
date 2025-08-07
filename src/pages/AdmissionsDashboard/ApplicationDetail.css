@@ -1662,4 +1662,70 @@ ssment Flags */
     font-size: 0.8rem;
     padding: 0.5rem 0.75rem;
   }
+}/* Act
+ion Buttons Container */
+.application-detail__action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+/* Actions Button */
+.application-detail__actions-btn {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.application-detail__actions-btn:hover {
+  background: rgba(34, 197, 94, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(34, 197, 94, 0.2);
+}
+
+.application-detail__actions-btn:active {
+  transform: translateY(0);
+}
+
+/* Responsive adjustments for action buttons */
+@media (max-width: 768px) {
+  .application-detail__action-buttons {
+    flex-direction: row;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  
+  .application-detail__actions-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+  
+  .application-detail__notes-btn--header {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .application-detail__action-buttons {
+    width: 100%;
+  }
+  
+  .application-detail__actions-btn,
+  .application-detail__notes-btn--header {
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+  }
 }

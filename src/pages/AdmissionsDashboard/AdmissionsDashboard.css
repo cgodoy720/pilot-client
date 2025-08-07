@@ -1,13 +1,14 @@
-/* Admissions Dashboard - Full width utilization */
+/* Admissions Dashboard - BEM naming and optimized layout */
 .admissions-dashboard {
   width: 100%;
-  max-width: none; /* Remove any max-width constraints */
+  height: 100vh;
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 4rem); /* Subtract padding from Layout */
-  overflow-y: auto;
-  margin: 0; /* Remove any default margins */
-  padding: 0 1rem; /* Add minimal horizontal padding for edge spacing */
+  margin: 0;
+  padding: 0;
 }
 
 
@@ -16,14 +17,11 @@
 .admissions-dashboard__tabs {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1.5rem;
   border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-  padding-bottom: 0;
+  padding: 1rem 2rem 0 2rem;
   align-items: center;
-  position: sticky;
-  top: 0;
-  background-color: #1a1f2c;
-  z-index: 10;
+  background-color: var(--color-background-darker);
+  flex-shrink: 0;
 }
 
 .admissions-dashboard__tab {
@@ -68,130 +66,191 @@
   color: var(--color-primary);
 }
 
-/* Content Area - Full width utilization */
+/* Content Area - Optimized for full viewport usage */
 .admissions-dashboard__content {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 2rem;
+  padding: 1.5rem 2rem 1rem 2rem;
   width: 100%;
-  max-width: none; /* Remove any max-width constraints */
-  margin: 0; /* Remove any default margins */
+  height: 0; /* Force flex child to respect parent height */
 }
 
-/* Statistics Grid */
+/* Overview Section - Full height layout */
+.admissions-dashboard__overview {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.admissions-dashboard__overview .admissions-dashboard__stats-grid {
+  flex: 1;
+  align-content: stretch; /* Fill available space */
+  min-height: 0; /* Allow grid to shrink */
+}
+
+/* Statistics Grid - Fill container with uniform heights */
 .admissions-dashboard__stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(2, 1fr); /* Two equal-height rows */
+  gap: 1rem;
+  height: 100%; /* Fill the container */
+  align-content: stretch;
 }
 
-.stat-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 1.25rem;
+/* Responsive adjustments with uniform heights */
+@media (max-width: 1400px) {
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(6, minmax(120px, 1fr));
+  }
+}
+
+.admissions-dashboard__stat-card {
+  background: var(--color-background-dark);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
   transition: all 0.2s ease;
+  height: 100%; /* Fill grid cell height */
+  display: flex;
+  flex-direction: column;
 }
 
-.stat-card:hover {
+.admissions-dashboard__stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border-color: var(--color-primary);
 }
 
-.stat-card--wide {
+.admissions-dashboard__stat-card--wide {
   grid-column: span 2;
 }
 
-@media (max-width: 992px) {
-  .stat-card--wide {
+@media (max-width: 1400px) {
+  .admissions-dashboard__stat-card--wide {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 1024px) {
+  .admissions-dashboard__stat-card--wide {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .admissions-dashboard__stat-card--wide {
     grid-column: span 1;
   }
 }
 
-.stat-card__header {
+.admissions-dashboard__stat-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0.75rem;
 }
 
-.stat-card__header h3 {
-  font-size: 1.1rem;
+.admissions-dashboard__stat-card-title {
+  font-size: 1rem;
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
-  text-align: left;
 }
 
-.stat-card__icon {
-  font-size: 1.5rem;
+.admissions-dashboard__stat-card-icon {
+  font-size: 1.25rem;
   opacity: 0.7;
-  margin-left: auto;
+  color: var(--color-text-secondary);
 }
 
-.stat-card__value {
-  font-size: 2.25rem;
+.admissions-dashboard__stat-card-value {
+  font-size: 2rem;
   font-weight: 700;
   color: var(--color-primary);
   margin-bottom: 0.25rem;
-  text-align: left;
+  line-height: 1;
 }
 
-.stat-card__subtitle {
-  font-size: 0.9rem;
+.admissions-dashboard__stat-card-subtitle {
+  font-size: 0.85rem;
   color: var(--color-text-secondary);
-  opacity: 0.8;
-  text-align: left;
+  opacity: 0.9;
+  line-height: 1.3;
 }
 
 /* Applications Breakdown */
-.applications-breakdown {
+.admissions-dashboard__applications-breakdown {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.3rem;
   margin-top: 0.5rem;
+  flex: 1; /* Fill remaining space in card */
+  justify-content: space-evenly; /* Distribute items evenly */
 }
 
-.application-status-item {
+.admissions-dashboard__application-status-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.35rem 0.5rem;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 6px;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-background-darker);
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  flex: 1; /* Equal height for all items */
+  min-height: 28px; /* Minimum height for consistency */
 }
 
-.status-indicator {
-  width: 10px;
-  height: 10px;
+.admissions-dashboard__application-status-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.admissions-dashboard__status-indicator {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.status-indicator--submitted {
+.admissions-dashboard__status-indicator--submitted {
   background: #48bb78;
 }
 
-.status-indicator--in_progress {
+.admissions-dashboard__status-indicator--in_progress {
   background: #ed8936;
 }
 
-.status-indicator--ineligible {
+.admissions-dashboard__status-indicator--ineligible {
   background: #f56565;
 }
 
-.status-label {
+.admissions-dashboard__status-label {
   flex: 1;
   font-weight: 500;
   text-transform: capitalize;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  color: var(--color-text-primary);
 }
 
-.status-count {
+.admissions-dashboard__status-count {
   font-weight: 600;
   color: var(--color-primary);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 /* Loading State */
@@ -292,6 +351,14 @@
   background: var(--color-background-light);
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure Applications section maintains consistent width */
+.admissions-dashboard__applications {
+  min-width: 0; /* Allow flexbox to work properly */
+  overflow: hidden; /* Prevent content from breaking out */
 }
 
 .admissions-dashboard__overview h2,
@@ -428,11 +495,15 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   overflow: hidden;
+  width: 100%; /* Always take full width of parent */
+  overflow-x: auto; /* Allow horizontal scrolling if needed */
 }
 
 .data-table {
   width: 100%;
+  min-width: 1200px; /* Ensure minimum width to prevent shrinking */
   border-collapse: collapse;
+  table-layout: fixed; /* Fixed layout for consistent column widths */
 }
 
 .data-table th, .data-table td {
@@ -1881,4 +1952,757 @@ Assessment Funnel Styles */
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--color-text-primary);
+}
+/* Assessment Funnel */
+.admissions-dashboard__assessment-funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+  flex: 1; /* Fill remaining space in card */
+  justify-content: space-evenly; /* Distribute items evenly */
+}
+
+.admissions-dashboard__assessment-funnel-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-background-darker);
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  flex: 1; /* Equal height for all items */
+  min-height: 28px; /* Minimum height for consistency */
+}
+
+.admissions-dashboard__assessment-funnel-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.admissions-dashboard__assessment-funnel-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.admissions-dashboard__assessment-funnel-indicator--strong-recommend {
+  background: #48bb78;
+}
+
+.admissions-dashboard__assessment-funnel-indicator--recommend {
+  background: #68d391;
+}
+
+.admissions-dashboard__assessment-funnel-indicator--review-needed {
+  background: #ed8936;
+}
+
+.admissions-dashboard__assessment-funnel-indicator--not-recommend {
+  background: #f56565;
+}
+
+.admissions-dashboard__assessment-funnel-label {
+  flex: 1;
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: var(--color-text-primary);
+}
+
+.admissions-dashboard__assessment-funnel-count {
+  font-weight: 600;
+  color: var(--color-primary);
+  font-size: 0.8rem;
+}
+
+.admissions-dashboard__assessment-funnel-override {
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+  margin-left: 0.25rem;
+}
+
+/* Workshop Pipeline */
+.admissions-dashboard__workshop-pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+  flex: 1; /* Fill remaining space in card */
+  justify-content: space-evenly; /* Distribute items evenly */
+}
+
+.admissions-dashboard__workshop-pipeline-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-background-darker);
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  flex: 1; /* Equal height for all items */
+  min-height: 28px; /* Minimum height for consistency */
+}
+
+.admissions-dashboard__workshop-pipeline-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.admissions-dashboard__workshop-pipeline-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.admissions-dashboard__workshop-pipeline-indicator--pending {
+  background: #a0aec0;
+}
+
+.admissions-dashboard__workshop-pipeline-indicator--invited {
+  background: #4299e1;
+}
+
+.admissions-dashboard__workshop-pipeline-indicator--registered {
+  background: #ed8936;
+}
+
+.admissions-dashboard__workshop-pipeline-indicator--attended {
+  background: #48bb78;
+}
+
+.admissions-dashboard__workshop-pipeline-indicator--no_show {
+  background: #f56565;
+}
+
+.admissions-dashboard__workshop-pipeline-label {
+  flex: 1;
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: var(--color-text-primary);
+}
+
+.admissions-dashboard__workshop-pipeline-count {
+  font-weight: 600;
+  color: var(--color-primary);
+  font-size: 0.8rem;
+}
+
+/* Enhanced Modern Dashboard Styling */
+
+/* Subtle card entrance animation */
+.admissions-dashboard__stat-card {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Staggered animation for grid items */
+.admissions-dashboard__stat-card:nth-child(1) { animation-delay: 0.1s; }
+.admissions-dashboard__stat-card:nth-child(2) { animation-delay: 0.2s; }
+.admissions-dashboard__stat-card:nth-child(3) { animation-delay: 0.3s; }
+.admissions-dashboard__stat-card:nth-child(4) { animation-delay: 0.4s; }
+.admissions-dashboard__stat-card:nth-child(5) { animation-delay: 0.5s; }
+.admissions-dashboard__stat-card:nth-child(6) { animation-delay: 0.6s; }
+
+/* Enhanced hover effects for interactive elements */
+.admissions-dashboard__assessment-funnel-item,
+.admissions-dashboard__workshop-pipeline-item,
+.admissions-dashboard__application-status-item {
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.admissions-dashboard__assessment-funnel-item::before,
+.admissions-dashboard__workshop-pipeline-item::before,
+.admissions-dashboard__application-status-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.admissions-dashboard__assessment-funnel-item:hover::before,
+.admissions-dashboard__workshop-pipeline-item:hover::before,
+.admissions-dashboard__application-status-item:hover::before {
+  left: 100%;
+}
+
+/* Improved stat card value styling */
+.admissions-dashboard__stat-card-value {
+  background: linear-gradient(135deg, var(--color-primary), #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced grid layout with better spacing */
+.admissions-dashboard__stats-grid {
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Improved tab styling */
+.admissions-dashboard__tab {
+  position: relative;
+  overflow: hidden;
+}
+
+.admissions-dashboard__tab::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 3px;
+  background: var(--color-primary);
+  transition: all 0.3s ease;
+  transform: translateX(-50%);
+}
+
+.admissions-dashboard__tab:hover::after {
+  width: 80%;
+}
+
+.admissions-dashboard__tab--active::after {
+  width: 100%;
+}
+
+/* Subtle glow effect for active elements */
+.admissions-dashboard__stat-card:hover {
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.2),
+    0 0 20px rgba(102, 126, 234, 0.1);
+}
+
+/* Enhanced loading state */
+.admissions-dashboard__loading-spinner {
+  background: conic-gradient(from 0deg, transparent, var(--color-primary), transparent);
+  border: none;
+  border-radius: 50%;
+  position: relative;
+}
+
+.admissions-dashboard__loading-spinner::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  right: 3px;
+  bottom: 3px;
+  background: var(--color-background-darker);
+  border-radius: 50%;
+}
+
+/* Improved responsive design with uniform heights */
+@media (max-width: 1400px) {
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr); /* Maintain equal row heights */
+    gap: 0.8rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 1fr); /* Three equal rows for 2-column layout */
+    gap: 0.8rem;
+  }
+  
+  .admissions-dashboard__content {
+    padding: 1rem 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(6, minmax(120px, 1fr)); /* Six equal rows for mobile */
+    gap: 0.8rem;
+    padding: 0.25rem;
+  }
+  
+  .admissions-dashboard__content {
+    padding: 1rem;
+  }
+  
+  .admissions-dashboard__tabs {
+    padding: 1rem 1rem 0 1rem;
+    gap: 0.25rem;
+  }
+  
+  .admissions-dashboard__tab {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .admissions-dashboard__stat-card {
+    padding: 0.8rem;
+  }
+  
+  .admissions-dashboard__stat-card-value {
+    font-size: 1.5rem;
+  }
+}/*
+ Modern Dashboard Background Pattern */
+.admissions-dashboard {
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(102, 126, 234, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.03) 0%, transparent 50%),
+    var(--color-background-darker);
+}
+
+/* Enhanced stat card styling with subtle gradients */
+.admissions-dashboard__stat-card {
+  background: linear-gradient(135deg, 
+    var(--color-background-dark) 0%, 
+    rgba(255, 255, 255, 0.02) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Improved content area with subtle border */
+.admissions-dashboard__content {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
+}
+
+.admissions-dashboard__content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(102, 126, 234, 0.3) 50%, 
+    transparent 100%);
+}
+
+/* Enhanced tab navigation with better visual hierarchy */
+.admissions-dashboard__tabs {
+  background: linear-gradient(135deg, 
+    var(--color-background-darker) 0%, 
+    rgba(255, 255, 255, 0.01) 100%);
+  border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+  position: relative;
+}
+
+.admissions-dashboard__tabs::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(102, 126, 234, 0.5) 50%, 
+    transparent 100%);
+}
+
+/* Improved stat card icons with subtle glow */
+.admissions-dashboard__stat-card-icon {
+  filter: drop-shadow(0 0 8px rgba(102, 126, 234, 0.2));
+  transition: all 0.3s ease;
+}
+
+.admissions-dashboard__stat-card:hover .admissions-dashboard__stat-card-icon {
+  filter: drop-shadow(0 0 12px rgba(102, 126, 234, 0.4));
+  transform: scale(1.1);
+}
+
+/* Enhanced overview grid with better visual separation */
+.admissions-dashboard__stats-grid {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.01) 0%, 
+    rgba(255, 255, 255, 0.03) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Subtle pulse animation for loading states */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.admissions-dashboard__loading p {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Enhanced error state styling */
+.admissions-dashboard__error {
+  background: linear-gradient(135deg, 
+    rgba(239, 68, 68, 0.08) 0%, 
+    rgba(239, 68, 68, 0.12) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+/* Improved no-data state */
+.admissions-dashboard__no-data {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.02) 0%, 
+    rgba(255, 255, 255, 0.05) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: var(--color-text-secondary);
+}
+
+.admissions-dashboard__no-data p {
+  font-size: 1.1rem;
+  margin: 0;
+  opacity: 0.8;
+}/* Sort
+able Table Headers */
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.sortable-header:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: var(--color-primary);
+}
+
+.sort-indicator {
+  font-size: 0.8rem;
+  color: var(--color-primary);
+  margin-left: 0.25rem;
+  font-weight: bold;
+}
+
+/* Name Search Input */
+.name-search-input {
+  padding: 0.6rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  min-width: 200px;
+  transition: all 0.2s ease;
+}
+
+.name-search-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.name-search-input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+}
+
+/* Enhanced data section controls */
+.data-section__controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Responsive adjustments for search input */
+@media (max-width: 768px) {
+  .name-search-input {
+    min-width: 150px;
+    font-size: 0.8rem;
+    padding: 0.5rem 0.8rem;
+  }
+  
+  .data-section__controls {
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .name-search-input {
+    min-width: 120px;
+    width: 100%;
+  }
+  
+  .data-section__controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-select {
+    width: 100%;
+  }
+}/* Fixed Co
+lumn Widths for Consistent Layout */
+.data-table th:nth-child(1) { width: 50px; }  /* Checkbox */
+.data-table th:nth-child(2) { width: 180px; } /* Name */
+.data-table th:nth-child(3) { width: 200px; } /* Email */
+.data-table th:nth-child(4) { width: 130px; } /* Phone */
+.data-table th:nth-child(5) { width: 120px; } /* Status */
+.data-table th:nth-child(6) { width: 140px; } /* Assessment */
+.data-table th:nth-child(7) { width: 130px; } /* Info Session */
+.data-table th:nth-child(8) { width: 120px; } /* Workshop */
+.data-table th:nth-child(9) { width: 120px; } /* Admission */
+.data-table th:nth-child(10) { width: 100px; } /* Notes */
+
+.data-table td:nth-child(1) { width: 50px; }  /* Checkbox */
+.data-table td:nth-child(2) { width: 180px; } /* Name */
+.data-table td:nth-child(3) { width: 200px; } /* Email */
+.data-table td:nth-child(4) { width: 130px; } /* Phone */
+.data-table td:nth-child(5) { width: 120px; } /* Status */
+.data-table td:nth-child(6) { width: 140px; } /* Assessment */
+.data-table td:nth-child(7) { width: 130px; } /* Info Session */
+.data-table td:nth-child(8) { width: 120px; } /* Workshop */
+.data-table td:nth-child(9) { width: 120px; } /* Admission */
+.data-table td:nth-child(10) { width: 100px; } /* Notes */
+
+/* Ensure content doesn't overflow in fixed width cells */
+.data-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Allow name and email columns to wrap if needed */
+.data-table td:nth-child(2),
+.data-table td:nth-child(3) {
+  white-space: normal;
+  word-wrap: break-word;
+  max-width: 0; /* This forces the cell to respect the width */
+}/* Resp
+onsive table adjustments */
+@media (max-width: 1400px) {
+  .data-table {
+    min-width: 1000px; /* Reduce minimum width on smaller screens */
+  }
+}
+
+@media (max-width: 1024px) {
+  .data-table {
+    min-width: 900px;
+  }
+  
+  /* Adjust column widths for tablets */
+  .data-table th:nth-child(2), .data-table td:nth-child(2) { width: 150px; } /* Name */
+  .data-table th:nth-child(3), .data-table td:nth-child(3) { width: 180px; } /* Email */
+  .data-table th:nth-child(4), .data-table td:nth-child(4) { width: 110px; } /* Phone */
+}
+
+@media (max-width: 768px) {
+  .data-table {
+    min-width: 800px;
+  }
+  
+  /* Further reduce column widths for mobile */
+  .data-table th:nth-child(2), .data-table td:nth-child(2) { width: 130px; } /* Name */
+  .data-table th:nth-child(3), .data-table td:nth-child(3) { width: 160px; } /* Email */
+  .data-table th:nth-child(4), .data-table td:nth-child(4) { width: 100px; } /* Phone */
+  .data-table th:nth-child(5), .data-table td:nth-child(5) { width: 100px; } /* Status */
+  .data-table th:nth-child(6), .data-table td:nth-child(6) { width: 120px; } /* Assessment */
+  .data-table th:nth-child(7), .data-table td:nth-child(7) { width: 110px; } /* Info Session */
+  .data-table th:nth-child(8), .data-table td:nth-child(8) { width: 100px; } /* Workshop */
+  .data-table th:nth-child(9), .data-table td:nth-child(9) { width: 100px; } /* Admission */
+  .data-table th:nth-child(10), .data-table td:nth-child(10) { width: 80px; } /* Notes */
+}
+
+/* Ensure the table container always maintains its width */
+.data-table-container {
+  flex-shrink: 0; /* Prevent the container from shrinking */
+}
+
+/* Make sure the applications section doesn't change width */
+.admissions-dashboard__applications .data-section__header,
+.admissions-dashboard__applications .data-table-container {
+  width: 100%;
+  box-sizing: border-box;
+}/* Inf
+o Sessions and Workshops Table Column Widths */
+.admissions-dashboard__info-sessions .data-table th:nth-child(1),
+.admissions-dashboard__info-sessions .data-table td:nth-child(1),
+.admissions-dashboard__workshops .data-table th:nth-child(1),
+.admissions-dashboard__workshops .data-table td:nth-child(1) {
+  width: 30%; /* Event Name - wider but balanced */
+}
+
+.admissions-dashboard__info-sessions .data-table th:nth-child(2),
+.admissions-dashboard__info-sessions .data-table td:nth-child(2),
+.admissions-dashboard__workshops .data-table th:nth-child(2),
+.admissions-dashboard__workshops .data-table td:nth-child(2) {
+  width: 20%; /* Date & Time */
+}
+
+.admissions-dashboard__info-sessions .data-table th:nth-child(3),
+.admissions-dashboard__info-sessions .data-table td:nth-child(3),
+.admissions-dashboard__workshops .data-table th:nth-child(3),
+.admissions-dashboard__workshops .data-table td:nth-child(3) {
+  width: 12%; /* Registered count */
+}
+
+.admissions-dashboard__info-sessions .data-table th:nth-child(4),
+.admissions-dashboard__info-sessions .data-table td:nth-child(4),
+.admissions-dashboard__workshops .data-table th:nth-child(4),
+.admissions-dashboard__workshops .data-table td:nth-child(4) {
+  width: 12%; /* Attended count */
+}
+
+.admissions-dashboard__workshops .data-table th:nth-child(5),
+.admissions-dashboard__workshops .data-table td:nth-child(5) {
+  width: 10%; /* Laptops Needed count */
+}
+
+.admissions-dashboard__info-sessions .data-table th:nth-child(5),
+.admissions-dashboard__info-sessions .data-table td:nth-child(5) {
+  width: 26%; /* Actions - Info Sessions (5 columns) */
+}
+
+.admissions-dashboard__workshops .data-table th:nth-child(6),
+.admissions-dashboard__workshops .data-table td:nth-child(6) {
+  width: 24%; /* Actions - Workshops (6 columns) */
+}
+
+/* Allow event names to wrap and show full text */
+.admissions-dashboard__info-sessions .data-table td:nth-child(1),
+.admissions-dashboard__workshops .data-table td:nth-child(1) {
+  white-space: normal;
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+
+/* Responsive adjustments for Info Sessions and Workshops */
+@media (max-width: 1024px) {
+  .admissions-dashboard__info-sessions .data-table th:nth-child(1),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(1),
+  .admissions-dashboard__workshops .data-table th:nth-child(1),
+  .admissions-dashboard__workshops .data-table td:nth-child(1) {
+    width: 28%; /* Slightly smaller on tablets */
+  }
+  
+  .admissions-dashboard__info-sessions .data-table th:nth-child(2),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(2),
+  .admissions-dashboard__workshops .data-table th:nth-child(2),
+  .admissions-dashboard__workshops .data-table td:nth-child(2) {
+    width: 22%; /* More space for date/time */
+  }
+  
+  .admissions-dashboard__info-sessions .data-table th:nth-child(5),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(5) {
+    width: 26%; /* Keep actions space consistent - Info Sessions */
+  }
+  
+  .admissions-dashboard__workshops .data-table th:nth-child(5),
+  .admissions-dashboard__workshops .data-table td:nth-child(5) {
+    width: 10%; /* Laptops Needed - Workshops */
+  }
+  
+  .admissions-dashboard__workshops .data-table th:nth-child(6),
+  .admissions-dashboard__workshops .data-table td:nth-child(6) {
+    width: 24%; /* Actions - Workshops */
+  }
+}
+
+@media (max-width: 768px) {
+  .admissions-dashboard__info-sessions .data-table th:nth-child(1),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(1),
+  .admissions-dashboard__workshops .data-table th:nth-child(1),
+  .admissions-dashboard__workshops .data-table td:nth-child(1) {
+    width: 25%; /* Smaller on mobile */
+  }
+  
+  .admissions-dashboard__info-sessions .data-table th:nth-child(2),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(2),
+  .admissions-dashboard__workshops .data-table th:nth-child(2),
+  .admissions-dashboard__workshops .data-table td:nth-child(2) {
+    width: 25%; /* Balanced date/time space */
+  }
+  
+  .admissions-dashboard__info-sessions .data-table th:nth-child(3),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(3),
+  .admissions-dashboard__workshops .data-table th:nth-child(3),
+  .admissions-dashboard__workshops .data-table td:nth-child(3) {
+    width: 10%; /* Compact numbers */
+  }
+  
+  .admissions-dashboard__info-sessions .data-table th:nth-child(4),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(4),
+  .admissions-dashboard__workshops .data-table th:nth-child(4),
+  .admissions-dashboard__workshops .data-table td:nth-child(4) {
+    width: 10%; /* Compact numbers */
+  }
+  
+  .admissions-dashboard__info-sessions .data-table th:nth-child(5),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(5) {
+    width: 30%; /* Adequate space for actions on mobile - Info Sessions */
+  }
+  
+  .admissions-dashboard__workshops .data-table th:nth-child(5),
+  .admissions-dashboard__workshops .data-table td:nth-child(5) {
+    width: 8%; /* Laptops Needed - Workshops mobile */
+  }
+  
+  .admissions-dashboard__workshops .data-table th:nth-child(6),
+  .admissions-dashboard__workshops .data-table td:nth-child(6) {
+    width: 27%; /* Actions - Workshops mobile */
+  }
+}/* Lapto
+p indicator styles */
+.laptop-indicator-cell {
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.laptop-needed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #3b82f6;
+  cursor: help;
+  font-size: 0.8rem;
+}
+
+.laptop-own {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #10b981;
+  cursor: help;
+  font-size: 0.8rem;
+}
+
+.laptop-icon {
+  font-size: 1.1rem;
+  margin-bottom: 2px;
+}
+
+.laptop-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-number--laptops {
+  color: #3b82f6;
+  font-weight: 600;
 }
