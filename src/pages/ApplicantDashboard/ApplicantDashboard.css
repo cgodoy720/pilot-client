@@ -530,6 +530,18 @@
     color: rgba(255, 255, 255, 0.7);
 }
 
+.session-details__attended-badge {
+    margin-top: 0.75rem;
+    padding: 0.5rem;
+    background-color: rgba(72, 187, 120, 0.2);
+    border: 1px solid #48bb78;
+    border-radius: 8px;
+    color: #48bb78;
+    font-weight: 600;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
 .action-card__button-container {
     flex: 0 0 auto;
     width: 100%;
