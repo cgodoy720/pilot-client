@@ -85,6 +85,16 @@ const AdmissionsDashboard = () => {
     const [bulkActionsModalOpen, setBulkActionsModalOpen] = useState(false);
     const [bulkActionInProgress, setBulkActionInProgress] = useState(false);
 
+    // Manual registration state
+    const [addRegistrationModalOpen, setAddRegistrationModalOpen] = useState(false);
+    const [selectedEventForRegistration, setSelectedEventForRegistration] = useState(null);
+    const [selectedEventType, setSelectedEventType] = useState(null);
+    const [applicantSearch, setApplicantSearch] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [selectedApplicantsForRegistration, setSelectedApplicantsForRegistration] = useState([]);
+    const [searchLoading, setSearchLoading] = useState(false);
+    const [registrationLoading, setRegistrationLoading] = useState(false);
+
     // Check if user has admin access
     const hasAdminAccess = user?.role === 'admin' || user?.role === 'staff';
 
@@ -823,6 +833,189 @@ const AdmissionsDashboard = () => {
         }
     };
 
+    // Manual Registration Handlers
+    
+    // Open add registration modal
+    const openAddRegistrationModal = (eventId, eventType) => {
+        setSelectedEventForRegistration(eventId);
+        setSelectedEventType(eventType);
+        setAddRegistrationModalOpen(true);
+        setApplicantSearch('');
+        setSearchResults([]);
+        setSelectedApplicantsForRegistration([]);
+    };
+
+    // Close add registration modal
+    const closeAddRegistrationModal = () => {
+        setAddRegistrationModalOpen(false);
+        setSelectedEventForRegistration(null);
+        setSelectedEventType(null);
+        setApplicantSearch('');
+        setSearchResults([]);
+        setSelectedApplicantsForRegistration([]);
+    };
+
+    // Search for applicants
+    const searchApplicants = async (searchTerm) => {
+        if (!searchTerm.trim()) {
+            setSearchResults([]);
+            return;
+        }
+
+        setSearchLoading(true);
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/search?q=${encodeURIComponent(searchTerm)}&eventId=${selectedEventForRegistration}&eventType=${selectedEventType}&limit=20`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setSearchResults(data.applicants || []);
+            } else {
+                console.error('Failed to search applicants');
+                setSearchResults([]);
+            }
+        } catch (error) {
+            console.error('Error searching applicants:', error);
+            setSearchResults([]);
+        } finally {
+            setSearchLoading(false);
+        }
+    };
+
+    // Handle applicant selection for registration
+    const toggleApplicantSelection = (applicant) => {
+        setSelectedApplicantsForRegistration(prev => {
+            const isSelected = prev.some(selected => selected.applicant_id === applicant.applicant_id);
+            if (isSelected) {
+                return prev.filter(selected => selected.applicant_id !== applicant.applicant_id);
+            } else {
+                return [...prev, applicant];
+            }
+        });
+    };
+
+    // Register selected applicants
+    const registerSelectedApplicants = async () => {
+        if (selectedApplicantsForRegistration.length === 0) return;
+
+        setRegistrationLoading(true);
+        const results = [];
+
+        try {
+            for (const applicant of selectedApplicantsForRegistration) {
+                try {
+                    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/events/${selectedEventType}/${selectedEventForRegistration}/register-applicant`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            applicantId: applicant.applicant_id,
+                            name: applicant.display_name,
+                            email: applicant.email,
+                            needsLaptop: false // Default to false, can be changed later
+                        })
+                    });
+
+                    if (response.ok) {
+                        results.push({ applicant, success: true });
+                    } else {
+                        const errorData = await response.json();
+                        results.push({ applicant, success: false, error: errorData.error });
+                    }
+                } catch (error) {
+                    results.push({ applicant, success: false, error: error.message });
+                }
+            }
+
+            // Show results and refresh data
+            const successCount = results.filter(r => r.success).length;
+            const failureCount = results.length - successCount;
+
+            if (successCount > 0) {
+                // Refresh event registrations to show new registrations
+                if (selectedEvent === selectedEventForRegistration) {
+                    await handleViewRegistrations(selectedEventType, selectedEventForRegistration);
+                }
+                // Refresh events list to update counts
+                if (selectedEventType === 'info-session') {
+                    await fetchInfoSessions();
+                } else {
+                    await fetchWorkshops();
+                }
+            }
+
+            if (failureCount > 0) {
+                const failureMessages = results.filter(r => !r.success).map(r => `${r.applicant.display_name}: ${r.error}`).join('\n');
+                setError(`Some registrations failed:\n${failureMessages}`);
+            }
+
+            if (successCount === results.length) {
+                closeAddRegistrationModal();
+            }
+
+        } catch (error) {
+            console.error('Error registering applicants:', error);
+            setError('Failed to register applicants. Please try again.');
+        } finally {
+            setRegistrationLoading(false);
+        }
+    };
+
+    // Remove/cancel a registration
+    const handleRemoveRegistration = async (eventType, eventId, registrationId, applicantName) => {
+        if (!confirm(`Are you sure you want to cancel ${applicantName}'s registration?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/events/${eventType}/${eventId}/registrations/${registrationId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                // Remove the registration from local state
+                setEventRegistrations(prev => 
+                    prev.filter(reg => reg.registration_id !== registrationId)
+                );
+
+                // Update event counts
+                if (eventType === 'info-session') {
+                    setInfoSessions(prevSessions =>
+                        prevSessions.map(session =>
+                            session.event_id === eventId
+                                ? { ...session, registration_count: session.registration_count - 1 }
+                                : session
+                        )
+                    );
+                } else if (eventType === 'workshop') {
+                    setWorkshops(prevWorkshops =>
+                        prevWorkshops.map(workshop =>
+                            workshop.event_id === eventId
+                                ? { ...workshop, registration_count: workshop.registration_count - 1 }
+                                : workshop
+                        )
+                    );
+                }
+            } else {
+                const errorData = await response.json();
+                setError(`Failed to cancel registration: ${errorData.error}`);
+            }
+        } catch (error) {
+            console.error('Error cancelling registration:', error);
+            setError('Failed to cancel registration. Please try again.');
+        }
+    };
+
     // Loading state
     if (loading) {
         return (
@@ -1431,7 +1624,16 @@ const AdmissionsDashboard = () => {
                                                     <tr className="registrations-row">
                                                         <td colSpan="5" className="registrations-cell">
                                                             <div className="registrations-list">
-                                                                <h4>Registrations</h4>
+                                                                <div className="registrations-header">
+                                                                    <h4>Registrations</h4>
+                                                                    <button
+                                                                        className="add-registration-btn"
+                                                                        onClick={() => openAddRegistrationModal(session.event_id, 'info-session')}
+                                                                        title="Add registration"
+                                                                    >
+                                                                        + Add Registration
+                                                                    </button>
+                                                                </div>
                                                                 {eventRegistrations.length > 0 ? (
                                                                     <div className="registrations-table">
                                                                         <table className="mini-table">
@@ -1459,6 +1661,7 @@ const AdmissionsDashboard = () => {
                                                                                         </button>
                                                                                     </th>
                                                                                     <th>Status</th>
+                                                                                    <th>Actions</th>
                                                                                 </tr>
                                                                             </thead>
                                                                             <tbody>
@@ -1499,6 +1702,15 @@ const AdmissionsDashboard = () => {
                                                                                                 <option value="very_late">Very Late</option>
                                                                                                 <option value="no_show">No Show</option>
                                                                                             </select>
+                                                                                        </td>
+                                                                                        <td>
+                                                                                            <button
+                                                                                                className="remove-registration-btn"
+                                                                                                onClick={() => handleRemoveRegistration('info-session', session.event_id, reg.registration_id, `${reg.first_name} ${reg.last_name}`)}
+                                                                                                title="Cancel registration"
+                                                                                            >
+                                                                                                Remove
+                                                                                            </button>
                                                                                         </td>
                                                                                     </tr>
                                                                                 ))}
@@ -1617,7 +1829,16 @@ const AdmissionsDashboard = () => {
                                                     <tr className="registrations-row">
                                                         <td colSpan="6" className="registrations-cell">
                                                             <div className="registrations-list">
-                                                                <h4>Registrations</h4>
+                                                                <div className="registrations-header">
+                                                                    <h4>Registrations</h4>
+                                                                    <button
+                                                                        className="add-registration-btn"
+                                                                        onClick={() => openAddRegistrationModal(workshop.event_id, 'workshop')}
+                                                                        title="Add registration"
+                                                                    >
+                                                                        + Add Registration
+                                                                    </button>
+                                                                </div>
                                                                 {eventRegistrations.length > 0 ? (
                                                                     <div className="registrations-table">
                                                                         <table className="mini-table">
@@ -1646,6 +1867,7 @@ const AdmissionsDashboard = () => {
                                                                                     </th>
                                                                                     <th>Laptop</th>
                                                                                     <th>Status</th>
+                                                                                    <th>Actions</th>
                                                                                 </tr>
                                                                             </thead>
                                                                             <tbody>
@@ -1699,6 +1921,15 @@ const AdmissionsDashboard = () => {
                                                                                                 <option value="very_late">Very Late</option>
                                                                                                 <option value="no_show">No Show</option>
                                                                                             </select>
+                                                                                        </td>
+                                                                                        <td>
+                                                                                            <button
+                                                                                                className="remove-registration-btn"
+                                                                                                onClick={() => handleRemoveRegistration('workshop', workshop.event_id, reg.registration_id, `${reg.first_name} ${reg.last_name}`)}
+                                                                                                title="Cancel registration"
+                                                                                            >
+                                                                                                Remove
+                                                                                            </button>
                                                                                         </td>
                                                                                     </tr>
                                                                                 ))}
@@ -2004,6 +2235,129 @@ const AdmissionsDashboard = () => {
                     onAction={handleBulkAction}
                     isLoading={bulkActionInProgress}
                 />
+            )}
+
+            {/* Add Registration Modal */}
+            {addRegistrationModalOpen && (
+                <div className="modal-overlay">
+                    <div className="modal add-registration-modal">
+                        <div className="modal-header">
+                            <h2>Add Registration to {selectedEventType === 'info-session' ? 'Info Session' : 'Workshop'}</h2>
+                            <button className="close-btn" onClick={closeAddRegistrationModal}>×</button>
+                        </div>
+                        
+                        <div className="modal-content">
+                            <div className="search-section">
+                                <div className="form-group">
+                                    <label htmlFor="applicant-search">Search Applicants</label>
+                                    <input
+                                        type="text"
+                                        id="applicant-search"
+                                        value={applicantSearch}
+                                        onChange={(e) => {
+                                            setApplicantSearch(e.target.value);
+                                            searchApplicants(e.target.value);
+                                        }}
+                                        placeholder="Search by name, email, or applicant ID..."
+                                        className="search-input"
+                                    />
+                                </div>
+                                
+                                {searchLoading && (
+                                    <div className="search-loading">
+                                        <div className="spinner"></div>
+                                        <span>Searching...</span>
+                                    </div>
+                                )}
+                                
+                                {searchResults.length > 0 && (
+                                    <div className="search-results">
+                                        <h4>Search Results ({searchResults.length})</h4>
+                                        <div className="applicant-list">
+                                            {searchResults.map((applicant) => (
+                                                <div
+                                                    key={applicant.applicant_id}
+                                                    className={`applicant-item ${
+                                                        selectedApplicantsForRegistration.some(selected => selected.applicant_id === applicant.applicant_id) 
+                                                            ? 'selected' : ''
+                                                    } ${
+                                                        applicant.already_registered_for_this_event ? 'already-registered' : ''
+                                                    }`}
+                                                    onClick={() => !applicant.already_registered_for_this_event && toggleApplicantSelection(applicant)}
+                                                >
+                                                    <div className="applicant-info">
+                                                        <div className="applicant-name">
+                                                            {applicant.display_name}
+                                                            {applicant.already_registered_for_this_event && (
+                                                                <span className="already-registered-badge">Already Registered</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="applicant-details">
+                                                            <span className="applicant-email">{applicant.email}</span>
+                                                            <span className="applicant-status">
+                                                                App Status: {applicant.application_status}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    {!applicant.already_registered_for_this_event && (
+                                                        <div className="selection-checkbox">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedApplicantsForRegistration.some(selected => selected.applicant_id === applicant.applicant_id)}
+                                                                onChange={() => toggleApplicantSelection(applicant)}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {selectedApplicantsForRegistration.length > 0 && (
+                                    <div className="selected-applicants">
+                                        <h4>Selected for Registration ({selectedApplicantsForRegistration.length})</h4>
+                                        <div className="selected-list">
+                                            {selectedApplicantsForRegistration.map((applicant) => (
+                                                <div key={applicant.applicant_id} className="selected-applicant">
+                                                    <span>{applicant.display_name}</span>
+                                                    <button
+                                                        onClick={() => toggleApplicantSelection(applicant)}
+                                                        className="remove-selected-btn"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        
+                        <div className="modal-actions">
+                            <button
+                                type="button"
+                                className="cancel-btn"
+                                onClick={closeAddRegistrationModal}
+                                disabled={registrationLoading}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="submit-btn"
+                                onClick={registerSelectedApplicants}
+                                disabled={registrationLoading || selectedApplicantsForRegistration.length === 0}
+                            >
+                                {registrationLoading 
+                                    ? 'Registering...' 
+                                    : `Register ${selectedApplicantsForRegistration.length} Applicant${selectedApplicantsForRegistration.length !== 1 ? 's' : ''}`
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Notes Modal */}
