@@ -17,10 +17,10 @@
 .admissions-dashboard__tabs {
   display: flex;
   gap: 0.5rem;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 2px solid var(--color-border);
   padding: 1rem 2rem 0 2rem;
   align-items: center;
-  background-color: var(--color-background-darker);
+  background-color: var(--color-background-dark);
   flex-shrink: 0;
 }
 
@@ -45,13 +45,13 @@
 .admissions-dashboard__tab--active {
   color: var(--color-primary);
   border-bottom-color: var(--color-primary);
-  background: rgba(102, 126, 234, 0.1);
+  background: var(--color-primary-transparent);
 }
 
 .admissions-dashboard__back-btn {
   background: transparent;
-  border: 1px solid #6b7280;
-  color: white;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
   padding: 0.5rem 1rem;
   border-radius: 6px;
   font-size: 0.9rem;
@@ -126,7 +126,7 @@
 }
 
 .admissions-dashboard__stat-card {
-  background: var(--color-background-dark);
+  background: var(--color-background-darker);
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 1rem;
@@ -139,7 +139,7 @@
 
 .admissions-dashboard__stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   border-color: var(--color-primary);
 }
 
@@ -217,7 +217,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.25rem 0.5rem;
-  background: var(--color-background-darker);
+  background: var(--color-background-light);
   border-radius: 4px;
   transition: background-color 0.2s ease;
   flex: 1;
@@ -227,7 +227,7 @@
 }
 
 .admissions-dashboard__application-status-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-background-darker);
 }
 
 .admissions-dashboard__status-indicator {
@@ -363,9 +363,9 @@
 .admissions-dashboard__info-sessions,
 .admissions-dashboard__workshops {
   padding: 2rem;
-  background: var(--color-background-light);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-background-dark);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
   width: 100%;
   box-sizing: border-box;
 }
@@ -481,8 +481,8 @@
 }
 
 .filter-select {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
   color: var(--color-text-primary);
   padding: 0.5rem 1rem;
   border-radius: 6px;
@@ -512,8 +512,8 @@
 
 /* Data Tables */
 .data-table-container {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   overflow: hidden;
   width: 100%;
@@ -539,7 +539,7 @@
 }
 
 .data-table th {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-background-light);
   font-weight: 600;
   color: var(--color-text-primary);
   font-size: 0.9rem;
@@ -552,7 +552,7 @@
 }
 
 .data-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-background-light);
 }
 
 .clickable-row {
@@ -561,7 +561,7 @@
 }
 
 .clickable-row:hover {
-  background: rgba(102, 126, 234, 0.1) !important;
+  background: var(--color-primary-transparent) !important;
   transform: scale(1.005);
 }
 
@@ -658,8 +658,8 @@
 
 .table-footer {
   padding: 1rem;
-  background: rgba(255, 255, 255, 0.02);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-background-light);
+  border-top: 1px solid var(--color-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -681,7 +681,7 @@
 
 .pagination-btn {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--color-border);
   color: var(--color-text-primary);
   padding: 0.5rem 1rem;
   border-radius: 6px;
@@ -693,8 +693,8 @@
 }
 
 .pagination-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: var(--color-background-light);
+  border-color: var(--color-primary);
 }
 
 .pagination-btn:disabled {
@@ -710,8 +710,8 @@
 }
 
 .show-all-btn:hover {
-  background: #5a6bc4;
-  border-color: #5a6bc4;
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 
 .pagination-info {
@@ -728,16 +728,17 @@
 }
 
 .event-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
   padding: 1.5rem;
   transition: all 0.2s ease;
 }
 
 .event-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: var(--color-primary);
 }
 
 .event-card__header h3 {
@@ -1020,7 +1021,7 @@
 
 /* Registrations expanded row */
 .registrations-row {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-background-light);
 }
 
 .registrations-cell {
@@ -1040,7 +1041,7 @@
 .mini-table {
   width: 100%;
   border-collapse: collapse;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--color-background-darker);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -1053,7 +1054,7 @@
 }
 
 .mini-table th {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-background-light);
   font-weight: 600;
   color: var(--color-text-secondary);
   font-size: 0.8rem;
@@ -1386,7 +1387,6 @@
 
 .checkbox-group {
   display: flex;
-  align-items: flex-start;
   gap: 8px;
   margin-bottom: 15px;
   width: fit-content;
@@ -1645,7 +1645,7 @@ Assessment Funnel Styles */
   font-size: 0.9rem;
 }
 
-/*Enhanced Applications Table Styles*/ 
+/*Enhanced Applications Table Styles*/
 .admissions-dashboard__checkbox-column {
   width: 40px;
   text-align: center;
@@ -1658,7 +1658,7 @@ Assessment Funnel Styles */
 }
 
 .admissions-dashboard__row--selected {
-  background: rgba(102, 126, 234, 0.1);
+  background: var(--color-primary-transparent);
 }
 
 .admissions-dashboard__bulk-actions-btn {
@@ -1680,7 +1680,7 @@ Assessment Funnel Styles */
 }
 
 .admissions-dashboard__bulk-actions-btn:hover:not(:disabled) {
-  background: #5a67d8;
+  background: var(--color-primary-hover);
   transform: translateY(-1px);
 }
 
@@ -2050,7 +2050,7 @@ Assessment Funnel Styles */
   align-items: center;
   gap: 0.5rem;
   padding: 0.25rem 0.5rem;
-  background: var(--color-background-darker);
+  background: var(--color-background-light);
   border-radius: 4px;
   transition: background-color 0.2s ease;
   flex: 1;
@@ -2060,7 +2060,7 @@ Assessment Funnel Styles */
 }
 
 .admissions-dashboard__assessment-funnel-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-background-darker);
 }
 
 .admissions-dashboard__assessment-funnel-indicator {
@@ -2122,7 +2122,7 @@ Assessment Funnel Styles */
   align-items: center;
   gap: 0.5rem;
   padding: 0.25rem 0.5rem;
-  background: var(--color-background-darker);
+  background: var(--color-background-light);
   border-radius: 4px;
   transition: background-color 0.2s ease;
   flex: 1;
@@ -2132,7 +2132,7 @@ Assessment Funnel Styles */
 }
 
 .admissions-dashboard__workshop-pipeline-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-background-darker);
 }
 
 .admissions-dashboard__workshop-pipeline-indicator {
@@ -2259,9 +2259,8 @@ Assessment Funnel Styles */
 /* Enhanced grid layout with better spacing */
 .admissions-dashboard__stats-grid {
   padding: 0.5rem;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: transparent;
+  border-radius: 8px;
 }
 
 /* Improved tab styling */
@@ -2518,9 +2517,9 @@ able Table Headers */
 /* Name Search Input */
 .name-search-input {
   padding: 0.6rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-background-darker);
   color: var(--color-text-primary);
   font-size: 0.9rem;
   min-width: 200px;
@@ -2530,8 +2529,8 @@ able Table Headers */
 .name-search-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+  background: var(--color-background-light);
+  box-shadow: 0 0 0 2px var(--color-primary-transparent);
 }
 
 .name-search-input::placeholder {
