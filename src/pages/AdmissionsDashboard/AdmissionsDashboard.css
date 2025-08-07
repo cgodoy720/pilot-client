@@ -17,10 +17,10 @@
 .admissions-dashboard__tabs {
   display: flex;
   gap: 0.5rem;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 2px solid var(--color-border);
   padding: 1rem 2rem 0 2rem;
   align-items: center;
-  background-color: var(--color-background-darker);
+  background-color: var(--color-background-dark);
   flex-shrink: 0;
 }
 
@@ -45,13 +45,13 @@
 .admissions-dashboard__tab--active {
   color: var(--color-primary);
   border-bottom-color: var(--color-primary);
-  background: rgba(102, 126, 234, 0.1);
+  background: var(--color-primary-transparent);
 }
 
 .admissions-dashboard__back-btn {
   background: transparent;
-  border: 1px solid #6b7280;
-  color: white;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
   padding: 0.5rem 1rem;
   border-radius: 6px;
   font-size: 0.9rem;
@@ -72,7 +72,8 @@
   overflow-y: auto;
   padding: 1.5rem 2rem 1rem 2rem;
   width: 100%;
-  height: 0; /* Force flex child to respect parent height */
+  height: 0;
+  /* Force flex child to respect parent height */
 }
 
 /* Overview Section - Full height layout */
@@ -84,17 +85,21 @@
 
 .admissions-dashboard__overview .admissions-dashboard__stats-grid {
   flex: 1;
-  align-content: stretch; /* Fill available space */
-  min-height: 0; /* Allow grid to shrink */
+  align-content: stretch;
+  /* Fill available space */
+  min-height: 0;
+  /* Allow grid to shrink */
 }
 
 /* Statistics Grid - Fill container with uniform heights */
 .admissions-dashboard__stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(2, 1fr); /* Two equal-height rows */
+  grid-template-rows: repeat(2, 1fr);
+  /* Two equal-height rows */
   gap: 1rem;
-  height: 100%; /* Fill the container */
+  height: 100%;
+  /* Fill the container */
   align-content: stretch;
 }
 
@@ -121,20 +126,14 @@
 }
 
 .admissions-dashboard__stat-card {
-  background: var(--color-background-dark);
+  background: var(--color-background-darker);
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 1rem;
-  transition: all 0.2s ease;
-  height: 100%; /* Fill grid cell height */
+  height: 100%;
+  /* Fill grid cell height */
   display: flex;
   flex-direction: column;
-}
-
-.admissions-dashboard__stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  border-color: var(--color-primary);
 }
 
 .admissions-dashboard__stat-card--wide {
@@ -200,8 +199,10 @@
   flex-direction: column;
   gap: 0.3rem;
   margin-top: 0.5rem;
-  flex: 1; /* Fill remaining space in card */
-  justify-content: space-evenly; /* Distribute items evenly */
+  flex: 1;
+  /* Fill remaining space in card */
+  justify-content: space-evenly;
+  /* Distribute items evenly */
 }
 
 .admissions-dashboard__application-status-item {
@@ -209,15 +210,12 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.25rem 0.5rem;
-  background: var(--color-background-darker);
+  background: transparent;
   border-radius: 4px;
-  transition: background-color 0.2s ease;
-  flex: 1; /* Equal height for all items */
-  min-height: 28px; /* Minimum height for consistency */
-}
-
-.admissions-dashboard__application-status-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  flex: 1;
+  /* Equal height for all items */
+  min-height: 28px;
+  /* Minimum height for consistency */
 }
 
 .admissions-dashboard__status-indicator {
@@ -273,8 +271,13 @@
 }
 
 @keyframes admissions-dashboard-spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .admissions-dashboard__loading p {
@@ -348,17 +351,19 @@
 .admissions-dashboard__info-sessions,
 .admissions-dashboard__workshops {
   padding: 2rem;
-  background: var(--color-background-light);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-background-dark);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
   width: 100%;
   box-sizing: border-box;
 }
 
 /* Ensure Applications section maintains consistent width */
 .admissions-dashboard__applications {
-  min-width: 0; /* Allow flexbox to work properly */
-  overflow: hidden; /* Prevent content from breaking out */
+  min-width: 0;
+  /* Allow flexbox to work properly */
+  overflow: hidden;
+  /* Prevent content from breaking out */
 }
 
 .admissions-dashboard__overview h2,
@@ -427,13 +432,13 @@
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .admissions-dashboard__tab {
     text-align: center;
     border-bottom: none;
     border-left: 3px solid transparent;
   }
-  
+
   .admissions-dashboard__tab--active {
     border-bottom: none;
     border-left-color: var(--color-primary);
@@ -464,15 +469,17 @@
 }
 
 .filter-select {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
   color: var(--color-text-primary);
   padding: 0.5rem 1rem;
   border-radius: 6px;
   font-size: 0.9rem;
 }
 
-.refresh-btn, .retry-btn, .clear-filter-btn {
+.refresh-btn,
+.retry-btn,
+.clear-filter-btn {
   background: transparent;
   border: 1px solid var(--color-primary);
   color: white;
@@ -484,36 +491,43 @@
   transition: all 0.2s ease;
 }
 
-.refresh-btn:hover, .retry-btn:hover, .clear-filter-btn:hover {
+.refresh-btn:hover,
+.retry-btn:hover,
+.clear-filter-btn:hover {
   background: var(--color-primary);
   color: white;
 }
 
 /* Data Tables */
 .data-table-container {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   overflow: hidden;
-  width: 100%; /* Always take full width of parent */
-  overflow-x: auto; /* Allow horizontal scrolling if needed */
+  width: 100%;
+  /* Always take full width of parent */
+  overflow-x: auto;
+  /* Allow horizontal scrolling if needed */
 }
 
 .data-table {
   width: 100%;
-  min-width: 1200px; /* Ensure minimum width to prevent shrinking */
+  min-width: 1200px;
+  /* Ensure minimum width to prevent shrinking */
   border-collapse: collapse;
-  table-layout: fixed; /* Fixed layout for consistent column widths */
+  table-layout: fixed;
+  /* Fixed layout for consistent column widths */
 }
 
-.data-table th, .data-table td {
+.data-table th,
+.data-table td {
   padding: 1rem;
   text-align: left;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .data-table th {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-background-light);
   font-weight: 600;
   color: var(--color-text-primary);
   font-size: 0.9rem;
@@ -526,7 +540,7 @@
 }
 
 .data-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-background-light);
 }
 
 .clickable-row {
@@ -535,7 +549,7 @@
 }
 
 .clickable-row:hover {
-  background: rgba(102, 126, 234, 0.1) !important;
+  background: var(--color-primary-transparent) !important;
   transform: scale(1.005);
 }
 
@@ -632,8 +646,8 @@
 
 .table-footer {
   padding: 1rem;
-  background: rgba(255, 255, 255, 0.02);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-background-light);
+  border-top: 1px solid var(--color-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -655,7 +669,7 @@
 
 .pagination-btn {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--color-border);
   color: var(--color-text-primary);
   padding: 0.5rem 1rem;
   border-radius: 6px;
@@ -667,8 +681,8 @@
 }
 
 .pagination-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: var(--color-background-light);
+  border-color: var(--color-primary);
 }
 
 .pagination-btn:disabled {
@@ -684,8 +698,8 @@
 }
 
 .show-all-btn:hover {
-  background: #5a6bc4;
-  border-color: #5a6bc4;
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 
 .pagination-info {
@@ -702,16 +716,17 @@
 }
 
 .event-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
   padding: 1.5rem;
   transition: all 0.2s ease;
 }
 
 .event-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: var(--color-primary);
 }
 
 .event-card__header h3 {
@@ -756,7 +771,8 @@
   margin-bottom: 1rem;
 }
 
-.view-registrations-btn, .mark-attendance-btn {
+.view-registrations-btn,
+.mark-attendance-btn {
   background: transparent;
   border: 1px solid var(--color-primary);
   color: white;
@@ -768,7 +784,8 @@
   transition: all 0.2s ease;
 }
 
-.view-registrations-btn:hover, .mark-attendance-btn:hover {
+.view-registrations-btn:hover,
+.mark-attendance-btn:hover {
   background: var(--color-primary);
   color: white;
 }
@@ -798,7 +815,8 @@
   font-size: 0.9rem;
 }
 
-.mini-table th, .mini-table td {
+.mini-table th,
+.mini-table td {
   padding: 0.5rem;
   text-align: left;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -844,7 +862,7 @@
   text-align: center;
   padding: 3rem;
   color: var(--color-text-secondary);
-} 
+}
 
 /* Notes Button */
 .notes-btn {
@@ -881,15 +899,18 @@
 /* Events Table Layout */
 .events-table {
   margin-top: 1rem;
-  min-width: 900px; /* Ensure table is wide enough */
+  min-width: 900px;
+  /* Ensure table is wide enough */
 }
 
 /* Make Info Sessions and Workshops containers wider */
 .admissions-dashboard__info-sessions .data-table-container,
 .admissions-dashboard__workshops .data-table-container {
   width: 100%;
-  max-width: none; /* Remove any max-width constraints */
-  overflow-x: auto; /* Allow horizontal scrolling if needed */
+  max-width: none;
+  /* Remove any max-width constraints */
+  overflow-x: auto;
+  /* Allow horizontal scrolling if needed */
 }
 
 .event-row {
@@ -899,7 +920,8 @@
 .event-name {
   font-weight: 600;
   color: var(--color-text-primary);
-  width: 35%; /* Give event name more space */
+  width: 35%;
+  /* Give event name more space */
 }
 
 .event-status {
@@ -919,7 +941,8 @@
 
 .event-datetime {
   text-align: left;
-  width: 25%; /* Give date/time adequate space */
+  width: 25%;
+  /* Give date/time adequate space */
 }
 
 .date-time-info {
@@ -941,7 +964,8 @@
 
 .stat-cell {
   text-align: center;
-  width: 10%; /* Compact columns for numbers */
+  width: 10%;
+  /* Compact columns for numbers */
 }
 
 .stat-number {
@@ -961,7 +985,8 @@
 
 .actions-cell {
   text-align: center;
-  width: 20%; /* Give actions button adequate space */
+  width: 20%;
+  /* Give actions button adequate space */
 }
 
 .view-registrations-btn {
@@ -984,7 +1009,7 @@
 
 /* Registrations expanded row */
 .registrations-row {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-background-light);
 }
 
 .registrations-cell {
@@ -1004,7 +1029,7 @@
 .mini-table {
   width: 100%;
   border-collapse: collapse;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--color-background-darker);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -1017,7 +1042,7 @@
 }
 
 .mini-table th {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-background-light);
   font-weight: 600;
   color: var(--color-text-secondary);
   font-size: 0.8rem;
@@ -1187,7 +1212,7 @@
   background-position: right 0.6rem center;
   background-size: 14px;
   text-transform: capitalize;
-  
+
   /* Down arrow icon - darker for better visibility */
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
 }
@@ -1204,7 +1229,7 @@
 
 /* Color-coded dropdown backgrounds - stronger theme colors */
 .attendance-status-dropdown-unified.status-registered {
-  background: 
+  background:
     url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.6rem center,
     linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%);
   background-size: 14px, 100%;
@@ -1213,7 +1238,7 @@
 }
 
 .attendance-status-dropdown-unified.status-attended {
-  background: 
+  background:
     url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.6rem center,
     linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.1) 100%);
   background-size: 14px, 100%;
@@ -1222,7 +1247,7 @@
 }
 
 .attendance-status-dropdown-unified.status-attended_late {
-  background: 
+  background:
     url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.6rem center,
     linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(251, 191, 36, 0.15) 100%);
   background-size: 14px, 100%;
@@ -1231,7 +1256,7 @@
 }
 
 .attendance-status-dropdown-unified.status-very_late {
-  background: 
+  background:
     url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.6rem center,
     linear-gradient(135deg, rgba(249, 115, 22, 0.25) 0%, rgba(249, 115, 22, 0.15) 100%);
   background-size: 14px, 100%;
@@ -1240,213 +1265,245 @@
 }
 
 .attendance-status-dropdown-unified.status-no_show {
-  background: 
+  background:
     url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.6rem center,
     linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(239, 68, 68, 0.15) 100%);
   background-size: 14px, 100%;
   color: #dc2626 !important;
   border-color: rgba(239, 68, 68, 0.5);
-} 
+}
 
 /* Info Session Modal */
 .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.6);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(3px);
 }
 
 .modal {
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    width: 90%;
-    max-width: 600px;
-    max-height: 90vh;
-    overflow-y: auto;
-    padding: 20px;
+  background-color: var(--color-background-dark);
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--color-border);
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20px;
+  color: var(--color-text-primary);
 }
 
 .info-session-modal {
-    display: flex;
-    flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 10px;
 }
 
 .modal-header h2 {
-    margin: 0;
-    font-size: 1.5rem;
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--color-text-primary);
 }
 
 .close-btn {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: #666;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  transition: color var(--transition-speed);
 }
 
 .close-btn:hover {
-    color: #000;
+  color: var(--color-text-primary);
 }
 
 .form-group {
-    margin-bottom: 15px;
+  margin-bottom: 15px;
 }
 
 .form-row {
-    display: flex;
-    gap: 15px;
+  display: flex;
+  gap: 15px;
 }
 
 .form-row .form-group {
-    flex: 1;
+  flex: 1;
 }
 
 .form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 500;
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #ffffff !important;
 }
 
 .form-group input,
 .form-group textarea {
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 1rem;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 1rem;
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-speed);
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-transparent);
 }
 
 .checkbox-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+  width: fit-content;
+  align-items: center;
 }
 
 .checkbox-group input {
-    width: auto;
+  width: auto;
+  margin: 0;
+  margin-top: 2px;
+  /* Align with first line of label text */
+}
+
+.checkbox-group label {
+  margin-bottom: 0;
+  cursor: pointer;
+  user-select: none;
 }
 
 .modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
-    border-top: 1px solid #eee;
-    padding-top: 15px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 15px;
 }
 
 .cancel-btn,
 .submit-btn {
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all var(--transition-speed);
 }
 
 .cancel-btn {
-    background-color: #f0f0f0;
-    border: 1px solid #ddd;
-    color: #333;
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
 }
 
 .submit-btn {
-    background-color: #4CAF50;
-    border: 1px solid #43A047;
-    color: white;
+  background-color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  color: white;
 }
 
 .cancel-btn:hover {
-    background-color: #e0e0e0;
+  background-color: var(--color-background-darker);
+  border-color: var(--color-text-muted);
 }
 
 .submit-btn:hover {
-    background-color: #43A047;
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 
 .cancel-btn:disabled,
 .submit-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Data section actions */
 .data-section__actions {
-    display: flex;
-    gap: 10px;
+  display: flex;
+  gap: 10px;
 }
 
 .create-btn {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 8px 16px;
-    cursor: pointer;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 5px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .create-btn:hover {
-    background-color: #43A047;
+  background-color: #43A047;
 }
 
 .edit-btn {
-    background-color: #2196F3;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 6px 12px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    margin-right: 8px;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-right: 8px;
 }
 
 .edit-btn:hover {
-    background-color: #0b7dda;
+  background-color: #0b7dda;
 }
 
 /* Error message */
 .error-message {
-    background-color: #ffebee;
-    border: 1px solid #ffcdd2;
-    border-radius: 4px;
-    padding: 10px 15px;
-    margin-bottom: 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  background-color: #ffebee;
+  border: 1px solid #ffcdd2;
+  border-radius: 4px;
+  padding: 10px 15px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .error-message p {
-    margin: 0;
-    color: #c62828;
+  margin: 0;
+  color: #c62828;
 }
 
 .error-message button {
-    background: none;
-    border: none;
-    color: #c62828;
-    cursor: pointer;
-    font-weight: 500;
-} /* 
+  background: none;
+  border: none;
+  color: #c62828;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+/* 
 Assessment Funnel Styles */
 .assessment-funnel {
   display: flex;
@@ -1472,19 +1529,23 @@ Assessment Funnel Styles */
 }
 
 .assessment-funnel__indicator--strong-recommend {
-  background: #48bb78; /* Green */
+  background: #48bb78;
+  /* Green */
 }
 
 .assessment-funnel__indicator--recommend {
-  background: #38b2ac; /* Teal */
+  background: #38b2ac;
+  /* Teal */
 }
 
 .assessment-funnel__indicator--review-needed {
-  background: #ed8936; /* Orange */
+  background: #ed8936;
+  /* Orange */
 }
 
 .assessment-funnel__indicator--not-recommend {
-  background: #f56565; /* Red */
+  background: #f56565;
+  /* Red */
 }
 
 .assessment-funnel__label {
@@ -1535,23 +1596,28 @@ Assessment Funnel Styles */
 }
 
 .workshop-pipeline__indicator--pending {
-  background: #9ca3af; /* Gray */
+  background: #9ca3af;
+  /* Gray */
 }
 
 .workshop-pipeline__indicator--invited {
-  background: #3b82f6; /* Blue */
+  background: #3b82f6;
+  /* Blue */
 }
 
 .workshop-pipeline__indicator--registered {
-  background: #8b5cf6; /* Purple */
+  background: #8b5cf6;
+  /* Purple */
 }
 
 .workshop-pipeline__indicator--attended {
-  background: #10b981; /* Emerald */
+  background: #10b981;
+  /* Emerald */
 }
 
 .workshop-pipeline__indicator--no-show {
-  background: #ef4444; /* Red */
+  background: #ef4444;
+  /* Red */
 }
 
 .workshop-pipeline__label {
@@ -1565,8 +1631,9 @@ Assessment Funnel Styles */
   font-weight: 600;
   color: var(--color-primary);
   font-size: 0.9rem;
-}/
-* Enhanced Applications Table Styles */
+}
+
+/*Enhanced Applications Table Styles*/
 .admissions-dashboard__checkbox-column {
   width: 40px;
   text-align: center;
@@ -1579,7 +1646,7 @@ Assessment Funnel Styles */
 }
 
 .admissions-dashboard__row--selected {
-  background: rgba(102, 126, 234, 0.1);
+  background: var(--color-primary-transparent);
 }
 
 .admissions-dashboard__bulk-actions-btn {
@@ -1601,7 +1668,7 @@ Assessment Funnel Styles */
 }
 
 .admissions-dashboard__bulk-actions-btn:hover:not(:disabled) {
-  background: #5a67d8;
+  background: var(--color-primary-hover);
   transform: translateY(-1px);
 }
 
@@ -1953,14 +2020,17 @@ Assessment Funnel Styles */
   font-weight: 600;
   color: var(--color-text-primary);
 }
+
 /* Assessment Funnel */
 .admissions-dashboard__assessment-funnel {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
   margin-top: 0.5rem;
-  flex: 1; /* Fill remaining space in card */
-  justify-content: space-evenly; /* Distribute items evenly */
+  flex: 1;
+  /* Fill remaining space in card */
+  justify-content: space-evenly;
+  /* Distribute items evenly */
 }
 
 .admissions-dashboard__assessment-funnel-item {
@@ -1968,15 +2038,12 @@ Assessment Funnel Styles */
   align-items: center;
   gap: 0.5rem;
   padding: 0.25rem 0.5rem;
-  background: var(--color-background-darker);
+  background: transparent;
   border-radius: 4px;
-  transition: background-color 0.2s ease;
-  flex: 1; /* Equal height for all items */
-  min-height: 28px; /* Minimum height for consistency */
-}
-
-.admissions-dashboard__assessment-funnel-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  flex: 1;
+  /* Equal height for all items */
+  min-height: 28px;
+  /* Minimum height for consistency */
 }
 
 .admissions-dashboard__assessment-funnel-indicator {
@@ -2027,8 +2094,10 @@ Assessment Funnel Styles */
   flex-direction: column;
   gap: 0.3rem;
   margin-top: 0.5rem;
-  flex: 1; /* Fill remaining space in card */
-  justify-content: space-evenly; /* Distribute items evenly */
+  flex: 1;
+  /* Fill remaining space in card */
+  justify-content: space-evenly;
+  /* Distribute items evenly */
 }
 
 .admissions-dashboard__workshop-pipeline-item {
@@ -2036,15 +2105,12 @@ Assessment Funnel Styles */
   align-items: center;
   gap: 0.5rem;
   padding: 0.25rem 0.5rem;
-  background: var(--color-background-darker);
+  background: transparent;
   border-radius: 4px;
-  transition: background-color 0.2s ease;
-  flex: 1; /* Equal height for all items */
-  min-height: 28px; /* Minimum height for consistency */
-}
-
-.admissions-dashboard__workshop-pipeline-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  flex: 1;
+  /* Equal height for all items */
+  min-height: 28px;
+  /* Minimum height for consistency */
 }
 
 .admissions-dashboard__workshop-pipeline-indicator {
@@ -2099,6 +2165,7 @@ Assessment Funnel Styles */
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2106,12 +2173,29 @@ Assessment Funnel Styles */
 }
 
 /* Staggered animation for grid items */
-.admissions-dashboard__stat-card:nth-child(1) { animation-delay: 0.1s; }
-.admissions-dashboard__stat-card:nth-child(2) { animation-delay: 0.2s; }
-.admissions-dashboard__stat-card:nth-child(3) { animation-delay: 0.3s; }
-.admissions-dashboard__stat-card:nth-child(4) { animation-delay: 0.4s; }
-.admissions-dashboard__stat-card:nth-child(5) { animation-delay: 0.5s; }
-.admissions-dashboard__stat-card:nth-child(6) { animation-delay: 0.6s; }
+.admissions-dashboard__stat-card:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.admissions-dashboard__stat-card:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.admissions-dashboard__stat-card:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.admissions-dashboard__stat-card:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+.admissions-dashboard__stat-card:nth-child(5) {
+  animation-delay: 0.5s;
+}
+
+.admissions-dashboard__stat-card:nth-child(6) {
+  animation-delay: 0.6s;
+}
 
 /* Enhanced hover effects for interactive elements */
 .admissions-dashboard__assessment-funnel-item,
@@ -2153,9 +2237,8 @@ Assessment Funnel Styles */
 /* Enhanced grid layout with better spacing */
 .admissions-dashboard__stats-grid {
   padding: 0.5rem;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: transparent;
+  border-radius: 8px;
 }
 
 /* Improved tab styling */
@@ -2186,7 +2269,7 @@ Assessment Funnel Styles */
 
 /* Subtle glow effect for active elements */
 .admissions-dashboard__stat-card:hover {
-  box-shadow: 
+  box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.2),
     0 0 20px rgba(102, 126, 234, 0.1);
 }
@@ -2214,7 +2297,8 @@ Assessment Funnel Styles */
 @media (max-width: 1400px) {
   .admissions-dashboard__stats-grid {
     grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(2, 1fr); /* Maintain equal row heights */
+    grid-template-rows: repeat(2, 1fr);
+    /* Maintain equal row heights */
     gap: 0.8rem;
   }
 }
@@ -2222,10 +2306,11 @@ Assessment Funnel Styles */
 @media (max-width: 1024px) {
   .admissions-dashboard__stats-grid {
     grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(3, 1fr); /* Three equal rows for 2-column layout */
+    grid-template-rows: repeat(3, 1fr);
+    /* Three equal rows for 2-column layout */
     gap: 0.8rem;
   }
-  
+
   .admissions-dashboard__content {
     padding: 1rem 1.5rem;
   }
@@ -2234,36 +2319,39 @@ Assessment Funnel Styles */
 @media (max-width: 768px) {
   .admissions-dashboard__stats-grid {
     grid-template-columns: 1fr;
-    grid-template-rows: repeat(6, minmax(120px, 1fr)); /* Six equal rows for mobile */
+    grid-template-rows: repeat(6, minmax(120px, 1fr));
+    /* Six equal rows for mobile */
     gap: 0.8rem;
     padding: 0.25rem;
   }
-  
+
   .admissions-dashboard__content {
     padding: 1rem;
   }
-  
+
   .admissions-dashboard__tabs {
     padding: 1rem 1rem 0 1rem;
     gap: 0.25rem;
   }
-  
+
   .admissions-dashboard__tab {
     padding: 0.75rem 1rem;
     font-size: 0.9rem;
   }
-  
+
   .admissions-dashboard__stat-card {
     padding: 0.8rem;
   }
-  
+
   .admissions-dashboard__stat-card-value {
     font-size: 1.5rem;
   }
-}/*
+}
+
+/*
  Modern Dashboard Background Pattern */
 .admissions-dashboard {
-  background: 
+  background:
     radial-gradient(circle at 20% 80%, rgba(102, 126, 234, 0.03) 0%, transparent 50%),
     radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.03) 0%, transparent 50%),
     var(--color-background-darker);
@@ -2271,9 +2359,9 @@ Assessment Funnel Styles */
 
 /* Enhanced stat card styling with subtle gradients */
 .admissions-dashboard__stat-card {
-  background: linear-gradient(135deg, 
-    var(--color-background-dark) 0%, 
-    rgba(255, 255, 255, 0.02) 100%);
+  background: linear-gradient(135deg,
+      var(--color-background-dark) 0%,
+      rgba(255, 255, 255, 0.02) 100%);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -2291,17 +2379,17 @@ Assessment Funnel Styles */
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    rgba(102, 126, 234, 0.3) 50%, 
-    transparent 100%);
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(102, 126, 234, 0.3) 50%,
+      transparent 100%);
 }
 
 /* Enhanced tab navigation with better visual hierarchy */
 .admissions-dashboard__tabs {
-  background: linear-gradient(135deg, 
-    var(--color-background-darker) 0%, 
-    rgba(255, 255, 255, 0.01) 100%);
+  background: linear-gradient(135deg,
+      var(--color-background-darker) 0%,
+      rgba(255, 255, 255, 0.01) 100%);
   border-bottom: 2px solid rgba(102, 126, 234, 0.1);
   position: relative;
 }
@@ -2313,10 +2401,10 @@ Assessment Funnel Styles */
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    rgba(102, 126, 234, 0.5) 50%, 
-    transparent 100%);
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(102, 126, 234, 0.5) 50%,
+      transparent 100%);
 }
 
 /* Improved stat card icons with subtle glow */
@@ -2332,17 +2420,24 @@ Assessment Funnel Styles */
 
 /* Enhanced overview grid with better visual separation */
 .admissions-dashboard__stats-grid {
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.01) 0%, 
-    rgba(255, 255, 255, 0.03) 100%);
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.01) 0%,
+      rgba(255, 255, 255, 0.03) 100%);
   border: 1px solid rgba(255, 255, 255, 0.03);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 /* Subtle pulse animation for loading states */
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .admissions-dashboard__loading p {
@@ -2351,9 +2446,9 @@ Assessment Funnel Styles */
 
 /* Enhanced error state styling */
 .admissions-dashboard__error {
-  background: linear-gradient(135deg, 
-    rgba(239, 68, 68, 0.08) 0%, 
-    rgba(239, 68, 68, 0.12) 100%);
+  background: linear-gradient(135deg,
+      rgba(239, 68, 68, 0.08) 0%,
+      rgba(239, 68, 68, 0.12) 100%);
   border: 1px solid rgba(239, 68, 68, 0.2);
   backdrop-filter: blur(10px);
 }
@@ -2362,9 +2457,9 @@ Assessment Funnel Styles */
 .admissions-dashboard__no-data {
   text-align: center;
   padding: 3rem 2rem;
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.02) 0%, 
-    rgba(255, 255, 255, 0.05) 100%);
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.02) 0%,
+      rgba(255, 255, 255, 0.05) 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   color: var(--color-text-secondary);
@@ -2374,7 +2469,9 @@ Assessment Funnel Styles */
   font-size: 1.1rem;
   margin: 0;
   opacity: 0.8;
-}/* Sort
+}
+
+/* Sort
 able Table Headers */
 .sortable-header {
   cursor: pointer;
@@ -2398,9 +2495,9 @@ able Table Headers */
 /* Name Search Input */
 .name-search-input {
   padding: 0.6rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-background-darker);
   color: var(--color-text-primary);
   font-size: 0.9rem;
   min-width: 200px;
@@ -2410,8 +2507,8 @@ able Table Headers */
 .name-search-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+  background: var(--color-background-light);
+  box-shadow: 0 0 0 2px var(--color-primary-transparent);
 }
 
 .name-search-input::placeholder {
@@ -2434,7 +2531,7 @@ able Table Headers */
     font-size: 0.8rem;
     padding: 0.5rem 0.8rem;
   }
-  
+
   .data-section__controls {
     gap: 0.5rem;
   }
@@ -2445,38 +2542,120 @@ able Table Headers */
     min-width: 120px;
     width: 100%;
   }
-  
+
   .data-section__controls {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .filter-select {
     width: 100%;
   }
-}/* Fixed Co
-lumn Widths for Consistent Layout */
-.data-table th:nth-child(1) { width: 50px; }  /* Checkbox */
-.data-table th:nth-child(2) { width: 180px; } /* Name */
-.data-table th:nth-child(3) { width: 200px; } /* Email */
-.data-table th:nth-child(4) { width: 130px; } /* Phone */
-.data-table th:nth-child(5) { width: 120px; } /* Status */
-.data-table th:nth-child(6) { width: 140px; } /* Assessment */
-.data-table th:nth-child(7) { width: 130px; } /* Info Session */
-.data-table th:nth-child(8) { width: 120px; } /* Workshop */
-.data-table th:nth-child(9) { width: 120px; } /* Admission */
-.data-table th:nth-child(10) { width: 100px; } /* Notes */
+}
 
-.data-table td:nth-child(1) { width: 50px; }  /* Checkbox */
-.data-table td:nth-child(2) { width: 180px; } /* Name */
-.data-table td:nth-child(3) { width: 200px; } /* Email */
-.data-table td:nth-child(4) { width: 130px; } /* Phone */
-.data-table td:nth-child(5) { width: 120px; } /* Status */
-.data-table td:nth-child(6) { width: 140px; } /* Assessment */
-.data-table td:nth-child(7) { width: 130px; } /* Info Session */
-.data-table td:nth-child(8) { width: 120px; } /* Workshop */
-.data-table td:nth-child(9) { width: 120px; } /* Admission */
-.data-table td:nth-child(10) { width: 100px; } /* Notes */
+/* Fixed Co
+lumn Widths for Consistent Layout */
+.data-table th:nth-child(1) {
+  width: 50px;
+}
+
+/* Checkbox */
+.data-table th:nth-child(2) {
+  width: 180px;
+}
+
+/* Name */
+.data-table th:nth-child(3) {
+  width: 200px;
+}
+
+/* Email */
+.data-table th:nth-child(4) {
+  width: 130px;
+}
+
+/* Phone */
+.data-table th:nth-child(5) {
+  width: 120px;
+}
+
+/* Status */
+.data-table th:nth-child(6) {
+  width: 140px;
+}
+
+/* Assessment */
+.data-table th:nth-child(7) {
+  width: 130px;
+}
+
+/* Info Session */
+.data-table th:nth-child(8) {
+  width: 120px;
+}
+
+/* Workshop */
+.data-table th:nth-child(9) {
+  width: 120px;
+}
+
+/* Admission */
+.data-table th:nth-child(10) {
+  width: 100px;
+}
+
+/* Notes */
+
+.data-table td:nth-child(1) {
+  width: 50px;
+}
+
+/* Checkbox */
+.data-table td:nth-child(2) {
+  width: 180px;
+}
+
+/* Name */
+.data-table td:nth-child(3) {
+  width: 200px;
+}
+
+/* Email */
+.data-table td:nth-child(4) {
+  width: 130px;
+}
+
+/* Phone */
+.data-table td:nth-child(5) {
+  width: 120px;
+}
+
+/* Status */
+.data-table td:nth-child(6) {
+  width: 140px;
+}
+
+/* Assessment */
+.data-table td:nth-child(7) {
+  width: 130px;
+}
+
+/* Info Session */
+.data-table td:nth-child(8) {
+  width: 120px;
+}
+
+/* Workshop */
+.data-table td:nth-child(9) {
+  width: 120px;
+}
+
+/* Admission */
+.data-table td:nth-child(10) {
+  width: 100px;
+}
+
+/* Notes */
 
 /* Ensure content doesn't overflow in fixed width cells */
 .data-table td {
@@ -2490,12 +2669,16 @@ lumn Widths for Consistent Layout */
 .data-table td:nth-child(3) {
   white-space: normal;
   word-wrap: break-word;
-  max-width: 0; /* This forces the cell to respect the width */
-}/* Resp
+  max-width: 0;
+  /* This forces the cell to respect the width */
+}
+
+/* Resp
 onsive table adjustments */
 @media (max-width: 1400px) {
   .data-table {
-    min-width: 1000px; /* Reduce minimum width on smaller screens */
+    min-width: 1000px;
+    /* Reduce minimum width on smaller screens */
   }
 }
 
@@ -2503,33 +2686,94 @@ onsive table adjustments */
   .data-table {
     min-width: 900px;
   }
-  
+
   /* Adjust column widths for tablets */
-  .data-table th:nth-child(2), .data-table td:nth-child(2) { width: 150px; } /* Name */
-  .data-table th:nth-child(3), .data-table td:nth-child(3) { width: 180px; } /* Email */
-  .data-table th:nth-child(4), .data-table td:nth-child(4) { width: 110px; } /* Phone */
+  .data-table th:nth-child(2),
+  .data-table td:nth-child(2) {
+    width: 150px;
+  }
+
+  /* Name */
+  .data-table th:nth-child(3),
+  .data-table td:nth-child(3) {
+    width: 180px;
+  }
+
+  /* Email */
+  .data-table th:nth-child(4),
+  .data-table td:nth-child(4) {
+    width: 110px;
+  }
+
+  /* Phone */
 }
 
 @media (max-width: 768px) {
   .data-table {
     min-width: 800px;
   }
-  
+
   /* Further reduce column widths for mobile */
-  .data-table th:nth-child(2), .data-table td:nth-child(2) { width: 130px; } /* Name */
-  .data-table th:nth-child(3), .data-table td:nth-child(3) { width: 160px; } /* Email */
-  .data-table th:nth-child(4), .data-table td:nth-child(4) { width: 100px; } /* Phone */
-  .data-table th:nth-child(5), .data-table td:nth-child(5) { width: 100px; } /* Status */
-  .data-table th:nth-child(6), .data-table td:nth-child(6) { width: 120px; } /* Assessment */
-  .data-table th:nth-child(7), .data-table td:nth-child(7) { width: 110px; } /* Info Session */
-  .data-table th:nth-child(8), .data-table td:nth-child(8) { width: 100px; } /* Workshop */
-  .data-table th:nth-child(9), .data-table td:nth-child(9) { width: 100px; } /* Admission */
-  .data-table th:nth-child(10), .data-table td:nth-child(10) { width: 80px; } /* Notes */
+  .data-table th:nth-child(2),
+  .data-table td:nth-child(2) {
+    width: 130px;
+  }
+
+  /* Name */
+  .data-table th:nth-child(3),
+  .data-table td:nth-child(3) {
+    width: 160px;
+  }
+
+  /* Email */
+  .data-table th:nth-child(4),
+  .data-table td:nth-child(4) {
+    width: 100px;
+  }
+
+  /* Phone */
+  .data-table th:nth-child(5),
+  .data-table td:nth-child(5) {
+    width: 100px;
+  }
+
+  /* Status */
+  .data-table th:nth-child(6),
+  .data-table td:nth-child(6) {
+    width: 120px;
+  }
+
+  /* Assessment */
+  .data-table th:nth-child(7),
+  .data-table td:nth-child(7) {
+    width: 110px;
+  }
+
+  /* Info Session */
+  .data-table th:nth-child(8),
+  .data-table td:nth-child(8) {
+    width: 100px;
+  }
+
+  /* Workshop */
+  .data-table th:nth-child(9),
+  .data-table td:nth-child(9) {
+    width: 100px;
+  }
+
+  /* Admission */
+  .data-table th:nth-child(10),
+  .data-table td:nth-child(10) {
+    width: 80px;
+  }
+
+  /* Notes */
 }
 
 /* Ensure the table container always maintains its width */
 .data-table-container {
-  flex-shrink: 0; /* Prevent the container from shrinking */
+  flex-shrink: 0;
+  /* Prevent the container from shrinking */
 }
 
 /* Make sure the applications section doesn't change width */
@@ -2537,49 +2781,58 @@ onsive table adjustments */
 .admissions-dashboard__applications .data-table-container {
   width: 100%;
   box-sizing: border-box;
-}/* Inf
+}
+
+/* Inf
 o Sessions and Workshops Table Column Widths */
 .admissions-dashboard__info-sessions .data-table th:nth-child(1),
 .admissions-dashboard__info-sessions .data-table td:nth-child(1),
 .admissions-dashboard__workshops .data-table th:nth-child(1),
 .admissions-dashboard__workshops .data-table td:nth-child(1) {
-  width: 30%; /* Event Name - wider but balanced */
+  width: 30%;
+  /* Event Name - wider but balanced */
 }
 
 .admissions-dashboard__info-sessions .data-table th:nth-child(2),
 .admissions-dashboard__info-sessions .data-table td:nth-child(2),
 .admissions-dashboard__workshops .data-table th:nth-child(2),
 .admissions-dashboard__workshops .data-table td:nth-child(2) {
-  width: 20%; /* Date & Time */
+  width: 20%;
+  /* Date & Time */
 }
 
 .admissions-dashboard__info-sessions .data-table th:nth-child(3),
 .admissions-dashboard__info-sessions .data-table td:nth-child(3),
 .admissions-dashboard__workshops .data-table th:nth-child(3),
 .admissions-dashboard__workshops .data-table td:nth-child(3) {
-  width: 12%; /* Registered count */
+  width: 12%;
+  /* Registered count */
 }
 
 .admissions-dashboard__info-sessions .data-table th:nth-child(4),
 .admissions-dashboard__info-sessions .data-table td:nth-child(4),
 .admissions-dashboard__workshops .data-table th:nth-child(4),
 .admissions-dashboard__workshops .data-table td:nth-child(4) {
-  width: 12%; /* Attended count */
+  width: 12%;
+  /* Attended count */
 }
 
 .admissions-dashboard__workshops .data-table th:nth-child(5),
 .admissions-dashboard__workshops .data-table td:nth-child(5) {
-  width: 10%; /* Laptops Needed count */
+  width: 10%;
+  /* Laptops Needed count */
 }
 
 .admissions-dashboard__info-sessions .data-table th:nth-child(5),
 .admissions-dashboard__info-sessions .data-table td:nth-child(5) {
-  width: 26%; /* Actions - Info Sessions (5 columns) */
+  width: 26%;
+  /* Actions - Info Sessions (5 columns) */
 }
 
 .admissions-dashboard__workshops .data-table th:nth-child(6),
 .admissions-dashboard__workshops .data-table td:nth-child(6) {
-  width: 24%; /* Actions - Workshops (6 columns) */
+  width: 24%;
+  /* Actions - Workshops (6 columns) */
 }
 
 /* Allow event names to wrap and show full text */
@@ -2592,80 +2845,96 @@ o Sessions and Workshops Table Column Widths */
 
 /* Responsive adjustments for Info Sessions and Workshops */
 @media (max-width: 1024px) {
+
   .admissions-dashboard__info-sessions .data-table th:nth-child(1),
   .admissions-dashboard__info-sessions .data-table td:nth-child(1),
   .admissions-dashboard__workshops .data-table th:nth-child(1),
   .admissions-dashboard__workshops .data-table td:nth-child(1) {
-    width: 28%; /* Slightly smaller on tablets */
+    width: 28%;
+    /* Slightly smaller on tablets */
   }
-  
+
   .admissions-dashboard__info-sessions .data-table th:nth-child(2),
   .admissions-dashboard__info-sessions .data-table td:nth-child(2),
   .admissions-dashboard__workshops .data-table th:nth-child(2),
   .admissions-dashboard__workshops .data-table td:nth-child(2) {
-    width: 22%; /* More space for date/time */
+    width: 22%;
+    /* More space for date/time */
   }
-  
+
   .admissions-dashboard__info-sessions .data-table th:nth-child(5),
   .admissions-dashboard__info-sessions .data-table td:nth-child(5) {
-    width: 26%; /* Keep actions space consistent - Info Sessions */
+    width: 26%;
+    /* Keep actions space consistent - Info Sessions */
   }
-  
+
   .admissions-dashboard__workshops .data-table th:nth-child(5),
   .admissions-dashboard__workshops .data-table td:nth-child(5) {
-    width: 10%; /* Laptops Needed - Workshops */
+    width: 10%;
+    /* Laptops Needed - Workshops */
   }
-  
+
   .admissions-dashboard__workshops .data-table th:nth-child(6),
   .admissions-dashboard__workshops .data-table td:nth-child(6) {
-    width: 24%; /* Actions - Workshops */
+    width: 24%;
+    /* Actions - Workshops */
   }
 }
 
 @media (max-width: 768px) {
+
   .admissions-dashboard__info-sessions .data-table th:nth-child(1),
   .admissions-dashboard__info-sessions .data-table td:nth-child(1),
   .admissions-dashboard__workshops .data-table th:nth-child(1),
   .admissions-dashboard__workshops .data-table td:nth-child(1) {
-    width: 25%; /* Smaller on mobile */
+    width: 25%;
+    /* Smaller on mobile */
   }
-  
+
   .admissions-dashboard__info-sessions .data-table th:nth-child(2),
   .admissions-dashboard__info-sessions .data-table td:nth-child(2),
   .admissions-dashboard__workshops .data-table th:nth-child(2),
   .admissions-dashboard__workshops .data-table td:nth-child(2) {
-    width: 25%; /* Balanced date/time space */
+    width: 25%;
+    /* Balanced date/time space */
   }
-  
+
   .admissions-dashboard__info-sessions .data-table th:nth-child(3),
   .admissions-dashboard__info-sessions .data-table td:nth-child(3),
   .admissions-dashboard__workshops .data-table th:nth-child(3),
   .admissions-dashboard__workshops .data-table td:nth-child(3) {
-    width: 10%; /* Compact numbers */
+    width: 10%;
+    /* Compact numbers */
   }
-  
+
   .admissions-dashboard__info-sessions .data-table th:nth-child(4),
   .admissions-dashboard__info-sessions .data-table td:nth-child(4),
   .admissions-dashboard__workshops .data-table th:nth-child(4),
   .admissions-dashboard__workshops .data-table td:nth-child(4) {
-    width: 10%; /* Compact numbers */
+    width: 10%;
+    /* Compact numbers */
   }
-  
+
   .admissions-dashboard__info-sessions .data-table th:nth-child(5),
   .admissions-dashboard__info-sessions .data-table td:nth-child(5) {
-    width: 30%; /* Adequate space for actions on mobile - Info Sessions */
+    width: 30%;
+    /* Adequate space for actions on mobile - Info Sessions */
   }
-  
+
   .admissions-dashboard__workshops .data-table th:nth-child(5),
   .admissions-dashboard__workshops .data-table td:nth-child(5) {
-    width: 8%; /* Laptops Needed - Workshops mobile */
+    width: 8%;
+    /* Laptops Needed - Workshops mobile */
   }
-  
+
   .admissions-dashboard__workshops .data-table th:nth-child(6),
   .admissions-dashboard__workshops .data-table td:nth-child(6) {
-    width: 27%; /* Actions - Workshops mobile */
+    width: 27%;
+    /* Actions - Workshops mobile */
   }
-}/* Lapto
+}
+
+/* Lapto
 p indicator styles */
 .laptop-indicator-cell {
   text-align: center;
