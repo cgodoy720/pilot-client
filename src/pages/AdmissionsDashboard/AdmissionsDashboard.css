@@ -3043,7 +3043,8 @@ p indicator styles */
   padding: 1rem 0;
   flex: 1;
   overflow-y: auto;
-  min-height: 0; /* Important for flex child with overflow */
+  min-height: 0;
+  /* Important for flex child with overflow */
 }
 
 /* Ensure modal actions stay at bottom */
@@ -3095,8 +3096,13 @@ p indicator styles */
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Search Results */
@@ -3252,28 +3258,28 @@ p indicator styles */
     gap: 0.5rem;
     align-items: flex-start;
   }
-  
+
   .add-registration-btn {
     font-size: 0.8rem;
     padding: 0.4rem 0.8rem;
   }
-  
+
   .add-registration-modal {
     width: 98%;
     max-width: none;
     max-height: 95vh;
   }
-  
+
   .applicant-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
-  
+
   .selection-checkbox {
     align-self: flex-end;
   }
-  
+
   .selected-list {
     flex-direction: column;
   }
