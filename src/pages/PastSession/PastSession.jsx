@@ -1532,7 +1532,17 @@ function PastSession() {
                     {getTaskIcon(task.type)}
                   </div>
                   <div className="learning__task-content">
-                    <h3 className="learning__task-title">{task.title}</h3>
+                    <h3 className="learning__task-title">
+                      <span className="learning__task-title-text">{task.title}</span>
+                      {(task.deliverable_type === 'link' || 
+                        task.deliverable_type === 'file' || 
+                        task.deliverable_type === 'document' || 
+                        task.deliverable_type === 'video') && (
+                        <span className="learning__task-deliverable-indicator" title="Has deliverable">
+                          <FaLink />
+                        </span>
+                      )}
+                    </h3>
                   </div>
                 </div>
               ))}
