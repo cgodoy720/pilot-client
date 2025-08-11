@@ -13,7 +13,6 @@ import FeedbackSection from './sections/FeedbackSection';
 import WorkProductSection from './sections/WorkProductSection';
 import ComprehensionSection from './sections/ComprehensionSection';
 import ResourcesSection from './sections/ResourcesSection';
-import ProgressOverview from './sections/ProgressOverview';
 import './Stats.css';
 
 const Stats = () => {
@@ -87,10 +86,6 @@ const Stats = () => {
       <Container maxWidth="xl" sx={{ pt: 1, pb: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
         {stats && (
           <>
-            <Box className="stats__overview">
-              <ProgressOverview stats={stats} />
-            </Box>
-
             <Box className="stats__tabs-container">
               <Tabs 
                 value={activeTab} 
