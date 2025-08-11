@@ -32,6 +32,7 @@ const AdmissionsDashboard = () => {
     const [applicationFilters, setApplicationFilters] = useState({
         workshop_status: '',
         program_admission_status: '',
+        ready_for_workshop_invitation: false,
         limit: 50,
         offset: 0
     });
@@ -165,6 +166,7 @@ const AdmissionsDashboard = () => {
             if (applicationFilters.final_status) params.append('final_status', applicationFilters.final_status);
             if (applicationFilters.workshop_status) params.append('workshop_status', applicationFilters.workshop_status);
             if (applicationFilters.program_admission_status) params.append('program_admission_status', applicationFilters.program_admission_status);
+            if (applicationFilters.ready_for_workshop_invitation) params.append('ready_for_workshop_invitation', 'true');
             params.append('limit', applicationFilters.limit);
             params.append('offset', applicationFilters.offset);
 
@@ -1232,6 +1234,16 @@ const AdmissionsDashboard = () => {
                                     onChange={(e) => setNameSearch(e.target.value)}
                                     className="name-search-input"
                                 />
+                                <button
+                                    className={`filter-toggle-btn ${applicationFilters.ready_for_workshop_invitation ? 'filter-toggle-btn--active' : ''}`}
+                                    onClick={() => setApplicationFilters({ ...applicationFilters, ready_for_workshop_invitation: !applicationFilters.ready_for_workshop_invitation })}
+                                    type="button"
+                                >
+                                    <span className="filter-toggle-btn__icon">
+                                        {applicationFilters.ready_for_workshop_invitation ? '✓' : '○'}
+                                    </span>
+                                    Ready for Workshop Invitation
+                                </button>
                                 <select
                                     value={applicationFilters.workshop_status || ''}
                                     onChange={(e) => setApplicationFilters({ ...applicationFilters, workshop_status: e.target.value })}

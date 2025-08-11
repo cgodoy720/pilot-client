@@ -164,6 +164,7 @@ function Calendar() {
                     <option value="">My Cohort</option>
                     <option value="March 2025">March 2025</option>
                     <option value="June 2025">June 2025</option>
+                    <option value="September 2025">September 2025</option>
                     {/* Add more cohorts as needed */}
                   </select>
                 </div>
