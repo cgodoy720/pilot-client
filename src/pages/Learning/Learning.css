@@ -406,15 +406,30 @@
 .learning__task-title {
   font-weight: 500;
   font-size: 0.95rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 2; /* Limit to 2 lines */
-  -webkit-box-orient: vertical;
+  display: flex;
+  align-items: center;
   overflow: hidden;
-  text-overflow: ellipsis;
   max-width: 100%;
   white-space: normal; /* Allow text to wrap */
   margin-bottom: 2px;
   line-height: 1.3;
+}
+
+.learning__task-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.learning__task-deliverable-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  font-size: 0.8rem;
+  opacity: 0.8;
+  margin-left: 4px;
+  flex-shrink: 0;
 }
 
 .learning__task-block {
