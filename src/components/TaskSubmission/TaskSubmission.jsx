@@ -95,8 +95,23 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
               setSubmissionData({ type: 'link', content: data.content, label: 'Submission' });
             }
           } catch (e) {
-            // If it's not valid JSON, assume it's a legacy single text submission
-            setSubmissionData({ type: 'link', content: data.content, label: 'Submission' });
+            // If it's not valid JSON, determine the type based on content
+            let submissionType = 'link'; // default to link
+            
+            // Check if it's a Loom video URL
+            try {
+              const url = new URL(data.content);
+              if (url.hostname.includes('loom.com')) {
+                submissionType = 'video';
+              }
+            } catch (urlError) {
+              // If it's not a valid URL, check if it looks like text content
+              if (data.content && data.content.length > 100 && !data.content.startsWith('http')) {
+                submissionType = 'text';
+              }
+            }
+            
+            setSubmissionData({ type: submissionType, content: data.content, label: 'Submission' });
           }
           
           setFeedback(data.feedback || '');
@@ -175,8 +190,24 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
     setError('');
 
     // Validate submission
-    const isValid = submissionData.content.trim() !== '' && 
-                    (submissionData.type !== 'link' || isValidUrl(submissionData.content));
+    let isValid = submissionData.content.trim() !== '';
+    
+    // Additional validation for link and video types
+    if (submissionData.type === 'link' && !isValidUrl(submissionData.content)) {
+      isValid = false;
+    }
+    
+    // Validate Loom URLs for video type
+    if (submissionData.type === 'video') {
+      if (!isValidUrl(submissionData.content)) {
+        isValid = false;
+      } else if (!isLoomUrl(submissionData.content)) {
+        isValid = false;
+        setError('Please provide a valid Loom video URL (loom.com).');
+        setIsSubmitting(false);
+        return;
+      }
+    }
 
     if (!isValid) {
       setError('Please fill in all submission fields. Ensure links are valid URLs.');
@@ -185,6 +216,9 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
     }
 
     try {
+      let contentToSubmit = submissionData.content;
+
+      // Submit the task with the content (URL for video uploads)
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions`, {
         method: 'POST',
         headers: {
@@ -193,7 +227,7 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
         },
         body: JSON.stringify({
           taskId,
-          content: submissionData.content
+          content: contentToSubmit
         })
       });
 
@@ -236,6 +270,16 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
     try {
       new URL(url);
       return true;
+    } catch (e) {
+      return false;
+    }
+  };
+  
+  // Loom URL validation
+  const isLoomUrl = (url) => {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.hostname.includes('loom.com');
     } catch (e) {
       return false;
     }
@@ -286,6 +330,16 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
                     />
                     Google Drive Link
                   </label>
+                  <label className={`task-submission__type-option ${submissionData.type === 'video' ? 'task-submission__type-option--active' : ''}`}>
+                    <input
+                      type="radio"
+                      name="type"
+                      value="video"
+                      checked={submissionData.type === 'video'}
+                      onChange={() => handleTypeChange('video')}
+                    />
+                    Video
+                  </label>
                 </div>
               </div>
 
@@ -297,6 +351,44 @@ const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeD
                   placeholder="Enter your text submission here..."
                   rows={6}
                 />
+              ) : submissionData.type === 'video' ? (
+                <div className="task-submission__video-upload-container">
+                  <input
+                    type="url"
+                    className="task-submission__link-input"
+                    value={submissionData.content}
+                    onChange={(e) => handleContentChange(e.target.value)}
+                    placeholder="Paste your Loom video URL here"
+                  />
+                  {submissionData.content && !isValidUrl(submissionData.content) && (
+                    <p className="task-submission__link-warning">Please enter a valid URL</p>
+                  )}
+                  {submissionData.content && isValidUrl(submissionData.content) && !isLoomUrl(submissionData.content) && (
+                    <p className="task-submission__link-warning">Please enter a Loom video URL (loom.com)</p>
+                  )}
+                  {submissionData.content && isValidUrl(submissionData.content) && isLoomUrl(submissionData.content) && (
+                    <div className="task-submission__video-preview">
+                      <div className="task-submission__loom-embed">
+                        <iframe 
+                          src={submissionData.content.includes('/share/') ? submissionData.content.replace('/share/', '/embed/') : submissionData.content} 
+                          frameBorder="0" 
+                          allowFullScreen
+                          className="task-submission__video-player"
+                        ></iframe>
+                      </div>
+                      <div className="task-submission__link-actions" style={{ justifyContent: 'center', width: '100%' }}>
+                        <a 
+                          href={submissionData.content} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="task-submission__link-preview"
+                        >
+                          View Loom video
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="task-submission__link-input-container">
                   <input
