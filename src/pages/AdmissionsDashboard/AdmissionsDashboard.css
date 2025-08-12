@@ -555,8 +555,8 @@
 
 /* Data Tables */
 .data-table-container {
-  background: var(--color-background-darker);
-  border: 1px solid var(--color-border);
+  background: rgba(30, 36, 48, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   overflow: hidden;
   width: 100%;
@@ -582,20 +582,25 @@
 }
 
 .data-table th {
-  background: var(--color-background-light);
+  background: rgba(45, 55, 72, 0.6);
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: #e2e8f0;
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .data-table td {
-  color: var(--color-text-secondary);
+  color: #cbd5e0;
+  background: rgba(26, 32, 44, 0.4);
 }
 
 .data-table tbody tr:hover {
-  background: var(--color-background-light);
+  background: rgba(45, 55, 72, 0.4) !important;
+}
+
+.data-table tbody tr:hover td {
+  background: rgba(45, 55, 72, 0.4) !important;
 }
 
 .clickable-row {
@@ -610,7 +615,7 @@
 
 .applicant-name {
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: #f7fafc;
 }
 
 .status-badge {
@@ -701,8 +706,8 @@
 
 .table-footer {
   padding: 1rem;
-  background: var(--color-background-light);
-  border-top: 1px solid var(--color-border);
+  background: rgba(45, 55, 72, 0.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1064,7 +1069,7 @@
 
 /* Registrations expanded row */
 .registrations-row {
-  background: var(--color-background-light);
+  background: rgba(37, 47, 63, 0.5);
 }
 
 .registrations-cell {
@@ -1084,7 +1089,7 @@
 .mini-table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--color-background-darker);
+  background: rgba(30, 36, 48, 0.6);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -1097,17 +1102,18 @@
 }
 
 .mini-table th {
-  background: var(--color-background-light);
+  background: rgba(45, 55, 72, 0.7);
   font-weight: 600;
-  color: var(--color-text-secondary);
+  color: #a0aec0;
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .mini-table td {
-  color: var(--color-text-primary);
+  color: #e2e8f0;
   font-size: 0.9rem;
+  background: rgba(26, 32, 44, 0.3);
 }
 
 /* Phone column styling */
@@ -3164,17 +3170,17 @@ p indicator styles */
 .search-results {
   max-height: 400px;
   overflow-y: auto;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 6px;
-  background: var(--color-background-darker);
+  background: rgba(30, 36, 48, 0.8);
 }
 
 .search-results h4 {
   padding: 0.75rem 1rem;
   margin: 0;
-  background: var(--color-background-dark);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--color-text-primary);
+  background: rgba(45, 55, 72, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
   font-size: 0.9rem;
   font-weight: 600;
 }
@@ -3189,11 +3195,11 @@ p indicator styles */
   align-items: center;
   padding: 0.75rem;
   margin-bottom: 0.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: var(--color-background-light);
+  background: rgba(37, 47, 63, 0.6);
 }
 
 .applicant-item:hover:not(.already-registered) {
@@ -3209,7 +3215,7 @@ p indicator styles */
 .applicant-item.already-registered {
   opacity: 0.6;
   cursor: not-allowed;
-  background: var(--color-background-darker);
+  background: rgba(26, 32, 44, 0.7);
 }
 
 .applicant-info {
@@ -3257,8 +3263,8 @@ p indicator styles */
 
 /* Selected Applicants */
 .selected-applicants {
-  background: var(--color-background-darker);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(30, 36, 48, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 6px;
   padding: 1rem;
 }
