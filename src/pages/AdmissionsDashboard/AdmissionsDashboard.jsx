@@ -30,6 +30,8 @@ const AdmissionsDashboard = () => {
 
     // Pagination and filters
     const [applicationFilters, setApplicationFilters] = useState({
+        status: '',
+        info_session_status: '',
         workshop_status: '',
         program_admission_status: '',
         ready_for_workshop_invitation: false,
@@ -162,6 +164,7 @@ const AdmissionsDashboard = () => {
             setLoading(true);
             const params = new URLSearchParams();
             if (applicationFilters.status) params.append('status', applicationFilters.status);
+            if (applicationFilters.info_session_status) params.append('info_session_status', applicationFilters.info_session_status);
             if (applicationFilters.recommendation) params.append('recommendation', applicationFilters.recommendation);
             if (applicationFilters.final_status) params.append('final_status', applicationFilters.final_status);
             if (applicationFilters.workshop_status) params.append('workshop_status', applicationFilters.workshop_status);
@@ -1225,7 +1228,6 @@ const AdmissionsDashboard = () => {
                 {activeTab === 'applications' && (
                     <div className="admissions-dashboard__applications">
                         <div className="data-section__header">
-                            <h2>Applicant Management</h2>
                             <div className="data-section__controls">
                                 <input
                                     type="text"
@@ -1234,16 +1236,28 @@ const AdmissionsDashboard = () => {
                                     onChange={(e) => setNameSearch(e.target.value)}
                                     className="name-search-input"
                                 />
-                                <button
-                                    className={`filter-toggle-btn ${applicationFilters.ready_for_workshop_invitation ? 'filter-toggle-btn--active' : ''}`}
-                                    onClick={() => setApplicationFilters({ ...applicationFilters, ready_for_workshop_invitation: !applicationFilters.ready_for_workshop_invitation })}
-                                    type="button"
+                                <select
+                                    value={applicationFilters.status || ''}
+                                    onChange={(e) => setApplicationFilters({ ...applicationFilters, status: e.target.value })}
+                                    className="filter-select"
                                 >
-                                    <span className="filter-toggle-btn__icon">
-                                        {applicationFilters.ready_for_workshop_invitation ? '✓' : '○'}
-                                    </span>
-                                    Ready for Workshop Invitation
-                                </button>
+                                    <option value="">Application Status: All</option>
+                                    <option value="submitted">Submitted</option>
+                                    <option value="under_review">Under Review</option>
+                                </select>
+                                <select
+                                    value={applicationFilters.info_session_status || ''}
+                                    onChange={(e) => setApplicationFilters({ ...applicationFilters, info_session_status: e.target.value })}
+                                    className="filter-select"
+                                >
+                                    <option value="">Info Session: All</option>
+                                    <option value="not_registered">Not Registered</option>
+                                    <option value="registered">Registered</option>
+                                    <option value="attended">Attended</option>
+                                    <option value="attended_late">Attended Late</option>
+                                    <option value="very_late">Very Late</option>
+                                    <option value="no_show">No Show</option>
+                                </select>
                                 <select
                                     value={applicationFilters.workshop_status || ''}
                                     onChange={(e) => setApplicationFilters({ ...applicationFilters, workshop_status: e.target.value })}
@@ -1268,6 +1282,16 @@ const AdmissionsDashboard = () => {
                                     <option value="waitlisted">Waitlisted</option>
                                     <option value="deferred">Deferred</option>
                                 </select>
+                                <button
+                                    className={`filter-toggle-btn ${applicationFilters.ready_for_workshop_invitation ? 'filter-toggle-btn--active' : ''}`}
+                                    onClick={() => setApplicationFilters({ ...applicationFilters, ready_for_workshop_invitation: !applicationFilters.ready_for_workshop_invitation })}
+                                    type="button"
+                                >
+                                    <span className="filter-toggle-btn__icon">
+                                        {applicationFilters.ready_for_workshop_invitation ? '✓' : '○'}
+                                    </span>
+                                    Ready for Workshop Invitation
+                                </button>
                                 <button
                                     className="admissions-dashboard__bulk-actions-btn"
                                     disabled={selectedApplicants.length === 0}
@@ -1537,9 +1561,17 @@ const AdmissionsDashboard = () => {
                         ) : (
                             <div className="no-data-message">
                                 <p>No applicants found</p>
-                                {applicationFilters.status && (
+                                {(applicationFilters.status || applicationFilters.info_session_status || applicationFilters.workshop_status || applicationFilters.program_admission_status || applicationFilters.ready_for_workshop_invitation) && (
                                     <button
-                                        onClick={() => setApplicationFilters({ ...applicationFilters, status: '' })}
+                                        onClick={() => setApplicationFilters({ 
+                                            status: '', 
+                                            info_session_status: '', 
+                                            workshop_status: '', 
+                                            program_admission_status: '', 
+                                            ready_for_workshop_invitation: false,
+                                            limit: applicationFilters.limit,
+                                            offset: 0
+                                        })}
                                         className="clear-filter-btn"
                                     >
                                         Clear filters
