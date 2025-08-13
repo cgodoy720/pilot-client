@@ -1727,7 +1727,7 @@ function Learning() {
                         task.deliverable_type === 'file' || 
                         task.deliverable_type === 'document' || 
                         task.deliverable_type === 'video') && (
-                        <span className="learning__task-deliverable-indicator" title="Has deliverable">
+                        <span className="learning__task-deliverable-indicator">
                           <FaLink />
                         </span>
                       )}

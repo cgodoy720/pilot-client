@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaArrowRight, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes, FaLink, FaExternalLinkAlt, FaFileAlt, FaVideo, FaBars } from 'react-icons/fa';
+import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import PeerFeedbackForm from '../../components/PeerFeedbackForm';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
@@ -734,16 +735,95 @@ function PastSession() {
     );
   };
 
-  // Add a format function for message content
+  // Add a format function for message content with markdown support
   const formatMessageContent = (content) => {
-    // Basic formatting for message content
-    // You can enhance this with markdown parsing if needed
+    if (!content) return null;
+    
+    // Check if content is an object and not a string
+    if (typeof content === 'object') {
+      // Convert the object to a readable string format
+      try {
+        return <pre className="system-message">System message: {JSON.stringify(content, null, 2)}</pre>;
+      } catch (e) {
+        console.error('Error stringifying content object:', e);
+        return <p className="error-message">Error displaying message content</p>;
+      }
+    }
+    
+    // Split content by code blocks to handle them separately
+    const parts = content.split(/(```[\s\S]*?```)/g);
+    
     return (
-      <div className="past-session__message-text">
-        {content.split('\n').map((line, i) => (
-          <p key={i}>{line}</p>
-        ))}
-      </div>
+      <>
+        {parts.map((part, index) => {
+          // Check if this part is a code block
+          if (part.startsWith('```') && part.endsWith('```')) {
+            // Extract language and code
+            const match = part.match(/```(\w*)\n([\s\S]*?)```/);
+            
+            if (match) {
+              const [, language, code] = match;
+              
+              return (
+                <div key={index} className="code-block-wrapper">
+                  <div className="code-block-header">
+                    {language && <span className="code-language">{language}</span>}
+                  </div>
+                  <pre className="code-block">
+                    <code>{code}</code>
+                  </pre>
+                </div>
+              );
+            }
+          }
+          
+          // Regular markdown for non-code parts
+          return (
+            <ReactMarkdown key={index}
+              components={{
+                p: ({node, children, ...props}) => (
+                  <p className="markdown-paragraph" {...props}>{children}</p>
+                ),
+                h1: ({node, children, ...props}) => (
+                  <h1 className="markdown-heading" {...props}>{children}</h1>
+                ),
+                h2: ({node, children, ...props}) => (
+                  <h2 className="markdown-heading" {...props}>{children}</h2>
+                ),
+                h3: ({node, children, ...props}) => (
+                  <h3 className="markdown-heading" {...props}>{children}</h3>
+                ),
+                ul: ({node, children, ...props}) => (
+                  <ul className="markdown-list" {...props}>{children}</ul>
+                ),
+                ol: ({node, children, ...props}) => (
+                  <ol className="markdown-list" {...props}>{children}</ol>
+                ),
+                li: ({node, children, ...props}) => (
+                  <li className="markdown-list-item" {...props}>{children}</li>
+                ),
+                a: ({node, children, ...props}) => (
+                  <a className="markdown-link" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+                ),
+                strong: ({node, children, ...props}) => (
+                  <strong {...props}>{children}</strong>
+                ),
+                em: ({node, children, ...props}) => (
+                  <em {...props}>{children}</em>
+                ),
+                code: ({node, inline, className, children, ...props}) => {
+                  if (inline) {
+                    return <code className="inline-code" {...props}>{children}</code>;
+                  }
+                  return <code {...props}>{children}</code>;
+                }
+              }}
+            >
+              {part}
+            </ReactMarkdown>
+          );
+        })}
+      </>
     );
   };
 
@@ -1538,7 +1618,7 @@ function PastSession() {
                         task.deliverable_type === 'file' || 
                         task.deliverable_type === 'document' || 
                         task.deliverable_type === 'video') && (
-                        <span className="learning__task-deliverable-indicator" title="Has deliverable">
+                        <span className="learning__task-deliverable-indicator">
                           <FaLink />
                         </span>
                       )}

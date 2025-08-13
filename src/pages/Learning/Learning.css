@@ -416,9 +416,10 @@
 }
 
 .learning__task-title-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.3;
 }
 
 .learning__task-deliverable-indicator {
@@ -428,8 +429,10 @@
   color: var(--color-primary);
   font-size: 0.8rem;
   opacity: 0.8;
-  margin-left: 4px;
+  margin-left: 6px;
   flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 1px;
 }
 
 .learning__task-block {
