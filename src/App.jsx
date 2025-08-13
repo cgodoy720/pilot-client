@@ -12,6 +12,7 @@ import ApplicationDetail from './pages/AdmissionsDashboard/ApplicationDetail';
 import Content from './pages/Content';
 import Stats from './pages/Stats';
 import Account from './pages/Account/Account';
+import AttendanceDashboard from './pages/AttendanceDashboard/index.js';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
 
 import { useAuth } from './context/AuthContext';
@@ -113,6 +114,18 @@ function App() {
     return children;
   };
 
+  // Attendance route protection component
+  const AttendanceRoute = ({ children }) => {
+    const attendanceToken = localStorage.getItem('attendanceToken');
+    const attendanceUser = localStorage.getItem('attendanceUser');
+    
+    if (!attendanceToken || !attendanceUser) {
+      return <Navigate to="/attendance-login" replace />;
+    }
+    
+    return children;
+  };
+
   // If auth is still loading, show a minimal loading state
   if (isLoading) {
     return <div className="app-loading">Loading application...</div>;
@@ -186,6 +199,11 @@ function App() {
           <Layout>
             <Account />
           </Layout>
+        } />
+        <Route path="/attendance-dashboard" element={
+          <AttendanceRoute>
+            <AttendanceDashboard />
+          </AttendanceRoute>
         } />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>

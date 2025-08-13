@@ -8,6 +8,7 @@ import ForgotPassword from './pages/Login/ForgotPassword.jsx'
 import ResetPassword from './pages/Login/ResetPassword.jsx'
 import VerifyEmail from './pages/Login/VerifyEmail.jsx'
 import ResendVerification from './pages/Login/ResendVerification.jsx'
+import AttendanceLogin from './pages/AttendanceLogin/index.js'
 
 // Applicant pages
 import ApplicantSignup from './pages/ApplicantSignup/index.js'
@@ -49,6 +50,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/verify-email/:token" element={<VerifyEmail />} />
           <Route path="/resend-verification" element={<ResendVerification />} />
+          
+          {/* Attendance system routes */}
+          <Route path="/attendance-login" element={<AttendanceLogin />} />
           
           {/* Applicant routes (public, no builder auth required) */}
           <Route path="/apply/signup" element={<ApplicantSignup />} />

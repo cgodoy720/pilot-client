@@ -1,0 +1,222 @@
+.attendance-login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  background-color: var(--color-background-darker);
+  padding: var(--spacing-md);
+  padding-top: 10vh;
+  box-sizing: border-box;
+}
+
+.attendance-login-form-container {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.attendance-login-logo-container {
+  margin-bottom: var(--spacing-xl);
+}
+
+.attendance-login-logo {
+  height: 40px;
+  width: auto;
+}
+
+.attendance-login-headline {
+  margin-bottom: var(--spacing-xl);
+  text-align: center;
+}
+
+.attendance-login-headline h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.attendance-login-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.attendance-login-input-group {
+  position: relative;
+  width: 100%;
+}
+
+.attendance-login-input {
+  width: 100%;
+  padding: var(--spacing-md);
+  background-color: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  outline: none;
+  transition: border-color var(--transition-speed);
+}
+
+.attendance-login-input:focus {
+  border-color: var(--color-primary);
+}
+
+.password-input-group {
+  position: relative;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: color var(--transition-speed);
+}
+
+.password-toggle:hover {
+  color: var(--color-primary);
+}
+
+.attendance-login-button {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color var(--transition-speed);
+  font-weight: 600;
+}
+
+.attendance-login-button:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.attendance-login-error {
+  background-color: rgba(255, 0, 0, 0.1);
+  border: 1px solid rgba(255, 0, 0, 0.3);
+  color: #ff6b6b;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  margin-bottom: var(--spacing-md);
+  text-align: center;
+  width: 100%;
+}
+
+.attendance-login-button:disabled {
+  background-color: var(--color-border);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.attendance-login-input:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.attendance-login-footer {
+  margin-top: var(--spacing-xl);
+  text-align: center;
+}
+
+.attendance-login-footer p {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+/* Responsive design for classroom computers */
+@media (max-width: 768px) {
+  .attendance-login-container {
+    padding-top: 5vh;
+  }
+  
+  .attendance-login-form-container {
+    max-width: 350px;
+  }
+  
+  .attendance-login-headline h1 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .attendance-login-container {
+    padding: var(--spacing-sm);
+    padding-top: 3vh;
+  }
+  
+  .attendance-login-form-container {
+    max-width: 300px;
+  }
+  
+  .attendance-login-headline h1 {
+    font-size: 1.25rem;
+  }
+  
+  .attendance-login-input {
+    font-size: 0.9rem;
+  }
+  
+  .attendance-login-button {
+    font-size: 0.85rem;
+  }
+}
+
+/* Accessibility improvements */
+.attendance-login-input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.attendance-login-button:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+.password-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .attendance-login-input {
+    border-bottom-width: 2px;
+  }
+  
+  .attendance-login-button {
+    border: 2px solid white;
+  }
+  
+  .attendance-login-error {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .attendance-login-input,
+  .attendance-login-button,
+  .password-toggle {
+    transition: none;
+  }
+}
