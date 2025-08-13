@@ -35,10 +35,11 @@ const AdmissionsDashboard = () => {
         workshop_status: '',
         program_admission_status: '',
         ready_for_workshop_invitation: false,
+        name_search: '',
         limit: 50,
         offset: 0
     });
-    const [nameSearch, setNameSearch] = useState('');
+    const [nameSearchInput, setNameSearchInput] = useState('');
     const [columnSort, setColumnSort] = useState({
         column: 'created_at',
         direction: 'desc' // 'asc' or 'desc'
@@ -170,6 +171,7 @@ const AdmissionsDashboard = () => {
             if (applicationFilters.workshop_status) params.append('workshop_status', applicationFilters.workshop_status);
             if (applicationFilters.program_admission_status) params.append('program_admission_status', applicationFilters.program_admission_status);
             if (applicationFilters.ready_for_workshop_invitation) params.append('ready_for_workshop_invitation', 'true');
+            if (applicationFilters.name_search) params.append('name_search', applicationFilters.name_search);
             params.append('limit', applicationFilters.limit);
             params.append('offset', applicationFilters.offset);
 
@@ -236,6 +238,19 @@ const AdmissionsDashboard = () => {
             setLoading(false);
         }
     };
+
+    // Debounce name search input
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            setApplicationFilters(prev => ({
+                ...prev,
+                name_search: nameSearchInput,
+                offset: 0 // Reset to first page when search changes
+            }));
+        }, 500); // 500ms delay
+
+        return () => clearTimeout(timeoutId);
+    }, [nameSearchInput]);
 
     // Load data on mount and when filters change
     useEffect(() => {
@@ -362,18 +377,11 @@ const AdmissionsDashboard = () => {
         }));
     };
 
-    // Sort and filter applications
+    // Sort applications (name filtering is now handled server-side)
     const sortAndFilterApplications = (apps) => {
         if (!apps || !Array.isArray(apps)) return apps;
 
         let filteredApps = [...apps];
-
-        // Apply name search filter
-        if (nameSearch) {
-            filteredApps = filteredApps.filter(app =>
-                `${app.first_name} ${app.last_name}`.toLowerCase().includes(nameSearch.toLowerCase())
-            );
-        }
 
         // Apply sorting
         return filteredApps.sort((a, b) => {
@@ -1232,8 +1240,8 @@ const AdmissionsDashboard = () => {
                                 <input
                                     type="text"
                                     placeholder="Search by name..."
-                                    value={nameSearch}
-                                    onChange={(e) => setNameSearch(e.target.value)}
+                                    value={nameSearchInput}
+                                    onChange={(e) => setNameSearchInput(e.target.value)}
                                     className="name-search-input"
                                 />
                                 <select
@@ -1243,7 +1251,8 @@ const AdmissionsDashboard = () => {
                                 >
                                     <option value="">Application Status: All</option>
                                     <option value="submitted">Submitted</option>
-                                    <option value="under_review">Under Review</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="ineligible">Ineligible</option>
                                 </select>
                                 <select
                                     value={applicationFilters.info_session_status || ''}
@@ -1561,17 +1570,21 @@ const AdmissionsDashboard = () => {
                         ) : (
                             <div className="no-data-message">
                                 <p>No applicants found</p>
-                                {(applicationFilters.status || applicationFilters.info_session_status || applicationFilters.workshop_status || applicationFilters.program_admission_status || applicationFilters.ready_for_workshop_invitation) && (
+                                {(applicationFilters.status || applicationFilters.info_session_status || applicationFilters.workshop_status || applicationFilters.program_admission_status || applicationFilters.ready_for_workshop_invitation || applicationFilters.name_search || nameSearchInput) && (
                                     <button
-                                        onClick={() => setApplicationFilters({ 
-                                            status: '', 
-                                            info_session_status: '', 
-                                            workshop_status: '', 
-                                            program_admission_status: '', 
-                                            ready_for_workshop_invitation: false,
-                                            limit: applicationFilters.limit,
-                                            offset: 0
-                                        })}
+                                        onClick={() => {
+                                            setNameSearchInput('');
+                                            setApplicationFilters({ 
+                                                status: '', 
+                                                info_session_status: '', 
+                                                workshop_status: '', 
+                                                program_admission_status: '', 
+                                                ready_for_workshop_invitation: false,
+                                                name_search: '',
+                                                limit: applicationFilters.limit,
+                                                offset: 0
+                                            });
+                                        }}
                                         className="clear-filter-btn"
                                     >
                                         Clear filters

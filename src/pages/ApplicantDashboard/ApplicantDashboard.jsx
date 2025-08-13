@@ -553,27 +553,19 @@ function ApplicantDashboard() {
         return;
       }
 
-      // Reset eligibility status
-      const result = await databaseService.resetEligibility(applicantId);
+      // Set flag for ApplicationForm to handle the reset synchronously
+      localStorage.setItem('eligibilityResetForEditing', 'true');
+      console.log('🚀 DASHBOARD DEBUG: Set eligibilityResetForEditing flag to true');
       
-      if (result.success) {
-        // Update local state
-        setStatuses(prev => ({
-          ...prev,
-          application: 'in process'
-        }));
-        localStorage.setItem('applicationStatus', 'in process');
-        
-        // Set flag to navigate to eligibility section
-        localStorage.setItem('eligibilityResetForEditing', 'true');
-        
-        alert('Your eligibility status has been reset. You can now edit your responses.');
-        
-        // Navigate to application form
-        navigate('/application-form');
-      } else {
-        alert('Failed to reset eligibility status. Please try again.');
-      }
+      // Update local state optimistically
+      setStatuses(prev => ({
+        ...prev,
+        application: 'in process'
+      }));
+      
+      // Navigate to application form with a URL parameter to ensure the reset flag is preserved
+      console.log('🚀 DASHBOARD DEBUG: Navigating to application form with reset parameter...');
+      navigate('/application-form?resetEligibility=true');
     } catch (error) {
       console.error('Error resetting eligibility:', error);
       alert('An error occurred while resetting your eligibility. Please try again.');
