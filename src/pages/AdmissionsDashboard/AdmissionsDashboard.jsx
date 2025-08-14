@@ -539,6 +539,133 @@ const AdmissionsDashboard = () => {
         const phoneList = phoneNumbers.join(', ');
         copyToClipboard(phoneList, `${phoneNumbers.length} phone numbers`);
     };
+    
+    // Handle CSV export for selected applicants
+    const handleExportCSV = async () => {
+        if (selectedApplicants.length === 0) return;
+        
+        try {
+            setLoading(true);
+            
+            // Get the full details of selected applicants including demographic data
+            const selectedApplicantIds = selectedApplicants.join(',');
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/export?ids=${selectedApplicantIds}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch detailed applicant data');
+            }
+            
+            const detailedApplicantData = await response.json();
+            
+            if (!detailedApplicantData || detailedApplicantData.length === 0) {
+                console.error('No data found for selected applicants');
+                setError('No data found for selected applicants');
+                return;
+            }
+            
+            // Debug: Log the data we're getting from the API
+            console.log('Detailed applicant data:', detailedApplicantData);
+            
+            // Check if we have demographic data
+            const hasDemographics = detailedApplicantData.some(app => 
+                app.demographics && Object.keys(app.demographics).some(key => app.demographics[key])
+            );
+            console.log('Has any demographic data:', hasDemographics);
+            
+            if (detailedApplicantData.length > 0) {
+                console.log('First applicant demographics:', detailedApplicantData[0].demographics);
+            }
+            
+            // Define CSV headers based on available data
+            const headers = [
+                'Applicant ID',
+                'First Name',
+                'Last Name',
+                'Email',
+                'Phone Number',
+                'Application Status',
+                'Assessment',
+                'Info Session Status',
+                'Workshop Status',
+                'Program Admission Status',
+                'Date of Birth',
+                'Address',
+                'Gender',
+                'Personal Annual Income',
+                'Educational Attainment',
+                'First-Generation College Student',
+                'Race/Ethnicity',
+                'English as Secondary Language',
+                'Born Outside US',
+                'Parents Born Outside US',
+                'Government Assistance',
+                'Veteran Status',
+                'Communities',
+                'Employment Status',
+                'Reason for Applying'
+            ];
+            
+            // Create CSV content
+            let csvContent = headers.join(',') + '\n';
+            
+            // Add data rows
+            detailedApplicantData.forEach(applicant => {
+                // Extract demographic data - safely handle missing fields
+                const demographics = applicant.demographics || {};
+                
+                const row = [
+                    applicant.applicant_id,
+                    `"${(applicant.first_name || '').replace(/"/g, '""')}"`, // Escape quotes in CSV
+                    `"${(applicant.last_name || '').replace(/"/g, '""')}"`,
+                    `"${(applicant.email || '').replace(/"/g, '""')}"`,
+                    `"${(applicant.phone_number || '').replace(/"/g, '""')}"`,
+                    `"${(applicant.status || '').replace(/"/g, '""')}"`,
+                    `"${(applicant.final_status || applicant.recommendation || '').replace(/"/g, '""')}"`,
+                    `"${(applicant.info_session_status || 'not_registered').replace(/"/g, '""')}"`,
+                    `"${(applicant.workshop_status || 'pending').replace(/"/g, '""')}"`,
+                    `"${(applicant.program_admission_status || 'pending').replace(/"/g, '""')}"`,
+                    `"${(demographics.date_of_birth || '').replace(/"/g, '""')}"`,
+                    `"${(demographics.address || '').replace(/"/g, '""')}"`,
+                    `"${(demographics.gender || '').replace(/"/g, '""')}"`,
+                    `"${(demographics.personal_income || '').replace(/"/g, '""')}"`,
+                    `"${(demographics.education_level || '').replace(/"/g, '""')}"`,
+                    `"${(demographics.first_gen_college || '').replace(/"/g, '""')}"`,
+                    `"${(demographics.race_ethnicity || '').replace(/"/g, '""').replace(/[\[\]]/g, '')}"`,
+                    `"${(demographics.english_secondary || '').replace(/"/g, '""')}"`,
+                    `"${(demographics.born_outside_us || '').replace(/"/g, '""')}"`,
+                    `"${(demographics.parents_born_outside_us || '').replace(/"/g, '""')}"`,
+                    `"${(demographics.govt_assistance || '').replace(/"/g, '""')}"`,
+                    `"${(demographics.veteran || '').replace(/"/g, '""')}"`,
+                    `"${(demographics.communities || '').replace(/"/g, '""')}"`,
+                    `"${(demographics.employment_status || '').replace(/"/g, '""')}"`,
+                    `"${(demographics.reason_for_applying || '').replace(/"/g, '""')}"`
+                ];
+                csvContent += row.join(',') + '\n';
+            });
+            
+            // Create a blob and download link
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `applicants_export_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+        } catch (error) {
+            console.error('Error exporting CSV:', error);
+            setError('Failed to export CSV. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Info session modal management
     const openCreateInfoSessionModal = () => {
@@ -1307,6 +1434,13 @@ const AdmissionsDashboard = () => {
                                     onClick={() => setBulkActionsModalOpen(true)}
                                 >
                                     Actions ({selectedApplicants.length})
+                                </button>
+                                <button
+                                    className="admissions-dashboard__export-csv-btn"
+                                    disabled={selectedApplicants.length === 0}
+                                    onClick={handleExportCSV}
+                                >
+                                    Export CSV ({selectedApplicants.length})
                                 </button>
                                 <button onClick={fetchApplications} className="refresh-btn">Refresh</button>
                             </div>
