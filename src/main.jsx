@@ -9,6 +9,7 @@ import ResetPassword from './pages/Login/ResetPassword.jsx'
 import VerifyEmail from './pages/Login/VerifyEmail.jsx'
 import ResendVerification from './pages/Login/ResendVerification.jsx'
 import AttendanceLogin from './pages/AttendanceLogin/index.js'
+import AttendanceDashboard from './pages/AttendanceDashboard/index.js'
 
 // Applicant pages
 import ApplicantSignup from './pages/ApplicantSignup/index.js'
@@ -19,6 +20,7 @@ import Workshops from './pages/Workshops/index.js'
 import ProgramDetails from './pages/ProgramDetails/index.js'
 
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
+import { isAuthenticated } from './utils/attendanceAuth'
 import './utils/globalErrorHandler.js' // Install global auth error handler
 import './index.css'
 
@@ -38,6 +40,15 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// Attendance route protection component
+const AttendanceRoute = ({ children }) => {
+  if (!isAuthenticated()) {
+    return <Navigate to="/attendance-login" replace />;
+  }
+  
+  return children;
+};
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
@@ -51,8 +62,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/verify-email/:token" element={<VerifyEmail />} />
           <Route path="/resend-verification" element={<ResendVerification />} />
           
-          {/* Attendance system routes */}
+          {/* Attendance system routes - must come before the catch-all route */}
           <Route path="/attendance-login" element={<AttendanceLogin />} />
+          <Route path="/attendance-dashboard" element={
+            <AttendanceRoute>
+              <AttendanceDashboard />
+            </AttendanceRoute>
+          } />
           
           {/* Applicant routes (public, no builder auth required) */}
           <Route path="/apply/signup" element={<ApplicantSignup />} />

@@ -1,3 +1,4 @@
+/* Attendance Login Component Styles - Matching Main App Design */
 .attendance-login-container {
   display: flex;
   flex-direction: column;
@@ -70,6 +71,15 @@
   border-color: var(--color-primary);
 }
 
+.attendance-login-input:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.attendance-login-input::placeholder {
+  color: var(--color-text-muted);
+}
+
 .password-input-group {
   position: relative;
 }
@@ -87,25 +97,79 @@
   transition: color var(--transition-speed);
 }
 
-.password-toggle:hover {
+.password-toggle:hover:not(:disabled) {
   color: var(--color-primary);
 }
 
-.attendance-login-button {
+.password-toggle:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.attendance-login-button-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
   margin-top: var(--spacing-lg);
+}
+
+.attendance-login-button {
+  width: 100%;
   padding: var(--spacing-sm) var(--spacing-md);
   background-color: var(--color-primary);
   color: white;
   border: none;
   border-radius: 4px;
   font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
   transition: background-color var(--transition-speed);
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
 }
 
-.attendance-login-button:hover {
+.attendance-login-button:hover:not(:disabled) {
   background-color: var(--color-primary-hover);
+}
+
+.attendance-login-button:disabled {
+  background-color: var(--color-border);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.button-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.attendance-login-reset-button {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all var(--transition-speed);
+}
+
+.attendance-login-reset-button:hover {
+  background-color: var(--color-background-light);
+  color: var(--color-text-primary);
+  border-color: var(--color-primary);
 }
 
 .attendance-login-error {
@@ -120,15 +184,36 @@
   width: 100%;
 }
 
-.attendance-login-button:disabled {
-  background-color: var(--color-border);
-  cursor: not-allowed;
-  opacity: 0.7;
+.attendance-login-success {
+  background-color: rgba(0, 255, 0, 0.1);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  color: #28a745;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  margin-bottom: var(--spacing-md);
+  text-align: center;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all var(--transition-speed);
 }
 
-.attendance-login-input:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+.attendance-login-success.redirecting {
+  background-color: rgba(66, 66, 234, 0.1);
+  border-color: rgba(66, 66, 234, 0.3);
+  color: var(--color-primary);
+}
+
+.redirect-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-primary);
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-left: var(--spacing-sm);
 }
 
 .attendance-login-footer {
@@ -140,6 +225,12 @@
   color: var(--color-text-muted);
   font-size: 0.8rem;
   margin: 0;
+}
+
+.attendance-login-help {
+  margin-top: var(--spacing-sm) !important;
+  font-size: 0.7rem !important;
+  color: var(--color-text-muted) !important;
 }
 
 /* Responsive design for classroom computers */
@@ -218,5 +309,10 @@
   .attendance-login-button,
   .password-toggle {
     transition: none;
+  }
+  
+  .redirect-spinner,
+  .button-spinner {
+    animation: none;
   }
 }
