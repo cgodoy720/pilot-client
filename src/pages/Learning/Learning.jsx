@@ -1135,8 +1135,15 @@ function Learning() {
       // Update the URL without reloading the page
       navigate(`/learning?${params.toString()}`, { replace: true });
       
-      // Only show loading state if we don't already have messages for this task
-      // We'll check this in fetchTaskMessages
+      // IMPORTANT: Immediately clear previous messages and show loading state
+      // This prevents the previous task's messages from showing while loading
+      const currentTask = tasks[newIndex];
+      setMessages([{
+        id: 'loading',
+        content: `Loading ${currentTask.title}...`,
+        role: 'system'
+      }]);
+      setIsMessagesLoading(true);
       
       // Then fetch the messages for the new task
       fetchTaskMessages(newTaskId);
@@ -1745,7 +1752,17 @@ function Learning() {
                   data-mode={task.task_mode}
                   onClick={() => {
                     if (index !== currentTaskIndex) {
+                      // Update the current task index
                       setCurrentTaskIndex(index);
+                      
+                      // IMPORTANT: Immediately clear previous messages and show loading state
+                      setMessages([{
+                        id: 'loading',
+                        content: `Loading ${task.title}...`,
+                        role: 'system'
+                      }]);
+                      setIsMessagesLoading(true);
+                      
                       console.log('Task should_analyze:', task.should_analyze);
                       fetchTaskMessages(task.id);
                     }
