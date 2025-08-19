@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt, FaEdit, FaCheck, FaTimes, FaFileAlt, FaVideo } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt, FaEdit, FaCheck, FaTimes, FaFileAlt, FaVideo, FaBrain, FaComments } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -9,6 +9,7 @@ import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
 import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
 import SummaryModal from '../../components/SummaryModal/SummaryModal';
 import './Learning.css';
+import '../../styles/smart-tasks.css';
 
 function Learning() {
   const { token, user } = useAuth();
@@ -108,17 +109,27 @@ function Learning() {
       // Clear any previous error
       setError('');
       
-      // Show loading state
-      setIsMessagesLoading(true);
+      // Check if we already have messages for this task
+      // If we're switching tasks, we might already have messages for the new task
+      const existingMessages = messages.filter(msg => 
+        msg.role !== 'system' && 
+        !msg.content?.includes('Loading') && 
+        !msg.content?.includes('Error')
+      );
       
-      // Show a loading message with the current task title instead of clearing messages first
-      const currentTask = tasks.find(task => task.id === taskId);
-      if (currentTask) {
-        setMessages([{
-          id: 'loading',
-          content: `Loading ${currentTask.title}...`,
-          role: 'system'
-        }]);
+      // Only show loading state if we don't have meaningful messages
+      if (existingMessages.length === 0) {
+        setIsMessagesLoading(true);
+        
+        // Show a loading message with the current task title
+        const currentTask = tasks.find(task => task.id === taskId);
+        if (currentTask) {
+          setMessages([{
+            id: 'loading',
+            content: `Loading ${currentTask.title}...`,
+            role: 'system'
+          }]);
+        }
       }
       
       console.log(`Fetching messages for task ${taskId} at timestamp ${fetchTimestamp}`);
@@ -307,9 +318,19 @@ function Learning() {
       }]);
     } finally {
       // Only update loading state if this is still the most recent fetch
+      // and if we set it to true earlier (when we didn't have existing messages)
       if (fetchTaskMessages.lastFetchTimestamp === fetchTimestamp) {
-        // Always set loading to false when done
-        setIsMessagesLoading(false);
+        // Check if we had set loading state to true (when we didn't have existing messages)
+        const existingMessages = messages.filter(msg => 
+          msg.role !== 'system' && 
+          !msg.content?.includes('Loading') && 
+          !msg.content?.includes('Error')
+        );
+        
+        // Only turn off loading state if we had turned it on
+        if (existingMessages.length === 0) {
+          setIsMessagesLoading(false);
+        }
       }
       
       // Clear the fetching flag after a delay to prevent immediate re-fetching
@@ -418,7 +439,10 @@ function Learning() {
               deliverable: task.deliverable,
               deliverable_type: task.deliverable_type || 'none',
               should_analyze: task.should_analyze || false,
-              analyze_deliverable: task.analyze_deliverable || false
+              analyze_deliverable: task.analyze_deliverable || false,
+              task_mode: task.task_mode || 'basic', // Add task mode support
+              smart_prompt: task.smart_prompt || null,
+              conversation_model: task.conversation_model || null
             });
           });
         });
@@ -751,7 +775,15 @@ function Learning() {
   };
   
   // Helper function to get task icon based on type
-  const getTaskIcon = (type, completed) => {
+  const getTaskIcon = (type, completed, taskMode) => {
+    // Check if this is a conversation task - use brain icon
+    if (taskMode === 'conversation') {
+      if (completed) {
+        return <FaCheckCircle className="task-icon completed" />;
+      }
+      return <FaBrain className="task-icon conversation" />;
+    }
+    
     // Special case for Independent Retrospective
     if (type === 'reflect' && tasks.length > 0 && 
         currentTaskIndex < tasks.length &&
@@ -1086,9 +1118,6 @@ function Learning() {
       : Math.max(currentTaskIndex - 1, 0);
       
     if (newIndex !== currentTaskIndex) {
-      // Set loading state first to prevent flashing
-      setIsMessagesLoading(true);
-      
       // Reset the analysis results
       setAnalysisResults(null);
       setShowAnalysisModal(false);
@@ -1105,6 +1134,9 @@ function Learning() {
       
       // Update the URL without reloading the page
       navigate(`/learning?${params.toString()}`, { replace: true });
+      
+      // Only show loading state if we don't already have messages for this task
+      // We'll check this in fetchTaskMessages
       
       // Then fetch the messages for the new task
       fetchTaskMessages(newTaskId);
@@ -1664,7 +1696,8 @@ function Learning() {
     return null;
   };
 
-  if (isPageLoading) {
+  // Only show the full page loading state if we don't have tasks yet
+  if (isPageLoading && tasks.length === 0) {
     return <div className="learning loading">Loading learning session...</div>;
   }
 
@@ -1709,6 +1742,7 @@ function Learning() {
                 <div
                   key={task.id}
                   className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''} ${task.completed ? 'completed' : ''}`}
+                  data-mode={task.task_mode}
                   onClick={() => {
                     if (index !== currentTaskIndex) {
                       setCurrentTaskIndex(index);
@@ -1718,11 +1752,12 @@ function Learning() {
                   }}
                 >
                   <div className="learning__task-icon">
-                    {getTaskIcon(task.type, task.completed)}
+                    {getTaskIcon(task.type, task.completed, task.task_mode)}
                   </div>
                   <div className="learning__task-content">
                     <h3 className="learning__task-title">
                       <span className="learning__task-title-text">{task.title}</span>
+
                       {(task.deliverable_type === 'link' || 
                         task.deliverable_type === 'file' || 
                         task.deliverable_type === 'document' || 
@@ -1734,6 +1769,7 @@ function Learning() {
                     </h3>
                     <div className="learning__task-block">
                       {task.blockTime}
+
                     </div>
                   </div>
                 </div>
@@ -1746,7 +1782,7 @@ function Learning() {
           )}
         </div>
         
-        <div className="learning__chat-container">
+        <div className={`learning__chat-container ${currentTaskIndex < tasks.length ? `learning__chat-container--${tasks[currentTaskIndex].task_mode}` : ''}`}>
           {showPeerFeedback ? (
             // Show the peer feedback form when needed
             <PeerFeedbackForm
@@ -1763,8 +1799,10 @@ function Learning() {
                 </div>
               )}
               
-              <div className={`learning__messages ${isMessagesLoading ? 'loading' : ''} ${editingMessageId !== null ? 'has-editing-message' : ''}`}>
-                {isMessagesLoading ? (
+
+              
+              <div className={`learning__messages ${isMessagesLoading && messages.length === 0 ? 'loading' : ''} ${editingMessageId !== null ? 'has-editing-message' : ''}`}>
+                {isMessagesLoading && messages.length === 0 ? (
                   <div className="learning__loading-messages">
                     <p>Loading messages...</p>
                   </div>

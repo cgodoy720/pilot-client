@@ -683,6 +683,24 @@
 .learning__message--assistant {
   margin-right: auto;
   margin-left: 0;
+  padding-left: 40px;
+  position: relative;
+}
+
+/* Add the avatar for assistant messages */
+.learning__message--assistant::before {
+  content: '';
+  width: 30px;
+  height: 30px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  background-color: var(--color-primary);
+  border-radius: 4px;
+  background-image: url("/logo.png");
+  background-size: 12px;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .learning__message-content {
