@@ -783,6 +783,181 @@ function ApplicantDashboard() {
                       </div>
                     </div>
                   )}
+
+                  {/* Pledge completed details with review buttons */}
+                  {section.key === 'pledge' && status === 'completed' && (
+                    <div className="pledge-review-buttons" style={{ 
+                      display: 'flex', 
+                      flexWrap: 'wrap', 
+                      gap: '10px', 
+                      justifyContent: 'center',
+                      margin: '15px 0'
+                    }}>
+                        <button
+                          onClick={() => {
+                            // Show Pledge content modal
+                            const modal = document.createElement('div');
+                            modal.innerHTML = `
+                              <div class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
+                                <div style="background: var(--color-background-dark); padding: 30px; border-radius: 12px; max-width: 800px; max-height: 80vh; overflow-y: auto; margin: 20px;" onclick="event.stopPropagation()">
+                                  <h3 style="color: #4242ea; margin-bottom: 20px;">PURSUIT AI-Native Program Pledge</h3>
+                                  <div style="line-height: 1.6;">
+                                    <h4>Everyone in the AI-Native Program is a Builder</h4>
+                                    <p>The world is evolving at an unprecedented pace, driven by technology and innovation. By taking this pledge, you're committing not just to learn, but to drive your own transformation. You'll gain the skills to build powerful apps, harness the potential of AI, and position yourself as a leader in this rapidly changing digital age.</p>
+                                    <p>This is your opportunity to become not just a consumer of technology, but a creator—an AI-native who shapes the future. Let's embark on this journey together.</p>
+                                    
+                                    <h4>As a Builder in the Pursuit AI-native Program, I commit to embracing learning and building with passion, curiosity, and determination. I pledge to:</h4>
+                                    
+                                    <h4>Learning</h4>
+                                    <ul>
+                                      <li>Cultivate a growth mindset, and engage deeply with every aspect of the program, such as workshops, projects, and community events.</li>
+                                      <li>Drive my own learning through consistent practice and research.</li>
+                                      <li>Share my learning openly and teach others.</li>
+                                    </ul>
+                                    
+                                    <h4>Community</h4>
+                                    <ul>
+                                      <li>Foster a positive, inclusive, supportive community environment.</li>
+                                      <li>Uphold Pursuit's code of conduct</li>
+                                    </ul>
+                                    
+                                    <h4>Adapting</h4>
+                                    <ul>
+                                      <li>Embrace the uncertainty and fluidity of this ever-evolving program and the AI field itself.</li>
+                                      <li>Remain resilient in the face of challenges, demonstrating initiative to solve problems.</li>
+                                    </ul>
+                                    
+                                    <h4>Building</h4>
+                                    <ul>
+                                      <li>Consistently work on projects and apply my learning to real-world scenarios.</li>
+                                      <li>Be proactive in seeking opportunities to build and create.</li>
+                                      <li>Embrace a "building in public" approach to share my journey and contribute to the AI community.</li>
+                                    </ul>
+                                  </div>
+                                  <button onclick="this.closest('.modal-overlay').remove()" style="background: #4242ea; color: white; border: none; padding: 8px 16px; border-radius: 6px; margin-top: 20px; cursor: pointer;">Close</button>
+                                </div>
+                              </div>
+                            `;
+                            document.body.appendChild(modal);
+                          }}
+                          style={{
+                            background: 'rgba(66, 66, 234, 0.1)', 
+                            color: 'var(--color-primary)', 
+                            padding: '10px 16px', 
+                            border: '1px solid var(--color-primary)', 
+                            borderRadius: '8px', 
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            transition: 'all 0.2s',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.transform = "translateY(-2px)";
+                            e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.transform = "translateY(0)";
+                            e.target.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
+                          }}
+                        >
+                          📜 Review Pledge
+                        </button>
+                        <button 
+                          onClick={() => {
+                            // Show Code of Conduct modal (we'll implement this)
+                            const modal = document.createElement('div');
+                            modal.innerHTML = `
+                              <div class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
+                                <div style="background: var(--color-background-dark); padding: 30px; border-radius: 12px; max-width: 600px; max-height: 80vh; overflow-y: auto; margin: 20px;" onclick="event.stopPropagation()">
+                                  <h3 style="color: #4242ea; margin-bottom: 20px;">Code of Conduct</h3>
+                                  <div style="line-height: 1.6;">
+                                    <p><strong>Mutual Respect:</strong> We foster an environment where everyone feels valued, heard, and respected, regardless of background, identity, or experience level.</p>
+                                    <p><strong>Collaborative Learning:</strong> We commit to learning together, sharing knowledge openly, and supporting each other's growth without judgment.</p>
+                                    <p><strong>Constructive Communication:</strong> We communicate thoughtfully and constructively, offering feedback that helps others improve while maintaining kindness and professionalism.</p>
+                                    <p><strong>Inclusive Participation:</strong> We actively work to include all voices and perspectives, ensuring that everyone has the opportunity to contribute and succeed.</p>
+                                    <p><strong>Accountability:</strong> We take responsibility for our actions, admit our mistakes, and work together to create solutions that benefit the entire community.</p>
+                                  </div>
+                                  <button onclick="this.closest('.modal-overlay').remove()" style="background: #4242ea; color: white; border: none; padding: 8px 16px; border-radius: 6px; margin-top: 20px; cursor: pointer;">Close</button>
+                                </div>
+                              </div>
+                            `;
+                            document.body.appendChild(modal);
+                          }}
+                          style={{
+                            background: 'rgba(108, 117, 125, 0.1)', 
+                            color: 'var(--color-secondary)', 
+                            padding: '10px 16px', 
+                            border: '1px solid var(--color-secondary)', 
+                            borderRadius: '8px', 
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.transform = "translateY(-2px)";
+                            e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.transform = "translateY(0)";
+                            e.target.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
+                          }}
+                        >
+                          📋 Code of Conduct
+                        </button>
+                        <button 
+                          onClick={() => {
+                            // Show Program Details modal
+                            const modal = document.createElement('div');
+                            modal.innerHTML = `
+                              <div class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
+                                <div style="background: var(--color-background-dark); padding: 30px; border-radius: 12px; max-width: 700px; max-height: 80vh; overflow-y: auto; margin: 20px;" onclick="event.stopPropagation()">
+                                  <h3 style="color: #4242ea; margin-bottom: 20px;">AI-Native Program Details</h3>
+                                  <div style="line-height: 1.6;">
+                                    <h4>Program Overview</h4>
+                                    <p>The Pursuit AI-Native Program is a 7-month intensive program designed to empower individuals to become AI-natives, capable of securing good jobs and leading in the AI-driven future.</p>
+                                    <h4>Core Pillars</h4>
+                                    <ul>
+                                      <li><strong>AI-Powered Individual Learning:</strong> Utilizing AI tools for personalized learning pathways and skill development.</li>
+                                      <li><strong>Self-Driven, Active Learning Through Building:</strong> Focusing on practical application and project-based learning.</li>
+                                      <li><strong>Many-to-Many Learning and Teaching:</strong> Fostering a collaborative environment where participants learn from each other.</li>
+                                    </ul>
+                                    <h4>What You'll Build</h4>
+                                    <p>Throughout the program, you'll work on real-world AI projects, develop modern applications, and create solutions that demonstrate your AI-native capabilities.</p>
+                                  </div>
+                                  <button onclick="this.closest('.modal-overlay').remove()" style="background: #4242ea; color: white; border: none; padding: 8px 16px; border-radius: 6px; margin-top: 20px; cursor: pointer;">Close</button>
+                                </div>
+                              </div>
+                            `;
+                            document.body.appendChild(modal);
+                          }}
+                          style={{
+                            background: 'rgba(40, 167, 69, 0.1)', 
+                            color: '#28a745', 
+                            padding: '10px 16px', 
+                            border: '1px solid #28a745', 
+                            borderRadius: '8px', 
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.transform = "translateY(-2px)";
+                            e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.transform = "translateY(0)";
+                            e.target.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
+                          }}
+                        >
+                          📚 Program Details
+                        </button>
+                      </div>
+                  )}
                 </div>
                 
                 {/* Button */}
