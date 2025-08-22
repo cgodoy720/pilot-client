@@ -273,7 +273,7 @@ By participating in the Pursuit AI Native Program, you agree to abide by these e
     return `AI-Native Program Details
 
 I. Program Overview
-The Pursuit AI-Native Program is a 7-month intensive program designed to empower individuals to become AI-natives, capable of securing good jobs and leading in the AI-driven future. This program is built on a model centered around the following pillars:
+The Pursuit AI-Native Program is an intensive program designed to empower individuals to become AI-natives, capable of securing good jobs and leading in the AI-driven future. This program is built on a model centered around the following pillars:
 • AI-Powered Individual Learning: Utilizing AI tools for personalized learning pathways and skill development.
 • Self-Driven, Active Learning Through Building: Focusing on practical application and project-based learning.
 • Many-to-Many Learning and Teaching: Fostering a collaborative environment where Builders learn from and teach each other.
