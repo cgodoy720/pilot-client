@@ -786,15 +786,13 @@ function ApplicantDashboard() {
 
                   {/* Pledge completed details with review buttons */}
                   {section.key === 'pledge' && status === 'completed' && (
-                    <div className="session-details__container">
-                      <div className="session-details">
-                        <div className="session-details__icon">✅</div>
-                        <div className="session-details__content">
-                          <div className="session-details__date">Pledge Completed</div>
-                          <div className="session-details__time">You're officially part of the AI-Native Program!</div>
-                        </div>
-                      </div>
-                      <div className="pledge-review-buttons" style={{ marginTop: '15px', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                    <div className="pledge-review-buttons" style={{ 
+                      display: 'flex', 
+                      flexWrap: 'wrap', 
+                      gap: '10px', 
+                      justifyContent: 'center',
+                      margin: '15px 0'
+                    }}>
                         <button
                           onClick={() => {
                             // Show Pledge content modal
@@ -843,18 +841,25 @@ function ApplicantDashboard() {
                             document.body.appendChild(modal);
                           }}
                           style={{
-                            background: 'var(--color-primary)', 
-                            color: 'white', 
-                            padding: '6px 12px', 
-                            border: 'none', 
-                            borderRadius: '6px', 
-                            fontSize: '0.8rem',
-                            fontWeight: '500',
+                            background: 'rgba(66, 66, 234, 0.1)', 
+                            color: 'var(--color-primary)', 
+                            padding: '10px 16px', 
+                            border: '1px solid var(--color-primary)', 
+                            borderRadius: '8px', 
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
                             transition: 'all 0.2s',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
                           }}
-                          onMouseEnter={(e) => e.target.style.opacity = '0.9'}
-                          onMouseLeave={(e) => e.target.style.opacity = '1'}
+                          onMouseEnter={(e) => {
+                            e.target.style.transform = "translateY(-2px)";
+                            e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.transform = "translateY(0)";
+                            e.target.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
+                          }}
                         >
                           📜 Review Pledge
                         </button>
@@ -880,18 +885,25 @@ function ApplicantDashboard() {
                             document.body.appendChild(modal);
                           }}
                           style={{
-                            background: 'var(--color-secondary)', 
-                            color: 'white', 
-                            padding: '6px 12px', 
-                            border: 'none', 
-                            borderRadius: '6px', 
-                            fontSize: '0.8rem',
-                            fontWeight: '500',
+                            background: 'rgba(108, 117, 125, 0.1)', 
+                            color: 'var(--color-secondary)', 
+                            padding: '10px 16px', 
+                            border: '1px solid var(--color-secondary)', 
+                            borderRadius: '8px', 
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
                             cursor: 'pointer',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
                           }}
-                          onMouseEnter={(e) => e.target.style.opacity = '0.9'}
-                          onMouseLeave={(e) => e.target.style.opacity = '1'}
+                          onMouseEnter={(e) => {
+                            e.target.style.transform = "translateY(-2px)";
+                            e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.transform = "translateY(0)";
+                            e.target.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
+                          }}
                         >
                           📋 Code of Conduct
                         </button>
@@ -922,23 +934,29 @@ function ApplicantDashboard() {
                             document.body.appendChild(modal);
                           }}
                           style={{
-                            background: '#28a745', 
-                            color: 'white', 
-                            padding: '6px 12px', 
-                            border: 'none', 
-                            borderRadius: '6px', 
-                            fontSize: '0.8rem',
-                            fontWeight: '500',
+                            background: 'rgba(40, 167, 69, 0.1)', 
+                            color: '#28a745', 
+                            padding: '10px 16px', 
+                            border: '1px solid #28a745', 
+                            borderRadius: '8px', 
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
                             cursor: 'pointer',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
                           }}
-                          onMouseEnter={(e) => e.target.style.opacity = '0.9'}
-                          onMouseLeave={(e) => e.target.style.opacity = '1'}
+                          onMouseEnter={(e) => {
+                            e.target.style.transform = "translateY(-2px)";
+                            e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.transform = "translateY(0)";
+                            e.target.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
+                          }}
                         >
                           📚 Program Details
                         </button>
                       </div>
-                    </div>
                   )}
                 </div>
                 
