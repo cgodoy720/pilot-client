@@ -65,8 +65,8 @@ const SECTION_CONFIG = [
       if (status === 'completed') return 'Pledge Completed';
       return 'Make Pledge';
     },
-    buttonEnabled: (status, workshopStatus) => workshopStatus === 'attended' && status !== 'completed',
-    lockedLabel: 'Workshop Required',
+    buttonEnabled: (status) => status === 'not completed',
+    lockedLabel: 'Program Admission Required',
   },
 ]
 
@@ -327,10 +327,17 @@ function ApplicantDashboard() {
       // First check if the applicant has been invited to workshops by checking their stage
       const stageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/stage`);
       let isInvited = false;
+      let hasAttendedWorkshop = false;
       
       if (stageResponse.ok) {
         const stageData = await stageResponse.json();
         console.log('Dashboard: Applicant stage data:', stageData);
+        
+        // Check if already attended workshop based on stage
+        if (stageData.current_stage === 'workshop_attended') {
+          hasAttendedWorkshop = true;
+          console.log('Dashboard: Workshop marked as attended based on stage');
+        }
         
         // If current_stage is workshop_invited or any workshop-related stage, unlock workshops
         if (stageData.current_stage && 
@@ -351,6 +358,12 @@ function ApplicantDashboard() {
         return;
       }
       
+      // If stage shows workshop attended, set status immediately
+      if (hasAttendedWorkshop) {
+        setStatuses(prev => ({ ...prev, workshop: 'attended' }));
+        console.log('Dashboard: Workshop status set to attended based on stage');
+      }
+      
       // If invited, check for existing registrations
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops`);
       if (!response.ok) {
@@ -364,11 +377,11 @@ function ApplicantDashboard() {
       let foundRegistration = null;
       let registeredWorkshop = null;
       
-      // Check all workshops for current user's registration
+      // Check all workshops for current user's registration (any status)
       for (const workshop of workshops) {
         const registrations = workshop.registrations || [];
         const userRegistration = registrations.find(reg => 
-          reg.applicant_id === currentApplicantId && reg.status === 'registered'
+          reg.applicant_id === currentApplicantId
         );
         
         if (userRegistration) {
@@ -394,15 +407,33 @@ function ApplicantDashboard() {
           location: registeredWorkshop.location
         };
         
-        setStatuses(prev => ({ ...prev, workshop: 'signed-up' }));
+        // Set workshop status based on stage data first, then registration status
+        let workshopStatus = 'signed-up'; // default for 'registered'
+        
+        if (hasAttendedWorkshop) {
+          // Stage data takes priority - already attended
+          workshopStatus = 'attended';
+          console.log('Dashboard: Workshop status set to attended based on stage data');
+        } else if (foundRegistration.status === 'attended' || 
+                   foundRegistration.status === 'attended_late' || 
+                   foundRegistration.status === 'very_late') {
+          workshopStatus = 'attended';
+          console.log('Dashboard: Workshop marked as attended with registration status:', foundRegistration.status);
+        } else if (foundRegistration.status === 'registered') {
+          workshopStatus = 'signed-up';
+          console.log('Dashboard: Workshop registration found, status:', foundRegistration.status);
+        }
+        
+        setStatuses(prev => ({ ...prev, workshop: workshopStatus }));
         setWorkshopDetails(workshopEventDetails);
-        console.log('Dashboard: Found workshop registration', workshopEventDetails);
-      } else {
-        // Invited but not registered yet
+        console.log('Dashboard: Found workshop registration', workshopEventDetails, 'Status:', workshopStatus);
+      } else if (!hasAttendedWorkshop) {
+        // Invited but not registered yet (and hasn't attended)
         setStatuses(prev => ({ ...prev, workshop: 'not signed-up' }));
         setWorkshopDetails(null);
         console.log('Dashboard: Workshop available for signup');
       }
+      // Note: If hasAttendedWorkshop is true, status was already set above
     } catch (error) {
       console.error('Error loading workshop status for dashboard:', error);
       setStatuses(prev => ({ ...prev, workshop: 'locked' }));
@@ -410,10 +441,48 @@ function ApplicantDashboard() {
   };
 
   const loadPledgeStatus = async () => {
-    // For now, just check if workshop is attended to unlock pledge
-    // This would need to be implemented based on your pledge system
-    setStatuses(prev => ({ ...prev, pledge: 'locked' }));
-    console.log('Dashboard: Pledge status loaded (placeholder)');
+    try {
+      // Check if applicant has been admitted to the program
+      const stageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/stage`);
+      
+      if (stageResponse.ok) {
+        const stageData = await stageResponse.json();
+        console.log('Dashboard: Applicant stage data for pledge:', stageData);
+        
+        // If program_admission_status is 'accepted', check pledge completion status
+        if (stageData.program_admission_status === 'accepted') {
+          // Check if pledge has been completed
+          const pledgeResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/pledge/status/${currentApplicantId}`);
+          
+          if (pledgeResponse.ok) {
+            const pledgeData = await pledgeResponse.json();
+            console.log('Dashboard: Pledge status data:', pledgeData);
+            
+            if (pledgeData.pledge_completed) {
+              setStatuses(prev => ({ ...prev, pledge: 'completed' }));
+              console.log('Dashboard: Pledge completed');
+            } else {
+              setStatuses(prev => ({ ...prev, pledge: 'not completed' }));
+              console.log('Dashboard: Pledge available but not completed');
+            }
+          } else {
+            // If can't load pledge status, assume not completed but available
+            setStatuses(prev => ({ ...prev, pledge: 'not completed' }));
+            console.log('Dashboard: Pledge unlocked but status unknown');
+          }
+        } else {
+          setStatuses(prev => ({ ...prev, pledge: 'locked' }));
+          console.log('Dashboard: Pledge locked - applicant not yet admitted to program');
+        }
+      } else {
+        // If we can't load stage data, keep pledge locked
+        setStatuses(prev => ({ ...prev, pledge: 'locked' }));
+        console.log('Dashboard: Pledge locked - could not load stage data');
+      }
+    } catch (error) {
+      console.error('Error loading pledge status:', error);
+      setStatuses(prev => ({ ...prev, pledge: 'locked' }));
+    }
   };
 
   const isComplete = (key, status) => {
@@ -431,7 +500,7 @@ function ApplicantDashboard() {
 
   const isLocked = (key, status) => {
     if (key === 'workshop') return status === 'locked' // Workshop is locked only if status is 'locked'
-    if (key === 'pledge') return status === 'locked' || statuses.workshop !== 'attended'
+    if (key === 'pledge') return status === 'locked' // Pledge is locked until program admission
     return false
   }
 
@@ -440,7 +509,7 @@ function ApplicantDashboard() {
       return section.buttonEnabled(statuses.workshop, statuses.application)
     }
     if (section.key === 'pledge') {
-      return section.buttonEnabled(statuses.pledge, statuses.workshop)
+      return section.buttonEnabled(statuses.pledge)
     }
     return section.buttonEnabled(statuses[section.key])
   }
@@ -674,7 +743,7 @@ function ApplicantDashboard() {
                   {/* Locked state message for pledge */}
                   {section.key === 'pledge' && locked && (
                     <div className="action-card__locked-message">
-                      Pledge will be available after completing the workshop.
+                      Pledge will be available after you are admitted to the program.
                     </div>
                   )}
 
@@ -769,7 +838,8 @@ function ApplicantDashboard() {
                           false, 
                           section.key === 'application' && status === 'submitted',
                           (section.key === 'infoSession' && status === 'attended') || 
-                          (section.key === 'workshop' && status === 'attended')
+                          (section.key === 'workshop' && status === 'attended') ||
+                          (section.key === 'pledge' && status === 'completed')
                         )}
                         disabled={!enabled}
                       >
