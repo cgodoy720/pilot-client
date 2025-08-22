@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import pursuitLogoFull from '../../assets/logo-full.png';
 import Swal from 'sweetalert2';
+import 'animate.css';
 import './Pledge.css';
 
 function Pledge() {
@@ -398,14 +399,28 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
 
       const result = await submitResponse.json();
       
-      // Show success notification
+      // Show celebratory success notification
       await Swal.fire({
         icon: 'success',
-        title: 'Pledge Submitted Successfully!',
-        text: 'Thank you for completing your commitment to the AI-Native Program.',
+        title: '🎉 Congratulations! 🎉',
+        html: `
+          <div style="text-align: center;">
+            <h3 style="color: #4242ea; margin: 20px 0;">Welcome to the AI-Native Program!</h3>
+            <p style="font-size: 18px; margin: 15px 0;">🚀 Your journey as a Builder starts now! 🚀</p>
+            <p style="font-size: 16px; margin: 10px 0;">Thank you for making this commitment to transform yourself and shape the future with AI.</p>
+            <p style="font-size: 14px; color: #666; margin-top: 20px;">Get ready to build, learn, and innovate like never before!</p>
+          </div>
+        `,
+        confirmButtonText: '🎯 Let\'s Build the Future!',
         confirmButtonColor: '#4242ea',
-        timer: 3000,
-        timerProgressBar: true
+        timer: 6000,
+        timerProgressBar: true,
+        showClass: {
+          popup: 'animate__animated animate__bounceIn'
+        },
+        hideClass: {
+          popup: 'animate__animated animate__fadeOut'
+        }
       });
       
       // Navigate back to applicant dashboard
