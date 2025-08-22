@@ -282,7 +282,7 @@ The Pursuit AI-Native Program is an intensive program designed to empower indivi
 
 II. Program Schedule & Calendar
 Program Start Date: Saturday, September 6, 2025
-Program Duration: 2 months in AI Literacy, with the opportunity to continue for up to 7 months in AI Build and AI Showcase if selected.
+Program Duration: 2 months in AI Literacy, with the opportunity to continue for up to 7 months in AI Build and AI Showcase if selected. Please note that there may be breaks between program phases.
 
 Weekly Schedule:
 • Monday – Wednesday: 6:30 PM – 10:00 PM (In-Person, Long Island City)
