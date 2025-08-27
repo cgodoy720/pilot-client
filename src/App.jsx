@@ -11,6 +11,7 @@ import AdmissionsDashboard from './pages/AdmissionsDashboard';
 import ApplicationDetail from './pages/AdmissionsDashboard/ApplicationDetail';
 import Content from './pages/Content';
 import FacilitatorView from './pages/FacilitatorView';
+import AdminPrompts from './pages/AdminPrompts';
 import Stats from './pages/Stats';
 import Account from './pages/Account/Account';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
@@ -175,6 +176,13 @@ function App() {
           <Layout>
             <AdminRoute>
               <Content />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/admin-prompts" element={
+          <Layout>
+            <AdminRoute>
+              <AdminPrompts />
             </AdminRoute>
           </Layout>
         } />
