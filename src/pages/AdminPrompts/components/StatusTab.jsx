@@ -70,7 +70,7 @@ const StatusTab = ({ showNotification, reloadPrompts }) => {
       <div className="prompt-tab__header">
         <div>
           <Typography variant="h5" gutterBottom sx={{ color: 'var(--color-text-primary)' }}>
-            Complete System Prompt
+            Current AI System Prompt
           </Typography>
           <Typography variant="body2" sx={{ color: 'var(--color-text-secondary)' }}>
             This is the complete assembled prompt that gets sent to the AI API for a sample task.
@@ -79,13 +79,6 @@ const StatusTab = ({ showNotification, reloadPrompts }) => {
         <div className="prompt-tab__actions">
           <Button
             variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={fetchCurrentPrompt}
-          >
-            Refresh
-          </Button>
-          <Button
-            variant="contained"
             startIcon={<RefreshIcon />}
             onClick={handleReload}
           >

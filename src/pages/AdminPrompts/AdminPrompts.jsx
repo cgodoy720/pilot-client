@@ -79,7 +79,7 @@ const AdminPrompts = () => {
           <Tab label="Base Prompts" />
           <Tab label="Personas" />
           <Tab label="Program Contexts" />
-          <Tab label="System Status" />
+          <Tab label="Current AI Prompt" />
         </Tabs>
 
         <Box className="admin-prompts__tab-content">
