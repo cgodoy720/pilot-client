@@ -112,26 +112,12 @@ const AttendanceDashboard = () => {
       } else {
         setSearchResults([]);
       }
-    }, 50); // Reduced delay for faster response while preventing excessive API calls
+    }, 300); // Increased delay to reduce API calls and prevent focus disruption
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  // Monitor searchResults changes and restore focus if needed
-  useEffect(() => {
-    // Always restore focus if the search input should be focused and isn't currently
-    if (searchInputRef.current && document.activeElement !== searchInputRef.current) {
-      // Only restore focus if we're not in camera mode and the search input is visible
-      if (!showCamera && !isSubmitting) {
-        console.log('🔧 Restoring focus after searchResults update');
-        setTimeout(() => {
-          if (searchInputRef.current && !showCamera && !isSubmitting) {
-            searchInputRef.current.focus();
-          }
-        }, 0);
-      }
-    }
-  }, [searchResults, showCamera, isSubmitting]);
+  // Removed aggressive focus restoration that was interfering with natural typing
 
   // Cleanup camera on component unmount
   useEffect(() => {
@@ -293,17 +279,6 @@ const AttendanceDashboard = () => {
       if (response.ok) {
         const data = await response.json();
         setSearchResults(data.builders || []);
-        
-        // Restore focus after state update - more robust approach
-        setTimeout(() => {
-          if (searchInputRef.current && !showCamera && !isSubmitting) {
-            // Only restore focus if the input is still visible and we're not in other modes
-            const isInputVisible = searchInputRef.current.offsetParent !== null;
-            if (isInputVisible && document.activeElement !== searchInputRef.current) {
-              searchInputRef.current.focus();
-            }
-          }
-        }, 10); // Slightly longer delay to ensure DOM updates are complete
       }
     } catch (error) {
       console.error('Error searching builders:', error);
@@ -336,19 +311,17 @@ const AttendanceDashboard = () => {
   };
 
   const handleSearchBlur = (e) => {
-    // Only blur if clicking outside the entire search step area
-    const searchStep = e.currentTarget.closest('.search-step');
-    if (!searchStep?.contains(e.relatedTarget)) {
-      // User clicked outside search area - allow blur
-      return;
+    // Only prevent blur if clicking on search results
+    const searchResults = e.currentTarget.closest('.search-step')?.querySelector('.search-results');
+    if (searchResults?.contains(e.relatedTarget)) {
+      // User clicked on search results - prevent blur to maintain focus
+      setTimeout(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      }, 0);
     }
-    
-    // User clicked inside search area - prevent blur and maintain focus
-    setTimeout(() => {
-      if (searchInputRef.current) {
-        searchInputRef.current.focus();
-      }
-    }, 0);
+    // Otherwise, allow natural blur behavior
   };
 
   const handleStartCheckIn = async () => {
