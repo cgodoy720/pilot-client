@@ -513,6 +513,126 @@
   border-radius: 3px;
 }
 
+/* Modes Sub-navigation Styles */
+.modes-tab-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.modes-sub-tabs {
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-background-darker);
+  margin-bottom: 1.5rem;
+}
+
+.modes-sub-tabs__tabs {
+  background-color: var(--color-background-darker);
+}
+
+.modes-sub-tabs__tabs .MuiTab-root {
+  color: var(--color-text-muted) !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+  font-size: 0.9rem !important;
+  min-width: 120px !important;
+  max-width: 200px !important;
+}
+
+.modes-sub-tabs__tabs .MuiTab-root.Mui-selected {
+  color: var(--color-primary) !important;
+}
+
+.modes-sub-tabs__tabs .MuiTabs-indicator {
+  background-color: var(--color-primary) !important;
+}
+
+.mode-tab-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 180px;
+  overflow: hidden;
+}
+
+.mode-tab-label span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mode Content Styles */
+.mode-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mode-content__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.mode-content__title {
+  flex: 1;
+}
+
+.mode-content__actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.mode-content__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mode-content__text {
+  flex: 1;
+  background-color: #1A1F2C;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  color: var(--color-text-primary);
+  text-align: left;
+}
+
+.mode-content__meta {
+  padding: 0.5rem 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Scrollbar for mode content */
+.mode-content__text::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mode-content__text::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.mode-content__text::-webkit-scrollbar-thumb {
+  background-color: var(--color-primary);
+  border-radius: 3px;
+}
+
 /* StatusTab specific styles */
 .prompt-tab .MuiCard-root {
   border: 1px solid var(--color-border);

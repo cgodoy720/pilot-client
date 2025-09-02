@@ -13,6 +13,7 @@ import {
 import BasePromptsTab from './components/BasePromptsTab';
 import PersonasTab from './components/PersonasTab';
 import ProgramContextsTab from './components/ProgramContextsTab';
+import ModesTab from './components/ModesTab';
 import StatusTab from './components/StatusTab';
 import './AdminPrompts.css';
 
@@ -79,6 +80,7 @@ const AdminPrompts = () => {
           <Tab label="Base Prompts" />
           <Tab label="Personas" />
           <Tab label="Program Contexts" />
+          <Tab label="Modes" />
           <Tab label="Current AI Prompt" />
         </Tabs>
 
@@ -102,6 +104,12 @@ const AdminPrompts = () => {
             />
           )}
           {currentTab === 3 && (
+            <ModesTab 
+              showNotification={showNotification}
+              reloadPrompts={reloadPrompts}
+            />
+          )}
+          {currentTab === 4 && (
             <StatusTab 
               showNotification={showNotification}
               reloadPrompts={reloadPrompts}
