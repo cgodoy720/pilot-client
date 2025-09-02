@@ -184,9 +184,7 @@ html, body {
     gap: var(--spacing-md);
   }
   
-  .attendance-dashboard-card {
-    /* allow natural height */
-  }
+
 }
 
 @media (max-width: 768px) {
@@ -194,9 +192,7 @@ html, body {
     gap: var(--spacing-sm);
   }
   
-  .attendance-dashboard-card {
-    /* allow natural height */
-  }
+
 }
 
 .attendance-dashboard-grid {
