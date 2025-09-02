@@ -119,15 +119,19 @@ const AttendanceDashboard = () => {
 
   // Monitor searchResults changes and restore focus if needed
   useEffect(() => {
-    if (searchResults.length > 0 && searchInputRef.current && document.activeElement !== searchInputRef.current) {
-      console.log('🔧 Restoring focus after searchResults update');
-      setTimeout(() => {
-        if (searchInputRef.current) {
-          searchInputRef.current.focus();
-        }
-      }, 0);
+    // Always restore focus if the search input should be focused and isn't currently
+    if (searchInputRef.current && document.activeElement !== searchInputRef.current) {
+      // Only restore focus if we're not in camera mode and the search input is visible
+      if (!showCamera && !isSubmitting) {
+        console.log('🔧 Restoring focus after searchResults update');
+        setTimeout(() => {
+          if (searchInputRef.current && !showCamera && !isSubmitting) {
+            searchInputRef.current.focus();
+          }
+        }, 0);
+      }
     }
-  }, [searchResults]);
+  }, [searchResults, showCamera, isSubmitting]);
 
   // Cleanup camera on component unmount
   useEffect(() => {
@@ -290,12 +294,16 @@ const AttendanceDashboard = () => {
         const data = await response.json();
         setSearchResults(data.builders || []);
         
-        // Restore focus after state update
+        // Restore focus after state update - more robust approach
         setTimeout(() => {
-          if (searchInputRef.current && document.activeElement !== searchInputRef.current) {
-            searchInputRef.current.focus();
+          if (searchInputRef.current && !showCamera && !isSubmitting) {
+            // Only restore focus if the input is still visible and we're not in other modes
+            const isInputVisible = searchInputRef.current.offsetParent !== null;
+            if (isInputVisible && document.activeElement !== searchInputRef.current) {
+              searchInputRef.current.focus();
+            }
           }
-        }, 0);
+        }, 10); // Slightly longer delay to ensure DOM updates are complete
       }
     } catch (error) {
       console.error('Error searching builders:', error);
@@ -946,19 +954,46 @@ const AttendanceDashboard = () => {
             ) : todayAttendance ? (
               <div className="attendance-summary">
                 <div className="attendance-stats">
-                  <div className="stat-item">
+                  <div className="stat-item total">
                     <span className="stat-number">{todayAttendance.summary?.totalRecords || 0}</span>
                     <span className="stat-label">Total Check-ins</span>
                   </div>
-                  <div className="stat-item">
+                  <div className="stat-item on-time">
                     <span className="stat-number">{todayAttendance.summary?.presentCount || 0}</span>
-                    <span className="stat-label">On Time</span>
+                    <span className="stat-label">✅ On Time</span>
                   </div>
-                  <div className="stat-item">
+                  <div className="stat-item late">
                     <span className="stat-number">{todayAttendance.summary?.lateCount || 0}</span>
-                    <span className="stat-label">Late</span>
+                    <span className="stat-label">⏰ Late</span>
                   </div>
                 </div>
+                
+                {/* Cohort Breakdown */}
+                {todayAttendance.cohorts && todayAttendance.cohorts.length > 0 && (
+                  <div className="cohort-breakdown">
+                    <h4>Cohort Breakdown</h4>
+                    <div className="cohort-stats-grid">
+                      {todayAttendance.cohorts.map((cohort, index) => {
+                        const onTimeCount = cohort.records.filter(r => r.status === 'present').length;
+                        const lateCount = cohort.records.filter(r => r.status === 'late').length;
+                        const totalCount = cohort.count;
+                        
+                        return (
+                          <div key={index} className="cohort-stat-item">
+                            <div className="cohort-name">{cohort.cohort}</div>
+                            <div className="cohort-numbers">
+                              <span className="cohort-total">{totalCount}</span>
+                              <div className="cohort-details">
+                                <span className="cohort-on-time">✅ {onTimeCount}</span>
+                                <span className="cohort-late">⏰ {lateCount}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 
                 <div className="attendance-date">
                   <strong>Date:</strong> {todayAttendance.date || 'Today'}

@@ -820,6 +820,22 @@ html, body {
   background-color: var(--color-background-darker);
   border-radius: 4px;
   border: 1px solid var(--color-border);
+  transition: all var(--transition-speed);
+}
+
+.stat-item.total {
+  border-color: var(--color-primary);
+  background-color: rgba(99, 102, 241, 0.05);
+}
+
+.stat-item.on-time {
+  border-color: #22c55e;
+  background-color: rgba(34, 197, 94, 0.05);
+}
+
+.stat-item.late {
+  border-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.05);
 }
 
 .stat-number {
@@ -838,6 +854,82 @@ html, body {
   text-align: center;
   color: var(--color-text-secondary);
   font-size: 0.9rem;
+}
+
+/* Cohort Breakdown Styles */
+.cohort-breakdown {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background-color: var(--color-background-darker);
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+}
+
+.cohort-breakdown h4 {
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.cohort-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.cohort-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background-color: var(--color-background-dark);
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  transition: all var(--transition-speed);
+}
+
+.cohort-stat-item:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+}
+
+.cohort-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.cohort-numbers {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.cohort-total {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.cohort-details {
+  display: flex;
+  gap: var(--spacing-sm);
+  font-size: 0.8rem;
+}
+
+.cohort-on-time {
+  color: #22c55e;
+  font-weight: 500;
+}
+
+.cohort-late {
+  color: #ef4444;
+  font-weight: 500;
 }
 
 .refresh-button {
