@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import FeedbackHeader from '../../components/FeedbackHeader/FeedbackHeader';
 import FeedbackModal from './FeedbackModal';
 import FeedbackList from './FeedbackList';
 import './VolunteerFeedback.css';
@@ -71,10 +72,13 @@ function VolunteerFeedback() {
     if (user?.role !== 'volunteer') {
         console.log('🔍 Access denied - user is not a volunteer');
         return (
-            <div className="volunteer-feedback">
-                <div className="volunteer-feedback__error">
-                    <h2>Access Denied</h2>
-                    <p>This page is only available to volunteers.</p>
+            <div className="volunteer-feedback-page">
+                <FeedbackHeader />
+                <div className="volunteer-feedback">
+                    <div className="volunteer-feedback__error">
+                        <h2>Access Denied</h2>
+                        <p>This page is only available to volunteers.</p>
+                    </div>
                 </div>
             </div>
         );
@@ -85,53 +89,54 @@ function VolunteerFeedback() {
     console.log('🔍 Rendering main feedback form content');
     
     return (
-        <div className="volunteer-feedback">
-            <div className="volunteer-feedback__header">
-                <h1>Volunteer Feedback</h1>
-                <p>Share your insights and experiences to help improve our programs.</p>
+        <div className="volunteer-feedback-page">
+            <FeedbackHeader />
+            <div className="volunteer-feedback">
+                <div className="volunteer-feedback__header">
+                    <h1>Volunteer Feedback</h1>
+                    <p>Share your insights and experiences to help improve our programs.</p>
+                </div>
+
+                {/* Action Section */}
+                <div className="volunteer-feedback__actions">
+                    <button 
+                        className="volunteer-feedback__record-button"
+                        onClick={() => setIsModalOpen(true)}
+                    >
+                        📝 Record Feedback
+                    </button>
+                </div>
+
+                {/* Feedback List */}
+                <div className="volunteer-feedback__content">
+                    <h2>Your Feedback History</h2>
+                    {isLoading ? (
+                        <div className="volunteer-feedback__loading">Loading your feedback...</div>
+                    ) : error ? (
+                        <div className="volunteer-feedback__error">{error}</div>
+                    ) : feedback.length === 0 ? (
+                        <div className="volunteer-feedback__empty">
+                            <p>You haven't submitted any feedback yet.</p>
+                            <p>Click "Record Feedback" to get started!</p>
+                        </div>
+                    ) : (
+                        <FeedbackList 
+                            feedback={feedback}
+                            onDelete={handleFeedbackDeleted}
+                            onUpdate={handleFeedbackUpdated}
+                            token={token}
+                        />
+                    )}
+                </div>
+
+                {/* Feedback Modal */}
+                <FeedbackModal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    onSubmit={handleFeedbackSubmitted}
+                    token={token}
+                />
             </div>
-
-
-
-            {/* Action Section */}
-            <div className="volunteer-feedback__actions">
-                <button 
-                    className="volunteer-feedback__record-button"
-                    onClick={() => setIsModalOpen(true)}
-                >
-                    📝 Record Feedback
-                </button>
-            </div>
-
-            {/* Feedback List */}
-            <div className="volunteer-feedback__content">
-                <h2>Your Feedback History</h2>
-                {isLoading ? (
-                    <div className="volunteer-feedback__loading">Loading your feedback...</div>
-                ) : error ? (
-                    <div className="volunteer-feedback__error">{error}</div>
-                ) : feedback.length === 0 ? (
-                    <div className="volunteer-feedback__empty">
-                        <p>You haven't submitted any feedback yet.</p>
-                        <p>Click "Record Feedback" to get started!</p>
-                    </div>
-                ) : (
-                    <FeedbackList 
-                        feedback={feedback}
-                        onDelete={handleFeedbackDeleted}
-                        onUpdate={handleFeedbackUpdated}
-                        token={token}
-                    />
-                )}
-            </div>
-
-            {/* Feedback Modal */}
-            <FeedbackModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSubmit={handleFeedbackSubmitted}
-                token={token}
-            />
         </div>
     );
 }

@@ -197,9 +197,7 @@ function App() {
           </Layout>
         } />
         <Route path="/volunteer-feedback" element={
-          <Layout>
-            <VolunteerFeedback />
-          </Layout>
+          <VolunteerFeedback />
         } />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
