@@ -91,18 +91,6 @@ const CohortAttendanceCard = ({
                     }
                   })()}
                 </p>
-                {/* Late/On Time Status Indicator */}
-                <div className={`status-indicator ${attendee.status === 'late' ? 'late' : 'on-time'}`}>
-                  {attendee.status === 'late' ? (
-                    <span className="status-text late">
-                      ⏰ {attendee.lateArrivalMinutes || 0} min late
-                    </span>
-                  ) : (
-                    <span className="status-text on-time">
-                      ✅ On time
-                    </span>
-                  )}
-                </div>
               </div>
             </div>
           ))}

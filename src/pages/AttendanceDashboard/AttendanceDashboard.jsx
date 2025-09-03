@@ -926,6 +926,7 @@ const AttendanceDashboard = () => {
               </div>
             ) : todayAttendance ? (
               <div className="attendance-summary">
+                {/* First row: Total, On Time, Late stats */}
                 <div className="attendance-stats">
                   <div className="stat-item total">
                     <span className="stat-number">{todayAttendance.summary?.totalRecords || 0}</span>
@@ -941,30 +942,27 @@ const AttendanceDashboard = () => {
                   </div>
                 </div>
                 
-                {/* Cohort Breakdown */}
+                {/* Second row: Cohort rectangles */}
                 {todayAttendance.cohorts && todayAttendance.cohorts.length > 0 && (
-                  <div className="cohort-breakdown">
-                    <h4>Cohort Breakdown</h4>
-                    <div className="cohort-stats-grid">
-                      {todayAttendance.cohorts.map((cohort, index) => {
-                        const onTimeCount = cohort.records.filter(r => r.status === 'present').length;
-                        const lateCount = cohort.records.filter(r => r.status === 'late').length;
-                        const totalCount = cohort.count;
-                        
-                        return (
-                          <div key={index} className="cohort-stat-item">
-                            <div className="cohort-name">{cohort.cohort}</div>
-                            <div className="cohort-numbers">
-                              <span className="cohort-total">{totalCount}</span>
-                              <div className="cohort-details">
-                                <span className="cohort-on-time">✅ {onTimeCount}</span>
-                                <span className="cohort-late">⏰ {lateCount}</span>
-                              </div>
+                  <div className="cohort-stats-row">
+                    {todayAttendance.cohorts.map((cohort, index) => {
+                      const onTimeCount = cohort.records.filter(r => r.status === 'present').length;
+                      const lateCount = cohort.records.filter(r => r.status === 'late').length;
+                      const totalCount = cohort.count;
+                      
+                      return (
+                        <div key={index} className="cohort-stat-item">
+                          <div className="cohort-name">{cohort.cohort}</div>
+                          <div className="cohort-numbers">
+                            <span className="cohort-total">{totalCount}</span>
+                            <div className="cohort-details">
+                              <span className="cohort-on-time">✅ {onTimeCount}</span>
+                              <span className="cohort-late">⏰ {lateCount}</span>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                 

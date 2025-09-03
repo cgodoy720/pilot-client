@@ -106,8 +106,8 @@
   align-items: center;
   gap: var(--spacing-xs);
   flex-shrink: 0;
-  min-width: 80px;
-  max-width: 100px;
+  min-width: 120px;
+  max-width: 140px;
 }
 
 .thumbnail-photo {
@@ -129,7 +129,8 @@
 
 .thumbnail-info {
   text-align: center;
-  min-width: 80px;
+  min-width: 120px;
+  max-width: 140px;
 }
 
 .thumbnail-info .attendee-name {
@@ -199,6 +200,16 @@
     height: 60px;
   }
   
+  .attendee-thumbnail {
+    min-width: 100px;
+    max-width: 120px;
+  }
+  
+  .thumbnail-info {
+    min-width: 100px;
+    max-width: 120px;
+  }
+  
   .thumbnail-info .attendee-name {
     font-size: 0.75rem;
   }
@@ -233,6 +244,16 @@
   .thumbnail-photo {
     width: 50px;
     height: 50px;
+  }
+  
+  .attendee-thumbnail {
+    min-width: 90px;
+    max-width: 110px;
+  }
+  
+  .thumbnail-info {
+    min-width: 90px;
+    max-width: 110px;
   }
   
   .thumbnail-info .attendee-name {
