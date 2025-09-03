@@ -255,6 +255,8 @@ function Learning() {
           
           const messageData = await messageResponse.json();
           
+
+          
           // Check if the message is a system metadata object that shouldn't be displayed
           const messageContent = typeof messageData.content === 'object' ? 
             JSON.stringify(messageData.content) : messageData.content;

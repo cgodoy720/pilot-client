@@ -772,6 +772,9 @@ function PastSession() {
       setMessages(prev => [...prev, optimisticMessage]);
       setNewMessage('');
       
+      // Show AI thinking indicator
+      setIsAiThinking(true);
+      
       // Auto expand the textarea
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';

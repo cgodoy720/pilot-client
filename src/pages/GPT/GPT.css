@@ -504,7 +504,7 @@
     transform: translateY(0);
   }
   40% { 
-    transform: translateY(-8px);
+    transform: translateY(-3px);
   }
 }
 
