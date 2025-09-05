@@ -740,7 +740,7 @@
   background-color: var(--color-background-dark, #181c28);
   color: var(--color-text-primary, #ffffff);
   border-top-left-radius: 2px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05), 0 0 8px rgba(85, 85, 255, 0.3);
   text-align: left;
 }
 
@@ -810,6 +810,12 @@
   min-width: 40px;
 }
 
+/* Make the thinking message smaller */
+.learning__message-content--thinking {
+  padding: 8px;
+  width: fit-content;
+}
+
 .learning__typing-indicator span {
   width: 8px;
   height: 8px;
@@ -823,7 +829,7 @@
 
 @keyframes bounce {
   0%, 80%, 100% { transform: translateY(0); }
-  40% { transform: translateY(-8px); }
+  40% { transform: translateY(-3px); }
 }
 
 /* Input form styles */

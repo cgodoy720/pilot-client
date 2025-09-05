@@ -14,13 +14,14 @@ import BugReportIcon from '@mui/icons-material/BugReport';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import PersonIcon from '@mui/icons-material/Person';
 import GroupsIcon from '@mui/icons-material/Groups';
+import PsychologyIcon from '@mui/icons-material/Psychology';
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 import logo from '../../assets/logo.png'
 import logoFull from '../../assets/logo-full.png'
 
 const Layout = ({ children }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -85,7 +86,7 @@ const Layout = ({ children }) => {
           
           <Link to="/gpt" className={`layout__nav-item ${location.pathname === '/gpt' ? 'layout__nav-item--active' : ''}`}>
             <ChatIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">GPT-4-TURBO</span>}
+            {isExpanded && <span className="layout__nav-text">AI Chat</span>}
           </Link>
           <Link to="/calendar" className={`layout__nav-item ${location.pathname === '/calendar' ? 'layout__nav-item--active' : ''}`}>
             <CalendarMonthIcon className="layout__nav-icon" />
@@ -111,10 +112,14 @@ const Layout = ({ children }) => {
                 <BugReportIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">Content Generation</span>}
               </Link>
-              <Link to="/facilitator-view" className={`layout__nav-item ${location.pathname === '/facilitator-view' ? 'layout__nav-item--active' : ''}`}>
+              <Link to="/admin-prompts" className={`layout__nav-item ${location.pathname === '/admin-prompts' ? 'layout__nav-item--active' : ''}`}>
+                <PsychologyIcon className="layout__nav-icon" />
+                {isExpanded && <span className="layout__nav-text">AI Prompts</span>}
+              </Link>
+              {/* <Link to="/facilitator-view" className={`layout__nav-item ${location.pathname === '/facilitator-view' ? 'layout__nav-item--active' : ''}`}>
                 <PersonIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">Facilitator View</span>}
-              </Link>
+              </Link> */}
             </>
           )}
         </div>

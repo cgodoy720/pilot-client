@@ -7,7 +7,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import PeerFeedbackForm from '../../components/PeerFeedbackForm';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
 import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
-import SummaryModal from '../../components/SummaryModal/SummaryModal';
+
 import './Learning.css';
 import '../../styles/smart-tasks.css';
 
@@ -72,12 +72,7 @@ function Learning() {
   // Initialize submission state
   const [submission, setSubmission] = useState(null);
   
-  // Add state for summary functionality
-  const [showSummaryModal, setShowSummaryModal] = useState(false);
-  const [summaryData, setSummaryData] = useState(null);
-  const [summarizingUrl, setSummarizingUrl] = useState(null); // Track which URL is being summarized
-  const [summaryError, setSummaryError] = useState(null);
-  const [generatedSummaries, setGeneratedSummaries] = useState({}); // Cache summaries by URL
+
   
   // Add useEffect to log analysis results changes
   useEffect(() => {
@@ -259,6 +254,8 @@ function Learning() {
           }
           
           const messageData = await messageResponse.json();
+          
+
           
           // Check if the message is a system metadata object that shouldn't be displayed
           const messageContent = typeof messageData.content === 'object' ? 
@@ -811,125 +808,23 @@ function Learning() {
     }
   };
   
-  // Function to generate summary for an article
-  const handleGenerateSummary = async (url, title) => {
-    // Check if user is active
-    if (!isActive) {
-      setError('You have historical access only and cannot generate summaries.');
-      return;
-    }
-    
-    setSummarizingUrl(url);
-    setSummaryError(null);
-    
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/resources/summarize`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ url, title })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details || errorData.error || 'Failed to generate summary');
-      }
-      
-      const data = await response.json();
-      
-      // Store in cache
-      setGeneratedSummaries(prev => ({
-        ...prev,
-        [url]: data
-      }));
-      
-      // Set current summary data and open modal
-      setSummaryData(data);
-      setShowSummaryModal(true);
-      
-    } catch (error) {
-      console.error('Error generating summary:', error);
-      const errorMessage = error?.message || 'An unknown error occurred';
-      
-      // Show error in the summary modal instead of main page error
-      setSummaryError(errorMessage);
-      setSummaryData({ title, url }); // Set basic data for modal display
-      setShowSummaryModal(true); // Show modal with error state
-      
-      // Don't set the main page error for summary-related issues
-      // setError(`Failed to generate summary: ${errorMessage}`);
-    } finally {
-      setSummarizingUrl(null);
-    }
-  };
+
   
-  // Function to view an existing summary
-  const handleViewSummary = (url) => {
-    const cachedSummary = generatedSummaries[url];
-    if (cachedSummary) {
-      setSummaryData(cachedSummary);
-      setShowSummaryModal(true);
-    }
-  };
-  
-  // Function to close summary modal
-  const handleCloseSummaryModal = () => {
-    setShowSummaryModal(false);
-    setSummaryData(null);
-    setSummaryError(null);
-  };
-  
-  // Helper function to check if a resource is an article
-  const isArticleResource = (resource) => {
-    console.log('Checking resource:', resource); // Debug log
-    const type = resource.type;
-    console.log('Resource type:', type); // Debug log
-    
-    // Check for various article-related types
-    const isArticle = type && (
-      type.toLowerCase() === 'article' || 
-      type.toLowerCase() === 'blog' ||
-      type.toLowerCase() === 'post' ||
-      type.toLowerCase() === 'news' ||
-      type.toLowerCase() === 'medium' ||
-      (resource.url && (
-        resource.url.includes('medium.com') ||
-        resource.url.includes('blog') ||
-        resource.url.includes('article') ||
-        resource.url.includes('.com/post/') ||
-        resource.url.includes('hackernoon') ||
-        resource.url.includes('dev.to')
-      ))
-    );
-    
-    console.log('Is article:', isArticle); // Debug log
-    return isArticle;
-  };
+
   
   // Helper function to check if a resource is a YouTube video
   const isYouTubeVideo = (resource) => {
-    console.log('Checking for YouTube video:', resource); // Debug log
     const type = resource.type;
     const url = resource.url;
     
     // Check for video type or YouTube URL patterns
-    const isVideo = (type && type.toLowerCase() === 'video') || 
+    return (type && type.toLowerCase() === 'video') || 
       (url && (
         url.includes('youtube.com/watch') ||
         url.includes('youtu.be/') ||
         url.includes('youtube.com/embed') ||
         url.includes('youtube.com/v/')
       ));
-    
-    console.log('Is YouTube video:', isVideo); // Debug log
-    return isVideo;
-  };
-
-  // Helper function to check if a resource can be summarized (article or video)
-  const canSummarizeResource = (resource) => {
-    return isArticleResource(resource) || isYouTubeVideo(resource);
   };
 
   // Add this function to render resources
@@ -978,28 +873,7 @@ function Learning() {
                       <p className="resource-description">{resource.description}</p>
                     )}
                   </div>
-                  {canSummarizeResource(resource) && (
-                    <div className="learning__resource-actions">
-                      {generatedSummaries[resource.url] ? (
-                        <button
-                          className="learning__summary-btn learning__summary-btn--view"
-                          onClick={() => handleViewSummary(resource.url)}
-                          title={`View ${isYouTubeVideo(resource) ? 'video' : 'article'} summary`}
-                        >
-                          {isYouTubeVideo(resource) ? <FaVideo /> : <FaFileAlt />} View Summary
-                        </button>
-                      ) : (
-                        <button
-                          className="learning__summary-btn learning__summary-btn--generate"
-                          onClick={() => handleGenerateSummary(resource.url, resource.title)}
-                          disabled={summarizingUrl === resource.url}
-                          title={`Generate AI summary of this ${isYouTubeVideo(resource) ? 'video' : 'article'}`}
-                        >
-                          {isYouTubeVideo(resource) ? <FaVideo /> : <FaFileAlt />} {summarizingUrl === resource.url ? 'Generating...' : 'Summarize'}
-                        </button>
-                      )}
-                    </div>
-                  )}
+
                 </li>
               ))}
             </ul>
@@ -2063,17 +1937,7 @@ function Learning() {
         />
       )}
       
-      {/* Summary Modal */}
-      <SummaryModal
-        isOpen={showSummaryModal}
-        onClose={handleCloseSummaryModal}
-        summary={summaryData?.summary}
-        title={summaryData?.title}
-        url={summaryData?.url}
-        cached={summaryData?.cached}
-        loading={summarizingUrl === summaryData?.url}
-        error={summaryError}
-      />
+
     </div>
   );
 }

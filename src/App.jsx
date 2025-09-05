@@ -11,12 +11,15 @@ import AdmissionsDashboard from './pages/AdmissionsDashboard';
 import ApplicationDetail from './pages/AdmissionsDashboard/ApplicationDetail';
 import Content from './pages/Content';
 import FacilitatorView from './pages/FacilitatorView';
+import AdminPrompts from './pages/AdminPrompts';
 import Stats from './pages/Stats';
 import Account from './pages/Account/Account';
+
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
 
 import { useAuth } from './context/AuthContext';
 import { resetAuthModalState } from './utils/globalErrorHandler';
+
 import './App.css';
 
 function App() {
@@ -114,6 +117,8 @@ function App() {
     return children;
   };
 
+
+
   // If auth is still loading, show a minimal loading state
   if (isLoading) {
     return <div className="app-loading">Loading application...</div>;
@@ -178,6 +183,13 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
+        <Route path="/admin-prompts" element={
+          <Layout>
+            <AdminRoute>
+              <AdminPrompts />
+            </AdminRoute>
+          </Layout>
+        } />
         <Route path="/facilitator-view" element={
           <Layout>
             <AdminRoute>
@@ -195,6 +207,7 @@ function App() {
             <Account />
           </Layout>
         } />
+
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
       
