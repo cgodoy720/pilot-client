@@ -38,12 +38,13 @@ export const fetchWithAuth = async (endpoint, options = {}, token) => {
 };
 
 // Chat API functions
-export const sendMessageToGPT = async (message, threadId, token) => {
+export const sendMessageToGPT = async (message, threadId, token, model = 'anthropic/claude-3.7-sonnet') => {
   return fetchWithAuth('/api/chat/messages', {
     method: 'POST',
     body: JSON.stringify({
       content: message,
-      threadId: threadId
+      threadId: threadId,
+      model: model
     })
   }, token);
 };

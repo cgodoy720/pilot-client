@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './GPT.css';
-import { FaPlus, FaChevronLeft, FaFileAlt, FaVideo, FaLink, FaTimes } from 'react-icons/fa';
+import { FaPlus, FaChevronLeft, FaFileAlt, FaVideo, FaLink, FaTimes, FaCog } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -28,6 +28,10 @@ function GPT() {
   const [summaryLoading, setSummaryLoading] = useState(false); // Track if we're fetching summary
   const [modalSummaryData, setModalSummaryData] = useState(null); // Summary data for the modal
   
+  // Model selection state
+  const [selectedModel, setSelectedModel] = useState('anthropic/claude-3.7-sonnet');
+  const [showModelSelector, setShowModelSelector] = useState(false);
+  
   // Enhanced content management state
   const [contentSources, setContentSources] = useState({}); // Store multiple content sources per thread
   const [showUploadDropdown, setShowUploadDropdown] = useState(false);
@@ -42,6 +46,7 @@ function GPT() {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const uploadDropdownRef = useRef(null);
+  const modelSelectorRef = useRef(null);
 
   // Check if user is inactive (in historical access mode)
   const isInactiveUser = user && user.active === false;
@@ -287,8 +292,8 @@ function GPT() {
       // Check if this is the first message in the thread
       const isFirstMessage = messages.length === 0;
       
-      // Send message to API
-      const response = await sendMessageToGPT(messageToSend, activeThread, token);
+      // Send message to API with selected model
+      const response = await sendMessageToGPT(messageToSend, activeThread, token, selectedModel);
       
       // If this is the first message, refresh threads to get updated titles
       if (isFirstMessage) {
@@ -884,6 +889,10 @@ function GPT() {
         setShowUploadDropdown(false);
         setShowUrlInput(false);
       }
+      
+      if (modelSelectorRef.current && !modelSelectorRef.current.contains(event.target)) {
+        setShowModelSelector(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -993,7 +1002,7 @@ function GPT() {
             
             {!activeThread ? (
               <div className="gpt__empty-state">
-                <h3 className="gpt__empty-state-title">Welcome to GPT-4-TURBO</h3>
+                <h3 className="gpt__empty-state-title">Welcome!</h3>
                 <p className="gpt__empty-state-text">
                   {isInactiveUser 
                     ? "You can view your past conversations, but cannot create new ones in historical access mode." 
@@ -1205,6 +1214,58 @@ function GPT() {
                 </div>
                 
                 <form className="gpt__input-form" onSubmit={handleSendMessage}>
+                  {/* Model Selector */}
+                  <div className="gpt__model-selector-container" ref={modelSelectorRef}>
+                    <button
+                      type="button"
+                      className={`gpt__model-selector-btn ${showModelSelector ? 'gpt__model-selector-btn--active' : ''}`}
+                      onClick={() => setShowModelSelector(!showModelSelector)}
+                      disabled={!activeThread || isProcessingUpload || isLoading || isInactiveUser}
+                      title={isInactiveUser ? "Cannot change model in historical access mode" : "Select AI model"}
+                    >
+                      <FaCog size={16} />
+                    </button>
+                    
+                    {/* Model Dropdown */}
+                    {showModelSelector && (
+                      <div className="gpt__model-dropdown">
+                        <div className="gpt__model-dropdown-header">Select AI Model</div>
+                        <div className="gpt__model-options">
+                          <button
+                            type="button"
+                            className={`gpt__model-option ${selectedModel === 'anthropic/claude-3.7-sonnet' ? 'gpt__model-option--selected' : ''}`}
+                            onClick={() => {
+                              setSelectedModel('anthropic/claude-3.7-sonnet');
+                              setShowModelSelector(false);
+                            }}
+                          >
+                            Claude 3.7 Sonnet (Default)
+                          </button>
+                          <button
+                            type="button"
+                            className={`gpt__model-option ${selectedModel === 'anthropic/claude-3.5-sonnet' ? 'gpt__model-option--selected' : ''}`}
+                            onClick={() => {
+                              setSelectedModel('anthropic/claude-3.5-sonnet');
+                              setShowModelSelector(false);
+                            }}
+                          >
+                            Claude 3.5 Sonnet
+                          </button>
+                          <button
+                            type="button"
+                            className={`gpt__model-option ${selectedModel === 'openai/gpt-4o' ? 'gpt__model-option--selected' : ''}`}
+                            onClick={() => {
+                              setSelectedModel('openai/gpt-4o');
+                              setShowModelSelector(false);
+                            }}
+                          >
+                            GPT-4o
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
                   {/* Upload Controls */}
                   <div className="gpt__upload-container" ref={uploadDropdownRef}>
                     <button
