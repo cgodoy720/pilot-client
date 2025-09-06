@@ -26,6 +26,16 @@
   background-repeat: no-repeat !important;
 }
 
+/* Ensure conversation task messages don't break container width */
+.learning__chat-container--conversation .learning__message-content,
+.past-session .learning__chat-container--conversation .learning__message-content {
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+  overflow-x: hidden !important;
+  min-width: 0 !important;
+}
+
 /* Message styling differences - removed background and border styling */
 
 /* Task type badge */
