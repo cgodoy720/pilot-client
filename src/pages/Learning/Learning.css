@@ -155,6 +155,21 @@
   transition: all 0.2s ease;
   cursor: pointer;
   position: relative;
+  
+  /* CRITICAL: Ensure user messages never have scrollbars */
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  
+  /* Natural expansion - show all user content */
+  height: auto !important;
+  min-height: auto !important;
+  max-height: none !important;
+  
+  /* Proper text wrapping for user messages */
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  white-space: pre-wrap !important;
 }
 
 .learning__message--user .learning__message-content:active {
@@ -1710,7 +1725,7 @@
 
 /* ReactMarkdown component overrides */
 .markdown-paragraph {
-  margin-bottom: 12px;
+  /* margin-bottom: 12px; */
   line-height: 1.6;
   overflow-wrap: break-word;
   word-wrap: break-word;
