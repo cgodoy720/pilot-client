@@ -81,16 +81,3 @@ code {
   color: var(--color-text-primary);
   font-size: 1.5rem;
 }
-
-/* MINIMAL FIX: Only prevent horizontal overflow on long URLs and code */
-.learning__message-content a,
-.gpt__message-content a {
-  word-break: break-all !important;
-  overflow-wrap: break-word !important;
-}
-
-.learning__message-content pre,
-.gpt__message-content pre {
-  overflow-x: auto !important;
-  max-width: 100% !important;
-}
