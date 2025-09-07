@@ -40,7 +40,8 @@
 
 .learning__messages {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: auto; /* Allow vertical scrolling of the container */
+  overflow-x: hidden; /* Prevent horizontal scroll */
   padding: var(--spacing-md);
   display: flex;
   flex-direction: column;
@@ -50,6 +51,7 @@
   background-color: var(--color-background-darker);
   max-height: calc(100vh - 180px); /* Account for input form and other elements */
   transition: opacity 0.2s ease;
+  /* Remove width constraints that might be causing issues */
 }
 
 .learning__messages.loading {
@@ -60,6 +62,10 @@
   display: flex;
   max-width: 85%;
   animation: fadeIn 0.3s ease-in;
+  /* Ensure messages can expand naturally */
+  overflow: visible;
+  height: auto;
+  min-height: auto;
 }
 
 /* User message styles with interactive indicators */
@@ -131,12 +137,13 @@
   background-color: var(--color-background-darker);
   color: var(--color-text-primary);
   position: relative;
-  /* Fix horizontal scrolling issues */
+  /* SURGICAL WIDTH CONTAINMENT: Prevent horizontal expansion while allowing vertical */
   overflow-wrap: break-word;
   word-wrap: break-word;
-  word-break: break-word;
-  overflow-x: hidden;
-  min-width: 0; /* Allow flex children to shrink */
+  word-break: break-word; /* Force long words to break */
+  min-width: 0;
+  width: 100%; /* Force content to use full available width */
+  box-sizing: border-box; /* Include padding in width calculation */
 }
 
 .learning__message--user .learning__message-content {
@@ -148,6 +155,21 @@
   transition: all 0.2s ease;
   cursor: pointer;
   position: relative;
+  
+  /* CRITICAL: Ensure user messages never have scrollbars */
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  
+  /* Natural expansion - show all user content */
+  height: auto !important;
+  min-height: auto !important;
+  max-height: none !important;
+  
+  /* Proper text wrapping for user messages */
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  white-space: pre-wrap !important;
 }
 
 .learning__message--user .learning__message-content:active {
@@ -581,8 +603,6 @@
 .markdown-paragraph {
   margin-bottom: 0;
   line-height: 1.6;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
 }
 
 /* Add margin between paragraphs only when they follow another paragraph */
@@ -594,30 +614,21 @@
   font-weight: 600;
   margin-top: 16px;
   margin-bottom: 8px;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
 }
 
 .markdown-list {
   margin: 8px 0;
   padding-left: 20px;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
 }
 
 .markdown-list-item {
   margin: 4px 0;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
 }
 
 .markdown-link {
   color: #58a6ff;
   text-decoration: none;
   transition: text-decoration 0.2s;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
-  word-break: break-all; /* Force long URLs to break */
 }
 
 .markdown-link:hover {
@@ -713,11 +724,7 @@
   100% { background-color: var(--color-primary-transparent); }
 }
 
-/* Message transition animations */
-.learning__message {
-  animation: fadeInMessage 0.3s ease;
-  transition: all 0.3s ease;
-}
+/* Message transition animations - removed conflicting styles */
 
 @keyframes fadeInMessage {
   from { opacity: 0; transform: translateY(10px); }
@@ -1617,12 +1624,18 @@
   }
 }
 
-/* Code block styling - prevent horizontal overflow */
+/* CRITICAL: Fix for formatMessageContent rendering - prevent horizontal overflow */
+
+/* Custom code block elements from formatMessageContent function */
 .code-block-wrapper {
   margin: 12px 0;
-  border-radius: 6px;
-  overflow: hidden;
-  max-width: 100%;
+  /* border-radius: 6px; */
+  /* TEST 1: Aggressive wrapper containment */
+  /* overflow: hidden !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  min-width: 0 !important; */
 }
 
 .code-block-header {
@@ -1637,24 +1650,128 @@
   background-color: rgba(0, 0, 0, 0.4);
   padding: 12px;
   margin: 0;
-  overflow-x: auto; /* Allow horizontal scrolling within code blocks */
-  overflow-y: hidden;
+  
+  /* TEST 2: Multiple containment strategies for <pre> element */
+  
+  /* Strategy A: Overflow control */
+  /* overflow-x: auto !important; Horizontal scroll within */ 
+  /* overflow-y: hidden !important; /* No vertical scroll */
+  
+  /* Strategy B: Width constraints */
+  /* max-width: 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important; */
+  
+  /* Strategy C: Display and positioning */
+  /* display: block !important;
+  position: relative !important; */
+  
+  /* Strategy D: Text handling */
+  /* white-space: pre !important;
+  /* word-wrap: normal !important; 
+  /* overflow-wrap: normal !important; 
+  /* word-break: normal !important;
+  
+  /* Strategy E: CSS containment */
+  /* contain: layout size; */
+  
+  /* Styling */
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 13px;
   line-height: 1.4;
-  white-space: pre; /* Preserve formatting but allow scrolling */
+}
+
+
+.code-language {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* NEW: CSS for preprocessed code content */
+.code-block-content {
+  background-color: rgba(0, 0, 0, 0.4);
+  padding: 12px;
+  margin: 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  
+  /* FIXED: Only width containment, no height restriction */
+  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  
+  /* Allow text to wrap naturally since we preprocessed it */
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  
+  /* Natural height expansion - show all content */
+  height: auto;
+  min-height: auto;
+  max-height: none;
+  overflow-y: visible;
+  
+  /* Only horizontal overflow control */
+  overflow-x: hidden;
+  
+  /* Create layout context without size restriction */
+  position: relative;
+  isolation: isolate;
+}
+
+/* ReactMarkdown component overrides */
+.markdown-paragraph {
+  /* margin-bottom: 12px; */
+  line-height: 1.6;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
   max-width: 100%;
 }
 
-.code-block code {
-  background: none;
-  padding: 0;
-  font-family: inherit;
-  font-size: inherit;
-  color: inherit;
+.markdown-heading {
+  font-weight: 600;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  max-width: 100%;
 }
 
-/* Inline code styling */
+.markdown-list {
+  margin: 8px 0;
+  padding-left: 20px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  max-width: 100%;
+}
+
+.markdown-list-item {
+  margin: 4px 0;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  max-width: 100%;
+}
+
+.markdown-link {
+  color: #58a6ff;
+  text-decoration: none;
+  transition: text-decoration 0.2s;
+  /* CRITICAL: Force URL breaking */
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-all;
+  max-width: 100%;
+}
+
+.markdown-link:hover {
+  text-decoration: underline;
+}
+
+/* Inline code from ReactMarkdown */
 .inline-code {
   background-color: rgba(0, 0, 0, 0.3);
   color: var(--color-text-primary);
@@ -1664,9 +1781,11 @@
   font-size: 0.9em;
   overflow-wrap: break-word;
   word-wrap: break-word;
+  word-break: break-all;
+  max-width: 100%;
 }
 
-/* System message styling */
+/* System and error messages from formatMessageContent */
 .system-message {
   background-color: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1677,9 +1796,9 @@
   overflow-x: auto;
   max-width: 100%;
   white-space: pre-wrap;
+  box-sizing: border-box;
 }
 
-/* Error message styling */
 .error-message {
   color: #ff6b6b;
   background-color: rgba(255, 107, 107, 0.1);
@@ -1687,4 +1806,65 @@
   border-radius: 4px;
   padding: 8px;
   font-size: 14px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  max-width: 100%;
+}
+
+
+/* SURGICAL WIDTH CONTAINMENT: Prevent horizontal expansion of all message content */
+
+/* Force ALL children of message content to respect width boundaries */
+.learning__message-content *,
+.learning__message-content pre,
+.learning__message-content code,
+.learning__message-content p,
+.learning__message-content div,
+.learning__message-content span,
+.learning__message-content a,
+.learning__message-content table {
+  max-width: 100% !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+  box-sizing: border-box !important;
+}
+
+/* Code blocks should scroll internally but stay within bounds */
+.code-block,
+.learning__message-content pre {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  white-space: pre !important;
+  background-color: rgba(0, 0, 0, 0.4);
+  padding: 12px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  box-sizing: border-box !important;
+}
+
+/* Long URLs should break */
+.markdown-link,
+.learning__message-content a {
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  max-width: 100% !important;
+}
+
+/* Inline code should wrap */
+.inline-code,
+.learning__message-content code {
+  word-break: break-all !important;
+  overflow-wrap: break-word !important;
+  max-width: 100% !important;
+}
+
+/* Tables should be contained */
+.learning__message-content table {
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: fixed !important;
+  word-wrap: break-word !important;
 }

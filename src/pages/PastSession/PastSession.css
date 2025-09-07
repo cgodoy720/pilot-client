@@ -730,6 +730,21 @@
   transition: all 0.2s ease;
   cursor: default;
   position: relative;
+  
+  /* CRITICAL: Ensure user messages never have scrollbars */
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  
+  /* Natural expansion - show all user content */
+  height: auto !important;
+  min-height: auto !important;
+  max-height: none !important;
+  
+  /* Proper text wrapping for user messages */
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  white-space: pre-wrap !important;
 }
 
 .learning__message--user .learning__message-content--editable {
@@ -1453,6 +1468,40 @@
   font-family: inherit;
   font-size: inherit;
   color: inherit;
+}
+
+/* NEW: CSS for preprocessed code content - same as Learning.css */
+.code-block-content {
+  background-color: rgba(0, 0, 0, 0.4);
+  padding: 12px;
+  margin: 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  
+  /* FIXED: Only width containment, no height restriction */
+  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  
+  /* Allow text to wrap naturally since we preprocessed it */
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  
+  /* Natural height expansion - show all content */
+  height: auto;
+  min-height: auto;
+  max-height: none;
+  overflow-y: visible;
+  
+  /* Only horizontal overflow control */
+  overflow-x: hidden;
+  
+  /* Create layout context without size restriction */
+  position: relative;
+  isolation: isolate;
 }
 
 /* Inline code styling */
