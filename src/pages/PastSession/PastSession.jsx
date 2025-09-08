@@ -630,6 +630,43 @@ function PastSession() {
     );
   };
 
+  // Helper function to preprocess code content for better wrapping
+  const preprocessCodeContent = (code) => {
+    if (!code) return code;
+    
+    // Split code into lines
+    const lines = code.split('\n');
+    const maxLineLength = 80; // Reasonable line length for code
+    
+    const processedLines = lines.map(line => {
+      // If line is too long, try to break it intelligently
+      if (line.length > maxLineLength) {
+        // Try to break at logical points (spaces, operators, etc.)
+        const breakPoints = [' ', '.', '(', ')', '{', '}', '[', ']', ',', ';', '=', '+', '-'];
+        let bestBreak = -1;
+        
+        // Find the best break point within reasonable range
+        for (let i = maxLineLength - 10; i >= maxLineLength - 30 && i >= 0; i--) {
+          if (breakPoints.includes(line[i])) {
+            bestBreak = i + 1;
+            break;
+          }
+        }
+        
+        // If we found a good break point, split the line
+        if (bestBreak > 0 && bestBreak < line.length) {
+          const firstPart = line.substring(0, bestBreak);
+          const secondPart = '  ' + line.substring(bestBreak).trim(); // Indent continuation
+          return firstPart + '\n' + secondPart;
+        }
+      }
+      
+      return line;
+    });
+    
+    return processedLines.join('\n');
+  };
+
   // Add a format function for message content with markdown support
   const formatMessageContent = (content) => {
     if (!content) return null;
@@ -659,14 +696,17 @@ function PastSession() {
             if (match) {
               const [, language, code] = match;
               
+              // Preprocess the code content for better wrapping
+              const processedCode = preprocessCodeContent(code);
+              
               return (
                 <div key={index} className="code-block-wrapper">
                   <div className="code-block-header">
                     {language && <span className="code-language">{language}</span>}
                   </div>
-                  <pre className="code-block">
-                    <code>{code}</code>
-                  </pre>
+                  <div className="code-block-content">
+                    {processedCode}
+                  </div>
                 </div>
               );
             }
