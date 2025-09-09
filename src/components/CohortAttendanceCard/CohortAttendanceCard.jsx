@@ -80,11 +80,16 @@ const CohortAttendanceCard = ({
                     try {
                       const checkInTime = attendee.checkInTime;
                       if (!checkInTime) return 'Unknown time';
-                      const date = new Date(checkInTime);
+                      
+                      // The timestamp is already in Eastern time, so we need to parse it as local time
+                      // instead of treating it as UTC
+                      const timeString = checkInTime.replace('Z', ''); // Remove the Z to treat as local time
+                      const date = new Date(timeString);
                       if (isNaN(date.getTime())) return 'Unknown time';
+                      
                       return date.toLocaleTimeString([], { 
                         hour: '2-digit', 
-                        minute: '2-digit' 
+                        minute: '2-digit'
                       });
                     } catch (error) {
                       return 'Unknown time';
