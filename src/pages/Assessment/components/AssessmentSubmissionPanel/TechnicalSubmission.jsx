@@ -25,17 +25,8 @@ function TechnicalSubmission({ submissionData, isDraft, isLoading, onUpdate, onS
     }
   }, [submissionData]);
 
-  // Auto-save on changes
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (formData.files.length > 0 || formData.githubUrl || formData.conversationText) {
-        onUpdate(formData);
-        setLastSaved(new Date().toISOString());
-      }
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [formData, onUpdate]);
+  // Removed auto-save to prevent constant rerendering
+  // Data will be saved only when user submits
 
   const handleChange = (field, value) => {
     setFormData(prev => ({
@@ -148,6 +139,8 @@ function TechnicalSubmission({ submissionData, isDraft, isLoading, onUpdate, onS
       return;
     }
 
+    // Update parent state and submit
+    onUpdate(formData);
     onSubmit(formData);
   };
 

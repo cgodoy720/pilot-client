@@ -18,17 +18,8 @@ function BusinessSubmission({ submissionData, isDraft, isLoading, onUpdate, onSu
     }
   }, [submissionData]);
 
-  // Auto-save on changes
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (formData.problemStatement || formData.proposedSolution) {
-        onUpdate(formData);
-        setLastSaved(new Date().toISOString());
-      }
-    }, 1000); // Auto-save after 1 second of inactivity
-
-    return () => clearTimeout(timer);
-  }, [formData, onUpdate]);
+  // Removed auto-save to prevent constant rerendering
+  // Data will be saved only when user submits
 
   const handleChange = (field, value) => {
     setFormData(prev => ({
@@ -42,6 +33,8 @@ function BusinessSubmission({ submissionData, isDraft, isLoading, onUpdate, onSu
       alert('Please fill in both the problem statement and proposed solution before submitting.');
       return;
     }
+    // Update parent state and submit
+    onUpdate(formData);
     onSubmit(formData);
   };
 

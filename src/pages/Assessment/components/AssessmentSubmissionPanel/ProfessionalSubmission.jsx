@@ -17,17 +17,8 @@ function ProfessionalSubmission({ submissionData, isDraft, isLoading, onUpdate, 
     }
   }, [submissionData]);
 
-  // Auto-save on changes
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (formData.loomUrl) {
-        onUpdate(formData);
-        setLastSaved(new Date().toISOString());
-      }
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [formData, onUpdate]);
+  // Removed auto-save to prevent constant rerendering
+  // Data will be saved only when user submits
 
   const handleChange = (field, value) => {
     setFormData(prev => ({
@@ -73,6 +64,8 @@ function ProfessionalSubmission({ submissionData, isDraft, isLoading, onUpdate, 
       return;
     }
 
+    // Update parent state and submit
+    onUpdate(formData);
     onSubmit(formData);
   };
 
