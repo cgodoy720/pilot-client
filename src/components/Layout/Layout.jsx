@@ -99,7 +99,7 @@ const Layout = ({ children }) => {
             {isExpanded && <span className="layout__nav-text">My Progress</span>}
           </Link>
           
-          {isActive ? (
+          {/* {isActive ? (
             <Link to="/assessment" className={`layout__nav-item ${location.pathname === '/assessment' ? 'layout__nav-item--active' : ''}`}>
               <QuizIcon className="layout__nav-icon" />
               {isExpanded && <span className="layout__nav-text">Assessment</span>}
@@ -111,7 +111,7 @@ const Layout = ({ children }) => {
                 {isExpanded && <span className="layout__nav-text">Assessment</span>}
               </span>
             </Tooltip>
-          )}
+          )} */}
           
           {isAdmin && (
             <>
