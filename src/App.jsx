@@ -14,6 +14,8 @@ import FacilitatorView from './pages/FacilitatorView';
 import AdminPrompts from './pages/AdminPrompts';
 import Stats from './pages/Stats';
 import Account from './pages/Account/Account';
+import Assessment from './pages/Assessment/Assessment';
+import AssessmentLayout from './pages/Assessment/components/AssessmentLayout/AssessmentLayout';
 
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
 
@@ -155,6 +157,20 @@ function App() {
             <PastSession />
           </Layout>
         } />
+        <Route path="/assessment" element={
+          <Layout>
+            <ActiveUserRoute>
+              <Assessment />
+            </ActiveUserRoute>
+          </Layout>
+        } />
+            <Route path="/assessment/:period/:assessmentType/:assessmentId" element={
+              <Layout>
+                <ActiveUserRoute>
+                  <AssessmentLayout />
+                </ActiveUserRoute>
+              </Layout>
+            } />
         <Route path="/admin-dashboard" element={
           <Layout>
             <AdminRoute>
