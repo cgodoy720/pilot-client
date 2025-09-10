@@ -5,25 +5,19 @@ function FeedbackModal({ isOpen, onClose, onSubmit, token, isEditing = false, in
     const [formData, setFormData] = useState({
         feedbackDate: '',
         feedbackType: '',
-        feedbackText: '',
-        audioRecordingUrl: ''
+        feedbackText: ''
     });
-    const [isRecording, setIsRecording] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
-    const [useAudio, setUseAudio] = useState(false);
 
     // Set today's date as default when modal opens, or use initial data for editing
     useEffect(() => {
         if (isOpen) {
             if (isEditing && initialData) {
                 setFormData(initialData);
-                // Set audio mode if editing audio feedback
-                setUseAudio(!!initialData.audioRecordingUrl);
             } else {
                 const today = new Date().toISOString().split('T')[0];
                 setFormData(prev => ({ ...prev, feedbackDate: today }));
-                setUseAudio(false);
             }
         }
     }, [isOpen, isEditing, initialData]);
@@ -44,8 +38,8 @@ function FeedbackModal({ isOpen, onClose, onSubmit, token, isEditing = false, in
             return;
         }
 
-        if (!formData.feedbackText && !formData.audioRecordingUrl) {
-            setError('Please provide either text feedback or record audio.');
+        if (!formData.feedbackText.trim()) {
+            setError('Please provide your feedback text.');
             return;
         }
 
@@ -68,10 +62,8 @@ function FeedbackModal({ isOpen, onClose, onSubmit, token, isEditing = false, in
                 setFormData({
                     feedbackDate: '',
                     feedbackType: '',
-                    feedbackText: '',
-                    audioRecordingUrl: ''
+                    feedbackText: ''
                 });
-                setUseAudio(false);
             } else {
                 const errorData = await response.json();
                 setError(errorData.error || 'Failed to submit feedback. Please try again.');
@@ -89,30 +81,13 @@ function FeedbackModal({ isOpen, onClose, onSubmit, token, isEditing = false, in
             setFormData({
                 feedbackDate: '',
                 feedbackType: '',
-                feedbackText: '',
-                audioRecordingUrl: ''
+                feedbackText: ''
             });
-            setUseAudio(false);
             setError('');
             onClose();
         }
     };
 
-    const startAudioRecording = () => {
-        // This is a placeholder for audio recording functionality
-        // In a real implementation, you would use the Web Audio API or a library like RecordRTC
-        setIsRecording(true);
-        setFormData(prev => ({ ...prev, audioRecordingUrl: 'placeholder-audio-url' }));
-        
-        // Simulate recording for demo purposes
-        setTimeout(() => {
-            setIsRecording(false);
-        }, 3000);
-    };
-
-    const stopAudioRecording = () => {
-        setIsRecording(false);
-    };
 
     if (!isOpen) return null;
 
@@ -168,73 +143,19 @@ function FeedbackModal({ isOpen, onClose, onSubmit, token, isEditing = false, in
                         </select>
                     </div>
 
-                    {/* Input Method Toggle */}
-                    <div className="form-group">
-                        <label>Feedback Method</label>
-                        <div className="input-toggle">
-                            <button
-                                type="button"
-                                className={`toggle-btn ${!useAudio ? 'active' : ''}`}
-                                onClick={() => setUseAudio(false)}
-                            >
-                                📝 Text
-                            </button>
-                            <button
-                                type="button"
-                                className={`toggle-btn ${useAudio ? 'active' : ''}`}
-                                onClick={() => setUseAudio(true)}
-                            >
-                                🎤 Audio
-                            </button>
-                        </div>
-                    </div>
-
                     {/* Text Input */}
-                    {!useAudio && (
-                        <div className="form-group">
-                            <label htmlFor="feedbackText">Your Feedback *</label>
-                            <textarea
-                                id="feedbackText"
-                                name="feedbackText"
-                                value={formData.feedbackText}
-                                onChange={handleInputChange}
-                                placeholder="Share your thoughts, observations, and suggestions..."
-                                rows={6}
-                                required
-                            />
-                        </div>
-                    )}
-
-                    {/* Audio Recording */}
-                    {useAudio && (
-                        <div className="form-group">
-                            <label>Audio Recording</label>
-                            <div className="audio-recording">
-                                {!isRecording ? (
-                                    <button
-                                        type="button"
-                                        className="audio-btn record-btn"
-                                        onClick={startAudioRecording}
-                                    >
-                                        🎤 Start Recording
-                                    </button>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        className="audio-btn stop-btn"
-                                        onClick={stopAudioRecording}
-                                    >
-                                        ⏹️ Stop Recording
-                                    </button>
-                                )}
-                                {formData.audioRecordingUrl && !isRecording && (
-                                    <div className="audio-status">
-                                        ✅ Audio recorded successfully
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                    <div className="form-group">
+                        <label htmlFor="feedbackText">Your Feedback *</label>
+                        <textarea
+                            id="feedbackText"
+                            name="feedbackText"
+                            value={formData.feedbackText}
+                            onChange={handleInputChange}
+                            placeholder="Share your thoughts, observations, and suggestions..."
+                            rows={6}
+                            required
+                        />
+                    </div>
 
                     {/* Submit Button */}
                     <div className="feedback-modal__actions">

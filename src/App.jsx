@@ -14,6 +14,7 @@ import FacilitatorView from './pages/FacilitatorView';
 import Stats from './pages/Stats';
 import Account from './pages/Account/Account';
 import VolunteerFeedback from './pages/VolunteerFeedback/VolunteerFeedback';
+import AdminVolunteerFeedback from './pages/AdminVolunteerFeedback';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
 
 import { useAuth } from './context/AuthContext';
@@ -183,6 +184,13 @@ function App() {
           <Layout>
             <AdminRoute>
               <FacilitatorView />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/admin-volunteer-feedback" element={
+          <Layout>
+            <AdminRoute>
+              <AdminVolunteerFeedback />
             </AdminRoute>
           </Layout>
         } />

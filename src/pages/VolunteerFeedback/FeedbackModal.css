@@ -159,90 +159,6 @@
     min-height: 120px;
 }
 
-/* Input Toggle */
-.input-toggle {
-    display: flex;
-    border: 2px solid var(--color-border);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.toggle-btn {
-    flex: 1;
-    padding: 0.75rem 1rem;
-    border: none;
-    background: var(--color-background-darker);
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 1rem;
-    font-weight: 500;
-}
-
-.toggle-btn:first-child {
-    border-radius: 6px 0 0 6px;
-}
-
-.toggle-btn:last-child {
-    border-radius: 0 6px 6px 0;
-}
-
-.toggle-btn.active {
-    background: var(--color-primary);
-    color: white;
-}
-
-.toggle-btn:hover:not(.active) {
-    background: var(--color-primary-transparent);
-    color: var(--color-text-primary);
-}
-
-/* Audio Recording */
-.audio-recording {
-    text-align: center;
-}
-
-.audio-btn {
-    padding: 1rem 2rem;
-    border: none;
-    border-radius: 50px;
-    font-size: 1.1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    margin: 0.5rem;
-}
-
-.record-btn {
-    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-    color: white;
-    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
-}
-
-.record-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
-}
-
-.stop-btn {
-    background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
-    color: white;
-    box-shadow: 0 4px 15px rgba(52, 73, 94, 0.3);
-}
-
-.stop-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(52, 73, 94, 0.4);
-}
-
-.audio-status {
-    margin-top: 1rem;
-    padding: 0.75rem;
-    background: rgba(76, 175, 80, 0.2);
-    color: #4CAF50;
-    border-radius: 6px;
-    font-weight: 500;
-}
 
 /* Modal Actions */
 .feedback-modal__actions {
@@ -322,15 +238,6 @@
         padding: 1rem;
     }
 
-    .toggle-btn {
-        padding: 0.875rem 0.75rem;
-        font-size: 0.9rem;
-    }
-
-    .audio-btn {
-        padding: 0.875rem 1.5rem;
-        font-size: 1rem;
-    }
 }
 
 @media (max-width: 480px) {

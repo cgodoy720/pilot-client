@@ -14,6 +14,7 @@ import BugReportIcon from '@mui/icons-material/BugReport';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import PersonIcon from '@mui/icons-material/Person';
 import GroupsIcon from '@mui/icons-material/Groups';
+import FeedbackIcon from '@mui/icons-material/Feedback';
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 import logo from '../../assets/logo.png'
@@ -114,6 +115,10 @@ const Layout = ({ children }) => {
               <Link to="/facilitator-view" className={`layout__nav-item ${location.pathname === '/facilitator-view' ? 'layout__nav-item--active' : ''}`}>
                 <PersonIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">Facilitator View</span>}
+              </Link>
+              <Link to="/admin-volunteer-feedback" className={`layout__nav-item ${location.pathname === '/admin-volunteer-feedback' ? 'layout__nav-item--active' : ''}`}>
+                <FeedbackIcon className="layout__nav-icon" />
+                {isExpanded && <span className="layout__nav-text">Volunteer Feedback</span>}
               </Link>
             </>
           )}
