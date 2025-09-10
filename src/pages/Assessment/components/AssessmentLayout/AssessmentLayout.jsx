@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 import { useAuth } from '../../../../context/AuthContext';
 import AssessmentLLMChat from '../AssessmentLLMChat/AssessmentLLMChat';
 import AssessmentSubmissionPanel from '../AssessmentSubmissionPanel/AssessmentSubmissionPanel';
+import AssessmentSubmissionDisplay from '../AssessmentSubmissionDisplay/AssessmentSubmissionDisplay';
 import './AssessmentLayout.css';
 
 function AssessmentLayout({ readonly = false }) {
@@ -169,6 +170,7 @@ function AssessmentLayout({ readonly = false }) {
   };
 
   const handleSubmissionUpdate = (submissionData) => {
+    console.log('AssessmentLayout: Received submission update:', submissionData);
     // Update submission state
     setSubmissionState(prev => ({
       ...prev,
@@ -200,7 +202,8 @@ function AssessmentLayout({ readonly = false }) {
 
   const saveSubmissionData = async (submissionData, status = 'draft') => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}/submissions`, {
+      console.log('AssessmentLayout: Saving submission data to backend:', { submissionData, status });
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}/submissions`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -211,6 +214,12 @@ function AssessmentLayout({ readonly = false }) {
           status: status
         })
       });
+      
+      if (response.ok) {
+        console.log('AssessmentLayout: Submission data saved successfully');
+      } else {
+        console.error('AssessmentLayout: Failed to save submission data:', response.status);
+      }
     } catch (error) {
       console.error('Error saving submission:', error);
     }
@@ -230,14 +239,27 @@ function AssessmentLayout({ readonly = false }) {
         lastSaved: new Date().toISOString()
       }));
 
-      // Show success message
+      // Show success message with navigation option
       Swal.fire({
         title: 'Assessment Submitted!',
-        text: 'Your assessment has been successfully submitted.',
+        text: 'Your assessment has been successfully submitted. The next assessment may now be unlocked.',
         icon: 'success',
+        showCancelButton: true,
+        confirmButtonText: 'Back to Assessments',
+        cancelButtonText: 'Stay Here',
         confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
         background: '#1A1F2C',
-        color: 'var(--color-text-primary)'
+        color: 'var(--color-text-primary)',
+        customClass: {
+          popup: 'swal2-popup-dark',
+          confirmButton: 'swal2-confirm-custom',
+          cancelButton: 'swal2-cancel-custom'
+        }
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate('/assessment');
+        }
       });
 
       // Close submission panel
@@ -312,6 +334,16 @@ function AssessmentLayout({ readonly = false }) {
             readonly={readonly}
           />
         </div>
+
+        {/* Read-only Submission Display */}
+        {readonly && submissionState.data && (
+          <div className="assessment-layout__submission-display">
+            <AssessmentSubmissionDisplay
+              assessmentType={assessment?.assessment_type}
+              submissionData={submissionState.data}
+            />
+          </div>
+        )}
 
         {/* Sliding Submission Panel */}
         {!readonly && isSubmissionPanelOpen && (

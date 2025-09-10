@@ -18,8 +18,19 @@ function BusinessSubmission({ submissionData, isDraft, isLoading, onUpdate, onSu
     }
   }, [submissionData]);
 
-  // Removed auto-save to prevent constant rerendering
-  // Data will be saved only when user submits
+  // Auto-save as draft when form data changes
+  useEffect(() => {
+    // Only auto-save if there's actual content and we're in draft mode
+    if (isDraft && (formData.problemStatement.trim() || formData.proposedSolution.trim())) {
+      console.log('BusinessSubmission: Auto-saving form data...', formData);
+      const timeoutId = setTimeout(() => {
+        onUpdate(formData);
+        console.log('BusinessSubmission: Auto-save completed');
+      }, 1000); // Debounce for 1 second
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [formData.problemStatement, formData.proposedSolution, isDraft, onUpdate]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({
@@ -82,11 +93,6 @@ function BusinessSubmission({ submissionData, isDraft, isLoading, onUpdate, onSu
         </div>
       </div>
 
-      {lastSaved && (
-        <div className="submission-form__last-saved">
-          Last saved: {new Date(lastSaved).toLocaleString()}
-        </div>
-      )}
 
       <div className="submission-form__actions">
         {isDraft ? (

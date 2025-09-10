@@ -2,11 +2,11 @@
 .assessment-layout {
   width: 100%;
   height: 100%;
-  background-color: var(--color-background-darker);
+  background-color: transparent; /* Let Layout handle background */
   color: var(--color-text-primary);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 /* Removed header styles - buttons now integrated into chat header */
@@ -16,20 +16,26 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
   position: relative;
 }
 
 /* Chat Section - Now takes full height */
 .assessment-layout__chat-section {
-  flex: 1;
+  flex: none;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   padding: var(--spacing-lg);
 }
 
 /* Submit section removed - now integrated into chat header */
+
+/* Submission Display Section */
+.assessment-layout__submission-display {
+  width: 100%;
+  padding: 0 var(--spacing-lg) var(--spacing-lg);
+  text-align: left;
+}
 
 /* Loading States */
 .assessment-layout__loading {
@@ -150,10 +156,18 @@
   .assessment-layout__chat-section {
     padding: var(--spacing-md);
   }
+  
+  .assessment-layout__submission-display {
+    padding: 0 var(--spacing-md) var(--spacing-md);
+  }
 }
 
 @media (max-width: 480px) {
   .assessment-layout__chat-section {
     padding: var(--spacing-sm);
+  }
+  
+  .assessment-layout__submission-display {
+    padding: 0 var(--spacing-sm) var(--spacing-sm);
   }
 }

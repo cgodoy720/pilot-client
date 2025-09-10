@@ -95,7 +95,8 @@ function Assessment() {
   };
 
   const handleAssessmentClick = (periodSlug, assessmentType, assessmentId, assessment) => {
-    if (!assessment.available || !isActive) {
+    // Allow clicks on available assessments (for active users) or submitted assessments (for viewing)
+    if ((!assessment.available || !isActive) && assessment.submission_status !== 'submitted') {
       return;
     }
     
@@ -214,7 +215,7 @@ function Assessment() {
                     </div>
                     
                     <div className="assessment__table-col assessment__table-col--action">
-                      {assessment.available && isActive ? (
+                      {(assessment.available && isActive) || assessment.submission_status === 'submitted' ? (
                         <div className="assessment__table-action">
                           <FaExternalLinkAlt className="assessment__table-icon" />
                           <span>{assessment.submission_status === 'submitted' ? 'View' : 'Start'}</span>

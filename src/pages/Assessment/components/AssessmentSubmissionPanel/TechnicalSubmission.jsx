@@ -25,8 +25,17 @@ function TechnicalSubmission({ submissionData, isDraft, isLoading, onUpdate, onS
     }
   }, [submissionData]);
 
-  // Removed auto-save to prevent constant rerendering
-  // Data will be saved only when user submits
+  // Auto-save as draft when form data changes
+  useEffect(() => {
+    // Only auto-save if there's actual content and we're in draft mode
+    if (isDraft && (formData.conversationText.trim() || formData.githubUrl.trim() || formData.files.length > 0)) {
+      const timeoutId = setTimeout(() => {
+        onUpdate(formData);
+      }, 1000); // Debounce for 1 second
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [formData.conversationText, formData.githubUrl, formData.files, isDraft, onUpdate]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({
@@ -306,11 +315,6 @@ function TechnicalSubmission({ submissionData, isDraft, isLoading, onUpdate, onS
         </div>
       </div>
 
-      {lastSaved && (
-        <div className="submission-form__last-saved">
-          Last saved: {new Date(lastSaved).toLocaleString()}
-        </div>
-      )}
 
       <div className="submission-form__actions">
         {isDraft ? (

@@ -2,7 +2,7 @@
 .assessment {
   width: 100%;
   height: 100%;
-  background-color: var(--color-background-darker);
+  background-color: transparent; /* Let Layout handle background */
   color: var(--color-text-primary);
   overflow: hidden;
   display: flex;
@@ -14,8 +14,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--spacing-lg);
-  background-color: var(--color-background-darker);
-  max-height: calc(100vh - 80px);
+  background-color: transparent;
 }
 
 .assessment__header {
