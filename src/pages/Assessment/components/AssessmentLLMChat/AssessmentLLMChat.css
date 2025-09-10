@@ -61,6 +61,16 @@
   cursor: not-allowed;
 }
 
+.assessment-llm-chat__readonly-badge {
+  padding: 0.5rem 0.75rem;
+  background: var(--color-background-darker);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
 .assessment-llm-chat__title {
   display: flex;
   align-items: center;

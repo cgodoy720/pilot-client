@@ -29,10 +29,10 @@ function ProfessionalSubmission({ submissionData, isDraft, isLoading, onUpdate, 
 
   const isValidLoomUrl = (url) => {
     const loomPatterns = [
-      /^https:\/\/www\.loom\.com\/share\/[a-zA-Z0-9]+$/,
-      /^https:\/\/loom\.com\/share\/[a-zA-Z0-9]+$/,
-      /^https:\/\/www\.loom\.com\/embed\/[a-zA-Z0-9]+$/,
-      /^https:\/\/loom\.com\/embed\/[a-zA-Z0-9]+$/
+      /^https:\/\/www\.loom\.com\/share\/[a-zA-Z0-9]+(\?.*)?$/,
+      /^https:\/\/loom\.com\/share\/[a-zA-Z0-9]+(\?.*)?$/,
+      /^https:\/\/www\.loom\.com\/embed\/[a-zA-Z0-9]+(\?.*)?$/,
+      /^https:\/\/loom\.com\/embed\/[a-zA-Z0-9]+(\?.*)?$/
     ];
     
     return loomPatterns.some(pattern => pattern.test(url));
@@ -149,17 +149,6 @@ function ProfessionalSubmission({ submissionData, isDraft, isLoading, onUpdate, 
         </div>
       )}
 
-      {/* Submission Guidelines */}
-      <div className="submission-form__guidelines">
-        <h4>Pitch Guidelines:</h4>
-        <ul>
-          <li>Describe the coffee shop problem you identified</li>
-          <li>Explain your AI-powered solution</li>
-          <li>Share your thinking process</li>
-          <li>Keep it natural - no slides needed</li>
-          <li>Aim for 2-5 minutes</li>
-        </ul>
-      </div>
 
       {lastSaved && (
         <div className="submission-form__last-saved">

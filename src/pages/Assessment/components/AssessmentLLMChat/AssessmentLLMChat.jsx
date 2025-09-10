@@ -12,7 +12,8 @@ function AssessmentLLMChat({
   onShowInstructions,
   onBackToAssessments,
   onSubmitDeliverables,
-  isSubmissionPanelOpen
+  isSubmissionPanelOpen,
+  readonly = false
 }) {
   const { token, user } = useAuth();
   const [messages, setMessages] = useState([]);
@@ -258,13 +259,18 @@ function AssessmentLLMChat({
               <FaInfoCircle /> View Instructions
             </button>
           )}
-          {onSubmitDeliverables && (
+          {onSubmitDeliverables && !readonly && (
             <button 
               onClick={onSubmitDeliverables}
               className={`assessment-llm-chat__header-btn ${isSubmissionPanelOpen ? '' : 'assessment-llm-chat__header-btn--primary'}`}
             >
               {isSubmissionPanelOpen ? 'Close Deliverables' : 'Submit Deliverables'}
             </button>
+          )}
+          {readonly && (
+            <span className="assessment-llm-chat__readonly-badge">
+              Read Only
+            </span>
           )}
         </div>
       </div>

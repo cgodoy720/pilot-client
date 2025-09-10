@@ -171,6 +171,13 @@ function App() {
                 </ActiveUserRoute>
               </Layout>
             } />
+            <Route path="/assessment/:period/:assessmentType/:assessmentId/readonly" element={
+              <Layout>
+                <ActiveUserRoute>
+                  <AssessmentLayout readonly={true} />
+                </ActiveUserRoute>
+              </Layout>
+            } />
         <Route path="/admin-dashboard" element={
           <Layout>
             <AdminRoute>

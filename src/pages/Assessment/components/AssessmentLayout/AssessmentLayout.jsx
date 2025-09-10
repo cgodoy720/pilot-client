@@ -7,7 +7,7 @@ import AssessmentLLMChat from '../AssessmentLLMChat/AssessmentLLMChat';
 import AssessmentSubmissionPanel from '../AssessmentSubmissionPanel/AssessmentSubmissionPanel';
 import './AssessmentLayout.css';
 
-function AssessmentLayout() {
+function AssessmentLayout({ readonly = false }) {
   const { assessmentId } = useParams();
   const navigate = useNavigate();
   const { token, user } = useAuth();
@@ -53,7 +53,11 @@ function AssessmentLayout() {
   const fetchAssessment = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}`, {
+      const endpoint = readonly 
+        ? `${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}/readonly`
+        : `${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}`;
+        
+      const response = await fetch(endpoint, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -298,18 +302,19 @@ function AssessmentLayout() {
         <div className="assessment-layout__chat-section">
           <AssessmentLLMChat
             assessmentId={assessmentId}
-            onConversationUpdate={handleConversationUpdate}
+            onConversationUpdate={readonly ? null : handleConversationUpdate}
             initialConversation={conversationState}
-            disabled={submissionState.isLoading}
+            disabled={readonly || submissionState.isLoading}
             onShowInstructions={showInstructions}
             onBackToAssessments={() => navigate('/assessment')}
-            onSubmitDeliverables={() => setIsSubmissionPanelOpen(!isSubmissionPanelOpen)}
+            onSubmitDeliverables={readonly ? null : () => setIsSubmissionPanelOpen(!isSubmissionPanelOpen)}
             isSubmissionPanelOpen={isSubmissionPanelOpen}
+            readonly={readonly}
           />
         </div>
 
         {/* Sliding Submission Panel */}
-        {isSubmissionPanelOpen && (
+        {!readonly && isSubmissionPanelOpen && (
           <AssessmentSubmissionPanel
             assessmentType={assessment.assessment_type}
             submissionData={submissionState.data}

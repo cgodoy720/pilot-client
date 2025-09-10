@@ -99,8 +99,13 @@ function Assessment() {
       return;
     }
     
-    // Navigate to specific assessment page
-    navigate(`/assessment/${periodSlug}/${assessmentType}/${assessmentId}`);
+    // If assessment is submitted, navigate to read-only mode
+    if (assessment.submission_status === 'submitted') {
+      navigate(`/assessment/${periodSlug}/${assessmentType}/${assessmentId}/readonly`);
+    } else {
+      // Navigate to specific assessment page
+      navigate(`/assessment/${periodSlug}/${assessmentType}/${assessmentId}`);
+    }
   };
 
   const createPeriodSlug = (period) => {
