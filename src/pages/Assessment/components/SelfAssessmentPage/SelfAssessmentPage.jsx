@@ -297,6 +297,7 @@ function SelfAssessmentPage() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const [hasShownInstructions, setHasShownInstructions] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -319,10 +320,11 @@ function SelfAssessmentPage() {
   
   // Show instructions on first load
   useEffect(() => {
-    if (assessment && !isReadOnly) {
+    if (assessment && !isReadOnly && !hasShownInstructions) {
       showInstructions();
+      setHasShownInstructions(true);
     }
-  }, [assessment]);
+  }, [assessment, isReadOnly, hasShownInstructions]);
 
   const fetchAssessment = async () => {
     try {
@@ -408,16 +410,6 @@ function SelfAssessmentPage() {
     });
   };
 
-  // Auto-save as draft when form data changes
-  useEffect(() => {
-    if (!isReadOnly && Object.keys(formData.responses).length > 0) {
-      const timeoutId = setTimeout(() => {
-        saveAssessmentData('draft');
-      }, 2000); // Debounce for 2 seconds
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [formData.responses]);
 
   // Get questions for current section
   const currentSectionQuestions = ASSESSMENT_QUESTIONS.filter(q => q.section === formData.currentSection);

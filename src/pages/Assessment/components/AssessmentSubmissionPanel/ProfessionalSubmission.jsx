@@ -5,7 +5,6 @@ function ProfessionalSubmission({ submissionData, isDraft, isLoading, onUpdate, 
   const [formData, setFormData] = useState({
     loomUrl: ''
   });
-  const [lastSaved, setLastSaved] = useState(null);
 
   // Initialize form data
   useEffect(() => {
@@ -13,27 +12,19 @@ function ProfessionalSubmission({ submissionData, isDraft, isLoading, onUpdate, 
       setFormData({
         loomUrl: submissionData.loomUrl || ''
       });
-      setLastSaved(submissionData.lastSaved);
     }
   }, [submissionData]);
 
-  // Auto-save as draft when form data changes
-  useEffect(() => {
-    // Only auto-save if there's actual content and we're in draft mode
-    if (isDraft && formData.loomUrl.trim()) {
-      const timeoutId = setTimeout(() => {
-        onUpdate(formData);
-      }, 1000); // Debounce for 1 second
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [formData.loomUrl, isDraft, onUpdate]);
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
+    const newFormData = {
+      ...formData,
       [field]: value
-    }));
+    };
+    setFormData(newFormData);
+    
+    // Update parent state immediately (no auto-save)
+    onUpdate(newFormData);
   };
 
   const isValidLoomUrl = (url) => {
@@ -73,8 +64,7 @@ function ProfessionalSubmission({ submissionData, isDraft, isLoading, onUpdate, 
       return;
     }
 
-    // Update parent state and submit
-    onUpdate(formData);
+    // Submit with current form data
     onSubmit(formData);
   };
 

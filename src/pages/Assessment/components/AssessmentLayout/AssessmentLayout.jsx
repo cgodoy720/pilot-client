@@ -51,6 +51,7 @@ function AssessmentLayout({ readonly = false }) {
     }
   }, [assessment, hasShownInstructions]);
 
+
   const fetchAssessment = async () => {
     try {
       setLoading(true);
@@ -171,16 +172,13 @@ function AssessmentLayout({ readonly = false }) {
 
   const handleSubmissionUpdate = (submissionData) => {
     console.log('AssessmentLayout: Received submission update:', submissionData);
-    // Update submission state
+    
+    // Update submission state immediately (no auto-save)
     setSubmissionState(prev => ({
       ...prev,
       data: submissionData,
-      isDraft: true,
-      lastSaved: new Date().toISOString()
+      isDraft: true
     }));
-    
-    // Auto-save submission data
-    saveSubmissionData(submissionData, 'draft');
   };
 
   const saveConversationData = async (conversationData) => {
@@ -200,17 +198,14 @@ function AssessmentLayout({ readonly = false }) {
     }
   };
 
-  const saveSubmissionData = async (submissionData, status = 'draft') => {
+  const saveSubmissionData = async (submissionData, status = 'submitted') => {
     try {
       console.log('AssessmentLayout: Saving submission data to backend:', { submissionData, status });
-      
-      // Create a fresh token from localStorage to ensure it's the most current
-      const currentToken = localStorage.getItem('token');
       
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}/submissions`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${currentToken || token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -224,24 +219,6 @@ function AssessmentLayout({ readonly = false }) {
         return true;
       } else {
         console.error('AssessmentLayout: Failed to save submission data:', response.status);
-        
-        // Handle auth errors specifically
-        if (response.status === 401 || response.status === 403) {
-          console.error('Authentication error during submission');
-          
-          if (status === 'submitted') {
-            // For final submissions, show an error message
-            Swal.fire({
-              title: 'Authentication Error',
-              text: 'Your session has expired. Please log in again to submit your assessment.',
-              icon: 'error',
-              confirmButtonColor: '#dc3545',
-              background: '#1A1F2C',
-              color: 'var(--color-text-primary)'
-            });
-          }
-          return false;
-        }
         return false;
       }
     } catch (error) {
@@ -254,16 +231,19 @@ function AssessmentLayout({ readonly = false }) {
     try {
       setSubmissionState(prev => ({ ...prev, isLoading: true }));
       
-      // Create a fresh token from localStorage to ensure it's the most current
-      const currentToken = localStorage.getItem('token');
-      if (!currentToken) {
-        throw new Error('No authentication token available');
-      }
-      
       const success = await saveSubmissionData(submissionData, 'submitted');
       
       if (!success) {
         setSubmissionState(prev => ({ ...prev, isLoading: false }));
+        
+        Swal.fire({
+          title: 'Submission Failed',
+          text: 'There was an error submitting your assessment. Please try again.',
+          icon: 'error',
+          confirmButtonColor: '#dc3545',
+          background: '#1A1F2C',
+          color: 'var(--color-text-primary)'
+        });
         return;
       }
       
@@ -307,7 +287,7 @@ function AssessmentLayout({ readonly = false }) {
       
       Swal.fire({
         title: 'Submission Failed',
-        text: error.message || 'There was an error submitting your assessment. Please try again.',
+        text: 'There was an error submitting your assessment. Please try again.',
         icon: 'error',
         confirmButtonColor: '#dc3545',
         background: '#1A1F2C',

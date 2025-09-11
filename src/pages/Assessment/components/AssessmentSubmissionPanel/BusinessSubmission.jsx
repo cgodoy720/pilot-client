@@ -5,7 +5,6 @@ function BusinessSubmission({ submissionData, isDraft, isLoading, onUpdate, onSu
     problemStatement: '',
     proposedSolution: ''
   });
-  const [lastSaved, setLastSaved] = useState(null);
 
   // Initialize form data
   useEffect(() => {
@@ -14,29 +13,18 @@ function BusinessSubmission({ submissionData, isDraft, isLoading, onUpdate, onSu
         problemStatement: submissionData.problemStatement || '',
         proposedSolution: submissionData.proposedSolution || ''
       });
-      setLastSaved(submissionData.lastSaved);
     }
   }, [submissionData]);
 
-  // Auto-save as draft when form data changes
-  useEffect(() => {
-    // Only auto-save if there's actual content and we're in draft mode
-    if (isDraft && (formData.problemStatement.trim() || formData.proposedSolution.trim())) {
-      console.log('BusinessSubmission: Auto-saving form data...', formData);
-      const timeoutId = setTimeout(() => {
-        onUpdate(formData);
-        console.log('BusinessSubmission: Auto-save completed');
-      }, 1000); // Debounce for 1 second
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [formData.problemStatement, formData.proposedSolution, isDraft, onUpdate]);
-
   const handleChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
+    const newFormData = {
+      ...formData,
       [field]: value
-    }));
+    };
+    setFormData(newFormData);
+    
+    // Update parent state immediately (no auto-save)
+    onUpdate(newFormData);
   };
 
   const handleSubmit = () => {
@@ -44,8 +32,7 @@ function BusinessSubmission({ submissionData, isDraft, isLoading, onUpdate, onSu
       alert('Please fill in both the problem statement and proposed solution before submitting.');
       return;
     }
-    // Update parent state and submit
-    onUpdate(formData);
+    // Submit with current form data
     onSubmit(formData);
   };
 

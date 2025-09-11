@@ -8,7 +8,6 @@ function TechnicalSubmission({ submissionData, isDraft, isLoading, onUpdate, onS
     githubUrl: '',
     conversationText: ''
   });
-  const [lastSaved, setLastSaved] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -21,27 +20,19 @@ function TechnicalSubmission({ submissionData, isDraft, isLoading, onUpdate, onS
         githubUrl: submissionData.githubUrl || '',
         conversationText: submissionData.conversationText || ''
       });
-      setLastSaved(submissionData.lastSaved);
     }
   }, [submissionData]);
 
-  // Auto-save as draft when form data changes
-  useEffect(() => {
-    // Only auto-save if there's actual content and we're in draft mode
-    if (isDraft && (formData.conversationText.trim() || formData.githubUrl.trim() || formData.files.length > 0)) {
-      const timeoutId = setTimeout(() => {
-        onUpdate(formData);
-      }, 1000); // Debounce for 1 second
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [formData.conversationText, formData.githubUrl, formData.files, isDraft, onUpdate]);
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
+    const newFormData = {
+      ...formData,
       [field]: value
-    }));
+    };
+    setFormData(newFormData);
+    
+    // Update parent state immediately (no auto-save)
+    onUpdate(newFormData);
   };
 
   const handleFileUpload = (files) => {
@@ -148,8 +139,7 @@ function TechnicalSubmission({ submissionData, isDraft, isLoading, onUpdate, onS
       return;
     }
 
-    // Update parent state and submit
-    onUpdate(formData);
+    // Submit with current form data
     onSubmit(formData);
   };
 
