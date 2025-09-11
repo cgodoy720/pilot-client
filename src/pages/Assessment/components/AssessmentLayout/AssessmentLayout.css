@@ -2,11 +2,12 @@
 .assessment-layout {
   width: 100%;
   height: 100%;
+  max-height: 100%;
   background-color: transparent; /* Let Layout handle background */
   color: var(--color-text-primary);
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden; /* Prevent outer scrolling, let chat handle its own */
 }
 
 /* Removed header styles - buttons now integrated into chat header */
@@ -16,25 +17,28 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden; /* Let individual sections handle their own scrolling */
   position: relative;
+  min-height: 0; /* Allow flex children to shrink */
 }
 
 /* Chat Section - Now takes full height */
 .assessment-layout__chat-section {
-  flex: none;
+  flex: 1; /* Take available space */
   display: flex;
   flex-direction: column;
-  padding: var(--spacing-lg);
+  min-height: 0; /* Allow flex children to shrink */
+  overflow: hidden; /* Prevent overflow, let chat handle scrolling */
 }
 
 /* Submit section removed - now integrated into chat header */
 
 /* Submission Display Section */
 .assessment-layout__submission-display {
+  flex: none; /* Don't grow */
   width: 100%;
-  padding: 0 var(--spacing-lg) var(--spacing-lg);
   text-align: left;
+  overflow-y: auto; /* Allow scrolling if content is too tall */
 }
 
 /* Loading States */

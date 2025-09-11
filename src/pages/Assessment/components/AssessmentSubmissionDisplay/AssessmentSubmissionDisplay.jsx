@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaCheckCircle, FaFileAlt, FaLink, FaVideo } from 'react-icons/fa';
+import { FaCheckCircle, FaFileAlt, FaLink, FaVideo, FaClipboardCheck } from 'react-icons/fa';
 import './AssessmentSubmissionDisplay.css';
 
 function AssessmentSubmissionDisplay({ assessmentType, submissionData }) {
@@ -124,26 +124,104 @@ function AssessmentSubmissionDisplay({ assessmentType, submissionData }) {
     </div>
   );
 
-  const renderSelfSubmission = () => (
-    <div className="submission-display">
-      <div className="submission-display__header">
-        <FaCheckCircle className="submission-display__icon" />
-        <h3>Submitted Deliverables</h3>
-      </div>
+  const renderSelfSubmission = () => {
+    const responses = submissionData.responses || {};
+    const sectionTimes = submissionData.sectionTimes || {};
+    
+    // Section titles
+    const SECTION_TITLES = {
+      1: 'Product & Business Thinking',
+      2: 'Professional & Learning Skills',
+      3: 'AI Direction & Collaboration',
+      4: 'Technical Concepts & Integration'
+    };
+    
+    // Calculate section scores (simplified version - actual scoring would be done server-side)
+    const calculateSectionScore = (sectionNum) => {
+      const sectionResponses = Object.entries(responses).filter(([id]) => {
+        const questionId = parseInt(id);
+        return questionId > (sectionNum - 1) * 5 && questionId <= sectionNum * 5;
+      });
       
-      <div className="submission-display__content">
-        <div className="submission-display__item">
-          <div className="submission-display__label">
-            <FaFileAlt className="submission-display__item-icon" />
-            Self Assessment Response
+      const answeredCount = sectionResponses.filter(([_, value]) => value !== undefined && value !== '').length;
+      return `${answeredCount}/5 questions answered`;
+    };
+    
+    return (
+      <div className="submission-display">
+        <div className="submission-display__header">
+          <FaClipboardCheck className="submission-display__icon" />
+          <h3>Self Assessment Results</h3>
+        </div>
+        
+        <div className="submission-display__content">
+          {/* Summary */}
+          <div className="submission-display__item">
+            <div className="submission-display__label">
+              <FaFileAlt className="submission-display__item-icon" />
+              Assessment Summary
+            </div>
+            <div className="submission-display__value">
+              <div className="self-assessment-summary">
+                <div className="self-assessment-summary__row">
+                  <div className="self-assessment-summary__label">Questions Answered:</div>
+                  <div className="self-assessment-summary__value">
+                    {Object.values(responses).filter(v => v !== undefined && v !== '').length}/20
+                  </div>
+                </div>
+                <div className="self-assessment-summary__row">
+                  <div className="self-assessment-summary__label">Completion Time:</div>
+                  <div className="self-assessment-summary__value">
+                    {submissionData.completionTime ? 
+                      new Date(submissionData.completionTime).toLocaleString() : 
+                      'Not completed'}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="submission-display__value">
-            {submissionData.response || 'No response provided'}
+          
+          {/* Section Scores */}
+          <div className="submission-display__item">
+            <div className="submission-display__label">
+              <FaFileAlt className="submission-display__item-icon" />
+              Section Completion
+            </div>
+            <div className="submission-display__value">
+              <div className="self-assessment-sections">
+                {[1, 2, 3, 4].map(sectionNum => (
+                  <div key={sectionNum} className="self-assessment-section">
+                    <div className="self-assessment-section__header">
+                      <div className="self-assessment-section__title">
+                        Section {sectionNum}: {SECTION_TITLES[sectionNum]}
+                      </div>
+                      <div className="self-assessment-section__score">
+                        {calculateSectionScore(sectionNum)}
+                      </div>
+                    </div>
+                    <div className="self-assessment-section__time">
+                      Time spent: {sectionTimes[sectionNum] ? 
+                        `${Math.round(sectionTimes[sectionNum] / 60)} minutes` : 
+                        'Not recorded'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          {/* Note about detailed responses */}
+          <div className="submission-display__item">
+            <div className="submission-display__note">
+              <strong>Note:</strong> Detailed question responses and scoring are available to staff for review. 
+              This assessment helps us understand your current skills and confidence to provide better support 
+              throughout the program.
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   switch (assessmentType) {
     case 'business':

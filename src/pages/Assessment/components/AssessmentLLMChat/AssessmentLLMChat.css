@@ -3,6 +3,8 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0; /* Allow flex children to shrink */
+  max-height: 100%; /* Prevent exceeding parent height */
   background: var(--color-background-darker);
   border-radius: 8px;
   overflow: hidden;
@@ -109,6 +111,8 @@
 /* Messages Area */
 .assessment-llm-chat__messages {
   flex: 1;
+  min-height: 0; /* Allow flex shrinking */
+  max-height: calc(100vh - 12rem); /* Prevent exceeding viewport height minus headers/footers */
   overflow-y: auto;
   padding: 1rem;
   display: flex;
@@ -443,6 +447,7 @@
 
 /* Input Form */
 .assessment-llm-chat__input-form {
+  flex: none; /* Don't grow or shrink */
   border-top: 1px solid var(--color-border);
   background: var(--color-background-dark);
 }
@@ -544,6 +549,7 @@
   
   .assessment-llm-chat__messages {
     padding: 0.75rem;
+    max-height: calc(100vh - 10rem); /* Adjust for smaller screens */
   }
   
   .assessment-llm-chat__message {
@@ -573,6 +579,10 @@
   
   .assessment-llm-chat__message {
     max-width: 99%;
+  }
+  
+  .assessment-llm-chat__messages {
+    max-height: calc(100vh - 8rem); /* Further adjust for smallest screens */
   }
   
   .assessment-llm-chat__message-avatar {

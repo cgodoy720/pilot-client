@@ -3,7 +3,9 @@ import { FaTimes } from 'react-icons/fa';
 import BusinessSubmission from './BusinessSubmission';
 import TechnicalSubmission from './TechnicalSubmission';
 import ProfessionalSubmission from './ProfessionalSubmission';
+import SelfSubmission from './SelfSubmission';
 import './AssessmentSubmissionPanel.css';
+import './SelfSubmission.css';
 
 function AssessmentSubmissionPanel({
   assessmentType,
@@ -32,7 +34,7 @@ function AssessmentSubmissionPanel({
       case 'professional':
         return <ProfessionalSubmission {...commonProps} />;
       case 'self':
-        return <BusinessSubmission {...commonProps} />; // Self uses same format as business
+        return <SelfSubmission {...commonProps} />;
       default:
         return (
           <div className="submission-panel__error">
