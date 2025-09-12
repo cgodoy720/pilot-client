@@ -14,10 +14,15 @@ import FacilitatorView from './pages/FacilitatorView';
 import AdminPrompts from './pages/AdminPrompts';
 import Stats from './pages/Stats';
 import Account from './pages/Account/Account';
+<<<<<<< HEAD
 import Assessment from './pages/Assessment/Assessment';
 import AssessmentLayout from './pages/Assessment/components/AssessmentLayout/AssessmentLayout';
 import SelfAssessmentPage from './pages/Assessment/components/SelfAssessmentPage/SelfAssessmentPage';
 
+=======
+import VolunteerFeedback from './pages/VolunteerFeedback/VolunteerFeedback';
+import AdminVolunteerFeedback from './pages/AdminVolunteerFeedback';
+>>>>>>> joanna/feature
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
 
 import { useAuth } from './context/AuthContext';
@@ -230,6 +235,13 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
+        <Route path="/admin-volunteer-feedback" element={
+          <Layout>
+            <AdminRoute>
+              <AdminVolunteerFeedback />
+            </AdminRoute>
+          </Layout>
+        } />
         <Route path="/stats" element={
           <Layout>
             <Stats />
@@ -240,7 +252,13 @@ function App() {
             <Account />
           </Layout>
         } />
+<<<<<<< HEAD
 
+=======
+        <Route path="/volunteer-feedback" element={
+          <VolunteerFeedback />
+        } />
+>>>>>>> joanna/feature
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
       
