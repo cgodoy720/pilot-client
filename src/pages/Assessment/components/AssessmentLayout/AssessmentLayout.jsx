@@ -332,7 +332,7 @@ function AssessmentLayout({ readonly = false }) {
   }
 
   return (
-    <div className="assessment-layout">
+    <div className={`assessment-layout ${readonly ? 'assessment-layout--readonly' : ''}`}>
       {/* Main Content Area - Chat takes up full space */}
       <div className="assessment-layout__content">
         

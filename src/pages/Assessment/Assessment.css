@@ -175,7 +175,7 @@
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1fr;
   gap: 0;
-  background: var(--color-background-light);
+  background: var(--color-background-dark);
   border-bottom: 2px solid var(--color-border);
   font-weight: 600;
   color: var(--color-text-primary);

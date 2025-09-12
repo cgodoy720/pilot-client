@@ -10,6 +10,11 @@
   overflow: hidden; /* Prevent outer scrolling, let chat handle its own */
 }
 
+/* Read-only mode adjustments */
+.assessment-layout--readonly {
+  overflow-y: auto; /* Allow scrolling in read-only mode */
+}
+
 /* Removed header styles - buttons now integrated into chat header */
 
 /* Content Area */
@@ -20,6 +25,11 @@
   overflow: hidden; /* Let individual sections handle their own scrolling */
   position: relative;
   min-height: 0; /* Allow flex children to shrink */
+}
+
+/* Content area in read-only mode */
+.assessment-layout--readonly .assessment-layout__content {
+  overflow: visible; /* Allow content to flow naturally in read-only mode */
 }
 
 /* Chat Section - Now takes full height */
@@ -39,6 +49,7 @@
   width: 100%;
   text-align: left;
   overflow-y: auto; /* Allow scrolling if content is too tall */
+  max-height: none; /* Remove height constraints in read-only mode */
 }
 
 /* Loading States */

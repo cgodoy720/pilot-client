@@ -267,15 +267,27 @@
 }
 
 .assessment-llm-chat__message-text pre {
-  background: var(--color-background-darker);
-  border: 1px solid var(--color-border);
-  padding: 1rem;
-  border-radius: 8px;
+  background-color: rgba(0, 0, 0, 0.3) !important;
+  border: none !important;
+  padding: 12px !important;
+  border-radius: 4px;
   overflow-x: auto;
-  margin: 1rem 0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 0.85rem;
-  line-height: 1.4;
+  margin: 12px 0 !important;
+  font-family: 'Consolas', 'Monaco', monospace !important;
+  font-size: 0.9rem !important;
+  line-height: 1.5;
+  text-align: left !important;
+  white-space: pre-wrap !important;
+  position: relative;
+  max-width: 100%;
+  width: 100%;
+}
+
+/* Ensure all pre elements in messages use our styling */
+.assessment-llm-chat__message-text pre,
+.assessment-llm-chat__message-text .assessment-code-block {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+  text-align: left !important;
 }
 
 .assessment-llm-chat__message-text pre code {
@@ -285,7 +297,128 @@
   font-size: inherit;
 }
 
-/* Code block container with language label */
+/* Assessment-specific code block styles (matching GPT.css) */
+.assessment-code-block {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+  padding: 12px !important;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 12px 0 !important;
+  position: relative;
+  font-family: 'Consolas', 'Monaco', monospace !important;
+  font-size: 0.9rem !important;
+  line-height: 1.5;
+  white-space: pre-wrap !important;
+  max-width: 100%;
+  text-align: left !important;
+  border: none !important;
+  width: 100%;
+}
+
+.assessment-code-block code {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  font-size: inherit !important;
+  text-align: left !important;
+  white-space: pre-wrap !important;
+  color: var(--color-text-primary) !important;
+}
+
+.assessment-code-language {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 0 4px 0 4px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.assessment-llm-chat__message--user .assessment-code-block {
+  background-color: rgba(0, 0, 0, 0.2);
+  color: white;
+}
+
+.inline-code {
+  background-color: rgba(0, 0, 0, 0.3);
+  color: var(--color-text-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.assessment-llm-chat__message--user .inline-code {
+  background-color: rgba(0, 0, 0, 0.2);
+  color: white;
+}
+
+/* Markdown specific styling */
+.markdown-paragraph {
+  margin-bottom: 12px;
+  line-height: 1.6;
+  text-align: left;
+}
+
+.markdown-heading {
+  font-weight: 600;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.markdown-list {
+  margin: 8px 0;
+  padding-left: 20px;
+  text-align: left;
+}
+
+.markdown-list-item {
+  margin: 4px 0;
+  text-align: left;
+}
+
+.markdown-link {
+  color: #58a6ff;
+  text-decoration: none;
+  transition: text-decoration 0.2s;
+}
+
+.markdown-link:hover {
+  text-decoration: underline;
+}
+
+.markdown-blockquote {
+  border-left: 3px solid rgba(255, 255, 255, 0.2);
+  padding-left: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 8px 0;
+  font-style: italic;
+  text-align: left;
+}
+
+.markdown-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  overflow-x: auto;
+}
+
+.markdown-table th,
+.markdown-table td {
+  border: 1px solid var(--color-border);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.markdown-table th {
+  background-color: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
+}
+
+/* Code block container with language label (legacy - keeping for compatibility) */
 .code-block-container {
   margin: 1rem 0;
   border-radius: 8px;

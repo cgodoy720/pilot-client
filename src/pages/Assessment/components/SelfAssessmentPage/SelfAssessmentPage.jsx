@@ -12,269 +12,124 @@ const ASSESSMENT_QUESTIONS = [
     id: 1,
     section: 1,
     type: 'likert',
-    question: 'How confident are you in identifying real problems and articulating their value proposition to others?',
+    question: 'I demonstrate the ability to identify core problems and clearly articulate their value propositions.',
     options: [
-      { value: 1, label: 'Not at all confident' },
-      { value: 2, label: 'Slightly confident' },
-      { value: 3, label: 'Moderately confident' },
-      { value: 4, label: 'Very confident' },
-      { value: 5, label: 'Extremely confident' }
+      { value: 1, label: '1 - Strongly Disagree' },
+      { value: 2, label: '2 - Disagree' },
+      { value: 3, label: '3 - Neutral' },
+      { value: 4, label: '4 - Agree' },
+      { value: 5, label: '5 - Strongly Agree' }
     ]
   },
   {
     id: 2,
     section: 1,
-    type: 'likert',
-    question: 'How effectively can you prioritize features and explain technical trade-offs to stakeholders?',
-    options: [
-      { value: 1, label: 'Not at all effectively' },
-      { value: 2, label: 'Slightly effectively' },
-      { value: 3, label: 'Moderately effectively' },
-      { value: 4, label: 'Very effectively' },
-      { value: 5, label: 'Extremely effectively' }
-    ]
-  },
-  {
-    id: 3,
-    section: 1,
     type: 'multiple-choice',
-    question: 'What\'s the best way to validate a product idea before building it?',
+    question: 'What\'s the most effective first step when validating a product idea?',
     options: [
-      { value: 'A', label: 'Build the full product first to see if people like it' },
-      { value: 'B', label: 'Talk to potential users, create prototypes, and test assumptions with minimal investment' },
-      { value: 'C', label: 'Rely on your own intuition about what users need' },
-      { value: 'D', label: 'Copy what successful competitors are doing' }
+      { value: 'A', label: 'Build a prototype and test it directly with a small group of target users', points: 4 },
+      { value: 'B', label: 'Conduct interviews and research to understand user pain points before creating anything', points: 5 },
+      { value: 'C', label: 'Launch a limited version of the product to paying customers and learn from adoption', points: 3 },
+      { value: 'D', label: 'Review competitor offerings and identify gaps before deciding what to test', points: 2 }
     ],
     correctAnswer: 'B'
-  },
-  {
-    id: 4,
-    section: 1,
-    type: 'short-text',
-    question: 'Define "MVP" and explain how it relates to product-market fit.',
-    placeholder: 'Write 2-4 sentences...',
-    criteria: [
-      'Mentions "Minimum Viable Product"',
-      'Explains concept of minimal features',
-      'Connects to testing/validation',
-      'References product-market fit relationship'
-    ]
-  },
-  {
-    id: 5,
-    section: 1,
-    type: 'short-text',
-    question: 'Describe a problem in your daily life that technology could solve and your approach to validating it.',
-    placeholder: 'Write 3-5 sentences...',
-    criteria: [
-      'Identifies specific problem',
-      'Proposes technology solution',
-      'Includes validation method',
-      'Shows user-centered thinking'
-    ]
   },
   
   // Section 2: Professional & Learning Skills
   {
-    id: 6,
+    id: 3,
     section: 2,
     type: 'likert',
-    question: 'How effectively can you document your work and communicate technical concepts to different audiences?',
+    question: 'I demonstrate strong time management skills to consistently meet deadlines.',
     options: [
-      { value: 1, label: 'Not at all effectively' },
-      { value: 2, label: 'Slightly effectively' },
-      { value: 3, label: 'Moderately effectively' },
-      { value: 4, label: 'Very effectively' },
-      { value: 5, label: 'Extremely effectively' }
+      { value: 1, label: '1 - Strongly Disagree' },
+      { value: 2, label: '2 - Disagree' },
+      { value: 3, label: '3 - Neutral' },
+      { value: 4, label: '4 - Agree' },
+      { value: 5, label: '5 - Strongly Agree' }
     ]
   },
   {
-    id: 7,
+    id: 4,
     section: 2,
     type: 'likert',
-    question: 'How well can you manage your time, receive feedback, and iterate on your work?',
+    question: 'I actively seek and incorporate feedback to improve the quality of my work.',
     options: [
-      { value: 1, label: 'Not well at all' },
-      { value: 2, label: 'Slightly well' },
-      { value: 3, label: 'Moderately well' },
-      { value: 4, label: 'Very well' },
-      { value: 5, label: 'Extremely well' }
+      { value: 1, label: '1 - Strongly Disagree' },
+      { value: 2, label: '2 - Disagree' },
+      { value: 3, label: '3 - Neutral' },
+      { value: 4, label: '4 - Agree' },
+      { value: 5, label: '5 - Strongly Agree' }
     ]
   },
   {
-    id: 8,
+    id: 5,
     section: 2,
     type: 'multiple-choice',
-    question: 'When you get stuck on a problem or need to learn something new, what\'s your approach?',
+    question: 'When you get stuck on a problem, which approach do you usually take?',
     options: [
-      { value: 'A', label: 'Give up and move on to something else' },
-      { value: 'B', label: 'Immediately ask someone else to solve it for me' },
-      { value: 'C', label: 'Break down the problem, research solutions, experiment, and ask for help when needed' },
-      { value: 'D', label: 'Keep trying the same approach repeatedly' }
+      { value: 'A', label: 'Break the problem into smaller pieces, try different approaches, and research possible solutions', points: 5 },
+      { value: 'B', label: 'Look for existing examples or documentation before attempting solutions on your own', points: 4 },
+      { value: 'C', label: 'Ask for help after making some effort, but without over-investing time', points: 3 },
+      { value: 'D', label: 'Keep pushing with one approach until it works, even if it takes a long time', points: 1 }
     ],
-    correctAnswer: 'C'
-  },
-  {
-    id: 9,
-    section: 2,
-    type: 'short-text',
-    question: 'Define "stakeholder communication" and its importance in business contexts.',
-    placeholder: 'Write 2-4 sentences...',
-    criteria: [
-      'Defines stakeholder communication',
-      'Identifies key stakeholders',
-      'Explains business importance',
-      'Shows understanding of clarity/alignment'
-    ]
-  },
-  {
-    id: 10,
-    section: 2,
-    type: 'short-text',
-    question: 'How do you plan to continue growing your technical and business skills?',
-    placeholder: 'Write 3-5 sentences...',
-    criteria: [
-      'Specific learning methods mentioned',
-      'Balance of technical and business skills',
-      'Shows commitment to continuous learning',
-      'Realistic and actionable plan'
-    ]
+    correctAnswer: 'A'
   },
   
   // Section 3: AI Direction & Collaboration
   {
-    id: 11,
+    id: 6,
     section: 3,
     type: 'likert',
-    question: 'How confident are you in using AI for strategic planning, content creation, and decision-making?',
+    question: 'I leverage AI tools to support decision-making and generate high-quality content.',
     options: [
-      { value: 1, label: 'Not at all confident' },
-      { value: 2, label: 'Slightly confident' },
-      { value: 3, label: 'Moderately confident' },
-      { value: 4, label: 'Very confident' },
-      { value: 5, label: 'Extremely confident' }
+      { value: 1, label: '1 - Strongly Disagree' },
+      { value: 2, label: '2 - Disagree' },
+      { value: 3, label: '3 - Neutral' },
+      { value: 4, label: '4 - Agree' },
+      { value: 5, label: '5 - Strongly Agree' }
     ]
   },
   {
-    id: 12,
-    section: 3,
-    type: 'likert',
-    question: 'How effectively can you craft prompts and manage AI workflows across different business functions?',
-    options: [
-      { value: 1, label: 'Not at all effectively' },
-      { value: 2, label: 'Slightly effectively' },
-      { value: 3, label: 'Moderately effectively' },
-      { value: 4, label: 'Very effectively' },
-      { value: 5, label: 'Extremely effectively' }
-    ]
-  },
-  {
-    id: 13,
+    id: 7,
     section: 3,
     type: 'multiple-choice',
-    question: 'How do you evaluate the quality of AI-generated analysis or recommendations?',
+    question: 'How do you judge whether to trust AI-generated recommendations?',
     options: [
-      { value: 'A', label: 'Accept all AI outputs without question' },
-      { value: 'B', label: 'Verify accuracy, check for biases, validate with additional sources, and apply critical thinking' },
-      { value: 'C', label: 'Reject all AI outputs as unreliable' },
-      { value: 'D', label: 'Only use AI for simple tasks that don\'t require evaluation' }
+      { value: 'A', label: 'Compare outputs against your own reasoning and domain knowledge before using them', points: 4 },
+      { value: 'B', label: 'Cross-check with external data or experts, especially when stakes are high', points: 5 },
+      { value: 'C', label: 'Use AI outputs mainly as a starting point or draft, not as final answers', points: 3 },
+      { value: 'D', label: 'Accept AI outputs directly to save time unless there\'s an obvious error', points: 1 }
     ],
     correctAnswer: 'B'
-  },
-  {
-    id: 14,
-    section: 3,
-    type: 'short-text',
-    question: 'Describe how you would use AI to analyze customer feedback and identify insights.',
-    placeholder: 'Write 3-5 sentences...',
-    criteria: [
-      'Mentions specific AI capabilities (sentiment analysis, pattern recognition, etc.)',
-      'Shows understanding of data processing',
-      'Includes actionable insights extraction',
-      'Demonstrates practical application'
-    ]
-  },
-  {
-    id: 15,
-    section: 3,
-    type: 'short-text',
-    question: 'How would you use AI to identify process improvements and automation opportunities?',
-    placeholder: 'Write 3-5 sentences...',
-    criteria: [
-      'Identifies specific processes to analyze',
-      'Shows understanding of AI\'s analytical capabilities',
-      'Mentions efficiency/automation potential',
-      'Includes implementation approach'
-    ]
   },
   
   // Section 4: Technical Concepts & Integration
   {
-    id: 16,
+    id: 8,
     section: 4,
     type: 'likert',
-    question: 'How well can you estimate technical effort and plan for scalability in business features?',
+    question: 'I demonstrate the ability to estimate technical effort and plan projects with scalability in mind.',
     options: [
-      { value: 1, label: 'Not well at all' },
-      { value: 2, label: 'Slightly well' },
-      { value: 3, label: 'Moderately well' },
-      { value: 4, label: 'Very well' },
-      { value: 5, label: 'Extremely well' }
+      { value: 1, label: '1 - Strongly Disagree' },
+      { value: 2, label: '2 - Disagree' },
+      { value: 3, label: '3 - Neutral' },
+      { value: 4, label: '4 - Agree' },
+      { value: 5, label: '5 - Strongly Agree' }
     ]
   },
   {
-    id: 17,
+    id: 9,
     section: 4,
     type: 'multiple-choice',
-    question: 'When planning product features or fixing bugs, what\'s your systematic approach?',
+    question: 'When planning how to implement a new feature, what\'s your general process?',
     options: [
-      { value: 'A', label: 'Start coding immediately without planning' },
-      { value: 'B', label: 'Understand requirements, break down the problem, plan approach, implement, test, and iterate' },
-      { value: 'C', label: 'Wait for someone to tell me exactly what to do' },
-      { value: 'D', label: 'Focus only on the quickest solution without considering long-term impact' }
+      { value: 'A', label: 'Clarify requirements, outline the architecture, break into tasks, then code and test iteratively', points: 5 },
+      { value: 'B', label: 'Sketch out a quick proof of concept first to see if it\'s technically feasible before committing', points: 4 },
+      { value: 'C', label: 'Research how similar problems are solved and adapt an existing pattern or library', points: 3 },
+      { value: 'D', label: 'Start with the simplest possible implementation and plan to improve later if it scales', points: 2 }
     ],
-    correctAnswer: 'B'
-  },
-  {
-    id: 18,
-    section: 4,
-    type: 'short-text',
-    question: 'Explain what databases and APIs are and why they\'re critical for business operations.',
-    placeholder: 'Write 3-5 sentences...',
-    criteria: [
-      'Defines both databases and APIs clearly',
-      'Explains business relevance',
-      'Shows understanding of data storage and connectivity',
-      'Mentions practical applications'
-    ]
-  },
-  {
-    id: 19,
-    section: 4,
-    type: 'long-text',
-    question: 'Describe a product you could build with your current skills, including problem, users, and validation approach.',
-    placeholder: 'Write 5-8 sentences...',
-    criteria: [
-      'Clear problem identification',
-      'Defined target users',
-      'Realistic scope for current skills',
-      'Specific validation methodology',
-      'Shows product thinking'
-    ]
-  },
-  {
-    id: 20,
-    section: 4,
-    type: 'long-text',
-    question: 'Describe your relationship with AI tools and one product/business goal for the next 6 months.',
-    placeholder: 'Write 5-8 sentences...',
-    criteria: [
-      'Honest assessment of AI usage',
-      'Specific goal identified',
-      'Clear timeline/milestones',
-      'Connection between AI use and goal achievement',
-      'Shows growth mindset'
-    ]
+    correctAnswer: 'A'
   }
 ];
 
@@ -383,7 +238,7 @@ function SelfAssessmentPage() {
       title: 'Self Assessment',
       html: `
         <div class="self-assessment-instructions">
-          <p>This 20-question assessment helps us understand your current confidence and skills across four key areas:</p>
+          <p>This 9-question assessment helps us understand your current confidence and skills across four key areas:</p>
           <ol>
             <li>Product & Business Thinking</li>
             <li>Professional & Learning Skills</li>
