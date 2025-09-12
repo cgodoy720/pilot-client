@@ -14,11 +14,15 @@ import FacilitatorView from './pages/FacilitatorView';
 import AdminPrompts from './pages/AdminPrompts';
 import Stats from './pages/Stats';
 import Account from './pages/Account/Account';
+import Assessment from './pages/Assessment/Assessment';
+import AssessmentLayout from './pages/Assessment/components/AssessmentLayout/AssessmentLayout';
+import SelfAssessmentPage from './pages/Assessment/components/SelfAssessmentPage/SelfAssessmentPage';
 
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
 
 import { useAuth } from './context/AuthContext';
 import { resetAuthModalState } from './utils/globalErrorHandler';
+import RouteResolver from './components/RouteResolver/RouteResolver';
 
 import './App.css';
 
@@ -153,6 +157,35 @@ function App() {
         <Route path="/past-session" element={
           <Layout>
             <PastSession />
+          </Layout>
+        } />
+        <Route path="/assessment" element={
+          <Layout>
+            <ActiveUserRoute>
+              <Assessment />
+            </ActiveUserRoute>
+          </Layout>
+        } />
+        <Route path="/assessment/:period/:assessmentType/:assessmentId" element={
+          <Layout>
+            <ActiveUserRoute>
+              {/* Use SelfAssessmentPage for self assessments, otherwise use AssessmentLayout */}
+              <RouteResolver
+                selfComponent={<SelfAssessmentPage />}
+                defaultComponent={<AssessmentLayout />}
+              />
+            </ActiveUserRoute>
+          </Layout>
+        } />
+        <Route path="/assessment/:period/:assessmentType/:assessmentId/readonly" element={
+          <Layout>
+            <ActiveUserRoute>
+              {/* Use SelfAssessmentPage for self assessments in readonly mode, otherwise use AssessmentLayout */}
+              <RouteResolver
+                selfComponent={<SelfAssessmentPage />}
+                defaultComponent={<AssessmentLayout readonly={true} />}
+              />
+            </ActiveUserRoute>
           </Layout>
         } />
         <Route path="/admin-dashboard" element={

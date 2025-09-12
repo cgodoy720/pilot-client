@@ -730,21 +730,6 @@
   transition: all 0.2s ease;
   cursor: default;
   position: relative;
-  
-  /* CRITICAL: Ensure user messages never have scrollbars */
-  overflow: visible !important;
-  overflow-x: visible !important;
-  overflow-y: visible !important;
-  
-  /* Natural expansion - show all user content */
-  height: auto !important;
-  min-height: auto !important;
-  max-height: none !important;
-  
-  /* Proper text wrapping for user messages */
-  word-wrap: break-word !important;
-  overflow-wrap: break-word !important;
-  white-space: pre-wrap !important;
 }
 
 .learning__message--user .learning__message-content--editable {
