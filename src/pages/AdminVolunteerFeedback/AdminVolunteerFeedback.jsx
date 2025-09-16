@@ -13,6 +13,7 @@ function AdminVolunteerFeedback() {
     const [selectedEventType, setSelectedEventType] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [volunteerName, setVolunteerName] = useState('');
 
     // Available event types
     const eventTypes = ['AI Native Class', 'Demo Day', 'Networking Event', 'Panel', 'Mock Interview'];
@@ -33,6 +34,17 @@ function AdminVolunteerFeedback() {
             filtered = filtered.filter(item => new Date(item.feedback_date) <= new Date(endDate));
         }
 
+        // Filter by volunteer name (search in first name, last name, or email)
+        if (volunteerName) {
+            const searchTerm = volunteerName.toLowerCase();
+            filtered = filtered.filter(item => 
+                item.first_name.toLowerCase().includes(searchTerm) ||
+                item.last_name.toLowerCase().includes(searchTerm) ||
+                item.email.toLowerCase().includes(searchTerm) ||
+                `${item.first_name} ${item.last_name}`.toLowerCase().includes(searchTerm)
+            );
+        }
+
         setFilteredFeedback(filtered);
     };
 
@@ -47,7 +59,7 @@ function AdminVolunteerFeedback() {
     // Apply filters when feedback or filter values change
     useEffect(() => {
         applyFilters();
-    }, [feedback, selectedEventType, startDate, endDate]);
+    }, [feedback, selectedEventType, startDate, endDate, volunteerName]);
 
     const fetchAllFeedback = async () => {
         try {
@@ -77,6 +89,7 @@ function AdminVolunteerFeedback() {
         setSelectedEventType('');
         setStartDate('');
         setEndDate('');
+        setVolunteerName('');
     };
 
     const formatDate = (dateString) => {
@@ -149,6 +162,18 @@ function AdminVolunteerFeedback() {
                         />
                     </div>
 
+                    <div className="admin-volunteer-feedback__filter-group">
+                        <label htmlFor="volunteer-name">Volunteer Name:</label>
+                        <input
+                            type="text"
+                            id="volunteer-name"
+                            value={volunteerName}
+                            onChange={(e) => setVolunteerName(e.target.value)}
+                            className="admin-volunteer-feedback__input"
+                            placeholder="Search by name or email..."
+                        />
+                    </div>
+
                     <button
                         onClick={clearFilters}
                         className="admin-volunteer-feedback__clear-btn"
@@ -203,10 +228,24 @@ function AdminVolunteerFeedback() {
                                 </div>
                                 
                                 <div className="admin-volunteer-feedback__content-section">
-                                    {item.feedback_text && (
-                                        <div className="admin-volunteer-feedback__text">
-                                            <h4>Written Feedback:</h4>
-                                            <p>{item.feedback_text}</p>
+                                    {item.overall_experience && (
+                                        <div className="admin-volunteer-feedback__question">
+                                            <h4>How was your experience overall?</h4>
+                                            <p>{item.overall_experience}</p>
+                                        </div>
+                                    )}
+                                    
+                                    {item.improvement_suggestions && (
+                                        <div className="admin-volunteer-feedback__question">
+                                            <h4>How could we improve going forward?</h4>
+                                            <p>{item.improvement_suggestions}</p>
+                                        </div>
+                                    )}
+                                    
+                                    {item.specific_feedback && (
+                                        <div className="admin-volunteer-feedback__question">
+                                            <h4>Do you have feedback to share on specific Builders or Fellows?</h4>
+                                            <p>{item.specific_feedback}</p>
                                         </div>
                                     )}
                                     
