@@ -9,6 +9,11 @@
   color: #1976d2; /* Blue color for brain icon */
 }
 
+/* Add styling for feedback task icons */
+.task-icon.feedback {
+  color: #7c3aed; /* Purple color for clipboard icon */
+}
+
 /* Fix hover state to use the same background color as regular tasks */
 .learning__task-item[data-mode="conversation"]:hover {
   background-color: var(--color-background-darker, #111827);

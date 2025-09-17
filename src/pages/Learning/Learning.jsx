@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt, FaEdit, FaCheck, FaTimes, FaFileAlt, FaVideo, FaBrain, FaComments } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt, FaEdit, FaCheck, FaTimes, FaFileAlt, FaVideo, FaBrain, FaComments, FaClipboardList } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import PeerFeedbackForm from '../../components/PeerFeedbackForm';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
 import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
+import BuilderFeedbackForm from '../../components/BuilderFeedbackForm/BuilderFeedbackForm';
 
 import './Learning.css';
 import '../../styles/smart-tasks.css';
@@ -439,7 +440,8 @@ function Learning() {
               analyze_deliverable: task.analyze_deliverable || false,
               task_mode: task.task_mode || 'basic', // Add task mode support
               smart_prompt: task.smart_prompt || null,
-              conversation_model: task.conversation_model || null
+              conversation_model: task.conversation_model || null,
+              feedback_slot: task.feedback_slot || false // Add feedback slot support
             });
           });
         });
@@ -462,14 +464,17 @@ function Learning() {
         setTasks(allTasks);
         setCurrentTaskIndex(initialTaskIndex);
         
-        // Fetch messages for the initial task
+        // Fetch messages for the initial task (only if it's not a feedback slot)
         if (allTasks.length > 0) {
-          const initialTaskId = allTasks[initialTaskIndex].id;
-          await fetchTaskMessages(initialTaskId);
+          const initialTask = allTasks[initialTaskIndex];
           
-          // Check if there's an existing analysis for this task
-          if (allTasks[initialTaskIndex].should_analyze) {
-            await fetchTaskAnalysis(initialTaskId);
+          if (!initialTask.feedback_slot) {
+            await fetchTaskMessages(initialTask.id);
+            
+            // Check if there's an existing analysis for this task
+            if (initialTask.should_analyze) {
+              await fetchTaskAnalysis(initialTask.id);
+            }
           }
         }
       } catch (err) {
@@ -700,6 +705,19 @@ function Learning() {
     setShowPeerFeedback(false);
   };
 
+  // Add a function to handle builder feedback completion
+  const handleBuilderFeedbackComplete = () => {
+    // Builder feedback completion doesn't need special handling
+    // The form will show success state and can navigate away
+    console.log('Builder feedback completed successfully');
+  };
+
+  // Helper function to check if current task is a feedback slot
+  const isCurrentTaskFeedbackSlot = () => {
+    if (!tasks.length || currentTaskIndex >= tasks.length) return false;
+    return tasks[currentTaskIndex].feedback_slot === true;
+  };
+
   // Modify the markTaskAsCompleted function to not handle peer feedback
   const markTaskAsCompleted = async (taskId) => {
     try {
@@ -772,7 +790,15 @@ function Learning() {
   };
   
   // Helper function to get task icon based on type
-  const getTaskIcon = (type, completed, taskMode) => {
+  const getTaskIcon = (type, completed, taskMode, feedbackSlot) => {
+    // Check if this is a feedback slot task - use clipboard icon
+    if (feedbackSlot) {
+      if (completed) {
+        return <FaCheckCircle className="task-icon completed" />;
+      }
+      return <FaClipboardList className="task-icon feedback" />;
+    }
+    
     // Check if this is a conversation task - use brain icon
     if (taskMode === 'conversation') {
       if (completed) {
@@ -1049,22 +1075,30 @@ function Learning() {
       // Update the URL without reloading the page
       navigate(`/learning?${params.toString()}`, { replace: true });
       
-      // IMPORTANT: Immediately clear previous messages and show loading state
-      // This prevents the previous task's messages from showing while loading
+      // Handle different task types
       const currentTask = tasks[newIndex];
-      setMessages([{
-        id: 'loading',
-        content: `Loading ${currentTask.title}...`,
-        role: 'system'
-      }]);
-      setIsMessagesLoading(true);
       
-      // Then fetch the messages for the new task
-      fetchTaskMessages(newTaskId);
-      
-      // Check if current task can be analyzed and if there's an existing analysis
-      if (tasks[newIndex].should_analyze) {
-        fetchTaskAnalysis(newTaskId);
+      if (!currentTask.feedback_slot) {
+        // IMPORTANT: Immediately clear previous messages and show loading state
+        // This prevents the previous task's messages from showing while loading
+        setMessages([{
+          id: 'loading',
+          content: `Loading ${currentTask.title}...`,
+          role: 'system'
+        }]);
+        setIsMessagesLoading(true);
+        
+        // Then fetch the messages for the new task
+        fetchTaskMessages(newTaskId);
+        
+        // Check if current task can be analyzed and if there's an existing analysis
+        if (tasks[newIndex].should_analyze) {
+          fetchTaskAnalysis(newTaskId);
+        }
+      } else {
+        // For feedback tasks, clear messages and loading state
+        setMessages([]);
+        setIsMessagesLoading(false);
       }
     }
   };
@@ -1664,26 +1698,34 @@ function Learning() {
                   key={task.id}
                   className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''} ${task.completed ? 'completed' : ''}`}
                   data-mode={task.task_mode}
+                  data-feedback-slot={task.feedback_slot}
                   onClick={() => {
                     if (index !== currentTaskIndex) {
                       // Update the current task index
                       setCurrentTaskIndex(index);
                       
-                      // IMPORTANT: Immediately clear previous messages and show loading state
-                      setMessages([{
-                        id: 'loading',
-                        content: `Loading ${task.title}...`,
-                        role: 'system'
-                      }]);
-                      setIsMessagesLoading(true);
-                      
-                      console.log('Task should_analyze:', task.should_analyze);
-                      fetchTaskMessages(task.id);
+                      // Only fetch messages for non-feedback tasks
+                      if (!task.feedback_slot) {
+                        // IMPORTANT: Immediately clear previous messages and show loading state
+                        setMessages([{
+                          id: 'loading',
+                          content: `Loading ${task.title}...`,
+                          role: 'system'
+                        }]);
+                        setIsMessagesLoading(true);
+                        
+                        console.log('Task should_analyze:', task.should_analyze);
+                        fetchTaskMessages(task.id);
+                      } else {
+                        // Clear messages for feedback tasks
+                        setMessages([]);
+                        setIsMessagesLoading(false);
+                      }
                     }
                   }}
                 >
                   <div className="learning__task-icon">
-                    {getTaskIcon(task.type, task.completed, task.task_mode)}
+                    {getTaskIcon(task.type, task.completed, task.task_mode, task.feedback_slot)}
                   </div>
                   <div className="learning__task-content">
                     <h3 className="learning__task-title">
@@ -1720,6 +1762,14 @@ function Learning() {
               dayNumber={currentDay?.day_number}
               onComplete={handlePeerFeedbackComplete}
               onCancel={handlePeerFeedbackCancel}
+            />
+          ) : isCurrentTaskFeedbackSlot() ? (
+            // Show the builder feedback form for feedback slot tasks
+            <BuilderFeedbackForm
+              taskId={tasks[currentTaskIndex].id}
+              dayNumber={currentDay?.day_number}
+              cohort={cohort}
+              onComplete={handleBuilderFeedbackComplete}
             />
           ) : (
             <div className="learning__chat-panel">
