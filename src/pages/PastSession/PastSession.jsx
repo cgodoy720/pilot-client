@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaArrowRight, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes, FaLink, FaExternalLinkAlt, FaFileAlt, FaVideo, FaBars, FaBrain, FaComments } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaArrowRight, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes, FaLink, FaExternalLinkAlt, FaFileAlt, FaVideo, FaBars, FaBrain, FaComments, FaClipboardList } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import PeerFeedbackForm from '../../components/PeerFeedbackForm';
+import BuilderFeedbackForm from '../../components/BuilderFeedbackForm/BuilderFeedbackForm';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
 import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
 
@@ -503,10 +504,15 @@ function PastSession() {
     navigate('/calendar');
   };
 
-  const getTaskIcon = (type, taskMode) => {
+  const getTaskIcon = (type, taskMode, feedbackSlot) => {
     // Ensure task_mode has a value (default to 'basic')
     const mode = taskMode || 'basic';
-    console.log('getTaskIcon called with:', { type, taskMode, normalizedMode: mode });
+    console.log('getTaskIcon called with:', { type, taskMode, normalizedMode: mode, feedbackSlot });
+    
+    // Check if this is a feedback slot task - use clipboard icon
+    if (feedbackSlot) {
+      return <FaClipboardList className="task-icon feedback" />;
+    }
     
     // Check if this is a conversation task - use brain icon
     if (mode === 'conversation') {
@@ -1548,7 +1554,7 @@ function PastSession() {
                   }}
                 >
                   <div className="learning__task-icon">
-                    {getTaskIcon(task.type, task.task_mode)}
+                    {getTaskIcon(task.type, task.task_mode, task.feedback_slot)}
                   </div>
                   <div className="learning__task-content">
                     <h3 className="learning__task-title">
@@ -1613,6 +1619,17 @@ function PastSession() {
               dayNumber={daySchedule?.day?.day_number || dayNumber}
               onComplete={handlePeerFeedbackComplete}
               onCancel={handlePeerFeedbackCancel}
+            />
+          ) : tasks.length > 0 && tasks[currentTaskIndex]?.feedback_slot ? (
+            // Show the builder feedback form for feedback_slot tasks
+            <BuilderFeedbackForm
+              taskId={tasks[currentTaskIndex].id}
+              dayNumber={daySchedule?.day?.day_number || dayNumber}
+              cohort={cohort}
+              onComplete={() => {
+                // Optional: Add any completion logic here
+                console.log('Builder feedback completed');
+              }}
             />
           ) : (
             <div className="learning__chat-panel">

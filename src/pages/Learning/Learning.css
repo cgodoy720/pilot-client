@@ -1730,6 +1730,7 @@
   overflow-wrap: break-word;
   word-wrap: break-word;
   max-width: 100%;
+  margin-bottom: 0px !important;
 }
 
 .markdown-heading {

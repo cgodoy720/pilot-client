@@ -815,10 +815,7 @@ function Learning() {
       return <FaBook className="task-icon reflect" />;
     }
     
-    if (completed) {
-      return <FaCheckCircle className="task-icon completed" />;
-    }
-    
+    // Show type-specific icons based on task type
     switch (type) {
       case 'share':
       case 'discussion':
@@ -830,6 +827,10 @@ function Learning() {
       case 'individual':
         return <FaBook className="task-icon reflect" />;
       default:
+        // For unknown types or if completed is true, show checkmark
+        if (completed) {
+          return <FaCheckCircle className="task-icon completed" />;
+        }
         return <FaCheckCircle className="task-icon" />;
     }
   };

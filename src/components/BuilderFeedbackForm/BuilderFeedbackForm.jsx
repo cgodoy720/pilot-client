@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FaCheck, FaTimes, FaSpinner, FaClipboardList, FaExclamationCircle, FaCheckCircle } from 'react-icons/fa';
+import { FaCheck, FaTimes, FaSpinner, FaClipboardList, FaExclamationCircle, FaCheckCircle, FaEye, FaEdit } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
+import Swal from 'sweetalert2';
 import './BuilderFeedbackForm.css';
 
 const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, onComplete, onCancel }) => {
@@ -22,6 +23,8 @@ const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, onComplete, onCancel }
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [existingFeedback, setExistingFeedback] = useState(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submittedAt, setSubmittedAt] = useState(null);
 
   // Load existing feedback if any
   useEffect(() => {
@@ -47,6 +50,8 @@ const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, onComplete, onCancel }
               tools_used: data.feedback.tools_used || '',
               programming_languages: data.feedback.programming_languages || ''
             });
+            setIsSubmitted(true);
+            setSubmittedAt(data.feedback.created_at);
           }
         } else if (response.status !== 404) {
           // 404 is expected if no feedback exists yet
@@ -99,6 +104,43 @@ const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, onComplete, onCancel }
     return null;
   };
 
+  // Show confirmation modal before submission
+  const showConfirmationModal = async () => {
+    const result = await Swal.fire({
+      title: 'Submit Feedback?',
+      html: `
+        <div style="text-align: left; color: var(--color-text-primary);">
+          <p style="margin-bottom: 1rem;">Are you sure you want to submit this feedback? Once submitted, you won't be able to edit it.</p>
+          <div style="background: var(--color-background-dark); padding: 1rem; border-radius: 8px; border: 1px solid var(--color-border);">
+            <p style="margin: 0 0 0.5rem 0; font-weight: 600;">Your feedback summary:</p>
+            <p style="margin: 0 0 0.5rem 0;"><strong>Referral likelihood:</strong> ${formData.referral_likelihood}/10</p>
+            ${formData.what_we_did_well ? `<p style="margin: 0 0 0.5rem 0;"><strong>What we did well:</strong> ${formData.what_we_did_well.substring(0, 100)}${formData.what_we_did_well.length > 100 ? '...' : ''}</p>` : ''}
+            ${formData.what_to_improve ? `<p style="margin: 0 0 0.5rem 0;"><strong>What to improve:</strong> ${formData.what_to_improve.substring(0, 100)}${formData.what_to_improve.length > 100 ? '...' : ''}</p>` : ''}
+            ${formData.tools_used ? `<p style="margin: 0 0 0.5rem 0;"><strong>Tools used:</strong> ${formData.tools_used.substring(0, 100)}${formData.tools_used.length > 100 ? '...' : ''}</p>` : ''}
+            ${formData.programming_languages ? `<p style="margin: 0;"><strong>Languages:</strong> ${formData.programming_languages.substring(0, 100)}${formData.programming_languages.length > 100 ? '...' : ''}</p>` : ''}
+          </div>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Submit Feedback',
+      cancelButtonText: 'Review Again',
+      confirmButtonColor: 'var(--color-primary)',
+      cancelButtonColor: 'var(--color-border)',
+      background: 'var(--color-background-darker)',
+      color: 'var(--color-text-primary)',
+      customClass: {
+        popup: 'swal-dark-theme',
+        title: 'swal-title-dark',
+        content: 'swal-content-dark',
+        confirmButton: 'swal-confirm-dark',
+        cancelButton: 'swal-cancel-dark'
+      }
+    });
+
+    return result.isConfirmed;
+  };
+
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -111,6 +153,12 @@ const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, onComplete, onCancel }
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
+      return;
+    }
+
+    // Show confirmation modal
+    const confirmed = await showConfirmationModal();
+    if (!confirmed) {
       return;
     }
 
@@ -146,6 +194,8 @@ const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, onComplete, onCancel }
 
       if (response.ok) {
         setSuccess(true);
+        setIsSubmitted(true);
+        setSubmittedAt(new Date().toISOString());
         if (onComplete) {
           setTimeout(() => onComplete(), 1500);
         }
@@ -200,6 +250,76 @@ const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, onComplete, onCancel }
           <FaCheckCircle className="builder-feedback__success-icon" />
           <h2>Thank you for your feedback!</h2>
           <p>Your response has been {existingFeedback ? 'updated' : 'submitted'} successfully.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show read-only view if feedback has been submitted
+  if (isSubmitted && existingFeedback) {
+    return (
+      <div className="builder-feedback builder-feedback--readonly">
+        <div className="builder-feedback__header">
+          <FaEye className="builder-feedback__icon" />
+          <h2 className="builder-feedback__title">Feedback Submitted</h2>
+          <p className="builder-feedback__subtitle">
+            Your feedback has been captured and locked. This preserves your moment-in-time perspective.
+          </p>
+          {submittedAt && (
+            <p className="builder-feedback__submitted-date">
+              Submitted on {new Date(submittedAt).toLocaleDateString()} at {new Date(submittedAt).toLocaleTimeString()}
+            </p>
+          )}
+        </div>
+        
+        <div className="builder-feedback__form">
+          <div className="builder-feedback__form-group">
+            <label className="builder-feedback__label">How likely are you to refer this pilot to someone you know?</label>
+            <div className="builder-feedback__rating-container">
+              <span className="builder-feedback__rating-label">Not likely</span>
+              <div className="builder-feedback__rating-scale">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                  <div
+                    key={num}
+                    className={`builder-feedback__rating-display ${
+                      formData.referral_likelihood === num.toString() ? 'builder-feedback__rating-display--selected' : ''
+                    }`}
+                  >
+                    {num}
+                  </div>
+                ))}
+              </div>
+              <span className="builder-feedback__rating-label">Very likely</span>
+            </div>
+          </div>
+
+          <div className="builder-feedback__form-group">
+            <label className="builder-feedback__label">What did we do well?</label>
+            <div className="builder-feedback__readonly-text">
+              {formData.what_we_did_well || <em>No response provided</em>}
+            </div>
+          </div>
+
+          <div className="builder-feedback__form-group">
+            <label className="builder-feedback__label">What do we need to improve on?</label>
+            <div className="builder-feedback__readonly-text">
+              {formData.what_to_improve || <em>No response provided</em>}
+            </div>
+          </div>
+
+          <div className="builder-feedback__form-group">
+            <label className="builder-feedback__label">What tools did you use this week?</label>
+            <div className="builder-feedback__readonly-text">
+              {formData.tools_used || <em>No response provided</em>}
+            </div>
+          </div>
+
+          <div className="builder-feedback__form-group">
+            <label className="builder-feedback__label">What programming languages did you work with this week?</label>
+            <div className="builder-feedback__readonly-text">
+              {formData.programming_languages || <em>No response provided</em>}
+            </div>
+          </div>
         </div>
       </div>
     );
