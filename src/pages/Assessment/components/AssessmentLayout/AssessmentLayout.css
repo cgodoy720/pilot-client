@@ -15,6 +15,14 @@
   overflow-y: auto; /* Allow scrolling in read-only mode */
 }
 
+/* Resubmission mode adjustments */
+.assessment-layout--resubmission {
+  height: 100vh;
+  overflow-y: auto;
+  padding: 0;
+  background: var(--color-background-darker);
+}
+
 /* Removed header styles - buttons now integrated into chat header */
 
 /* Content Area */
