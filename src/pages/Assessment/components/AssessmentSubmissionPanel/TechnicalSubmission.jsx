@@ -35,7 +35,7 @@ function TechnicalSubmission({ submissionData, isDraft, isLoading, onUpdate, onS
     onUpdate(newFormData);
   };
 
-  const handleFileUpload = (files) => {
+  const handleFileUpload = async (files) => {
     const allowedTypes = [
       'text/html',
       'text/css', 
@@ -65,16 +65,43 @@ function TechnicalSubmission({ submissionData, isDraft, isLoading, onUpdate, onS
       alert('Some files were not uploaded. Please only upload HTML, CSS, JS, Python, or text files under 10MB.');
     }
 
+    // Read file contents for all valid files
+    const filesWithContent = await Promise.all(
+      validFiles.map(file => readFileContent(file))
+    );
+
     setFormData(prev => ({
       ...prev,
-      files: [...prev.files, ...validFiles.map(file => ({
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        lastModified: file.lastModified,
-        file: file // Store the actual file object for upload
-      }))]
+      files: [...prev.files, ...filesWithContent]
     }));
+  };
+
+  // Helper function to read file content
+  const readFileContent = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        const content = e.target.result;
+        resolve({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified,
+          content: content, // ✅ Store actual file content
+          encoding: 'text', // All our supported files are text-based
+          uploadedAt: new Date().toISOString()
+        });
+      };
+      
+      reader.onerror = () => {
+        console.error('Error reading file:', file.name);
+        reject(new Error(`Failed to read file: ${file.name}`));
+      };
+      
+      // Read as text since all our supported file types are text-based
+      reader.readAsText(file);
+    });
   };
 
   const handleDrag = (e) => {
@@ -87,13 +114,13 @@ function TechnicalSubmission({ submissionData, isDraft, isLoading, onUpdate, onS
     }
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = async (e) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileUpload(e.dataTransfer.files);
+      await handleFileUpload(e.dataTransfer.files);
     }
   };
 
@@ -227,7 +254,7 @@ function TechnicalSubmission({ submissionData, isDraft, isLoading, onUpdate, onS
             type="file"
             multiple
             accept=".html,.css,.js,.py,.txt,.md"
-            onChange={(e) => handleFileUpload(e.target.files)}
+            onChange={async (e) => await handleFileUpload(e.target.files)}
             style={{ display: 'none' }}
             disabled={!isDraft || isLoading}
           />

@@ -348,6 +348,16 @@
   color: var(--color-primary);
 }
 
+.assessment__status--resubmission {
+  color: #f59e0b;
+  background-color: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.assessment__status-icon--resubmission {
+  color: #f59e0b;
+}
+
 .assessment__status--draft {
   background: rgba(255, 193, 7, 0.2);
   color: #ffc107;

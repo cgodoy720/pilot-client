@@ -44,6 +44,11 @@ function Assessment() {
   };
 
   const getStatusIcon = (assessment) => {
+    // Check for resubmission requirements first
+    if (assessment.available && assessment.reason && assessment.reason.includes('resubmission')) {
+      return <FaClock className="assessment__status-icon assessment__status-icon--resubmission" />;
+    }
+    
     // Prioritize submission status over availability
     if (assessment.submission_status === 'submitted') {
       return <FaCheck className="assessment__status-icon assessment__status-icon--completed" />;
@@ -61,6 +66,19 @@ function Assessment() {
   };
 
   const getStatusText = (assessment) => {
+    // Check for resubmission requirements first
+    if (assessment.available && assessment.reason && assessment.reason.includes('resubmission')) {
+      if (assessment.reason.includes('File resubmission')) {
+        return 'Files Required';
+      } else if (assessment.reason.includes('Video resubmission')) {
+        return 'Video Required';
+      } else if (assessment.reason.includes('Files and video resubmission')) {
+        return 'Files & Video Required';
+      } else {
+        return 'Resubmission Required';
+      }
+    }
+    
     // Prioritize submission status over availability
     if (assessment.submission_status === 'submitted') {
       return 'Completed';
@@ -78,6 +96,11 @@ function Assessment() {
   };
 
   const getStatusClass = (assessment) => {
+    // Check for resubmission requirements first
+    if (assessment.available && assessment.reason && assessment.reason.includes('resubmission')) {
+      return 'assessment__status--resubmission';
+    }
+    
     // Prioritize submission status over availability
     if (assessment.submission_status === 'submitted') {
       return 'assessment__status--completed';
@@ -100,8 +123,11 @@ function Assessment() {
       return;
     }
     
-    // If assessment is submitted, navigate to read-only mode
-    if (assessment.submission_status === 'submitted') {
+    // Check if this is a resubmission case - go to resubmission mode instead of read-only
+    if (assessment.available && assessment.reason && assessment.reason.includes('resubmission')) {
+      navigate(`/assessment/${periodSlug}/${assessmentType}/${assessmentId}`);
+    } else if (assessment.submission_status === 'submitted') {
+      // If assessment is submitted (and NOT resubmission), navigate to read-only mode
       navigate(`/assessment/${periodSlug}/${assessmentType}/${assessmentId}/readonly`);
     } else {
       // Navigate to specific assessment page
@@ -218,7 +244,10 @@ function Assessment() {
                       {(assessment.available && isActive) || assessment.submission_status === 'submitted' ? (
                         <div className="assessment__table-action">
                           <FaExternalLinkAlt className="assessment__table-icon" />
-                          <span>{assessment.submission_status === 'submitted' ? 'View' : 'Start'}</span>
+                          <span>
+                            {assessment.available && assessment.reason && assessment.reason.includes('resubmission') ? 'Resubmit' :
+                             assessment.submission_status === 'submitted' ? 'View' : 'Start'}
+                          </span>
                         </div>
                       ) : (
                         <span className="assessment__table-empty">—</span>

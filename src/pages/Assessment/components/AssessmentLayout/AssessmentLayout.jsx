@@ -6,6 +6,7 @@ import { useAuth } from '../../../../context/AuthContext';
 import AssessmentLLMChat from '../AssessmentLLMChat/AssessmentLLMChat';
 import AssessmentSubmissionPanel from '../AssessmentSubmissionPanel/AssessmentSubmissionPanel';
 import AssessmentSubmissionDisplay from '../AssessmentSubmissionDisplay/AssessmentSubmissionDisplay';
+import ResubmissionPanel from '../ResubmissionPanel/ResubmissionPanel';
 import './AssessmentLayout.css';
 
 function AssessmentLayout({ readonly = false }) {
@@ -37,6 +38,10 @@ function AssessmentLayout({ readonly = false }) {
   // UI state
   const [isSubmissionPanelOpen, setIsSubmissionPanelOpen] = useState(false);
   const [hasShownInstructions, setHasShownInstructions] = useState(false);
+  
+  // Resubmission state
+  const [resubmissionMode, setResubmissionMode] = useState(null);
+  const [existingSubmission, setExistingSubmission] = useState(null);
 
   // Fetch assessment data
   useEffect(() => {
@@ -86,6 +91,23 @@ function AssessmentLayout({ readonly = false }) {
               messages: data.submission.llm_conversation_data.messages || [],
               threadId: data.submission.llm_conversation_data.thread_id || null
             }));
+          }
+
+          // Check for resubmission requirements
+          if (data.submission.resubmission_allowed && 
+              data.submission.status === 'submitted') {
+            setExistingSubmission(data.submission);
+            
+            // Determine resubmission type
+            if (data.submission.needs_file_resubmission && data.submission.needs_video_resubmission) {
+              setResubmissionMode('files_and_video');
+            } else if (data.submission.needs_file_resubmission) {
+              setResubmissionMode('files_only');
+            } else if (data.submission.needs_video_resubmission) {
+              setResubmissionMode('video_only');
+            } else {
+              setResubmissionMode('general');
+            }
           }
         }
       } else {
@@ -296,6 +318,57 @@ function AssessmentLayout({ readonly = false }) {
     }
   };
 
+  const handleResubmissionSubmit = async (resubmissionData) => {
+    try {
+      setSubmissionState(prev => ({ ...prev, isLoading: true }));
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}/submissions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          submission_data: resubmissionData,
+          status: 'submitted'
+        })
+      });
+
+      if (response.ok) {
+        await Swal.fire({
+          title: 'Resubmission Complete!',
+          text: 'Your resubmission has been successfully submitted.',
+          icon: 'success',
+          confirmButtonColor: '#10b981',
+          background: '#1A1F2C',
+          color: 'var(--color-text-primary)'
+        });
+
+        // Navigate back to assessments list
+        navigate('/assessment');
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Resubmission failed');
+      }
+    } catch (error) {
+      console.error('Error submitting resubmission:', error);
+      setSubmissionState(prev => ({ ...prev, isLoading: false }));
+      
+      Swal.fire({
+        title: 'Resubmission Failed',
+        text: error.message || 'There was an error submitting your resubmission. Please try again.',
+        icon: 'error',
+        confirmButtonColor: '#dc3545',
+        background: '#1A1F2C',
+        color: 'var(--color-text-primary)'
+      });
+    }
+  };
+
+  const handleResubmissionCancel = () => {
+    navigate('/assessment');
+  };
+
   const getAssessmentTypeName = (type) => {
     const typeMap = {
       'business': 'Business Assessment',
@@ -327,6 +400,22 @@ function AssessmentLayout({ readonly = false }) {
             Back to Assessments
           </button>
         </div>
+      </div>
+    );
+  }
+
+  // Show resubmission panel if in resubmission mode
+  if (resubmissionMode) {
+    return (
+      <div className="assessment-layout assessment-layout--resubmission">
+        <ResubmissionPanel
+          assessmentType={assessment.assessment_type}
+          resubmissionType={resubmissionMode}
+          existingSubmission={existingSubmission}
+          onSubmit={handleResubmissionSubmit}
+          onCancel={handleResubmissionCancel}
+          isLoading={submissionState.isLoading}
+        />
       </div>
     );
   }
