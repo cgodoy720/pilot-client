@@ -1485,33 +1485,7 @@ body .submission-panel[style*="position: fixed"],
   padding-top: 2rem;
 }
 
-.preview-actions {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  align-items: center;
-}
-
-.preview-btn {
-  background: var(--color-primary) !important;
-  color: white !important;
-  border: none !important;
-}
-
-.preview-btn:hover:not(:disabled) {
-  background: #059669 !important;
-}
-
-.preview-btn:disabled {
-  background: var(--color-background-secondary) !important;
-  color: var(--color-text-muted) !important;
-}
-
-.email-previews {
-  max-height: 600px;
-  overflow-y: auto;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
+/* OLD NON-BEM STYLES REMOVED - USING BEM email-modal__ CLASSES NOW! */
   background: var(--color-background);
 }
 
@@ -1747,36 +1721,303 @@ body .submission-panel[style*="position: fixed"],
   font-weight: 600;
 }
 
-/* Email Modal Specific Styles */
-.email-modal {
-  max-width: 700px;
+/* BEM Assessment Grades Email Modal Styles - SUPER WIDE! 💪 */
+.assessment-grades-email-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
 }
 
-.email-form {
+.assessment-grades-email-modal {
+  max-width: 95vw !important;
+  width: 1400px !important; /* EXTRA WIDE! */
+  max-height: 90vh;
+  background: var(--color-background-darker);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.assessment-grades-email-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background-secondary);
+}
+
+.assessment-grades-email-modal__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.assessment-grades-email-modal__close {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  line-height: 1;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.assessment-grades-email-modal__close:hover {
+  color: var(--color-text-primary);
+  background: var(--color-background-darker);
+}
+
+.assessment-grades-email-modal__body {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.assessment-grades-email-modal__form {
   display: grid;
-  gap: 1.5rem;
+  gap: 2rem;
 }
 
-.form-group {
+.assessment-grades-email-modal__field {
   display: flex;
   flex-direction: column;
 }
 
-.form-group label {
+.assessment-grades-email-modal__label {
   font-weight: 600;
   color: var(--color-text-primary);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
 }
 
-.form-group input,
-.form-group select,
-.form-group textarea {
-  padding: 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
+.assessment-grades-email-modal__input,
+.assessment-grades-email-modal__select,
+.assessment-grades-email-modal__textarea {
+  padding: 1rem;
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
   background: var(--color-background);
   color: var(--color-text-primary);
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.assessment-grades-email-modal__input:focus,
+.assessment-grades-email-modal__select:focus,
+.assessment-grades-email-modal__textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.assessment-grades-email-modal__recipients {
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.assessment-grades-email-modal__recipient {
+  padding: 0.5rem 0;
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
+}
+
+.assessment-grades-email-modal__recipient--more {
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+/* Preview Section */
+.assessment-grades-email-modal__preview-section {
+  margin-top: 1rem;
+}
+
+.assessment-grades-email-modal__preview-actions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.assessment-grades-email-modal__btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.assessment-grades-email-modal__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.assessment-grades-email-modal__btn--outline {
+  background: transparent;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.assessment-grades-email-modal__btn--outline:hover:not(:disabled) {
+  background: var(--color-primary);
+  color: white;
+}
+
+.assessment-grades-email-modal__btn--secondary {
+  background: var(--color-background-darker);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.assessment-grades-email-modal__btn--secondary:hover:not(:disabled) {
+  background: var(--color-border);
+}
+
+.assessment-grades-email-modal__btn--success {
+  background: #10b981;
+  border-color: #10b981;
+  color: white;
+}
+
+.assessment-grades-email-modal__btn--success:hover:not(:disabled) {
+  background: #059669;
+  border-color: #059669;
+}
+
+.assessment-grades-email-modal__previews {
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.assessment-grades-email-modal__previews-title {
+  margin: 0 0 1.5rem 0;
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
+}
+
+.assessment-grades-email-modal__preview-item {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.assessment-grades-email-modal__preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background-secondary);
+}
+
+.assessment-grades-email-modal__preview-name {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--color-text-primary);
+}
+
+.assessment-grades-email-modal__preview-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.assessment-grades-email-modal__preview-status--preview_ready {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.assessment-grades-email-modal__preview-status--no_feedback {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.assessment-grades-email-modal__preview-status--preview_error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.assessment-grades-email-modal__preview-content {
+  padding: 1.5rem;
+}
+
+.assessment-grades-email-modal__preview-subject {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--color-background-darker);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.assessment-grades-email-modal__preview-body {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.assessment-grades-email-modal__preview-html {
+  padding: 1rem;
+  background: white;
+  color: black;
+  font-family: Arial, sans-serif;
+  max-height: 400px;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.assessment-grades-email-modal__preview-warning,
+.assessment-grades-email-modal__preview-error {
+  padding: 1rem 1.5rem;
+  text-align: center;
+}
+
+.assessment-grades-email-modal__preview-warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.assessment-grades-email-modal__preview-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Footer */
+.assessment-grades-email-modal__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-background-secondary);
+}
+
+.assessment-grades-email-modal__footer-actions {
+  display: flex;
+  gap: 1rem;
 }
 
 .form-group textarea {
@@ -1784,17 +2025,7 @@ body .submission-panel[style*="position: fixed"],
   min-height: 100px;
 }
 
-.recipients-list {
-  background: var(--color-background-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 1rem;
-  max-height: 150px;
-  overflow-y: auto;
-}
-
-.recipient {
-  padding: 0.25rem 0;
+/* OLD recipients-list styles removed - using BEM email-modal__recipients now */
   color: var(--color-text-secondary);
   font-size: 0.9rem;
   border-bottom: 1px solid var(--color-border);

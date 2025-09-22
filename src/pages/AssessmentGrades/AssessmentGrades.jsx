@@ -1235,43 +1235,45 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content email-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Send Mass Email</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+    <div className="assessment-grades-email-modal-overlay" onClick={onClose}>
+      <div className="assessment-grades-email-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="assessment-grades-email-modal__header">
+          <h2 className="assessment-grades-email-modal__title">Send Mass Email</h2>
+          <button className="assessment-grades-email-modal__close" onClick={onClose}>×</button>
         </div>
         
-        <div className="modal-body">
-          <div className="email-form">
-            <div className="form-group">
-              <label htmlFor="recipients">Recipients ({selectedUsers.length} users):</label>
-              <div className="recipients-list">
+        <div className="assessment-grades-email-modal__body">
+          <div className="assessment-grades-email-modal__form">
+            <div className="assessment-grades-email-modal__field">
+              <label htmlFor="recipients" className="assessment-grades-email-modal__label">Recipients ({selectedUsers.length} users):</label>
+              <div className="assessment-grades-email-modal__recipients">
                 {assessmentGrades.slice(0, 5).map(grade => (
-                  <div key={grade.user_id} className="recipient">
+                  <div key={grade.user_id} className="assessment-grades-email-modal__recipient">
                     {grade.user_first_name} {grade.user_last_name} ({grade.user_email})
                   </div>
                 ))}
                 {assessmentGrades.length > 5 && (
-                  <div className="recipient">... and {assessmentGrades.length - 5} more</div>
+                  <div className="assessment-grades-email-modal__recipient assessment-grades-email-modal__recipient--more">... and {assessmentGrades.length - 5} more</div>
                 )}
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="subject">Subject:</label>
+            <div className="assessment-grades-email-modal__field">
+              <label htmlFor="subject" className="assessment-grades-email-modal__label">Subject:</label>
               <input
                 type="text"
                 id="subject"
+                className="assessment-grades-email-modal__input"
                 value={emailSubject}
                 onChange={(e) => setEmailSubject(e.target.value)}
               />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="template">Email Template:</label>
+            <div className="assessment-grades-email-modal__field">
+              <label htmlFor="template" className="assessment-grades-email-modal__label">Email Template:</label>
               <select
                 id="template"
+                className="assessment-grades-email-modal__select"
                 value={emailTemplate}
                 onChange={(e) => setEmailTemplate(e.target.value)}
               >
@@ -1281,10 +1283,11 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
               </select>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="customMessage">Custom Message (optional):</label>
+            <div className="assessment-grades-email-modal__field">
+              <label htmlFor="customMessage" className="assessment-grades-email-modal__label">Custom Message (optional):</label>
               <textarea
                 id="customMessage"
+                className="assessment-grades-email-modal__textarea"
                 value={customMessage}
                 onChange={(e) => setCustomMessage(e.target.value)}
                 placeholder="Add a personal message that will be included in all emails..."
@@ -1292,10 +1295,10 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
               />
             </div>
 
-            <div className="email-preview-section">
-              <div className="preview-actions">
+            <div className="assessment-grades-email-modal__preview-section">
+              <div className="assessment-grades-email-modal__preview-actions">
                 <button 
-                  className="btn btn-outline preview-btn"
+                  className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--outline assessment-grades-email-modal__btn--preview"
                   onClick={handlePreviewEmails}
                   disabled={loadingPreviews || selectedUsers.length === 0}
                 >
@@ -1303,7 +1306,7 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
                 </button>
                 {showPreviews && (
                   <button 
-                    className="btn btn-secondary"
+                    className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--secondary"
                     onClick={() => setShowPreviews(false)}
                   >
                     Hide Previews
@@ -1312,13 +1315,13 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
               </div>
 
               {showPreviews && previews.length > 0 && (
-                <div className="email-previews">
-                  <h4>Email Previews ({previews.length} of {selectedUsers.length} selected):</h4>
+                <div className="assessment-grades-email-modal__previews">
+                  <h4 className="assessment-grades-email-modal__previews-title">Email Previews ({previews.length} of {selectedUsers.length} selected):</h4>
                   {previews.map((preview, index) => (
-                    <div key={preview.user_id} className="email-preview-item">
-                      <div className="preview-header">
-                        <h5>📧 {preview.name} ({preview.email})</h5>
-                        <span className={`preview-status preview-status--${preview.status}`}>
+                    <div key={preview.user_id} className="assessment-grades-email-modal__preview-item">
+                      <div className="assessment-grades-email-modal__preview-header">
+                        <h5 className="assessment-grades-email-modal__preview-name">📧 {preview.name} ({preview.email})</h5>
+                        <span className={`assessment-grades-email-modal__preview-status assessment-grades-email-modal__preview-status--${preview.status}`}>
                           {preview.status === 'preview_ready' ? '✅ Ready' : 
                            preview.status === 'no_feedback' ? '⚠️ No Feedback' : 
                            '❌ Error'}
@@ -1326,13 +1329,13 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
                       </div>
                       
                       {preview.status === 'preview_ready' && preview.preview && (
-                        <div className="preview-content">
-                          <div className="preview-subject">
+                        <div className="assessment-grades-email-modal__preview-content">
+                          <div className="assessment-grades-email-modal__preview-subject">
                             <strong>Subject:</strong> {preview.preview.subject}
                           </div>
-                          <div className="preview-body">
+                          <div className="assessment-grades-email-modal__preview-body">
                             <div 
-                              className="email-html-preview"
+                              className="assessment-grades-email-modal__preview-html"
                               dangerouslySetInnerHTML={{ __html: preview.preview.html }}
                             />
                           </div>
@@ -1340,13 +1343,13 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
                       )}
                       
                       {preview.status === 'no_feedback' && (
-                        <div className="preview-warning">
+                        <div className="assessment-grades-email-modal__preview-warning">
                           <p>⚠️ No assessment feedback found for this user. Email will be skipped.</p>
                         </div>
                       )}
                       
                       {preview.status === 'preview_error' && (
-                        <div className="preview-error">
+                        <div className="assessment-grades-email-modal__preview-error">
                           <p>❌ Error generating preview for this user.</p>
                         </div>
                       )}
@@ -1358,20 +1361,20 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
           </div>
         </div>
 
-        <div className="modal-footer">
+        <div className="assessment-grades-email-modal__footer">
           <button 
-            className="btn btn-outline test-email-btn" 
+            className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--outline assessment-grades-email-modal__btn--test" 
             onClick={handleSendTestEmail}
             disabled={sending || loadingPreviews}
           >
             📧 Send Test Email
           </button>
-          <div className="modal-footer-right">
-            <button className="btn btn-secondary" onClick={onClose} disabled={sending}>
+          <div className="assessment-grades-email-modal__footer-actions">
+            <button className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--secondary" onClick={onClose} disabled={sending}>
               Cancel
             </button>
             <button 
-              className="btn btn-success" 
+              className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--success" 
               onClick={handleSendEmails}
               disabled={sending || !emailSubject || selectedUsers.length === 0}
             >
