@@ -16,11 +16,8 @@ import PersonIcon from '@mui/icons-material/Person';
 import GroupsIcon from '@mui/icons-material/Groups';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import QuizIcon from '@mui/icons-material/Quiz';
-<<<<<<< HEAD
 import FeedbackIcon from '@mui/icons-material/Feedback';
-=======
 import GradeIcon from '@mui/icons-material/Grade';
->>>>>>> dev
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 import logo from '../../assets/logo.png'
