@@ -16,6 +16,8 @@ import PersonIcon from '@mui/icons-material/Person';
 import GroupsIcon from '@mui/icons-material/Groups';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import QuizIcon from '@mui/icons-material/Quiz';
+import FeedbackIcon from '@mui/icons-material/Feedback';
+import GradeIcon from '@mui/icons-material/Grade';
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 import logo from '../../assets/logo.png'
@@ -31,6 +33,8 @@ const Layout = ({ children }) => {
   const isActive = user?.active !== false;
   // Check if user is admin or staff
   const isAdmin = user?.role === 'admin' || user?.role === 'staff';
+  // Check if user is volunteer
+  const isVolunteer = user?.role === 'volunteer';
 
   const handleLogout = () => {
     logout();
@@ -113,11 +117,22 @@ const Layout = ({ children }) => {
             </Tooltip>
           )}
           
+          {isVolunteer && (
+            <Link to="/volunteer-feedback" className={`layout__nav-item ${location.pathname === '/volunteer-feedback' ? 'layout__nav-item--active' : ''}`}>
+              <FeedbackIcon className="layout__nav-icon" />
+              {isExpanded && <span className="layout__nav-text">Volunteer Feedback</span>}
+            </Link>
+          )}
+          
           {isAdmin && (
             <>
               <Link to="/admin-dashboard" className={`layout__nav-item ${location.pathname === '/admin-dashboard' ? 'layout__nav-item--active' : ''}`}>
                 <AdminPanelSettingsIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">Admin Dashboard</span>}
+              </Link>
+              <Link to="/admin/assessment-grades" className={`layout__nav-item ${location.pathname === '/admin/assessment-grades' ? 'layout__nav-item--active' : ''}`}>
+                <GradeIcon className="layout__nav-icon" />
+                {isExpanded && <span className="layout__nav-text">Assessment Grades</span>}
               </Link>
               <Link to="/admissions-dashboard" className={`layout__nav-item ${location.pathname === '/admissions-dashboard' ? 'layout__nav-item--active' : ''}`}>
                 <GroupsIcon className="layout__nav-icon" />
@@ -135,6 +150,10 @@ const Layout = ({ children }) => {
                 <PersonIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">Facilitator View</span>}
               </Link> */}
+              <Link to="/admin-volunteer-feedback" className={`layout__nav-item ${location.pathname === '/admin-volunteer-feedback' ? 'layout__nav-item--active' : ''}`}>
+                <FeedbackIcon className="layout__nav-icon" />
+                {isExpanded && <span className="layout__nav-text">Volunteer Feedback</span>}
+              </Link>
             </>
           )}
         </div>

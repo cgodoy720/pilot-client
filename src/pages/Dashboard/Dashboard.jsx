@@ -11,6 +11,8 @@ function Dashboard() {
   
   // Check if user has active status
   const isActive = user?.active !== false;
+  // Check if user is volunteer
+  const isVolunteer = user?.role === 'volunteer';
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -185,6 +187,11 @@ function Dashboard() {
     return `${formattedHours}:${minutes} ${period}`;
   };
 
+  // Navigate to volunteer feedback
+  const navigateToVolunteerFeedback = () => {
+    navigate('/volunteer-feedback');
+  };
+
   // Render historical access view
   const renderHistoricalView = () => {
     return (
@@ -204,6 +211,24 @@ function Dashboard() {
               <FaCalendarAlt /> View Past Sessions
             </button>
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render volunteer dashboard view
+  const renderVolunteerView = () => {
+    return (
+      <div className="dashboard__volunteer-container">
+        <div className="dashboard__volunteer-welcome">
+          <h2>Welcome, Volunteer!</h2>
+          <p>Thank you for volunteering with us. You can provide feedback on learner sessions below.</p>
+          <button 
+            className="dashboard__volunteer-feedback-btn"
+            onClick={navigateToVolunteerFeedback}
+          >
+            <FaBook /> Go to Volunteer Feedback
+          </button>
         </div>
       </div>
     );
@@ -306,8 +331,10 @@ function Dashboard() {
         )}
       </div>
       
-      {/* Conditionally render either historical view or dashboard content */}
-      {!isActive ? renderHistoricalView() : renderDashboardContent()}
+      {/* Conditionally render based on user status and role */}
+      {!isActive ? renderHistoricalView() : 
+       isVolunteer ? renderVolunteerView() : 
+       renderDashboardContent()}
       
       {error && <div className="dashboard__error-message">{error}</div>}
     </div>

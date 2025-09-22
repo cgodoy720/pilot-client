@@ -36,6 +36,7 @@ const Login = () => {
         // For builder users, the AuthContext will handle the state
         // For applicants, we redirect but don't set AuthContext state
         if (result.userType === 'builder') {
+          // Navigate to the path specified by the backend (could be /dashboard or /volunteer-feedback)
           navigate(redirectPath);
         } else if (result.userType === 'applicant') {
           // Redirect to applicant dashboard

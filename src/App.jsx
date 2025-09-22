@@ -17,7 +17,10 @@ import Account from './pages/Account/Account';
 import Assessment from './pages/Assessment/Assessment';
 import AssessmentLayout from './pages/Assessment/components/AssessmentLayout/AssessmentLayout';
 import SelfAssessmentPage from './pages/Assessment/components/SelfAssessmentPage/SelfAssessmentPage';
+import AssessmentGrades from './pages/AssessmentGrades/AssessmentGrades';
 
+import VolunteerFeedback from './pages/VolunteerFeedback/VolunteerFeedback';
+import AdminVolunteerFeedback from './pages/AdminVolunteerFeedback';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
 
 import { useAuth } from './context/AuthContext';
@@ -195,6 +198,13 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
+        <Route path="/admin/assessment-grades" element={
+          <Layout>
+            <AdminRoute>
+              <AssessmentGrades />
+            </AdminRoute>
+          </Layout>
+        } />
         <Route path="/admissions-dashboard" element={
           <Layout>
             <AdminRoute>
@@ -230,6 +240,13 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
+        <Route path="/admin-volunteer-feedback" element={
+          <Layout>
+            <AdminRoute>
+              <AdminVolunteerFeedback />
+            </AdminRoute>
+          </Layout>
+        } />
         <Route path="/stats" element={
           <Layout>
             <Stats />
@@ -240,7 +257,9 @@ function App() {
             <Account />
           </Layout>
         } />
-
+        <Route path="/volunteer-feedback" element={
+          <VolunteerFeedback />
+        } />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
       
