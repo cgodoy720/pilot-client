@@ -175,7 +175,7 @@
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1fr;
   gap: 0;
-  background: var(--color-background-light);
+  background: var(--color-background-dark);
   border-bottom: 2px solid var(--color-border);
   font-weight: 600;
   color: var(--color-text-primary);
@@ -346,6 +346,16 @@
 .assessment__status--available {
   background: var(--color-primary-transparent);
   color: var(--color-primary);
+}
+
+.assessment__status--resubmission {
+  color: #f59e0b;
+  background-color: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.assessment__status-icon--resubmission {
+  color: #f59e0b;
 }
 
 .assessment__status--draft {

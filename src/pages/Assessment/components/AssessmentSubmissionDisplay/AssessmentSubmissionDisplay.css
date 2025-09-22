@@ -69,7 +69,7 @@
 }
 
 .submission-display__value--conversation {
-  max-height: 300px;
+  max-height: 600px; /* Increased from 300px for better readability */
   overflow-y: auto;
   font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
   font-size: 0.875rem;

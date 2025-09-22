@@ -22,14 +22,57 @@ function AssessmentLLMChat({
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [error, setError] = useState('');
   const [threadId, setThreadId] = useState(null);
+  const [isCreatingThread, setIsCreatingThread] = useState(false);
+  const threadCreationInitiated = useRef(false);
+  const currentAssessmentId = useRef(null);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
 
+  // Reset thread creation flag when assessment changes
+  useEffect(() => {
+    console.log('Assessment changed, resetting thread creation flag:', assessmentId);
+    
+    // Only reset if this is actually a different assessment
+    if (currentAssessmentId.current !== assessmentId) {
+      console.log('Different assessment detected, resetting state');
+      currentAssessmentId.current = assessmentId;
+      threadCreationInitiated.current = false;
+      setThreadId(null);
+      setIsCreatingThread(false);
+    } else {
+      console.log('Same assessment, skipping reset (React Strict Mode double execution)');
+    }
+    
+    // Cleanup function
+    return () => {
+      console.log('Cleanup: Assessment effect cleanup for:', assessmentId);
+    };
+  }, [assessmentId]);
+
   // Initialize messages from initial conversation and get/create thread
   useEffect(() => {
-    // Get or create thread for this assessment first
-    getOrCreateAssessmentThread();
-  }, [assessmentId]);
+    console.log('AssessmentLLMChat useEffect triggered:', { 
+      token: !!token, 
+      assessmentId, 
+      isCreatingThread, 
+      threadId, 
+      threadCreationInitiated: threadCreationInitiated.current 
+    });
+    
+    // Only create thread if we have a token and assessment ID, haven't initiated creation, and don't already have a thread
+    if (token && assessmentId && !threadCreationInitiated.current && !threadId) {
+      console.log('Calling getOrCreateAssessmentThread from useEffect');
+      threadCreationInitiated.current = true;
+      getOrCreateAssessmentThread();
+    } else {
+      console.log('Skipping thread creation:', { 
+        hasToken: !!token, 
+        hasAssessmentId: !!assessmentId, 
+        threadCreationInitiated: threadCreationInitiated.current,
+        hasThreadId: !!threadId 
+      });
+    }
+  }, [assessmentId, token]);
 
   // Load initial conversation data when available
   useEffect(() => {
@@ -43,8 +86,19 @@ function AssessmentLLMChat({
   }, [initialConversation]);
 
   const getOrCreateAssessmentThread = async () => {
+    console.log('getOrCreateAssessmentThread called:', { isCreatingThread, threadId, assessmentId });
+    
+    // Prevent concurrent thread creation
+    if (isCreatingThread || threadId) {
+      console.log('Thread creation already in progress or thread exists, skipping...', { isCreatingThread, threadId });
+      return threadId;
+    }
+
     try {
+      console.log('Setting isCreatingThread to true');
+      setIsCreatingThread(true);
       console.log('Creating thread for assessment:', assessmentId);
+      
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}/thread`, {
         method: 'POST',
         headers: {
@@ -64,12 +118,18 @@ function AssessmentLLMChat({
         if (messages.length === 0) {
           loadThreadMessages(data.threadId);
         }
+        
+        return data.threadId;
       } else {
         const errorData = await response.json();
         console.error('Failed to get/create assessment thread:', errorData);
+        return null;
       }
     } catch (error) {
       console.error('Error getting assessment thread:', error);
+      return null;
+    } finally {
+      setIsCreatingThread(false);
     }
   };
 
@@ -137,15 +197,116 @@ function AssessmentLLMChat({
     }
   };
 
+  // Format message content similar to GPT component
+  const formatMessageContent = (content) => {
+    // More robust regex to handle multiple code blocks
+    const parts = content.split(/(```[\s\S]*?```)/g);
+    
+    return parts.map((part, index) => {
+      if (part.startsWith('```')) {
+        // Extract language and code with better regex
+        const match = part.match(/```(\w+)?\s*\n?([\s\S]*?)\s*```/);
+        const language = match?.[1] || '';
+        const code = match?.[2] || '';
+        
+        return (
+          <pre key={index} className="assessment-code-block">
+            {language && <div className="assessment-code-language">{language}</div>}
+            <code>{code}</code>
+          </pre>
+        );
+      }
+      
+      // Skip empty parts
+      if (!part.trim()) {
+        return null;
+      }
+      
+      return (
+        <ReactMarkdown 
+          key={index}
+          components={{
+            // Override code handling to ensure no ReactMarkdown code blocks interfere
+            code: ({node, inline, className, children, ...props}) => {
+              if (inline) {
+                return (
+                  <code className="inline-code" {...props}>
+                    {children}
+                  </code>
+                );
+              }
+              // For block code that ReactMarkdown tries to render, force our styling
+              return (
+                <pre className="assessment-code-block" {...props}>
+                  <code>{children}</code>
+                </pre>
+              );
+            },
+            pre: ({node, children, ...props}) => {
+              // Override pre elements to use our styling
+              return (
+                <pre className="assessment-code-block" {...props}>
+                  {children}
+                </pre>
+              );
+            },
+            p: ({node, children, ...props}) => (
+              <p className="markdown-paragraph" {...props}>{children}</p>
+            ),
+            h1: ({node, children, ...props}) => (
+              <h1 className="markdown-heading" {...props}>{children}</h1>
+            ),
+            h2: ({node, children, ...props}) => (
+              <h2 className="markdown-heading" {...props}>{children}</h2>
+            ),
+            h3: ({node, children, ...props}) => (
+              <h3 className="markdown-heading" {...props}>{children}</h3>
+            ),
+            h4: ({node, children, ...props}) => (
+              <h4 className="markdown-heading" {...props}>{children}</h4>
+            ),
+            h5: ({node, children, ...props}) => (
+              <h5 className="markdown-heading" {...props}>{children}</h5>
+            ),
+            h6: ({node, children, ...props}) => (
+              <h6 className="markdown-heading" {...props}>{children}</h6>
+            ),
+            ul: ({node, children, ...props}) => (
+              <ul className="markdown-list" {...props}>{children}</ul>
+            ),
+            ol: ({node, children, ...props}) => (
+              <ol className="markdown-list" {...props}>{children}</ol>
+            ),
+            li: ({node, children, ...props}) => (
+              <li className="markdown-list-item" {...props}>{children}</li>
+            ),
+            a: ({node, children, ...props}) => (
+              <a className="markdown-link" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+            ),
+            blockquote: ({node, children, ...props}) => (
+              <blockquote className="markdown-blockquote" {...props}>{children}</blockquote>
+            ),
+            table: ({node, children, ...props}) => (
+              <table className="markdown-table" {...props}>{children}</table>
+            )
+          }}
+        >
+          {part}
+        </ReactMarkdown>
+      );
+    }).filter(Boolean);
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || isSending || disabled) return;
+    if (!newMessage.trim() || isSending || disabled || isCreatingThread) return;
     
     // If no threadId yet, try to create one first
-    if (!threadId) {
+    let currentThreadId = threadId;
+    if (!currentThreadId) {
       console.log('No threadId, attempting to create thread...');
-      await getOrCreateAssessmentThread();
-      if (!threadId) {
+      currentThreadId = await getOrCreateAssessmentThread();
+      if (!currentThreadId) {
         console.error('Could not create thread, cannot send message');
         setError('Unable to create conversation thread. Please refresh the page.');
         return;
@@ -179,7 +340,7 @@ function AssessmentLLMChat({
         },
         body: JSON.stringify({
           content: messageToSend,
-          threadId: threadId // Use the proper integer thread ID
+          threadId: currentThreadId // Use the current thread ID (might be newly created)
         })
       });
 
@@ -300,53 +461,7 @@ function AssessmentLLMChat({
             <div className="assessment-llm-chat__message-content">
               <div className="assessment-llm-chat__message-text">
                 {message.role === 'assistant' ? (
-                  <ReactMarkdown
-                    components={{
-                      // Custom code block renderer
-                      code: ({ node, inline, className, children, ...props }) => {
-                        const match = /language-(\w+)/.exec(className || '');
-                        const language = match ? match[1] : '';
-                        
-                        if (inline) {
-                          return (
-                            <code className={className} {...props}>
-                              {children}
-                            </code>
-                          );
-                        }
-                        
-                        return (
-                          <div className="code-block-container">
-                            {language && (
-                              <div className="code-block-language">
-                                {language}
-                              </div>
-                            )}
-                            <pre>
-                              <code className={className} {...props}>
-                                {children}
-                              </code>
-                            </pre>
-                          </div>
-                        );
-                      },
-                      // Ensure paragraphs are properly aligned
-                      p: ({ children }) => <p>{children}</p>,
-                      // Ensure lists are properly aligned
-                      ul: ({ children }) => <ul>{children}</ul>,
-                      ol: ({ children }) => <ol>{children}</ol>,
-                      li: ({ children }) => <li>{children}</li>,
-                      // Headers
-                      h1: ({ children }) => <h1>{children}</h1>,
-                      h2: ({ children }) => <h2>{children}</h2>,
-                      h3: ({ children }) => <h3>{children}</h3>,
-                      h4: ({ children }) => <h4>{children}</h4>,
-                      h5: ({ children }) => <h5>{children}</h5>,
-                      h6: ({ children }) => <h6>{children}</h6>,
-                    }}
-                  >
-                    {message.content}
-                  </ReactMarkdown>
+                  formatMessageContent(message.content)
                 ) : (
                   <p>{message.content}</p>
                 )}
@@ -396,12 +511,12 @@ function AssessmentLLMChat({
               onKeyPress={handleKeyPress}
               placeholder="Ask questions or discuss your approach to this assessment..."
               className="assessment-llm-chat__input"
-              disabled={isSending}
+              disabled={isSending || isCreatingThread}
               rows={1}
             />
             <button
               type="submit"
-              disabled={!newMessage.trim() || isSending}
+              disabled={!newMessage.trim() || isSending || isCreatingThread}
               className="assessment-llm-chat__send-btn"
             >
               <FaPaperPlane />
