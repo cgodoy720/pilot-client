@@ -4,6 +4,20 @@
   height: 100%;
 }
 
+.admin-dashboard__header {
+  padding: 1rem 2rem;
+  background: var(--color-background-secondary);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-dashboard__nav {
+  display: flex;
+  gap: 1rem;
+}
+
 .admin-dashboard__iframe-container {
   flex: 1;
   position: relative;

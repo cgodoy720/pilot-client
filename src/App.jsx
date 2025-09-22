@@ -17,6 +17,7 @@ import Account from './pages/Account/Account';
 import Assessment from './pages/Assessment/Assessment';
 import AssessmentLayout from './pages/Assessment/components/AssessmentLayout/AssessmentLayout';
 import SelfAssessmentPage from './pages/Assessment/components/SelfAssessmentPage/SelfAssessmentPage';
+import AssessmentGrades from './pages/AssessmentGrades/AssessmentGrades';
 
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
 
@@ -192,6 +193,13 @@ function App() {
           <Layout>
             <AdminRoute>
               <AdminDashboard />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/admin/assessment-grades" element={
+          <Layout>
+            <AdminRoute>
+              <AssessmentGrades />
             </AdminRoute>
           </Layout>
         } />
