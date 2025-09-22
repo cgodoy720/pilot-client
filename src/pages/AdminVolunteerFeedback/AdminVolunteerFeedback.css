@@ -4,7 +4,6 @@
   margin: 0 auto;
   background-color: var(--color-background-darker);
   color: var(--color-text-primary);
-  min-height: 100vh;
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
