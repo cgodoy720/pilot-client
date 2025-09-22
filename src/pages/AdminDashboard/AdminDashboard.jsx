@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, CircularProgress, Button } from '@mui/material';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Box, Typography, CircularProgress } from '@mui/material';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -13,30 +12,6 @@ const AdminDashboard = () => {
 
   return (
     <Box className="admin-dashboard">
-      <Box className="admin-dashboard__header">
-        <Typography variant="h4" component="h1" gutterBottom>
-          Admin Dashboard
-        </Typography>
-        <Box className="admin-dashboard__nav">
-          <Button
-            component={Link}
-            to="/admin/assessment-grades"
-            variant="contained"
-            color="primary"
-            sx={{ marginRight: 2 }}
-          >
-            Assessment Grades
-          </Button>
-          <Button
-            component={Link}
-            to="/admin-prompts"
-            variant="outlined"
-            color="primary"
-          >
-            Admin Prompts
-          </Button>
-        </Box>
-      </Box>
       <Box className="admin-dashboard__iframe-container">
         {isLoading && (
           <Box className="admin-dashboard__loading">
