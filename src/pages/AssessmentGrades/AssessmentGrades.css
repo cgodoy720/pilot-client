@@ -940,6 +940,84 @@ body .submission-panel[style*="position: fixed"],
   margin-bottom: 1.5rem;
 }
 
+/* Detailed Feedback Overview Styles */
+.detailed-feedback-overview {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.detailed-feedback-overview h3 {
+  margin-bottom: 1.5rem;
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.feedback-by-type {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.assessment-feedback-section {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.assessment-feedback-section h4 {
+  margin: 0 0 1rem 0;
+  color: var(--color-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0.5rem;
+}
+
+.assessment-feedback-section .feedback-score {
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: rgba(var(--color-primary-rgb), 0.1);
+  border-radius: 4px;
+  text-align: center;
+}
+
+.assessment-feedback-section .feedback-score strong {
+  color: var(--color-primary);
+  font-size: 0.9rem;
+}
+
+.assessment-feedback-section .detailed-feedback h5 {
+  margin: 0 0 0.75rem 0;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.assessment-feedback-section .key-insights {
+  margin-top: 1rem;
+}
+
+.assessment-feedback-section .key-insights h5 {
+  margin: 0 0 0.5rem 0;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.assessment-feedback-section .key-insights ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.assessment-feedback-section .key-insights li {
+  margin-bottom: 0.5rem;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
 .strengths-improvements {
   display: grid;
   grid-template-columns: 1fr 1fr;

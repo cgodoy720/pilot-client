@@ -867,45 +867,50 @@ const GradeViewModal = ({ grade, onClose }) => {
         
         {/* Show type-specific insights */}
         {(() => {
-          const typeSpecificData = JSON.parse(analysis.type_specific_data || '{}');
-          
-          if (typeSpecificData.key_insights) {
-            return (
-              <div className="key-insights">
-                <h4>Key Insights</h4>
-                <ul>
-                  {typeSpecificData.key_insights.map((insight, i) => (
-                    <li key={i}>{insight}</li>
-                  ))}
-                </ul>
-              </div>
-            );
-          }
-          
-          if (typeSpecificData.strengths && typeSpecificData.improvements) {
-            return (
-              <div className="strengths-improvements">
-                <div className="strengths-section">
-                  <h4>Strengths</h4>
+          try {
+            const typeSpecificData = JSON.parse(analysis.type_specific_data || '{}');
+            
+            if (typeSpecificData.key_insights) {
+              return (
+                <div className="key-insights">
+                  <h4>Key Insights</h4>
                   <ul>
-                    {typeSpecificData.strengths.map((strength, i) => (
-                      <li key={i}>{strength}</li>
+                    {typeSpecificData.key_insights.map((insight, i) => (
+                      <li key={i}>{insight}</li>
                     ))}
                   </ul>
                 </div>
-                <div className="improvements-section">
-                  <h4>Areas for Improvement</h4>
-                  <ul>
-                    {typeSpecificData.improvements.map((improvement, i) => (
-                      <li key={i}>{improvement}</li>
-                    ))}
-                  </ul>
+              );
+            }
+            
+            if (typeSpecificData.strengths && typeSpecificData.improvements) {
+              return (
+                <div className="strengths-improvements">
+                  <div className="strengths-section">
+                    <h4>Strengths</h4>
+                    <ul>
+                      {typeSpecificData.strengths.map((strength, i) => (
+                        <li key={i}>{strength}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="improvements-section">
+                    <h4>Areas for Improvement</h4>
+                    <ul>
+                      {typeSpecificData.improvements.map((improvement, i) => (
+                        <li key={i}>{improvement}</li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-              </div>
-            );
+              );
+            }
+            
+            return null;
+          } catch (parseError) {
+            console.warn('Failed to parse type_specific_data for analysis:', parseError);
+            return null;
           }
-          
-          return null;
         })()}
       </div>
     );
@@ -1010,22 +1015,58 @@ const GradeViewModal = ({ grade, onClose }) => {
                 <div className="overview-content">
                   <div className="content-grid">
                     <div className="submissions-overview">
-                      <h3>All Submissions</h3>
-                      {userSubmissions.length > 0 ? (
-                        <div className="submissions-list">
-                          {userSubmissions.map((submission, index) => (
-                            <div key={index} className="submission-card">
-                              <h4>{submission.assessment_name}</h4>
-                              <p><strong>Type:</strong> {submission.assessment_type}</p>
-                              <p><strong>Day:</strong> {submission.trigger_day_number}</p>
-                              <p><strong>Status:</strong> <span className={`status-badge status-${submission.status}`}>{submission.status}</span></p>
-                              <p><strong>Submitted:</strong> {new Date(submission.created_at).toLocaleDateString()}</p>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p>No submissions found</p>
-                      )}
+                      {/* Detailed Feedback Section */}
+                      <div className="detailed-feedback-overview">
+                        <h3>Detailed Feedback by Assessment</h3>
+                        {comprehensiveAnalysis.length > 0 ? (
+                          <div className="feedback-by-type">
+                            {Object.entries(analysisByType).map(([type, analyses]) => {
+                              const latestAnalysis = analyses[0]; // Get the most recent analysis for this type
+                              return (
+                                <div key={type} className="assessment-feedback-section">
+                                  <h4>{type} Assessment</h4>
+                                  {latestAnalysis ? (
+                                    <div className="feedback-content">
+                                      <div className="feedback-score">
+                                        <strong>Score: {(latestAnalysis.overall_score * 100).toFixed(1)}%</strong>
+                                      </div>
+                                      <div className="detailed-feedback">
+                                        <h5>Detailed Feedback</h5>
+                                        <div className="grade-text">{latestAnalysis.feedback}</div>
+                                      </div>
+                                      {(() => {
+                                        try {
+                                          const typeSpecificData = JSON.parse(latestAnalysis.type_specific_data || '{}');
+                                          if (typeSpecificData.key_insights) {
+                                            return (
+                                              <div className="key-insights">
+                                                <h5>Key Insights</h5>
+                                                <ul>
+                                                  {typeSpecificData.key_insights.map((insight, i) => (
+                                                    <li key={i}>{insight}</li>
+                                                  ))}
+                                                </ul>
+                                              </div>
+                                            );
+                                          }
+                                          return null;
+                                        } catch (parseError) {
+                                          console.warn('Failed to parse type_specific_data for', type, ':', parseError);
+                                          return null;
+                                        }
+                                      })()}
+                                    </div>
+                                  ) : (
+                                    <p>No detailed feedback available</p>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p>No detailed feedback available</p>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="feedback-overview">
