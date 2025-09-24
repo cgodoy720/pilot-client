@@ -315,7 +315,7 @@
 }
 
 .modal-content {
-  background: var(--color-background);
+  background-color: var(--color-background-dark) !important;
   border-radius: 12px;
   max-width: 800px;
   width: 100%;
@@ -961,31 +961,46 @@ body .submission-panel[style*="position: fixed"],
 
 .assessment-feedback-section {
   background: var(--color-background);
-  border: 1px solid var(--color-border);
+  border: none;
   border-radius: 8px;
   padding: 1.25rem;
 }
 
 .assessment-feedback-section h4 {
   margin: 0 0 1rem 0;
-  color: var(--color-primary);
+  color: var(--color-text-primary);
   font-size: 1rem;
   font-weight: 600;
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: 0.5rem;
+  border-bottom: none;
+  padding-bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .assessment-feedback-section .feedback-score {
-  margin-bottom: 1rem;
-  padding: 0.5rem;
-  background: rgba(var(--color-primary-rgb), 0.1);
+  margin-bottom: 0;
+  padding: 0;
+  background: transparent;
   border-radius: 4px;
-  text-align: center;
+  text-align: left;
 }
 
 .assessment-feedback-section .feedback-score strong {
-  color: var(--color-primary);
+  color: var(--color-text-primary);
   font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.assessment-feedback-section h4 .feedback-score {
+  margin: 0;
+  font-weight: 400;
+}
+
+.assessment-feedback-section h4 .feedback-score strong {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 400;
 }
 
 .assessment-feedback-section .detailed-feedback h5 {
@@ -1486,8 +1501,8 @@ body .submission-panel[style*="position: fixed"],
 }
 
 /* OLD NON-BEM STYLES REMOVED - USING BEM email-modal__ CLASSES NOW! */
-  background: var(--color-background);
-}
+  /* background: var(--color-background); */
+
 
 .email-preview-item {
   border-bottom: 1px solid var(--color-border);
@@ -2025,11 +2040,139 @@ body .submission-panel[style*="position: fixed"],
   min-height: 100px;
 }
 
-/* OLD recipients-list styles removed - using BEM email-modal__recipients now */
-  color: var(--color-text-secondary);
-  font-size: 0.9rem;
-  border-bottom: 1px solid var(--color-border);
+/* Overview Editing Styles */
+.overview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
 }
+
+.edit-feedback-btn {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.edit-feedback-btn:hover {
+  background: var(--color-primary-dark, #0056b3);
+}
+
+.editing-feedback {
+  background: var(--color-background-darker);
+  border: 2px solid var(--color-primary);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.editing-section {
+  margin-bottom: 1.5rem;
+}
+
+.editing-section:last-of-type {
+  margin-bottom: 2rem;
+}
+
+.editing-section h4 {
+  margin: 0 0 0.75rem 0;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.feedback-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 0.75rem;
+  border: 2px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.feedback-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.feedback-textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+.editing-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.save-btn,
+.cancel-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.save-btn {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #059669;
+  border-color: #059669;
+}
+
+.save-btn:disabled {
+  background: #6b7280;
+  border-color: #6b7280;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.cancel-btn {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: var(--color-background-darker);
+  color: var(--color-text-primary);
+}
+
+.cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.readonly-feedback {
+  /* Existing styles remain the same */
+}
+
+/* OLD recipients-list styles removed - using BEM email-modal__recipients now */
+  /* color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--color-border); */
+
 
 .recipient:last-child {
   border-bottom: none;

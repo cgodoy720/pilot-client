@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Tabs, Tab, Box } from '@mui/material';
+import Swal from 'sweetalert2';
 import './AssessmentGrades.css';
 
 const AssessmentGrades = () => {
@@ -12,6 +13,12 @@ const AssessmentGrades = () => {
   const [showGradeModal, setShowGradeModal] = useState(false);
   const [selectedGrade, setSelectedGrade] = useState(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
+
+  // Editing states for Overview tab
+  const [isEditingOverview, setIsEditingOverview] = useState(false);
+  const [editingStrengths, setEditingStrengths] = useState('');
+  const [editingGrowthAreas, setEditingGrowthAreas] = useState('');
+  const [savingOverview, setSavingOverview] = useState(false);
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -172,7 +179,12 @@ const AssessmentGrades = () => {
 
   const handleSendEmails = () => {
     if (selectedUsers.size === 0) {
-      alert('Please select at least one user to send emails to.');
+      Swal.fire({
+        icon: 'warning',
+        title: 'No Users Selected',
+        text: 'Please select at least one user to send emails to.',
+        confirmButtonColor: '#3085d6'
+      });
       return;
     }
     setShowEmailModal(true);
@@ -224,7 +236,12 @@ const AssessmentGrades = () => {
       }
     } catch (err) {
       console.error('Error exporting data:', err);
-      alert('Failed to export data');
+      Swal.fire({
+        icon: 'error',
+        title: 'Export Failed',
+        text: 'Failed to export data. Please try again.',
+        confirmButtonColor: '#d33'
+      });
     }
   };
 
@@ -232,6 +249,83 @@ const AssessmentGrades = () => {
     if (pagination.hasMore && !loading) {
       setPagination(prev => ({ ...prev, offset: prev.offset + prev.limit }));
       fetchAssessmentGrades(false);
+    }
+  };
+
+  // Overview editing functions
+  const handleStartEditing = (grade) => {
+    setIsEditingOverview(true);
+    setEditingStrengths(grade.strengths_summary || '');
+    setEditingGrowthAreas(grade.growth_areas_summary || '');
+  };
+
+  const handleCancelEditing = () => {
+    setIsEditingOverview(false);
+    setEditingStrengths('');
+    setEditingGrowthAreas('');
+  };
+
+  const handleSaveOverview = async (userId) => {
+    try {
+      setSavingOverview(true);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/update-feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          userId: userId,
+          strengths_summary: editingStrengths,
+          growth_areas_summary: editingGrowthAreas
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update feedback');
+      }
+
+      const result = await response.json();
+      
+      // Update the local state
+      setAssessmentGrades(prev => prev.map(grade => 
+        grade.user_id === userId 
+          ? { ...grade, strengths_summary: editingStrengths, growth_areas_summary: editingGrowthAreas }
+          : grade
+      ));
+
+      // Update selectedGrade if it's the same user
+      if (selectedGrade && selectedGrade.user_id === userId) {
+        setSelectedGrade(prev => ({
+          ...prev,
+          strengths_summary: editingStrengths,
+          growth_areas_summary: editingGrowthAreas
+        }));
+      }
+
+      setIsEditingOverview(false);
+      setEditingStrengths('');
+      setEditingGrowthAreas('');
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Feedback Updated!',
+        text: 'The feedback has been successfully updated in the database.',
+        confirmButtonColor: '#10b981',
+        timer: 3000,
+        timerProgressBar: true
+      });
+    } catch (error) {
+      console.error('Error updating feedback:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Update Failed',
+        text: 'Failed to update feedback. Please try again.',
+        confirmButtonColor: '#d33'
+      });
+    } finally {
+      setSavingOverview(false);
     }
   };
 
@@ -446,6 +540,15 @@ const AssessmentGrades = () => {
             setShowGradeModal(false);
             setSelectedGrade(null);
           }}
+          isEditingOverview={isEditingOverview}
+          editingStrengths={editingStrengths}
+          editingGrowthAreas={editingGrowthAreas}
+          savingOverview={savingOverview}
+          onStartEditing={handleStartEditing}
+          onCancelEditing={handleCancelEditing}
+          onSaveOverview={handleSaveOverview}
+          setEditingStrengths={setEditingStrengths}
+          setEditingGrowthAreas={setEditingGrowthAreas}
         />
       )}
 
@@ -468,7 +571,19 @@ const AssessmentGrades = () => {
 };
 
 // Grade View Modal Component
-const GradeViewModal = ({ grade, onClose }) => {
+const GradeViewModal = ({ 
+  grade, 
+  onClose,
+  isEditingOverview,
+  editingStrengths,
+  editingGrowthAreas,
+  savingOverview,
+  onStartEditing,
+  onCancelEditing,
+  onSaveOverview,
+  setEditingStrengths,
+  setEditingGrowthAreas
+}) => {
   const { token: authToken } = useAuth();
   const [tabValue, setTabValue] = useState(0);
   const [userSubmissions, setUserSubmissions] = useState([]);
@@ -865,6 +980,25 @@ const GradeViewModal = ({ grade, onClose }) => {
           <div className="grade-text">{analysis.feedback}</div>
         </div>
         
+        {/* Show strengths and growth areas if available */}
+        {(analysis.strengths_summary || analysis.growth_areas_summary) && (
+          <div className="strengths-improvements">
+            {analysis.strengths_summary && (
+              <div className="strengths-section">
+                <h4>Strengths</h4>
+                <div className="grade-text">{analysis.strengths_summary}</div>
+              </div>
+            )}
+            
+            {analysis.growth_areas_summary && (
+              <div className="improvements-section">
+                <h4>Areas for Growth</h4>
+                <div className="grade-text">{analysis.growth_areas_summary}</div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Show type-specific insights */}
         {(() => {
           try {
@@ -1024,12 +1158,16 @@ const GradeViewModal = ({ grade, onClose }) => {
                               const latestAnalysis = analyses[0]; // Get the most recent analysis for this type
                               return (
                                 <div key={type} className="assessment-feedback-section">
-                                  <h4>{type} Assessment</h4>
+                                  <h4>
+                                    {type.charAt(0).toUpperCase() + type.slice(1)} Assessment
+                                    {latestAnalysis && (
+                                      <span className="feedback-score">
+                                        <strong>Score: {(latestAnalysis.overall_score * 100).toFixed(1)}%</strong>
+                                      </span>
+                                    )}
+                                  </h4>
                                   {latestAnalysis ? (
                                     <div className="feedback-content">
-                                      <div className="feedback-score">
-                                        <strong>Score: {(latestAnalysis.overall_score * 100).toFixed(1)}%</strong>
-                                      </div>
                                       <div className="detailed-feedback">
                                         <h5>Detailed Feedback</h5>
                                         <div className="grade-text">{latestAnalysis.feedback}</div>
@@ -1070,20 +1208,77 @@ const GradeViewModal = ({ grade, onClose }) => {
                     </div>
                     
                     <div className="feedback-overview">
-                      <h3>Overall Feedback</h3>
-                      <div className="strengths-section">
-                        <h4>Strengths Summary</h4>
-                        <div className="grade-text">
-                          {grade.strengths_summary || 'No strengths summary available'}
-                        </div>
+                      <div className="overview-header">
+                        <h3>Overall Feedback</h3>
+                        {!isEditingOverview && (
+                          <button 
+                            className="edit-feedback-btn"
+                            onClick={() => onStartEditing(grade)}
+                            title="Edit feedback"
+                          >
+                            ✏️ Edit
+                          </button>
+                        )}
                       </div>
 
-                      <div className="growth-areas-section">
-                        <h4>Growth Areas Summary</h4>
-                        <div className="grade-text">
-                          {grade.growth_areas_summary || 'No growth areas summary available'}
+                      {isEditingOverview ? (
+                        <div className="editing-feedback">
+                          <div className="editing-section">
+                            <h4>Strengths Summary</h4>
+                            <textarea
+                              value={editingStrengths}
+                              onChange={(e) => setEditingStrengths(e.target.value)}
+                              className="feedback-textarea"
+                              rows="4"
+                              placeholder="Enter strengths summary..."
+                            />
+                          </div>
+
+                          <div className="editing-section">
+                            <h4>Growth Areas Summary</h4>
+                            <textarea
+                              value={editingGrowthAreas}
+                              onChange={(e) => setEditingGrowthAreas(e.target.value)}
+                              className="feedback-textarea"
+                              rows="4"
+                              placeholder="Enter growth areas summary..."
+                            />
+                          </div>
+
+                          <div className="editing-actions">
+                            <button 
+                              className="save-btn"
+                              onClick={() => onSaveOverview(grade.user_id)}
+                              disabled={savingOverview}
+                            >
+                              {savingOverview ? 'Saving...' : '💾 Save'}
+                            </button>
+                            <button 
+                              className="cancel-btn"
+                              onClick={onCancelEditing}
+                              disabled={savingOverview}
+                            >
+                              ❌ Cancel
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="readonly-feedback">
+                          <div className="strengths-section">
+                            <h4>Strengths Summary</h4>
+                            <div className="grade-text">
+                              {grade.strengths_summary || 'No strengths summary available'}
+                            </div>
+                          </div>
+
+                          <div className="growth-areas-section">
+                            <h4>Growth Areas Summary</h4>
+                            <div className="grade-text">
+                              {grade.growth_areas_summary || 'No growth areas summary available'}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1163,7 +1358,12 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
       setShowPreviews(true);
     } catch (err) {
       console.error('Error generating previews:', err);
-      alert('Failed to generate email previews');
+      Swal.fire({
+        icon: 'error',
+        title: 'Preview Generation Failed',
+        text: 'Failed to generate email previews. Please try again.',
+        confirmButtonColor: '#d33'
+      });
     } finally {
       setLoadingPreviews(false);
     }
@@ -1192,18 +1392,48 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
       }
 
       const result = await response.json();
-      alert(`Successfully processed ${result.results.length} emails`);
+      Swal.fire({
+        icon: 'success',
+        title: 'Emails Sent Successfully!',
+        text: `Successfully processed ${result.results.length} emails`,
+        confirmButtonColor: '#10b981',
+        timer: 4000,
+        timerProgressBar: true
+      });
       onEmailSent();
     } catch (err) {
       console.error('Error sending emails:', err);
-      alert('Failed to send emails');
+      Swal.fire({
+        icon: 'error',
+        title: 'Email Sending Failed',
+        text: 'Failed to send emails. Please check your connection and try again.',
+        confirmButtonColor: '#d33'
+      });
     } finally {
       setSending(false);
     }
   };
 
   const handleSendTestEmail = async () => {
-    const testEmail = prompt('Enter your email address for the test:');
+    const { value: testEmail } = await Swal.fire({
+      title: 'Send Test Email',
+      text: 'Enter your email address for the test:',
+      input: 'email',
+      inputPlaceholder: 'your.email@example.com',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Send Test Email',
+      inputValidator: (value) => {
+        if (!value) {
+          return 'You need to enter an email address!'
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          return 'Please enter a valid email address!'
+        }
+      }
+    });
+    
     if (!testEmail) return;
 
     try {
@@ -1227,10 +1457,22 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
       }
 
       const result = await response.json();
-      alert(`✅ Test email sent successfully to ${testEmail}!\nMessage ID: ${result.messageId}`);
+      Swal.fire({
+        icon: 'success',
+        title: 'Test Email Sent!',
+        html: `✅ Test email sent successfully to <strong>${testEmail}</strong><br><small>Message ID: ${result.messageId}</small>`,
+        confirmButtonColor: '#10b981',
+        timer: 5000,
+        timerProgressBar: true
+      });
     } catch (err) {
       console.error('Error sending test email:', err);
-      alert('❌ Failed to send test email. Check console for details.');
+      Swal.fire({
+        icon: 'error',
+        title: 'Test Email Failed',
+        text: 'Failed to send test email. Check console for details.',
+        confirmButtonColor: '#d33'
+      });
     }
   };
 
