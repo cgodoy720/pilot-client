@@ -32,6 +32,13 @@ function TechnicalSubmission({ submissionData, isDraft, isLoading, onUpdate, onS
     setFormData(newFormData);
     
     // Update parent state immediately (no auto-save)
+    console.log('📤 Updating form data:', {
+      submissionType: newFormData.submissionType,
+      filesCount: newFormData.files.length,
+      fileSizes: newFormData.files.map(f => ({ name: f.name, contentLength: f.content?.length })),
+      githubUrl: newFormData.githubUrl?.substring(0, 50) + '...',
+      conversationTextLength: newFormData.conversationText?.length
+    });
     onUpdate(newFormData);
   };
 
@@ -70,10 +77,22 @@ function TechnicalSubmission({ submissionData, isDraft, isLoading, onUpdate, onS
       validFiles.map(file => readFileContent(file))
     );
 
-    setFormData(prev => ({
-      ...prev,
-      files: [...prev.files, ...filesWithContent]
-    }));
+    console.log('📁 Files with content:', filesWithContent.map(f => ({
+      name: f.name,
+      size: f.size,
+      contentLength: f.content?.length,
+      contentPreview: f.content?.substring(0, 100) + '...'
+    })));
+
+    const newFormData = {
+      ...formData,
+      files: [...formData.files, ...filesWithContent]
+    };
+    
+    setFormData(newFormData);
+    
+    // Update parent immediately
+    onUpdate(newFormData);
   };
 
   // Helper function to read file content
@@ -83,6 +102,9 @@ function TechnicalSubmission({ submissionData, isDraft, isLoading, onUpdate, onS
       
       reader.onload = (e) => {
         const content = e.target.result;
+        console.log(`✅ File read successfully: ${file.name} (${content.length} chars)`);
+        console.log(`First 100 chars: ${content.substring(0, 100)}`);
+        console.log(`Last 100 chars: ${content.substring(content.length - 100)}`);
         resolve({
           name: file.name,
           size: file.size,
