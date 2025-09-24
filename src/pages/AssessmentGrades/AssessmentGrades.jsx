@@ -591,6 +591,11 @@ const GradeViewModal = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // Website preview states
+  const [previewMode, setPreviewMode] = useState('desktop');
+  const [showCode, setShowCode] = useState(true);
+  const [websitePreview, setWebsitePreview] = useState('');
+  
   // Assessment types mapping from BigQuery to our display names
   const assessmentTypeMapping = {
     'quiz': 'self',
@@ -613,6 +618,166 @@ const GradeViewModal = ({
       'md': 'markdown'
     };
     return languageMap[ext] || 'text';
+  };
+
+  // Smart website preview generator
+  const createWebsitePreview = (files) => {
+    if (!files || files.length === 0) {
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>No Files</title></head><body><div style="padding: 20px; font-family: Arial, sans-serif; text-align: center;"><h2>No files found</h2><p>No HTML, CSS, or JS files were submitted.</p></div></body></html>';
+    }
+
+    // Find different file types
+    const htmlFiles = files.filter(f => f.name.toLowerCase().endsWith('.html'));
+    const cssFiles = files.filter(f => f.name.toLowerCase().endsWith('.css'));
+    const jsFiles = files.filter(f => f.name.toLowerCase().endsWith('.js'));
+
+    console.log('Files found:', { htmlFiles: htmlFiles.length, cssFiles: cssFiles.length, jsFiles: jsFiles.length });
+
+    let htmlContent = '';
+
+    if (htmlFiles.length > 0) {
+      // Use the first HTML file as base
+      htmlContent = htmlFiles[0].content || '';
+      console.log('Base HTML content length:', htmlContent.length);
+      
+      // Check if content appears truncated
+      const possiblyTruncated = htmlContent.length > 0 && 
+        !htmlContent.includes('</html>') && 
+        !htmlContent.includes('</body>') && 
+        !htmlContent.endsWith('>');
+      
+      if (possiblyTruncated) {
+        console.warn('⚠️ HTML content appears to be truncated!', {
+          length: htmlContent.length,
+          endsWithTag: htmlContent.endsWith('>'),
+          lastChars: htmlContent.substring(htmlContent.length - 50)
+        });
+        
+        // Attempt to repair truncated HTML
+        if (!htmlContent.endsWith('>') && !htmlContent.endsWith('</')) {
+          // Find the last complete tag
+          const lastTagMatch = htmlContent.lastIndexOf('<');
+          if (lastTagMatch > htmlContent.lastIndexOf('>')) {
+            // There's an incomplete tag, remove it
+            htmlContent = htmlContent.substring(0, lastTagMatch);
+            console.log('🔧 Removed incomplete tag, new length:', htmlContent.length);
+          }
+        }
+      }
+      
+      // Check if HTML already has embedded styles/scripts
+      const hasEmbeddedCSS = htmlContent.includes('<style') || htmlContent.includes('<link');
+      const hasEmbeddedJS = htmlContent.includes('<script');
+
+      console.log('Embedded content check:', { hasEmbeddedCSS, hasEmbeddedJS, possiblyTruncated });
+
+      // If we have separate CSS files, inject them (even if there's embedded CSS)
+      if (cssFiles.length > 0) {
+        const combinedCSS = cssFiles.map(f => f.content || '').filter(content => content.trim()).join('\n\n');
+        if (combinedCSS.trim()) {
+          console.log('Injecting CSS, length:', combinedCSS.length);
+          
+          // Clean up and format CSS
+          const formattedCSS = `/* Injected External CSS Files */\n${combinedCSS}`;
+          
+          // Remove any existing external CSS links that won't work in iframe
+          htmlContent = htmlContent.replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, '<!-- External CSS link removed and replaced with inline styles -->');
+          
+          // Try to inject before </head>, or create head if it doesn't exist
+          if (htmlContent.includes('</head>')) {
+            htmlContent = htmlContent.replace('</head>', `  <style type="text/css">\n${formattedCSS}\n  </style>\n</head>`);
+          } else if (htmlContent.includes('<head>')) {
+            htmlContent = htmlContent.replace('<head>', `<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <style type="text/css">\n${formattedCSS}\n  </style>`);
+          } else if (htmlContent.includes('<html>')) {
+            // No head tag, add it after <html>
+            htmlContent = htmlContent.replace('<html>', `<html>\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <style type="text/css">\n${formattedCSS}\n  </style>\n</head>`);
+          } else {
+            // No html tag either, wrap everything
+            htmlContent = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <style type="text/css">\n${formattedCSS}\n  </style>\n</head>\n<body>\n${htmlContent}\n</body>\n</html>`;
+          }
+        }
+      }
+
+      // If we have separate JS files, inject them (even if there's embedded JS)
+      if (jsFiles.length > 0) {
+        const combinedJS = jsFiles.map(f => f.content || '').filter(content => content.trim()).join('\n\n');
+        if (combinedJS.trim()) {
+          console.log('Injecting JS, length:', combinedJS.length);
+          
+          // Clean up and format JS
+          const formattedJS = `/* Injected External JS Files */\n${combinedJS}`;
+          
+          // Always inject JS before </body> for better loading
+          if (htmlContent.includes('</body>')) {
+            htmlContent = htmlContent.replace('</body>', `  <script type="text/javascript">\n${formattedJS}\n  </script>\n</body>`);
+          } else {
+            // No body tag, add it
+            if (!htmlContent.includes('<body>')) {
+              htmlContent = htmlContent.replace('</head>', `</head>\n<body>`);
+            }
+            htmlContent += `\n  <script type="text/javascript">\n${formattedJS}\n  </script>\n</body>`;
+          }
+        }
+      }
+
+    } else if (cssFiles.length > 0 || jsFiles.length > 0) {
+      // No HTML file, but we have CSS/JS - create a basic HTML structure
+      const combinedCSS = cssFiles.map(f => f.content || '').join('\n');
+      const combinedJS = jsFiles.map(f => f.content || '').join('\n');
+      
+      console.log('Creating HTML structure from CSS/JS files');
+      
+      htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Submission Preview</title>
+  ${combinedCSS ? `<style>\n${combinedCSS}\n</style>` : ''}
+</head>
+<body>
+  <div style="padding: 20px; font-family: Arial, sans-serif;">
+    <h2>Preview Generated</h2>
+    <p>No HTML file was submitted, but CSS/JS files were found and included.</p>
+    <p>Add some HTML content to see the styling in action!</p>
+  </div>
+  ${combinedJS ? `<script>\n${combinedJS}\n</script>` : ''}
+</body>
+</html>`;
+    } else {
+      // No web files found
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>No Web Files</title></head><body><div style="padding: 20px; font-family: Arial, sans-serif; text-align: center;"><h2>No web files found</h2><p>No HTML, CSS, or JS files were submitted for preview.</p></div></body></html>';
+    }
+
+    // Ensure we have a complete HTML document
+    if (!htmlContent.includes('<!DOCTYPE html>')) {
+      if (!htmlContent.includes('<html')) {
+        htmlContent = `<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>Student Submission</title>\n</head>\n<body>\n${htmlContent}\n</body>\n</html>`;
+      } else {
+        htmlContent = `<!DOCTYPE html>\n${htmlContent}`;
+      }
+    }
+
+    console.log('Final HTML content length:', htmlContent.length);
+    console.log('Final HTML content preview (first 300 chars):', htmlContent.substring(0, 300) + '...');
+    console.log('Final HTML content preview (last 300 chars):', '...' + htmlContent.substring(htmlContent.length - 300));
+    
+    // Validate HTML structure
+    if (!htmlContent.includes('</html>')) {
+      console.warn('⚠️ HTML missing closing </html> tag');
+      if (!htmlContent.endsWith('</html>')) {
+        htmlContent += '\n</html>';
+      }
+    }
+    
+    if (!htmlContent.includes('</body>')) {
+      console.warn('⚠️ HTML missing closing </body> tag');
+      if (htmlContent.includes('<body>') && !htmlContent.includes('</body>')) {
+        htmlContent = htmlContent.replace('</html>', '</body>\n</html>');
+      }
+    }
+    
+    return htmlContent;
   };
   
   useEffect(() => {
@@ -656,6 +821,16 @@ const GradeViewModal = ({
     
     fetchUserData();
   }, [grade.user_id, authToken]);
+
+  // Generate website preview when technical submission data is available
+  useEffect(() => {
+    const technicalSubmission = userSubmissions.find(sub => sub.assessment_type === 'technical');
+    if (technicalSubmission && technicalSubmission.submission_data && technicalSubmission.submission_data.files) {
+      const preview = createWebsitePreview(technicalSubmission.submission_data.files);
+      setWebsitePreview(preview);
+      console.log('Website preview generated for technical submission');
+    }
+  }, [userSubmissions]);
   
   const handleTabChange = (event, newValue) => {
     console.log('Tab clicked:', newValue, 'Type:', availableTabs[newValue]);
@@ -745,11 +920,184 @@ const GradeViewModal = ({
               </div>
             )}
             
-            {/* Uploaded Files */}
+            {/* Website Preview */}
             {submissionData.files && submissionData.files.length > 0 && (
               <div className="submission-display-item">
                 <div className="submission-display-label">
-                  📁 Uploaded Files ({submissionData.files.length} files)
+                  🌐 Website Preview
+                </div>
+                <div className="submission-display-value">
+                  <div className="website-preview-container">
+                    {/* Preview Controls */}
+                    <div className="preview-controls">
+                      <div className="preview-mode-buttons">
+                        <button 
+                          className={`preview-mode-btn ${previewMode === 'desktop' ? 'active' : ''}`}
+                          onClick={() => setPreviewMode('desktop')}
+                        >
+                          🖥️ Desktop
+                        </button>
+                        <button 
+                          className={`preview-mode-btn ${previewMode === 'mobile' ? 'active' : ''}`}
+                          onClick={() => setPreviewMode('mobile')}
+                        >
+                          📱 Mobile
+                        </button>
+                      </div>
+                      <div className="preview-right-controls">
+                        <button 
+                          className="toggle-code-btn"
+                          onClick={() => setShowCode(!showCode)}
+                        >
+                          {showCode ? '🙈 Hide Code' : '👀 Show Code'}
+                        </button>
+                        <button 
+                          className="refresh-btn"
+                          onClick={() => {
+                            if (submissionData.files) {
+                              const newPreview = createWebsitePreview(submissionData.files);
+                              setWebsitePreview(newPreview);
+                              console.log('🔄 Website preview refreshed');
+                            }
+                          }}
+                        >
+                          🔄 Refresh
+                        </button>
+                        <button 
+                          className="copy-html-btn"
+                          onClick={() => {
+                            if (submissionData.files) {
+                              const generatedHTML = createWebsitePreview(submissionData.files);
+                              navigator.clipboard.writeText(generatedHTML).then(() => {
+                                console.log('✅ Full HTML copied to clipboard');
+                                alert('Full HTML copied to clipboard! You can paste it into a text editor to inspect.');
+                              }).catch(err => {
+                                console.error('❌ Failed to copy HTML:', err);
+                                // Fallback: create a downloadable file
+                                const blob = new Blob([generatedHTML], { type: 'text/html' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = 'generated-website.html';
+                                a.click();
+                                URL.revokeObjectURL(url);
+                                console.log('✅ HTML downloaded as file');
+                              });
+                            }
+                          }}
+                        >
+                          📋 Copy HTML
+                        </button>
+                        <button 
+                          className="debug-btn"
+                          onClick={() => {
+                            console.log('=== WEBSITE PREVIEW DEBUG ===');
+                            console.log('Current websitePreview state:', websitePreview);
+                            console.log('Files available:', submissionData.files);
+                            
+                            if (submissionData.files) {
+                              const htmlFiles = submissionData.files.filter(f => f.name.toLowerCase().endsWith('.html'));
+                              const cssFiles = submissionData.files.filter(f => f.name.toLowerCase().endsWith('.css'));
+                              const jsFiles = submissionData.files.filter(f => f.name.toLowerCase().endsWith('.js'));
+                              
+                              console.log('File breakdown:', {
+                                html: htmlFiles.map(f => ({ 
+                                  name: f.name, 
+                                  hasContent: !!f.content, 
+                                  contentLength: f.content?.length,
+                                  endsWithTag: f.content?.endsWith('>'),
+                                  lastChars: f.content?.substring(f.content.length - 30)
+                                })),
+                                css: cssFiles.map(f => ({ 
+                                  name: f.name, 
+                                  hasContent: !!f.content, 
+                                  contentLength: f.content?.length,
+                                  endsWithBrace: f.content?.endsWith('}'),
+                                  lastChars: f.content?.substring(f.content.length - 30)
+                                })),
+                                js: jsFiles.map(f => ({ 
+                                  name: f.name, 
+                                  hasContent: !!f.content, 
+                                  contentLength: f.content?.length,
+                                  lastChars: f.content?.substring(f.content.length - 30)
+                                }))
+                              });
+                              
+                              console.log('Sample HTML content (first 200):', htmlFiles[0]?.content?.substring(0, 200) + '...');
+                              console.log('Sample HTML content (last 200):', '...' + htmlFiles[0]?.content?.substring(htmlFiles[0]?.content?.length - 200));
+                              console.log('Sample CSS content:', cssFiles[0]?.content?.substring(0, 200) + '...');
+                              console.log('Sample JS content:', jsFiles[0]?.content?.substring(0, 200) + '...');
+                              
+                              // Content integrity check
+                              htmlFiles.forEach((file, index) => {
+                                if (file.content) {
+                                  const expectedTags = ['<html', '</html>', '<head', '</head>', '<body', '</body>'];
+                                  const foundTags = expectedTags.filter(tag => file.content.includes(tag));
+                                  console.log(`HTML File ${index + 1} (${file.name}) integrity:`, {
+                                    hasAllTags: foundTags.length === expectedTags.length,
+                                    foundTags: foundTags,
+                                    missingTags: expectedTags.filter(tag => !file.content.includes(tag))
+                                  });
+                                }
+                              });
+                            }
+                            
+                            const generatedHTML = createWebsitePreview(submissionData.files);
+                            console.log('Generated HTML length:', generatedHTML.length);
+                            console.log('Generated HTML preview (first 500):', generatedHTML.substring(0, 500) + '...');
+                            console.log('Generated HTML preview (last 500):', '...' + generatedHTML.substring(generatedHTML.length - 500));
+                            
+                            // Check iframe content
+                            const iframe = document.querySelector('.website-preview-iframe');
+                            if (iframe) {
+                              console.log('Iframe srcDoc length:', iframe.getAttribute('srcDoc')?.length || 'No srcDoc');
+                              console.log('Iframe content matches generated:', iframe.getAttribute('srcDoc') === generatedHTML);
+                            }
+                            
+                            // Test if HTML is structurally complete
+                            const hasClosingHtml = generatedHTML.includes('</html>');
+                            const hasClosingBody = generatedHTML.includes('</body>');
+                            const htmlTagCount = (generatedHTML.match(/<html/g) || []).length;
+                            const closingHtmlTagCount = (generatedHTML.match(/<\/html>/g) || []).length;
+                            
+                            console.log('HTML Structure Check:', {
+                              hasClosingHtml,
+                              hasClosingBody,
+                              htmlTagCount,
+                              closingHtmlTagCount,
+                              structurallyComplete: hasClosingHtml && hasClosingBody && htmlTagCount === closingHtmlTagCount
+                            });
+                            
+                            console.log('=== END DEBUG ===');
+                          }}
+                        >
+                          🐛 Debug
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Website Preview Iframe */}
+                    <div className="preview-iframe-container">
+                      <iframe
+                        key={`preview-${(websitePreview || '').length}`}
+                        srcDoc={websitePreview || createWebsitePreview(submissionData.files)}
+                        className={`website-preview-iframe ${previewMode}`}
+                        sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-presentation"
+                        title="Student Website Preview"
+                        onLoad={() => console.log('Website preview loaded')}
+                        onError={(e) => console.error('Iframe error:', e)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Uploaded Files */}
+            {submissionData.files && submissionData.files.length > 0 && showCode && (
+              <div className="submission-display-item">
+                <div className="submission-display-label">
+                  📁 Source Code ({submissionData.files.length} files)
                 </div>
                 <div className="submission-display-value">
                   <div className="file-contents-container">
