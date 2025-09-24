@@ -564,6 +564,20 @@ function ApplicantDashboard() {
     );
   };
 
+  const getWorkshopDetailsText = () => {
+    if (!workshopDetails) return null;
+    return (
+      <div className="session-details">
+        <div className="session-details__icon">📅</div>
+        <div className="session-details__content">
+          <div className="session-details__date">{workshopDetails.date}</div>
+          <div className="session-details__time">{workshopDetails.time}</div>
+          <div className="session-details__location">{workshopDetails.location}</div>
+        </div>
+      </div>
+    );
+  };
+
   // Function to get application progress details
   const getApplicationProgressText = () => {
     if (applicationProgress) {
@@ -771,16 +785,14 @@ function ApplicantDashboard() {
                     </div>
                   )}
                   
-                  {section.key === 'workshop' && status === 'signed-up' && workshopDetails && (
+                  {section.key === 'workshop' && (status === 'signed-up' || status === 'attended') && workshopDetails && (
                     <div className="session-details__container">
-                      <div className="session-details">
-                        <div className="session-details__icon">📅</div>
-                        <div className="session-details__content">
-                          <div className="session-details__date">{workshopDetails.date}</div>
-                          <div className="session-details__time">{workshopDetails.time}</div>
-                          <div className="session-details__location">{workshopDetails.location}</div>
+                      {getWorkshopDetailsText()}
+                      {status === 'attended' && (
+                        <div className="session-details__attended-badge">
+                          ✅ Attended
                         </div>
-                      </div>
+                      )}
                     </div>
                   )}
 
