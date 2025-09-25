@@ -2748,6 +2748,13 @@ lumn Widths for Consistent Layout */
   white-space: nowrap;
 }
 
+/* Allow actions cell to show full content */
+.data-table .actions-cell {
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+}
+
 /* Allow name and email columns to wrap if needed */
 .data-table td:nth-child(2),
 .data-table td:nth-child(3) {
@@ -2901,22 +2908,38 @@ o Sessions and Workshops Table Column Widths */
   /* Attended count */
 }
 
+/* Workshops: Laptops Needed count (column 5) */
 .admissions-dashboard__workshops .data-table th:nth-child(5),
 .admissions-dashboard__workshops .data-table td:nth-child(5) {
   width: 10%;
-  /* Laptops Needed count */
 }
 
+/* Info Sessions: Active column (column 5) */
 .admissions-dashboard__info-sessions .data-table th:nth-child(5),
 .admissions-dashboard__info-sessions .data-table td:nth-child(5) {
-  width: 26%;
-  /* Actions - Info Sessions (5 columns) */
+  width: 100px;
+  min-width: 100px;
 }
 
+/* Workshops: Active column (column 6) */
 .admissions-dashboard__workshops .data-table th:nth-child(6),
 .admissions-dashboard__workshops .data-table td:nth-child(6) {
-  width: 24%;
-  /* Actions - Workshops (6 columns) */
+  width: 100px;
+  min-width: 100px;
+}
+
+/* Info Sessions: Actions column (column 6) */
+.admissions-dashboard__info-sessions .data-table th:nth-child(6),
+.admissions-dashboard__info-sessions .data-table td:nth-child(6) {
+  width: 180px;
+  min-width: 180px;
+}
+
+/* Workshops: Actions column (column 7) */
+.admissions-dashboard__workshops .data-table th:nth-child(7),
+.admissions-dashboard__workshops .data-table td:nth-child(7) {
+  width: 180px;
+  min-width: 180px;
 }
 
 /* Allow event names to wrap and show full text */
@@ -2946,22 +2969,38 @@ o Sessions and Workshops Table Column Widths */
     /* More space for date/time */
   }
 
+  /* Info Sessions: Active column (column 5) - tablet */
   .admissions-dashboard__info-sessions .data-table th:nth-child(5),
   .admissions-dashboard__info-sessions .data-table td:nth-child(5) {
-    width: 26%;
-    /* Keep actions space consistent - Info Sessions */
+    width: 80px;
+    min-width: 80px;
   }
 
+  /* Info Sessions: Actions column (column 6) - tablet */
+  .admissions-dashboard__info-sessions .data-table th:nth-child(6),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(6) {
+    width: 140px;
+    min-width: 140px;
+  }
+
+  /* Workshops: Laptops Needed (column 5) - tablet */
   .admissions-dashboard__workshops .data-table th:nth-child(5),
   .admissions-dashboard__workshops .data-table td:nth-child(5) {
     width: 10%;
-    /* Laptops Needed - Workshops */
   }
 
+  /* Workshops: Active column (column 6) - tablet */
   .admissions-dashboard__workshops .data-table th:nth-child(6),
   .admissions-dashboard__workshops .data-table td:nth-child(6) {
-    width: 24%;
-    /* Actions - Workshops */
+    width: 80px;
+    min-width: 80px;
+  }
+
+  /* Workshops: Actions column (column 7) - tablet */
+  .admissions-dashboard__workshops .data-table th:nth-child(7),
+  .admissions-dashboard__workshops .data-table td:nth-child(7) {
+    width: 140px;
+    min-width: 140px;
   }
 }
 
@@ -2999,22 +3038,38 @@ o Sessions and Workshops Table Column Widths */
     /* Compact numbers */
   }
 
+  /* Info Sessions: Active column (column 5) - mobile */
   .admissions-dashboard__info-sessions .data-table th:nth-child(5),
   .admissions-dashboard__info-sessions .data-table td:nth-child(5) {
-    width: 30%;
-    /* Adequate space for actions on mobile - Info Sessions */
+    width: 60px;
+    min-width: 60px;
   }
 
+  /* Info Sessions: Actions column (column 6) - mobile */
+  .admissions-dashboard__info-sessions .data-table th:nth-child(6),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(6) {
+    width: 120px;
+    min-width: 120px;
+  }
+
+  /* Workshops: Laptops Needed (column 5) - mobile */
   .admissions-dashboard__workshops .data-table th:nth-child(5),
   .admissions-dashboard__workshops .data-table td:nth-child(5) {
     width: 8%;
-    /* Laptops Needed - Workshops mobile */
   }
 
+  /* Workshops: Active column (column 6) - mobile */
   .admissions-dashboard__workshops .data-table th:nth-child(6),
   .admissions-dashboard__workshops .data-table td:nth-child(6) {
-    width: 27%;
-    /* Actions - Workshops mobile */
+    width: 60px;
+    min-width: 60px;
+  }
+
+  /* Workshops: Actions column (column 7) - mobile */
+  .admissions-dashboard__workshops .data-table th:nth-child(7),
+  .admissions-dashboard__workshops .data-table td:nth-child(7) {
+    width: 120px;
+    min-width: 120px;
   }
 }
 

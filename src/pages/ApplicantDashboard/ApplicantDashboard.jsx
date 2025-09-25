@@ -365,7 +365,8 @@ function ApplicantDashboard() {
       }
       
       // If invited, check for existing registrations
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops`);
+      // Pass applicant_id to include inactive workshops where user has registrations
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops?applicant_id=${currentApplicantId}`);
       if (!response.ok) {
         // If we can't load workshops but they're invited, show as available
         setStatuses(prev => ({ ...prev, workshop: 'not signed-up' }));
@@ -374,6 +375,13 @@ function ApplicantDashboard() {
       }
       
       const workshops = await response.json();
+      console.log('DEBUG: Workshops received for applicant', currentApplicantId, ':', workshops.map(w => ({
+        title: w.title, 
+        id: w.event_id, 
+        active: w.is_active,
+        registrations: w.registrations.length,
+        userRegistrations: w.registrations.filter(r => r.applicant_id === currentApplicantId)
+      })));
       let foundRegistration = null;
       let registeredWorkshop = null;
       
@@ -427,13 +435,34 @@ function ApplicantDashboard() {
         setStatuses(prev => ({ ...prev, workshop: workshopStatus }));
         setWorkshopDetails(workshopEventDetails);
         console.log('Dashboard: Found workshop registration', workshopEventDetails, 'Status:', workshopStatus);
-      } else if (!hasAttendedWorkshop) {
+      } else if (hasAttendedWorkshop) {
+        // Attended based on stage but no registration details found
+        // Try to get details from any workshop for display purposes
+        if (workshops && workshops.length > 0) {
+          // Use the first available workshop as a fallback for display purposes
+          const firstWorkshop = workshops[0];
+          const dbDate = new Date(firstWorkshop.start_time);
+          const year = dbDate.getUTCFullYear();
+          const month = dbDate.getUTCMonth();
+          const day = dbDate.getUTCDate();
+          const hour = dbDate.getUTCHours();
+          const minute = dbDate.getUTCMinutes();
+          const easternDate = new Date(year, month, day, hour, minute);
+
+          const workshopEventDetails = {
+            date: easternDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            time: easternDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+            location: firstWorkshop.location
+          };
+          
+          setWorkshopDetails(workshopEventDetails);
+        }
+      } else {
         // Invited but not registered yet (and hasn't attended)
         setStatuses(prev => ({ ...prev, workshop: 'not signed-up' }));
         setWorkshopDetails(null);
         console.log('Dashboard: Workshop available for signup');
       }
-      // Note: If hasAttendedWorkshop is true, status was already set above
     } catch (error) {
       console.error('Error loading workshop status for dashboard:', error);
       setStatuses(prev => ({ ...prev, workshop: 'locked' }));
