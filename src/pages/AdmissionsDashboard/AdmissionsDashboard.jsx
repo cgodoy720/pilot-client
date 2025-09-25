@@ -99,6 +99,10 @@ const AdmissionsDashboard = () => {
     const [searchLoading, setSearchLoading] = useState(false);
     const [registrationLoading, setRegistrationLoading] = useState(false);
 
+    // Event filtering state
+    const [showInactiveInfoSessions, setShowInactiveInfoSessions] = useState(false);
+    const [showInactiveWorkshops, setShowInactiveWorkshops] = useState(false);
+
     // Check if user has admin access
     const hasAdminAccess = user?.role === 'admin' || user?.role === 'staff';
 
@@ -435,6 +439,21 @@ const AdmissionsDashboard = () => {
             // For earliest to latest: smaller date - larger date gives negative (comes first)
             return dateA.getTime() - dateB.getTime();
         });
+    };
+
+    // Filter events based on active status
+    const getFilteredInfoSessions = () => {
+        if (showInactiveInfoSessions) {
+            return infoSessions; // Show all events
+        }
+        return infoSessions.filter(session => session.is_active);
+    };
+
+    const getFilteredWorkshops = () => {
+        if (showInactiveWorkshops) {
+            return workshops; // Show all events
+        }
+        return workshops.filter(workshop => workshop.is_active);
     };
 
     // Check if an event has passed
@@ -970,6 +989,50 @@ const AdmissionsDashboard = () => {
         } catch (error) {
             console.error('Error marking attendance:', error);
             setError('Failed to mark attendance. Please try again.');
+        }
+    };
+
+    // Handle toggling event active status
+    const handleToggleEventActive = async (eventId) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/events/${eventId}/toggle-active`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('Event active status toggled:', result);
+
+                // Update the local state for both info sessions and workshops
+                setInfoSessions(prevSessions =>
+                    prevSessions.map(session =>
+                        session.event_id === eventId
+                            ? { ...session, is_active: result.event.is_active }
+                            : session
+                    )
+                );
+
+                setWorkshops(prevWorkshops =>
+                    prevWorkshops.map(workshop =>
+                        workshop.event_id === eventId
+                            ? { ...workshop, is_active: result.event.is_active }
+                            : workshop
+                    )
+                );
+
+                setError(null);
+            } else {
+                const errorData = await response.json();
+                console.error('Failed to toggle event active status:', errorData);
+                setError(`Failed to toggle event status: ${errorData.error}`);
+            }
+        } catch (error) {
+            console.error('Error toggling event active status:', error);
+            setError('Failed to toggle event status. Please try again.');
         }
     };
 
@@ -1734,6 +1797,17 @@ const AdmissionsDashboard = () => {
                         <div className="data-section__header">
                             <h2>Info Sessions Management</h2>
                             <div className="data-section__actions">
+                                <div className="event-filter-toggle">
+                                    <label className="event-filter-label">
+                                        <input
+                                            type="checkbox"
+                                            checked={showInactiveInfoSessions}
+                                            onChange={(e) => setShowInactiveInfoSessions(e.target.checked)}
+                                            className="event-filter-checkbox"
+                                        />
+                                        Show inactive events
+                                    </label>
+                                </div>
                                 <button
                                     onClick={openCreateInfoSessionModal}
                                     className="create-btn"
@@ -1754,7 +1828,7 @@ const AdmissionsDashboard = () => {
                                 <div className="spinner"></div>
                                 <p>Loading info sessions...</p>
                             </div>
-                        ) : infoSessions?.length > 0 ? (
+                        ) : getFilteredInfoSessions()?.length > 0 ? (
                             <div className="data-table-container">
                                 <table className="data-table events-table">
                                     <thead>
@@ -1763,11 +1837,12 @@ const AdmissionsDashboard = () => {
                                             <th>Date & Time</th>
                                             <th>Registered</th>
                                             <th>Attended</th>
+                                            <th>Active</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {sortEventsByDate(infoSessions).map((session) => (
+                                        {sortEventsByDate(getFilteredInfoSessions()).map((session) => (
                                             <React.Fragment key={session.event_id}>
                                                 <tr className="event-row">
                                                     <td className="event-name">
@@ -1795,6 +1870,20 @@ const AdmissionsDashboard = () => {
                                                     <td className="stat-cell">
                                                         <span className="stat-number stat-number--attended">{session.attended_count}</span>
                                                     </td>
+                                                    <td className="active-status-cell">
+                                                        <div className="active-toggle-container">
+                                                            <button
+                                                                className={`active-toggle-btn ${session.is_active ? 'active-toggle-btn--active' : 'active-toggle-btn--inactive'}`}
+                                                                onClick={() => handleToggleEventActive(session.event_id)}
+                                                                title={session.is_active ? 'Click to deactivate event' : 'Click to activate event'}
+                                                            >
+                                                                <span className="active-toggle-slider"></span>
+                                                            </button>
+                                                            <span className={`active-status-label ${session.is_active ? 'active-status-label--active' : 'active-status-label--inactive'}`}>
+                                                                {session.is_active ? 'Active' : 'Inactive'}
+                                                            </span>
+                                                        </div>
+                                                    </td>
                                                     <td className="actions-cell">
                                                         <button
                                                             className="edit-btn"
@@ -1813,7 +1902,7 @@ const AdmissionsDashboard = () => {
 
                                                 {selectedEvent === session.event_id && (
                                                     <tr className="registrations-row">
-                                                        <td colSpan="5" className="registrations-cell">
+                                                        <td colSpan="6" className="registrations-cell">
                                                             <div className="registrations-list">
                                                                 <div className="registrations-header">
                                                                     <h4>Registrations</h4>
@@ -1933,6 +2022,17 @@ const AdmissionsDashboard = () => {
                         <div className="data-section__header">
                             <h2>Workshops Management</h2>
                             <div className="data-section__actions">
+                                <div className="event-filter-toggle">
+                                    <label className="event-filter-label">
+                                        <input
+                                            type="checkbox"
+                                            checked={showInactiveWorkshops}
+                                            onChange={(e) => setShowInactiveWorkshops(e.target.checked)}
+                                            className="event-filter-checkbox"
+                                        />
+                                        Show inactive events
+                                    </label>
+                                </div>
                                 <button
                                     onClick={openCreateWorkshopModal}
                                     className="create-btn"
@@ -1953,7 +2053,7 @@ const AdmissionsDashboard = () => {
                                 <div className="spinner"></div>
                                 <p>Loading workshops...</p>
                             </div>
-                        ) : workshops?.length > 0 ? (
+                        ) : getFilteredWorkshops()?.length > 0 ? (
                             <div className="data-table-container">
                                 <table className="data-table events-table">
                                     <thead>
@@ -1963,11 +2063,12 @@ const AdmissionsDashboard = () => {
                                             <th>Registered</th>
                                             <th>Attended</th>
                                             <th>Laptops Needed</th>
+                                            <th>Active</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {sortEventsByDate(workshops).map((workshop) => (
+                                        {sortEventsByDate(getFilteredWorkshops()).map((workshop) => (
                                             <React.Fragment key={workshop.event_id}>
                                                 <tr className="event-row">
                                                     <td className="event-name">
@@ -2000,6 +2101,20 @@ const AdmissionsDashboard = () => {
                                                             {workshop.registrations?.filter(reg => reg.needs_laptop).length || 0}
                                                         </span>
                                                     </td>
+                                                    <td className="active-status-cell">
+                                                        <div className="active-toggle-container">
+                                                            <button
+                                                                className={`active-toggle-btn ${workshop.is_active ? 'active-toggle-btn--active' : 'active-toggle-btn--inactive'}`}
+                                                                onClick={() => handleToggleEventActive(workshop.event_id)}
+                                                                title={workshop.is_active ? 'Click to deactivate event' : 'Click to activate event'}
+                                                            >
+                                                                <span className="active-toggle-slider"></span>
+                                                            </button>
+                                                            <span className={`active-status-label ${workshop.is_active ? 'active-status-label--active' : 'active-status-label--inactive'}`}>
+                                                                {workshop.is_active ? 'Active' : 'Inactive'}
+                                                            </span>
+                                                        </div>
+                                                    </td>
                                                     <td className="actions-cell">
                                                         <button
                                                             className="edit-btn"
@@ -2018,7 +2133,7 @@ const AdmissionsDashboard = () => {
 
                                                 {selectedEvent === workshop.event_id && (
                                                     <tr className="registrations-row">
-                                                        <td colSpan="6" className="registrations-cell">
+                                                        <td colSpan="7" className="registrations-cell">
                                                             <div className="registrations-list">
                                                                 <div className="registrations-header">
                                                                     <h4>Registrations</h4>
