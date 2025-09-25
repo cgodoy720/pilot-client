@@ -1,0 +1,63 @@
+.admin-attendance-dashboard {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-attendance-dashboard__header {
+  margin-bottom: 2rem;
+}
+
+.admin-attendance-dashboard__title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.admin-attendance-dashboard__subtitle {
+  font-size: 1.1rem;
+}
+
+.admin-attendance-dashboard__tabs-container {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.admin-attendance-dashboard__tabs {
+  margin-bottom: 1rem;
+}
+
+.admin-attendance-dashboard__tab-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.admin-attendance-dashboard__tools-grid {
+  margin-top: 1rem;
+}
+
+.admin-attendance-dashboard__tool-card {
+  cursor: pointer;
+}
+
+.admin-attendance-dashboard__tool-content {
+  text-align: center;
+  flex-grow: 1;
+}
+
+.admin-attendance-dashboard__tool-icon {
+  margin-bottom: 1rem;
+}
+
+.admin-attendance-dashboard__tool-title {
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.admin-attendance-dashboard__tool-description {
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.admin-attendance-dashboard__tool-actions {
+  padding: 1rem;
+  padding-top: 0;
+}

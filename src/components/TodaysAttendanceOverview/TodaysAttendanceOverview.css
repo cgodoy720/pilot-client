@@ -1,0 +1,288 @@
+/* Today's Attendance Overview Component Styles */
+.todays-attendance-overview {
+  padding: var(--spacing-lg);
+  background-color: var(--color-background-darker);
+  min-height: 100vh;
+}
+
+.todays-attendance-overview__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+  color: var(--color-text-secondary);
+}
+
+.todays-attendance-overview__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.todays-attendance-overview__title-section {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.todays-attendance-overview__title-icon {
+  color: var(--color-primary);
+  font-size: 2rem;
+}
+
+.todays-attendance-overview__title {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  margin: 0;
+}
+
+.todays-attendance-overview__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.todays-attendance-overview__summary-card {
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+  transition: all 0.3s ease;
+}
+
+.todays-attendance-overview__summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.todays-attendance-overview__summary-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.todays-attendance-overview__summary-icon {
+  color: var(--color-primary);
+  font-size: 2.5rem;
+}
+
+.todays-attendance-overview__cohort-card {
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+  transition: all 0.3s ease;
+  height: 100%;
+}
+
+.todays-attendance-overview__cohort-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.todays-attendance-overview__cohort-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.todays-attendance-overview__cohort-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.todays-attendance-overview__stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.todays-attendance-overview__recent-checkins {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.todays-attendance-overview__checkin-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.todays-attendance-overview__checkin-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm);
+  background-color: var(--color-background-darker);
+  border-radius: var(--spacing-xs);
+  border: 1px solid var(--color-border);
+}
+
+.todays-attendance-overview__checkin-details {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.todays-attendance-overview__quick-actions {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .todays-attendance-overview {
+    padding: var(--spacing-md);
+  }
+
+  .todays-attendance-overview__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .todays-attendance-overview__actions {
+    align-self: flex-end;
+  }
+
+  .todays-attendance-overview__summary-content {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--spacing-sm);
+  }
+
+  .todays-attendance-overview__summary-icon {
+    font-size: 2rem;
+  }
+
+  .todays-attendance-overview__cohort-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .todays-attendance-overview__checkin-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+
+  .todays-attendance-overview__checkin-details {
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .todays-attendance-overview {
+    padding: var(--spacing-sm);
+  }
+
+  .todays-attendance-overview__title {
+    font-size: 1.5rem;
+  }
+
+  .todays-attendance-overview__title-icon {
+    font-size: 1.5rem;
+  }
+
+  .todays-attendance-overview__summary-icon {
+    font-size: 1.5rem;
+  }
+}
+
+/* Loading Animation */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.todays-attendance-overview__loading .MuiCircularProgress-root {
+  animation: pulse 2s infinite;
+}
+
+/* Status Colors */
+.todays-attendance-overview .MuiChip-colorSuccess {
+  background-color: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+  border-color: #4caf50;
+}
+
+.todays-attendance-overview .MuiChip-colorWarning {
+  background-color: rgba(255, 152, 0, 0.1);
+  color: #ff9800;
+  border-color: #ff9800;
+}
+
+.todays-attendance-overview .MuiChip-colorError {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+  border-color: #f44336;
+}
+
+/* Card Hover Effects */
+.todays-attendance-overview__summary-card:hover .todays-attendance-overview__summary-icon {
+  color: var(--color-primary-hover);
+  transform: scale(1.1);
+  transition: all 0.3s ease;
+}
+
+.todays-attendance-overview__cohort-card:hover {
+  border-color: var(--color-primary);
+}
+
+/* Typography Overrides */
+.todays-attendance-overview .MuiTypography-h4 {
+  color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+.todays-attendance-overview .MuiTypography-h6 {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.todays-attendance-overview .MuiTypography-body2 {
+  color: var(--color-text-secondary);
+}
+
+.todays-attendance-overview .MuiTypography-caption {
+  color: var(--color-text-muted);
+}
+
+/* Alert Styling */
+.todays-attendance-overview .MuiAlert-root {
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+}
+
+.todays-attendance-overview .MuiAlert-message {
+  color: var(--color-text-primary);
+}
+
+/* Icon Button Styling */
+.todays-attendance-overview .MuiIconButton-root {
+  color: var(--color-text-secondary);
+  transition: color 0.3s ease;
+}
+
+.todays-attendance-overview .MuiIconButton-root:hover {
+  color: var(--color-primary);
+  background-color: var(--color-primary-transparent);
+}
+
+.todays-attendance-overview .MuiIconButton-root:disabled {
+  color: var(--color-text-muted);
+  background-color: transparent;
+}

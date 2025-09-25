@@ -14,6 +14,7 @@ import BugReportIcon from '@mui/icons-material/BugReport';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import PersonIcon from '@mui/icons-material/Person';
 import GroupsIcon from '@mui/icons-material/Groups';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 import logo from '../../assets/logo.png'
@@ -99,9 +100,13 @@ const Layout = ({ children }) => {
           
           {isAdmin && (
             <>
-              <Link to="/admin-dashboard" className={`layout__nav-item ${location.pathname === '/admin-dashboard' ? 'layout__nav-item--active' : ''}`}>
+              <Link to="/admin" className={`layout__nav-item ${location.pathname === '/admin' ? 'layout__nav-item--active' : ''}`}>
                 <AdminPanelSettingsIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">Admin Dashboard</span>}
+              </Link>
+              <Link to="/attendance-management" className={`layout__nav-item ${location.pathname === '/attendance-management' ? 'layout__nav-item--active' : ''}`}>
+                <EventAvailableIcon className="layout__nav-icon" />
+                {isExpanded && <span className="layout__nav-text">Attendance</span>}
               </Link>
               <Link to="/admissions-dashboard" className={`layout__nav-item ${location.pathname === '/admissions-dashboard' ? 'layout__nav-item--active' : ''}`}>
                 <GroupsIcon className="layout__nav-icon" />
