@@ -8,7 +8,7 @@ const SECTION_CONFIG = [
   {
     key: 'infoSession',
     label: 'Attend an Info Session',
-    description: 'Learn more about the org, our goals, and the program. All applicants are required to attend one Info Session.',
+    description: 'Please note that info session attendance, in addition to a completed application, is required to be considered for the AI Native Program. This is a great opportunity to learn more about the program and our community.',
     statusOptions: ['not signed-up', 'signed-up', 'attended'],
     defaultStatus: 'not signed-up',
     getButtonLabel: (status) => {
