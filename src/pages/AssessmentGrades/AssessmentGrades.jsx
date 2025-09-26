@@ -30,10 +30,10 @@ const AssessmentGrades = () => {
   });
   const [availableCohorts, setAvailableCohorts] = useState([]);
 
-  // Pagination
+  // Pagination - Increased limit to get more records per request
   const [pagination, setPagination] = useState({
     total: 0,
-    limit: 50,
+    limit: 100,
     offset: 0,
     hasMore: false
   });
@@ -112,6 +112,18 @@ const AssessmentGrades = () => {
       }
 
       const data = await response.json();
+      
+      // Debug pagination
+      console.log('📊 Pagination Debug:', {
+        resetOffset,
+        requestedLimit: pagination.limit,
+        requestedOffset: resetOffset ? 0 : pagination.offset,
+        receivedRecords: data.data?.length || 0,
+        currentTotal: assessmentGrades.length,
+        paginationData: data.pagination,
+        filters: filters,
+        queryUrl: `${import.meta.env.VITE_API_URL}/api/admin/assessment-grades?${queryParams}`
+      });
       
       if (resetOffset) {
         setAssessmentGrades(data.data || []);
@@ -249,6 +261,96 @@ const AssessmentGrades = () => {
     if (pagination.hasMore && !loading) {
       setPagination(prev => ({ ...prev, offset: prev.offset + prev.limit }));
       fetchAssessmentGrades(false);
+    }
+  };
+
+  const loadAllRecords = async () => {
+    try {
+      setLoading(true);
+      
+      console.log('📊 Loading all assessment grades with no limit...');
+      
+      // Fetch without any limit to get all records
+      const queryParams = new URLSearchParams();
+
+      // Add filters but NO limit/offset
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) {
+          queryParams.append(key, value);
+        }
+      });
+
+      // Don't add limit or offset parameters at all
+      const url = `${import.meta.env.VITE_API_URL}/api/admin/assessment-grades${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+      console.log('🔗 Load All URL:', url);
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch all assessment grades');
+      }
+
+      const data = await response.json();
+      
+      console.log(`📊 Load All - API returned ${data.data?.length || 0} records`);
+      console.log('📊 Load All - Pagination data:', data.pagination);
+      
+      setAssessmentGrades(data.data || []);
+      setPagination({
+        total: data.pagination?.total || data.data?.length || 0,
+        limit: data.data?.length || 0,
+        offset: 0,
+        hasMore: false
+      });
+      
+      console.log(`✅ Load All - Successfully loaded ${data.data?.length || 0} assessment grades`);
+      
+    } catch (err) {
+      console.error('Error in Load All:', err);
+      setError('Failed to load all assessment grades');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const debugBigQuery = async () => {
+    try {
+      console.log('🔍 Debugging BigQuery data...');
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/debug/bigquery-data`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch BigQuery debug data');
+      }
+
+      const debugData = await response.json();
+      
+      console.log('🔍 BigQuery Debug Results:', debugData);
+      console.log('📊 Total Records:', debugData.debug.counts.total_records);
+      console.log('👥 Unique Users:', debugData.debug.counts.unique_users);
+      console.log('📋 Sample Records:', debugData.debug.sampleRecords);
+      console.log('🎯 Latest Per User:', debugData.debug.latestPerUser);
+      
+      alert(`BigQuery Debug Results:
+Total Records: ${debugData.debug.counts.total_records}
+Unique Users: ${debugData.debug.counts.unique_users}
+Latest Per User: ${debugData.debug.latestPerUser.length}
+
+Check console for detailed results.`);
+      
+    } catch (err) {
+      console.error('Error debugging BigQuery:', err);
+      alert('Failed to debug BigQuery data. Check console for details.');
     }
   };
 
@@ -440,6 +542,14 @@ const AssessmentGrades = () => {
             Send Mass Email
           </button>
           <button
+            className="btn btn-primary"
+            onClick={loadAllRecords}
+            disabled={loading}
+            title="Load all assessment grades (may take a moment)"
+          >
+            {loading ? 'Loading...' : 'Load All'}
+          </button>
+          <button
             className="btn btn-outline"
             onClick={() => exportData('csv')}
           >
@@ -459,6 +569,18 @@ const AssessmentGrades = () => {
           </button>
         </div>
       </div>
+
+      {/* Pagination Info */}
+      {assessmentGrades.length > 0 && (
+        <div className="assessment-grades__info">
+          <div className="pagination-info">
+            Showing {assessmentGrades.length} of {pagination.total} assessment grades
+            {pagination.hasMore && (
+              <span className="more-available"> • {pagination.total - assessmentGrades.length} more available</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Assessment Grades Table */}
       <div className="assessment-grades__table">
@@ -518,16 +640,29 @@ const AssessmentGrades = () => {
           </table>
         )}
 
-        {/* Load More Button */}
+        {/* Load More Section */}
         {pagination.hasMore && (
           <div className="load-more">
-            <button
-              className="btn btn-outline"
-              onClick={loadMore}
-              disabled={loading}
-            >
-              {loading ? 'Loading...' : 'Load More'}
-            </button>
+            <div className="load-more-info">
+              <p>Showing {assessmentGrades.length} of {pagination.total} records</p>
+              <p>{pagination.total - assessmentGrades.length} more records available</p>
+            </div>
+            <div className="load-more-actions">
+              <button
+                className="btn btn-outline"
+                onClick={loadMore}
+                disabled={loading}
+              >
+                {loading ? 'Loading...' : `Load Next ${Math.min(pagination.limit, pagination.total - assessmentGrades.length)}`}
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={loadAllRecords}
+                disabled={loading}
+              >
+                {loading ? 'Loading...' : 'Load All Remaining'}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -608,7 +743,10 @@ const GradeViewModal = ({
   
   // Helper function to determine file language for syntax highlighting
   const getFileLanguage = (filename) => {
-    const ext = filename.split('.').pop().toLowerCase();
+    if (!filename || typeof filename !== 'string') {
+      return 'text';
+    }
+    const ext = filename.split('.').pop()?.toLowerCase();
     const languageMap = {
       'js': 'javascript',
       'html': 'html',
@@ -626,10 +764,10 @@ const GradeViewModal = ({
       return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>No Files</title></head><body><div style="padding: 20px; font-family: Arial, sans-serif; text-align: center;"><h2>No files found</h2><p>No HTML, CSS, or JS files were submitted.</p></div></body></html>';
     }
 
-    // Find different file types
-    const htmlFiles = files.filter(f => f.name.toLowerCase().endsWith('.html'));
-    const cssFiles = files.filter(f => f.name.toLowerCase().endsWith('.css'));
-    const jsFiles = files.filter(f => f.name.toLowerCase().endsWith('.js'));
+    // Find different file types (with null checks)
+    const htmlFiles = files.filter(f => f && f.name && f.name.toLowerCase().endsWith('.html'));
+    const cssFiles = files.filter(f => f && f.name && f.name.toLowerCase().endsWith('.css'));
+    const jsFiles = files.filter(f => f && f.name && f.name.toLowerCase().endsWith('.js'));
 
     console.log('Files found:', { htmlFiles: htmlFiles.length, cssFiles: cssFiles.length, jsFiles: jsFiles.length });
 
@@ -824,11 +962,23 @@ const GradeViewModal = ({
 
   // Generate website preview when technical submission data is available
   useEffect(() => {
+    if (!userSubmissions || userSubmissions.length === 0) {
+      console.log('No user submissions available yet');
+      return;
+    }
+    
     const technicalSubmission = userSubmissions.find(sub => sub.assessment_type === 'technical');
     if (technicalSubmission && technicalSubmission.submission_data && technicalSubmission.submission_data.files) {
-      const preview = createWebsitePreview(technicalSubmission.submission_data.files);
-      setWebsitePreview(preview);
-      console.log('Website preview generated for technical submission');
+      try {
+        const preview = createWebsitePreview(technicalSubmission.submission_data.files);
+        setWebsitePreview(preview);
+        console.log('Website preview generated for technical submission');
+      } catch (error) {
+        console.error('Error generating website preview:', error);
+        setWebsitePreview('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Preview Error</title></head><body><div style="padding: 20px; font-family: Arial, sans-serif; text-align: center;"><h2>Preview Error</h2><p>Unable to generate website preview due to invalid file data.</p></div></body></html>');
+      }
+    } else {
+      console.log('No technical submission with files found');
     }
   }, [userSubmissions]);
   
@@ -995,10 +1145,10 @@ const GradeViewModal = ({
                             console.log('Current websitePreview state:', websitePreview);
                             console.log('Files available:', submissionData.files);
                             
-                            if (submissionData.files) {
-                              const htmlFiles = submissionData.files.filter(f => f.name.toLowerCase().endsWith('.html'));
-                              const cssFiles = submissionData.files.filter(f => f.name.toLowerCase().endsWith('.css'));
-                              const jsFiles = submissionData.files.filter(f => f.name.toLowerCase().endsWith('.js'));
+                            if (submissionData.files && Array.isArray(submissionData.files)) {
+                              const htmlFiles = submissionData.files.filter(f => f && f.name && f.name.toLowerCase().endsWith('.html'));
+                              const cssFiles = submissionData.files.filter(f => f && f.name && f.name.toLowerCase().endsWith('.css'));
+                              const jsFiles = submissionData.files.filter(f => f && f.name && f.name.toLowerCase().endsWith('.js'));
                               
                               console.log('File breakdown:', {
                                 html: htmlFiles.map(f => ({ 
@@ -1493,6 +1643,12 @@ const GradeViewModal = ({
                 <div className="loading">Loading assessment data...</div>
               ) : error ? (
                 <div className="error">{error}</div>
+              ) : userSubmissions.length === 0 && comprehensiveAnalysis.length === 0 ? (
+                <div className="no-data">
+                  <h3>No Assessment Data Available</h3>
+                  <p>This user has no assessment submissions or analysis data yet.</p>
+                  <p>Assessment data will appear here once the user completes assessments and they are analyzed.</p>
+                </div>
               ) : currentTabType === 'overview' ? (
                 <div className="overview-content">
                   <div className="content-grid">

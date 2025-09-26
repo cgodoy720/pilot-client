@@ -2451,12 +2451,12 @@ Assessment Funnel Styles */
 }
 
 /* Improved content area with subtle border */
-.admissions-dashboard__content {
+/* .admissions-dashboard__content {
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   position: relative;
-}
+} */
 
-.admissions-dashboard__content::before {
+/* .admissions-dashboard__content::before {
   content: '';
   position: absolute;
   top: 0;
@@ -2467,7 +2467,7 @@ Assessment Funnel Styles */
       transparent 0%,
       rgba(102, 126, 234, 0.3) 50%,
       transparent 100%);
-}
+} */
 
 /* Enhanced tab navigation with better visual hierarchy */
 .admissions-dashboard__tabs {

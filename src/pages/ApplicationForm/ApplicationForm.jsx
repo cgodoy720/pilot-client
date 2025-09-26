@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import databaseService from '../../services/databaseService';
 import AddressAutocomplete from '../../components/AddressAutocomplete/AddressAutocomplete';
 import IneligibleModal from '../../components/IneligibleScreen/IneligibleScreen';
+import Swal from 'sweetalert2';
 import './ApplicationForm.css';
 
 const ApplicationForm = () => {
@@ -833,7 +834,15 @@ const ApplicationForm = () => {
           }, 100);
         }
         
-        alert(`Please complete all required fields. Found ${Object.keys(allErrors).length} missing required field(s).`);
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Incomplete Application',
+          text: `Please complete all required fields. Found ${Object.keys(allErrors).length} missing required field(s).`,
+          confirmButtonColor: '#4242ea',
+          background: 'var(--color-background-dark)',
+          color: 'var(--color-text-primary)',
+          confirmButtonText: 'OK, I\'ll complete them'
+        });
         return;
       }
 
@@ -846,14 +855,41 @@ const ApplicationForm = () => {
         localStorage.removeItem('applicationCurrentQuestionIndex');
         localStorage.setItem('applicationStatus', 'submitted');
         
-        alert('Application submitted successfully!');
+        await Swal.fire({
+          icon: 'success',
+          title: '🎉 Application Submitted!',
+          html: `
+            <div style="text-align: center;">
+              <p style="font-size: 18px; margin: 15px 0;">Your application has been successfully submitted!</p>
+              <p style="font-size: 16px; margin: 10px 0;">We'll review your application and get back to you soon.</p>
+              <p style="font-size: 14px; color: #888; margin-top: 20px;">Thank you for your interest in our program!</p>
+            </div>
+          `,
+          confirmButtonText: 'Continue to Dashboard',
+          confirmButtonColor: '#4242ea',
+          background: 'var(--color-background-dark)',
+          color: 'var(--color-text-primary)',
+          timer: 5000,
+          timerProgressBar: true,
+          showClass: {
+            popup: 'animate__animated animate__bounceIn'
+          }
+        });
         navigate('/apply');
       } else {
         throw new Error('No active application session');
       }
     } catch (error) {
       console.error('Error submitting application:', error);
-      alert('Error submitting application. Please try again.');
+      await Swal.fire({
+        icon: 'error',
+        title: 'Submission Failed',
+        text: 'Error submitting application. Please try again.',
+        confirmButtonColor: '#4242ea',
+        background: 'var(--color-background-dark)',
+        color: 'var(--color-text-primary)',
+        confirmButtonText: 'Try Again'
+      });
     } finally {
       setIsSubmitting(false);
     }
