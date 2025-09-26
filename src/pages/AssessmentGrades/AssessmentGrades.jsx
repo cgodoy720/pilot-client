@@ -195,7 +195,14 @@ const AssessmentGrades = () => {
         icon: 'warning',
         title: 'No Users Selected',
         text: 'Please select at least one user to send emails to.',
-        confirmButtonColor: '#3085d6'
+        confirmButtonColor: '#3085d6',
+        background: '#1f2937',
+        color: '#f9fafb',
+        customClass: {
+          popup: 'swal-dark-popup',
+          title: 'swal-dark-title',
+          content: 'swal-dark-content'
+        }
       });
       return;
     }
@@ -252,7 +259,14 @@ const AssessmentGrades = () => {
         icon: 'error',
         title: 'Export Failed',
         text: 'Failed to export data. Please try again.',
-        confirmButtonColor: '#d33'
+        confirmButtonColor: '#d33',
+        background: '#1f2937',
+        color: '#f9fafb',
+        customClass: {
+          popup: 'swal-dark-popup',
+          title: 'swal-dark-title',
+          content: 'swal-dark-content'
+        }
       });
     }
   };
@@ -416,7 +430,14 @@ Check console for detailed results.`);
         text: 'The feedback has been successfully updated in the database.',
         confirmButtonColor: '#10b981',
         timer: 3000,
-        timerProgressBar: true
+        timerProgressBar: true,
+        background: '#1f2937',
+        color: '#f9fafb',
+        customClass: {
+          popup: 'swal-dark-popup',
+          title: 'swal-dark-title',
+          content: 'swal-dark-content'
+        }
       });
     } catch (error) {
       console.error('Error updating feedback:', error);
@@ -424,7 +445,14 @@ Check console for detailed results.`);
         icon: 'error',
         title: 'Update Failed',
         text: 'Failed to update feedback. Please try again.',
-        confirmButtonColor: '#d33'
+        confirmButtonColor: '#d33',
+        background: '#1f2937',
+        color: '#f9fafb',
+        customClass: {
+          popup: 'swal-dark-popup',
+          title: 'swal-dark-title',
+          content: 'swal-dark-content'
+        }
       });
     } finally {
       setSavingOverview(false);
@@ -1866,7 +1894,14 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
         icon: 'error',
         title: 'Preview Generation Failed',
         text: 'Failed to generate email previews. Please try again.',
-        confirmButtonColor: '#d33'
+        confirmButtonColor: '#d33',
+        background: '#1f2937',
+        color: '#f9fafb',
+        customClass: {
+          popup: 'swal-dark-popup',
+          title: 'swal-dark-title',
+          content: 'swal-dark-content'
+        }
       });
     } finally {
       setLoadingPreviews(false);
@@ -1902,7 +1937,14 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
         text: `Successfully processed ${result.results.length} emails`,
         confirmButtonColor: '#10b981',
         timer: 4000,
-        timerProgressBar: true
+        timerProgressBar: true,
+        background: '#1f2937',
+        color: '#f9fafb',
+        customClass: {
+          popup: 'swal-dark-popup',
+          title: 'swal-dark-title',
+          content: 'swal-dark-content'
+        }
       });
       onEmailSent();
     } catch (err) {
@@ -1911,7 +1953,14 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
         icon: 'error',
         title: 'Email Sending Failed',
         text: 'Failed to send emails. Please check your connection and try again.',
-        confirmButtonColor: '#d33'
+        confirmButtonColor: '#d33',
+        background: '#1f2937',
+        color: '#f9fafb',
+        customClass: {
+          popup: 'swal-dark-popup',
+          title: 'swal-dark-title',
+          content: 'swal-dark-content'
+        }
       });
     } finally {
       setSending(false);
@@ -1925,9 +1974,17 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
       input: 'email',
       inputPlaceholder: 'your.email@example.com',
       showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#6c757d',
-      confirmButtonText: 'Send Test Email',
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Send Test',
+      background: '#1f2937',
+      color: '#f9fafb',
+      customClass: {
+        popup: 'swal-dark-popup',
+        title: 'swal-dark-title',
+        content: 'swal-dark-content',
+        input: 'swal-dark-input'
+      },
       inputValidator: (value) => {
         if (!value) {
           return 'You need to enter an email address!'
@@ -1967,7 +2024,14 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
         html: `✅ Test email sent successfully to <strong>${testEmail}</strong><br><small>Message ID: ${result.messageId}</small>`,
         confirmButtonColor: '#10b981',
         timer: 5000,
-        timerProgressBar: true
+        timerProgressBar: true,
+        background: '#1f2937',
+        color: '#f9fafb',
+        customClass: {
+          popup: 'swal-dark-popup',
+          title: 'swal-dark-title',
+          content: 'swal-dark-content'
+        }
       });
     } catch (err) {
       console.error('Error sending test email:', err);
@@ -1975,7 +2039,14 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
         icon: 'error',
         title: 'Test Email Failed',
         text: 'Failed to send test email. Check console for details.',
-        confirmButtonColor: '#d33'
+        confirmButtonColor: '#d33',
+        background: '#1f2937',
+        color: '#f9fafb',
+        customClass: {
+          popup: 'swal-dark-popup',
+          title: 'swal-dark-title',
+          content: 'swal-dark-content'
+        }
       });
     }
   };
