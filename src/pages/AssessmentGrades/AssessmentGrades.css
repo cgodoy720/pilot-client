@@ -2217,6 +2217,30 @@ body .submission-panel[style*="position: fixed"],
   /* Existing styles remain the same */
 }
 
+/* SweetAlert2 Dark Mode Styles */
+.swal-dark-popup {
+  background-color: #1f2937 !important;
+  border: 1px solid #374151 !important;
+}
+
+.swal-dark-title {
+  color: #f9fafb !important;
+}
+
+.swal-dark-content {
+  color: #f9fafb !important;
+}
+
+.swal-dark-input {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  border: 1px solid #4b5563 !important;
+}
+
+.swal-dark-input::placeholder {
+  color: #9ca3af !important;
+}
+
 /* Website Preview Styles */
 .website-preview-container {
   background: var(--color-background-darker);
