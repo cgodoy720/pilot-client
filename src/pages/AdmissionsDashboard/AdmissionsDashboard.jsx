@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotesModal from '../../components/NotesModal';
 import BulkActionsModal from '../../components/BulkActionsModal';
+import Swal from 'sweetalert2';
 import './AdmissionsDashboard.css';
 
 const AdmissionsDashboard = () => {
@@ -260,6 +261,32 @@ const AdmissionsDashboard = () => {
     useEffect(() => {
         fetchAdmissionsData();
     }, [token, hasAdminAccess, applicationFilters]);
+
+    // Debounced search for applicants
+    useEffect(() => {
+        if (!applicantSearch.trim()) {
+            console.log('🔍 Clearing results due to empty applicantSearch');
+            setSearchResults([]);
+            return;
+        }
+
+        console.log('🔍 Debouncing search for:', applicantSearch);
+        const timeoutId = setTimeout(() => {
+            searchApplicants(applicantSearch);
+        }, 300); // 300ms delay
+
+        return () => clearTimeout(timeoutId);
+    }, [applicantSearch, selectedEventForRegistration, selectedEventType]);
+
+    // Monitor searchResults changes
+    useEffect(() => {
+        console.log('🔍 searchResults state changed:', searchResults.length, 'items');
+        console.log('🔍 searchResults array:', searchResults);
+        if (searchResults.length > 0) {
+            console.log('🔍 Sample results:', searchResults.slice(0, 2).map(a => ({ name: a.display_name, email: a.email })));
+            console.log('🔍 Should show search results UI now!');
+        }
+    }, [searchResults]);
 
     // Handle tab switching
     const handleTabChange = (tab) => {
@@ -824,6 +851,130 @@ const AdmissionsDashboard = () => {
         setEditingWorkshop(null);
     };
 
+    // Configure SweetAlert2 with dark theme
+    const darkSwalConfig = {
+        background: '#1e2432',
+        color: '#ffffff',
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        customClass: {
+            popup: 'dark-swal-popup',
+            title: 'dark-swal-title',
+            content: 'dark-swal-content',
+            confirmButton: 'dark-swal-confirm-btn',
+            cancelButton: 'dark-swal-cancel-btn'
+        }
+    };
+
+    // Delete handlers with dark mode SweetAlert2 confirmation
+    const handleDeleteInfoSession = async (sessionId) => {
+        try {
+            const result = await Swal.fire({
+                ...darkSwalConfig,
+                title: 'Delete Info Session?',
+                text: "This action cannot be undone. All data related to this info session will be permanently deleted.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel',
+                iconColor: '#fbbf24'
+            });
+
+            if (result.isConfirmed) {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/info-sessions/${sessionId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to delete info session');
+                }
+
+                // Close modal and refresh data
+                closeInfoSessionModal();
+                await fetchInfoSessions();
+
+                // Show success message
+                await Swal.fire({
+                    ...darkSwalConfig,
+                    title: 'Deleted!',
+                    text: 'The info session has been successfully deleted.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    iconColor: '#10b981'
+                });
+            }
+        } catch (error) {
+            console.error('Error deleting info session:', error);
+            await Swal.fire({
+                ...darkSwalConfig,
+                title: 'Error!',
+                text: error.message || 'Failed to delete info session. Please try again.',
+                icon: 'error',
+                iconColor: '#ef4444'
+            });
+        }
+    };
+
+    const handleDeleteWorkshop = async (workshopId) => {
+        try {
+            const result = await Swal.fire({
+                ...darkSwalConfig,
+                title: 'Delete Workshop?',
+                text: "This action cannot be undone. All data related to this workshop will be permanently deleted.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel',
+                iconColor: '#fbbf24'
+            });
+
+            if (result.isConfirmed) {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/workshops/${workshopId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to delete workshop');
+                }
+
+                // Close modal and refresh data
+                closeWorkshopModal();
+                await fetchWorkshops();
+
+                // Show success message
+                await Swal.fire({
+                    ...darkSwalConfig,
+                    title: 'Deleted!',
+                    text: 'The workshop has been successfully deleted.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    iconColor: '#10b981'
+                });
+            }
+        } catch (error) {
+            console.error('Error deleting workshop:', error);
+            await Swal.fire({
+                ...darkSwalConfig,
+                title: 'Error!',
+                text: error.message || 'Failed to delete workshop. Please try again.',
+                icon: 'error',
+                iconColor: '#ef4444'
+            });
+        }
+    };
+
     const handleWorkshopFormChange = (e) => {
         const { name, value, type, checked } = e.target;
         setWorkshopForm(prev => ({
@@ -1060,11 +1211,8 @@ const AdmissionsDashboard = () => {
 
     // Search for applicants
     const searchApplicants = async (searchTerm) => {
-        if (!searchTerm.trim()) {
-            setSearchResults([]);
-            return;
-        }
-
+        console.log('🔍 searchApplicants called with:', { searchTerm, length: searchTerm?.length, trimmed: searchTerm?.trim() });
+        
         setSearchLoading(true);
         try {
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/search?q=${encodeURIComponent(searchTerm)}&eventId=${selectedEventForRegistration}&eventType=${selectedEventType}&limit=20`, {
@@ -1076,7 +1224,9 @@ const AdmissionsDashboard = () => {
 
             if (response.ok) {
                 const data = await response.json();
+                console.log('🔍 Search response received:', data.count, 'applicants');
                 setSearchResults(data.applicants || []);
+                console.log('🔍 Search results set successfully');
             } else {
                 console.error('Failed to search applicants');
                 setSearchResults([]);
@@ -1172,7 +1322,23 @@ const AdmissionsDashboard = () => {
 
     // Remove/cancel a registration
     const handleRemoveRegistration = async (eventType, eventId, registrationId, applicantName) => {
-        if (!confirm(`Are you sure you want to cancel ${applicantName}'s registration?`)) {
+        try {
+            const result = await Swal.fire({
+                ...darkSwalConfig,
+                title: 'Cancel Registration?',
+                text: `Are you sure you want to cancel ${applicantName}'s registration? This action cannot be undone.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, cancel it!',
+                cancelButtonText: 'Keep Registration',
+                iconColor: '#fbbf24'
+            });
+
+            if (!result.isConfirmed) {
+                return;
+            }
+        } catch (swalError) {
+            console.error('Error showing confirmation dialog:', swalError);
             return;
         }
 
@@ -1209,13 +1375,36 @@ const AdmissionsDashboard = () => {
                         )
                     );
                 }
+
+                // Show success message
+                await Swal.fire({
+                    ...darkSwalConfig,
+                    title: 'Registration Cancelled!',
+                    text: `${applicantName}'s registration has been successfully cancelled.`,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    iconColor: '#10b981'
+                });
             } else {
                 const errorData = await response.json();
-                setError(`Failed to cancel registration: ${errorData.error}`);
+                await Swal.fire({
+                    ...darkSwalConfig,
+                    title: 'Error!',
+                    text: `Failed to cancel registration: ${errorData.error}`,
+                    icon: 'error',
+                    iconColor: '#ef4444'
+                });
             }
         } catch (error) {
             console.error('Error cancelling registration:', error);
-            setError('Failed to cancel registration. Please try again.');
+            await Swal.fire({
+                ...darkSwalConfig,
+                title: 'Error!',
+                text: 'Failed to cancel registration. Please try again.',
+                icon: 'error',
+                iconColor: '#ef4444'
+            });
         }
     };
 
@@ -2383,6 +2572,25 @@ const AdmissionsDashboard = () => {
                                 >
                                     Cancel
                                 </button>
+                                {editingInfoSession && (
+                                    <button
+                                        type="button"
+                                        className="delete-btn"
+                                        onClick={() => handleDeleteInfoSession(editingInfoSession)}
+                                        disabled={infoSessionSubmitting}
+                                        style={{
+                                            backgroundColor: '#dc3545',
+                                            color: 'white',
+                                            border: 'none',
+                                            padding: '10px 20px',
+                                            borderRadius: '5px',
+                                            cursor: 'pointer',
+                                            marginLeft: '10px'
+                                        }}
+                                    >
+                                        Delete
+                                    </button>
+                                )}
                                 <button
                                     type="submit"
                                     className="submit-btn"
@@ -2518,6 +2726,25 @@ const AdmissionsDashboard = () => {
                                 >
                                     Cancel
                                 </button>
+                                {editingWorkshop && (
+                                    <button
+                                        type="button"
+                                        className="delete-btn"
+                                        onClick={() => handleDeleteWorkshop(editingWorkshop)}
+                                        disabled={workshopSubmitting}
+                                        style={{
+                                            backgroundColor: '#dc3545',
+                                            color: 'white',
+                                            border: 'none',
+                                            padding: '10px 20px',
+                                            borderRadius: '5px',
+                                            cursor: 'pointer',
+                                            marginLeft: '10px'
+                                        }}
+                                    >
+                                        Delete
+                                    </button>
+                                )}
                                 <button
                                     type="submit"
                                     className="submit-btn"
@@ -2562,7 +2789,6 @@ const AdmissionsDashboard = () => {
                                         value={applicantSearch}
                                         onChange={(e) => {
                                             setApplicantSearch(e.target.value);
-                                            searchApplicants(e.target.value);
                                         }}
                                         placeholder="Search by name, email, or applicant ID..."
                                         className="search-input"
@@ -2576,49 +2802,76 @@ const AdmissionsDashboard = () => {
                                     </div>
                                 )}
                                 
-                                {searchResults.length > 0 && (
-                                    <div className="search-results">
-                                        <h4>Search Results ({searchResults.length})</h4>
-                                        <div className="applicant-list">
-                                            {searchResults.map((applicant) => (
-                                                <div
-                                                    key={applicant.applicant_id}
-                                                    className={`applicant-item ${
-                                                        selectedApplicantsForRegistration.some(selected => selected.applicant_id === applicant.applicant_id) 
-                                                            ? 'selected' : ''
-                                                    } ${
-                                                        applicant.already_registered_for_this_event ? 'already-registered' : ''
-                                                    }`}
-                                                    onClick={() => !applicant.already_registered_for_this_event && toggleApplicantSelection(applicant)}
-                                                >
-                                                    <div className="applicant-info">
-                                                        <div className="applicant-name">
-                                                            {applicant.display_name}
-                                                            {applicant.already_registered_for_this_event && (
-                                                                <span className="already-registered-badge">Already Registered</span>
-                                                            )}
-                                                        </div>
-                                                        <div className="applicant-details">
-                                                            <span className="applicant-email">{applicant.email}</span>
-                                                            <span className="applicant-status">
-                                                                App Status: {applicant.application_status}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    {!applicant.already_registered_for_this_event && (
-                                                        <div className="selection-checkbox">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedApplicantsForRegistration.some(selected => selected.applicant_id === applicant.applicant_id)}
-                                                                onChange={() => toggleApplicantSelection(applicant)}
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
+                                {/* SIMPLE - show names with dark theme styling */}
+                                <div style={{ 
+                                    border: '1px solid var(--color-border)', 
+                                    padding: '20px', 
+                                    margin: '10px',
+                                    backgroundColor: 'var(--color-background-dark)',
+                                    borderRadius: '8px'
+                                }}>
+                                    <h3 style={{ color: 'var(--color-text-primary)', marginTop: '0' }}>
+                                        APPLICANTS FOUND: {searchResults.length}
+                                    </h3>
+                                    {searchResults.map((applicant, index) => (
+                                        <div key={index} style={{ 
+                                            border: '1px solid var(--color-border)', 
+                                            padding: '15px', 
+                                            margin: '8px 0',
+                                            backgroundColor: 'var(--color-background-light)',
+                                            color: 'var(--color-text-primary)',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            borderRadius: '6px',
+                                            cursor: applicant.already_registered_for_this_event ? 'not-allowed' : 'pointer',
+                                            opacity: applicant.already_registered_for_this_event ? '0.6' : '1'
+                                        }}>
+                                            <div>
+                                                <strong style={{ color: 'var(--color-text-primary)' }}>
+                                                    {applicant.display_name || applicant.first_name + ' ' + applicant.last_name}
+                                                </strong><br/>
+                                                <span style={{ color: 'var(--color-text-muted)' }}>{applicant.email}</span><br/>
+                                                <small style={{ color: 'var(--color-text-muted)' }}>
+                                                    Status: {applicant.application_status}
+                                                </small>
+                                                {applicant.already_registered_for_this_event && (
+                                                    <span style={{ 
+                                                        backgroundColor: '#6b7280', 
+                                                        color: 'white', 
+                                                        padding: '4px 8px', 
+                                                        borderRadius: '4px', 
+                                                        fontSize: '12px',
+                                                        marginLeft: '10px'
+                                                    }}>
+                                                        Already Registered
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {!applicant.already_registered_for_this_event && (
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedApplicantsForRegistration.some(selected => selected.applicant_id === applicant.applicant_id)}
+                                                    onChange={() => toggleApplicantSelection(applicant)}
+                                                    style={{ 
+                                                        transform: 'scale(1.5)',
+                                                        accentColor: 'var(--color-primary)'
+                                                    }}
+                                                />
+                                            )}
                                         </div>
-                                    </div>
-                                )}
+                                    ))}
+                                    {searchResults.length === 0 && (
+                                        <p style={{ 
+                                            color: 'var(--color-text-muted)', 
+                                            textAlign: 'center',
+                                            fontStyle: 'italic',
+                                            margin: '20px 0'
+                                        }}>
+                                            No results yet - type to search
+                                        </p>
+                                    )}
+                                </div>
                                 
                                 {selectedApplicantsForRegistration.length > 0 && (
                                     <div className="selected-applicants">
