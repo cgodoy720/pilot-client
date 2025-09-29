@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotesModal from '../../components/NotesModal';
 import BulkActionsModal from '../../components/BulkActionsModal';
+import Swal from 'sweetalert2';
 import './AdmissionsDashboard.css';
 
 const AdmissionsDashboard = () => {
@@ -822,6 +823,130 @@ const AdmissionsDashboard = () => {
     const closeWorkshopModal = () => {
         setWorkshopModalOpen(false);
         setEditingWorkshop(null);
+    };
+
+    // Configure SweetAlert2 with dark theme
+    const darkSwalConfig = {
+        background: '#1e2432',
+        color: '#ffffff',
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        customClass: {
+            popup: 'dark-swal-popup',
+            title: 'dark-swal-title',
+            content: 'dark-swal-content',
+            confirmButton: 'dark-swal-confirm-btn',
+            cancelButton: 'dark-swal-cancel-btn'
+        }
+    };
+
+    // Delete handlers with dark mode SweetAlert2 confirmation
+    const handleDeleteInfoSession = async (sessionId) => {
+        try {
+            const result = await Swal.fire({
+                ...darkSwalConfig,
+                title: 'Delete Info Session?',
+                text: "This action cannot be undone. All data related to this info session will be permanently deleted.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel',
+                iconColor: '#fbbf24'
+            });
+
+            if (result.isConfirmed) {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/info-sessions/${sessionId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to delete info session');
+                }
+
+                // Close modal and refresh data
+                closeInfoSessionModal();
+                await fetchInfoSessions();
+
+                // Show success message
+                await Swal.fire({
+                    ...darkSwalConfig,
+                    title: 'Deleted!',
+                    text: 'The info session has been successfully deleted.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    iconColor: '#10b981'
+                });
+            }
+        } catch (error) {
+            console.error('Error deleting info session:', error);
+            await Swal.fire({
+                ...darkSwalConfig,
+                title: 'Error!',
+                text: error.message || 'Failed to delete info session. Please try again.',
+                icon: 'error',
+                iconColor: '#ef4444'
+            });
+        }
+    };
+
+    const handleDeleteWorkshop = async (workshopId) => {
+        try {
+            const result = await Swal.fire({
+                ...darkSwalConfig,
+                title: 'Delete Workshop?',
+                text: "This action cannot be undone. All data related to this workshop will be permanently deleted.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel',
+                iconColor: '#fbbf24'
+            });
+
+            if (result.isConfirmed) {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/workshops/${workshopId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to delete workshop');
+                }
+
+                // Close modal and refresh data
+                closeWorkshopModal();
+                await fetchWorkshops();
+
+                // Show success message
+                await Swal.fire({
+                    ...darkSwalConfig,
+                    title: 'Deleted!',
+                    text: 'The workshop has been successfully deleted.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    iconColor: '#10b981'
+                });
+            }
+        } catch (error) {
+            console.error('Error deleting workshop:', error);
+            await Swal.fire({
+                ...darkSwalConfig,
+                title: 'Error!',
+                text: error.message || 'Failed to delete workshop. Please try again.',
+                icon: 'error',
+                iconColor: '#ef4444'
+            });
+        }
     };
 
     const handleWorkshopFormChange = (e) => {
@@ -2383,6 +2508,25 @@ const AdmissionsDashboard = () => {
                                 >
                                     Cancel
                                 </button>
+                                {editingInfoSession && (
+                                    <button
+                                        type="button"
+                                        className="delete-btn"
+                                        onClick={() => handleDeleteInfoSession(editingInfoSession)}
+                                        disabled={infoSessionSubmitting}
+                                        style={{
+                                            backgroundColor: '#dc3545',
+                                            color: 'white',
+                                            border: 'none',
+                                            padding: '10px 20px',
+                                            borderRadius: '5px',
+                                            cursor: 'pointer',
+                                            marginLeft: '10px'
+                                        }}
+                                    >
+                                        Delete
+                                    </button>
+                                )}
                                 <button
                                     type="submit"
                                     className="submit-btn"
@@ -2518,6 +2662,25 @@ const AdmissionsDashboard = () => {
                                 >
                                     Cancel
                                 </button>
+                                {editingWorkshop && (
+                                    <button
+                                        type="button"
+                                        className="delete-btn"
+                                        onClick={() => handleDeleteWorkshop(editingWorkshop)}
+                                        disabled={workshopSubmitting}
+                                        style={{
+                                            backgroundColor: '#dc3545',
+                                            color: 'white',
+                                            border: 'none',
+                                            padding: '10px 20px',
+                                            borderRadius: '5px',
+                                            cursor: 'pointer',
+                                            marginLeft: '10px'
+                                        }}
+                                    >
+                                        Delete
+                                    </button>
+                                )}
                                 <button
                                     type="submit"
                                     className="submit-btn"
