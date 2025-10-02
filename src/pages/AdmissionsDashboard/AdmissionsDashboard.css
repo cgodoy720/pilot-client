@@ -2796,6 +2796,595 @@ lumn Widths for Consistent Layout */
   white-space: normal;
 }
 
+/* Email Automation Styles */
+.admissions-dashboard__email-automation {
+    padding: 1.5rem;
+}
+
+.email-automation-stats {
+    margin-bottom: 2rem;
+    background: var(--color-background-light);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid var(--color-border);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: var(--color-background-dark);
+    padding: 1rem;
+    border-radius: 6px;
+    text-align: center;
+    border: 1px solid var(--color-border);
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+    color: #FFFFFF !important;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.opt-out-stats {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.opt-out-stats h4 {
+    margin-bottom: 1rem;
+    color: var(--color-text-primary);
+    font-size: 1.1rem;
+}
+
+.opt-out-reasons-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.opt-out-reason-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    background: var(--color-background-light);
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    transition: all 0.2s ease;
+}
+
+.opt-out-reason-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.opt-out-reason-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+}
+
+.opt-out-reason-label {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.opt-out-reason-note {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+    text-align: center;
+    margin-top: 0.25rem;
+}
+
+.other-reasons-section {
+    background-color: var(--color-background-darker);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.other-reasons-section h5 {
+    color: var(--color-text-primary);
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.other-reasons-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.other-reason-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--color-background-light);
+    border-radius: 4px;
+    border-left: 3px solid var(--color-primary);
+}
+
+.other-reason-text {
+    flex: 1;
+    color: var(--color-text-primary);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.other-reason-count {
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
+
+/* Email Type Table Column Widths */
+.email-type-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.email-type-col {
+    width: 50% !important;
+    text-align: left !important;
+}
+
+.sent-col,
+.queued-col {
+    width: 15% !important;
+    text-align: center !important;
+}
+
+.avg-col {
+    width: 20% !important;
+    text-align: center !important;
+}
+
+.email-type-cell {
+    text-align: left !important;
+    font-weight: 500;
+    padding-left: 1rem !important;
+}
+
+.sent-cell,
+.queued-cell,
+.avg-cell {
+    text-align: center !important;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+/* Test Email Section */
+.test-email-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.75rem 0;
+    padding: 1rem;
+    background-color: var(--color-background-darker);
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+}
+
+.test-email-input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--color-border);
+    border-radius: 6px;
+    background-color: var(--color-background-light);
+    color: var(--color-text-primary);
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.test-email-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.test-email-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.test-email-input::placeholder {
+    color: var(--color-text-muted);
+}
+
+.opt-out-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--color-warning);
+    margin-bottom: 0.25rem;
+}
+
+.opt-out-label {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    text-align: center;
+}
+
+.email-type-breakdown {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.email-type-breakdown h4 {
+    margin-bottom: 1rem;
+    color: var(--color-text-primary);
+    font-size: 1.1rem;
+}
+
+.email-type-cell {
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.applicant-email-status-section,
+.queued-emails-section,
+.email-history-section {
+    margin-top: 2rem;
+    background: var(--color-background-light);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid var(--color-border);
+}
+
+.applicant-email-status-section h3,
+.queued-emails-section h3,
+.email-history-section h3 {
+    margin-bottom: 1rem;
+    color: var(--color-text-primary);
+    font-size: 1.2rem;
+}
+
+.send-count {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    background: var(--color-success-light);
+    color: var(--color-success-dark);
+}
+
+.send-count--max {
+    background: var(--color-warning-light);
+    color: var(--color-warning-dark);
+}
+
+.next-send {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+}
+
+.next-send--none {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+.create-btn--secondary {
+    background: var(--color-secondary);
+    border: 1px solid var(--color-secondary);
+}
+
+.create-btn--secondary:hover {
+    background: var(--color-secondary-dark);
+    border-color: var(--color-secondary-dark);
+}
+
+.create-btn--danger {
+    background: var(--color-danger);
+    border: 1px solid var(--color-danger);
+}
+
+.create-btn--danger:hover {
+    background: var(--color-danger-dark);
+    border-color: var(--color-danger-dark);
+}
+
+/* Applicant Email Status Styles */
+.opt-out-indicator {
+    margin-left: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.stage-badge, .app-status-badge, .info-session-badge, .workshop-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: capitalize;
+}
+
+.stage-badge--created { background: var(--color-info-light); color: var(--color-info-dark); }
+.stage-badge--application_started { background: var(--color-warning-light); color: var(--color-warning-dark); }
+.stage-badge--application_submitted { background: var(--color-primary-light); color: var(--color-primary-dark); }
+.stage-badge--info_session_attended { background: var(--color-success-light); color: var(--color-success-dark); }
+.stage-badge--workshop_invited { background: var(--color-secondary-light); color: var(--color-secondary-dark); }
+.stage-badge--workshop_attended { background: var(--color-success-light); color: var(--color-success-dark); }
+
+.app-status-badge--not_started { background: var(--color-text-muted); color: white; }
+.app-status-badge--in_progress { background: var(--color-warning-light); color: var(--color-warning-dark); }
+.app-status-badge--submitted { background: var(--color-success-light); color: var(--color-success-dark); }
+.app-status-badge--incomplete { background: var(--color-danger-light); color: var(--color-danger-dark); }
+
+.info-session-badge--attended { background: var(--color-success-light); color: var(--color-success-dark); }
+.info-session-badge--not-attended { background: var(--color-danger-light); color: var(--color-danger-dark); }
+
+.workshop-badge--not_invited { background: var(--color-text-muted); color: white; }
+.workshop-badge--invited { background: var(--color-secondary-light); color: var(--color-secondary-dark); }
+.workshop-badge--attended { background: var(--color-success-light); color: var(--color-success-dark); }
+
+.days-since {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+}
+
+.email-logs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.email-log-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.email-type {
+    font-weight: 500;
+    color: var(--color-text-primary);
+    text-transform: capitalize;
+}
+
+.queued-indicator {
+    background: var(--color-warning-light);
+    color: var(--color-warning-dark);
+    padding: 0.1rem 0.3rem;
+    border-radius: 8px;
+    font-size: 0.7rem;
+}
+
+.no-emails {
+    color: var(--color-text-muted);
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.next-email-info {
+    font-size: 0.8rem;
+}
+
+.next-email-type {
+    font-weight: 500;
+    color: var(--color-text-primary);
+    text-transform: capitalize;
+}
+
+.next-email-date {
+    color: var(--color-text-secondary);
+    font-size: 0.75rem;
+}
+
+.email-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* SweetAlert2 Email Preview Styles */
+.email-preview-summary,
+.email-results-summary {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--color-background-light);
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.summary-label {
+    font-weight: bold;
+    color: var(--color-text-primary);
+}
+
+.summary-value {
+    font-weight: bold;
+    color: var(--color-primary);
+}
+
+.email-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.email-preview-table th,
+.email-preview-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.email-preview-table th {
+    background: var(--color-background-light);
+    font-weight: bold;
+    color: var(--color-text-primary);
+}
+
+.email-preview-table tr:nth-child(even) {
+    background: var(--color-background-light);
+}
+
+.email-type {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: var(--color-primary-light);
+    color: var(--color-primary-dark);
+    font-size: 0.8rem;
+    text-transform: capitalize;
+}
+
+.email-action {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: var(--color-success-light);
+    color: var(--color-success-dark);
+    font-size: 0.8rem;
+}
+
+.email-confirm-message {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: var(--color-danger-light);
+    border-radius: 8px;
+    border: 1px solid var(--color-danger);
+}
+
+.email-confirm-message p {
+    margin: 0.5rem 0;
+    color: var(--color-danger-dark);
+}
+
+/* Skipped Applicants Styles */
+.skipped-applicants {
+    margin-top: 2rem;
+    border-top: 1px solid var(--color-border);
+    padding-top: 1rem;
+}
+
+.skipped-applicants details {
+    background: var(--color-background-light);
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.skipped-applicants summary {
+    padding: 1rem;
+    cursor: pointer;
+    user-select: none;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--color-background-light);
+}
+
+.skipped-applicants summary:hover {
+    background: var(--color-background);
+}
+
+.skipped-summary-title {
+    color: var(--color-text-secondary);
+}
+
+.skipped-content {
+    padding: 1rem;
+    background: var(--color-background);
+    border-top: 1px solid var(--color-border);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.skipped-applicants-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.skipped-applicants-table th,
+.skipped-applicants-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.skipped-applicants-table th {
+    font-weight: bold;
+    color: var(--color-text-secondary);
+}
+
+.skip-reason {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: var(--color-warning-light);
+    color: var(--color-warning-dark);
+    font-size: 0.8rem;
+}
+
+/* Responsive adjustments for email automation */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.75rem;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    .opt-out-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .admissions-dashboard__email-automation {
+        padding: 1rem;
+    }
+    
+    .applicant-email-status-section .data-table {
+        font-size: 0.8rem;
+    }
+    
+    .applicant-email-status-section th,
+    .applicant-email-status-section td {
+        padding: 0.5rem 0.25rem;
+    }
+}
+
 /* Allow name and email columns to wrap if needed */
 .data-table td:nth-child(2),
 .data-table td:nth-child(3) {

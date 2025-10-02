@@ -93,6 +93,10 @@ const ApplicationDetail = () => {
     const [actionsModalOpen, setActionsModalOpen] = useState(false);
     const [actionInProgress, setActionInProgress] = useState(false);
 
+    // Email tracking data
+    const [emailTrackingData, setEmailTrackingData] = useState(null);
+    const [emailTrackingLoading, setEmailTrackingLoading] = useState(false);
+
     // Collapsible sections state - all collapsed by default
     const [expandedSections, setExpandedSections] = useState({});
 
@@ -123,11 +127,42 @@ const ApplicationDetail = () => {
 
             const data = await response.json();
             setApplicationData(data);
+            
+            // Also fetch email tracking data
+            if (data.applicant?.applicant_id) {
+                fetchEmailTrackingData(data.applicant.applicant_id);
+            }
         } catch (error) {
             console.error('Error fetching application details:', error);
             setError('Failed to load application details. Please try again.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Fetch email tracking data
+    const fetchEmailTrackingData = async (applicantId) => {
+        try {
+            setEmailTrackingLoading(true);
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${applicantId}/email-tracking`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setEmailTrackingData(data);
+            } else {
+                console.log('No email tracking data available for this applicant');
+                setEmailTrackingData(null);
+            }
+        } catch (error) {
+            console.error('Error fetching email tracking data:', error);
+            setEmailTrackingData(null);
+        } finally {
+            setEmailTrackingLoading(false);
         }
     };
 
@@ -849,6 +884,104 @@ const ApplicationDetail = () => {
                     ) : (
                         <div className="no-responses">
                             <p>No responses found for this application.</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Email Tracking Section */}
+                <div className="application-detail__section">
+                    <h2>Email Tracking</h2>
+                    {emailTrackingLoading ? (
+                        <div className="application-detail__loading">
+                            <div className="application-detail__loading-spinner"></div>
+                            <p>Loading email tracking data...</p>
+                        </div>
+                    ) : emailTrackingData ? (
+                        <div className="application-detail__email-tracking">
+                            <div className="application-detail__email-tracking-stats">
+                                <div className="application-detail__email-stat">
+                                    <div className="application-detail__email-stat-value">
+                                        {Math.floor(emailTrackingData.days_since_account_created)} days
+                                    </div>
+                                    <div className="application-detail__email-stat-label">Days Since Account</div>
+                                </div>
+                                
+                                <div className="application-detail__email-stat">
+                                    <div className="application-detail__email-stat-value">
+                                        {emailTrackingData.email_logs && emailTrackingData.email_logs.length > 0 
+                                            ? emailTrackingData.email_logs.reduce((total, log) => total + (log.send_count || 0), 0)
+                                            : 0
+                                        }
+                                    </div>
+                                    <div className="application-detail__email-stat-label">Total Emails Sent</div>
+                                </div>
+                                
+                                <div className="application-detail__email-stat">
+                                    <div className="application-detail__email-stat-value">
+                                        {(() => {
+                                            if (!emailTrackingData.email_logs || emailTrackingData.email_logs.length === 0) {
+                                                return 'None';
+                                            }
+                                            
+                                            const nextEmails = emailTrackingData.email_logs
+                                                ?.filter(log => log.next_send_at && !log.is_queued)
+                                                ?.sort((a, b) => new Date(a.next_send_at) - new Date(b.next_send_at));
+                                            
+                                            if (nextEmails && nextEmails.length > 0) {
+                                                const nextEmail = nextEmails[0];
+                                                const nextDate = new Date(nextEmail.next_send_at);
+                                                return nextDate.toLocaleDateString();
+                                            } else {
+                                                return 'None';
+                                            }
+                                        })()}
+                                    </div>
+                                    <div className="application-detail__email-stat-label">Next Email</div>
+                                </div>
+                            </div>
+
+                            {emailTrackingData.email_logs && emailTrackingData.email_logs.length > 0 && (
+                                <div className="application-detail__email-logs">
+                                    <h3>Email History</h3>
+                                    <div className="application-detail__email-logs-list">
+                                        {emailTrackingData.email_logs.map((log, index) => (
+                                            <div key={index} className="application-detail__email-log-item">
+                                                <div className="application-detail__email-log-type">
+                                                    {log.email_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                </div>
+                                                <div className="application-detail__email-log-count">
+                                                    Sent {log.send_count} time{log.send_count !== 1 ? 's' : ''}
+                                                </div>
+                                                {log.email_sent_at && (
+                                                    <div className="application-detail__email-log-date">
+                                                        Last sent: {new Date(log.email_sent_at).toLocaleDateString()}
+                                                    </div>
+                                                )}
+                                                {log.is_queued && (
+                                                    <div className="application-detail__email-log-queued">
+                                                        📋 Queued for next send
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {emailTrackingData.email_opt_out && (
+                                <div className="application-detail__opt-out-info">
+                                    <h3>Opt-out Information</h3>
+                                    <div className="application-detail__opt-out-details">
+                                        <p><strong>Status:</strong> Opted out of automated emails</p>
+                                        <p><strong>Date:</strong> {new Date(emailTrackingData.email_opt_out_date_est).toLocaleDateString()}</p>
+                                        <p><strong>Reason:</strong> {emailTrackingData.email_opt_out_reason}</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="application-detail__no-email-data">
+                            <p>No email tracking data available for this applicant.</p>
                         </div>
                     )}
                 </div>
