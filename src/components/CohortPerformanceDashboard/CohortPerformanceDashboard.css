@@ -55,6 +55,7 @@
 .cohort-performance-dashboard__cohort-card {
   background-color: var(--color-background-light);
   border: 1px solid var(--color-border);
+  border-radius: 12px; /* rounded corners for modern look */
   transition: all 0.3s ease;
   height: 100%;
 }
@@ -101,12 +102,6 @@
   margin-bottom: var(--spacing-md);
 }
 
-.cohort-performance-dashboard__stat-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-xs) 0;
-}
 
 .cohort-performance-dashboard__trend-section {
   padding-top: var(--spacing-md);
@@ -122,6 +117,7 @@
 .cohort-performance-dashboard__risk-card {
   background-color: var(--color-background-light);
   border: 1px solid var(--color-border);
+  border-radius: 12px; /* rounded corners for modern look */
   margin-bottom: var(--spacing-lg);
 }
 
@@ -174,7 +170,13 @@
 .cohort-performance-dashboard__summary-card {
   background-color: var(--color-background-light);
   border: 1px solid var(--color-border);
+  border-radius: 12px; /* rounded corners for modern look */
   transition: all 0.3s ease;
+  min-height: 150px !important; /* reduced from 200px - 25% smaller */
+  max-height: 150px !important; /* reduced from 200px - 25% smaller */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .cohort-performance-dashboard__summary-card:hover {
@@ -321,23 +323,157 @@
   border-color: var(--color-primary);
 }
 
-/* Typography Overrides */
+/* Typography Overrides - Enhanced Contrast for White Cards */
 .cohort-performance-dashboard .MuiTypography-h4 {
-  color: var(--color-text-primary);
+  color: #1a1a1a !important; /* text-gray-900 for high contrast on white cards */
   font-weight: 700;
 }
 
 .cohort-performance-dashboard .MuiTypography-h6 {
-  color: var(--color-text-primary);
+  color: #1a1a1a !important; /* text-gray-900 for high contrast on white cards */
   font-weight: 600;
 }
 
 .cohort-performance-dashboard .MuiTypography-body2 {
-  color: var(--color-text-secondary);
+  color: #374151 !important; /* text-gray-700 for good contrast on white cards */
 }
 
 .cohort-performance-dashboard .MuiTypography-caption {
-  color: var(--color-text-muted);
+  color: #4b5563 !important; /* text-gray-600 for secondary text on white cards */
+}
+
+/* Cohort Cards - Ensure dark text on white backgrounds */
+.cohort-performance-dashboard__cohort-card .MuiTypography-h6 {
+  color: #1a1a1a !important; /* cohort names */
+  font-weight: 600;
+}
+
+.cohort-performance-dashboard__cohort-card .MuiTypography-body2 {
+  color: #374151 !important; /* labels and secondary text */
+}
+
+/* Progress section text */
+.cohort-performance-dashboard__progress-header .MuiTypography-body2 {
+  color: #374151 !important; /* "Progress to Requirement" label */
+}
+
+/* Stats section text */
+.cohort-performance-dashboard__stat-row .MuiTypography-body2 {
+  color: #374151 !important; /* "Total Builders:", "Present Today:", etc. */
+}
+
+/* Stat row styling for horizontal alignment */
+.cohort-performance-dashboard__stat-row .MuiTypography-body2:first-child {
+  font-weight: 500; /* label weight */
+  text-align: left;
+  flex: 1;
+}
+
+.cohort-performance-dashboard__stat-row .MuiTypography-body2:last-child {
+  font-weight: 600; /* value weight */
+  text-align: right;
+  flex: 0 0 auto;
+}
+
+/* Summary Cards - 25% font size reduction for better proportion */
+.cohort-performance-dashboard__summary-card .MuiTypography-h6 {
+  color: #1a1a1a !important; /* card titles */
+  font-weight: 600;
+  font-size: 1.125rem !important; /* 18px - 25% smaller than 24px */
+}
+
+.cohort-performance-dashboard__summary-card .MuiTypography-h4 {
+  color: #1a1a1a !important; /* metric values */
+  font-weight: 700;
+  font-size: 2rem !important; /* 32px - 25% smaller than ~42-48px */
+}
+
+.cohort-performance-dashboard__summary-card .MuiTypography-body2 {
+  color: #374151 !important; /* descriptions */
+  font-size: 0.75rem !important; /* 12px - 25% smaller than 16px */
+}
+
+/* Risk Card - Ensure dark text on white background */
+.cohort-performance-dashboard__risk-card .MuiTypography-h6 {
+  color: #1a1a1a !important; /* "Builders at Risk" header */
+  font-weight: 600;
+  text-align: center; /* center the header */
+}
+
+.cohort-performance-dashboard__risk-card .MuiTypography-body2 {
+  color: #374151 !important; /* subtitle text */
+  text-align: center; /* center the subtitle */
+}
+
+/* Requirement Info Section - White text on dark background */
+.cohort-performance-dashboard__requirement-info .MuiTypography-body2 {
+  color: #ffffff !important; /* "Requirement: 85%" text - white on dark background */
+  font-weight: 500;
+}
+
+/* Center alignment for all card content */
+.cohort-performance-dashboard__cohort-card .MuiCardContent-root {
+  text-align: center;
+}
+
+.cohort-performance-dashboard__summary-card .MuiCardContent-root {
+  text-align: center;
+  padding: var(--spacing-md) !important; /* reduced padding - 25% smaller */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Reduce internal spacing in summary cards */
+.cohort-performance-dashboard__summary-card .MuiTypography-root {
+  margin: var(--spacing-xs) 0 !important; /* reduced margins */
+}
+
+/* Center align specific sections */
+.cohort-performance-dashboard__cohort-header {
+  justify-content: center;
+  text-align: center;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.cohort-performance-dashboard__requirement-info {
+  justify-content: center;
+  text-align: center;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.cohort-performance-dashboard__progress-header {
+  justify-content: center;
+  text-align: center;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.cohort-performance-dashboard__cohort-stats {
+  align-items: center;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.cohort-performance-dashboard__stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: var(--spacing-xs) 0;
+}
+
+.cohort-performance-dashboard__trend-header {
+  justify-content: center;
+  text-align: center;
+  flex-direction: column;
+  gap: var(--spacing-xs);
 }
 
 /* Alert Styling */
@@ -375,6 +511,71 @@
 .cohort-performance-dashboard__risk-table .MuiTable-root {
   border-collapse: separate;
   border-spacing: 0;
+}
+
+/* Filter Row Styling */
+.cohort-performance-dashboard__filter-row {
+  background-color: var(--color-background-light);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cohort-performance-dashboard__filter-row .MuiTableCell-root {
+  padding: var(--spacing-xs);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cohort-performance-dashboard__filter-row .MuiTextField-root,
+.cohort-performance-dashboard__filter-row .MuiSelect-root {
+  width: 100%;
+}
+
+.cohort-performance-dashboard__filter-row .MuiInputBase-input {
+  font-size: 0.75rem;
+  padding: var(--spacing-xs);
+}
+
+/* Filter Input Text Color Fixes - Critical for Visibility */
+.cohort-performance-dashboard__filter-row .MuiInputBase-input {
+  color: #1a1a1a !important; /* dark text for visibility */
+  background-color: #ffffff !important; /* white background */
+}
+
+.cohort-performance-dashboard__filter-row .MuiInputBase-input::placeholder {
+  color: #6b7280 !important; /* medium gray for placeholders */
+  opacity: 1 !important;
+}
+
+.cohort-performance-dashboard__filter-row .MuiSelect-select {
+  color: #1a1a1a !important; /* dark text for selected values */
+  background-color: #ffffff !important; /* white background */
+}
+
+.cohort-performance-dashboard__filter-row .MuiOutlinedInput-notchedOutline {
+  border-color: #d1d5db !important; /* subtle border */
+}
+
+.cohort-performance-dashboard__filter-row .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: #9ca3af !important; /* hover border */
+}
+
+.cohort-performance-dashboard__filter-row .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #3b82f6 !important; /* focus border */
+}
+
+/* Dropdown Menu Items */
+.MuiMenu-paper .MuiMenuItem-root {
+  color: #1a1a1a !important; /* dark text for menu items */
+  background-color: #ffffff !important; /* white background */
+}
+
+.MuiMenu-paper .MuiMenuItem-root:hover {
+  background-color: #f3f4f6 !important; /* light gray hover */
+  color: #1a1a1a !important; /* maintain dark text on hover */
+}
+
+.MuiMenu-paper .MuiMenuItem-root.Mui-selected {
+  background-color: #e5e7eb !important; /* selected background */
+  color: #1a1a1a !important; /* dark text for selected */
 }
 
 /* Progress Bar Custom Colors */

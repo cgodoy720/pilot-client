@@ -21,7 +21,8 @@ import {
   FormControl,
   Select,
   MenuItem,
-  InputLabel
+  InputLabel,
+  TextField
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -46,6 +47,16 @@ const CohortPerformanceDashboard = () => {
   const [fetchTime, setFetchTime] = useState(null);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('last-30-days');
+  
+  // Filter state for Builders at Risk table
+  const [filters, setFilters] = useState({
+    builder: '',
+    cohort: '',
+    attendanceRate: '',
+    status: '',
+    recommendation: ''
+  });
+  const [filteredRiskData, setFilteredRiskData] = useState([]);
 
   const fetchData = async (forceRefresh = false) => {
     try {
@@ -117,10 +128,63 @@ const CohortPerformanceDashboard = () => {
     return () => clearInterval(interval);
   }, [token, selectedPeriod]);
 
+  // Update filtered data when filters or data changes
+  useEffect(() => {
+    if (data?.riskAssessment) {
+      const filtered = applyFilters(data.riskAssessment);
+      setFilteredRiskData(filtered);
+    }
+  }, [data?.riskAssessment, filters]);
+
   const handleRefresh = () => {
     // Clear cache and force refresh
     cachedAdminApi.invalidateAllAttendanceCaches();
     fetchData(true); // Force refresh, bypass cache
+  };
+
+  // Filter handlers
+  const handleFilterChange = (filterType, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterType]: value
+    }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      builder: '',
+      cohort: '',
+      attendanceRate: '',
+      status: '',
+      recommendation: ''
+    });
+  };
+
+  // Filter logic for risk assessment data
+  const applyFilters = (riskData) => {
+    if (!riskData) return [];
+    
+    return riskData.filter(builder => {
+      const matchesBuilder = !filters.builder || 
+        `${builder.firstName} ${builder.lastName}`.toLowerCase().includes(filters.builder.toLowerCase()) ||
+        builder.email.toLowerCase().includes(filters.builder.toLowerCase());
+      
+      const matchesCohort = !filters.cohort || builder.cohort === filters.cohort;
+      
+      const matchesRate = !filters.attendanceRate || 
+        builder.attendanceRate.toString().includes(filters.attendanceRate);
+      
+      const requirement = getRequirementForCohort(builder.cohort);
+      const isAtRisk = builder.attendanceRate < requirement;
+      const matchesStatus = !filters.status || 
+        (filters.status === 'At Risk' && isAtRisk) ||
+        (filters.status === 'Safe' && !isAtRisk);
+      
+      const matchesRecommendation = !filters.recommendation || 
+        (builder.recommendation || 'Monitor').includes(filters.recommendation);
+      
+      return matchesBuilder && matchesCohort && matchesRate && matchesStatus && matchesRecommendation;
+    });
   };
 
   const getRequirementForCohort = (cohort) => {
@@ -276,7 +340,7 @@ const CohortPerformanceDashboard = () => {
         </Box>
       </Box>
 
-      {/* Performance Overview Cards */}
+      {/* Performance Overview Cards - Row 1: Cohort Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         {data.cohorts?.map((cohort) => {
           const requirement = getRequirementForCohort(cohort.cohort);
@@ -387,6 +451,57 @@ const CohortPerformanceDashboard = () => {
         })}
       </Grid>
 
+      {/* Summary Statistics - Row 2: Moved from third row */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} md={4}>
+          <Card className="cohort-performance-dashboard__summary-card">
+            <CardContent>
+              <Typography variant="h6" color="text.primary" gutterBottom>
+                Overall Performance
+              </Typography>
+              <Typography variant="h4" color="primary">
+                {data.summary?.overallAttendanceRate?.toFixed(1) || 0}%
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Average across all cohorts
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={4}>
+          <Card className="cohort-performance-dashboard__summary-card">
+            <CardContent>
+              <Typography variant="h6" color="text.primary" gutterBottom>
+                Cohorts Meeting Requirements
+              </Typography>
+              <Typography variant="h4" color="success.main">
+                {data.summary?.cohortsMeetingRequirement || 0} / {data.summary?.totalCohorts || 0}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Cohorts above threshold
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={4}>
+          <Card className="cohort-performance-dashboard__summary-card">
+            <CardContent>
+              <Typography variant="h6" color="text.primary" gutterBottom>
+                Builders at Risk
+              </Typography>
+              <Typography variant="h4" color="error.main">
+                {data.summary?.buildersAtRisk || 0}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Requiring attention
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
       {/* Risk Assessment Section */}
       {data.riskAssessment && data.riskAssessment.length > 0 && (
         <Card className="cohort-performance-dashboard__risk-card">
@@ -399,6 +514,9 @@ const CohortPerformanceDashboard = () => {
             </Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Builders below attendance thresholds requiring attention
+              {filteredRiskData.length !== data.riskAssessment.length && (
+                <span> ({filteredRiskData.length} of {data.riskAssessment.length} shown)</span>
+              )}
             </Typography>
             
             <TableContainer component={Paper} className="cohort-performance-dashboard__risk-table">
@@ -412,9 +530,144 @@ const CohortPerformanceDashboard = () => {
                     <TableCell align="center">Status</TableCell>
                     <TableCell align="center">Recommendation</TableCell>
                   </TableRow>
+                  <TableRow className="cohort-performance-dashboard__filter-row">
+                    <TableCell>
+                      <TextField
+                        size="small"
+                        placeholder="Filter by name..."
+                        value={filters.builder}
+                        onChange={(e) => handleFilterChange('builder', e.target.value)}
+                        InputProps={{ 
+                          style: { 
+                            backgroundColor: '#fff',
+                            color: '#1a1a1a',
+                            fontSize: '0.75rem'
+                          } 
+                        }}
+                        inputProps={{
+                          style: {
+                            color: '#1a1a1a'
+                          }
+                        }}
+                        sx={{ 
+                          minWidth: '120px',
+                          '& .MuiInputBase-input::placeholder': {
+                            color: '#6b7280',
+                            opacity: 1
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        size="small"
+                        displayEmpty
+                        value={filters.cohort}
+                        onChange={(e) => handleFilterChange('cohort', e.target.value)}
+                        style={{ 
+                          backgroundColor: '#fff', 
+                          color: '#1a1a1a',
+                          minWidth: '120px',
+                          fontSize: '0.75rem'
+                        }}
+                        MenuProps={{
+                          PaperProps: {
+                            style: {
+                              backgroundColor: '#fff'
+                            }
+                          }
+                        }}
+                      >
+                        <MenuItem value="" style={{ color: '#1a1a1a' }}>All Cohorts</MenuItem>
+                        <MenuItem value="March 2025" style={{ color: '#1a1a1a' }}>March 2025</MenuItem>
+                        <MenuItem value="September 2025" style={{ color: '#1a1a1a' }}>September 2025</MenuItem>
+                        <MenuItem value="June 2025" style={{ color: '#1a1a1a' }}>June 2025</MenuItem>
+                      </Select>
+                    </TableCell>
+                    <TableCell align="right">
+                      <TextField
+                        size="small"
+                        placeholder="Filter rate..."
+                        value={filters.attendanceRate}
+                        onChange={(e) => handleFilterChange('attendanceRate', e.target.value)}
+                        InputProps={{ 
+                          style: { 
+                            backgroundColor: '#fff',
+                            color: '#1a1a1a',
+                            fontSize: '0.75rem'
+                          } 
+                        }}
+                        inputProps={{
+                          style: {
+                            color: '#1a1a1a'
+                          }
+                        }}
+                        sx={{ 
+                          minWidth: '80px',
+                          '& .MuiInputBase-input::placeholder': {
+                            color: '#6b7280',
+                            opacity: 1
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      {/* No filter for Requirement */}
+                    </TableCell>
+                    <TableCell align="center">
+                      <Select
+                        size="small"
+                        displayEmpty
+                        value={filters.status}
+                        onChange={(e) => handleFilterChange('status', e.target.value)}
+                        style={{ 
+                          backgroundColor: '#fff', 
+                          color: '#1a1a1a',
+                          minWidth: '100px',
+                          fontSize: '0.75rem'
+                        }}
+                        MenuProps={{
+                          PaperProps: {
+                            style: {
+                              backgroundColor: '#fff'
+                            }
+                          }
+                        }}
+                      >
+                        <MenuItem value="" style={{ color: '#1a1a1a' }}>All Status</MenuItem>
+                        <MenuItem value="At Risk" style={{ color: '#1a1a1a' }}>At Risk</MenuItem>
+                        <MenuItem value="Safe" style={{ color: '#1a1a1a' }}>Safe</MenuItem>
+                      </Select>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Select
+                        size="small"
+                        displayEmpty
+                        value={filters.recommendation}
+                        onChange={(e) => handleFilterChange('recommendation', e.target.value)}
+                        style={{ 
+                          backgroundColor: '#fff', 
+                          color: '#1a1a1a',
+                          minWidth: '120px',
+                          fontSize: '0.75rem'
+                        }}
+                        MenuProps={{
+                          PaperProps: {
+                            style: {
+                              backgroundColor: '#fff'
+                            }
+                          }
+                        }}
+                      >
+                        <MenuItem value="" style={{ color: '#1a1a1a' }}>All</MenuItem>
+                        <MenuItem value="Monitor" style={{ color: '#1a1a1a' }}>Monitor</MenuItem>
+                        <MenuItem value="Intervention Required" style={{ color: '#1a1a1a' }}>Intervention Required</MenuItem>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
                 </TableHead>
                 <TableBody>
-                  {data.riskAssessment.map((builder, index) => {
+                  {filteredRiskData.map((builder, index) => {
                     const requirement = getRequirementForCohort(builder.cohort);
                     const isAtRisk = builder.attendanceRate < requirement;
                     
@@ -466,60 +719,23 @@ const CohortPerformanceDashboard = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+            
+            {/* Clear Filters Button */}
+            {(filters.builder || filters.cohort || filters.attendanceRate || filters.status || filters.recommendation) && (
+              <Box sx={{ mt: 2, textAlign: 'center' }}>
+                <Chip
+                  label="Clear All Filters"
+                  onClick={clearFilters}
+                  color="primary"
+                  variant="outlined"
+                  size="small"
+                />
+              </Box>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {/* Summary Statistics */}
-      <Grid container spacing={3} sx={{ mt: 2 }}>
-        <Grid item xs={12} md={4}>
-          <Card className="cohort-performance-dashboard__summary-card">
-            <CardContent>
-              <Typography variant="h6" color="text.primary" gutterBottom>
-                Overall Performance
-              </Typography>
-              <Typography variant="h4" color="primary">
-                {data.summary?.overallAttendanceRate?.toFixed(1) || 0}%
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Average across all cohorts
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} md={4}>
-          <Card className="cohort-performance-dashboard__summary-card">
-            <CardContent>
-              <Typography variant="h6" color="text.primary" gutterBottom>
-                Cohorts Meeting Requirements
-              </Typography>
-              <Typography variant="h4" color="success.main">
-                {data.summary?.cohortsMeetingRequirement || 0} / {data.summary?.totalCohorts || 0}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Cohorts above threshold
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} md={4}>
-          <Card className="cohort-performance-dashboard__summary-card">
-            <CardContent>
-              <Typography variant="h6" color="text.primary" gutterBottom>
-                Builders at Risk
-              </Typography>
-              <Typography variant="h4" color="error.main">
-                {data.summary?.buildersAtRisk || 0}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Requiring attention
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
     </Box>
   );
 };
