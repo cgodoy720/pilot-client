@@ -53,6 +53,7 @@ const ExcuseManagementInterface = () => {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [selectedCohort, setSelectedCohort] = useState('');
   
   // Dialog states
   const [excuseDialogOpen, setExcuseDialogOpen] = useState(false);
@@ -81,11 +82,15 @@ const ExcuseManagementInterface = () => {
   ];
 
   const cohorts = [
-    'June 2025 L2',
-    'March 2025 L3',
-    'January 2025 L1',
-    'October 2024 L1'
+    'March 2025',
+    'September 2025',
+    'June 2025'
   ];
+
+  // Filter builders by cohort
+  const filteredUnexcusedAbsences = selectedCohort 
+    ? pendingData?.unexcusedAbsences?.filter(user => user.cohort === selectedCohort) || []
+    : pendingData?.unexcusedAbsences || [];
 
   const fetchPendingData = async () => {
     try {
@@ -350,6 +355,7 @@ const ExcuseManagementInterface = () => {
             variant="outlined"
             startIcon={<AddIcon />}
             onClick={handleBulkExcuse}
+            className="excuse-management-interface__bulk-excuse-button"
             sx={{ mr: 1 }}
           >
             Bulk Excuse
@@ -402,69 +408,94 @@ const ExcuseManagementInterface = () => {
                 >
                   Builders with unexcused absences in the last 7 days. Click "Add Excuse" to approve their absence.
                 </Typography>
-                <Grid container spacing={2}>
-                  {pendingData.unexcusedAbsences.flatMap((user, userIndex) => 
+                
+                {/* Cohort Filter */}
+                <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Typography variant="body1" sx={{ color: '#ffffff' }}>
+                    Filter by Cohort:
+                  </Typography>
+                  <Select
+                    size="small"
+                    value={selectedCohort}
+                    onChange={(e) => setSelectedCohort(e.target.value)}
+                    displayEmpty
+                    sx={{
+                      backgroundColor: '#ffffff',
+                      color: '#1a1a1a',
+                      minWidth: '200px',
+                      '& .MuiSelect-select': {
+                        color: '#1a1a1a'
+                      }
+                    }}
+                  >
+                    <MenuItem value="" sx={{ color: '#1a1a1a' }}>All Cohorts</MenuItem>
+                    <MenuItem value="March 2025" sx={{ color: '#1a1a1a' }}>March 2025</MenuItem>
+                    <MenuItem value="September 2025" sx={{ color: '#1a1a1a' }}>September 2025</MenuItem>
+                    <MenuItem value="June 2025" sx={{ color: '#1a1a1a' }}>June 2025</MenuItem>
+                  </Select>
+                </Box>
+
+                <Box className="excuse-management-interface__cards-grid">
+                  {filteredUnexcusedAbsences.flatMap((user, userIndex) => 
                     user.absences.map((absence, absenceIndex) => (
-                      <Grid item xs={12} sm={6} md={4} key={`${userIndex}-${absenceIndex}`}>
-                        <Card variant="outlined" className="excuse-management-interface__absence-card">
-                          <CardContent>
-                            <Typography 
-                              variant="body2" 
-                              fontWeight="medium"
-                              sx={{ 
-                                color: 'var(--color-text-primary)',
-                                marginBottom: 'var(--spacing-xs)'
-                              }}
-                            >
-                              {user.firstName} {user.lastName}
-                            </Typography>
-                            <Typography 
-                              variant="caption" 
-                              sx={{ 
-                                color: 'var(--color-text-secondary)',
-                                display: 'block',
-                                marginBottom: 'var(--spacing-xs)'
-                              }}
-                            >
-                              {user.cohort}
-                            </Typography>
-                            <Typography 
-                              variant="caption" 
-                              display="block"
-                              sx={{ 
-                                color: 'var(--color-text-secondary)',
-                                marginBottom: 'var(--spacing-sm)'
-                              }}
-                            >
-                              {formatDate(absence.date)}
-                            </Typography>
-                            <Button
-                              size="small"
-                              startIcon={<AddIcon />}
-                              onClick={() => handleMarkExcused({
-                                userId: user.userId,
-                                absenceDate: absence.date,
-                                firstName: user.firstName,
-                                lastName: user.lastName
-                              })}
-                              sx={{ 
-                                mt: 1,
-                                backgroundColor: 'var(--color-primary)',
-                                color: 'white',
-                                '&:hover': {
-                                  backgroundColor: 'var(--color-primary-hover)'
-                                }
-                              }}
-                              variant="contained"
-                            >
-                              Add Excuse
-                            </Button>
-                          </CardContent>
-                        </Card>
-                      </Grid>
+                      <Card variant="outlined" className="excuse-management-interface__absence-card" key={`${userIndex}-${absenceIndex}`}>
+                        <CardContent>
+                          <Typography 
+                            variant="body2" 
+                            fontWeight="medium"
+                            sx={{ 
+                              color: '#1a1a1a',
+                              marginBottom: 'var(--spacing-xs)'
+                            }}
+                          >
+                            {user.firstName} {user.lastName}
+                          </Typography>
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              color: '#4b5563',
+                              display: 'block',
+                              marginBottom: 'var(--spacing-xs)'
+                            }}
+                          >
+                            {user.cohort}
+                          </Typography>
+                          <Typography 
+                            variant="caption" 
+                            display="block"
+                            sx={{ 
+                              color: '#4b5563',
+                              marginBottom: 'var(--spacing-sm)'
+                            }}
+                          >
+                            {formatDate(absence.date)}
+                          </Typography>
+                          <Button
+                            size="small"
+                            startIcon={<AddIcon />}
+                            onClick={() => handleMarkExcused({
+                              userId: user.userId,
+                              absenceDate: absence.date,
+                              firstName: user.firstName,
+                              lastName: user.lastName
+                            })}
+                            sx={{ 
+                              mt: 1,
+                              backgroundColor: 'var(--color-primary)',
+                              color: 'white',
+                              '&:hover': {
+                                backgroundColor: 'var(--color-primary-hover)'
+                              }
+                            }}
+                            variant="contained"
+                          >
+                            Add Excuse
+                          </Button>
+                        </CardContent>
+                      </Card>
                     ))
                   )}
-                </Grid>
+                </Box>
               </CardContent>
             </Card>
           ) : (

@@ -115,16 +115,84 @@
   margin-top: var(--spacing-lg);
 }
 
+/* Unexcused Absences tab text - black for visibility */
+.excuse-management-interface__unexcused-card .MuiTypography-h6 {
+  color: #1a1a1a !important; /* black text for title */
+}
+
+.excuse-management-interface__unexcused-card .MuiTypography-body2 {
+  color: #374151 !important; /* dark gray for description */
+}
+
 .excuse-management-interface__absence-card {
-  background-color: var(--color-background-darker);
+  background-color: var(--color-background-light); /* white background for better visibility */
   border: 1px solid var(--color-border);
   transition: all 0.3s ease;
+  width: calc(25% - var(--spacing-md)) !important; /* 4 cards per row */
+  min-width: 200px !important;
+  max-width: 280px !important;
+  padding: var(--spacing-md) !important; /* reduced padding */
+  margin: var(--spacing-sm) !important;
 }
 
 .excuse-management-interface__absence-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   border-color: var(--color-primary);
+}
+
+/* Builder name text - black for visibility on white cards */
+.excuse-management-interface__absence-card .MuiTypography-root {
+  color: #1a1a1a !important; /* black text for all typography */
+}
+
+.excuse-management-interface__absence-card .MuiTypography-body2 {
+  color: #1a1a1a !important; /* black text for builder names */
+  font-weight: 600 !important;
+}
+
+.excuse-management-interface__absence-card .MuiTypography-caption {
+  color: #4b5563 !important; /* dark gray for secondary text */
+}
+
+/* Grid layout for 4 cards per row */
+.excuse-management-interface__cards-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: var(--spacing-md) !important;
+}
+
+/* Responsive: 3 cards on medium screens */
+@media (max-width: 1200px) {
+  .excuse-management-interface__cards-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  
+  .excuse-management-interface__absence-card {
+    width: calc(33.333% - var(--spacing-md)) !important;
+  }
+}
+
+/* Responsive: 2 cards on small screens */
+@media (max-width: 768px) {
+  .excuse-management-interface__cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .excuse-management-interface__absence-card {
+    width: calc(50% - var(--spacing-md)) !important;
+  }
+}
+
+/* Responsive: 1 card on mobile */
+@media (max-width: 480px) {
+  .excuse-management-interface__cards-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .excuse-management-interface__absence-card {
+    width: 100% !important;
+  }
 }
 
 /* Dialog Styling */
@@ -212,6 +280,34 @@
   border-color: var(--color-primary);
   color: var(--color-primary);
   background-color: var(--color-primary-transparent);
+}
+
+/* Bulk Excuse button - white background, black text, no hover */
+.excuse-management-interface__bulk-excuse-button,
+.excuse-management-interface .MuiButton-outlined:has-text("Bulk Excuse") {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  border: 1px solid #d1d5db !important;
+}
+
+/* Remove hover effects for Bulk Excuse button */
+.excuse-management-interface__bulk-excuse-button:hover,
+.excuse-management-interface .MuiButton-outlined:has-text("Bulk Excuse"):hover {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  border: 1px solid #d1d5db !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Remove active/focus effects for Bulk Excuse button */
+.excuse-management-interface__bulk-excuse-button:active,
+.excuse-management-interface__bulk-excuse-button:focus,
+.excuse-management-interface .MuiButton-outlined:has-text("Bulk Excuse"):active,
+.excuse-management-interface .MuiButton-outlined:has-text("Bulk Excuse"):focus {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  border: 1px solid #d1d5db !important;
 }
 
 /* Chip Styling */
