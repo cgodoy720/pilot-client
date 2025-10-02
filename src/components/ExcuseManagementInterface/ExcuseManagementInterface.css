@@ -267,8 +267,44 @@
   color: white;
 }
 
+/* Override Material-UI button styles with more specific selectors */
 .excuse-management-interface .MuiButton-contained:hover {
   background-color: var(--color-primary-hover);
+}
+
+/* Bulk Excuse button - override Material-UI styles */
+.excuse-management-interface .MuiButton-outlined[class*="bulk-excuse"],
+.excuse-management-interface .MuiButton-outlined:has-text("Bulk Excuse") {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  border: 1px solid #d1d5db !important;
+}
+
+.excuse-management-interface .MuiButton-outlined[class*="bulk-excuse"]:hover,
+.excuse-management-interface .MuiButton-outlined:has-text("Bulk Excuse"):hover {
+  background-color: #f3f4f6 !important;
+  color: #1a1a1a !important;
+  border: 1px solid #d1d5db !important;
+}
+
+/* Add Excuse buttons - override Material-UI styles */
+.excuse-management-interface__add-excuse-button,
+.excuse-management-interface .MuiButton-contained[class*="add-excuse"] {
+  background-color: #6366f1 !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.excuse-management-interface__add-excuse-button:hover,
+.excuse-management-interface .MuiButton-contained[class*="add-excuse"]:hover {
+  background-color: #5b21b6 !important;
+  color: #ffffff !important;
+}
+
+.excuse-management-interface__add-excuse-button:active,
+.excuse-management-interface .MuiButton-contained[class*="add-excuse"]:active {
+  background-color: #4c1d95 !important;
+  color: #ffffff !important;
 }
 
 .excuse-management-interface .MuiButton-outlined {
@@ -282,33 +318,7 @@
   background-color: var(--color-primary-transparent);
 }
 
-/* Bulk Excuse button - white background, black text, no hover */
-.excuse-management-interface__bulk-excuse-button,
-.excuse-management-interface .MuiButton-outlined:has-text("Bulk Excuse") {
-  background-color: #ffffff !important;
-  color: #1a1a1a !important;
-  border: 1px solid #d1d5db !important;
-}
-
-/* Remove hover effects for Bulk Excuse button */
-.excuse-management-interface__bulk-excuse-button:hover,
-.excuse-management-interface .MuiButton-outlined:has-text("Bulk Excuse"):hover {
-  background-color: #ffffff !important;
-  color: #1a1a1a !important;
-  border: 1px solid #d1d5db !important;
-  opacity: 1 !important;
-  transform: none !important;
-}
-
-/* Remove active/focus effects for Bulk Excuse button */
-.excuse-management-interface__bulk-excuse-button:active,
-.excuse-management-interface__bulk-excuse-button:focus,
-.excuse-management-interface .MuiButton-outlined:has-text("Bulk Excuse"):active,
-.excuse-management-interface .MuiButton-outlined:has-text("Bulk Excuse"):focus {
-  background-color: #ffffff !important;
-  color: #1a1a1a !important;
-  border: 1px solid #d1d5db !important;
-}
+/* Bulk Excuse button styling now handled via sx prop in JSX for better specificity */
 
 /* Chip Styling */
 .excuse-management-interface .MuiChip-colorSuccess {
@@ -480,11 +490,7 @@
   outline-offset: 2px;
 }
 
-/* Hover Effects */
-.excuse-management-interface__absence-card:hover .MuiButton-root {
-  background-color: var(--color-primary);
-  color: white;
-}
+/* Hover Effects - Removed conflicting rule that affected all buttons */
 
 /* Tab Badge Styling */
 .excuse-management-interface__tabs .MuiBadge-root .MuiBadge-badge {

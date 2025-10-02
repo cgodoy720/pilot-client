@@ -356,7 +356,21 @@ const ExcuseManagementInterface = () => {
             startIcon={<AddIcon />}
             onClick={handleBulkExcuse}
             className="excuse-management-interface__bulk-excuse-button"
-            sx={{ mr: 1 }}
+            sx={{ 
+              mr: 1,
+              backgroundColor: '#ffffff',
+              color: '#1a1a1a',
+              border: '1px solid #d1d5db',
+              '&:hover': {
+                backgroundColor: '#f3f4f6', // gray on hover
+                color: '#1a1a1a',
+                border: '1px solid #d1d5db',
+              },
+              '&:active': {
+                backgroundColor: '#f3f4f6',
+                color: '#1a1a1a',
+              }
+            }}
           >
             Bulk Excuse
           </Button>
@@ -409,8 +423,14 @@ const ExcuseManagementInterface = () => {
                   Builders with unexcused absences in the last 7 days. Click "Add Excuse" to approve their absence.
                 </Typography>
                 
-                {/* Cohort Filter */}
-                <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+                {/* Cohort Filter - Centered */}
+                <Box sx={{ 
+                  mb: 3, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  gap: 2 
+                }}>
                   <Typography variant="body1" sx={{ color: '#ffffff' }}>
                     Filter by Cohort:
                   </Typography>
@@ -479,12 +499,19 @@ const ExcuseManagementInterface = () => {
                               firstName: user.firstName,
                               lastName: user.lastName
                             })}
+                            className="excuse-management-interface__add-excuse-button"
                             sx={{ 
                               mt: 1,
-                              backgroundColor: 'var(--color-primary)',
-                              color: 'white',
+                              backgroundColor: '#6366f1', // purple/blue
+                              color: '#ffffff',
+                              border: 'none',
                               '&:hover': {
-                                backgroundColor: 'var(--color-primary-hover)'
+                                backgroundColor: '#5b21b6', // darker purple on hover
+                                color: '#ffffff',
+                              },
+                              '&:active': {
+                                backgroundColor: '#4c1d95', // even darker purple on click
+                                color: '#ffffff',
                               }
                             }}
                             variant="contained"
