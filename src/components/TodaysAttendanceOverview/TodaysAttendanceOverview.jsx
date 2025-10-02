@@ -287,89 +287,87 @@ const TodaysAttendanceOverview = () => {
         </Grid>
       </Grid>
 
-      {/* Cohort Performance */}
-      <Grid container spacing={3}>
+      {/* Cohort Performance - Single Row Layout */}
+      <Box className="todays-attendance-overview__cohorts-grid">
         {data.cohorts?.map((cohort) => (
-          <Grid item xs={12} md={6} key={cohort.cohort}>
-            <Card className="todays-attendance-overview__cohort-card">
-              <CardContent>
-                <Box className="todays-attendance-overview__cohort-header">
-                  <Typography variant="h6" component="h3">
-                    {cohort.cohort}
+          <Card key={cohort.cohort} className="todays-attendance-overview__cohort-card">
+            <CardContent>
+              <Box className="todays-attendance-overview__cohort-header">
+                <Typography variant="h6" component="h3">
+                  {cohort.cohort}
+                </Typography>
+                <Chip
+                  icon={getAttendanceRateIcon(cohort.attendanceRate)}
+                  label={`${cohort.attendanceRate.toFixed(1)}%`}
+                  color={getAttendanceRateColor(cohort.attendanceRate)}
+                  variant="outlined"
+                />
+              </Box>
+
+              <Box className="todays-attendance-overview__cohort-stats">
+                <Box className="todays-attendance-overview__stat-item">
+                  <Typography variant="body2" color="text.secondary">
+                    Present: {cohort.present} / {cohort.totalBuilders}
                   </Typography>
-                  <Chip
-                    icon={getAttendanceRateIcon(cohort.attendanceRate)}
-                    label={`${cohort.attendanceRate.toFixed(1)}%`}
-                    color={getAttendanceRateColor(cohort.attendanceRate)}
-                    variant="outlined"
-                  />
                 </Box>
-
-                <Box className="todays-attendance-overview__cohort-stats">
-                  <Box className="todays-attendance-overview__stat-item">
-                    <Typography variant="body2" color="text.secondary">
-                      Present: {cohort.present} / {cohort.totalBuilders}
-                    </Typography>
-                  </Box>
-                  <Box className="todays-attendance-overview__stat-item">
-                    <Typography variant="body2" color="text.secondary">
-                      Late: {cohort.late}
-                    </Typography>
-                  </Box>
-                  <Box className="todays-attendance-overview__stat-item">
-                    <Typography variant="body2" color="text.secondary">
-                      Excused: {cohort.excused}
-                    </Typography>
-                  </Box>
-                  <Box className="todays-attendance-overview__stat-item">
-                    <Typography variant="body2" color="text.secondary">
-                      Absent: {cohort.absent}
-                    </Typography>
-                  </Box>
+                <Box className="todays-attendance-overview__stat-item">
+                  <Typography variant="body2" color="text.secondary">
+                    Late: {cohort.late}
+                  </Typography>
                 </Box>
+                <Box className="todays-attendance-overview__stat-item">
+                  <Typography variant="body2" color="text.secondary">
+                    Excused: {cohort.excused}
+                  </Typography>
+                </Box>
+                <Box className="todays-attendance-overview__stat-item">
+                  <Typography variant="body2" color="text.secondary">
+                    Absent: {cohort.absent}
+                  </Typography>
+                </Box>
+              </Box>
 
-                {/* Recent Check-ins */}
-                {cohort.recentCheckIns && cohort.recentCheckIns.length > 0 && (
-                  <Box className="todays-attendance-overview__recent-checkins">
-                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                      Recent Check-ins:
-                    </Typography>
-                    <Box className="todays-attendance-overview__checkin-list">
-                      {cohort.recentCheckIns.slice(0, 3).map((checkin, index) => (
-                        <Box key={index} className="todays-attendance-overview__checkin-item">
-                          <Typography variant="body2">
-                            {checkin.firstName} {checkin.lastName}
+              {/* Recent Check-ins */}
+              {cohort.recentCheckIns && cohort.recentCheckIns.length > 0 && (
+                <Box className="todays-attendance-overview__recent-checkins">
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Recent Check-ins:
+                  </Typography>
+                  <Box className="todays-attendance-overview__checkin-list">
+                    {cohort.recentCheckIns.slice(0, 3).map((checkin, index) => (
+                      <Box key={index} className="todays-attendance-overview__checkin-item">
+                        <Typography variant="body2">
+                          {checkin.firstName} {checkin.lastName}
+                        </Typography>
+                        <Box className="todays-attendance-overview__checkin-details">
+                          <Typography variant="caption" color="text.secondary">
+                            {formatTime(checkin.checkInTime)}
                           </Typography>
-                          <Box className="todays-attendance-overview__checkin-details">
-                            <Typography variant="caption" color="text.secondary">
-                              {formatTime(checkin.checkInTime)}
-                            </Typography>
-                            {checkin.lateArrivalMinutes > 0 && (
-                              <Chip
-                                label={`${checkin.lateArrivalMinutes}min late`}
-                                size="small"
-                                color={getLateArrivalColor(checkin.lateArrivalMinutes)}
-                                variant="outlined"
-                              />
-                            )}
-                          </Box>
+                          {checkin.lateArrivalMinutes > 0 && (
+                            <Chip
+                              label={`${checkin.lateArrivalMinutes}min late`}
+                              size="small"
+                              color={getLateArrivalColor(checkin.lateArrivalMinutes)}
+                              variant="outlined"
+                            />
+                          )}
                         </Box>
-                      ))}
-                    </Box>
+                      </Box>
+                    ))}
                   </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
         ))}
-      </Grid>
+      </Box>
 
       {/* Quick Actions */}
       <Box className="todays-attendance-overview__quick-actions">
         <Typography variant="h6" sx={{ mb: 2 }}>
           Quick Actions
         </Typography>
-        <Grid container spacing={2}>
+        <Grid container spacing={2} className="todays-attendance-overview__quick-actions-buttons">
           <Grid item>
             <Chip
               label="View Full Roster"

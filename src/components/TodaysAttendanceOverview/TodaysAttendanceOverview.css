@@ -46,9 +46,15 @@
   gap: var(--spacing-md);
 }
 
+/* Last Updated Text - White for visibility against dark background */
+.todays-attendance-overview__actions .MuiTypography-caption {
+  color: #ffffff !important; /* white text for visibility */
+}
+
 .todays-attendance-overview__summary-card {
   background-color: var(--color-background-light);
   border: 1px solid var(--color-border);
+  border-radius: 12px; /* rounded corners for modern look */
   transition: all 0.3s ease;
 }
 
@@ -59,8 +65,13 @@
 
 .todays-attendance-overview__summary-content {
   display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
+  flex-direction: column; /* stack icon and text vertically */
+  align-items: center; /* center horizontally */
+  justify-content: center; /* center vertically */
+  text-align: center; /* center text alignment */
+  gap: var(--spacing-sm); /* smaller gap for better spacing */
+  height: 100%; /* take full height of card */
+  min-height: 120px; /* ensure minimum height for proper centering */
 }
 
 .todays-attendance-overview__summary-icon {
@@ -71,6 +82,7 @@
 .todays-attendance-overview__cohort-card {
   background-color: var(--color-background-light);
   border: 1px solid var(--color-border);
+  border-radius: 12px; /* rounded corners for modern look */
   transition: all 0.3s ease;
   height: 100%;
 }
@@ -134,6 +146,51 @@
   border-top: 1px solid var(--color-border);
 }
 
+/* Quick Actions Section - White text and border for dark background visibility */
+.todays-attendance-overview__quick-actions {
+  border-top-color: #ffffff !important; /* white border for contrast */
+}
+
+/* Removed - replaced with more specific selector below */
+
+/* Center-align Quick Action buttons */
+.todays-attendance-overview__quick-actions .MuiGrid-container {
+  justify-content: center !important; /* center the button container */
+  display: flex !important;
+  flex-wrap: wrap !important;
+}
+
+.todays-attendance-overview__quick-actions .MuiGrid-item {
+  display: flex !important;
+  justify-content: center !important;
+}
+
+/* Specific styling for Quick Actions buttons container */
+.todays-attendance-overview__quick-actions-buttons {
+  justify-content: center !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: var(--spacing-md) !important; /* consistent spacing between buttons */
+}
+
+.todays-attendance-overview__quick-actions-buttons .MuiGrid-item {
+  flex: 0 0 auto !important; /* don't grow or shrink, maintain natural size */
+  display: flex !important;
+  justify-content: center !important;
+}
+
+.todays-attendance-overview__quick-actions .MuiChip-root {
+  color: #1a1a1a !important; /* text-gray-900 for chip text */
+  border-color: #d1d5db !important; /* border-gray-300 */
+  background-color: #ffffff !important; /* bg-white */
+}
+
+.todays-attendance-overview__quick-actions .MuiChip-root:hover {
+  color: #1a1a1a !important; /* text-gray-900 on hover */
+  background-color: #f9fafb !important; /* bg-gray-50 on hover */
+  border-color: #9ca3af !important; /* border-gray-400 on hover */
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .todays-attendance-overview {
@@ -195,6 +252,13 @@
   }
 }
 
+/* CRITICAL: Ensure Quick Actions text is white - maximum specificity */
+.todays-attendance-overview .todays-attendance-overview__quick-actions .MuiTypography-h6 {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  text-align: center !important;
+}
+
 /* Loading Animation */
 @keyframes pulse {
   0% {
@@ -242,23 +306,69 @@
   border-color: var(--color-primary);
 }
 
-/* Typography Overrides */
+/* Typography Overrides - Enhanced Contrast for Accessibility */
 .todays-attendance-overview .MuiTypography-h4 {
-  color: var(--color-text-primary);
+  color: #1a1a1a !important; /* text-gray-900 equivalent for high contrast */
   font-weight: 700;
 }
 
 .todays-attendance-overview .MuiTypography-h6 {
-  color: var(--color-text-primary);
+  color: #1a1a1a !important; /* text-gray-900 equivalent for high contrast */
   font-weight: 600;
 }
 
 .todays-attendance-overview .MuiTypography-body2 {
-  color: var(--color-text-secondary);
+  color: #374151 !important; /* text-gray-700 equivalent for good contrast */
 }
 
 .todays-attendance-overview .MuiTypography-caption {
-  color: var(--color-text-muted);
+  color: #4b5563 !important; /* text-gray-600 equivalent for secondary text */
+}
+
+/* Quick Actions Header - Override general h6 styling with white color */
+.todays-attendance-overview .todays-attendance-overview__quick-actions .MuiTypography-h6 {
+  color: #ffffff !important; /* white text for visibility against dark background */
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Summary Card Text - Ensure high contrast against white backgrounds */
+.todays-attendance-overview__summary-card .MuiTypography-h4 {
+  color: #1a1a1a !important; /* text-gray-900 for large numbers */
+  font-weight: 700;
+}
+
+.todays-attendance-overview__summary-card .MuiTypography-body2 {
+  color: #374151 !important; /* text-gray-700 for secondary text */
+}
+
+/* Cohort Card Text - Ensure high contrast */
+.todays-attendance-overview__cohort-card .MuiTypography-h6 {
+  color: #1a1a1a !important; /* text-gray-900 for cohort names */
+  font-weight: 600;
+}
+
+.todays-attendance-overview__cohort-card .MuiTypography-body2 {
+  color: #374151 !important; /* text-gray-700 for stats */
+}
+
+.todays-attendance-overview__cohort-card .MuiTypography-subtitle2 {
+  color: #1a1a1a !important; /* text-gray-900 for section headers */
+  font-weight: 600;
+}
+
+.todays-attendance-overview__cohort-card .MuiTypography-caption {
+  color: #4b5563 !important; /* text-gray-600 for timestamps */
+}
+
+/* Check-in Item Text - Ensure high contrast */
+.todays-attendance-overview__checkin-item .MuiTypography-body2 {
+  color: #1a1a1a !important; /* text-gray-900 for names */
+  font-weight: 500;
+}
+
+.todays-attendance-overview__checkin-item .MuiTypography-caption {
+  color: #4b5563 !important; /* text-gray-600 for timestamps */
 }
 
 /* Alert Styling */
@@ -285,4 +395,25 @@
 .todays-attendance-overview .MuiIconButton-root:disabled {
   color: var(--color-text-muted);
   background-color: transparent;
+}
+
+/* Cohort Cards - Single Row Layout */
+.todays-attendance-overview__cohorts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 equal columns */
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+}
+
+/* Responsive cohort grid */
+@media (max-width: 1200px) {
+  .todays-attendance-overview__cohorts-grid {
+    grid-template-columns: repeat(2, 1fr); /* 2 columns on medium screens */
+  }
+}
+
+@media (max-width: 768px) {
+  .todays-attendance-overview__cohorts-grid {
+    grid-template-columns: 1fr; /* 1 column on mobile */
+  }
 }

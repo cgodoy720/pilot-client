@@ -61,3 +61,35 @@
   padding: 1rem;
   padding-top: 0;
 }
+
+/* Quick Action Buttons - Ensure white text on dark backgrounds */
+.admin-attendance-dashboard .MuiButton-contained {
+  color: #ffffff !important; /* text-white for high contrast */
+}
+
+.admin-attendance-dashboard .MuiButton-contained:hover {
+  color: #ffffff !important; /* text-white on hover */
+}
+
+.admin-attendance-dashboard .MuiButton-outlined {
+  color: #1a1a1a !important; /* text-gray-900 for outlined buttons */
+  border-color: #d1d5db !important; /* border-gray-300 */
+}
+
+.admin-attendance-dashboard .MuiButton-outlined:hover {
+  color: #1a1a1a !important; /* text-gray-900 on hover */
+  background-color: #f9fafb !important; /* bg-gray-50 */
+}
+
+/* Ensure all button text is visible and accessible */
+.admin-attendance-dashboard .MuiButton-root {
+  font-weight: 500;
+}
+
+.admin-attendance-dashboard .MuiButton-root .MuiButton-startIcon {
+  color: inherit;
+}
+
+.admin-attendance-dashboard .MuiButton-root .MuiButton-endIcon {
+  color: inherit;
+}

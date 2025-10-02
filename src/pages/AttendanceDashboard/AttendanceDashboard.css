@@ -781,27 +781,34 @@ html, body {
   border-color: var(--color-text-muted);
 }
 
-/* Today's Attendance Styles - More Compact */
+/* Today's Attendance Styles - Learning.jsx Theme */
 .attendance-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--spacing-md);
   color: var(--color-text-muted);
+  padding: var(--spacing-lg);
+  background-color: var(--color-background-dark);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  min-height: 200px;
+  justify-content: center;
 }
 
 .attendance-summary {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
+  padding: var(--spacing-sm);
 }
 
-/* First row: Total, On Time, Late stats */
+/* First row: Total, On Time, Late stats - Learning task panel style */
 .attendance-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
 }
 
 .stat-item {
@@ -809,46 +816,61 @@ html, body {
   flex-direction: column;
   align-items: center;
   gap: var(--spacing-xs);
-  padding: var(--spacing-sm);
+  padding: var(--spacing-md);
   background-color: var(--color-background-darker);
-  border-radius: 4px;
+  border-radius: 8px;
   border: 1px solid var(--color-border);
-  transition: all var(--transition-speed);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  min-height: 80px;
+  justify-content: center;
+}
+
+.stat-item:hover {
+  background-color: var(--color-background-darker);
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1;
 }
 
 .stat-item.total {
-  border-color: var(--color-primary);
-  background-color: rgba(99, 102, 241, 0.05);
+  border-left: 4px solid var(--color-primary);
+  background-color: var(--color-primary-transparent);
+  animation: highlightTask 0.5s ease;
 }
 
 .stat-item.on-time {
-  border-color: #22c55e;
+  border-left: 4px solid #22c55e;
   background-color: rgba(34, 197, 94, 0.05);
 }
 
 .stat-item.late {
-  border-color: #ef4444;
+  border-left: 4px solid #ef4444;
   background-color: rgba(239, 68, 68, 0.05);
 }
 
 .stat-number {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--color-primary);
+  margin-bottom: 4px;
 }
 
 .stat-label {
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   color: var(--color-text-muted);
   text-align: center;
+  font-weight: 500;
 }
 
-/* Second row: Cohort rectangles - Same style as first row */
+/* Second row: Cohort rectangles - Learning resource style */
 .cohort-stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
 }
 
 .cohort-stat-item {
@@ -856,23 +878,31 @@ html, body {
   flex-direction: column;
   align-items: center;
   gap: var(--spacing-xs);
-  padding: var(--spacing-sm);
+  padding: var(--spacing-md);
   background-color: var(--color-background-darker);
-  border-radius: 4px;
+  border-radius: 8px;
   border: 1px solid var(--color-border);
-  transition: all var(--transition-speed);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  min-height: 80px;
+  justify-content: center;
 }
 
 .cohort-stat-item:hover {
+  background-color: var(--color-background-darker);
   border-color: var(--color-primary);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1;
 }
 
 .cohort-name {
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--color-text-primary);
   text-align: center;
+  margin-bottom: 4px;
 }
 
 .cohort-numbers {
@@ -883,32 +913,37 @@ html, body {
 }
 
 .cohort-total {
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: var(--color-primary);
+  margin-bottom: 4px;
 }
 
 .cohort-details {
   display: flex;
   gap: var(--spacing-sm);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
 }
 
 .cohort-on-time {
   color: #22c55e;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .cohort-late {
   color: #ef4444;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .attendance-date {
   text-align: center;
   color: var(--color-text-secondary);
-  font-size: 0.8rem;
-  margin-bottom: var(--spacing-sm);
+  font-size: 0.9rem;
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm);
+  background-color: var(--color-background-dark);
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
 }
 
 /* Remove old cohort breakdown styles */
@@ -925,19 +960,28 @@ html, body {
   background-color: var(--color-primary);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 0.9rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color var(--transition-speed);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .refresh-button:hover:not(:disabled) {
   background-color: var(--color-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .refresh-button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+  transform: none;
 }
 
 .attendance-error {
@@ -947,21 +991,33 @@ html, body {
   gap: var(--spacing-md);
   color: var(--color-text-muted);
   text-align: center;
+  padding: var(--spacing-lg);
+  background-color: var(--color-background-dark);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
 }
 
 .retry-button {
   padding: var(--spacing-sm) var(--spacing-md);
-  background-color: var(--color-border);
-  color: var(--color-text-primary);
+  background-color: var(--color-primary);
+  color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 0.9rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color var(--transition-speed);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .retry-button:hover {
-  background-color: var(--color-text-muted);
+  background-color: var(--color-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* Settings Modal */
@@ -1157,6 +1213,22 @@ html, body {
     gap: var(--spacing-sm);
   }
   
+  .stat-item,
+  .cohort-stat-item {
+    min-height: 70px;
+    padding: var(--spacing-sm);
+  }
+  
+  .stat-number,
+  .cohort-total {
+    font-size: 1.2rem;
+  }
+  
+  .stat-label,
+  .cohort-name {
+    font-size: 0.8rem;
+  }
+  
   .confirmation-actions {
     flex-direction: column;
   }
@@ -1226,6 +1298,26 @@ html, body {
   .submit-button {
     padding: var(--spacing-sm) var(--spacing-md);
     font-size: 0.9rem;
+  }
+  
+  .stat-item,
+  .cohort-stat-item {
+    min-height: 60px;
+    padding: var(--spacing-xs);
+  }
+  
+  .stat-number,
+  .cohort-total {
+    font-size: 1.1rem;
+  }
+  
+  .stat-label,
+  .cohort-name {
+    font-size: 0.75rem;
+  }
+  
+  .cohort-details {
+    font-size: 0.7rem;
   }
 }
 
@@ -1471,6 +1563,12 @@ html, body {
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes highlightTask {
+  0% { background-color: var(--color-background-darker); }
+  50% { background-color: var(--color-primary-transparent-light); }
+  100% { background-color: var(--color-primary-transparent); }
 }
 
 @keyframes scanFlash {
