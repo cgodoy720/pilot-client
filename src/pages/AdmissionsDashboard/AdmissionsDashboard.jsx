@@ -18,7 +18,7 @@ const AdmissionsDashboard = () => {
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
         const tabParam = searchParams.get('tab');
-        if (tabParam && ['overview', 'applications', 'info-sessions', 'workshops'].includes(tabParam)) {
+        if (tabParam && ['overview', 'applications', 'info-sessions', 'workshops', 'emails'].includes(tabParam)) {
             setActiveTab(tabParam);
         }
     }, [location.search]);
@@ -103,6 +103,15 @@ const AdmissionsDashboard = () => {
     // Event filtering state
     const [showInactiveInfoSessions, setShowInactiveInfoSessions] = useState(false);
     const [showInactiveWorkshops, setShowInactiveWorkshops] = useState(false);
+
+    // Email automation state
+    const [emailStats, setEmailStats] = useState(null);
+    const [queuedEmails, setQueuedEmails] = useState([]);
+    const [emailHistory, setEmailHistory] = useState([]);
+    const [applicantEmailStatus, setApplicantEmailStatus] = useState([]);
+    const [emailAutomationLoading, setEmailAutomationLoading] = useState(false);
+    const [testEmailAddress, setTestEmailAddress] = useState('');
+    const [testEmailLoading, setTestEmailLoading] = useState(false);
 
     // Check if user has admin access
     const hasAdminAccess = user?.role === 'admin' || user?.role === 'staff';
@@ -257,10 +266,189 @@ const AdmissionsDashboard = () => {
         return () => clearTimeout(timeoutId);
     }, [nameSearchInput]);
 
+    // Email automation fetch functions
+    const fetchEmailStats = async () => {
+        if (!hasAdminAccess || !token) return;
+
+        try {
+            setEmailAutomationLoading(true);
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/stats`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setEmailStats(data);
+            }
+        } catch (error) {
+            console.error('Error fetching email stats:', error);
+        } finally {
+            setEmailAutomationLoading(false);
+        }
+    };
+
+    const fetchQueuedEmails = async () => {
+        if (!hasAdminAccess || !token) return;
+
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/queued`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setQueuedEmails(data);
+            }
+        } catch (error) {
+            console.error('Error fetching queued emails:', error);
+        }
+    };
+
+    const fetchEmailHistory = async () => {
+        if (!hasAdminAccess || !token) return;
+
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/history`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setEmailHistory(data);
+            }
+        } catch (error) {
+            console.error('Error fetching email history:', error);
+        }
+    };
+
+    const fetchApplicantEmailStatus = async () => {
+        if (!hasAdminAccess || !token) return;
+
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/applicant-status`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setApplicantEmailStatus(data);
+            }
+        } catch (error) {
+            console.error('Error fetching applicant email status:', error);
+        }
+    };
+
+    const sendTestEmail = async () => {
+        if (!testEmailAddress.trim()) {
+            Swal.fire({
+                title: 'Email Required',
+                text: 'Please enter an email address to send the test email to.',
+                icon: 'warning',
+                confirmButtonColor: 'var(--color-primary)',
+                background: 'var(--color-background-dark)',
+                color: 'var(--color-text-primary)'
+            });
+            return;
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(testEmailAddress.trim())) {
+            Swal.fire({
+                title: 'Invalid Email',
+                text: 'Please enter a valid email address.',
+                icon: 'error',
+                confirmButtonColor: 'var(--color-primary)',
+                background: 'var(--color-background-dark)',
+                color: 'var(--color-text-primary)'
+            });
+            return;
+        }
+
+        try {
+            setTestEmailLoading(true);
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/send-test-email`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ email: testEmailAddress.trim() })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                Swal.fire({
+                    title: '📧 Test Email Sent!',
+                    html: `
+                        <div style="text-align: left;">
+                            <p><strong>Sent to:</strong> ${testEmailAddress}</p>
+                            <p><strong>Log ID:</strong> ${data.logId}</p>
+                            <hr style="margin: 15px 0;">
+                            <p><strong>Next Steps:</strong></p>
+                            <ol>
+                                <li>Check your email inbox</li>
+                                <li>Open the test email</li>
+                                <li>Return to this dashboard and refresh the Emails tab</li>
+                                <li>Check the updated open rate statistics</li>
+                            </ol>
+                        </div>
+                    `,
+                    icon: 'success',
+                    confirmButtonText: 'Got it!',
+                    confirmButtonColor: 'var(--color-primary)',
+                    background: 'var(--color-background-dark)',
+                    color: 'var(--color-text-primary)'
+                });
+                
+                // Clear the input and refresh stats
+                setTestEmailAddress('');
+                fetchEmailStats();
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to send test email');
+            }
+        } catch (error) {
+            console.error('Error sending test email:', error);
+            Swal.fire({
+                title: 'Error',
+                text: error.message || 'Failed to send test email. Please try again.',
+                icon: 'error',
+                confirmButtonColor: 'var(--color-primary)',
+                background: 'var(--color-background-dark)',
+                color: 'var(--color-text-primary)'
+            });
+        } finally {
+            setTestEmailLoading(false);
+        }
+    };
+
     // Load data on mount and when filters change
     useEffect(() => {
         fetchAdmissionsData();
     }, [token, hasAdminAccess, applicationFilters]);
+
+    // Load email automation data when tab changes
+    useEffect(() => {
+        if (activeTab === 'emails') {
+            fetchEmailStats();
+            fetchQueuedEmails();
+            fetchEmailHistory();
+            fetchApplicantEmailStatus();
+        }
+    }, [activeTab, token, hasAdminAccess]);
 
     // Debounced search for applicants
     useEffect(() => {
@@ -1479,6 +1667,12 @@ const AdmissionsDashboard = () => {
                     Workshops
                 </button>
                 <button
+                    className={`admissions-dashboard__tab ${activeTab === 'emails' ? 'admissions-dashboard__tab--active' : ''}`}
+                    onClick={() => handleTabChange('emails')}
+                >
+                    Emails
+                </button>
+                <button
                     className="admissions-dashboard__back-btn"
                     onClick={() => navigate('/dashboard')}
                 >
@@ -2448,6 +2642,493 @@ const AdmissionsDashboard = () => {
                                 <p>No workshops found</p>
                             </div>
                         )}
+                    </div>
+                )}
+
+                {activeTab === 'emails' && (
+                    <div className="admissions-dashboard__email-automation">
+                        <div className="data-section__header">
+                            <h2>Email Management</h2>
+                            <div className="data-section__actions">
+                                <button
+                                    onClick={async () => {
+                                        setEmailAutomationLoading(true);
+                                        try {
+                                            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/run`, {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Authorization': `Bearer ${token}`,
+                                                    'Content-Type': 'application/json'
+                                                },
+                                                body: JSON.stringify({ dryRun: true })
+                                            });
+                                            
+                                            if (response.ok) {
+                                                const results = await response.json();
+                                                
+                                                // Format email list for SweetAlert2
+                                                let emailListHtml = '';
+                                                let skippedListHtml = '';
+                                                
+                                                // Format emails to be sent
+                                                if (results.emailsToSend && results.emailsToSend.length > 0) {
+                                                    emailListHtml = `
+                                                        <div class="email-preview-list">
+                                                            <table class="email-preview-table">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Applicant</th>
+                                                                        <th>Email</th>
+                                                                        <th>Email Type</th>
+                                                                        <th>Action</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    ${results.emailsToSend.map(email => `
+                                                                        <tr>
+                                                                            <td>${email.name}</td>
+                                                                            <td>${email.email}</td>
+                                                                            <td><span class="email-type">${email.email_type.replace(/_/g, ' ')}</span></td>
+                                                                            <td><span class="email-action">${email.action}</span></td>
+                                                                        </tr>
+                                                                    `).join('')}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    `;
+                                                } else {
+                                                    emailListHtml = '<p>No emails would be sent at this time.</p>';
+                                                }
+                                                
+                                                // Format skipped applicants
+                                                if (results.skippedApplicants && results.skippedApplicants.length > 0) {
+                                                    skippedListHtml = `
+                                                        <div class="skipped-applicants">
+                                                            <details>
+                                                                <summary>
+                                                                    <span class="skipped-summary-title">
+                                                                        Applicants Not Receiving Emails (${results.skippedApplicants.length})
+                                                                    </span>
+                                                                </summary>
+                                                                <div class="skipped-content">
+                                                                    <table class="skipped-applicants-table">
+                                                                        <thead>
+                                                                            <tr>
+                                                                                <th>Applicant</th>
+                                                                                <th>Email</th>
+                                                                                <th>Reason</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            ${results.skippedApplicants.map(applicant => `
+                                                                                <tr>
+                                                                                    <td>${applicant.name}</td>
+                                                                                    <td>${applicant.email}</td>
+                                                                                    <td><span class="skip-reason">${applicant.reason}</span></td>
+                                                                                </tr>
+                                                                            `).join('')}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </details>
+                                                        </div>
+                                                    `;
+                                                }
+                                                
+                                                // Use SweetAlert2 for better formatting
+                                                Swal.fire({
+                                                    title: '🧪 Test Run Results',
+                                                    icon: 'info',
+                                                    html: `
+                                                        <div class="email-preview-summary">
+                                                            <div class="summary-item">
+                                                                <span class="summary-label">Applicants Processed:</span>
+                                                                <span class="summary-value">${results.applicantsProcessed}</span>
+                                                            </div>
+                                                            <div class="summary-item">
+                                                                <span class="summary-label">Emails to Send:</span>
+                                                                <span class="summary-value">${results.emailsSent}</span>
+                                                            </div>
+                                                            <div class="summary-item">
+                                                                <span class="summary-label">Emails to Queue:</span>
+                                                                <span class="summary-value">${results.emailsQueued}</span>
+                                                            </div>
+                                                            <div class="summary-item">
+                                                                <span class="summary-label">Applicants Skipped:</span>
+                                                                <span class="summary-value">${results.skippedApplicants ? results.skippedApplicants.length : 0}</span>
+                                                            </div>
+                                                        </div>
+                                                        <h4>Emails To Be Sent</h4>
+                                                        ${emailListHtml}
+                                                        ${skippedListHtml}
+                                                    `,
+                                                    customClass: {
+                                                        container: 'email-preview-container',
+                                                        popup: 'email-preview-popup',
+                                                        content: 'email-preview-content'
+                                                    },
+                                                    width: '800px',
+                                                    confirmButtonText: 'Close',
+                                                    confirmButtonColor: 'var(--color-primary)',
+                                                    background: 'var(--color-background-dark)',
+                                                    color: 'var(--color-text-primary)'
+                                                });
+                                            } else {
+                                                Swal.fire({
+                                                    title: 'Error',
+                                                    text: 'Failed to run test preview',
+                                                    icon: 'error',
+                                                    confirmButtonColor: 'var(--color-primary)',
+                                                    background: 'var(--color-background-dark)',
+                                                    color: 'var(--color-text-primary)'
+                                                });
+                                            }
+                                        } catch (error) {
+                                            console.error('Error running dry run:', error);
+                                            Swal.fire({
+                                                title: 'Error',
+                                                text: 'An error occurred while running the test preview',
+                                                icon: 'error',
+                                                confirmButtonColor: 'var(--color-primary)',
+                                                background: 'var(--color-background-dark)',
+                                                color: 'var(--color-text-primary)'
+                                            });
+                                        } finally {
+                                            setEmailAutomationLoading(false);
+                                        }
+                                    }}
+                                    className="create-btn create-btn--secondary"
+                                    disabled={emailAutomationLoading}
+                                >
+                                    {emailAutomationLoading ? 'Running...' : '🧪 Test Run (Preview)'}
+                                </button>
+                                
+                                {/* Test Email Section */}
+                                <div className="test-email-section">
+                                    <input
+                                        type="email"
+                                        placeholder="Enter email address for test"
+                                        value={testEmailAddress}
+                                        onChange={(e) => setTestEmailAddress(e.target.value)}
+                                        className="test-email-input"
+                                        disabled={testEmailLoading}
+                                    />
+                                    <button
+                                        onClick={sendTestEmail}
+                                        className="create-btn create-btn--secondary"
+                                        disabled={testEmailLoading || !testEmailAddress.trim()}
+                                    >
+                                        {testEmailLoading ? 'Sending...' : '📧 Send Test Email'}
+                                    </button>
+                                </div>
+                                
+                                <button
+                                    onClick={async () => {
+                                        // Use SweetAlert2 for confirmation
+                                        const confirmResult = await Swal.fire({
+                                            title: 'Send Real Emails?',
+                                            html: `
+                                                <div class="email-confirm-message">
+                                                    <p>This will send <strong>actual emails</strong> to applicants.</p>
+                                                    <p>Are you sure you want to continue?</p>
+                                                </div>
+                                            `,
+                                            icon: 'warning',
+                                            showCancelButton: true,
+                                            confirmButtonText: 'Yes, Send Emails',
+                                            cancelButtonText: 'Cancel',
+                                            confirmButtonColor: 'var(--color-danger)',
+                                            cancelButtonColor: 'var(--color-secondary)',
+                                            background: 'var(--color-background-dark)',
+                                            color: 'var(--color-text-primary)'
+                                        });
+                                        
+                                        if (!confirmResult.isConfirmed) {
+                                            return;
+                                        }
+                                        
+                                        setEmailAutomationLoading(true);
+                                        try {
+                                            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/run`, {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Authorization': `Bearer ${token}`,
+                                                    'Content-Type': 'application/json'
+                                                },
+                                                body: JSON.stringify({ dryRun: false })
+                                            });
+                                            
+                                            if (response.ok) {
+                                                const results = await response.json();
+                                                if (results.success === false) {
+                                                    Swal.fire({
+                                                        title: 'Email Automation Disabled',
+                                                        text: results.message || 'Email automation is disabled',
+                                                        icon: 'error',
+                                                        confirmButtonColor: 'var(--color-primary)',
+                                                        background: 'var(--color-background-dark)',
+                                                        color: 'var(--color-text-primary)'
+                                                    });
+                                                } else {
+                                                    // Format results for SweetAlert2
+                                                    Swal.fire({
+                                                        title: 'Email Automation Complete',
+                                                        icon: 'success',
+                                                        html: `
+                                                            <div class="email-results-summary">
+                                                                <div class="summary-item">
+                                                                    <span class="summary-label">Emails Sent:</span>
+                                                                    <span class="summary-value">${results.emailsSent}</span>
+                                                                </div>
+                                                                <div class="summary-item">
+                                                                    <span class="summary-label">Emails Queued:</span>
+                                                                    <span class="summary-value">${results.emailsQueued}</span>
+                                                                </div>
+                                                            </div>
+                                                        `,
+                                                        confirmButtonText: 'View Details',
+                                                        confirmButtonColor: 'var(--color-primary)',
+                                                        background: 'var(--color-background-dark)',
+                                                        color: 'var(--color-text-primary)'
+                                                    });
+                                                    
+                                                    // Refresh all data
+                                                    fetchEmailStats();
+                                                    fetchQueuedEmails();
+                                                    fetchEmailHistory();
+                                                    fetchApplicantEmailStatus();
+                                                }
+                                            } else {
+                                                Swal.fire({
+                                                    title: 'Error',
+                                                    text: 'Failed to run email automation',
+                                                    icon: 'error',
+                                                    confirmButtonColor: 'var(--color-primary)',
+                                                    background: 'var(--color-background-dark)',
+                                                    color: 'var(--color-text-primary)'
+                                                });
+                                            }
+                                        } catch (error) {
+                                            console.error('Error running email automation:', error);
+                                            Swal.fire({
+                                                title: 'Error',
+                                                text: 'An error occurred while running email automation',
+                                                icon: 'error',
+                                                confirmButtonColor: 'var(--color-primary)',
+                                                background: 'var(--color-background-dark)',
+                                                color: 'var(--color-text-primary)'
+                                            });
+                                        } finally {
+                                            setEmailAutomationLoading(false);
+                                        }
+                                    }}
+                                    className="create-btn create-btn--danger"
+                                    disabled={emailAutomationLoading}
+                                >
+                                    {emailAutomationLoading ? 'Running...' : '📧 Run Email Automation'}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        fetchEmailStats();
+                                        fetchQueuedEmails();
+                                        fetchEmailHistory();
+                                        fetchApplicantEmailStatus();
+                                    }}
+                                    className="refresh-btn"
+                                >
+                                    Refresh
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Email Stats Overview */}
+                        {emailStats && (
+                            <div className="email-automation-stats">
+                                <h3>Email Automation Statistics</h3>
+                                <div className="stats-grid">
+                                    <div className="stat-card">
+                                        <div className="stat-value">{emailStats.total_emails_sent || 0}</div>
+                                        <div className="stat-label">Total Emails Sent</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-value">{emailStats.unique_recipients || 0}</div>
+                                        <div className="stat-label">Unique Recipients</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-value">{emailStats.emails_queued || 0}</div>
+                                        <div className="stat-label">Emails Queued</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-value">
+                                            {emailStats.total_emails_sent > 0 
+                                                ? Math.round((emailStats.emails_opened / emailStats.total_emails_sent) * 100) 
+                                                : 0}%
+                                        </div>
+                                        <div className="stat-label">Open Rate</div>
+                                    </div>
+                                </div>
+
+                                {/* Opt-out Stats */}
+                                <div className="opt-out-stats">
+                                    <h4>Opt-out Reason Breakdown</h4>
+                                    <div className="opt-out-reasons-grid">
+                                        {emailStats.optOutReasons && emailStats.optOutReasons.length > 0 ? (
+                                            emailStats.optOutReasons.map((reason) => (
+                                                <div key={reason.reason_category} className="opt-out-reason-card">
+                                                    <div className="opt-out-reason-value">{reason.count}</div>
+                                                    <div className="opt-out-reason-label">{reason.reason_category}</div>
+                                                </div>
+                                            ))
+                                        ) : emailStats.total_opted_out > 0 ? (
+                                            <div className="opt-out-reason-card">
+                                                <div className="opt-out-reason-value">{emailStats.total_opted_out}</div>
+                                                <div className="opt-out-reason-label">Total Opted Out</div>
+                                                <div className="opt-out-reason-note">(No reason data available)</div>
+                                            </div>
+                                        ) : (
+                                            <div className="opt-out-reason-card">
+                                                <div className="opt-out-reason-value">0</div>
+                                                <div className="opt-out-reason-label">No Opt-outs</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    {/* Other Reasons Details */}
+                                    {emailStats.otherReasons && emailStats.otherReasons.length > 0 && (
+                                        <div className="other-reasons-section">
+                                            <h5>Custom Opt-out Reasons:</h5>
+                                            <div className="other-reasons-list">
+                                                {emailStats.otherReasons.map((reason, index) => (
+                                                    <div key={index} className="other-reason-item">
+                                                        <span className="other-reason-text">
+                                                            {reason.email_opt_out_reason.replace(/^(Unsubscribed|Deferred application) - /, '')}
+                                                        </span>
+                                                        <span className="other-reason-count">({reason.count})</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Email Type Breakdown */}
+                                {emailStats.typeBreakdown && emailStats.typeBreakdown.length > 0 && (
+                                    <div className="email-type-breakdown">
+                                        <h4>Email Type Breakdown</h4>
+                                        <div className="data-table-container">
+                                            <table className="data-table email-type-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th className="email-type-col">Email Type</th>
+                                                        <th className="sent-col">Sent</th>
+                                                        <th className="queued-col">Queued</th>
+                                                        <th className="avg-col">Avg Sends per Applicant</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {emailStats.typeBreakdown.map((type) => (
+                                                        <tr key={type.email_type}>
+                                                            <td className="email-type-cell">
+                                                                {type.email_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                            </td>
+                                                            <td className="sent-cell">{type.sent_count}</td>
+                                                            <td className="queued-cell">{type.queued_count}</td>
+                                                            <td className="avg-cell">{parseFloat(type.avg_sends_per_applicant).toFixed(1)}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Queued Emails */}
+                        <div className="queued-emails-section">
+                            <h3>Queued Emails ({queuedEmails.length})</h3>
+                            {queuedEmails.length > 0 ? (
+                                <div className="data-table-container">
+                                    <table className="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Applicant</th>
+                                                <th>Email</th>
+                                                <th>Email Type</th>
+                                                <th>Queued At</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {queuedEmails.map((email) => (
+                                                <tr key={email.log_id}>
+                                                    <td>{email.first_name} {email.last_name}</td>
+                                                    <td>{email.email}</td>
+                                                    <td className="email-type-cell">
+                                                        {email.email_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                    </td>
+                                                    <td>{new Date(email.created_at).toLocaleString()}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="no-data-message">
+                                    <p>No emails currently queued</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Email History */}
+                        <div className="email-history-section">
+                            <h3>Recent Email History ({emailHistory.length})</h3>
+                            {emailHistory.length > 0 ? (
+                                <div className="data-table-container">
+                                    <table className="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Applicant</th>
+                                                <th>Email</th>
+                                                <th>Email Type</th>
+                                                <th>Sent At</th>
+                                                <th>Send Count</th>
+                                                <th>Next Send</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {emailHistory.map((email) => (
+                                                <tr key={email.log_id}>
+                                                    <td>{email.first_name} {email.last_name}</td>
+                                                    <td>{email.email}</td>
+                                                    <td className="email-type-cell">
+                                                        {email.email_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                    </td>
+                                                    <td>{new Date(email.email_sent_at).toLocaleString()}</td>
+                                                    <td>
+                                                        <span className={`send-count ${email.send_count >= 3 ? 'send-count--max' : ''}`}>
+                                                            {email.send_count}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        {email.next_send_at ? (
+                                                            <span className="next-send">
+                                                                {new Date(email.next_send_at).toLocaleDateString()}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="next-send--none">None</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="no-data-message">
+                                    <p>No email history found</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
