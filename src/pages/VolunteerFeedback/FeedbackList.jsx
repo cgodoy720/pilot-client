@@ -45,7 +45,9 @@ function FeedbackList({ feedback, onDelete, onUpdate, token }) {
                 body: JSON.stringify({
                     feedbackDate: updatedFeedback.feedback_date,
                     feedbackType: updatedFeedback.feedback_type,
-                    feedbackText: updatedFeedback.feedback_text,
+                    overallExperience: updatedFeedback.overall_experience,
+                    improvementSuggestions: updatedFeedback.improvement_suggestions,
+                    specificFeedback: updatedFeedback.specific_feedback,
                     audioRecordingUrl: updatedFeedback.audio_recording_url
                 })
             });
@@ -118,11 +120,44 @@ function FeedbackList({ feedback, onDelete, onUpdate, token }) {
                     </div>
 
                     <div className="feedback-item__content">
-                        {feedbackItem.feedback_text ? (
-                            <div className="feedback-item__text">
-                                {feedbackItem.feedback_text}
+                        {/* Question 1: Overall Experience (Always present) */}
+                        {feedbackItem.overall_experience && (
+                            <div className="feedback-item__question">
+                                <div className="feedback-item__question-label">
+                                    How was your experience overall?
+                                </div>
+                                <div className="feedback-item__question-answer">
+                                    {feedbackItem.overall_experience}
+                                </div>
                             </div>
-                        ) : feedbackItem.audio_recording_url ? (
+                        )}
+
+                        {/* Question 2: Improvement Suggestions (Optional) */}
+                        {feedbackItem.improvement_suggestions && (
+                            <div className="feedback-item__question">
+                                <div className="feedback-item__question-label">
+                                    How could we improve going forward?
+                                </div>
+                                <div className="feedback-item__question-answer">
+                                    {feedbackItem.improvement_suggestions}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Question 3: Specific Feedback (Optional) */}
+                        {feedbackItem.specific_feedback && (
+                            <div className="feedback-item__question">
+                                <div className="feedback-item__question-label">
+                                    Do you have feedback to share on specific Builders or Fellows?
+                                </div>
+                                <div className="feedback-item__question-answer">
+                                    {feedbackItem.specific_feedback}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Audio Recording (if present) */}
+                        {feedbackItem.audio_recording_url && (
                             <div className="feedback-item__audio">
                                 🎤 Audio feedback recorded
                                 {feedbackItem.audio_recording_url !== 'placeholder-audio-url' && (
@@ -136,7 +171,10 @@ function FeedbackList({ feedback, onDelete, onUpdate, token }) {
                                     </a>
                                 )}
                             </div>
-                        ) : (
+                        )}
+
+                        {/* Fallback for completely empty feedback */}
+                        {!feedbackItem.overall_experience && !feedbackItem.improvement_suggestions && !feedbackItem.specific_feedback && !feedbackItem.audio_recording_url && (
                             <div className="feedback-item__empty">
                                 No feedback content available
                             </div>
@@ -183,7 +221,9 @@ function FeedbackList({ feedback, onDelete, onUpdate, token }) {
                     initialData={{
                         feedbackDate: editingFeedback.feedback_date,
                         feedbackType: editingFeedback.feedback_type,
-                        feedbackText: editingFeedback.feedback_text || '',
+                        overallExperience: editingFeedback.overall_experience || '',
+                        improvementSuggestions: editingFeedback.improvement_suggestions || '',
+                        specificFeedback: editingFeedback.specific_feedback || '',
                         audioRecordingUrl: editingFeedback.audio_recording_url || ''
                     }}
                 />

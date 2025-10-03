@@ -276,20 +276,23 @@
 }
 
 .admin-volunteer-feedback__text,
-.admin-volunteer-feedback__audio {
+.admin-volunteer-feedback__audio,
+.admin-volunteer-feedback__question {
   margin-bottom: var(--spacing-md);
 }
 
 .admin-volunteer-feedback__text h4,
-.admin-volunteer-feedback__audio h4 {
+.admin-volunteer-feedback__audio h4,
+.admin-volunteer-feedback__question h4 {
   color: var(--color-text-primary);
   font-size: 1.125rem;
   font-weight: 700;
   margin: 0 0 var(--spacing-md) 0;
-  text-align: center;
+  text-align: left;
 }
 
-.admin-volunteer-feedback__text p {
+.admin-volunteer-feedback__text p,
+.admin-volunteer-feedback__question p {
   color: var(--color-text-primary);
   font-size: 1rem;
   line-height: 1.6;
@@ -299,6 +302,7 @@
   border-radius: 8px;
   border-left: 4px solid var(--color-primary);
   font-weight: 500;
+  text-align: left;
 }
 
 .admin-volunteer-feedback__audio audio {
