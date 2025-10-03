@@ -1,25 +1,25 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Box, IconButton, Tooltip } from '@mui/material';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import ChatIcon from '@mui/icons-material/Chat';
-import DarkModeIcon from '@mui/icons-material/DarkMode';
-import LogoutIcon from '@mui/icons-material/Logout';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import SchoolIcon from '@mui/icons-material/School';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import BugReportIcon from '@mui/icons-material/BugReport';
-import AssessmentIcon from '@mui/icons-material/Assessment';
-import PersonIcon from '@mui/icons-material/Person';
-import GroupsIcon from '@mui/icons-material/Groups';
-import PsychologyIcon from '@mui/icons-material/Psychology';
-import QuizIcon from '@mui/icons-material/Quiz';
-import FeedbackIcon from '@mui/icons-material/Feedback';
-import GradeIcon from '@mui/icons-material/Grade';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  LayoutDashboard, 
+  MessageSquare, 
+  LogOut, 
+  Calendar, 
+  GraduationCap, 
+  Settings, 
+  Bug, 
+  BarChart3, 
+  Users, 
+  Brain, 
+  FileQuestion, 
+  MessageCircle, 
+  Award 
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import './Layout.css';
+import { cn } from '../../lib/utils';
+import { Button } from '../ui/button';
 import logo from '../../assets/logo.png'
 import logoFull from '../../assets/logo-full.png'
 
@@ -45,139 +45,177 @@ const Layout = ({ children }) => {
   const handleLearningClick = (e) => {
     if (!isActive) {
       e.preventDefault();
-      // If already on dashboard, no need to navigate
       if (location.pathname !== '/dashboard') {
         navigate('/dashboard');
       }
     }
   };
 
+  const navItems = [
+    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', active: true },
+    { path: '/learning', icon: GraduationCap, label: 'Learning', active: isActive, disabled: !isActive },
+    { path: '/gpt', icon: MessageSquare, label: 'AI Chat', active: true },
+    { path: '/calendar', icon: Calendar, label: 'Calendar', active: true },
+    { path: '/stats', icon: BarChart3, label: 'My Progress', active: true },
+    { path: '/assessment', icon: FileQuestion, label: 'Assessment', active: isActive, disabled: !isActive },
+  ];
+
+  const volunteerItems = [
+    { path: '/volunteer-feedback', icon: MessageCircle, label: 'Volunteer Feedback' }
+  ];
+
+  const adminItems = [
+    { path: '/admin-dashboard', icon: Settings, label: 'Admin Dashboard' },
+    { path: '/admin/assessment-grades', icon: Award, label: 'Assessment Grades' },
+    { path: '/admissions-dashboard', icon: Users, label: 'Admissions' },
+    { path: '/content', icon: Bug, label: 'Content Generation' },
+    { path: '/admin-prompts', icon: Brain, label: 'AI Prompts' },
+    { path: '/admin-volunteer-feedback', icon: MessageCircle, label: 'Volunteer Feedback' },
+  ];
+
   return (
-    <Box className="layout">
-      <nav className={`layout__sidebar ${isExpanded ? 'layout__sidebar--expanded' : 'layout__sidebar--collapsed'}`}>
-        <div className="layout__sidebar-header">
-          <div className="logo-container">
-            <img src={logo} alt="Logo" className="logo-small" />
-            <img src={logoFull} alt="Full Logo" className="logo-full" />
+    <div className="flex h-screen w-full bg-background">
+      {/* Sidebar */}
+      <nav className={cn(
+        "bg-card border-r border-border flex flex-col transition-all duration-300 relative",
+        isExpanded ? "w-64" : "w-20"
+      )}>
+        {/* Header */}
+        <div className="flex justify-center items-center p-4 relative">
+          <div className="relative h-8 w-full flex justify-start items-center">
+            <img 
+              src={logo} 
+              alt="Logo" 
+              className={cn(
+                "h-full w-auto object-contain transition-opacity duration-300 absolute left-3",
+                isExpanded ? "opacity-0" : "opacity-100"
+              )}
+            />
+            <img 
+              src={logoFull} 
+              alt="Full Logo" 
+              className={cn(
+                "h-full w-auto object-contain transition-opacity duration-300 absolute left-3",
+                isExpanded ? "opacity-100" : "opacity-0"
+              )}
+            />
           </div>
-          <IconButton 
-            className="layout__toggle-btn"
+          
+          {/* Toggle Button */}
+          <Button
+            variant="default"
+            size="sm"
             onClick={() => setIsExpanded(!isExpanded)}
-            sx={{ color: 'white' }}
+            className="absolute -right-10 top-5 bg-primary text-primary-foreground p-1 rounded-r-lg shadow-lg hover:bg-primary/90 transition-colors z-10 h-8 w-8"
           >
-            {isExpanded ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-          </IconButton>
+            {isExpanded ? (
+              <ChevronLeft className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </Button>
         </div>
         
-        <div className="layout__nav-links">
-          <Link to="/dashboard" className={`layout__nav-item ${location.pathname === '/dashboard' ? 'layout__nav-item--active' : ''}`}>
-            <DashboardIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Dashboard</span>}
-          </Link>
-          
-          {isActive ? (
-            <Link to="/learning" className={`layout__nav-item ${location.pathname === '/learning' ? 'layout__nav-item--active' : ''}`}>
-              <SchoolIcon className="layout__nav-icon" />
-              {isExpanded && <span className="layout__nav-text">Learning</span>}
-            </Link>
-          ) : (
-            <Tooltip title="You have historical access only" placement="right">
-              <span className="layout__nav-item layout__nav-item--disabled" onClick={handleLearningClick}>
-                <SchoolIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Learning</span>}
-              </span>
-            </Tooltip>
-          )}
-          
-          <Link to="/gpt" className={`layout__nav-item ${location.pathname === '/gpt' ? 'layout__nav-item--active' : ''}`}>
-            <ChatIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">AI Chat</span>}
-          </Link>
-          <Link to="/calendar" className={`layout__nav-item ${location.pathname === '/calendar' ? 'layout__nav-item--active' : ''}`}>
-            <CalendarMonthIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Calendar</span>}
-          </Link>
-          
-          <Link to="/stats" className={`layout__nav-item ${location.pathname === '/stats' ? 'layout__nav-item--active' : ''}`}>
-            <AssessmentIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">My Progress</span>}
-          </Link>
-          
-          {isActive ? (
-            <Link to="/assessment" className={`layout__nav-item ${location.pathname === '/assessment' ? 'layout__nav-item--active' : ''}`}>
-              <QuizIcon className="layout__nav-icon" />
-              {isExpanded && <span className="layout__nav-text">Assessment</span>}
-            </Link>
-          ) : (
-            <Tooltip title="You have historical access only" placement="right">
-              <span className="layout__nav-item layout__nav-item--disabled">
-                <QuizIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Assessment</span>}
-              </span>
-            </Tooltip>
-          )}
-          
-          {isVolunteer && (
-            <Link to="/volunteer-feedback" className={`layout__nav-item ${location.pathname === '/volunteer-feedback' ? 'layout__nav-item--active' : ''}`}>
-              <FeedbackIcon className="layout__nav-icon" />
-              {isExpanded && <span className="layout__nav-text">Volunteer Feedback</span>}
-            </Link>
-          )}
-          
-          {isAdmin && (
-            <>
-              <Link to="/admin-dashboard" className={`layout__nav-item ${location.pathname === '/admin-dashboard' ? 'layout__nav-item--active' : ''}`}>
-                <AdminPanelSettingsIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Admin Dashboard</span>}
+        {/* Navigation Links */}
+        <div className="flex-1 flex flex-col gap-1 p-2">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isCurrentPath = location.pathname === item.path;
+            
+            if (item.disabled) {
+              return (
+                <div
+                  key={item.path}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground/50 cursor-not-allowed"
+                  title="You have historical access only"
+                >
+                  <Icon className="h-5 w-5 flex-shrink-0" />
+                  {isExpanded && <span>{item.label}</span>}
+                </div>
+              );
+            }
+            
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+                  isCurrentPath
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                <Icon className="h-5 w-5 flex-shrink-0" />
+                {isExpanded && <span>{item.label}</span>}
               </Link>
-              <Link to="/admin/assessment-grades" className={`layout__nav-item ${location.pathname === '/admin/assessment-grades' ? 'layout__nav-item--active' : ''}`}>
-                <GradeIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Assessment Grades</span>}
+            );
+          })}
+          
+          {/* Volunteer Items */}
+          {isVolunteer && volunteerItems.map((item) => {
+            const Icon = item.icon;
+            const isCurrentPath = location.pathname === item.path;
+            
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+                  isCurrentPath
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                <Icon className="h-5 w-5 flex-shrink-0" />
+                {isExpanded && <span>{item.label}</span>}
               </Link>
-              <Link to="/admissions-dashboard" className={`layout__nav-item ${location.pathname === '/admissions-dashboard' ? 'layout__nav-item--active' : ''}`}>
-                <GroupsIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Admissions</span>}
+            );
+          })}
+          
+          {/* Admin Items */}
+          {isAdmin && adminItems.map((item) => {
+            const Icon = item.icon;
+            const isCurrentPath = location.pathname === item.path || 
+              (item.path === '/content' && location.pathname.startsWith('/content'));
+            
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+                  isCurrentPath
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                <Icon className="h-5 w-5 flex-shrink-0" />
+                {isExpanded && <span>{item.label}</span>}
               </Link>
-              <Link to="/content" className={`layout__nav-item ${location.pathname.startsWith('/content') ? 'layout__nav-item--active' : ''}`}>
-                <BugReportIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Content Generation</span>}
-              </Link>
-              <Link to="/admin-prompts" className={`layout__nav-item ${location.pathname === '/admin-prompts' ? 'layout__nav-item--active' : ''}`}>
-                <PsychologyIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">AI Prompts</span>}
-              </Link>
-              {/* <Link to="/facilitator-view" className={`layout__nav-item ${location.pathname === '/facilitator-view' ? 'layout__nav-item--active' : ''}`}>
-                <PersonIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Facilitator View</span>}
-              </Link> */}
-              <Link to="/admin-volunteer-feedback" className={`layout__nav-item ${location.pathname === '/admin-volunteer-feedback' ? 'layout__nav-item--active' : ''}`}>
-                <FeedbackIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Volunteer Feedback</span>}
-              </Link>
-            </>
-          )}
+            );
+          })}
         </div>
 
-        <div className="layout__bottom-links">
-          {/* <a href="#" className="layout__nav-item">
-            <DarkModeIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Theme</span>}
-          </a> */}
-          {/* <Link to="/account" className={`layout__nav-item ${location.pathname === '/account' ? 'layout__nav-item--active' : ''}`}>
-            <PersonIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Account</span>}
-          </Link> */}
-          <button onClick={handleLogout} className="layout__nav-item layout__logout-btn">
-            <LogoutIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Logout</span>}
-          </button>
+        {/* Bottom Section */}
+        <div className="p-2 border-t border-border">
+          <Button
+            variant="ghost"
+            onClick={handleLogout}
+            className="w-full justify-start gap-3 px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          >
+            <LogOut className="h-5 w-5 flex-shrink-0" />
+            {isExpanded && <span>Logout</span>}
+          </Button>
         </div>
       </nav>
       
-      <main className="layout__content">
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto bg-background">
         {children}
       </main>
-    </Box>
+    </div>
   );
 };
 

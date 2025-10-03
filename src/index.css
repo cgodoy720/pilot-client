@@ -1,83 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 242 72% 59%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 242 72% 59%;
+    --radius: 0.5rem;
+  }
+}
+
 * {
+  border-color: hsl(var(--border));
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  width: 100%;
-  background-color: #0f1115;
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#root {
-  width: 100%;
+html, body, #root {
   height: 100%;
-  display: flex;
-  justify-content: center;
-}
-
-/* Remove ALL other styles - delete everything else */
-
-:root {
-  /* Color palette */
-  --color-primary: #4242ea;
-  --color-primary-hover: #5555ff;
-  --color-primary-dark: #3131d9; /* Darker shade for hover states */
-  --color-primary-rgb: 66, 66, 234; /* RGB values of primary color for rgba() */
-  --color-primary-transparent: rgba(66, 66, 234, 0.1); /* Transparent primary for backgrounds */
-  --color-primary-transparent-light: rgba(66, 66, 234, 0.05); /* Lighter transparent primary */
-  --color-error: #ff4f4f; /* Error/danger color */
-  --color-navbar: #1a1f2c;
-  --color-background-dark: #1a1f2c; /* Navbar color */
-  --color-background-darker: #121212; /* Darker than navbar for contrast */
-  --color-background-light: #252525; /* Lighter than navbar for contrast */
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #e3e3e3;
-  --color-text-muted: rgba(255, 255, 255, 0.7);
-  --color-border: #333333;
-  
-  /* Spacing */
-  --spacing-xs: 0.25rem;
-  --spacing-sm: 0.5rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 1.5rem;
-  --spacing-xl: 2rem;
-  
-  /* Transitions */
-  --transition-speed: 0.3s;
-}
-
-body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: var(--color-background-darker);
-  color: var(--color-text-primary);
-}
-
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
-}
-
-/* Loading screen */
-.loading-screen {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  width: 100%;
-  background-color: var(--color-background-dark);
-  color: var(--color-text-primary);
-  font-size: 1.5rem;
 }
