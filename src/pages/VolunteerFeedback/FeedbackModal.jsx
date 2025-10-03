@@ -5,7 +5,9 @@ function FeedbackModal({ isOpen, onClose, onSubmit, token, isEditing = false, in
     const [formData, setFormData] = useState({
         feedbackDate: '',
         feedbackType: '',
-        feedbackText: ''
+        overallExperience: '',
+        improvementSuggestions: '',
+        specificFeedback: ''
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
@@ -38,8 +40,8 @@ function FeedbackModal({ isOpen, onClose, onSubmit, token, isEditing = false, in
             return;
         }
 
-        if (!formData.feedbackText.trim()) {
-            setError('Please provide your feedback text.');
+        if (!formData.overallExperience.trim()) {
+            setError('Please answer: How was your experience overall?');
             return;
         }
 
@@ -62,7 +64,9 @@ function FeedbackModal({ isOpen, onClose, onSubmit, token, isEditing = false, in
                 setFormData({
                     feedbackDate: '',
                     feedbackType: '',
-                    feedbackText: ''
+                    overallExperience: '',
+                    improvementSuggestions: '',
+                    specificFeedback: ''
                 });
             } else {
                 const errorData = await response.json();
@@ -81,7 +85,9 @@ function FeedbackModal({ isOpen, onClose, onSubmit, token, isEditing = false, in
             setFormData({
                 feedbackDate: '',
                 feedbackType: '',
-                feedbackText: ''
+                overallExperience: '',
+                improvementSuggestions: '',
+                specificFeedback: ''
             });
             setError('');
             onClose();
@@ -143,17 +149,43 @@ function FeedbackModal({ isOpen, onClose, onSubmit, token, isEditing = false, in
                         </select>
                     </div>
 
-                    {/* Text Input */}
+                    {/* Question 1: Overall Experience (Mandatory) */}
                     <div className="form-group">
-                        <label htmlFor="feedbackText">Your Feedback *</label>
+                        <label htmlFor="overallExperience">1. How was your experience overall? *</label>
                         <textarea
-                            id="feedbackText"
-                            name="feedbackText"
-                            value={formData.feedbackText}
+                            id="overallExperience"
+                            name="overallExperience"
+                            value={formData.overallExperience}
                             onChange={handleInputChange}
-                            placeholder="Share your thoughts, observations, and suggestions..."
-                            rows={6}
+                            placeholder=""
+                            rows={4}
                             required
+                        />
+                    </div>
+
+                    {/* Question 2: Improvement Suggestions (Optional) */}
+                    <div className="form-group">
+                        <label htmlFor="improvementSuggestions">2. How could we improve going forward?</label>
+                        <textarea
+                            id="improvementSuggestions"
+                            name="improvementSuggestions"
+                            value={formData.improvementSuggestions}
+                            onChange={handleInputChange}
+                            placeholder=""
+                            rows={3}
+                        />
+                    </div>
+
+                    {/* Question 3: Specific Feedback (Optional) */}
+                    <div className="form-group">
+                        <label htmlFor="specificFeedback">3. Do you have feedback to share on specific Builders or Fellows?</label>
+                        <textarea
+                            id="specificFeedback"
+                            name="specificFeedback"
+                            value={formData.specificFeedback}
+                            onChange={handleInputChange}
+                            placeholder=""
+                            rows={3}
                         />
                     </div>
 

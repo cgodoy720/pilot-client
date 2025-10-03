@@ -72,6 +72,35 @@
     word-wrap: break-word;
 }
 
+/* Question-Answer Format */
+.feedback-item__question {
+    margin-bottom: 1.5rem;
+}
+
+.feedback-item__question:last-of-type {
+    margin-bottom: 0;
+}
+
+.feedback-item__question-label {
+    font-weight: 600;
+    color: #666;
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: left;
+}
+
+.feedback-item__question-answer {
+    color: #2c3e50;
+    line-height: 1.6;
+    font-size: 1rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    padding: 0.75rem 0;
+    text-align: left;
+}
+
 .feedback-item__audio {
     display: flex;
     align-items: center;
