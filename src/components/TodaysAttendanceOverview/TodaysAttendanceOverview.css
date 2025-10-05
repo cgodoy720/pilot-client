@@ -56,6 +56,7 @@
   border: 1px solid var(--color-border);
   border-radius: 12px; /* rounded corners for modern look */
   transition: all 0.3s ease;
+  min-height: 90px; /* Reduced height by 25% from default 120px */
 }
 
 .todays-attendance-overview__summary-card:hover {
@@ -71,7 +72,7 @@
   text-align: center; /* center text alignment */
   gap: var(--spacing-sm); /* smaller gap for better spacing */
   height: 100%; /* take full height of card */
-  min-height: 120px; /* ensure minimum height for proper centering */
+  min-height: 90px; /* ensure minimum height for proper centering - 25% reduction */
 }
 
 .todays-attendance-overview__summary-icon {
@@ -323,6 +324,11 @@
 
 .todays-attendance-overview .MuiTypography-caption {
   color: #4b5563 !important; /* text-gray-600 equivalent for secondary text */
+}
+
+/* Override for Last updated text to be white on dark background */
+.todays-attendance-overview__last-updated {
+  color: #FFFFFF !important; /* White text for Last updated on dark background */
 }
 
 /* Quick Actions Header - Override general h6 styling with white color */

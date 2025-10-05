@@ -184,7 +184,11 @@ const TodaysAttendanceOverview = () => {
             />
           )}
           {lastUpdated && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography 
+              variant="caption" 
+              className="todays-attendance-overview__last-updated"
+              sx={{ color: '#FFFFFF' }}
+            >
               Last updated: {lastUpdated.toLocaleTimeString()}
             </Typography>
           )}
