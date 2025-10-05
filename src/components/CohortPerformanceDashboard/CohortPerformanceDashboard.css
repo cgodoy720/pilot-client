@@ -142,14 +142,23 @@
 }
 
 .cohort-performance-dashboard__risk-table .MuiTableCell-head {
-  color: var(--color-text-primary);
+  color: #FFFFFF !important; /* White text for better readability on dark backgrounds */
   font-weight: 600;
   border-bottom: 1px solid var(--color-border);
 }
 
 .cohort-performance-dashboard__risk-table .MuiTableCell-body {
-  color: var(--color-text-secondary);
+  color: #FFFFFF !important; /* White text for better readability on dark backgrounds */
   border-bottom: 1px solid var(--color-border);
+}
+
+/* Override Typography colors specifically in the risk table body */
+.cohort-performance-dashboard__risk-table .MuiTableCell-body .MuiTypography-body2 {
+  color: #FFFFFF !important; /* White text for builder names on dark background */
+}
+
+.cohort-performance-dashboard__risk-table .MuiTableCell-body .MuiTypography-caption {
+  color: #FFFFFF !important; /* White text for email addresses on dark background */
 }
 
 .cohort-performance-dashboard__risk-table .MuiTableRow-root:hover {
@@ -393,15 +402,15 @@
   font-size: 0.75rem !important; /* 12px - 25% smaller than 16px */
 }
 
-/* Risk Card - Ensure dark text on white background */
+/* Risk Card - Ensure dark text on light background */
 .cohort-performance-dashboard__risk-card .MuiTypography-h6 {
-  color: #1a1a1a !important; /* "Builders at Risk" header */
+  color: #1a1a1a !important; /* "Builders at Risk" header - dark text on light background */
   font-weight: 600;
   text-align: center; /* center the header */
 }
 
 .cohort-performance-dashboard__risk-card .MuiTypography-body2 {
-  color: #374151 !important; /* subtitle text */
+  color: #374151 !important; /* subtitle text - dark gray on light background */
   text-align: center; /* center the subtitle */
 }
 

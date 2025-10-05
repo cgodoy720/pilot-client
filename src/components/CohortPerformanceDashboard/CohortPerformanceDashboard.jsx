@@ -677,26 +677,26 @@ const CohortPerformanceDashboard = () => {
                           <Box className="cohort-performance-dashboard__builder-info">
                             <PersonIcon className="cohort-performance-dashboard__builder-icon" />
                             <Box>
-                              <Typography variant="body2" color="text.primary">
+                              <Typography variant="body2" sx={{ color: '#FFFFFF' }}>
                                 {builder.firstName} {builder.lastName}
                               </Typography>
-                              <Typography variant="caption" color="text.secondary">
+                              <Typography variant="caption" sx={{ color: '#FFFFFF' }}>
                                 {builder.email}
                               </Typography>
                             </Box>
                           </Box>
                         </TableCell>
-                        <TableCell>{builder.cohort}</TableCell>
+                        <TableCell sx={{ color: '#FFFFFF' }}>{builder.cohort}</TableCell>
                         <TableCell align="right">
                           <Typography 
                             variant="body2" 
-                            color={isAtRisk ? 'error' : 'text.primary'}
+                            sx={{ color: isAtRisk ? '#f44336' : '#FFFFFF' }}
                             fontWeight={isAtRisk ? 'bold' : 'normal'}
                           >
                             {builder.attendanceRate.toFixed(1)}%
                           </Typography>
                         </TableCell>
-                        <TableCell align="right">{requirement}%</TableCell>
+                        <TableCell align="right" sx={{ color: '#FFFFFF' }}>{requirement}%</TableCell>
                         <TableCell align="center">
                           <Chip
                             label={isAtRisk ? 'At Risk' : 'Safe'}

@@ -157,14 +157,14 @@ const AdminAttendanceDashboard = () => {
           {activeTab === 0 && (
             <Box>
               <Alert severity="info" sx={{ mb: 3 }}>
-                <Typography variant="h6" component="div" gutterBottom>
+                <Typography variant="h6" component="div" gutterBottom sx={{ color: '#1a1a1a' }}>
                   Welcome to the Admin Attendance Dashboard
                 </Typography>
-                <Typography variant="body2">
+                <Typography variant="body2" sx={{ color: '#374151' }}>
                   This is the staff interface for managing and monitoring builder attendance.
                   Use the tabs above to access different attendance management features:
                 </Typography>
-                <ul style={{ marginTop: '8px', marginBottom: '0' }}>
+                <ul style={{ marginTop: '8px', marginBottom: '0', color: '#374151' }}>
                   <li><strong>Today's Attendance:</strong> View real-time attendance for today</li>
                   <li><strong>Cohort Performance:</strong> Monitor attendance rates and performance by cohort</li>
                   <li><strong>Excuse Management:</strong> Manage excused absences and attendance modifications</li>
@@ -173,7 +173,7 @@ const AdminAttendanceDashboard = () => {
                 </ul>
               </Alert>
 
-              <Typography variant="h6" gutterBottom>
+              <Typography variant="h6" gutterBottom sx={{ color: '#FFFFFF' }}>
                 Quick Actions
               </Typography>
               <Grid container spacing={2}>
