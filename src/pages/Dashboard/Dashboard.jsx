@@ -235,15 +235,12 @@ function Dashboard() {
       <div className="min-h-screen bg-background">
         
         {/* Header */}
-        <div className="border-b border-gray-200 bg-white px-8 py-6 shadow-sm">
+        <div className="border-b border-gray-200 bg-white px-8 py-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-gray-900">
                 Hey {user?.first_name || 'Yoshi'}. Good to see you!
               </h1>
-              <p className="text-gray-600 mt-1 text-lg">
-                Friday, October 3, 2025
-              </p>
             </div>
 
             {/* Missed assignments indicator */}
@@ -252,33 +249,16 @@ function Dashboard() {
                 <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                 <span className="text-gray-600">( 0 ) missed assignments</span>
               </div>
-
-              {/* Cohort selector for staff/admin users */}
-              {isActive && (user.role === 'staff' || user.role === 'admin') && (
-                <div className="flex items-center gap-3">
-                  <label className="text-sm font-medium text-gray-700">View Cohort:</label>
-                  <Select value={cohortFilter || "my-cohort"} onValueChange={(value) => setCohortFilter(value === "my-cohort" ? null : value)}>
-                    <SelectTrigger className="w-[180px] border-gray-300">
-                      <SelectValue placeholder="My Cohort" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="my-cohort">My Cohort</SelectItem>
-                      <SelectItem value="March 2025">March 2025</SelectItem>
-                      <SelectItem value="June 2025">June 2025</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
             </div>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="flex bg-gray-50 min-h-screen">
-          {/* Left side - Main content */}
-          <div className="flex-1 p-8">
+        <div className="bg-gray-50">
+          {/* Top section with Today's Goal and Upcoming side by side */}
+          <div className="grid grid-cols-[70%_25%] gap-6 p-6">
             {/* Today's Goal */}
-            <Card className="mb-8 bg-white border border-gray-200 shadow-sm rounded-xl">
+            <Card className="bg-white border border-gray-200 shadow-sm rounded-xl">
               <CardHeader className="pb-4">
                 <CardTitle className="text-2xl font-semibold text-gray-900">
                   Today's Goal
@@ -297,28 +277,60 @@ function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* L1 Week 5 Section */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-6">
+            {/* Upcoming */}
+            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-4">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                Upcoming
+              </h3>
+              <div className="space-y-3">
+                {upcomingEvents.map((event, index) => (
+                  <div key={index} className="space-y-2 p-3 bg-gray-50 rounded-md border border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                        {event.date}
+                      </span>
+                      <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-medium h-7">
+                        Sign up
+                      </Button>
+                      </div>
+                    <div>
+                      <h4 className="font-semibold text-sm text-gray-900 mb-1 leading-tight">
+                        {event.title}
+                      </h4>
+                      <p className="text-xs text-gray-600">{event.time}</p>
+                      {event.location && (
+                        <p className="text-xs text-gray-500 mt-1">{event.location}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* L1 Week 5 - Full Width Section */}
+          <div className="px-6 pb-6">
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-3xl font-bold text-gray-900">
+                  <h2 className="text-2xl font-bold text-gray-900">
                     <span className="text-indigo-600">L1</span> Week 5
                   </h2>
-                  <p className="text-gray-600 text-lg mt-1">Learn to write small Python scripts using ChatGPT</p>
+                  <p className="text-gray-600 text-base mt-1">Learn to write small Python scripts using ChatGPT</p>
                 </div>
-                <div className="flex items-center gap-3 bg-white rounded-lg border border-gray-200 p-1">
-                  <Button variant="outline" size="sm" className="border-gray-300 text-gray-600 hover:bg-gray-50">
-                    <ChevronLeft className="h-4 w-4" />
+                <div className="flex items-center gap-1 bg-gray-100 rounded-md p-1">
+                  <Button variant="ghost" size="sm" className="text-gray-500 hover:bg-gray-200 hover:text-gray-700 h-7 w-7 p-0">
+                    <ChevronLeft className="h-3 w-3" />
                   </Button>
-                  <span className="text-sm font-medium px-4 text-gray-700">Week 5</span>
-                  <Button variant="outline" size="sm" className="border-gray-300 text-gray-600 hover:bg-gray-50">
-                    <ChevronRight className="h-4 w-4" />
+                  <span className="text-sm font-medium px-2 text-gray-600 bg-white rounded px-2 py-1 border border-gray-200">Week 5</span>
+                  <Button variant="ghost" size="sm" className="text-gray-500 hover:bg-gray-200 hover:text-gray-700 h-7 w-7 p-0">
+                    <ChevronRight className="h-3 w-3" />
                   </Button>
                 </div>
               </div>
 
               {/* Weekly Schedule Grid */}
-              <div className="grid grid-cols-5 gap-6">
+              <div className="grid grid-cols-5 gap-4">
                 {[
                   { day: '10.2 SAT', isToday: false },
                   { day: '10.20 SAT', isToday: false },
@@ -394,46 +406,16 @@ function Dashboard() {
                       {index > 2 && (
                         <div className="flex justify-center mt-4">
                           <div className={`w-10 h-10 rounded-full border-2 ${item.isToday ? 'border-white' : 'border-gray-300'}`}></div>
-                        </div>
-                      )}
+              </div>
+            )}
                     </CardContent>
                   </Card>
                 ))}
               </div>
             </div>
           </div>
-
-          {/* Right sidebar - Upcoming */}
-          <div className="w-80 border-l border-gray-200 bg-white p-8">
-            <h3 className="text-xl font-bold text-gray-900 mb-6">
-              Upcoming
-            </h3>
-            <div className="space-y-6">
-              {upcomingEvents.map((event, index) => (
-                <div key={index} className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
-                      {event.date}
-                    </span>
-                    <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium">
-                      Sign up
-                    </Button>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-base text-gray-900 mb-2">
-                      {event.title}
-                    </h4>
-                    <p className="text-sm text-gray-600 mb-1">{event.time}</p>
-                    {event.location && (
-                      <p className="text-sm text-gray-500">{event.location}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
-      </div>
+        </div>
     );
   };
 
@@ -450,8 +432,8 @@ function Dashboard() {
       {error && (
         <div className="p-4 mx-6 mt-6 bg-destructive/10 border border-destructive/20 rounded-lg">
           <p className="text-destructive text-sm">{error}</p>
-        </div>
-      )}
+          </div>
+        )}
       
       {/* Conditionally render based on user status and role */}
       {!isActive ? renderHistoricalView() : 
@@ -461,4 +443,4 @@ function Dashboard() {
   );
 }
 
-export default Dashboard;
+export default Dashboard; 
