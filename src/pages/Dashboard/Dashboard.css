@@ -33,14 +33,14 @@
   width: 100%;
   max-width: 100%;
   min-height: 100vh;
-  padding: 0 40px 40px 40px;
+  padding: 0;
   box-sizing: border-box;
 }
 
 /* Greeting Section */
 .dashboard__greeting {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
   width: 100%;
   height: 44px;
@@ -59,21 +59,23 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin: 0;
+  padding-left: 40px;
+  display: flex;
+  align-items: center;
 }
 
 .dashboard__missed-assignments {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 20px;
+  padding: 0 20px;
   background: var(--color-pursuit-purple);
   color: var(--color-background);
   font-weight: 500;
   font-size: 14px;
   line-height: 150%;
   letter-spacing: 0.005em;
-  border-radius: 4px;
-  height: fit-content;
+  height: 100%;
 }
 
 .dashboard__missed-icon {
@@ -95,14 +97,11 @@
   width: 100%;
   height: 1px;
   background: var(--color-divider);
-  margin: 30px 0;
+  margin: 20px 0;
 }
 
 .dashboard__divider-3 {
-  width: 100%;
-  height: 1px;
-  background: var(--color-divider);
-  margin: 40px 0 0 0;
+  display: none;
 }
 
 .dashboard__vertical-divider {
@@ -114,45 +113,46 @@
   display: grid;
   grid-template-columns: 1fr 350px;
   gap: 40px;
-  margin-bottom: 40px;
+  margin-bottom: 20px;
+  padding: 0 40px;
 }
 
 /* Today's Goal Section */
 .dashboard__todays-goal {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 8px;
 }
 
 .dashboard__section-title {
   font-weight: 700;
-  font-size: 28px;
-  line-height: 32px;
+  font-size: 20px;
+  line-height: 24px;
   letter-spacing: 0.005em;
   color: var(--color-carbon-black);
-  margin: 0 0 10px 0;
+  margin: 0 0 8px 0;
 }
 
 .dashboard__goal-text {
   font-weight: 400;
-  font-size: 28px;
-  line-height: 31px;
+  font-size: 18px;
+  line-height: 24px;
   color: var(--color-carbon-black);
-  margin: 0 0 20px 0;
+  margin: 0 0 12px 0;
 }
 
 .dashboard__start-btn {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  padding: 15px 50px;
+  padding: 10px 30px;
   width: fit-content;
   background: var(--color-background);
   border: 2px solid var(--color-pursuit-purple);
   border-radius: 100px;
   font-weight: 400;
-  font-size: 28px;
-  line-height: 34px;
+  font-size: 16px;
+  line-height: 20px;
   color: var(--color-pursuit-purple);
   cursor: pointer;
 }
@@ -192,8 +192,8 @@
 
 .dashboard__upcoming-date {
   font-weight: 700;
-  font-size: 16px;
-  line-height: 18px;
+  font-size: 12px;
+  line-height: 14px;
   color: var(--color-pursuit-purple);
   white-space: nowrap;
 }
@@ -204,29 +204,29 @@
 
 .dashboard__upcoming-title {
   font-weight: 700;
-  font-size: 16px;
-  line-height: 18px;
+  font-size: 12px;
+  line-height: 14px;
   color: var(--color-carbon-black);
-  margin: 0 0 4px 0;
+  margin: 0 0 2px 0;
 }
 
 .dashboard__upcoming-time,
 .dashboard__upcoming-location {
-  font-weight: 700;
-  font-size: 16px;
-  line-height: 18px;
+  font-weight: 400;
+  font-size: 10px;
+  line-height: 12px;
   color: var(--color-carbon-black);
   margin: 0;
 }
 
 .dashboard__signup-btn {
-  padding: 3px 10px;
+  padding: 2px 8px;
   background: var(--color-background);
   border: 1px solid var(--color-pursuit-purple);
   border-radius: 100px;
   font-weight: 400;
-  font-size: 16px;
-  line-height: 18px;
+  font-size: 12px;
+  line-height: 14px;
   color: var(--color-pursuit-purple);
   cursor: pointer;
   white-space: nowrap;
@@ -242,17 +242,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
+  padding: 0 40px;
 }
 
 .dashboard__week-title {
   font-weight: 700;
-  font-size: 28px;
-  line-height: 32px;
+  font-size: 20px;
+  line-height: 24px;
   color: var(--color-pursuit-purple);
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 2px;
 }
 
 .dashboard__week-label {
@@ -261,7 +262,7 @@
 
 .dashboard__week-subtitle {
   color: var(--color-carbon-black);
-  font-size: 20px;
+  font-size: 14px;
   font-weight: 400;
 }
 
@@ -304,15 +305,16 @@
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 15px;
-  margin-bottom: 40px;
+  margin-bottom: 30px;
+  padding: 0 40px;
 }
 
 .dashboard__day-card {
   width: 100%;
-  min-height: 411px;
+  min-height: 380px;
   background: var(--color-stardust);
-  border-radius: 20px;
-  padding: 16px;
+  border-radius: 18px;
+  padding: 14px;
   position: relative;
   box-sizing: border-box;
 }
@@ -325,8 +327,8 @@
 
 .dashboard__day-date {
   font-weight: 400;
-  font-size: 18px;
-  line-height: 20px;
+  font-size: 16px;
+  line-height: 18px;
   color: var(--color-carbon-black);
   margin-bottom: 6px;
 }
@@ -337,10 +339,10 @@
 }
 
 .dashboard__day-separator {
-  width: 220px;
+  width: 100%;
   height: 0px;
   border: 1px solid var(--color-carbon-black);
-  margin: 10px 0;
+  margin: 8px 0;
 }
 
 .dashboard__day-card--today .dashboard__day-separator {
@@ -349,10 +351,10 @@
 
 .dashboard__checkbox {
   position: absolute;
-  right: 16px;
-  top: 22px;
-  width: 15.07px;
-  height: 15.07px;
+  right: 14px;
+  top: 18px;
+  width: 14px;
+  height: 14px;
   border: 1px solid var(--color-mastery-pink);
   border-radius: 100px;
 }
@@ -363,13 +365,13 @@
 }
 
 .dashboard__day-section {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .dashboard__day-section-title {
   font-weight: 700;
-  font-size: 16px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 16px;
   color: var(--color-carbon-black);
   margin: 0 0 8px 0;
 }
@@ -382,14 +384,14 @@
 .dashboard__day-events {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 .dashboard__day-activity,
 .dashboard__day-event {
   font-weight: 400;
-  font-size: 16px;
-  line-height: 18px;
+  font-size: 13px;
+  line-height: 16px;
   color: var(--color-carbon-black);
 }
 
@@ -399,7 +401,7 @@
 }
 
 .dashboard__activity-divider {
-  width: 220px;
+  width: 100%;
   height: 0px;
   border: 1px dashed var(--color-divider);
   margin: 3px 0;
@@ -407,15 +409,15 @@
 
 .dashboard__go-btn {
   position: absolute;
-  bottom: 16px;
-  left: 16px;
-  padding: 5px 20px;
+  bottom: 14px;
+  left: 14px;
+  padding: 5px 18px;
   background: var(--color-background);
   border: 1px solid var(--color-pursuit-purple);
   border-radius: 100px;
   font-weight: 400;
-  font-size: 16px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 16px;
   color: var(--color-pursuit-purple);
   cursor: pointer;
 }
