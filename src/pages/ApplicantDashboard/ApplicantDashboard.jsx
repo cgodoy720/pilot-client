@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import pursuitLogoFull from '../../assets/logo-full.png';
 import databaseService from '../../services/databaseService';
+import Swal from 'sweetalert2';
 import './ApplicantDashboard.css';
 
 const SECTION_CONFIG = [
@@ -72,6 +73,7 @@ const SECTION_CONFIG = [
 
 function ApplicantDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState(null);
   const [currentApplicantId, setCurrentApplicantId] = useState(null);
   const [statuses, setStatuses] = useState({
@@ -82,8 +84,10 @@ function ApplicantDashboard() {
   });
   const [sessionDetails, setSessionDetails] = useState(null);
   const [workshopDetails, setWorkshopDetails] = useState(null);
+  const [applicantStage, setApplicantStage] = useState(null);
   const [applicationProgress, setApplicationProgress] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Load user data from localStorage on mount
   useEffect(() => {
@@ -126,6 +130,12 @@ function ApplicantDashboard() {
     }
   }, [user]);
 
+  // Trigger refresh when returning to dashboard (e.g., from application form)
+  useEffect(() => {
+    // Increment refresh trigger when location changes
+    setRefreshTrigger(prev => prev + 1);
+  }, [location]);
+
   // Load real data from database when applicant ID is available
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -157,7 +167,7 @@ function ApplicantDashboard() {
     if (currentApplicantId) {
       loadDashboardData();
     }
-  }, [currentApplicantId]);
+  }, [currentApplicantId, refreshTrigger]); // Reload when refreshTrigger changes (i.e., location changes)
 
   const loadInfoSessionStatus = async () => {
     try {
@@ -259,6 +269,18 @@ function ApplicantDashboard() {
       }
       
       console.log('Dashboard: Application found:', application.status, 'ID:', application.application_id);
+      
+      // Fetch applicant stage data (including deferred status)
+      try {
+        const stageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${applicant.applicant_id}/stage`);
+        if (stageResponse.ok) {
+          const stageData = await stageResponse.json();
+          console.log('Dashboard: Applicant stage data:', stageData);
+          setApplicantStage(stageData);
+        }
+      } catch (error) {
+        console.error('Error fetching applicant stage:', error);
+      }
       
       if (application.status === 'ineligible') {
         setStatuses(prev => ({ ...prev, application: 'ineligible' }));
@@ -802,6 +824,139 @@ function ApplicantDashboard() {
                     </div>
                   )}
                   
+                  {/* Defer application button for submitted applications */}
+                  {section.key === 'application' && status === 'submitted' && currentApplicantId && !applicantStage?.deferred && (
+                    <div className="session-details__container" style={{ marginTop: '12px' }}>
+                      <button
+                        onClick={async () => {
+                          const result = await Swal.fire({
+                            title: 'Defer Your Application?',
+                            html: `
+                              <p style="font-size: 16px; margin: 20px 0;">
+                                If you defer, your application will be removed from the current cohort and automatically reconsidered for the next one.
+                              </p>
+                              <p style="font-size: 14px; color: #666; margin: 15px 0;">
+                                We'll reach out with details about the next cohort timeline.
+                              </p>
+                            `,
+                            icon: 'question',
+                            showCancelButton: true,
+                            confirmButtonText: 'Yes, Defer My Application',
+                            cancelButtonText: 'Cancel',
+                            confirmButtonColor: '#dc3545',
+                            cancelButtonColor: '#6c757d',
+                            background: 'var(--color-background-dark)',
+                            color: 'var(--color-text-primary)',
+                            customClass: {
+                              popup: 'custom-swal-popup'
+                            }
+                          });
+
+                          if (result.isConfirmed) {
+                            try {
+                              // Call the defer endpoint directly with applicant ID
+                              const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/defer`, {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ applicantId: currentApplicantId })
+                              });
+
+                              if (!response.ok) {
+                                const error = await response.json();
+                                throw new Error(error.error || 'Failed to defer application');
+                              }
+
+                              const deferResult = await response.json();
+                              
+                              await Swal.fire({
+                                icon: 'success',
+                                title: 'Application Deferred',
+                                html: `<p style="font-size: 16px;">${deferResult.message}</p>`,
+                                confirmButtonColor: '#4242ea',
+                                background: 'var(--color-background-dark)',
+                                color: 'var(--color-text-primary)',
+                                confirmButtonText: 'OK'
+                              });
+                              
+                              // Reload the page to reflect the updated status
+                              window.location.reload();
+                            } catch (error) {
+                              await Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: error.message || 'Failed to defer application. Please try again.',
+                                confirmButtonColor: '#dc3545',
+                                background: 'var(--color-background-dark)',
+                                color: 'var(--color-text-primary)',
+                                confirmButtonText: 'OK'
+                              });
+                            }
+                          }
+                        }}
+                        style={{
+                          background: 'rgba(220, 53, 69, 0.1)',
+                          color: '#dc3545',
+                          padding: '10px 16px',
+                          border: '1px solid #dc3545',
+                          borderRadius: '8px',
+                          fontSize: '0.85rem',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          width: '100%',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.background = '#dc3545';
+                          e.target.style.color = 'white';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.background = 'rgba(220, 53, 69, 0.1)';
+                          e.target.style.color = '#dc3545';
+                        }}
+                      >
+                        Change of plans? Defer your application
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Show deferred status message */}
+                  {section.key === 'application' && status === 'submitted' && applicantStage?.deferred && (
+                    <div className="session-details__container" style={{ 
+                      marginTop: '12px', 
+                      background: 'rgba(255, 193, 7, 0.1)',
+                      border: '1px solid #ffc107',
+                      borderRadius: '8px',
+                      padding: '16px'
+                    }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '8px',
+                        marginBottom: '8px'
+                      }}>
+                        <span style={{ fontSize: '20px' }}>📅</span>
+                        <strong style={{ color: '#ffc107' }}>Application Deferred</strong>
+                      </div>
+                      <p style={{ 
+                        margin: 0, 
+                        fontSize: '0.9rem',
+                        color: 'var(--color-text-secondary)'
+                      }}>
+                        Your application will be automatically reconsidered for the next cohort. We'll reach out with details about the timeline.
+                      </p>
+                      {applicantStage.deferred_at && (
+                        <p style={{ 
+                          margin: '8px 0 0 0', 
+                          fontSize: '0.8rem',
+                          color: 'var(--color-text-tertiary)'
+                        }}>
+                          Deferred on {new Date(applicantStage.deferred_at).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {section.key === 'infoSession' && (status === 'signed-up' || status === 'attended') && sessionDetails && (
                     <div className="session-details__container">
