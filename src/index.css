@@ -63,6 +63,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-background-darker);
   color: var(--color-text-primary);
+  overflow-x: hidden;
+}
+
+/* Hide scrollbars globally */
+*::-webkit-scrollbar {
+  display: none;
+}
+
+* {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }
 
 code {

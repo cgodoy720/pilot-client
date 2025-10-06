@@ -70,7 +70,7 @@ const ProgramDetails = () => {
           <div className="program-details__text-box">
             <p>
               <strong>Start Date:</strong><br/>
-              September 6, 2025<br/><br/>
+              December 6, 2025<br/><br/>
               <strong>Schedule:</strong><br/>
               Mon - Wed: 6:00 - 10:30 PM<br/>
               Sat - Sun: 10:00AM - 6:00 PM<br/><br/>
