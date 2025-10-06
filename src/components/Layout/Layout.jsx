@@ -193,7 +193,7 @@ const Layout = ({ children }) => {
           to="/account"
           className={cn(
             "w-[60px] h-[53px] flex items-center justify-center",
-            location.pathname === '/profile' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+            location.pathname === '/account' ? "bg-[#4242EA]" : "hover:bg-gray-800"
           )}
         >
           <svg width="14" height="18" viewBox="0 0 14 18" fill="none">
