@@ -2,10 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Calendar, BookOpen, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import './Dashboard.css';
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -207,7 +204,7 @@ function Dashboard() {
     );
   };
 
-  // Mock upcoming events for the wireframe
+  // Mock data for the Figma wireframe
   const upcomingEvents = [
     {
       date: "10.15.25",
@@ -229,193 +226,289 @@ function Dashboard() {
     }
   ];
 
+  const weeklyAgenda = [
+    {
+      date: '10.2 SAT',
+      isToday: false,
+      activities: ['Prompting workshop', 'Build block', 'Researching MVP\'s', 'Writing small Python scripts using ChatGPT', 'Create a business plan'],
+      events: ['Fireside chat with David Yang fro, adsf', 'Presentation'],
+      hasCheckbox: true,
+      checkboxChecked: true
+    },
+    {
+      date: '10.20 SAT',
+      isToday: false,
+      activities: ['Prompting workshop', 'Build block', 'Researching MVP\'s', 'Writing small Python scripts using ChatGPT', 'Create a business plan'],
+      events: ['Fireside chat with David Yang fro, adsf', 'Presentation'],
+      hasCheckbox: true,
+      checkboxChecked: false
+    },
+    {
+      date: 'TODAY 10.22 MON',
+      isToday: true,
+      activities: ['Prompting workshop', 'Build block', 'Researching MVP\'s', 'Writing small Python scripts using ChatGPT', 'Create a business plan'],
+      events: [],
+      hasCheckbox: false,
+      checkboxChecked: false
+    },
+    {
+      date: '10.20 SAT',
+      isToday: false,
+      activities: ['Prompting workshop', 'Build block', 'Researching MVP\'s', 'Writing small Python scripts using ChatGPT', 'Create a business plan'],
+      events: ['Fireside chat with David Yang fro, adsf'],
+      hasCheckbox: false,
+      checkboxChecked: false
+    },
+    {
+      date: '10.20 SAT',
+      isToday: false,
+      activities: ['Prompting workshop', 'Build block', 'Researching MVP\'s', 'Writing small Python scripts using ChatGPT', 'Create a business plan'],
+      events: [],
+      hasCheckbox: false,
+      checkboxChecked: false
+    }
+  ];
+
   // Render regular dashboard content matching the Figma wireframe
   const renderDashboardContent = () => {
     return (
-      <div className="min-h-screen bg-background">
-        
-        {/* Header */}
-        <div className="border-b border-gray-200 bg-white px-8 py-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Hey {user?.first_name || 'Yoshi'}. Good to see you!
-              </h1>
-            </div>
-
-            {/* Missed assignments indicator */}
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2 text-sm">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <span className="text-gray-600">( 0 ) missed assignments</span>
-              </div>
+      <div className="dashboard">
+        {/* Desktop View */}
+        <div className="dashboard__desktop hidden md:block">
+          {/* Greeting Section */}
+          <div className="dashboard__greeting">
+            <h1 className="dashboard__greeting-text">
+              Hey {user?.first_name || 'Yoshi'}. Good to see you!
+            </h1>
+            <div className="dashboard__missed-assignments">
+              <div className="dashboard__missed-icon" />
+              <span>( 0 ) missed assignments</span>
             </div>
           </div>
-        </div>
 
-        {/* Main Content */}
-        <div className="bg-gray-50">
-          {/* Top section with Today's Goal and Upcoming side by side */}
-          <div className="grid grid-cols-[70%_25%] gap-6 p-6">
-            {/* Today's Goal */}
-            <Card className="bg-white border border-gray-200 shadow-sm rounded-xl">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-2xl font-semibold text-gray-900">
-                  Today's Goal
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <p className="text-gray-700 mb-6 leading-relaxed text-base">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam
-                  a vestibulum justo. Vestibulum id vulputate magna. Morbi a elit
-                  tortor. Sed ut mattis quam. Vestibulum quis consequat odio.
-                  Vivamus non lacus ut sem fringilla suscipit.
-                </p>
-                <Button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium">
-                  Start
-                </Button>
-              </CardContent>
-            </Card>
+          {/* Top Grid: Today's Goal and Upcoming */}
+          <div className="dashboard__top-grid">
+            {/* Today's Goal Section */}
+            <div className="dashboard__todays-goal">
+              <h2 className="dashboard__section-title">Today's Goal</h2>
+              <p className="dashboard__goal-text">
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam a vestibulum justo. 
+                Vestibulum id vulputate magna. Morbi a elit tortor. Sed ut mattis quam. Vestibulum quis 
+                consequat odio. Vivamus non lacus ut sem fringilla suscipit.
+              </p>
+              <button className="dashboard__start-btn">Start</button>
+            </div>
 
-            {/* Upcoming */}
-            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-4">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">
-                Upcoming
-              </h3>
-              <div className="space-y-3">
+            {/* Upcoming Section */}
+            <div className="dashboard__upcoming">
+              <h2 className="dashboard__section-title">Upcoming</h2>
+              <div className="dashboard__upcoming-list">
                 {upcomingEvents.map((event, index) => (
-                  <div key={index} className="space-y-2 p-3 bg-gray-50 rounded-md border border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                        {event.date}
-                      </span>
-                      <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-medium h-7">
-                        Sign up
-                      </Button>
+                  <div key={index} className="dashboard__upcoming-item">
+                    <div className="dashboard__upcoming-content">
+                      <span className="dashboard__upcoming-date">{event.date}</span>
+                      <div className="dashboard__upcoming-details">
+                        <p className="dashboard__upcoming-title">{event.title}</p>
+                        <p className="dashboard__upcoming-time">{event.time}</p>
+                        {event.location && <p className="dashboard__upcoming-location">{event.location}</p>}
                       </div>
-                    <div>
-                      <h4 className="font-semibold text-sm text-gray-900 mb-1 leading-tight">
-                        {event.title}
-                      </h4>
-                      <p className="text-xs text-gray-600">{event.time}</p>
-                      {event.location && (
-                        <p className="text-xs text-gray-500 mt-1">{event.location}</p>
-                      )}
                     </div>
+                    <button className="dashboard__signup-btn">Sign up</button>
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* L1 Week 5 - Full Width Section */}
-          <div className="px-6 pb-6">
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    <span className="text-indigo-600">L1</span> Week 5
-                  </h2>
-                  <p className="text-gray-600 text-base mt-1">Learn to write small Python scripts using ChatGPT</p>
-                </div>
-                <div className="flex items-center gap-1 bg-gray-100 rounded-md p-1">
-                  <Button variant="ghost" size="sm" className="text-gray-500 hover:bg-gray-200 hover:text-gray-700 h-7 w-7 p-0">
-                    <ChevronLeft className="h-3 w-3" />
-                  </Button>
-                  <span className="text-sm font-medium px-2 text-gray-600 bg-white rounded px-2 py-1 border border-gray-200">Week 5</span>
-                  <Button variant="ghost" size="sm" className="text-gray-500 hover:bg-gray-200 hover:text-gray-700 h-7 w-7 p-0">
-                    <ChevronRight className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
+          {/* Divider 2 */}
+          <div className="dashboard__divider-2" />
 
-              {/* Weekly Schedule Grid */}
-              <div className="grid grid-cols-5 gap-4">
-                {[
-                  { day: '10.2 SAT', isToday: false },
-                  { day: '10.20 SAT', isToday: false },
-                  { day: 'TODAY 10.22 MON', isToday: true },
-                  { day: '10.20 SAT', isToday: false },
-                  { day: '10.20 SAT', isToday: false }
-                ].map((item, index) => (
-                  <Card key={index} className={`bg-white border rounded-xl shadow-sm hover:shadow-md transition-shadow ${
-                    item.isToday ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-200'
-                  }`}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className={`text-sm font-semibold ${item.isToday ? 'text-white' : 'text-gray-900'}`}>
-                        {item.day}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <h4 className={`font-semibold text-sm mb-3 ${item.isToday ? 'text-white' : 'text-gray-900'}`}>
-                          Activities
-                        </h4>
-                        <div className={`space-y-2 text-sm ${item.isToday ? 'text-indigo-100' : 'text-gray-600'}`}>
-                          <div className="flex items-center gap-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${item.isToday ? 'bg-white' : 'bg-gray-400'}`}></div>
-                            Prompting workshop
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${item.isToday ? 'bg-white' : 'bg-gray-400'}`}></div>
-                            Build block
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${item.isToday ? 'bg-white' : 'bg-gray-400'}`}></div>
-                            Researching MVP's
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${item.isToday ? 'bg-white' : 'bg-gray-400'}`}></div>
-                            Writing small Python scripts using ChatGPT
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${item.isToday ? 'bg-white' : 'bg-gray-400'}`}></div>
-                            Create a business plan
-                          </div>
-                        </div>
+          {/* Week Header: Title and Date Picker */}
+          <div className="dashboard__week-header">
+            <div className="dashboard__week-title">
+              <span className="dashboard__week-label">L1: Week 5</span>
+              <span className="dashboard__week-subtitle">Learn to write small Python scripts using ChatGPT</span>
+            </div>
+
+            <div className="dashboard__date-picker">
+              <button className="dashboard__date-btn dashboard__date-btn--active">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="dashboard__date-label">May 2025</span>
+              <button className="dashboard__date-btn">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Weekly Agenda Cards */}
+          <div className="dashboard__weekly-grid">
+            {weeklyAgenda.map((day, index) => (
+              <div 
+                key={index} 
+                className={`dashboard__day-card ${day.isToday ? 'dashboard__day-card--today' : ''}`}
+              >
+                {/* Date */}
+                <div className="dashboard__day-date">{day.date}</div>
+                
+                {/* Separator */}
+                <div className="dashboard__day-separator" />
+                
+                {/* Checkbox (for first two cards) */}
+                {day.hasCheckbox && (
+                  <div className={`dashboard__checkbox ${day.checkboxChecked ? 'dashboard__checkbox--checked' : ''}`} />
+                )}
+                
+                {/* Activities */}
+                <div className="dashboard__day-section">
+                  <h4 className="dashboard__day-section-title">Activities</h4>
+                  <div className="dashboard__day-activities">
+                    {day.activities.map((activity, actIndex) => (
+                      <div key={actIndex} className="dashboard__day-activity">
+                        <span>{activity}</span>
+                        {actIndex < day.activities.length - 1 && (
+                          <div className="dashboard__activity-divider" />
+                        )}
                       </div>
+                    ))}
+                  </div>
+                </div>
 
-                      {index < 2 && (
-                        <div>
-                          <h4 className={`font-semibold text-sm mb-3 ${item.isToday ? 'text-white' : 'text-gray-900'}`}>
-                            Events
-                          </h4>
-                          <div className={`text-sm space-y-2 ${item.isToday ? 'text-indigo-100' : 'text-gray-600'}`}>
-                            <div className="flex items-center gap-2">
-                              <div className={`w-1.5 h-1.5 rounded-full ${item.isToday ? 'bg-white' : 'bg-gray-400'}`}></div>
-                              Fireside chat with David Yang
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className={`w-1.5 h-1.5 rounded-full ${item.isToday ? 'bg-white' : 'bg-gray-400'}`}></div>
-                              fro, adsf
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className={`w-1.5 h-1.5 rounded-full ${item.isToday ? 'bg-white' : 'bg-gray-400'}`}></div>
-                              Presentation
-                            </div>
-                          </div>
+                {/* Events (if any) */}
+                {day.events.length > 0 && (
+                  <div className="dashboard__day-section">
+                    <h4 className="dashboard__day-section-title">Events</h4>
+                    <div className="dashboard__day-events">
+                      {day.events.map((event, eventIndex) => (
+                        <div key={eventIndex} className="dashboard__day-event">
+                          <span>{event}</span>
+                          {eventIndex < day.events.length - 1 && (
+                            <div className="dashboard__activity-divider" />
+                          )}
                         </div>
-                      )}
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                      {item.isToday && (
-                        <Button size="sm" className="w-full mt-4 bg-white text-indigo-600 hover:bg-indigo-50 font-medium">
-                          Go
-                        </Button>
-                      )}
+                {/* Go Button (for today card) */}
+                {day.isToday && (
+                  <button className="dashboard__go-btn dashboard__go-btn--today">Go</button>
+                )}
+                {!day.isToday && index < 2 && (
+                  <button className="dashboard__go-btn">Go</button>
+                )}
+              </div>
+            ))}
+          </div>
 
-                      {index > 2 && (
-                        <div className="flex justify-center mt-4">
-                          <div className={`w-10 h-10 rounded-full border-2 ${item.isToday ? 'border-white' : 'border-gray-300'}`}></div>
+          {/* Divider 3 */}
+          <div className="dashboard__divider-3" />
+        </div>
+
+        {/* Mobile View */}
+        <div className="dashboard__mobile block md:hidden">
+          {/* Divider at top */}
+          <div className="dashboard__mobile-divider-top" />
+
+          {/* Today's Goal */}
+          <div className="dashboard__mobile-goal">
+            <h2 className="dashboard__mobile-section-title">Today's Goal</h2>
+            <p className="dashboard__mobile-goal-text">
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam a vestibulum justo. 
+              Vestibulum id vulputate magna. Morbi a elit tortor. Sed ut mattis quam. Vestibulum quis 
+              consequat odio. Vivamus non lacus ut sem fringilla suscipit.
+            </p>
+          </div>
+
+          {/* Start Button */}
+          <button className="dashboard__mobile-start-btn">Start</button>
+
+          {/* L1 Week 5 Title */}
+          <div className="dashboard__mobile-week-title">
+            L1: Week 5 <br />
+            Learn to write small Python scripts using ChatGPT
+          </div>
+
+          {/* Divider 2 */}
+          <div className="dashboard__mobile-divider-2" />
+
+          {/* Date Picker */}
+          <div className="dashboard__mobile-date-picker">
+            <button className="dashboard__mobile-date-btn dashboard__mobile-date-btn--active">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="dashboard__mobile-date-label">May 2025</span>
+            <button className="dashboard__mobile-date-btn">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Weekly Agenda - Mobile */}
+          <div className="dashboard__mobile-agenda">
+            {/* First two days */}
+            <div className="dashboard__mobile-day">
+              <div className="dashboard__mobile-day-header">10/20 SAT</div>
+              <div className="dashboard__mobile-checkbox" />
+            </div>
+            <div className="dashboard__mobile-day">
+              <div className="dashboard__mobile-day-header">10/21 SUN</div>
+              <div className="dashboard__mobile-checkbox dashboard__mobile-checkbox--checked" />
+            </div>
+
+            {/* Today Card */}
+            <div className="dashboard__mobile-today-card">
+              <div className="dashboard__mobile-today-header">TODAY 10/22 MON</div>
+              <div className="dashboard__mobile-today-separator" />
+              <div className="dashboard__mobile-today-section">
+                <h4 className="dashboard__mobile-today-section-title">Activities</h4>
+                <div className="dashboard__mobile-today-activities">
+                  {weeklyAgenda[2].activities.map((activity, index) => (
+                    <div key={index}>
+                      <div className="dashboard__mobile-today-activity">{activity}</div>
+                      {index < weeklyAgenda[2].activities.length - 1 && (
+                        <div className="dashboard__mobile-activity-divider" />
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <button className="dashboard__mobile-go-btn">Go</button>
+            </div>
+
+            {/* Last two days */}
+            <div className="dashboard__mobile-day">
+              <div className="dashboard__mobile-day-header">10/23 TUE</div>
+            </div>
+            <div className="dashboard__mobile-day">
+              <div className="dashboard__mobile-day-header">10/24 WED</div>
+            </div>
+          </div>
+
+          {/* Divider 3 */}
+          <div className="dashboard__mobile-divider-3" />
+
+          {/* Upcoming Section */}
+          <div className="dashboard__mobile-upcoming">
+            <h2 className="dashboard__mobile-section-title">Upcoming</h2>
+            <div className="dashboard__mobile-upcoming-list">
+              {upcomingEvents.map((event, index) => (
+                <div key={index} className="dashboard__mobile-upcoming-item">
+                  <div className="dashboard__mobile-upcoming-content">
+                    <span className="dashboard__mobile-upcoming-date">{event.date}</span>
+                    <div className="dashboard__mobile-upcoming-details">
+                      <p className="dashboard__mobile-upcoming-title">{event.title}</p>
+                      <p className="dashboard__mobile-upcoming-time">{event.time}</p>
+                      {event.location && <p className="dashboard__mobile-upcoming-location">{event.location}</p>}
+                    </div>
+                  </div>
+                  <button className="dashboard__mobile-signup-btn">Sign up</button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
-        </div>
+      </div>
     );
   };
 
