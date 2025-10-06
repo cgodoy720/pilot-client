@@ -1696,7 +1696,7 @@ const AdmissionsDashboard = () => {
                     className={`admissions-dashboard__tab ${activeTab === 'applications' ? 'admissions-dashboard__tab--active' : ''}`}
                     onClick={() => handleTabChange('applications')}
                 >
-                    Applications
+                    Applicants
                 </button>
                 <button
                     className={`admissions-dashboard__tab ${activeTab === 'info-sessions' ? 'admissions-dashboard__tab--active' : ''}`}
@@ -1919,7 +1919,6 @@ const AdmissionsDashboard = () => {
                                     <option value="accepted">Accepted</option>
                                     <option value="rejected">Rejected</option>
                                     <option value="waitlisted">Waitlisted</option>
-                                    <option value="deferred">Deferred</option>
                                 </select>
                                 <button
                                     className={`filter-toggle-btn ${applicationFilters.ready_for_workshop_invitation ? 'filter-toggle-btn--active' : ''}`}
