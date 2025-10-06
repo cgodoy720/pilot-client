@@ -91,6 +91,27 @@ const AdmissionsDashboard = () => {
     const [selectedApplicants, setSelectedApplicants] = useState([]);
     const [bulkActionsModalOpen, setBulkActionsModalOpen] = useState(false);
     const [bulkActionInProgress, setBulkActionInProgress] = useState(false);
+    
+    // Filter dropdown state
+    const [openFilterColumn, setOpenFilterColumn] = useState(null);
+
+    // Close filter dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            // Check if click is outside any filter dropdown
+            if (openFilterColumn && !event.target.closest('th')) {
+                setOpenFilterColumn(null);
+            }
+        };
+
+        if (openFilterColumn) {
+            document.addEventListener('click', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+        };
+    }, [openFilterColumn]);
 
     // Manual registration state
     const [addRegistrationModalOpen, setAddRegistrationModalOpen] = useState(false);
@@ -1860,6 +1881,7 @@ const AdmissionsDashboard = () => {
                                     value={nameSearchInput}
                                     onChange={(e) => setNameSearchInput(e.target.value)}
                                     className="name-search-input"
+                                    style={{ width: '250px' }}
                                 />
                                 <select
                                     value={applicationFilters.cohort_id || ''}
@@ -1874,62 +1896,6 @@ const AdmissionsDashboard = () => {
                                     ))}
                                     <option value="deferred">Deferred Applications</option>
                                 </select>
-                                <select
-                                    value={applicationFilters.status || ''}
-                                    onChange={(e) => setApplicationFilters({ ...applicationFilters, status: e.target.value })}
-                                    className="filter-select"
-                                >
-                                    <option value="">Application Status: All</option>
-                                    <option value="submitted">Submitted</option>
-                                    <option value="in_progress">In Progress</option>
-                                    <option value="ineligible">Ineligible</option>
-                                </select>
-                                <select
-                                    value={applicationFilters.info_session_status || ''}
-                                    onChange={(e) => setApplicationFilters({ ...applicationFilters, info_session_status: e.target.value })}
-                                    className="filter-select"
-                                >
-                                    <option value="">Info Session: All</option>
-                                    <option value="not_registered">Not Registered</option>
-                                    <option value="registered">Registered</option>
-                                    <option value="attended">Attended</option>
-                                    <option value="attended_late">Attended Late</option>
-                                    <option value="very_late">Very Late</option>
-                                    <option value="no_show">No Show</option>
-                                </select>
-                                <select
-                                    value={applicationFilters.workshop_status || ''}
-                                    onChange={(e) => setApplicationFilters({ ...applicationFilters, workshop_status: e.target.value })}
-                                    className="filter-select"
-                                >
-                                    <option value="">Workshop: All</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="invited">Invited</option>
-                                    <option value="registered">Registered</option>
-                                    <option value="attended">Attended</option>
-                                    <option value="no_show">No Show</option>
-                                </select>
-                                <select
-                                    value={applicationFilters.program_admission_status || ''}
-                                    onChange={(e) => setApplicationFilters({ ...applicationFilters, program_admission_status: e.target.value })}
-                                    className="filter-select"
-                                >
-                                    <option value="">Admission: All</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="accepted">Accepted</option>
-                                    <option value="rejected">Rejected</option>
-                                    <option value="waitlisted">Waitlisted</option>
-                                </select>
-                                <button
-                                    className={`filter-toggle-btn ${applicationFilters.ready_for_workshop_invitation ? 'filter-toggle-btn--active' : ''}`}
-                                    onClick={() => setApplicationFilters({ ...applicationFilters, ready_for_workshop_invitation: !applicationFilters.ready_for_workshop_invitation })}
-                                    type="button"
-                                >
-                                    <span className="filter-toggle-btn__icon">
-                                        {applicationFilters.ready_for_workshop_invitation ? '✓' : '○'}
-                                    </span>
-                                    Ready for Workshop Invitation
-                                </button>
                                 <button
                                     className="admissions-dashboard__bulk-actions-btn"
                                     disabled={selectedApplicants.length === 0}
@@ -1972,49 +1938,345 @@ const AdmissionsDashboard = () => {
                                                     }}
                                                 />
                                             </th>
-                                            <th className="sortable-header" onClick={() => handleColumnSort('name')}>
-                                                Name
-                                                {columnSort.column === 'name' && (
-                                                    <span className="sort-indicator">
-                                                        {columnSort.direction === 'asc' ? ' ↑' : ' ↓'}
+                                            <th className="sortable-header" onClick={() => handleColumnSort('name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span>Name</span>
+                                                    <span style={{ fontSize: '1rem', opacity: 0.6 }}>
+                                                        {columnSort.column === 'name' ? (columnSort.direction === 'asc' ? '▲' : '▼') : '⇅'}
                                                     </span>
-                                                )}
+                                                </div>
                                             </th>
                                             <th>Email</th>
                                             <th>Phone</th>
-                                            <th className="sortable-header" onClick={() => handleColumnSort('status')}>
-                                                Status
-                                                {columnSort.column === 'status' && (
-                                                    <span className="sort-indicator">
-                                                        {columnSort.direction === 'asc' ? ' ↑' : ' ↓'}
+                                            <th style={{ position: 'relative' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span 
+                                                        onClick={() => handleColumnSort('status')} 
+                                                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                    >
+                                                        Status
                                                     </span>
+                                                    <span 
+                                                        onClick={() => handleColumnSort('status')}
+                                                        style={{ fontSize: '1rem', opacity: 0.6, cursor: 'pointer' }}
+                                                    >
+                                                        {columnSort.column === 'status' ? (columnSort.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                                                    </span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setOpenFilterColumn(openFilterColumn === 'status' ? null : 'status');
+                                                        }}
+                                                        style={{
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            padding: '2px',
+                                                            fontSize: '0.9rem',
+                                                            opacity: applicationFilters.status ? 1 : 0.5,
+                                                            color: applicationFilters.status ? '#4242ea' : 'inherit'
+                                                        }}
+                                                    >
+                                                        ☰
+                                                    </button>
+                                                </div>
+                                                {openFilterColumn === 'status' && (
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        top: '100%',
+                                                        left: 0,
+                                                        backgroundColor: 'var(--color-background-dark)',
+                                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                        borderRadius: '4px',
+                                                        padding: '8px',
+                                                        zIndex: 1000,
+                                                        minWidth: '150px',
+                                                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                                                    }}>
+                                                        {['', 'submitted', 'in_progress', 'ineligible'].map(value => (
+                                                            <div
+                                                                key={value}
+                                                                onClick={() => {
+                                                                    setApplicationFilters({ ...applicationFilters, status: value });
+                                                                    setOpenFilterColumn(null);
+                                                                }}
+                                                                style={{
+                                                                    padding: '8px 12px',
+                                                                    cursor: 'pointer',
+                                                                    backgroundColor: applicationFilters.status === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent',
+                                                                    borderRadius: '4px',
+                                                                    fontSize: '0.9rem'
+                                                                }}
+                                                                onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
+                                                                onMouseLeave={(e) => e.target.style.backgroundColor = applicationFilters.status === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent'}
+                                                            >
+                                                                {value === '' ? 'All' : value === 'in_progress' ? 'In Progress' : value.charAt(0).toUpperCase() + value.slice(1)}
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 )}
                                             </th>
-                                            <th className="sortable-header" onClick={() => handleColumnSort('assessment')}>
-                                                Assessment
-                                                {columnSort.column === 'assessment' && (
-                                                    <span className="sort-indicator">
-                                                        {columnSort.direction === 'asc' ? ' ↑' : ' ↓'}
+                                            <th style={{ position: 'relative' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span 
+                                                        onClick={() => handleColumnSort('assessment')} 
+                                                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                    >
+                                                        Assessment
                                                     </span>
+                                                    <span 
+                                                        onClick={() => handleColumnSort('assessment')}
+                                                        style={{ fontSize: '1rem', opacity: 0.6, cursor: 'pointer' }}
+                                                    >
+                                                        {columnSort.column === 'assessment' ? (columnSort.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                                                    </span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setOpenFilterColumn(openFilterColumn === 'assessment' ? null : 'assessment');
+                                                        }}
+                                                        style={{
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            padding: '2px',
+                                                            fontSize: '0.9rem',
+                                                            opacity: applicationFilters.recommendation ? 1 : 0.5,
+                                                            color: applicationFilters.recommendation ? '#4242ea' : 'inherit'
+                                                        }}
+                                                    >
+                                                        ☰
+                                                    </button>
+                                                </div>
+                                                {openFilterColumn === 'assessment' && (
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        top: '100%',
+                                                        left: 0,
+                                                        backgroundColor: 'var(--color-background-dark)',
+                                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                        borderRadius: '4px',
+                                                        padding: '8px',
+                                                        zIndex: 1000,
+                                                        minWidth: '170px',
+                                                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                                                    }}>
+                                                        {['', 'strong_recommend', 'recommend', 'review_needed', 'not_recommend'].map(value => (
+                                                            <div
+                                                                key={value}
+                                                                onClick={() => {
+                                                                    setApplicationFilters({ ...applicationFilters, recommendation: value });
+                                                                    setOpenFilterColumn(null);
+                                                                }}
+                                                                style={{
+                                                                    padding: '8px 12px',
+                                                                    cursor: 'pointer',
+                                                                    backgroundColor: applicationFilters.recommendation === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent',
+                                                                    borderRadius: '4px',
+                                                                    fontSize: '0.9rem'
+                                                                }}
+                                                                onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
+                                                                onMouseLeave={(e) => e.target.style.backgroundColor = applicationFilters.recommendation === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent'}
+                                                            >
+                                                                {value === '' ? 'All' : value === 'strong_recommend' ? 'Strong Recommend' : value === 'review_needed' ? 'Review Needed' : value === 'not_recommend' ? 'Not Recommend' : 'Recommend'}
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 )}
                                             </th>
-                                            <th className="sortable-header" onClick={() => handleColumnSort('info_session')}>
-                                                Info Session
-                                                {columnSort.column === 'info_session' && (
-                                                    <span className="sort-indicator">
-                                                        {columnSort.direction === 'asc' ? ' ↑' : ' ↓'}
+                                            <th style={{ position: 'relative' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span 
+                                                        onClick={() => handleColumnSort('info_session')} 
+                                                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                    >
+                                                        Info Session
                                                     </span>
+                                                    <span 
+                                                        onClick={() => handleColumnSort('info_session')}
+                                                        style={{ fontSize: '1rem', opacity: 0.6, cursor: 'pointer' }}
+                                                    >
+                                                        {columnSort.column === 'info_session' ? (columnSort.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                                                    </span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setOpenFilterColumn(openFilterColumn === 'info_session' ? null : 'info_session');
+                                                        }}
+                                                        style={{
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            padding: '2px',
+                                                            fontSize: '0.9rem',
+                                                            opacity: applicationFilters.info_session_status ? 1 : 0.5,
+                                                            color: applicationFilters.info_session_status ? '#4242ea' : 'inherit'
+                                                        }}
+                                                    >
+                                                        ☰
+                                                    </button>
+                                                </div>
+                                                {openFilterColumn === 'info_session' && (
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        top: '100%',
+                                                        left: 0,
+                                                        backgroundColor: 'var(--color-background-dark)',
+                                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                        borderRadius: '4px',
+                                                        padding: '8px',
+                                                        zIndex: 1000,
+                                                        minWidth: '150px',
+                                                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                                                    }}>
+                                                        {['', 'not_registered', 'registered', 'attended', 'no_show'].map(value => (
+                                                            <div
+                                                                key={value}
+                                                                onClick={() => {
+                                                                    setApplicationFilters({ ...applicationFilters, info_session_status: value });
+                                                                    setOpenFilterColumn(null);
+                                                                }}
+                                                                style={{
+                                                                    padding: '8px 12px',
+                                                                    cursor: 'pointer',
+                                                                    backgroundColor: applicationFilters.info_session_status === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent',
+                                                                    borderRadius: '4px',
+                                                                    fontSize: '0.9rem'
+                                                                }}
+                                                                onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
+                                                                onMouseLeave={(e) => e.target.style.backgroundColor = applicationFilters.info_session_status === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent'}
+                                                            >
+                                                                {value === '' ? 'All' : value === 'not_registered' ? 'Not Registered' : value === 'no_show' ? 'No Show' : value.charAt(0).toUpperCase() + value.slice(1)}
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 )}
                                             </th>
-                                            <th className="sortable-header" onClick={() => handleColumnSort('workshop')}>
-                                                Workshop
-                                                {columnSort.column === 'workshop' && (
-                                                    <span className="sort-indicator">
-                                                        {columnSort.direction === 'asc' ? ' ↑' : ' ↓'}
+                                            <th style={{ position: 'relative' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span 
+                                                        onClick={() => handleColumnSort('workshop')} 
+                                                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                    >
+                                                        Workshop
                                                     </span>
+                                                    <span 
+                                                        onClick={() => handleColumnSort('workshop')}
+                                                        style={{ fontSize: '1rem', opacity: 0.6, cursor: 'pointer' }}
+                                                    >
+                                                        {columnSort.column === 'workshop' ? (columnSort.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                                                    </span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setOpenFilterColumn(openFilterColumn === 'workshop' ? null : 'workshop');
+                                                        }}
+                                                        style={{
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            padding: '2px',
+                                                            fontSize: '0.9rem',
+                                                            opacity: applicationFilters.workshop_status ? 1 : 0.5,
+                                                            color: applicationFilters.workshop_status ? '#4242ea' : 'inherit'
+                                                        }}
+                                                    >
+                                                        ☰
+                                                    </button>
+                                                </div>
+                                                {openFilterColumn === 'workshop' && (
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        top: '100%',
+                                                        left: 0,
+                                                        backgroundColor: 'var(--color-background-dark)',
+                                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                        borderRadius: '4px',
+                                                        padding: '8px',
+                                                        zIndex: 1000,
+                                                        minWidth: '150px',
+                                                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                                                    }}>
+                                                        {['', 'pending', 'invited', 'registered', 'attended', 'no_show'].map(value => (
+                                                            <div
+                                                                key={value}
+                                                                onClick={() => {
+                                                                    setApplicationFilters({ ...applicationFilters, workshop_status: value });
+                                                                    setOpenFilterColumn(null);
+                                                                }}
+                                                                style={{
+                                                                    padding: '8px 12px',
+                                                                    cursor: 'pointer',
+                                                                    backgroundColor: applicationFilters.workshop_status === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent',
+                                                                    borderRadius: '4px',
+                                                                    fontSize: '0.9rem'
+                                                                }}
+                                                                onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
+                                                                onMouseLeave={(e) => e.target.style.backgroundColor = applicationFilters.workshop_status === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent'}
+                                                            >
+                                                                {value === '' ? 'All' : value === 'no_show' ? 'No Show' : value.charAt(0).toUpperCase() + value.slice(1)}
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 )}
                                             </th>
-                                            <th>Admission</th>
+                                            <th style={{ position: 'relative' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span>Admission</span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setOpenFilterColumn(openFilterColumn === 'admission' ? null : 'admission');
+                                                        }}
+                                                        style={{
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            padding: '2px',
+                                                            fontSize: '0.9rem',
+                                                            opacity: applicationFilters.program_admission_status ? 1 : 0.5,
+                                                            color: applicationFilters.program_admission_status ? '#4242ea' : 'inherit'
+                                                        }}
+                                                    >
+                                                        ☰
+                                                    </button>
+                                                </div>
+                                                {openFilterColumn === 'admission' && (
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        top: '100%',
+                                                        left: 0,
+                                                        backgroundColor: 'var(--color-background-dark)',
+                                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                        borderRadius: '4px',
+                                                        padding: '8px',
+                                                        zIndex: 1000,
+                                                        minWidth: '150px',
+                                                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                                                    }}>
+                                                        {['', 'pending', 'accepted', 'rejected', 'waitlisted'].map(value => (
+                                                            <div
+                                                                key={value}
+                                                                onClick={() => {
+                                                                    setApplicationFilters({ ...applicationFilters, program_admission_status: value });
+                                                                    setOpenFilterColumn(null);
+                                                                }}
+                                                                style={{
+                                                                    padding: '8px 12px',
+                                                                    cursor: 'pointer',
+                                                                    backgroundColor: applicationFilters.program_admission_status === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent',
+                                                                    borderRadius: '4px',
+                                                                    fontSize: '0.9rem'
+                                                                }}
+                                                                onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
+                                                                onMouseLeave={(e) => e.target.style.backgroundColor = applicationFilters.program_admission_status === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent'}
+                                                            >
+                                                                {value === '' ? 'All' : value.charAt(0).toUpperCase() + value.slice(1)}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </th>
                                             <th>Notes</th>
                                         </tr>
                                     </thead>
