@@ -1872,6 +1872,7 @@ const AdmissionsDashboard = () => {
                                             {cohort.name}
                                         </option>
                                     ))}
+                                    <option value="deferred">Deferred Applications</option>
                                 </select>
                                 <select
                                     value={applicationFilters.status || ''}
