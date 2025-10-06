@@ -443,6 +443,30 @@ class DatabaseService {
       throw error;
     }
   }
+
+  // Defer application (requires authentication)
+  async deferApplication() {
+    try {
+      if (!this.isAuthenticated()) {
+        throw new Error('You must be logged in to defer your application');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/applications/defer`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to defer application');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error deferring application:', error);
+      throw error;
+    }
+  }
 }
 
 export default new DatabaseService(); 

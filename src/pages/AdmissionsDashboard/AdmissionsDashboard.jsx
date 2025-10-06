@@ -28,6 +28,7 @@ const AdmissionsDashboard = () => {
     const [applications, setApplications] = useState([]);
     const [infoSessions, setInfoSessions] = useState([]);
     const [workshops, setWorkshops] = useState([]);
+    const [cohorts, setCohorts] = useState([]);
 
     // Pagination and filters
     const [applicationFilters, setApplicationFilters] = useState({
@@ -37,6 +38,7 @@ const AdmissionsDashboard = () => {
         program_admission_status: '',
         ready_for_workshop_invitation: false,
         name_search: '',
+        cohort_id: '',
         limit: 50,
         offset: 0
     });
@@ -117,6 +119,42 @@ const AdmissionsDashboard = () => {
     const hasAdminAccess = user?.role === 'admin' || user?.role === 'staff';
 
     // Fetch all admissions data
+    const fetchCohorts = async () => {
+        if (!hasAdminAccess || !token) {
+            console.log('⚠️ Cannot fetch cohorts - no admin access or token');
+            return;
+        }
+        
+        console.log('🔄 Fetching cohorts from:', `${import.meta.env.VITE_API_URL}/api/admissions/cohorts`);
+        
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/cohorts`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            console.log('📡 Cohorts response status:', response.status);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ Cohorts fetched:', data);
+                console.log('📊 Cohorts array length:', data.length);
+                setCohorts(data);
+                
+                // Set the most recent cohort as default
+                if (data.length > 0 && !applicationFilters.cohort_id) {
+                    setApplicationFilters(prev => ({
+                        ...prev,
+                        cohort_id: data[0].cohort_id
+                    }));
+                }
+            } else {
+                console.error('❌ Failed to fetch cohorts:', response.status);
+            }
+        } catch (error) {
+            console.error('❌ Error fetching cohorts:', error);
+        }
+    };
+
     const fetchAdmissionsData = async () => {
         if (!hasAdminAccess || !token) {
             setError('You do not have permission to view this page.');
@@ -186,6 +224,7 @@ const AdmissionsDashboard = () => {
             if (applicationFilters.program_admission_status) params.append('program_admission_status', applicationFilters.program_admission_status);
             if (applicationFilters.ready_for_workshop_invitation) params.append('ready_for_workshop_invitation', 'true');
             if (applicationFilters.name_search) params.append('name_search', applicationFilters.name_search);
+            if (applicationFilters.cohort_id) params.append('cohort_id', applicationFilters.cohort_id);
             params.append('limit', applicationFilters.limit);
             params.append('offset', applicationFilters.offset);
 
@@ -436,6 +475,11 @@ const AdmissionsDashboard = () => {
     };
 
     // Load data on mount and when filters change
+    // Fetch cohorts on mount
+    useEffect(() => {
+        fetchCohorts();
+    }, [token, hasAdminAccess]);
+
     useEffect(() => {
         fetchAdmissionsData();
     }, [token, hasAdminAccess, applicationFilters]);
@@ -1818,6 +1862,18 @@ const AdmissionsDashboard = () => {
                                     className="name-search-input"
                                 />
                                 <select
+                                    value={applicationFilters.cohort_id || ''}
+                                    onChange={(e) => setApplicationFilters({ ...applicationFilters, cohort_id: e.target.value, offset: 0 })}
+                                    className="filter-select cohort-filter"
+                                >
+                                    <option value="">Cohort: All Time</option>
+                                    {cohorts.map(cohort => (
+                                        <option key={cohort.cohort_id} value={cohort.cohort_id}>
+                                            {cohort.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <select
                                     value={applicationFilters.status || ''}
                                     onChange={(e) => setApplicationFilters({ ...applicationFilters, status: e.target.value })}
                                     className="filter-select"
@@ -2161,6 +2217,7 @@ const AdmissionsDashboard = () => {
                                                 program_admission_status: '', 
                                                 ready_for_workshop_invitation: false,
                                                 name_search: '',
+                                                cohort_id: cohorts.length > 0 ? cohorts[0].cohort_id : '',
                                                 limit: applicationFilters.limit,
                                                 offset: 0
                                             });
