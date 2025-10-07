@@ -19,6 +19,10 @@ function Dashboard() {
   const [dailyTasks, setDailyTasks] = useState([]);
   const [objectives, setObjectives] = useState([]);
   const [cohortFilter, setCohortFilter] = useState(null);
+  const [weekData, setWeekData] = useState([]);
+  const [currentWeek, setCurrentWeek] = useState(null);
+  const [currentLevel, setCurrentLevel] = useState(null);
+  const [weeklyGoal, setWeeklyGoal] = useState('');
 
   useEffect(() => {
     // Only fetch dashboard data if user is active
@@ -96,12 +100,60 @@ function Dashboard() {
         data.day.learning_objectives : [];
       setObjectives(dayObjectives);
       
+      // Set level, week, and weekly goal
+      if (data.day) {
+        setCurrentLevel(data.day.level || 1);
+        setCurrentWeek(data.day.week);
+        setWeeklyGoal(data.day.weekly_goal || '');
+        
+        // Fetch week data if week is available
+        if (data.day.week) {
+          await fetchWeekData(data.day.week);
+        }
+      }
+      
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setError('Failed to load dashboard data. Please try again later.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const fetchWeekData = async (weekNumber) => {
+    try {
+      const cohortParam = (user.role === 'staff' || user.role === 'admin') && cohortFilter 
+        ? `?cohort=${encodeURIComponent(cohortFilter)}` 
+        : '';
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/curriculum/weeks/${weekNumber}${cohortParam}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch week data');
+      }
+      
+      const days = await response.json();
+      setWeekData(days);
+    } catch (error) {
+      console.error('Error fetching week data:', error);
+    }
+  };
+
+  const navigateToWeek = async (direction) => {
+    if (!currentWeek) return;
+    
+    const newWeek = direction === 'prev' ? currentWeek - 1 : currentWeek + 1;
+    if (newWeek < 1) return; // Don't go below week 1
+    
+    setCurrentWeek(newWeek);
+    await fetchWeekData(newWeek);
   };
 
   // Handle continue session button click
@@ -149,6 +201,38 @@ function Dashboard() {
     const formattedHours = hours % 12 || 12;
     
     return `${formattedHours}:${minutes} ${period}`;
+  };
+
+  // Format date for display (e.g., "10.2 SAT" or "TODAY 10.22 MON")
+  const formatDayDate = (dateString, isToday = false) => {
+    const date = new Date(dateString + 'T00:00:00'); // Add time to avoid timezone issues
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+    
+    if (isToday) {
+      return `TODAY ${month}.${day} ${dayOfWeek}`;
+    }
+    return `${month}.${day} ${dayOfWeek}`;
+  };
+
+  // Check if a date is today
+  const isDateToday = (dateString) => {
+    if (!dateString) return false;
+    const date = new Date(dateString + 'T00:00:00');
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+           date.getMonth() === today.getMonth() &&
+           date.getFullYear() === today.getFullYear();
+  };
+
+  // Check if date is in the past
+  const isDatePast = (dateString) => {
+    if (!dateString) return false;
+    const date = new Date(dateString + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
   };
 
   // Navigate to volunteer feedback
@@ -292,11 +376,9 @@ function Dashboard() {
             <div className="dashboard__todays-goal">
               <h2 className="dashboard__section-title">Today's Goal</h2>
               <p className="dashboard__goal-text">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam a vestibulum justo. 
-                Vestibulum id vulputate magna. Morbi a elit tortor. Sed ut mattis quam. Vestibulum quis 
-                consequat odio. Vivamus non lacus ut sem fringilla suscipit.
+                {currentDay?.daily_goal || 'No goal set for today'}
               </p>
-              <button className="dashboard__start-btn">Start</button>
+              <button className="dashboard__start-btn" onClick={handleContinueSession}>Start</button>
             </div>
 
             {/* Upcoming Section */}
@@ -326,16 +408,22 @@ function Dashboard() {
           {/* Week Header: Title and Date Picker */}
           <div className="dashboard__week-header">
             <div className="dashboard__week-title">
-              <span className="dashboard__week-label">L1: Week 5</span>
-              <span className="dashboard__week-subtitle">Learn to write small Python scripts using ChatGPT</span>
+              <span className="dashboard__week-label">L{currentLevel}: Week {currentWeek}</span>
+              <span className="dashboard__week-subtitle">{weeklyGoal}</span>
             </div>
 
             <div className="dashboard__date-picker">
-              <button className="dashboard__date-btn dashboard__date-btn--active">
+              <button 
+                className="dashboard__date-btn dashboard__date-btn--active"
+                onClick={() => navigateToWeek('prev')}
+              >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="dashboard__date-label">May 2025</span>
-              <button className="dashboard__date-btn">
+              <span className="dashboard__date-label">Week {currentWeek}</span>
+              <button 
+                className="dashboard__date-btn"
+                onClick={() => navigateToWeek('next')}
+              >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -343,63 +431,64 @@ function Dashboard() {
 
           {/* Weekly Agenda Cards */}
           <div className="dashboard__weekly-grid">
-            {weeklyAgenda.map((day, index) => (
-              <div 
-                key={index} 
-                className={`dashboard__day-card ${day.isToday ? 'dashboard__day-card--today' : ''}`}
-              >
-                {/* Date */}
-                <div className="dashboard__day-date">{day.date}</div>
-                
-                {/* Separator */}
-                <div className="dashboard__day-separator" />
-                
-                {/* Checkbox (for first two cards) */}
-                {day.hasCheckbox && (
-                  <div className={`dashboard__checkbox ${day.checkboxChecked ? 'dashboard__checkbox--checked' : ''}`} />
-                )}
-                
-                {/* Activities */}
-                <div className="dashboard__day-section">
-                  <h4 className="dashboard__day-section-title">Activities</h4>
-                  <div className="dashboard__day-activities">
-                    {day.activities.map((activity, actIndex) => (
-                      <div key={actIndex} className="dashboard__day-activity">
-                        <span>{activity}</span>
-                        {actIndex < day.activities.length - 1 && (
-                          <div className="dashboard__activity-divider" />
-                        )}
+            {weekData.map((day, index) => {
+              const dayIsToday = isDateToday(day.day_date);
+              const dayIsPast = isDatePast(day.day_date);
+              const showCheckbox = dayIsPast && !dayIsToday;
+              
+              return (
+                <div 
+                  key={day.id} 
+                  className={`dashboard__day-card ${dayIsToday ? 'dashboard__day-card--today' : ''}`}
+                >
+                  {/* Date */}
+                  <div className="dashboard__day-date">{formatDayDate(day.day_date, dayIsToday)}</div>
+                  
+                  {/* Separator */}
+                  <div className="dashboard__day-separator" />
+                  
+                  {/* Checkbox (for past days) */}
+                  {showCheckbox && (
+                    <div className={`dashboard__checkbox ${day.completed ? 'dashboard__checkbox--checked' : ''}`} />
+                  )}
+                  
+                  {/* Activities */}
+                  {day.tasks && day.tasks.length > 0 && (
+                    <div className="dashboard__day-section">
+                      <h4 className="dashboard__day-section-title">Activities</h4>
+                      <div className="dashboard__day-activities">
+                        {day.tasks.map((task, taskIndex) => (
+                          <div key={task.id} className="dashboard__day-activity">
+                            <span>{task.task_title}</span>
+                            {taskIndex < day.tasks.length - 1 && (
+                              <div className="dashboard__activity-divider" />
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Events (if any) */}
-                {day.events.length > 0 && (
-                  <div className="dashboard__day-section">
-                    <h4 className="dashboard__day-section-title">Events</h4>
-                    <div className="dashboard__day-events">
-                      {day.events.map((event, eventIndex) => (
-                        <div key={eventIndex} className="dashboard__day-event">
-                          <span>{event}</span>
-                          {eventIndex < day.events.length - 1 && (
-                            <div className="dashboard__activity-divider" />
-                          )}
-                        </div>
-                      ))}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Go Button (for today card) */}
-                {day.isToday && (
-                  <button className="dashboard__go-btn dashboard__go-btn--today">Go</button>
-                )}
-                {!day.isToday && index < 2 && (
-                  <button className="dashboard__go-btn">Go</button>
-                )}
-              </div>
-            ))}
+                  {/* Go Button */}
+                  {dayIsToday && (
+                    <button 
+                      className="dashboard__go-btn dashboard__go-btn--today"
+                      onClick={handleContinueSession}
+                    >
+                      Go
+                    </button>
+                  )}
+                  {!dayIsToday && showCheckbox && (
+                    <button 
+                      className="dashboard__go-btn"
+                      onClick={handleContinueSession}
+                    >
+                      Go
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Divider 3 */}
@@ -415,19 +504,17 @@ function Dashboard() {
           <div className="dashboard__mobile-goal">
             <h2 className="dashboard__mobile-section-title">Today's Goal</h2>
             <p className="dashboard__mobile-goal-text">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam a vestibulum justo. 
-              Vestibulum id vulputate magna. Morbi a elit tortor. Sed ut mattis quam. Vestibulum quis 
-              consequat odio. Vivamus non lacus ut sem fringilla suscipit.
+              {currentDay?.daily_goal || 'No goal set for today'}
             </p>
           </div>
 
           {/* Start Button */}
-          <button className="dashboard__mobile-start-btn">Start</button>
+          <button className="dashboard__mobile-start-btn" onClick={handleContinueSession}>Start</button>
 
           {/* L1 Week 5 Title */}
           <div className="dashboard__mobile-week-title">
-            L1: Week 5 <br />
-            Learn to write small Python scripts using ChatGPT
+            L{currentLevel}: Week {currentWeek} <br />
+            {weeklyGoal}
           </div>
 
           {/* Divider 2 */}
@@ -435,54 +522,72 @@ function Dashboard() {
 
           {/* Date Picker */}
           <div className="dashboard__mobile-date-picker">
-            <button className="dashboard__mobile-date-btn dashboard__mobile-date-btn--active">
+            <button 
+              className="dashboard__mobile-date-btn dashboard__mobile-date-btn--active"
+              onClick={() => navigateToWeek('prev')}
+            >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="dashboard__mobile-date-label">May 2025</span>
-            <button className="dashboard__mobile-date-btn">
+            <span className="dashboard__mobile-date-label">Week {currentWeek}</span>
+            <button 
+              className="dashboard__mobile-date-btn"
+              onClick={() => navigateToWeek('next')}
+            >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
           {/* Weekly Agenda - Mobile */}
           <div className="dashboard__mobile-agenda">
-            {/* First two days */}
-            <div className="dashboard__mobile-day">
-              <div className="dashboard__mobile-day-header">10/20 SAT</div>
-              <div className="dashboard__mobile-checkbox" />
-            </div>
-            <div className="dashboard__mobile-day">
-              <div className="dashboard__mobile-day-header">10/21 SUN</div>
-              <div className="dashboard__mobile-checkbox dashboard__mobile-checkbox--checked" />
-            </div>
-
-            {/* Today Card */}
-            <div className="dashboard__mobile-today-card">
-              <div className="dashboard__mobile-today-header">TODAY 10/22 MON</div>
-              <div className="dashboard__mobile-today-separator" />
-              <div className="dashboard__mobile-today-section">
-                <h4 className="dashboard__mobile-today-section-title">Activities</h4>
-                <div className="dashboard__mobile-today-activities">
-                  {weeklyAgenda[2].activities.map((activity, index) => (
-                    <div key={index}>
-                      <div className="dashboard__mobile-today-activity">{activity}</div>
-                      {index < weeklyAgenda[2].activities.length - 1 && (
-                        <div className="dashboard__mobile-activity-divider" />
-                      )}
+            {weekData.map((day, index) => {
+              const dayIsToday = isDateToday(day.day_date);
+              const dayIsPast = isDatePast(day.day_date);
+              
+              if (dayIsToday) {
+                // Today Card - expanded
+                return (
+                  <div key={day.id} className="dashboard__mobile-today-card">
+                    <div className="dashboard__mobile-today-header">
+                      {formatDayDate(day.day_date, true)}
                     </div>
-                  ))}
-                </div>
-              </div>
-              <button className="dashboard__mobile-go-btn">Go</button>
-            </div>
-
-            {/* Last two days */}
-            <div className="dashboard__mobile-day">
-              <div className="dashboard__mobile-day-header">10/23 TUE</div>
-            </div>
-            <div className="dashboard__mobile-day">
-              <div className="dashboard__mobile-day-header">10/24 WED</div>
-            </div>
+                    <div className="dashboard__mobile-today-separator" />
+                    {day.tasks && day.tasks.length > 0 && (
+                      <div className="dashboard__mobile-today-section">
+                        <h4 className="dashboard__mobile-today-section-title">Activities</h4>
+                        <div className="dashboard__mobile-today-activities">
+                          {day.tasks.map((task, taskIndex) => (
+                            <div key={task.id}>
+                              <div className="dashboard__mobile-today-activity">{task.task_title}</div>
+                              {taskIndex < day.tasks.length - 1 && (
+                                <div className="dashboard__mobile-activity-divider" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <button 
+                      className="dashboard__mobile-go-btn"
+                      onClick={handleContinueSession}
+                    >
+                      Go
+                    </button>
+                  </div>
+                );
+              } else {
+                // Regular day card - condensed
+                return (
+                  <div key={day.id} className="dashboard__mobile-day">
+                    <div className="dashboard__mobile-day-header">
+                      {formatDayDate(day.day_date, false)}
+                    </div>
+                    {dayIsPast && (
+                      <div className={`dashboard__mobile-checkbox ${day.completed ? 'dashboard__mobile-checkbox--checked' : ''}`} />
+                    )}
+                  </div>
+                );
+              }
+            })}
           </div>
 
           {/* Divider 3 */}
