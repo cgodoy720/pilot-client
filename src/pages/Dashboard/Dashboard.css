@@ -448,12 +448,7 @@
 }
 
 .dashboard__mobile-divider-top {
-  position: absolute;
-  width: 380px;
-  height: 0px;
-  left: 60px;
-  top: 52px;
-  border: 1px solid var(--color-divider);
+  display: none;
 }
 
 .dashboard__mobile-divider-2 {
@@ -478,10 +473,10 @@
   position: absolute;
   width: 395px;
   left: 21px;
-  top: 78px;
+  top: 30px;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 20px;
 }
 
 .dashboard__mobile-section-title {
@@ -745,4 +740,4 @@
   color: var(--color-pursuit-purple);
   cursor: pointer;
   white-space: nowrap;
-}
+} 
