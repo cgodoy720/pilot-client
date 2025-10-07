@@ -155,7 +155,7 @@ const ExportHistory = () => {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <HistoryIcon />
-              <Typography variant="h6" component="h2">
+              <Typography variant="h6" component="h2" sx={{ color: '#000000 !important' }}>
                 Export History
               </Typography>
             </Box>
