@@ -205,7 +205,9 @@ function Dashboard() {
 
   // Format date for display (e.g., "10.2 SAT" or "TODAY 10.22 MON")
   const formatDayDate = (dateString, isToday = false) => {
-    const date = new Date(dateString + 'T00:00:00'); // Add time to avoid timezone issues
+    if (!dateString) return '';
+    // Handle ISO timestamps or simple date strings
+    const date = new Date(dateString);
     const month = date.getMonth() + 1;
     const day = date.getDate();
     const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
@@ -219,7 +221,7 @@ function Dashboard() {
   // Check if a date is today
   const isDateToday = (dateString) => {
     if (!dateString) return false;
-    const date = new Date(dateString + 'T00:00:00');
+    const date = new Date(dateString);
     const today = new Date();
     return date.getDate() === today.getDate() &&
            date.getMonth() === today.getMonth() &&
@@ -229,7 +231,7 @@ function Dashboard() {
   // Check if date is in the past
   const isDatePast = (dateString) => {
     if (!dateString) return false;
-    const date = new Date(dateString + 'T00:00:00');
+    const date = new Date(dateString);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return date < today;
