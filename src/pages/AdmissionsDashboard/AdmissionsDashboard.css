@@ -233,6 +233,10 @@
   background: #ed8936;
 }
 
+.admissions-dashboard__status-indicator--no_application {
+  background: #9ca3af;
+}
+
 .admissions-dashboard__status-indicator--ineligible {
   background: #f56565;
 }
@@ -2118,6 +2122,11 @@ Assessment Funnel Styles */
   color: #3b82f6;
 }
 
+.status-badge--no_application {
+  background: rgba(156, 163, 175, 0.2);
+  color: #9ca3af;
+}
+
 .status-badge--ineligible {
   background: rgba(239, 68, 68, 0.2);
   color: #ef4444;
@@ -3132,6 +3141,7 @@ lumn Widths for Consistent Layout */
 .stage-badge--workshop_attended { background: var(--color-success-light); color: var(--color-success-dark); }
 
 .app-status-badge--not_started { background: var(--color-text-muted); color: white; }
+.app-status-badge--no_application { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
 .app-status-badge--in_progress { background: var(--color-warning-light); color: var(--color-warning-dark); }
 .app-status-badge--submitted { background: var(--color-success-light); color: var(--color-success-dark); }
 .app-status-badge--incomplete { background: var(--color-danger-light); color: var(--color-danger-dark); }
