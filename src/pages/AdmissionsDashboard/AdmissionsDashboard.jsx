@@ -30,7 +30,7 @@ const AdmissionsDashboard = () => {
     const [workshops, setWorkshops] = useState([]);
     const [cohorts, setCohorts] = useState([]);
 
-    // Pagination and filters
+    // Infinite scroll and filters
     const [applicationFilters, setApplicationFilters] = useState({
         status: '',
         info_session_status: '',
@@ -39,9 +39,10 @@ const AdmissionsDashboard = () => {
         ready_for_workshop_invitation: false,
         name_search: '',
         cohort_id: '',
-        limit: 50,
+        limit: 10000, // High limit to get all records
         offset: 0
     });
+    const [hasMore, setHasMore] = useState(true);
     const [nameSearchInput, setNameSearchInput] = useState('');
     const [columnSort, setColumnSort] = useState({
         column: 'created_at',
@@ -1993,7 +1994,7 @@ const AdmissionsDashboard = () => {
                                                         minWidth: '150px',
                                                         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
                                                     }}>
-                                                        {['', 'submitted', 'in_progress', 'ineligible'].map(value => (
+                                                        {['', 'no_application', 'in_progress', 'submitted', 'ineligible'].map(value => (
                                                             <div
                                                                 key={value}
                                                                 onClick={() => {
@@ -2010,7 +2011,7 @@ const AdmissionsDashboard = () => {
                                                                 onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
                                                                 onMouseLeave={(e) => e.target.style.backgroundColor = applicationFilters.status === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent'}
                                                             >
-                                                                {value === '' ? 'All' : value === 'in_progress' ? 'In Progress' : value.charAt(0).toUpperCase() + value.slice(1)}
+                                                                {value === '' ? 'All' : value === 'no_application' ? 'Account Created' : value === 'in_progress' ? 'In Progress' : value.charAt(0).toUpperCase() + value.slice(1)}
                                                             </div>
                                                         ))}
                                                     </div>
@@ -2283,7 +2284,7 @@ const AdmissionsDashboard = () => {
                                     <tbody>
                                         {sortAndFilterApplications(applications.applications).map((app) => (
                                             <tr
-                                                key={app.application_id}
+                                                key={app.applicant_id}
                                                 className={`clickable-row ${selectedApplicants.includes(app.applicant_id) ? 'admissions-dashboard__row--selected' : ''}`}
                                             >
                                                 <td className="admissions-dashboard__checkbox-column">
@@ -2302,8 +2303,9 @@ const AdmissionsDashboard = () => {
                                                     />
                                                 </td>
                                                 <td
-                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
+                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                    className={app.application_id ? "clickable-cell" : ""}
+                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
                                                 >
                                                     <div className="applicant-name">
                                                         {app.full_name || `${app.first_name} ${app.last_name}`}
@@ -2342,11 +2344,12 @@ const AdmissionsDashboard = () => {
                                                     </span>
                                                 </td>
                                                 <td
-                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
+                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                    className={app.application_id ? "clickable-cell" : ""}
+                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
                                                 >
                                                     <span className={`status-badge status-badge--${app.status}`}>
-                                                        {app.status}
+                                                        {app.status === 'no_application' ? 'Account Created' : app.status === 'in_progress' ? 'In Progress' : app.status}
                                                     </span>
                                                 </td>
                                                 <td className="admissions-dashboard__assessment-cell">
@@ -2374,24 +2377,27 @@ const AdmissionsDashboard = () => {
                                                     </div>
                                                 </td>
                                                 <td
-                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
+                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                    className={app.application_id ? "clickable-cell" : ""}
+                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
                                                 >
                                                     <span className={`info-session-badge info-session-badge--${app.info_session_status || 'not_registered'}`}>
                                                         {(app.info_session_status || 'not_registered').replace('_', ' ')}
                                                     </span>
                                                 </td>
                                                 <td
-                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
+                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                    className={app.application_id ? "clickable-cell" : ""}
+                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
                                                 >
                                                     <span className={`workshop-badge workshop-badge--${app.workshop_status || 'pending'}`}>
                                                         {(app.workshop_status || 'pending').replace('_', ' ')}
                                                     </span>
                                                 </td>
                                                 <td
-                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
+                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                    className={app.application_id ? "clickable-cell" : ""}
+                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
                                                 >
                                                     <span className={`admission-badge admission-badge--${app.program_admission_status || 'pending'}`}>
                                                         {(app.program_admission_status || 'pending').replace('_', ' ')}
@@ -2418,51 +2424,8 @@ const AdmissionsDashboard = () => {
 
                                 <div className="table-footer">
                                     <span className="table-count">
-                                        Showing {applications.applications.length} applicants
-                                        {applications.total > applications.applications.length &&
-                                            ` of ${applications.total} total`
-                                        }
+                                        Showing {applications.applications.length} of {applications.total} applicants
                                     </span>
-                                    {applications.total > applicationFilters.limit && (
-                                        <div className="pagination-controls">
-                                            <button
-                                                onClick={() => setApplicationFilters(prev => ({
-                                                    ...prev,
-                                                    offset: Math.max(0, prev.offset - prev.limit)
-                                                }))}
-                                                disabled={applicationFilters.offset === 0}
-                                                className="pagination-btn"
-                                            >
-                                                ← Previous
-                                            </button>
-
-                                            <span className="pagination-info">
-                                                Page {Math.floor(applicationFilters.offset / applicationFilters.limit) + 1} of {Math.ceil(applications.total / applicationFilters.limit)}
-                                            </span>
-
-                                            <button
-                                                onClick={() => setApplicationFilters(prev => ({
-                                                    ...prev,
-                                                    offset: prev.offset + prev.limit
-                                                }))}
-                                                disabled={applicationFilters.offset + applicationFilters.limit >= applications.total}
-                                                className="pagination-btn"
-                                            >
-                                                Next →
-                                            </button>
-
-                                            <button
-                                                onClick={() => setApplicationFilters(prev => ({
-                                                    ...prev,
-                                                    limit: applications.total,
-                                                    offset: 0
-                                                }))}
-                                                className="pagination-btn show-all-btn"
-                                            >
-                                                Show All ({applications.total})
-                                            </button>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         ) : (
