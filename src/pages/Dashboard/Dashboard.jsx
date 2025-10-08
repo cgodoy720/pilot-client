@@ -19,6 +19,7 @@ function Dashboard() {
   const [dailyTasks, setDailyTasks] = useState([]);
   const [objectives, setObjectives] = useState([]);
   const [cohortFilter, setCohortFilter] = useState(null);
+  const [missedAssignmentsCount, setMissedAssignmentsCount] = useState(0);
   const [weekData, setWeekData] = useState([]);
   const [currentWeek, setCurrentWeek] = useState(null);
   const [currentLevel, setCurrentLevel] = useState(null);
@@ -99,6 +100,9 @@ function Dashboard() {
       const dayObjectives = data.day && data.day.learning_objectives ? 
         data.day.learning_objectives : [];
       setObjectives(dayObjectives);
+      
+      // Set missed assignments count
+      setMissedAssignmentsCount(data.missedAssignmentsCount || 0);
       
       // Set level, week, and weekly goal
       if (data.day) {
@@ -364,11 +368,11 @@ function Dashboard() {
           {/* Greeting Section */}
           <div className="dashboard__greeting">
             <h1 className="dashboard__greeting-text">
-              Hey {user?.firstName}. Good to see you!
+              Hey {user?.first_name || 'there'}. Good to see you!
             </h1>
             <div className="dashboard__missed-assignments">
               <div className="dashboard__missed-icon" />
-              <span>( 0 ) missed assignments</span>
+              <span>( {missedAssignmentsCount} ) missed assignments</span>
             </div>
           </div>
 
@@ -460,8 +464,18 @@ function Dashboard() {
                       <h4 className="dashboard__day-section-title">Activities</h4>
                       <div className="dashboard__day-activities">
                         {day.tasks.map((task, taskIndex) => (
-                          <div key={task.id} className="dashboard__day-activity">
-                            <span>{task.task_title}</span>
+                          <div key={task.id}>
+                            <div className="dashboard__day-activity">
+                              <span>{task.task_title}</span>
+                              {task.deliverable_type && ['video', 'document', 'link'].includes(task.deliverable_type) && (
+                                <button 
+                                  className="dashboard__deliverable-link"
+                                  onClick={() => navigate(`/learning?date=${day.day_date}&taskId=${task.id}`)}
+                                >
+                                  Submit {task.deliverable_type}
+                                </button>
+                              )}
+                            </div>
                             {taskIndex < day.tasks.length - 1 && (
                               <div className="dashboard__activity-divider" />
                             )}
