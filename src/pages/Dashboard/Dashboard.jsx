@@ -364,7 +364,7 @@ function Dashboard() {
           {/* Greeting Section */}
           <div className="dashboard__greeting">
             <h1 className="dashboard__greeting-text">
-              Hey {user?.first_name || 'Yoshi'}. Good to see you!
+              Hey {user?.firstName}. Good to see you!
             </h1>
             <div className="dashboard__missed-assignments">
               <div className="dashboard__missed-icon" />
