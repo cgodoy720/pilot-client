@@ -37,6 +37,7 @@ import {
 import { adminApi } from '../../services/adminApi';
 import { useAuth } from '../../context/AuthContext';
 import { getErrorMessage } from '../../utils/retryUtils';
+import './ExportHistory.css';
 
 const ExportHistory = () => {
   const { user } = useAuth();
@@ -155,9 +156,20 @@ const ExportHistory = () => {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <HistoryIcon />
-              <Typography variant="h6" component="h2" sx={{ color: '#000000 !important' }}>
+              <h2
+                className="export-history-header-force-black"
+                style={{
+                  color: '#000000',
+                  fontWeight: 600,
+                  fontSize: '1.25rem',
+                  margin: 0,
+                  padding: 0,
+                  lineHeight: 1.6,
+                  fontFamily: '-apple-system, "system-ui", "Segoe UI", Roboto, Oxygen, sans-serif'
+                }}
+              >
                 Export History
-              </Typography>
+              </h2>
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
