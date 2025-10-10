@@ -1,20 +1,3 @@
-/* Dashboard - Figma Design Implementation */
-/* Using BEM naming conventions */
-/* Font: Inter (Proxima Nova alternative) */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-:root {
-  --color-pursuit-purple: #4242EA;
-  --color-carbon-black: #1E1E1E;
-  --color-stardust: #E3E3E3;
-  --color-background: #EFEFEF;
-  --color-white: #FFFFFF;
-  --color-divider: #C8C8C8;
-  --color-mastery-pink: #FF33FF;
-  --font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
-}
-
 /* ====================
    DESKTOP STYLES
    ==================== */
@@ -51,7 +34,7 @@
 
 .dashboard__greeting-text {
   font-weight: 400;
-  font-size: 28px;
+  font-size: 24px;
   line-height: 44px;
   letter-spacing: 0.005em;
   background: linear-gradient(90deg, #1E1E1E 0%, #4242EA 55.29%);
@@ -120,13 +103,16 @@
 }
 
 .dashboard__vertical-divider {
-  display: none;
+  width: 1px;
+  background: var(--color-divider);
+  align-self: stretch;
+  margin: -20px 0;
 }
 
 /* Top Content Grid */
 .dashboard__top-grid {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 1fr 1px 400px;
   gap: 40px;
   margin-bottom: 20px;
   padding: 0 40px;
@@ -140,20 +126,30 @@
 }
 
 .dashboard__section-title {
-  font-weight: 700;
-  font-size: 20px;
+  font-weight: 900;
+  font-size: 28px;
   line-height: 24px;
   letter-spacing: 0.005em;
   color: var(--color-carbon-black);
   margin: 0 0 8px 0;
+  font-family: "Proxima Nova Bold";
 }
 
 .dashboard__goal-text {
   font-weight: 400;
-  font-size: 18px;
-  line-height: 24px;
+  font-size: 28px;
+  line-height: 30px;
   color: var(--color-carbon-black);
   margin: 0 0 12px 0;
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
 }
 
 .dashboard__start-btn {
@@ -163,18 +159,20 @@
   padding: 10px 30px;
   width: fit-content;
   background: var(--color-background);
-  border: 2px solid var(--color-pursuit-purple);
+  border: 1px solid var(--color-pursuit-purple);
   border-radius: 100px;
   font-weight: 400;
-  font-size: 16px;
+  font-size: 24px;
   line-height: 20px;
   color: var(--color-pursuit-purple);
   cursor: pointer;
+  animation: breathe 3s ease-in-out infinite;
 }
 
 .dashboard__start-btn:hover {
   background: var(--color-pursuit-purple);
   color: var(--color-white);
+  animation: none;
 }
 
 /* Upcoming Section */
@@ -263,7 +261,7 @@
 
 .dashboard__week-title {
   font-weight: 700;
-  font-size: 20px;
+  font-size: 28px;
   line-height: 24px;
   display: flex;
   flex-direction: column;
@@ -272,6 +270,8 @@
 
 .dashboard__week-label {
   color: var(--color-carbon-black);
+  font-family: "Proxima Nova Bold";
+  line-height: 34px;
 }
 
 .dashboard__week-level {
@@ -280,7 +280,7 @@
 
 .dashboard__week-subtitle {
   color: var(--color-carbon-black);
-  font-size: 14px;
+  font-size: 28px;
   font-weight: 400;
 }
 
@@ -327,7 +327,7 @@
 .dashboard__weekly-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
+  gap: 4px;
   margin-bottom: 30px;
   padding: 0 40px;
 }
@@ -340,16 +340,29 @@
   padding: 14px;
   position: relative;
   box-sizing: border-box;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, margin 0.2s ease;
+  cursor: pointer;
+}
+
+.dashboard__day-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.15);
+  z-index: 20;
 }
 
 .dashboard__day-card--today {
   background: var(--color-pursuit-purple);
   color: var(--color-background);
-  box-shadow: 0px 8px 20px rgba(66, 66, 234, 0.4);
-  transform: scale(1.03);
+  box-shadow: 4px 4px 10px rgba(0,0,0, 0.25);
+  transform: scale(1.05);
   z-index: 10;
   margin: -4px 0;
+}
+
+/* When hovering over any card, shrink the today card to normal size */
+.dashboard__weekly-grid:has(.dashboard__day-card:hover) .dashboard__day-card--today:not(:hover) {
+  transform: scale(1);
+  margin: 0;
 }
 
 .dashboard__day-date {
@@ -585,7 +598,7 @@
   }
   
   .dashboard__weekly-grid {
-    gap: 12px;
+    gap: 8px;
   }
   
   .dashboard__top-grid {
@@ -609,7 +622,7 @@
   }
   
   .dashboard__greeting-text {
-    font-size: 32px;
+    font-size: 24px;
     line-height: 50px;
     padding-left: 60px;
   }
@@ -621,7 +634,7 @@
   }
   
   .dashboard__weekly-grid {
-    gap: 16px;
+    gap: 8px;
   }
   
   .dashboard__top-grid {

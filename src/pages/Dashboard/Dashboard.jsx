@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Calendar, BookOpen, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { RippleButton } from '../../components/animate-ui/components/buttons/ripple';
 import MissedAssignmentsSidebar from '../../components/MissedAssignmentsSidebar/MissedAssignmentsSidebar';
 import './Dashboard.css';
 
@@ -432,6 +433,9 @@ function Dashboard() {
               <button className="dashboard__start-btn" onClick={handleContinueSession}>Start</button>
             </div>
 
+            {/* Vertical Divider */}
+            <div className="dashboard__vertical-divider"></div>
+
             {/* Upcoming Section */}
             <div className="dashboard__upcoming">
               <h2 className="dashboard__section-title">Upcoming</h2>
@@ -462,25 +466,51 @@ function Dashboard() {
               <span className="dashboard__week-label">
                 <span className="dashboard__week-level">L{currentLevel}</span>: Week {currentWeek}
               </span>
-              <span className="dashboard__week-subtitle">{weeklyGoal}</span>
+              <span 
+                className={`dashboard__week-subtitle ${
+                  slideDirection === 'out-left' ? 'animate__animated animate__fadeOutLeft' :
+                  slideDirection === 'out-right' ? 'animate__animated animate__fadeOutRight' :
+                  slideDirection === 'in-from-left' ? 'animate__animated animate__fadeInLeft' :
+                  slideDirection === 'in-from-right' ? 'animate__animated animate__fadeInRight' : ''
+                }`}
+                style={{ animationDuration: '0.6s' }}
+              >
+                {weeklyGoal}
+              </span>
             </div>
 
             <div className="dashboard__date-picker">
-              <button 
+              <RippleButton
+                variant="outline"
+                size="icon"
                 className={`dashboard__date-btn ${currentWeek > 1 ? 'dashboard__date-btn--active' : ''}`}
+                style={{ 
+                  backgroundColor: 'var(--color-background)',
+                  borderColor: 'var(--color-pursuit-purple)', 
+                  color: 'var(--color-pursuit-purple)',
+                  '--ripple-button-ripple-color': 'var(--color-pursuit-purple)'
+                }}
                 onClick={() => navigateToWeek('prev')}
                 disabled={currentWeek <= 1 || isLoadingWeek || slideDirection !== null}
               >
                 <ChevronLeft className="w-4 h-4" />
-              </button>
+              </RippleButton>
               <span className="dashboard__date-label">Week {currentWeek}</span>
-              <button 
+              <RippleButton
+                variant="outline"
+                size="icon"
                 className={`dashboard__date-btn ${currentDay?.week && currentWeek < currentDay.week ? 'dashboard__date-btn--active' : ''}`}
+                style={{ 
+                  backgroundColor: 'var(--color-background)',
+                  borderColor: 'var(--color-pursuit-purple)', 
+                  color: 'var(--color-pursuit-purple)',
+                  '--ripple-button-ripple-color': 'var(--color-pursuit-purple)'
+                }}
                 onClick={() => navigateToWeek('next')}
                 disabled={!currentDay?.week || currentWeek >= currentDay.week || isLoadingWeek || slideDirection !== null}
               >
                 <ChevronRight className="w-4 h-4" />
-              </button>
+              </RippleButton>
             </div>
           </div>
 
@@ -613,21 +643,37 @@ function Dashboard() {
 
           {/* Date Picker */}
           <div className="dashboard__mobile-date-picker">
-            <button 
+            <RippleButton
+              variant="outline"
+              size="icon"
               className={`dashboard__mobile-date-btn ${currentWeek > 1 ? 'dashboard__mobile-date-btn--active' : ''}`}
+              style={{ 
+                backgroundColor: 'var(--color-background)',
+                borderColor: 'var(--color-pursuit-purple)', 
+                color: 'var(--color-pursuit-purple)',
+                '--ripple-button-ripple-color': 'var(--color-pursuit-purple)'
+              }}
               onClick={() => navigateToWeek('prev')}
               disabled={currentWeek <= 1 || isLoadingWeek || slideDirection !== null}
             >
               <ChevronLeft className="w-4 h-4" />
-            </button>
+            </RippleButton>
             <span className="dashboard__mobile-date-label">Week {currentWeek}</span>
-            <button 
+            <RippleButton
+              variant="outline"
+              size="icon"
               className={`dashboard__mobile-date-btn ${currentDay?.week && currentWeek < currentDay.week ? 'dashboard__mobile-date-btn--active' : ''}`}
+              style={{ 
+                backgroundColor: 'var(--color-background)',
+                borderColor: 'var(--color-pursuit-purple)', 
+                color: 'var(--color-pursuit-purple)',
+                '--ripple-button-ripple-color': 'var(--color-pursuit-purple)'
+              }}
               onClick={() => navigateToWeek('next')}
               disabled={!currentDay?.week || currentWeek >= currentDay.week || isLoadingWeek || slideDirection !== null}
             >
               <ChevronRight className="w-4 h-4" />
-            </button>
+            </RippleButton>
           </div>
 
           {/* Weekly Agenda - Mobile */}

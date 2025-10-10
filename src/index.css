@@ -6,9 +6,107 @@
   font-display: swap;
 }
 
+
+@font-face {
+  font-family: "Proxima Nova Bold";
+  src: url("https://db.onlinewebfonts.com/t/72b6f2c9990bd3d37b8013a59ed78902.eot");
+  src: url("https://db.onlinewebfonts.com/t/72b6f2c9990bd3d37b8013a59ed78902.eot?#iefix")format("embedded-opentype"),
+  url("https://db.onlinewebfonts.com/t/72b6f2c9990bd3d37b8013a59ed78902.woff2")format("woff2"),
+  url("https://db.onlinewebfonts.com/t/72b6f2c9990bd3d37b8013a59ed78902.woff")format("woff"),
+  url("https://db.onlinewebfonts.com/t/72b6f2c9990bd3d37b8013a59ed78902.ttf")format("truetype"),
+  url("https://db.onlinewebfonts.com/t/72b6f2c9990bd3d37b8013a59ed78902.svg#Proxima Nova Bold")format("svg");
+}
+
+/* Dashboard - Figma Design Implementation */
+/* Using BEM naming conventions */
+/* Font: Inter (Proxima Nova alternative) */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --color-pursuit-purple: #4242EA;
+  --color-carbon-black: #1E1E1E;
+  --color-stardust: #E3E3E3;
+  --color-background: #EFEFEF;
+  --color-white: #FFFFFF;
+  --color-divider: #C8C8C8;
+  --color-mastery-pink: #FF33FF;
+  --font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer utilities {
+  @keyframes slide-in-from-right {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slide-out-to-right {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  .animate-in {
+    animation: fade-in 0.5s ease-out;
+  }
+
+  .animate-out {
+    animation: fade-out 0.3s ease-in;
+  }
+
+  .slide-in-from-right {
+    animation: slide-in-from-right 0.5s ease-out;
+  }
+
+  .slide-out-to-right {
+    animation: slide-out-to-right 0.3s ease-in;
+  }
+
+  .data-\[state\=open\]\:animate-in[data-state="open"] {
+    animation: fade-in 0.5s ease-out;
+  }
+
+  .data-\[state\=closed\]\:animate-out[data-state="closed"] {
+    animation: fade-out 0.3s ease-in;
+  }
+
+  .data-\[state\=closed\]\:slide-out-to-right[data-state="closed"] {
+    animation: slide-out-to-right 0.3s ease-in;
+  }
+
+  .data-\[state\=open\]\:slide-in-from-right[data-state="open"] {
+    animation: slide-in-from-right 0.5s ease-out;
+  }
+}
 
 @layer base {
   :root {

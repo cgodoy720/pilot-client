@@ -159,11 +159,6 @@
   }
 }
 
-/* Override default Sheet styles */
-[data-radix-dialog-content] {
-  animation-duration: 0.3s !important;
-}
-
 /* Custom overlay styling to match Figma */
 [data-radix-dialog-overlay] {
   background: rgba(30, 30, 30, 0.9) !important;
