@@ -24,6 +24,8 @@ function Dashboard() {
   const [currentWeek, setCurrentWeek] = useState(null);
   const [currentLevel, setCurrentLevel] = useState(null);
   const [weeklyGoal, setWeeklyGoal] = useState('');
+  const [isLoadingWeek, setIsLoadingWeek] = useState(false);
+  const [slideDirection, setSlideDirection] = useState(null); // 'left' or 'right'
 
   useEffect(() => {
     // Only fetch dashboard data if user is active
@@ -145,19 +147,54 @@ function Dashboard() {
       
       const days = await response.json();
       setWeekData(days);
+      
+      // Update weekly goal from the first day of the week
+      if (days && days.length > 0 && days[0].weekly_goal) {
+        setWeeklyGoal(days[0].weekly_goal);
+      }
     } catch (error) {
       console.error('Error fetching week data:', error);
     }
   };
 
   const navigateToWeek = async (direction) => {
-    if (!currentWeek) return;
+    if (!currentWeek || isLoadingWeek) return;
     
     const newWeek = direction === 'prev' ? currentWeek - 1 : currentWeek + 1;
-    if (newWeek < 1) return; // Don't go below week 1
     
+    // Don't go below week 1
+    if (newWeek < 1) return;
+    
+    // Don't go past the current week (the week from currentDay)
+    if (direction === 'next' && currentDay?.week && newWeek > currentDay.week) {
+      return;
+    }
+    
+    console.log('🎬 Navigate to week:', direction, 'New week:', newWeek);
+    
+    // Phase 1: Slide out old cards
+    const slideOutDirection = direction === 'prev' ? 'out-left' : 'out-right';
+    setSlideDirection(slideOutDirection);
+    console.log('📤 Slide OUT direction:', slideOutDirection);
+    
+    // Wait for slide-out animation (0.6s animation + 0.4s for 5 card stagger)
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Phase 2: Fetch new data while cards are off-screen
     setCurrentWeek(newWeek);
     await fetchWeekData(newWeek);
+    
+    // Phase 3: Slide in new cards from opposite direction
+    const slideInDirection = direction === 'prev' ? 'in-from-right' : 'in-from-left';
+    console.log('📥 Slide IN direction:', slideInDirection);
+    setSlideDirection(slideInDirection);
+    setIsLoadingWeek(false);
+    
+    // Reset after slide-in completes (0.6s animation + 0.4s stagger)
+    setTimeout(() => {
+      console.log('✅ Animation complete, resetting');
+      setSlideDirection(null);
+    }, 1000);
   };
 
   // Handle continue session button click
@@ -209,17 +246,27 @@ function Dashboard() {
 
   // Format date for display (e.g., "10.2 SAT" or "TODAY 10.22 MON")
   const formatDayDate = (dateString, isToday = false) => {
-    if (!dateString) return '';
+    if (!dateString) return { prefix: '', date: '', full: '' };
     // Handle ISO timestamps or simple date strings
     const date = new Date(dateString);
     const month = date.getMonth() + 1;
     const day = date.getDate();
     const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
     
+    const dateStr = `${month}.${day} ${dayOfWeek}`;
+    
     if (isToday) {
-      return `TODAY ${month}.${day} ${dayOfWeek}`;
+      return {
+        prefix: 'TODAY ',
+        date: dateStr,
+        full: `TODAY ${dateStr}`
+      };
     }
-    return `${month}.${day} ${dayOfWeek}`;
+    return {
+      prefix: '',
+      date: dateStr,
+      full: dateStr
+    };
   };
 
   // Check if a date is today
@@ -244,6 +291,26 @@ function Dashboard() {
   // Navigate to volunteer feedback
   const navigateToVolunteerFeedback = () => {
     navigate('/volunteer-feedback');
+  };
+
+  // Render skeleton loading cards
+  const renderSkeletonCards = () => {
+    return Array(5).fill(0).map((_, index) => (
+      <div key={`skeleton-${index}`} className="dashboard__day-card dashboard__day-card--skeleton">
+        <div className="skeleton-line skeleton-date"></div>
+        <div className="skeleton-divider"></div>
+        <div className="skeleton-section">
+          <div className="skeleton-line skeleton-title"></div>
+          <div className="skeleton-line"></div>
+          <div className="skeleton-line"></div>
+          <div className="skeleton-line skeleton-short"></div>
+        </div>
+        <div className="skeleton-section">
+          <div className="skeleton-line skeleton-title"></div>
+          <div className="skeleton-line"></div>
+        </div>
+      </div>
+    ));
   };
 
   // Render historical access view
@@ -316,49 +383,6 @@ function Dashboard() {
     }
   ];
 
-  const weeklyAgenda = [
-    {
-      date: '10.2 SAT',
-      isToday: false,
-      activities: ['Prompting workshop', 'Build block', 'Researching MVP\'s', 'Writing small Python scripts using ChatGPT', 'Create a business plan'],
-      events: ['Fireside chat with David Yang fro, adsf', 'Presentation'],
-      hasCheckbox: true,
-      checkboxChecked: true
-    },
-    {
-      date: '10.20 SAT',
-      isToday: false,
-      activities: ['Prompting workshop', 'Build block', 'Researching MVP\'s', 'Writing small Python scripts using ChatGPT', 'Create a business plan'],
-      events: ['Fireside chat with David Yang fro, adsf', 'Presentation'],
-      hasCheckbox: true,
-      checkboxChecked: false
-    },
-    {
-      date: 'TODAY 10.22 MON',
-      isToday: true,
-      activities: ['Prompting workshop', 'Build block', 'Researching MVP\'s', 'Writing small Python scripts using ChatGPT', 'Create a business plan'],
-      events: [],
-      hasCheckbox: false,
-      checkboxChecked: false
-    },
-    {
-      date: '10.20 SAT',
-      isToday: false,
-      activities: ['Prompting workshop', 'Build block', 'Researching MVP\'s', 'Writing small Python scripts using ChatGPT', 'Create a business plan'],
-      events: ['Fireside chat with David Yang fro, adsf'],
-      hasCheckbox: false,
-      checkboxChecked: false
-    },
-    {
-      date: '10.20 SAT',
-      isToday: false,
-      activities: ['Prompting workshop', 'Build block', 'Researching MVP\'s', 'Writing small Python scripts using ChatGPT', 'Create a business plan'],
-      events: [],
-      hasCheckbox: false,
-      checkboxChecked: false
-    }
-  ];
-
   // Render regular dashboard content matching the Figma wireframe
   const renderDashboardContent = () => {
     return (
@@ -368,14 +392,14 @@ function Dashboard() {
           {/* Greeting Section */}
           <div className="dashboard__greeting">
             <h1 className="dashboard__greeting-text">
-              Hey {user?.first_name || 'there'}. Good to see you!
+              Hey {user?.firstName || 'there'}. Good to see you!
             </h1>
             <div className="dashboard__missed-assignments">
               <div className="dashboard__missed-icon" />
               <span>( {missedAssignmentsCount} ) missed assignments</span>
             </div>
           </div>
-
+          
           {/* Top Grid: Today's Goal and Upcoming */}
           <div className="dashboard__top-grid">
             {/* Today's Goal Section */}
@@ -414,21 +438,25 @@ function Dashboard() {
           {/* Week Header: Title and Date Picker */}
           <div className="dashboard__week-header">
             <div className="dashboard__week-title">
-              <span className="dashboard__week-label">L{currentLevel}: Week {currentWeek}</span>
+              <span className="dashboard__week-label">
+                <span className="dashboard__week-level">L{currentLevel}</span>: Week {currentWeek}
+              </span>
               <span className="dashboard__week-subtitle">{weeklyGoal}</span>
             </div>
 
             <div className="dashboard__date-picker">
               <button 
-                className="dashboard__date-btn dashboard__date-btn--active"
+                className={`dashboard__date-btn ${currentWeek > 1 ? 'dashboard__date-btn--active' : ''}`}
                 onClick={() => navigateToWeek('prev')}
+                disabled={currentWeek <= 1 || isLoadingWeek || slideDirection !== null}
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <span className="dashboard__date-label">Week {currentWeek}</span>
               <button 
-                className="dashboard__date-btn"
+                className={`dashboard__date-btn ${currentDay?.week && currentWeek < currentDay.week ? 'dashboard__date-btn--active' : ''}`}
                 onClick={() => navigateToWeek('next')}
+                disabled={!currentDay?.week || currentWeek >= currentDay.week || isLoadingWeek || slideDirection !== null}
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -437,18 +465,44 @@ function Dashboard() {
 
           {/* Weekly Agenda Cards */}
           <div className="dashboard__weekly-grid">
-            {weekData.map((day, index) => {
+            {isLoadingWeek ? renderSkeletonCards() : weekData.map((day, index) => {
               const dayIsToday = isDateToday(day.day_date);
               const dayIsPast = isDatePast(day.day_date);
               const showCheckbox = dayIsPast && !dayIsToday;
               
+              // For slide-out-right and slide-in-from-left (next week flow), reverse the stagger
+              // so the animation flows from right to left
+              const isRightToLeft = slideDirection === 'out-right' || slideDirection === 'in-from-left';
+              const cardCount = weekData.length;
+              const delayIndex = isRightToLeft ? (cardCount - 1 - index) : index;
+              
+              // Determine Animate.css classes based on slide direction
+              let animateClass = '';
+              if (slideDirection === 'out-left') animateClass = 'animate__animated animate__fadeOutLeft';
+              else if (slideDirection === 'out-right') animateClass = 'animate__animated animate__fadeOutRight';
+              else if (slideDirection === 'in-from-left') animateClass = 'animate__animated animate__fadeInLeft';
+              else if (slideDirection === 'in-from-right') animateClass = 'animate__animated animate__fadeInRight';
+              
               return (
                 <div 
                   key={day.id} 
-                  className={`dashboard__day-card ${dayIsToday ? 'dashboard__day-card--today' : ''}`}
+                  className={`dashboard__day-card ${dayIsToday ? 'dashboard__day-card--today' : ''} ${animateClass}`}
+                  style={{ 
+                    animationDelay: `${delayIndex * 0.08}s`
+                  }}
                 >
                   {/* Date */}
-                  <div className="dashboard__day-date">{formatDayDate(day.day_date, dayIsToday)}</div>
+                  <div className="dashboard__day-date">
+                    {(() => {
+                      const formattedDate = formatDayDate(day.day_date, dayIsToday);
+                      return (
+                        <>
+                          {formattedDate.prefix && <strong>{formattedDate.prefix}</strong>}
+                          {formattedDate.date}
+                        </>
+                      );
+                    })()}
+                  </div>
                   
                   {/* Separator */}
                   <div className="dashboard__day-separator" />
@@ -482,8 +536,8 @@ function Dashboard() {
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+              </div>
+            )}
 
                   {/* Go Button */}
                   {dayIsToday && (
@@ -510,7 +564,7 @@ function Dashboard() {
           {/* Divider 3 */}
           <div className="dashboard__divider-3" />
         </div>
-
+        
         {/* Mobile View */}
         <div className="dashboard__mobile block md:hidden">
           {/* Divider at top */}
@@ -539,15 +593,17 @@ function Dashboard() {
           {/* Date Picker */}
           <div className="dashboard__mobile-date-picker">
             <button 
-              className="dashboard__mobile-date-btn dashboard__mobile-date-btn--active"
+              className={`dashboard__mobile-date-btn ${currentWeek > 1 ? 'dashboard__mobile-date-btn--active' : ''}`}
               onClick={() => navigateToWeek('prev')}
+              disabled={currentWeek <= 1 || isLoadingWeek || slideDirection !== null}
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <span className="dashboard__mobile-date-label">Week {currentWeek}</span>
             <button 
-              className="dashboard__mobile-date-btn"
+              className={`dashboard__mobile-date-btn ${currentDay?.week && currentWeek < currentDay.week ? 'dashboard__mobile-date-btn--active' : ''}`}
               onClick={() => navigateToWeek('next')}
+              disabled={!currentDay?.week || currentWeek >= currentDay.week || isLoadingWeek || slideDirection !== null}
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -564,7 +620,15 @@ function Dashboard() {
                 return (
                   <div key={day.id} className="dashboard__mobile-today-card">
                     <div className="dashboard__mobile-today-header">
-                      {formatDayDate(day.day_date, true)}
+                      {(() => {
+                        const formattedDate = formatDayDate(day.day_date, true);
+                        return (
+                          <>
+                            {formattedDate.prefix && <strong>{formattedDate.prefix}</strong>}
+                            {formattedDate.date}
+                          </>
+                        );
+                      })()}
                     </div>
                     <div className="dashboard__mobile-today-separator" />
                     {day.tasks && day.tasks.length > 0 && (
@@ -582,12 +646,12 @@ function Dashboard() {
                         </div>
                       </div>
                     )}
-                    <button 
+          <button 
                       className="dashboard__mobile-go-btn"
-                      onClick={handleContinueSession}
-                    >
+            onClick={handleContinueSession}
+          >
                       Go
-                    </button>
+          </button>
                   </div>
                 );
               } else {
@@ -595,7 +659,7 @@ function Dashboard() {
                 return (
                   <div key={day.id} className="dashboard__mobile-day">
                     <div className="dashboard__mobile-day-header">
-                      {formatDayDate(day.day_date, false)}
+                      {formatDayDate(day.day_date, false).full}
                     </div>
                     {dayIsPast && (
                       <div className={`dashboard__mobile-checkbox ${day.completed ? 'dashboard__mobile-checkbox--checked' : ''}`} />

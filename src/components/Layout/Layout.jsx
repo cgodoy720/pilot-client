@@ -12,7 +12,7 @@ const Layout = ({ children }) => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
+  
   // Detect mobile vs desktop
   useEffect(() => {
     const checkMobile = () => {
@@ -29,7 +29,7 @@ const Layout = ({ children }) => {
     logout();
     navigate('/login');
   };
-
+  
   const toggleMobileNavbar = () => {
     setIsMobileNavbarOpen(!isMobileNavbarOpen);
   };
@@ -456,7 +456,7 @@ const Layout = ({ children }) => {
               )}
             >
               <span className="text-white text-sm font-medium whitespace-nowrap">Dashboard</span>
-            </div>
+        </div>
           </Link>
         )}
 
@@ -875,7 +875,7 @@ const Layout = ({ children }) => {
               >
                 <span className="text-white text-sm font-medium whitespace-nowrap">Content Generation</span>
               </div>
-            </Link>
+              </Link>
           )
         )}
 
@@ -896,7 +896,7 @@ const Layout = ({ children }) => {
               <div className="flex items-center ml-[60px]">
                 <span className="text-white text-sm font-medium whitespace-nowrap">AI Prompts</span>
               </div>
-            </Link>
+              </Link>
           )
         ) : (
           (user?.role === 'admin' || user?.role === 'staff') && (
@@ -918,7 +918,7 @@ const Layout = ({ children }) => {
               >
                 <span className="text-white text-sm font-medium whitespace-nowrap">AI Prompts</span>
               </div>
-            </Link>
+              </Link>
           )
         )}
 
@@ -939,7 +939,7 @@ const Layout = ({ children }) => {
               <div className="flex items-center ml-[60px]">
                 <span className="text-white text-sm font-medium whitespace-nowrap">Volunteer Feedback</span>
               </div>
-            </Link>
+              </Link>
           )
         ) : (
           (user?.role === 'volunteer' || user?.role === 'admin' || user?.role === 'staff') && (
@@ -961,7 +961,7 @@ const Layout = ({ children }) => {
               >
                 <span className="text-white text-sm font-medium whitespace-nowrap">Volunteer Feedback</span>
               </div>
-            </Link>
+              </Link>
           )
         )}
 
@@ -988,7 +988,7 @@ const Layout = ({ children }) => {
               <div className="flex items-center ml-[60px]">
                 <span className="text-white text-sm font-medium whitespace-nowrap">Account</span>
               </div>
-            </Link>
+              </Link>
           )
         ) : (
           <Link
@@ -1011,7 +1011,7 @@ const Layout = ({ children }) => {
               )}
             >
               <span className="text-white text-sm font-medium whitespace-nowrap">Account</span>
-            </div>
+        </div>
           </Link>
         )}
 
