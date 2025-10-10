@@ -365,6 +365,29 @@
   margin: 0;
 }
 
+/* Completion Badge (top-right of card, 85-90% to the right) */
+.dashboard__completion-badge {
+  position: absolute;
+  top: 8px;
+  right: 10%;
+  padding: 2px 7px;
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 15px;
+  border-radius: 10px;
+}
+
+.dashboard__completion-badge--incomplete {
+  background: var(--color-mastery-pink);
+  color: var(--color-background);
+}
+
+.dashboard__completion-badge--complete {
+  background: var(--color-pursuit-purple);
+  color: var(--color-background);
+}
+
 .dashboard__day-date {
   font-weight: 400;
   font-size: 16px;
@@ -387,21 +410,6 @@
 
 .dashboard__day-card--today .dashboard__day-separator {
   border-color: var(--color-stardust);
-}
-
-.dashboard__checkbox {
-  position: absolute;
-  right: 14px;
-  top: 18px;
-  width: 14px;
-  height: 14px;
-  border: 1px solid var(--color-mastery-pink);
-  border-radius: 100px;
-}
-
-.dashboard__checkbox--checked {
-  background: var(--color-pursuit-purple);
-  border-color: var(--color-pursuit-purple);
 }
 
 .dashboard__day-section {
@@ -434,8 +442,16 @@
   line-height: 16px;
   color: var(--color-carbon-black);
   display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.dashboard__day-activity-content {
+  display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  flex: 1;
 }
 
 .dashboard__day-card--today .dashboard__day-activity,
@@ -453,7 +469,7 @@
   padding: 0;
   cursor: pointer;
   text-align: left;
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 .dashboard__deliverable-link:hover {
@@ -466,6 +482,112 @@
 
 .dashboard__day-card--today .dashboard__deliverable-link:hover {
   color: var(--color-stardust);
+}
+
+/* Task Title */
+.dashboard__task-title {
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 18px;
+  color: var(--color-carbon-black);
+}
+
+.dashboard__day-card--today .dashboard__task-title {
+  color: var(--color-background);
+}
+
+/* Task Checkbox (14x14 circle with checkmark or X) */
+.dashboard__task-checkbox {
+  width: 14px;
+  height: 14px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dashboard__task-checkbox--complete {
+  background: var(--color-pursuit-purple);
+  border: 1px solid var(--color-pursuit-purple);
+}
+
+.dashboard__task-checkbox--incomplete {
+  background: var(--color-mastery-pink);
+  border: 1px solid var(--color-mastery-pink);
+}
+
+.dashboard__task-checkbox-check {
+  width: 12px;
+  height: 12px;
+  stroke: var(--color-background);
+  stroke-width: 1.5;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dashboard__task-checkbox-x {
+  width: 8px;
+  height: 8px;
+  stroke: var(--color-background);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+/* Deliverable Button Variants */
+.dashboard__deliverable-link--submitted {
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 15px;
+  color: var(--color-pursuit-purple);
+  background: none;
+  border: none;
+  padding: 0 0 0 21px;
+  text-decoration: none;
+}
+
+.dashboard__deliverable-link--submitted:hover {
+  text-decoration: underline;
+}
+
+.dashboard__deliverable-link--pending {
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 15px;
+  background: var(--color-stardust);
+  border: 1px solid var(--color-mastery-pink);
+  color: var(--color-mastery-pink);
+  padding: 2px 7px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  align-self: flex-start;
+  width: fit-content;
+}
+
+.dashboard__deliverable-link--pending:hover {
+  background: var(--color-mastery-pink);
+  color: var(--color-background);
+}
+
+.dashboard__day-card--today .dashboard__deliverable-link--submitted {
+  color: var(--color-background);
+}
+
+.dashboard__day-card--today .dashboard__deliverable-link--submitted:hover {
+  color: var(--color-stardust);
+}
+
+.dashboard__day-card--today .dashboard__deliverable-link--pending {
+  background: var(--color-pursuit-purple);
+  border-color: var(--color-background);
+  color: var(--color-background);
+}
+
+.dashboard__day-card--today .dashboard__deliverable-link--pending:hover {
+  background: var(--color-background);
+  color: var(--color-pursuit-purple);
 }
 
 .dashboard__activity-divider {

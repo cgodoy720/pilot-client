@@ -1,3 +1,9 @@
+/* Dashboard - Figma Design Implementation */
+/* Using BEM naming conventions */
+/* Font: Inter (Proxima Nova alternative) */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @font-face {
   font-family: 'Proxima Nova';
   src: url('./assets/fonts/Proxima Nova Regular.woff2') format('woff2');
@@ -17,11 +23,7 @@
   url("https://db.onlinewebfonts.com/t/72b6f2c9990bd3d37b8013a59ed78902.svg#Proxima Nova Bold")format("svg");
 }
 
-/* Dashboard - Figma Design Implementation */
-/* Using BEM naming conventions */
-/* Font: Inter (Proxima Nova alternative) */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
   --color-pursuit-purple: #4242EA;

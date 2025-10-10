@@ -534,6 +534,13 @@ function Dashboard() {
               else if (slideDirection === 'in-from-left') animateClass = 'animate__animated animate__fadeInLeft';
               else if (slideDirection === 'in-from-right') animateClass = 'animate__animated animate__fadeInRight';
               
+              // Calculate completion status for past days
+              const deliverableTasks = day.tasks?.filter(t => 
+                t.deliverable_type && ['video', 'document', 'link'].includes(t.deliverable_type)
+              ) || [];
+              const completedDeliverables = deliverableTasks.filter(t => t.hasSubmission);
+              const isComplete = deliverableTasks.length > 0 && deliverableTasks.length === completedDeliverables.length;
+              
               return (
                 <div 
                   key={day.id} 
@@ -542,6 +549,13 @@ function Dashboard() {
                     animationDelay: `${delayIndex * 0.08}s`
                   }}
                 >
+                  {/* Completion Badge (for past days only) */}
+                  {dayIsPast && !dayIsToday && deliverableTasks.length > 0 && (
+                    <div className={`dashboard__completion-badge ${isComplete ? 'dashboard__completion-badge--complete' : 'dashboard__completion-badge--incomplete'}`}>
+                      {isComplete ? 'Complete' : 'Incomplete'}
+                    </div>
+                  )}
+                  
                   {/* Date */}
                   <div className="dashboard__day-date">
                     {(() => {
@@ -558,34 +572,61 @@ function Dashboard() {
                   {/* Separator */}
                   <div className="dashboard__day-separator" />
                   
-                  {/* Checkbox (for past days) */}
-                  {showCheckbox && (
-                    <div className={`dashboard__checkbox ${day.completed ? 'dashboard__checkbox--checked' : ''}`} />
-                  )}
-                  
                   {/* Activities */}
                   {day.tasks && day.tasks.length > 0 && (
                     <div className="dashboard__day-section">
                       <h4 className="dashboard__day-section-title">Activities</h4>
                       <div className="dashboard__day-activities">
-                        {day.tasks.map((task, taskIndex) => (
-                          <div key={task.id}>
-                            <div className="dashboard__day-activity">
-                              <span>{task.task_title}</span>
-                              {task.deliverable_type && ['video', 'document', 'link'].includes(task.deliverable_type) && (
-                                <button 
-                                  className="dashboard__deliverable-link"
-                                  onClick={() => navigate(`/learning?date=${day.day_date}&taskId=${task.id}`)}
-                                >
-                                  Submit {task.deliverable_type}
-                                </button>
+                        {day.tasks.map((task, taskIndex) => {
+                          const isDeliverable = task.deliverable_type && ['video', 'document', 'link'].includes(task.deliverable_type);
+                          const showTaskCheckbox = dayIsPast && !dayIsToday;
+                          const hasSubmission = task.hasSubmission;
+                          
+                          return (
+                            <div key={task.id}>
+                              <div className="dashboard__day-activity">
+                                {/* Task Checkbox */}
+                                {showTaskCheckbox && (
+                                  <div className={`dashboard__task-checkbox ${
+                                    hasSubmission ? 'dashboard__task-checkbox--complete' : 
+                                    isDeliverable ? 'dashboard__task-checkbox--incomplete' : 
+                                    'dashboard__task-checkbox--complete'
+                                  }`}>
+                                    {isDeliverable && !hasSubmission ? (
+                                      <svg viewBox="0 0 8 8" className="dashboard__task-checkbox-x">
+                                        <line x1="1" y1="1" x2="7" y2="7" />
+                                        <line x1="7" y1="1" x2="1" y2="7" />
+                                      </svg>
+                                    ) : (
+                                      <svg viewBox="0 0 14 14" className="dashboard__task-checkbox-check">
+                                        <polyline points="2,7 5,10 12,3" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                <div className="dashboard__day-activity-content">
+                                  <span className="dashboard__task-title">{task.task_title}</span>
+                                  
+                                  {/* Deliverable Submit Button */}
+                                  {isDeliverable && (
+                                    <button 
+                                      className={`dashboard__deliverable-link ${
+                                        hasSubmission ? 'dashboard__deliverable-link--submitted' : 'dashboard__deliverable-link--pending'
+                                      }`}
+                                      onClick={() => navigate(`/learning?date=${day.day_date}&taskId=${task.id}`)}
+                                    >
+                                      Submit {task.deliverable_type}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              {taskIndex < day.tasks.length - 1 && (
+                                <div className="dashboard__activity-divider" />
                               )}
                             </div>
-                            {taskIndex < day.tasks.length - 1 && (
-                              <div className="dashboard__activity-divider" />
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
               </div>
             )}
