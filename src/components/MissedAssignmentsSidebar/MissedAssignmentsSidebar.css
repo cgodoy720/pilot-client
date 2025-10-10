@@ -1,0 +1,176 @@
+/* Missed Assignments Sidebar Styles */
+
+.missed-assignments-sidebar {
+  width: 460px !important;
+  max-width: 460px !important;
+  background: #EFEFEF !important;
+  padding: 0 !important;
+  color: #1E1E1E !important;
+  border: none !important;
+}
+
+.missed-assignments-sidebar__header {
+  padding: 15px 25px;
+  background: #EFEFEF;
+  border: none;
+  margin: 0;
+}
+
+.missed-assignments-sidebar__title-wrapper {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.missed-assignments-sidebar__close-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease;
+}
+
+.missed-assignments-sidebar__close-btn:hover {
+  opacity: 0.7;
+}
+
+.missed-assignments-sidebar__icon {
+  width: 19px;
+  height: 19px;
+  color: #FF33FF;
+  flex-shrink: 0;
+}
+
+.missed-assignments-sidebar__title {
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 150%;
+  letter-spacing: 0.005em;
+  color: #FF33FF;
+}
+
+.missed-assignments-sidebar__content {
+  padding: 0 25px;
+}
+
+.missed-assignments-sidebar__subtitle {
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 32px;
+  letter-spacing: 0.005em;
+  color: #1E1E1E;
+  margin-bottom: 24px;
+}
+
+.missed-assignments-sidebar__loading,
+.missed-assignments-sidebar__empty {
+  padding: 20px;
+  text-align: center;
+  color: #1E1E1E;
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
+}
+
+.missed-assignments-sidebar__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.missed-assignments-sidebar__item {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  padding: 0 0 7px;
+  gap: 10px;
+  border-radius: 5px;
+}
+
+.missed-assignments-sidebar__item-content {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 15px;
+  flex: 1;
+}
+
+.missed-assignments-sidebar__date {
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 18px;
+  color: #FF33FF;
+  flex-shrink: 0;
+  width: 59px;
+}
+
+.missed-assignments-sidebar__task-title {
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 18px;
+  color: #1E1E1E;
+  flex: 1;
+}
+
+.missed-assignments-sidebar__go-btn {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 3px 10px;
+  gap: 10px;
+  background: #EFEFEF;
+  border: 1px solid #FF33FF;
+  border-radius: 100px;
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 18px;
+  text-align: right;
+  color: #FF33FF;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.missed-assignments-sidebar__go-btn:hover {
+  background: #FF33FF;
+  color: #EFEFEF;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .missed-assignments-sidebar {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Override default Sheet styles */
+[data-radix-dialog-content] {
+  animation-duration: 0.3s !important;
+}
+
+/* Custom overlay styling to match Figma */
+[data-radix-dialog-overlay] {
+  background: rgba(30, 30, 30, 0.9) !important;
+}
+
+/* Override close button styling for light mode */
+.missed-assignments-sidebar button[aria-label="Close"] {
+  display: none !important;
+}
+

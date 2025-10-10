@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Calendar, BookOpen, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import MissedAssignmentsSidebar from '../../components/MissedAssignmentsSidebar/MissedAssignmentsSidebar';
 import './Dashboard.css';
 
 function Dashboard() {
@@ -26,6 +27,7 @@ function Dashboard() {
   const [weeklyGoal, setWeeklyGoal] = useState('');
   const [isLoadingWeek, setIsLoadingWeek] = useState(false);
   const [slideDirection, setSlideDirection] = useState(null); // 'left' or 'right'
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     // Only fetch dashboard data if user is active
@@ -293,6 +295,22 @@ function Dashboard() {
     navigate('/volunteer-feedback');
   };
 
+  // Handle opening missed assignments sidebar
+  const handleMissedAssignmentsClick = () => {
+    setIsSidebarOpen(true);
+  };
+
+  // Handle closing sidebar
+  const handleCloseSidebar = () => {
+    setIsSidebarOpen(false);
+  };
+
+  // Handle navigation from sidebar to specific day/task
+  const handleNavigateToDay = (dayId, taskId) => {
+    // Navigate to the day view with the task highlighted
+    navigate(`/calendar?day=${dayId}&task=${taskId}`);
+  };
+
   // Render skeleton loading cards
   const renderSkeletonCards = () => {
     return Array(5).fill(0).map((_, index) => (
@@ -394,10 +412,13 @@ function Dashboard() {
             <h1 className="dashboard__greeting-text">
               Hey {user?.firstName || 'there'}. Good to see you!
             </h1>
-            <div className="dashboard__missed-assignments">
+            <button
+              className={`dashboard__missed-assignments ${missedAssignmentsCount > 0 ? 'dashboard__missed-assignments--active' : ''}`}
+              onClick={handleMissedAssignmentsClick}
+            >
               <div className="dashboard__missed-icon" />
               <span>( {missedAssignmentsCount} ) missed assignments</span>
-            </div>
+            </button>
           </div>
           
           {/* Top Grid: Today's Goal and Upcoming */}
@@ -717,6 +738,13 @@ function Dashboard() {
       {!isActive ? renderHistoricalView() : 
        isVolunteer ? renderVolunteerView() : 
        renderDashboardContent()}
+
+      {/* Missed Assignments Sidebar */}
+      <MissedAssignmentsSidebar
+        isOpen={isSidebarOpen}
+        onClose={handleCloseSidebar}
+        onNavigateToDay={handleNavigateToDay}
+      />
     </>
   );
 }

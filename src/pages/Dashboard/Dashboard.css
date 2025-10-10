@@ -76,6 +76,21 @@
   line-height: 150%;
   letter-spacing: 0.005em;
   height: 100%;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dashboard__missed-assignments:hover {
+  opacity: 0.9;
+}
+
+.dashboard__missed-assignments--active {
+  background: var(--color-mastery-pink);
+}
+
+.dashboard__missed-assignments--active .dashboard__missed-icon {
+  background: var(--color-background);
 }
 
 .dashboard__missed-icon {
