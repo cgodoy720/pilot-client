@@ -28,9 +28,10 @@
 }
 
 .csv-export__section-title {
-  color: var(--color-text-primary);
+  color: #1a1a1a !important; /* Dark text for section titles on white background */
   font-weight: 600;
-  margin-bottom: var(--spacing-md);
+  font-size: 15pt !important; /* 15pt for section headers (75% of 20pt main header) */
+  margin-bottom: 28px !important; /* 28px spacing to labels below */
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
@@ -68,6 +69,10 @@
 
 .csv-export__custom-form {
   margin-bottom: var(--spacing-lg);
+}
+
+.csv-export__custom-form .MuiGrid-item {
+  padding-top: 12px !important; /* Add extra top padding to grid items */
 }
 
 .csv-export__export-btn {
@@ -111,6 +116,7 @@
 .csv-export__info-text {
   margin-bottom: var(--spacing-xs);
   line-height: 1.5;
+  color: #FFFFFF !important; /* White text for info box on dark background */
 }
 
 .csv-export__info-text:last-child {
@@ -121,15 +127,34 @@
 .csv-export .MuiTextField-root,
 .csv-export .MuiFormControl-root {
   margin-bottom: var(--spacing-sm);
+  margin-top: 24px; /* Increase top margin to prevent label cutoff */
 }
 
 .csv-export .MuiInputLabel-root {
-  color: var(--color-text-secondary);
-  font-weight: 500;
+  color: #1a1a1a !important; /* Dark text for labels on white background */
+  font-weight: 700 !important; /* Bold labels */
+  font-size: 14pt !important; /* 14pt font size */
+  transform: translate(0px, -32px) scale(1) !important; /* Position label above input */
+  transform-origin: top left !important;
+  position: relative !important;
+}
+
+.csv-export .MuiInputLabel-root.MuiInputLabel-shrink {
+  color: #1a1a1a !important; /* Keep dark text when focused */
+  font-weight: 700 !important; /* Keep bold */
+  font-size: 14pt !important; /* Keep 14pt */
+  transform: translate(0px, -32px) scale(1) !important; /* Keep label above input when focused/filled */
+  transform-origin: top left !important;
 }
 
 .csv-export .MuiOutlinedInput-root {
   border-radius: var(--spacing-xs);
+  min-height: 56px !important; /* Increase minimum height significantly */
+}
+
+.csv-export .MuiOutlinedInput-input {
+  padding: 18px 14px !important; /* Increase padding significantly */
+  height: auto !important;
 }
 
 .csv-export .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
@@ -142,13 +167,57 @@
 }
 
 .csv-export .MuiSelect-select {
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: 18px 14px !important; /* Increase padding to match text fields */
+  min-height: 24px !important; /* Ensure consistent height */
+}
+
+.csv-export .MuiFormControl-root .MuiInputBase-root {
+  min-height: 56px !important; /* Match text field height */
 }
 
 .csv-export .MuiFormHelperText-root {
-  color: var(--color-text-secondary);
-  font-size: 0.75rem;
-  margin-top: var(--spacing-xs);
+  color: #1a1a1a !important; /* Dark text for helper text on white background */
+  font-size: 0.875rem !important; /* Slightly larger for readability */
+  margin-top: -28px !important; /* Position helper text ABOVE the input field */
+  margin-bottom: 8px !important;
+  order: -1; /* Move helper text above input */
+}
+
+/* Exception: Info box text must be white on dark background */
+/* Higher specificity (3 classes) beats the general rule (2 classes) */
+.csv-export .csv-export__info .MuiTypography-root {
+  color: #FFFFFF !important;
+}
+
+/* Change all text on white backgrounds to black/dark for readability */
+.csv-export .MuiTypography-root {
+  color: #1a1a1a !important; /* Dark text for all typography on white background */
+}
+
+.csv-export .MuiCardHeader-subheader {
+  color: #1a1a1a !important; /* Dark text for subheader on white background */
+}
+
+.csv-export .MuiCardHeader-title {
+  color: #000000 !important; /* Black text for main header */
+}
+
+/* Export History Table - White text for dark background */
+.export-history .MuiTableCell-root {
+  color: #FFFFFF !important; /* White text for all table cells */
+}
+
+.export-history .MuiTableCell-head {
+  color: #FFFFFF !important; /* White text for table headers */
+  font-weight: 600;
+}
+
+.export-history .MuiTableCell-body {
+  color: #FFFFFF !important; /* White text for table data */
+}
+
+.export-history .MuiTypography-root {
+  color: #FFFFFF !important; /* White text for typography in table */
 }
 
 /* Loading State */

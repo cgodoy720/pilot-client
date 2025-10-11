@@ -216,61 +216,78 @@ const CSVExport = () => {
             </Typography>
             
             <Grid container spacing={3}>
+              {/* Left Column */}
               <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Start Date"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  disabled={isExporting}
-                  helperText="Select the start date for export"
-                />
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {/* Start Date */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="body2" sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '12pt', mb: '4px' }}>
+                      Select the start date for export
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      disabled={isExporting}
+                    />
+                  </Box>
+
+                  {/* Cohort Filter */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="body2" sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '12pt', mb: '4px' }}>
+                      Cohort Filter
+                    </Typography>
+                    <FormControl fullWidth disabled={isExporting}>
+                      <Select
+                        value={cohort}
+                        onChange={(e) => setCohort(e.target.value)}
+                        displayEmpty
+                      >
+                        {cohortOptions.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </Box>
               </Grid>
-              
+
+              {/* Right Column */}
               <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="End Date"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  disabled={isExporting}
-                  helperText="Select the end date for export"
-                />
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth disabled={isExporting}>
-                  <InputLabel>Cohort Filter</InputLabel>
-                  <Select
-                    value={cohort}
-                    label="Cohort Filter"
-                    onChange={(e) => setCohort(e.target.value)}
-                  >
-                    {cohortOptions.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        {option.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <Button
-                  variant="contained"
-                  fullWidth
-                  startIcon={isExporting ? <CircularProgress size={20} /> : <DownloadIcon />}
-                  onClick={handleExportCustom}
-                  disabled={isExporting || !startDate || !endDate}
-                  className="csv-export__export-btn"
-                  size="large"
-                >
-                  {isExporting ? 'Exporting...' : 'Export CSV'}
-                </Button>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {/* End Date */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="body2" sx={{ color: '#1a1a1a', fontWeight: 700, fontSize: '12pt', mb: '4px' }}>
+                      Select the end date for export
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      disabled={isExporting}
+                    />
+                  </Box>
+
+                  {/* Export Button aligned with Cohort dropdown */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <Box sx={{ height: '16px', mb: '8px' }}></Box> {/* Spacer to align with "Cohort Filter" label - 12pt = 16px */}
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      startIcon={isExporting ? <CircularProgress size={20} /> : <DownloadIcon />}
+                      onClick={handleExportCustom}
+                      disabled={isExporting || !startDate || !endDate}
+                      className="csv-export__export-btn"
+                      size="large"
+                    >
+                      {isExporting ? 'Exporting...' : 'Export CSV'}
+                    </Button>
+                  </Box>
+                </Box>
               </Grid>
             </Grid>
           </Box>
@@ -308,10 +325,10 @@ const CSVExport = () => {
 
           {/* Export Information */}
           <Box className="csv-export__info">
-            <Typography variant="body2" color="text.secondary" className="csv-export__info-text">
+            <Typography variant="body2" className="csv-export__info-text" sx={{ color: '#FFFFFF' }}>
               <strong>CSV Format:</strong> Date, Builder Name, Cohort, Check-in Time, Status, Late Minutes, Excuse Type, Excuse Details, Staff Notes, Attendance Notes
             </Typography>
-            <Typography variant="body2" color="text.secondary" className="csv-export__info-text">
+            <Typography variant="body2" className="csv-export__info-text" sx={{ color: '#FFFFFF' }}>
               <strong>Note:</strong> The export includes all builders in the selected cohort(s), including those who didn't check in (marked as "Absent").
             </Typography>
           </Box>

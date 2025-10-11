@@ -76,8 +76,9 @@ const ExcuseManagementInterface = () => {
   const excuseReasons = [
     'Sick',
     'Personal',
-    'Program Event',
-    'Technical Issue',
+    'Work Conflict',
+    'Childcare',
+    'Transportation',
     'Other'
   ];
 
@@ -296,8 +297,9 @@ const ExcuseManagementInterface = () => {
     const colors = {
       'Sick': 'error',
       'Personal': 'warning',
-      'Program Event': 'info',
-      'Technical Issue': 'secondary',
+      'Work Conflict': 'info',
+      'Childcare': 'secondary',
+      'Transportation': 'info',
       'Other': 'default'
     };
     return colors[reason] || 'default';
@@ -559,6 +561,7 @@ const ExcuseManagementInterface = () => {
                     <TableCell>Cohort</TableCell>
                     <TableCell>Absence Date</TableCell>
                     <TableCell>Reason</TableCell>
+                    <TableCell>Staff Notes</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Processed By</TableCell>
                     <TableCell>Processed At</TableCell>
@@ -593,6 +596,14 @@ const ExcuseManagementInterface = () => {
                           size="small"
                           variant="outlined"
                         />
+                      </TableCell>
+                      <TableCell>
+                        <Typography
+                          variant="body2"
+                          sx={{ color: 'var(--color-text-secondary)' }}
+                        >
+                          {(excuse.excuseDetails || excuse.staffNotes) ? 'yes' : '—'}
+                        </Typography>
                       </TableCell>
                       <TableCell>
                         <Chip

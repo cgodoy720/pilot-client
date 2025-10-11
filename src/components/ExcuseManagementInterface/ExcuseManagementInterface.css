@@ -351,6 +351,25 @@
   border-color: #9c27b0;
 }
 
+.excuse-management-interface .MuiChip-colorDefault {
+  background-color: rgba(158, 158, 158, 0.1);
+  color: #616161;
+  border-color: #9e9e9e;
+}
+
+/* Ensure all chips in table have good visibility */
+.excuse-management-interface__table .MuiChip-root {
+  font-weight: 500;
+  min-width: 80px;
+}
+
+/* Specifically style the Reason column chips for better visibility */
+.excuse-management-interface__table .MuiChip-outlined {
+  background-color: #ffffff !important;
+  border-width: 1.5px !important;
+  font-weight: 600 !important;
+}
+
 /* Badge Styling */
 .excuse-management-interface .MuiBadge-badge {
   background-color: var(--color-error);

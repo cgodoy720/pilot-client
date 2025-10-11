@@ -312,7 +312,11 @@ const CohortPerformanceDashboard = () => {
             />
           )}
           {lastUpdated && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography 
+              variant="caption" 
+              className="cohort-performance-dashboard__last-updated"
+              sx={{ color: '#FFFFFF' }}
+            >
               Last updated: {lastUpdated.toLocaleTimeString()}
             </Typography>
           )}

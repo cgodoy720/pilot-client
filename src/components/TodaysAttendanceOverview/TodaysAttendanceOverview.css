@@ -51,6 +51,11 @@
   color: #ffffff !important; /* white text for visibility */
 }
 
+/* Ensure Last Updated text is always white */
+.todays-attendance-overview__last-updated {
+  color: #ffffff !important;
+}
+
 .todays-attendance-overview__summary-card {
   background-color: var(--color-background-light);
   border: 1px solid var(--color-border);

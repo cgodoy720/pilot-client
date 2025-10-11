@@ -46,6 +46,15 @@
   gap: var(--spacing-md);
 }
 
+.cohort-performance-dashboard__actions .MuiTypography-caption {
+  color: #ffffff !important; /* white text for visibility */
+}
+
+/* Ensure Last Updated text is always white */
+.cohort-performance-dashboard__last-updated {
+  color: #ffffff !important;
+}
+
 .cohort-performance-dashboard__cache-info {
   display: flex;
   align-items: center;
@@ -349,6 +358,11 @@
 
 .cohort-performance-dashboard .MuiTypography-caption {
   color: #4b5563 !important; /* text-gray-600 for secondary text on white cards */
+}
+
+/* Override for Last updated text to be white on dark background */
+.cohort-performance-dashboard__last-updated {
+  color: #FFFFFF !important; /* White text for Last updated on dark background */
 }
 
 /* Cohort Cards - Ensure dark text on white backgrounds */
