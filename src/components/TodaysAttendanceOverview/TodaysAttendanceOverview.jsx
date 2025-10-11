@@ -377,6 +377,15 @@ const TodaysAttendanceOverview = () => {
               label="View Full Roster"
               onClick={() => {/* Navigate to full roster */}}
               variant="outlined"
+              sx={{
+                backgroundColor: '#FFFFFF',
+                color: '#000000',
+                '&:hover': {
+                  backgroundColor: '#F5F5F5',
+                  color: '#000000'
+                },
+                border: '1px solid #E0E0E0'
+              }}
             />
           </Grid>
           <Grid item>
@@ -384,6 +393,15 @@ const TodaysAttendanceOverview = () => {
               label="Export Today's Data"
               onClick={() => {/* Export functionality */}}
               variant="outlined"
+              sx={{
+                backgroundColor: '#FFFFFF',
+                color: '#000000',
+                '&:hover': {
+                  backgroundColor: '#F5F5F5',
+                  color: '#000000'
+                },
+                border: '1px solid #E0E0E0'
+              }}
             />
           </Grid>
           <Grid item>
@@ -391,6 +409,15 @@ const TodaysAttendanceOverview = () => {
               label="Manage Excuses"
               onClick={() => {/* Navigate to excuse management */}}
               variant="outlined"
+              sx={{
+                backgroundColor: '#FFFFFF',
+                color: '#000000',
+                '&:hover': {
+                  backgroundColor: '#F5F5F5',
+                  color: '#000000'
+                },
+                border: '1px solid #E0E0E0'
+              }}
             />
           </Grid>
         </Grid>

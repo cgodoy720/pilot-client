@@ -193,6 +193,15 @@ const AdminAttendanceDashboard = () => {
                     fullWidth
                     onClick={() => setActiveTab(2)}
                     startIcon={<AnalyticsIcon />}
+                    sx={{
+                      backgroundColor: '#FFFFFF',
+                      color: '#000000',
+                      '&:hover': {
+                        backgroundColor: '#F5F5F5',
+                        color: '#000000'
+                      },
+                      border: '1px solid #E0E0E0'
+                    }}
                   >
                     Cohort Performance
                   </Button>
@@ -203,6 +212,15 @@ const AdminAttendanceDashboard = () => {
                     fullWidth
                     onClick={() => setActiveTab(3)}
                     startIcon={<GroupsIcon />}
+                    sx={{
+                      backgroundColor: '#FFFFFF',
+                      color: '#000000',
+                      '&:hover': {
+                        backgroundColor: '#F5F5F5',
+                        color: '#000000'
+                      },
+                      border: '1px solid #E0E0E0'
+                    }}
                   >
                     Excuse Management
                   </Button>
@@ -213,6 +231,15 @@ const AdminAttendanceDashboard = () => {
                     fullWidth
                     onClick={() => setActiveTab(4)}
                     startIcon={<GetAppIcon />}
+                    sx={{
+                      backgroundColor: '#FFFFFF',
+                      color: '#000000',
+                      '&:hover': {
+                        backgroundColor: '#F5F5F5',
+                        color: '#000000'
+                      },
+                      border: '1px solid #E0E0E0'
+                    }}
                   >
                     CSV Export
                   </Button>
