@@ -72,6 +72,23 @@
   margin-bottom: 24px;
 }
 
+/* Fade-in animation for content */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.missed-assignments-sidebar__fade-in {
+  animation: fadeInUp 0.4s ease-out forwards;
+  opacity: 0;
+}
+
 .missed-assignments-sidebar__loading,
 .missed-assignments-sidebar__empty {
   padding: 20px;

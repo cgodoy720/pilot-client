@@ -69,18 +69,26 @@ const MissedAssignmentsSidebar = ({ isOpen, onClose, onNavigateToDay }) => {
         </div>
 
         <div className="missed-assignments-sidebar__content">
-          <h2 className="missed-assignments-sidebar__subtitle">Let's keep going!</h2>
+          <h2 className="missed-assignments-sidebar__subtitle missed-assignments-sidebar__fade-in">
+            Let's keep going!
+          </h2>
 
           {loading ? (
-            <div className="missed-assignments-sidebar__loading">Loading...</div>
+            <div className="missed-assignments-sidebar__loading missed-assignments-sidebar__fade-in">
+              Loading...
+            </div>
           ) : missedAssignments.length === 0 ? (
-            <div className="missed-assignments-sidebar__empty">
+            <div className="missed-assignments-sidebar__empty missed-assignments-sidebar__fade-in">
               No missed assignments! Great work! 🎉
             </div>
           ) : (
             <div className="missed-assignments-sidebar__list">
               {missedAssignments.map((assignment, index) => (
-                <div key={`${assignment.task_id}-${index}`} className="missed-assignments-sidebar__item">
+                <div 
+                  key={`${assignment.task_id}-${index}`} 
+                  className="missed-assignments-sidebar__item missed-assignments-sidebar__fade-in"
+                  style={{ animationDelay: `${0.1 + index * 0.05}s` }}
+                >
                   <div className="missed-assignments-sidebar__item-content">
                     <div className="missed-assignments-sidebar__date">
                       {formatDate(assignment.day_date)}
