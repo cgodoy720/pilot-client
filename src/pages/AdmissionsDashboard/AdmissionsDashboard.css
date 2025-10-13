@@ -1941,6 +1941,13 @@ Assessment Funnel Styles */
   color: #a855f7;
 }
 
+.admission-badge--withdrawn {
+  background: rgba(107, 114, 128, 0.2);
+  color: #6b7280;
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
 /* Program Admission Pipeline Styles */
 .program-admission-pipeline {
   display: flex;
