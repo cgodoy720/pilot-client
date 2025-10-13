@@ -30,7 +30,7 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  display: flex;
+  display: none; /* Hide the custom pink X button */
   align-items: center;
   justify-content: center;
   transition: opacity 0.2s ease;
@@ -55,6 +55,7 @@
   line-height: 150%;
   letter-spacing: 0.005em;
   color: #FF33FF;
+  padding-right: 40px;
 }
 
 .missed-assignments-sidebar__content {

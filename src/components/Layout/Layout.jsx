@@ -121,7 +121,7 @@ const Layout = ({ children }) => {
               ? "w-[386px]" // Mobile expanded width (overlay)
               : "w-0" // Mobile collapsed: completely hidden
             : isNavbarHovered
-              ? "w-[200px]" // Desktop expanded width
+              ? "w-[250px]" // Desktop expanded width
               : "w-[50px]" // Desktop collapsed width
         )}
         onMouseEnter={() => !isMobile && setIsNavbarHovered(true)}
@@ -149,14 +149,16 @@ const Layout = ({ children }) => {
             {isMobileNavbarOpen && (
               <>
                 {/* Mobile Navbar Content */}
-                <div className="absolute top-[53px] left-0 w-[386px] h-[calc(100vh-53px)] bg-[#1E1E1E] z-[70]">
+                <div
+                  className="absolute top-[53px] left-0 w-[386px] h-[calc(100vh-53px)] bg-[#1E1E1E] z-[70]"
+                >
                   {/* Dashboard */}
                   <Link
                     to="/dashboard"
                     onClick={closeMobileNavbar}
                     className={cn(
                       "relative h-[53px] flex items-center border-b border-gray-700",
-                      location.pathname === '/dashboard' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                      location.pathname === '/dashboard' ? "bg-[#4242EA]" : "hover:bg-white/10"
                     )}
                   >
                     <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -173,7 +175,7 @@ const Layout = ({ children }) => {
                     onClick={closeMobileNavbar}
                     className={cn(
                       "relative h-[53px] flex items-center border-b border-gray-700",
-                      location.pathname === '/learning' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                      location.pathname === '/learning' ? "bg-[#4242EA]" : "hover:bg-white/10"
                     )}
                   >
                     <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -196,7 +198,7 @@ const Layout = ({ children }) => {
                     onClick={closeMobileNavbar}
                     className={cn(
                       "relative h-[53px] flex items-center border-b border-gray-700",
-                      location.pathname === '/gpt' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                      location.pathname === '/gpt' ? "bg-[#4242EA]" : "hover:bg-white/10"
                     )}
                   >
                     <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -215,7 +217,7 @@ const Layout = ({ children }) => {
                     onClick={closeMobileNavbar}
                     className={cn(
                       "relative h-[53px] flex items-center border-b border-gray-700",
-                      location.pathname === '/calendar' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                      location.pathname === '/calendar' ? "bg-[#4242EA]" : "hover:bg-white/10"
                     )}
                   >
                     <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -237,7 +239,7 @@ const Layout = ({ children }) => {
                     onClick={closeMobileNavbar}
                     className={cn(
                       "relative h-[53px] flex items-center border-b border-gray-700",
-                      location.pathname === '/stats' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                      location.pathname === '/stats' ? "bg-[#4242EA]" : "hover:bg-white/10"
                     )}
                   >
                     <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -256,7 +258,7 @@ const Layout = ({ children }) => {
                     onClick={closeMobileNavbar}
                     className={cn(
                       "relative h-[53px] flex items-center border-b border-gray-700",
-                      location.pathname === '/assessment' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                      location.pathname === '/assessment' ? "bg-[#4242EA]" : "hover:bg-white/10"
                     )}
                   >
                     <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -282,7 +284,7 @@ const Layout = ({ children }) => {
                         onClick={closeMobileNavbar}
                         className={cn(
                           "relative h-[53px] flex items-center border-b border-gray-700",
-                          location.pathname === '/admin-dashboard' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                          location.pathname === '/admin-dashboard' ? "bg-[#4242EA]" : "hover:bg-white/10"
                         )}
                       >
                         <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -299,7 +301,7 @@ const Layout = ({ children }) => {
                         onClick={closeMobileNavbar}
                         className={cn(
                           "relative h-[53px] flex items-center border-b border-gray-700",
-                          location.pathname === '/admin/assessment-grades' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                          location.pathname === '/admin/assessment-grades' ? "bg-[#4242EA]" : "hover:bg-white/10"
                         )}
                       >
                         <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -316,7 +318,7 @@ const Layout = ({ children }) => {
                         onClick={closeMobileNavbar}
                         className={cn(
                           "relative h-[53px] flex items-center border-b border-gray-700",
-                          location.pathname === '/admissions-dashboard' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                          location.pathname === '/admissions-dashboard' ? "bg-[#4242EA]" : "hover:bg-white/10"
                         )}
                       >
                         <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -333,7 +335,7 @@ const Layout = ({ children }) => {
                         onClick={closeMobileNavbar}
                         className={cn(
                           "relative h-[53px] flex items-center border-b border-gray-700",
-                          (location.pathname === '/content' || location.pathname.startsWith('/content')) ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                          (location.pathname === '/content' || location.pathname.startsWith('/content')) ? "bg-[#4242EA]" : "hover:bg-white/10"
                         )}
                       >
                         <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -350,7 +352,7 @@ const Layout = ({ children }) => {
                         onClick={closeMobileNavbar}
                         className={cn(
                           "relative h-[53px] flex items-center border-b border-gray-700",
-                          location.pathname === '/admin-prompts' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                          location.pathname === '/admin-prompts' ? "bg-[#4242EA]" : "hover:bg-white/10"
                         )}
                       >
                         <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -370,7 +372,7 @@ const Layout = ({ children }) => {
                       onClick={closeMobileNavbar}
                       className={cn(
                         "relative h-[53px] flex items-center border-b border-gray-700",
-                        (location.pathname === '/volunteer-feedback' || location.pathname === '/admin-volunteer-feedback') ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                        (location.pathname === '/volunteer-feedback' || location.pathname === '/admin-volunteer-feedback') ? "bg-[#4242EA]" : "hover:bg-white/10"
                       )}
                     >
                       <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -388,7 +390,7 @@ const Layout = ({ children }) => {
                     onClick={closeMobileNavbar}
                     className={cn(
                       "relative h-[53px] flex items-center border-b border-gray-700",
-                      location.pathname === '/account' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                      location.pathname === '/account' ? "bg-[#4242EA]" : "hover:bg-white/10"
                     )}
                   >
                     <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -408,7 +410,7 @@ const Layout = ({ children }) => {
                       handleLogout();
                       closeMobileNavbar();
                     }}
-                    className="relative h-[53px] flex items-center hover:bg-gray-800 text-[#E3E3E3] w-full text-left"
+                    className="relative h-[53px] flex items-center hover:bg-white/10 text-[#E3E3E3] w-full text-left"
                   >
                     <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
                       <svg width="16" height="16" viewBox="0 0 16 18" fill="none" transform="rotate(90)">
@@ -439,7 +441,7 @@ const Layout = ({ children }) => {
             to="/dashboard"
             className={cn(
               "relative h-[44px] flex items-center",
-              location.pathname === '/dashboard' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+              location.pathname === '/dashboard' ? "bg-[#4242EA]" : "hover:bg-white/10"
             )}
           >
             <div className="absolute left-0 top-0 w-[50px] h-[44px] flex items-center justify-center">
@@ -468,7 +470,7 @@ const Layout = ({ children }) => {
               onClick={closeMobileNavbar}
               className={cn(
                 "relative h-[53px] flex items-center",
-                location.pathname === '/learning' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                location.pathname === '/learning' ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -490,7 +492,7 @@ const Layout = ({ children }) => {
             to="/learning"
             className={cn(
               "relative h-[44px] flex items-center",
-              location.pathname === '/learning' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+              location.pathname === '/learning' ? "bg-[#4242EA]" : "hover:bg-white/10"
             )}
           >
             <div className="absolute left-0 top-0 w-[50px] h-[44px] flex items-center justify-center">
@@ -521,7 +523,7 @@ const Layout = ({ children }) => {
               onClick={closeMobileNavbar}
               className={cn(
                 "relative h-[53px] flex items-center",
-                location.pathname === '/gpt' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                location.pathname === '/gpt' ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -539,7 +541,7 @@ const Layout = ({ children }) => {
             to="/gpt"
             className={cn(
               "relative h-[44px] flex items-center",
-              location.pathname === '/gpt' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+              location.pathname === '/gpt' ? "bg-[#4242EA]" : "hover:bg-white/10"
             )}
           >
             <div className="absolute left-0 top-0 w-[50px] h-[44px] flex items-center justify-center">
@@ -566,7 +568,7 @@ const Layout = ({ children }) => {
               onClick={closeMobileNavbar}
               className={cn(
                 "relative h-[53px] flex items-center",
-                location.pathname === '/calendar' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                location.pathname === '/calendar' ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -587,7 +589,7 @@ const Layout = ({ children }) => {
             to="/calendar"
             className={cn(
               "relative h-[44px] flex items-center",
-              location.pathname === '/calendar' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+              location.pathname === '/calendar' ? "bg-[#4242EA]" : "hover:bg-white/10"
             )}
           >
             <div className="absolute left-0 top-0 w-[50px] h-[44px] flex items-center justify-center">
@@ -617,7 +619,7 @@ const Layout = ({ children }) => {
               onClick={closeMobileNavbar}
               className={cn(
                 "relative h-[53px] flex items-center",
-                location.pathname === '/stats' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                location.pathname === '/stats' ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -635,7 +637,7 @@ const Layout = ({ children }) => {
             to="/stats"
             className={cn(
               "relative h-[44px] flex items-center",
-              location.pathname === '/stats' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+              location.pathname === '/stats' ? "bg-[#4242EA]" : "hover:bg-white/10"
             )}
           >
             <div className="absolute left-0 top-0 w-[50px] h-[44px] flex items-center justify-center">
@@ -662,7 +664,7 @@ const Layout = ({ children }) => {
               onClick={closeMobileNavbar}
               className={cn(
                 "relative h-[53px] flex items-center",
-                location.pathname === '/assessment' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                location.pathname === '/assessment' ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -684,7 +686,7 @@ const Layout = ({ children }) => {
             to="/assessment"
             className={cn(
               "relative h-[44px] flex items-center",
-              location.pathname === '/assessment' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+              location.pathname === '/assessment' ? "bg-[#4242EA]" : "hover:bg-white/10"
             )}
           >
             <div className="absolute left-0 top-0 w-[50px] h-[44px] flex items-center justify-center">
@@ -715,7 +717,7 @@ const Layout = ({ children }) => {
               onClick={closeMobileNavbar}
               className={cn(
                 "relative h-[53px] flex items-center",
-                location.pathname === '/admin-dashboard' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                location.pathname === '/admin-dashboard' ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -732,7 +734,7 @@ const Layout = ({ children }) => {
               to="/admin-dashboard"
               className={cn(
                 "relative h-[44px] flex items-center",
-                location.pathname === '/admin-dashboard' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                location.pathname === '/admin-dashboard' ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[50px] h-[44px] flex items-center justify-center">
@@ -758,7 +760,7 @@ const Layout = ({ children }) => {
               onClick={closeMobileNavbar}
               className={cn(
                 "relative h-[53px] flex items-center",
-                location.pathname === '/admin/assessment-grades' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                location.pathname === '/admin/assessment-grades' ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -775,7 +777,7 @@ const Layout = ({ children }) => {
               to="/admin/assessment-grades"
               className={cn(
                 "relative h-[44px] flex items-center",
-                location.pathname === '/admin/assessment-grades' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                location.pathname === '/admin/assessment-grades' ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[50px] h-[44px] flex items-center justify-center">
@@ -801,7 +803,7 @@ const Layout = ({ children }) => {
               onClick={closeMobileNavbar}
               className={cn(
                 "relative h-[53px] flex items-center",
-                location.pathname === '/admissions-dashboard' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                location.pathname === '/admissions-dashboard' ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -818,7 +820,7 @@ const Layout = ({ children }) => {
               to="/admissions-dashboard"
               className={cn(
                 "relative h-[44px] flex items-center",
-                location.pathname === '/admissions-dashboard' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                location.pathname === '/admissions-dashboard' ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[50px] h-[44px] flex items-center justify-center">
@@ -844,7 +846,7 @@ const Layout = ({ children }) => {
               onClick={closeMobileNavbar}
               className={cn(
                 "relative h-[53px] flex items-center",
-                (location.pathname === '/content' || location.pathname.startsWith('/content')) ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                (location.pathname === '/content' || location.pathname.startsWith('/content')) ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -861,7 +863,7 @@ const Layout = ({ children }) => {
               to="/content"
               className={cn(
                 "relative h-[44px] flex items-center",
-                (location.pathname === '/content' || location.pathname.startsWith('/content')) ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                (location.pathname === '/content' || location.pathname.startsWith('/content')) ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[50px] h-[44px] flex items-center justify-center">
@@ -887,7 +889,7 @@ const Layout = ({ children }) => {
               onClick={closeMobileNavbar}
               className={cn(
                 "relative h-[53px] flex items-center",
-                location.pathname === '/admin-prompts' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                location.pathname === '/admin-prompts' ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -904,7 +906,7 @@ const Layout = ({ children }) => {
               to="/admin-prompts"
               className={cn(
                 "relative h-[44px] flex items-center",
-                location.pathname === '/admin-prompts' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                location.pathname === '/admin-prompts' ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[50px] h-[44px] flex items-center justify-center">
@@ -930,7 +932,7 @@ const Layout = ({ children }) => {
               onClick={closeMobileNavbar}
               className={cn(
                 "relative h-[53px] flex items-center",
-                (location.pathname === '/volunteer-feedback' || location.pathname === '/admin-volunteer-feedback') ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                (location.pathname === '/volunteer-feedback' || location.pathname === '/admin-volunteer-feedback') ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -947,7 +949,7 @@ const Layout = ({ children }) => {
               to={user?.role === 'volunteer' ? '/volunteer-feedback' : '/admin-volunteer-feedback'}
               className={cn(
                 "relative h-[44px] flex items-center",
-                (location.pathname === '/volunteer-feedback' || location.pathname === '/admin-volunteer-feedback') ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                (location.pathname === '/volunteer-feedback' || location.pathname === '/admin-volunteer-feedback') ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[50px] h-[44px] flex items-center justify-center">
@@ -976,7 +978,7 @@ const Layout = ({ children }) => {
               onClick={closeMobileNavbar}
               className={cn(
                 "relative h-[53px] flex items-center",
-                location.pathname === '/account' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+                location.pathname === '/account' ? "bg-[#4242EA]" : "hover:bg-white/10"
               )}
             >
               <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
@@ -995,7 +997,7 @@ const Layout = ({ children }) => {
             to="/account"
             className={cn(
               "relative h-[44px] flex items-center",
-              location.pathname === '/account' ? "bg-[#4242EA]" : "hover:bg-gray-800"
+              location.pathname === '/account' ? "bg-[#4242EA]" : "hover:bg-white/10"
             )}
           >
             <div className="absolute left-0 top-0 w-[50px] h-[44px] flex items-center justify-center">
@@ -1020,7 +1022,7 @@ const Layout = ({ children }) => {
           isMobileNavbarOpen && (
             <button
               onClick={handleLogout}
-              className="relative h-[53px] flex items-center hover:bg-gray-800 text-[#E3E3E3] w-full"
+              className="relative h-[53px] flex items-center hover:bg-white/10 text-[#E3E3E3] w-full"
             >
               <div className="absolute left-0 top-0 w-[60px] h-[53px] flex items-center justify-center">
                 <svg width="16" height="16" viewBox="0 0 16 18" fill="none" transform="rotate(90)">
@@ -1037,7 +1039,7 @@ const Layout = ({ children }) => {
         ) : (
           <button
             onClick={handleLogout}
-            className="relative h-[44px] flex items-center hover:bg-gray-800 text-[#E3E3E3] w-full"
+            className="relative h-[44px] flex items-center hover:bg-white/10 text-[#E3E3E3] w-full"
           >
             <div className="absolute left-0 top-0 w-[50px] h-[44px] flex items-center justify-center">
               <svg width="16" height="16" viewBox="0 0 16 18" fill="none" transform="rotate(90)">

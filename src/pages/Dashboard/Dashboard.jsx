@@ -4,6 +4,8 @@ import { AlertTriangle, Calendar, BookOpen, ArrowRight, ChevronLeft, ChevronRigh
 import { useAuth } from '../../context/AuthContext';
 import { RippleButton } from '../../components/animate-ui/components/buttons/ripple';
 import MissedAssignmentsSidebar from '../../components/MissedAssignmentsSidebar/MissedAssignmentsSidebar';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
 import './Dashboard.css';
 
 function Dashboard() {
@@ -29,6 +31,7 @@ function Dashboard() {
   const [isLoadingWeek, setIsLoadingWeek] = useState(false);
   const [slideDirection, setSlideDirection] = useState(null); // 'left' or 'right'
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [weekCache, setWeekCache] = useState({}); // Cache all weeks data
 
   useEffect(() => {
     // Only fetch dashboard data if user is active
@@ -38,7 +41,7 @@ function Dashboard() {
       // If user is inactive, we don't need to load the dashboard data
       setIsLoading(false);
     }
-  }, [token, cohortFilter, user.role, isActive]);
+  }, [token, cohortFilter, user?.role, isActive]);
 
   const fetchDashboardData = async () => {
     try {
@@ -48,7 +51,7 @@ function Dashboard() {
       let url = `${import.meta.env.VITE_API_URL}/api/progress/current-day`;
       
       // Add cohort parameter for staff/admin if selected
-      if ((user.role === 'staff' || user.role === 'admin') && cohortFilter) {
+      if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
         url += `?cohort=${encodeURIComponent(cohortFilter)}`;
       }
       
@@ -115,8 +118,12 @@ function Dashboard() {
         setCurrentWeek(data.day.week);
         setWeeklyGoal(data.day.weekly_goal || '');
         
-        // Fetch week data if week is available
+        // Preload all weeks and fetch current week data
         if (data.day.week) {
+          // Preload all weeks in parallel (don't await)
+          preloadAllWeeks(data.day.week);
+          
+          // Fetch current week data
           await fetchWeekData(data.day.week);
         }
       }
@@ -129,10 +136,61 @@ function Dashboard() {
     }
   };
 
+  // Preload all weeks data on initial load
+  const preloadAllWeeks = async (currentWeekNum) => {
+    try {
+      const cohortParam = (user?.role === 'staff' || user?.role === 'admin') && cohortFilter
+        ? `?cohort=${encodeURIComponent(cohortFilter)}`
+        : '';
+      
+      // Fetch weeks 1 through current week
+      const weekPromises = [];
+      for (let week = 1; week <= currentWeekNum; week++) {
+        weekPromises.push(
+          fetch(
+            `${import.meta.env.VITE_API_URL}/api/curriculum/weeks/${week}${cohortParam}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            }
+          ).then(res => res.ok ? res.json() : null)
+        );
+      }
+      
+      const allWeeksData = await Promise.all(weekPromises);
+      
+      // Build cache object
+      const cache = {};
+      allWeeksData.forEach((days, index) => {
+        if (days) {
+          cache[index + 1] = days; // week number is index + 1
+        }
+      });
+      
+      setWeekCache(cache);
+    } catch (error) {
+      console.error('Error preloading weeks:', error);
+    }
+  };
+
   const fetchWeekData = async (weekNumber) => {
     try {
-      const cohortParam = (user.role === 'staff' || user.role === 'admin') && cohortFilter 
-        ? `?cohort=${encodeURIComponent(cohortFilter)}` 
+      // Check cache first
+      if (weekCache[weekNumber]) {
+        const days = weekCache[weekNumber];
+        setWeekData(days);
+        
+        // Update weekly goal from the first day of the week
+        if (days && days.length > 0 && days[0].weekly_goal) {
+          setWeeklyGoal(days[0].weekly_goal);
+        }
+        return;
+      }
+      
+      // If not in cache, fetch it
+      const cohortParam = (user?.role === 'staff' || user?.role === 'admin') && cohortFilter
+        ? `?cohort=${encodeURIComponent(cohortFilter)}`
         : '';
       
       const response = await fetch(
@@ -150,6 +208,9 @@ function Dashboard() {
       
       const days = await response.json();
       setWeekData(days);
+      
+      // Add to cache
+      setWeekCache(prev => ({ ...prev, [weekNumber]: days }));
       
       // Update weekly goal from the first day of the week
       if (days && days.length > 0 && days[0].weekly_goal) {
@@ -207,8 +268,8 @@ function Dashboard() {
       return;
     }
     
-    const cohortParam = (user.role === 'staff' || user.role === 'admin') && cohortFilter 
-      ? `?cohort=${encodeURIComponent(cohortFilter)}` 
+    const cohortParam = (user?.role === 'staff' || user?.role === 'admin') && cohortFilter
+      ? `?cohort=${encodeURIComponent(cohortFilter)}`
       : '';
     
     navigate(`/learning${cohortParam}`);
@@ -221,8 +282,8 @@ function Dashboard() {
       return;
     }
     
-    const cohortParam = (user.role === 'staff' || user.role === 'admin') && cohortFilter 
-      ? `&cohort=${encodeURIComponent(cohortFilter)}` 
+    const cohortParam = (user?.role === 'staff' || user?.role === 'admin') && cohortFilter
+      ? `&cohort=${encodeURIComponent(cohortFilter)}`
       : '';
     
     navigate(`/learning?taskId=${taskId}${cohortParam}`);
@@ -483,12 +544,12 @@ function Dashboard() {
               <RippleButton
                 variant="outline"
                 size="icon"
-                className={`dashboard__date-btn ${currentWeek > 1 ? 'dashboard__date-btn--active' : ''}`}
+                className={`dashboard__date-btn ${currentWeek > 1 ? 'dashboard__date-btn--active' : ''} ${currentWeek <= 1 ? '!opacity-100' : ''}`}
                 style={{ 
                   backgroundColor: 'var(--color-background)',
-                  borderColor: 'var(--color-pursuit-purple)', 
-                  color: 'var(--color-pursuit-purple)',
-                  '--ripple-button-ripple-color': 'var(--color-pursuit-purple)'
+                  borderColor: currentWeek > 1 ? 'var(--color-pursuit-purple)' : 'var(--color-divider)', 
+                  color: currentWeek > 1 ? 'var(--color-pursuit-purple)' : 'var(--color-divider)',
+                  '--ripple-button-ripple-color': currentWeek > 1 ? 'var(--color-pursuit-purple)' : 'var(--color-divider)'
                 }}
                 onClick={() => navigateToWeek('prev')}
                 disabled={currentWeek <= 1 || isLoadingWeek || slideDirection !== null}
@@ -499,12 +560,12 @@ function Dashboard() {
               <RippleButton
                 variant="outline"
                 size="icon"
-                className={`dashboard__date-btn ${currentDay?.week && currentWeek < currentDay.week ? 'dashboard__date-btn--active' : ''}`}
+                className={`dashboard__date-btn ${currentDay?.week && currentWeek < currentDay.week ? 'dashboard__date-btn--active' : ''} ${(!currentDay?.week || currentWeek >= currentDay.week) ? '!opacity-100' : ''}`}
                 style={{ 
                   backgroundColor: 'var(--color-background)',
-                  borderColor: 'var(--color-pursuit-purple)', 
-                  color: 'var(--color-pursuit-purple)',
-                  '--ripple-button-ripple-color': 'var(--color-pursuit-purple)'
+                  borderColor: (currentDay?.week && currentWeek < currentDay.week) ? 'var(--color-pursuit-purple)' : 'var(--color-divider)', 
+                  color: (currentDay?.week && currentWeek < currentDay.week) ? 'var(--color-pursuit-purple)' : 'var(--color-divider)',
+                  '--ripple-button-ripple-color': (currentDay?.week && currentWeek < currentDay.week) ? 'var(--color-pursuit-purple)' : 'var(--color-divider)'
                 }}
                 onClick={() => navigateToWeek('next')}
                 disabled={!currentDay?.week || currentWeek >= currentDay.week || isLoadingWeek || slideDirection !== null}
@@ -549,12 +610,6 @@ function Dashboard() {
                     animationDelay: `${delayIndex * 0.08}s`
                   }}
                 >
-                  {/* Completion Badge (for past days only) */}
-                  {dayIsPast && !dayIsToday && deliverableTasks.length > 0 && (
-                    <div className={`dashboard__completion-badge ${isComplete ? 'dashboard__completion-badge--complete' : 'dashboard__completion-badge--incomplete'}`}>
-                      {isComplete ? 'Complete' : 'Incomplete'}
-                    </div>
-                  )}
                   
                   {/* Date */}
                   <div className="dashboard__day-date">
@@ -599,7 +654,7 @@ function Dashboard() {
                                       </svg>
                                     ) : (
                                       <svg viewBox="0 0 14 14" className="dashboard__task-checkbox-check">
-                                        <polyline points="2,7 5,10 12,3" />
+                                        <polyline points="2.5,6 5.5,9 11.5,3" />
                                       </svg>
                                     )}
                                   </div>
@@ -687,12 +742,12 @@ function Dashboard() {
             <RippleButton
               variant="outline"
               size="icon"
-              className={`dashboard__mobile-date-btn ${currentWeek > 1 ? 'dashboard__mobile-date-btn--active' : ''}`}
+              className={`dashboard__mobile-date-btn ${currentWeek > 1 ? 'dashboard__mobile-date-btn--active' : ''} ${currentWeek <= 1 ? '!opacity-100' : ''}`}
               style={{ 
                 backgroundColor: 'var(--color-background)',
-                borderColor: 'var(--color-pursuit-purple)', 
-                color: 'var(--color-pursuit-purple)',
-                '--ripple-button-ripple-color': 'var(--color-pursuit-purple)'
+                borderColor: currentWeek > 1 ? 'var(--color-pursuit-purple)' : 'var(--color-divider)', 
+                color: currentWeek > 1 ? 'var(--color-pursuit-purple)' : 'var(--color-divider)',
+                '--ripple-button-ripple-color': currentWeek > 1 ? 'var(--color-pursuit-purple)' : 'var(--color-divider)'
               }}
               onClick={() => navigateToWeek('prev')}
               disabled={currentWeek <= 1 || isLoadingWeek || slideDirection !== null}
@@ -703,12 +758,12 @@ function Dashboard() {
             <RippleButton
               variant="outline"
               size="icon"
-              className={`dashboard__mobile-date-btn ${currentDay?.week && currentWeek < currentDay.week ? 'dashboard__mobile-date-btn--active' : ''}`}
+              className={`dashboard__mobile-date-btn ${currentDay?.week && currentWeek < currentDay.week ? 'dashboard__mobile-date-btn--active' : ''} ${(!currentDay?.week || currentWeek >= currentDay.week) ? '!opacity-100' : ''}`}
               style={{ 
                 backgroundColor: 'var(--color-background)',
-                borderColor: 'var(--color-pursuit-purple)', 
-                color: 'var(--color-pursuit-purple)',
-                '--ripple-button-ripple-color': 'var(--color-pursuit-purple)'
+                borderColor: (currentDay?.week && currentWeek < currentDay.week) ? 'var(--color-pursuit-purple)' : 'var(--color-divider)', 
+                color: (currentDay?.week && currentWeek < currentDay.week) ? 'var(--color-pursuit-purple)' : 'var(--color-divider)',
+                '--ripple-button-ripple-color': (currentDay?.week && currentWeek < currentDay.week) ? 'var(--color-pursuit-purple)' : 'var(--color-divider)'
               }}
               onClick={() => navigateToWeek('next')}
               disabled={!currentDay?.week || currentWeek >= currentDay.week || isLoadingWeek || slideDirection !== null}

@@ -28,7 +28,7 @@
   width: 100%;
   height: 45px;
   padding: 0;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
   border-bottom: 1px solid var(--color-divider);
 }
 
@@ -72,30 +72,30 @@
   background: var(--color-mastery-pink);
 }
 
-.dashboard__missed-assignments--active .dashboard__missed-icon {
-  background: var(--color-background);
-}
-
 .dashboard__missed-icon {
   width: 19px;
   height: 19px;
-  background: var(--color-background);
-  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.dashboard__missed-icon::before {
+  content: '😊';
+}
+
+.dashboard__missed-assignments--active .dashboard__missed-icon::before {
+  content: '😢';
 }
 
 /* Dividers */
-.dashboard__divider {
-  width: 100%;
-  height: 1px;
-  background: var(--color-divider);
-  margin: 20px 0;
-}
-
 .dashboard__divider-2 {
   width: 100%;
   height: 1px;
   background: var(--color-divider);
-  margin: 20px 0;
+  margin: 15px 0 15px 0;
 }
 
 .dashboard__divider-3 {
@@ -106,7 +106,7 @@
   width: 1px;
   background: var(--color-divider);
   align-self: stretch;
-  margin: -20px 0;
+  margin: -15px 0 -20px 0;
 }
 
 /* Top Content Grid */
@@ -152,6 +152,18 @@
   }
 }
 
+/* Custom fadeOutRight for weekly goal - only travels 100px and fades */
+@keyframes customFadeOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+}
+
 .dashboard__start-btn {
   display: inline-flex;
   justify-content: center;
@@ -192,7 +204,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 0px 0px 7px;
+  padding: 0px 0px 0px 0px;
   gap: 27px;
   border-radius: 5px;
 }
@@ -209,6 +221,8 @@
   line-height: 16px;
   color: var(--color-pursuit-purple);
   white-space: nowrap;
+  width: 59px;
+  flex-shrink: 0;
 }
 
 .dashboard__upcoming-details {
@@ -220,7 +234,7 @@
   font-size: 14px;
   line-height: 16px;
   color: var(--color-carbon-black);
-  margin: 0 0 3px 0;
+  margin: 0 0 1px 0;
 }
 
 .dashboard__upcoming-time,
@@ -284,11 +298,17 @@
   font-weight: 400;
 }
 
+/* Override animate.css fadeOutRight for weekly goal */
+.dashboard__week-subtitle.animate__fadeOutRight {
+  animation-name: customFadeOutRight !important;
+}
+
 /* Date Picker */
 .dashboard__date-picker {
   display: flex;
   align-items: center;
   gap: 20px;
+  color: var(--color-carbon-black);
 }
 
 .dashboard__date-btn {
@@ -328,7 +348,7 @@
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 4px;
-  margin-bottom: 30px;
+  margin: 35px 0 30px 0px;
   padding: 0 40px;
 }
 
@@ -365,35 +385,16 @@
   margin: 0;
 }
 
-/* Completion Badge (top-right of card, 85-90% to the right) */
-.dashboard__completion-badge {
-  position: absolute;
-  top: 8px;
-  right: 10%;
-  padding: 2px 7px;
-  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
-  font-weight: 400;
-  font-size: 12px;
-  line-height: 15px;
-  border-radius: 10px;
-}
-
-.dashboard__completion-badge--incomplete {
-  background: var(--color-mastery-pink);
-  color: var(--color-background);
-}
-
-.dashboard__completion-badge--complete {
-  background: var(--color-pursuit-purple);
-  color: var(--color-background);
-}
-
 .dashboard__day-date {
   font-weight: 400;
   font-size: 16px;
   line-height: 18px;
   color: var(--color-carbon-black);
-  margin-bottom: 6px;
+  margin-bottom: 2px;
+}
+
+.dashboard__day-date > strong{
+  font-family: "Proxima Nova Bold";
 }
 
 .dashboard__day-card--today .dashboard__day-date {
@@ -404,8 +405,8 @@
 .dashboard__day-separator {
   width: 100%;
   height: 0px;
-  border: 1px solid var(--color-carbon-black);
-  margin: 8px 0;
+  border: .5px solid var(--color-carbon-black);
+  margin: 0px 0 8px 0;
 }
 
 .dashboard__day-card--today .dashboard__day-separator {
@@ -418,25 +419,24 @@
 
 .dashboard__day-section-title {
   font-weight: 700;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 16px;
   color: var(--color-carbon-black);
   margin: 0 0 8px 0;
+  letter-spacing: .6px;
 }
 
 .dashboard__day-card--today .dashboard__day-section-title {
   color: var(--color-background);
 }
 
-.dashboard__day-activities,
-.dashboard__day-events {
+.dashboard__day-activities {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.dashboard__day-activity,
-.dashboard__day-event {
+.dashboard__day-activity {
   font-weight: 400;
   font-size: 13px;
   line-height: 16px;
@@ -450,12 +450,11 @@
 .dashboard__day-activity-content {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   flex: 1;
 }
 
-.dashboard__day-card--today .dashboard__day-activity,
-.dashboard__day-card--today .dashboard__day-event {
+.dashboard__day-card--today .dashboard__day-activity {
   color: var(--color-background);
 }
 
@@ -488,8 +487,8 @@
 .dashboard__task-title {
   font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
   font-weight: 400;
-  font-size: 16px;
-  line-height: 18px;
+  font-size: 15px;
+  line-height: 16px;
   color: var(--color-carbon-black);
 }
 
@@ -526,6 +525,7 @@
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
+  transform: translateY(1px);
 }
 
 .dashboard__task-checkbox-x {
@@ -593,8 +593,8 @@
 .dashboard__activity-divider {
   width: 100%;
   height: 0px;
-  border: 1px dashed var(--color-divider);
-  margin: 3px 0;
+  border: .5px dashed var(--color-divider);
+  margin: 7px 0 3px 0;
 }
 
 .dashboard__go-btn {
