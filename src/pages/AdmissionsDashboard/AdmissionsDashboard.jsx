@@ -1,9 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import NotesModal from '../../components/NotesModal';
+import NotesSidebar from '../../components/NotesSidebar';
 import BulkActionsModal from '../../components/BulkActionsModal';
+import NavBarAdmissions from '../../components/NavBarAdmissions';
 import Swal from 'sweetalert2';
+import { Tabs, TabsContents, TabsContent } from '../../components/animate-ui/components/radix/tabs';
+import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/table';
+import { Checkbox } from '../../components/ui/checkbox';
+import { Input } from '../../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../../components/ui/dialog';
+import { ScrollArea } from '../../components/ui/scroll-area';
+import { Skeleton } from '../../components/ui/skeleton';
 import './AdmissionsDashboard.css';
 
 const AdmissionsDashboard = () => {
@@ -11,6 +23,7 @@ const AdmissionsDashboard = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [loading, setLoading] = useState(true);
+    const [filterLoading, setFilterLoading] = useState(false);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
 
@@ -172,11 +185,17 @@ const AdmissionsDashboard = () => {
     };
 
     // Individual fetch functions for refresh buttons
-    const fetchApplications = async () => {
+    const fetchApplications = async (isInitialLoad = false) => {
         if (!hasAdminAccess || !token) return;
 
         try {
-            setLoading(true);
+            // Use filterLoading for filter changes, loading for initial load
+            if (isInitialLoad) {
+                setLoading(true);
+            } else {
+                setFilterLoading(true);
+            }
+            
             const params = new URLSearchParams();
             if (applicationFilters.status) params.append('status', applicationFilters.status);
             if (applicationFilters.info_session_status) params.append('info_session_status', applicationFilters.info_session_status);
@@ -203,7 +222,11 @@ const AdmissionsDashboard = () => {
         } catch (error) {
             console.error('Error fetching applications:', error);
         } finally {
-            setLoading(false);
+            if (isInitialLoad) {
+                setLoading(false);
+            } else {
+                setFilterLoading(false);
+            }
         }
     };
 
@@ -435,9 +458,18 @@ const AdmissionsDashboard = () => {
         }
     };
 
+    // Track if this is the initial load
+    const isInitialMount = React.useRef(true);
+
     // Load data on mount and when filters change
     useEffect(() => {
-        fetchAdmissionsData();
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            fetchAdmissionsData();
+        } else {
+            // On subsequent loads (filter changes), only fetch applications
+            fetchApplications(false);
+        }
     }, [token, hasAdminAccess, applicationFilters]);
 
     // Load email automation data when tab changes
@@ -578,12 +610,12 @@ const AdmissionsDashboard = () => {
     };
 
     // Handle notes modal
-    const openNotesModal = (applicant) => {
+    const openNotesSidebar = (applicant) => {
         setSelectedApplicant(applicant);
         setNotesModalOpen(true);
     };
 
-    const closeNotesModal = () => {
+    const closeNotesSidebar = () => {
         setNotesModalOpen(false);
         setSelectedApplicant(null);
     };
@@ -1639,164 +1671,159 @@ const AdmissionsDashboard = () => {
     }
 
     return (
-        <div className="admissions-dashboard">
-            {/* Tab Navigation */}
-            <div className="admissions-dashboard__tabs">
-                <button
-                    className={`admissions-dashboard__tab ${activeTab === 'overview' ? 'admissions-dashboard__tab--active' : ''}`}
-                    onClick={() => handleTabChange('overview')}
-                >
-                    Overview
-                </button>
-                <button
-                    className={`admissions-dashboard__tab ${activeTab === 'applications' ? 'admissions-dashboard__tab--active' : ''}`}
-                    onClick={() => handleTabChange('applications')}
-                >
-                    Applications
-                </button>
-                <button
-                    className={`admissions-dashboard__tab ${activeTab === 'info-sessions' ? 'admissions-dashboard__tab--active' : ''}`}
-                    onClick={() => handleTabChange('info-sessions')}
-                >
-                    Info Sessions
-                </button>
-                <button
-                    className={`admissions-dashboard__tab ${activeTab === 'workshops' ? 'admissions-dashboard__tab--active' : ''}`}
-                    onClick={() => handleTabChange('workshops')}
-                >
-                    Workshops
-                </button>
-                <button
-                    className={`admissions-dashboard__tab ${activeTab === 'emails' ? 'admissions-dashboard__tab--active' : ''}`}
-                    onClick={() => handleTabChange('emails')}
-                >
-                    Emails
-                </button>
-                <button
-                    className="admissions-dashboard__back-btn"
-                    onClick={() => navigate('/dashboard')}
-                >
-                    ← Back
-                </button>
-            </div>
+        <div className="flex flex-col min-h-full bg-bg-light font-sans">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">
+                {/* Tab Navigation */}
+                <NavBarAdmissions activeTab={activeTab} />
 
-            {error && (
-                <div className="error-message">
-                    <p>{error}</p>
-                    <button onClick={() => setError(null)}>Dismiss</button>
-                </div>
-            )}
+                {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mx-10 mt-4">
+                        <p>{error}</p>
+                        <Button variant="outline" onClick={() => setError(null)} className="mt-2">
+                            Dismiss
+                        </Button>
+                    </div>
+                )}
 
-            {/* Tab Content */}
-            <div className="admissions-dashboard__content">
-                {activeTab === 'overview' && (
+                <TabsContents>
+                {/* Overview Tab Content */}
+                <TabsContent value="overview" className="flex-1 overflow-y-auto p-10 m-0">
+                {(
                     <div className="admissions-dashboard__overview">
                         {loading ? (
-                            <div className="admissions-dashboard__loading">
-                                <div className="admissions-dashboard__loading-spinner"></div>
-                                <p>Loading statistics...</p>
+                            <div className="grid grid-cols-4 grid-rows-2 gap-4 h-full">
+                                {[...Array(6)].map((_, i) => (
+                                    <Card key={i} className={`bg-white border-divider ${i === 1 || i === 4 ? 'col-span-2' : ''}`}>
+                                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                            <Skeleton className="h-4 w-24" />
+                                            <Skeleton className="h-8 w-8 rounded-full" />
+                                        </CardHeader>
+                                        <CardContent>
+                                            <Skeleton className="h-10 w-16 mb-2" />
+                                            <Skeleton className="h-3 w-full" />
+                                            {(i === 1 || i === 4) && (
+                                                <>
+                                                    <Skeleton className="h-3 w-full mt-2" />
+                                                    <Skeleton className="h-3 w-3/4 mt-2" />
+                                                </>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                ))}
                             </div>
                         ) : error ? (
-                            <div className="admissions-dashboard__error">
-                                <h3>Error Loading Data</h3>
-                                <p>{error}</p>
-                                <button onClick={fetchAdmissionsData} className="admissions-dashboard__retry-btn">Retry</button>
+                            <div className="flex flex-col items-center justify-center p-10 text-carbon-black">
+                                <h3 className="text-xl font-semibold mb-2">Error Loading Data</h3>
+                                <p className="text-carbon-black/70 mb-4">{error}</p>
+                                <Button onClick={fetchAdmissionsData} variant="default">Retry</Button>
                             </div>
                         ) : stats ? (
-                            <div className="admissions-dashboard__stats-grid">
+                            <div className="grid grid-cols-4 grid-rows-2 gap-4 h-full">
                                 {/* Overall Applicants */}
-                                <div className="admissions-dashboard__stat-card">
-                                    <div className="admissions-dashboard__stat-card-header">
-                                        <h3 className="admissions-dashboard__stat-card-title">Total Applicants</h3>
-                                        <div className="admissions-dashboard__stat-card-icon">👥</div>
-                                    </div>
-                                    <div className="admissions-dashboard__stat-card-value">{stats.totalApplicants || 0}</div>
-                                    <div className="admissions-dashboard__stat-card-subtitle">All registered applicants</div>
-                                </div>
+                                <Card className="bg-white border-divider hover:border-pursuit-purple transition-colors">
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle className="text-sm font-medium text-carbon-black/70">Total Applicants</CardTitle>
+                                        <span className="text-2xl">👥</span>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-3xl font-bold text-carbon-black">{stats.totalApplicants || 0}</div>
+                                        <p className="text-xs text-carbon-black/60 mt-1">All registered applicants</p>
+                                    </CardContent>
+                                </Card>
 
                                 {/* Applications by Status */}
-                                <div className="admissions-dashboard__stat-card admissions-dashboard__stat-card--wide">
-                                    <div className="admissions-dashboard__stat-card-header">
-                                        <h3 className="admissions-dashboard__stat-card-title">Applicants</h3>
-                                        <div className="admissions-dashboard__stat-card-icon">📝</div>
-                                    </div>
-                                    <div className="admissions-dashboard__applications-breakdown">
-                                        {stats.applicationStats?.map((statusGroup) => (
-                                            <div key={statusGroup.status} className="admissions-dashboard__application-status-item">
-                                                <span className={`admissions-dashboard__status-indicator admissions-dashboard__status-indicator--${statusGroup.status}`}></span>
-                                                <span className="admissions-dashboard__status-label">{statusGroup.status}</span>
-                                                <span className="admissions-dashboard__status-count">{statusGroup.count}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                <Card className="col-span-2 bg-white border-divider hover:border-pursuit-purple transition-colors">
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle className="text-sm font-medium text-carbon-black/70">Applicants</CardTitle>
+                                        <span className="text-2xl">📝</span>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="flex flex-col gap-2">
+                                            {stats.applicationStats?.map((statusGroup) => (
+                                                <div key={statusGroup.status} className="flex items-center gap-3">
+                                                    <span className={`w-3 h-3 rounded-full flex-shrink-0 bg-${statusGroup.status === 'submitted' ? 'green' : statusGroup.status === 'in_progress' ? 'orange' : 'red'}-500`}></span>
+                                                    <span className="flex-1 text-sm text-carbon-black capitalize">{statusGroup.status.replace('_', ' ')}</span>
+                                                    <span className="text-sm font-semibold text-carbon-black">{statusGroup.count}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </CardContent>
+                                </Card>
 
                                 {/* Info Sessions */}
-                                <div className="admissions-dashboard__stat-card">
-                                    <div className="admissions-dashboard__stat-card-header">
-                                        <h3 className="admissions-dashboard__stat-card-title">Info Sessions</h3>
-                                        <div className="admissions-dashboard__stat-card-icon">ℹ️</div>
-                                    </div>
-                                    <div className="admissions-dashboard__stat-card-value">{stats.infoSessions?.totalSessions || 0}</div>
-                                    <div className="admissions-dashboard__stat-card-subtitle">
-                                        {stats.infoSessions?.totalRegistrations || 0} registrations, {stats.infoSessions?.totalAttended || 0} attended
-                                    </div>
-                                </div>
+                                <Card className="bg-white border-divider hover:border-pursuit-purple transition-colors">
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle className="text-sm font-medium text-carbon-black/70">Info Sessions</CardTitle>
+                                        <span className="text-2xl">ℹ️</span>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-3xl font-bold text-carbon-black">{stats.infoSessions?.totalSessions || 0}</div>
+                                        <p className="text-xs text-carbon-black/60 mt-1">
+                                            {stats.infoSessions?.totalRegistrations || 0} registrations, {stats.infoSessions?.totalAttended || 0} attended
+                                        </p>
+                                    </CardContent>
+                                </Card>
 
                                 {/* Workshops */}
-                                <div className="admissions-dashboard__stat-card">
-                                    <div className="admissions-dashboard__stat-card-header">
-                                        <h3 className="admissions-dashboard__stat-card-title">Workshops</h3>
-                                        <div className="admissions-dashboard__stat-card-icon">🛠️</div>
-                                    </div>
-                                    <div className="admissions-dashboard__stat-card-value">{stats.workshops?.totalWorkshops || 0}</div>
-                                    <div className="admissions-dashboard__stat-card-subtitle">
-                                        {stats.workshops?.totalRegistrations || 0} registrations, {stats.workshops?.totalAttended || 0} attended
-                                    </div>
-                                </div>
+                                <Card className="bg-white border-divider hover:border-pursuit-purple transition-colors">
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle className="text-sm font-medium text-carbon-black/70">Workshops</CardTitle>
+                                        <span className="text-2xl">🛠️</span>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-3xl font-bold text-carbon-black">{stats.workshops?.totalWorkshops || 0}</div>
+                                        <p className="text-xs text-carbon-black/60 mt-1">
+                                            {stats.workshops?.totalRegistrations || 0} registrations, {stats.workshops?.totalAttended || 0} attended
+                                        </p>
+                                    </CardContent>
+                                </Card>
 
                                 {/* Assessment Funnel */}
-                                <div className="admissions-dashboard__stat-card admissions-dashboard__stat-card--wide">
-                                    <div className="admissions-dashboard__stat-card-header">
-                                        <h3 className="admissions-dashboard__stat-card-title">Assessment Funnel</h3>
-                                        <div className="admissions-dashboard__stat-card-icon">🎯</div>
-                                    </div>
-                                    <div className="admissions-dashboard__assessment-funnel">
-                                        {stats.assessmentFunnel?.map((assessment) => (
-                                            <div key={assessment.status} className="admissions-dashboard__assessment-funnel-item">
-                                                <span className={`admissions-dashboard__assessment-funnel-indicator admissions-dashboard__assessment-funnel-indicator--${assessment.status.replace('_', '-')}`}></span>
-                                                <span className="admissions-dashboard__assessment-funnel-label">
-                                                    {assessment.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                                </span>
-                                                <span className="admissions-dashboard__assessment-funnel-count">{assessment.count}</span>
-                                                {stats.finalStatusCounts?.find(f => f.status === assessment.status)?.count !== assessment.count && (
-                                                    <span className="admissions-dashboard__assessment-funnel-override" title="Human override detected">
-                                                        🔀 {stats.finalStatusCounts?.find(f => f.status === assessment.status)?.count || 0}
+                                <Card className="col-span-2 bg-white border-divider hover:border-pursuit-purple transition-colors">
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle className="text-sm font-medium text-carbon-black/70">Assessment Funnel</CardTitle>
+                                        <span className="text-2xl">🎯</span>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="flex flex-col gap-2">
+                                            {stats.assessmentFunnel?.map((assessment) => (
+                                                <div key={assessment.status} className="flex items-center gap-3">
+                                                    <span className="w-3 h-3 rounded-full flex-shrink-0 bg-pursuit-purple"></span>
+                                                    <span className="flex-1 text-sm text-carbon-black">
+                                                        {assessment.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                                     </span>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                                    <span className="text-sm font-semibold text-carbon-black">{assessment.count}</span>
+                                                    {stats.finalStatusCounts?.find(f => f.status === assessment.status)?.count !== assessment.count && (
+                                                        <span className="text-xs text-mastery-pink" title="Human override detected">
+                                                            🔀 {stats.finalStatusCounts?.find(f => f.status === assessment.status)?.count || 0}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </CardContent>
+                                </Card>
 
                                 {/* Workshop Invitations */}
-                                <div className="admissions-dashboard__stat-card">
-                                    <div className="admissions-dashboard__stat-card-header">
-                                        <h3 className="admissions-dashboard__stat-card-title">Workshop Pipeline</h3>
-                                        <div className="admissions-dashboard__stat-card-icon">📊</div>
-                                    </div>
-                                    <div className="admissions-dashboard__workshop-pipeline">
-                                        {stats.workshopInvitations?.map((workshop) => (
-                                            <div key={workshop.status} className="admissions-dashboard__workshop-pipeline-item">
-                                                <span className={`admissions-dashboard__workshop-pipeline-indicator admissions-dashboard__workshop-pipeline-indicator--${workshop.status}`}></span>
-                                                <span className="admissions-dashboard__workshop-pipeline-label">
-                                                    {workshop.status.charAt(0).toUpperCase() + workshop.status.slice(1)}
-                                                </span>
-                                                <span className="admissions-dashboard__workshop-pipeline-count">{workshop.count}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                <Card className="bg-white border-divider hover:border-pursuit-purple transition-colors">
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle className="text-sm font-medium text-carbon-black/70">Workshop Pipeline</CardTitle>
+                                        <span className="text-2xl">📊</span>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="flex flex-col gap-2">
+                                            {stats.workshopInvitations?.map((workshop) => (
+                                                <div key={workshop.status} className="flex items-center gap-3">
+                                                    <span className="w-3 h-3 rounded-full flex-shrink-0 bg-stardust"></span>
+                                                    <span className="flex-1 text-sm text-carbon-black capitalize">
+                                                        {workshop.status}
+                                                    </span>
+                                                    <span className="text-sm font-semibold text-carbon-black">{workshop.count}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </CardContent>
+                                </Card>
                             </div>
                         ) : (
                             <div className="admissions-dashboard__no-data">
@@ -1805,65 +1832,84 @@ const AdmissionsDashboard = () => {
                         )}
                     </div>
                 )}
+                </TabsContent>
 
-                {activeTab === 'applications' && (
+                {/* Applications Tab Content */}
+                <TabsContent value="applications" className="flex-1 overflow-y-auto p-10 m-0">
+                {(
                     <div className="admissions-dashboard__applications">
-                        <div className="data-section__header">
-                            <div className="data-section__controls">
-                                <input
+                        <div className="mb-6 flex flex-col gap-4">
+                            <div className="flex flex-wrap gap-3">
+                                <Input
                                     type="text"
                                     placeholder="Search by name..."
                                     value={nameSearchInput}
                                     onChange={(e) => setNameSearchInput(e.target.value)}
-                                    className="name-search-input"
+                                    className="max-w-xs"
                                 />
-                                <select
-                                    value={applicationFilters.status || ''}
-                                    onChange={(e) => setApplicationFilters({ ...applicationFilters, status: e.target.value })}
-                                    className="filter-select"
+                                <Select
+                                    value={applicationFilters.status || 'all'}
+                                    onValueChange={(value) => setApplicationFilters({ ...applicationFilters, status: value === 'all' ? '' : value })}
                                 >
-                                    <option value="">Application Status: All</option>
-                                    <option value="submitted">Submitted</option>
-                                    <option value="in_progress">In Progress</option>
-                                    <option value="ineligible">Ineligible</option>
-                                </select>
-                                <select
-                                    value={applicationFilters.info_session_status || ''}
-                                    onChange={(e) => setApplicationFilters({ ...applicationFilters, info_session_status: e.target.value })}
-                                    className="filter-select"
+                                    <SelectTrigger className="w-[200px]">
+                                        <SelectValue placeholder="Application Status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Application Status: All</SelectItem>
+                                        <SelectItem value="submitted">Submitted</SelectItem>
+                                        <SelectItem value="in_progress">In Progress</SelectItem>
+                                        <SelectItem value="ineligible">Ineligible</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select
+                                    value={applicationFilters.info_session_status || 'all'}
+                                    onValueChange={(value) => setApplicationFilters({ ...applicationFilters, info_session_status: value === 'all' ? '' : value })}
                                 >
-                                    <option value="">Info Session: All</option>
-                                    <option value="not_registered">Not Registered</option>
-                                    <option value="registered">Registered</option>
-                                    <option value="attended">Attended</option>
-                                    <option value="attended_late">Attended Late</option>
-                                    <option value="very_late">Very Late</option>
-                                    <option value="no_show">No Show</option>
-                                </select>
-                                <select
-                                    value={applicationFilters.workshop_status || ''}
-                                    onChange={(e) => setApplicationFilters({ ...applicationFilters, workshop_status: e.target.value })}
-                                    className="filter-select"
+                                    <SelectTrigger className="w-[200px]">
+                                        <SelectValue placeholder="Info Session" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Info Session: All</SelectItem>
+                                        <SelectItem value="not_registered">Not Registered</SelectItem>
+                                        <SelectItem value="registered">Registered</SelectItem>
+                                        <SelectItem value="attended">Attended</SelectItem>
+                                        <SelectItem value="attended_late">Attended Late</SelectItem>
+                                        <SelectItem value="very_late">Very Late</SelectItem>
+                                        <SelectItem value="no_show">No Show</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select
+                                    value={applicationFilters.workshop_status || 'all'}
+                                    onValueChange={(value) => setApplicationFilters({ ...applicationFilters, workshop_status: value === 'all' ? '' : value })}
                                 >
-                                    <option value="">Workshop: All</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="invited">Invited</option>
-                                    <option value="registered">Registered</option>
-                                    <option value="attended">Attended</option>
-                                    <option value="no_show">No Show</option>
-                                </select>
-                                <select
-                                    value={applicationFilters.program_admission_status || ''}
-                                    onChange={(e) => setApplicationFilters({ ...applicationFilters, program_admission_status: e.target.value })}
-                                    className="filter-select"
+                                    <SelectTrigger className="w-[200px]">
+                                        <SelectValue placeholder="Workshop" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Workshop: All</SelectItem>
+                                        <SelectItem value="pending">Pending</SelectItem>
+                                        <SelectItem value="invited">Invited</SelectItem>
+                                        <SelectItem value="registered">Registered</SelectItem>
+                                        <SelectItem value="attended">Attended</SelectItem>
+                                        <SelectItem value="no_show">No Show</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select
+                                    value={applicationFilters.program_admission_status || 'all'}
+                                    onValueChange={(value) => setApplicationFilters({ ...applicationFilters, program_admission_status: value === 'all' ? '' : value })}
                                 >
-                                    <option value="">Admission: All</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="accepted">Accepted</option>
-                                    <option value="rejected">Rejected</option>
-                                    <option value="waitlisted">Waitlisted</option>
-                                    <option value="deferred">Deferred</option>
-                                </select>
+                                    <SelectTrigger className="w-[200px]">
+                                        <SelectValue placeholder="Admission" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Admission: All</SelectItem>
+                                        <SelectItem value="pending">Pending</SelectItem>
+                                        <SelectItem value="accepted">Accepted</SelectItem>
+                                        <SelectItem value="rejected">Rejected</SelectItem>
+                                        <SelectItem value="waitlisted">Waitlisted</SelectItem>
+                                        <SelectItem value="deferred">Deferred</SelectItem>
+                                    </SelectContent>
+                                </Select>
                                 <button
                                     className={`filter-toggle-btn ${applicationFilters.ready_for_workshop_invitation ? 'filter-toggle-btn--active' : ''}`}
                                     onClick={() => setApplicationFilters({ ...applicationFilters, ready_for_workshop_invitation: !applicationFilters.ready_for_workshop_invitation })}
@@ -1893,97 +1939,122 @@ const AdmissionsDashboard = () => {
                         </div>
 
                         {loading ? (
-                            <div className="admissions-dashboard__loading">
-                                <div className="admissions-dashboard__loading-spinner"></div>
-                                <p>Loading applicants...</p>
+                            <div className="rounded-md border border-divider bg-white">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="hover:bg-bg-light border-b border-divider">
+                                            <TableHead className="w-12"><Skeleton className="h-4 w-4" /></TableHead>
+                                            <TableHead>Name</TableHead>
+                                            <TableHead>Email</TableHead>
+                                            <TableHead>Phone</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Assessment</TableHead>
+                                            <TableHead>Info Session</TableHead>
+                                            <TableHead>Workshop</TableHead>
+                                            <TableHead>Admission</TableHead>
+                                            <TableHead>Notes</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {[...Array(10)].map((_, i) => (
+                                            <TableRow key={i}>
+                                                <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                                                <TableCell><Skeleton className="h-5 w-28 rounded-full" /></TableCell>
+                                                <TableCell><Skeleton className="h-5 w-24 rounded-full" /></TableCell>
+                                                <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                                                <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                                                <TableCell><Skeleton className="h-8 w-16" /></TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
                             </div>
-                        ) : applications?.applications?.length > 0 ? (
-                            <div className="data-table-container">
-                                <table className="data-table">
-                                    <thead>
-                                        <tr>
-                                            <th className="admissions-dashboard__checkbox-column">
-                                                <input
-                                                    type="checkbox"
-                                                    className="admissions-dashboard__select-all-checkbox"
+                        ) : applications?.applications?.length > 0 || filterLoading ? (
+                            <div className="rounded-md border border-divider bg-white" style={{ position: 'relative' }}>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="hover:bg-bg-light border-b border-divider">
+                                            <TableHead className="w-12">
+                                                <Checkbox
                                                     checked={selectedApplicants.length === applications.applications?.length && applications.applications?.length > 0}
-                                                    onChange={(e) => {
-                                                        if (e.target.checked) {
+                                                    onCheckedChange={(checked) => {
+                                                        if (checked) {
                                                             setSelectedApplicants(applications.applications?.map(app => app.applicant_id) || []);
                                                         } else {
                                                             setSelectedApplicants([]);
                                                         }
                                                     }}
                                                 />
-                                            </th>
-                                            <th className="sortable-header" onClick={() => handleColumnSort('name')}>
+                                            </TableHead>
+                                            <TableHead className="cursor-pointer hover:text-pursuit-purple" onClick={() => handleColumnSort('name')}>
                                                 Name
                                                 {columnSort.column === 'name' && (
-                                                    <span className="sort-indicator">
+                                                    <span className="ml-1">
                                                         {columnSort.direction === 'asc' ? ' ↑' : ' ↓'}
                                                     </span>
                                                 )}
-                                            </th>
-                                            <th>Email</th>
-                                            <th>Phone</th>
-                                            <th className="sortable-header" onClick={() => handleColumnSort('status')}>
+                                            </TableHead>
+                                            <TableHead>Email</TableHead>
+                                            <TableHead>Phone</TableHead>
+                                            <TableHead className="cursor-pointer hover:text-pursuit-purple" onClick={() => handleColumnSort('status')}>
                                                 Status
                                                 {columnSort.column === 'status' && (
-                                                    <span className="sort-indicator">
+                                                    <span className="ml-1">
                                                         {columnSort.direction === 'asc' ? ' ↑' : ' ↓'}
                                                     </span>
                                                 )}
-                                            </th>
-                                            <th className="sortable-header" onClick={() => handleColumnSort('assessment')}>
+                                            </TableHead>
+                                            <TableHead className="cursor-pointer hover:text-pursuit-purple" onClick={() => handleColumnSort('assessment')}>
                                                 Assessment
                                                 {columnSort.column === 'assessment' && (
-                                                    <span className="sort-indicator">
+                                                    <span className="ml-1">
                                                         {columnSort.direction === 'asc' ? ' ↑' : ' ↓'}
                                                     </span>
                                                 )}
-                                            </th>
-                                            <th className="sortable-header" onClick={() => handleColumnSort('info_session')}>
+                                            </TableHead>
+                                            <TableHead className="cursor-pointer hover:text-pursuit-purple" onClick={() => handleColumnSort('info_session')}>
                                                 Info Session
                                                 {columnSort.column === 'info_session' && (
-                                                    <span className="sort-indicator">
+                                                    <span className="ml-1">
                                                         {columnSort.direction === 'asc' ? ' ↑' : ' ↓'}
                                                     </span>
                                                 )}
-                                            </th>
-                                            <th className="sortable-header" onClick={() => handleColumnSort('workshop')}>
+                                            </TableHead>
+                                            <TableHead className="cursor-pointer hover:text-pursuit-purple" onClick={() => handleColumnSort('workshop')}>
                                                 Workshop
                                                 {columnSort.column === 'workshop' && (
-                                                    <span className="sort-indicator">
+                                                    <span className="ml-1">
                                                         {columnSort.direction === 'asc' ? ' ↑' : ' ↓'}
                                                     </span>
                                                 )}
-                                            </th>
-                                            <th>Admission</th>
-                                            <th>Notes</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
+                                            </TableHead>
+                                            <TableHead>Admission</TableHead>
+                                            <TableHead>Notes</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
                                         {sortAndFilterApplications(applications.applications).map((app) => (
-                                            <tr
+                                            <TableRow
                                                 key={app.application_id}
-                                                className={`clickable-row ${selectedApplicants.includes(app.applicant_id) ? 'admissions-dashboard__row--selected' : ''}`}
+                                                className={`cursor-pointer hover:bg-bg-light ${selectedApplicants.includes(app.applicant_id) ? 'bg-pursuit-purple/5' : ''}`}
                                             >
-                                                <td className="admissions-dashboard__checkbox-column">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="admissions-dashboard__row-checkbox"
+                                                <TableCell className="w-12">
+                                                    <Checkbox
                                                         checked={selectedApplicants.includes(app.applicant_id)}
-                                                        onChange={(e) => {
-                                                            e.stopPropagation();
-                                                            if (e.target.checked) {
+                                                        onCheckedChange={(checked) => {
+                                                            if (checked) {
                                                                 setSelectedApplicants([...selectedApplicants, app.applicant_id]);
                                                             } else {
                                                                 setSelectedApplicants(selectedApplicants.filter(id => id !== app.applicant_id));
                                                             }
                                                         }}
                                                     />
-                                                </td>
-                                                <td
+                                                </TableCell>
+                                                <TableCell
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className="clickable-cell"
                                                 >
@@ -1998,10 +2069,10 @@ const AdmissionsDashboard = () => {
                                                             </span>
                                                         )}
                                                     </div>
-                                                </td>
-                                                <td className="clickable-cell">
+                                                </TableCell>
+                                                <TableCell>
                                                     <span
-                                                        className="copyable-email"
+                                                        className="cursor-pointer text-carbon-black hover:text-pursuit-purple hover:underline"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             handleEmailClick(app.email);
@@ -2010,10 +2081,10 @@ const AdmissionsDashboard = () => {
                                                     >
                                                         {app.email}
                                                     </span>
-                                                </td>
-                                                <td className="clickable-cell">
+                                                </TableCell>
+                                                <TableCell>
                                                     <span
-                                                        className="copyable-phone"
+                                                        className="cursor-pointer text-carbon-black hover:text-pursuit-purple hover:underline"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             handlePhoneClick(app.phone_number);
@@ -2022,16 +2093,23 @@ const AdmissionsDashboard = () => {
                                                     >
                                                         {formatPhoneNumber(app.phone_number)}
                                                     </span>
-                                                </td>
-                                                <td
+                                                </TableCell>
+                                                <TableCell
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
                                                 >
-                                                    <span className={`status-badge status-badge--${app.status}`}>
-                                                        {app.status}
-                                                    </span>
-                                                </td>
-                                                <td className="admissions-dashboard__assessment-cell">
+                                                    <Badge 
+                                                        variant={
+                                                            app.status === 'submitted' ? 'default' : 
+                                                            app.status === 'in_progress' ? 'secondary' : 
+                                                            app.status === 'ineligible' ? 'destructive' : 
+                                                            'outline'
+                                                        }
+                                                        className="capitalize"
+                                                    >
+                                                        {app.status.replace('_', ' ')}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="admissions-dashboard__assessment-cell">
                                                     <div className="admissions-dashboard__assessment-container">
                                                         {app.final_status || app.recommendation ? (
                                                             <select
@@ -2046,59 +2124,70 @@ const AdmissionsDashboard = () => {
                                                                 <option value="not_recommend">Not Recommend</option>
                                                             </select>
                                                         ) : (
-                                                            <span className="assessment-badge assessment-badge--pending">
+                                                            <Badge variant="secondary" className="capitalize">
                                                                 pending
-                                                            </span>
+                                                            </Badge>
                                                         )}
                                                         {app.has_human_override && (
                                                             <span className="admissions-dashboard__override-indicator" title="Human override applied">🔀</span>
                                                         )}
                                                     </div>
-                                                </td>
-                                                <td
+                                                </TableCell>
+                                                <TableCell
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
                                                 >
-                                                    <span className={`info-session-badge info-session-badge--${app.info_session_status || 'not_registered'}`}>
+                                                    <Badge 
+                                                        variant={(app.info_session_status === 'attended' || app.info_session_status === 'attended_late') ? 'default' : app.info_session_status === 'registered' ? 'secondary' : 'outline'}
+                                                        className="capitalize"
+                                                    >
                                                         {(app.info_session_status || 'not_registered').replace('_', ' ')}
-                                                    </span>
-                                                </td>
-                                                <td
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
                                                 >
-                                                    <span className={`workshop-badge workshop-badge--${app.workshop_status || 'pending'}`}>
+                                                    <Badge 
+                                                        variant={(app.workshop_status === 'attended' || app.workshop_status === 'attended_late') ? 'default' : app.workshop_status === 'registered' ? 'secondary' : 'outline'}
+                                                        className="capitalize"
+                                                    >
                                                         {(app.workshop_status || 'pending').replace('_', ' ')}
-                                                    </span>
-                                                </td>
-                                                <td
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
                                                 >
-                                                    <span className={`admission-badge admission-badge--${app.program_admission_status || 'pending'}`}>
+                                                    <Badge 
+                                                        variant={
+                                                            (app.program_admission_status === 'admitted' || app.program_admission_status === 'accepted') ? 'default' : 
+                                                            app.program_admission_status === 'pending' ? 'secondary' : 
+                                                            'destructive'
+                                                        }
+                                                        className={`capitalize ${app.program_admission_status === 'withdrawn' ? 'admission-badge--withdrawn' : ''}`}
+                                                    >
                                                         {(app.program_admission_status || 'pending').replace('_', ' ')}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <button
-                                                        className="notes-btn"
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            openNotesModal({
+                                                            openNotesSidebar({
                                                                 applicant_id: app.applicant_id,
                                                                 name: app.full_name || `${app.first_name} ${app.last_name}`
                                                             });
                                                         }}
                                                     >
                                                         Notes
-                                                    </button>
-                                                </td>
-                                            </tr>
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
                                         ))}
-                                    </tbody>
-                                </table>
+                                    </TableBody>
+                                </Table>
 
-                                <div className="table-footer">
+                                <div className="p-4 border-t border-divider bg-bg-light/50 flex items-center justify-between">
                                     <span className="table-count">
                                         Showing {applications.applications.length} applicants
                                         {applications.total > applications.applications.length &&
@@ -2146,6 +2235,46 @@ const AdmissionsDashboard = () => {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Filter Loading Overlay */}
+                                {filterLoading && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        background: 'rgba(255, 255, 255, 0.7)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        zIndex: 10,
+                                        borderRadius: '6px'
+                                    }}>
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.75rem',
+                                            padding: '1rem 1.5rem',
+                                            background: 'white',
+                                            borderRadius: '8px',
+                                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                                            border: '1px solid var(--color-divider)'
+                                        }}>
+                                            <div className="spinner" style={{
+                                                width: '20px',
+                                                height: '20px',
+                                                border: '3px solid var(--color-divider)',
+                                                borderTopColor: 'var(--color-pursuit-purple)',
+                                                borderRadius: '50%',
+                                                animation: 'spin 1s linear infinite'
+                                            }}></div>
+                                            <span style={{ color: 'var(--color-carbon-black)', fontWeight: 500 }}>
+                                                Loading...
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="no-data-message">
@@ -2174,8 +2303,11 @@ const AdmissionsDashboard = () => {
                         )}
                     </div>
                 )}
+                </TabsContent>
 
-                {activeTab === 'info-sessions' && (
+                {/* Info Sessions Tab Content */}
+                <TabsContent value="info-sessions" className="flex-1 overflow-y-auto p-10 m-0">
+                {(
                     <div className="admissions-dashboard__info-sessions">
                         <div className="data-section__header">
                             <h2>Info Sessions Management</h2>
@@ -2399,8 +2531,11 @@ const AdmissionsDashboard = () => {
                         )}
                     </div>
                 )}
+                </TabsContent>
 
-                {activeTab === 'workshops' && (
+                {/* Workshops Tab Content */}
+                <TabsContent value="workshops" className="flex-1 overflow-y-auto p-10 m-0">
+                {(
                     <div className="admissions-dashboard__workshops">
                         <div className="data-section__header">
                             <h2>Workshops Management</h2>
@@ -2644,289 +2779,15 @@ const AdmissionsDashboard = () => {
                         )}
                     </div>
                 )}
+                </TabsContent>
 
-                {activeTab === 'emails' && (
+                {/* Emails Tab Content */}
+                <TabsContent value="emails" className="flex-1 overflow-y-auto p-10 m-0">
+                {(
                     <div className="admissions-dashboard__email-automation">
                         <div className="data-section__header">
                             <h2>Email Management</h2>
                             <div className="data-section__actions">
-                                <button
-                                    onClick={async () => {
-                                        setEmailAutomationLoading(true);
-                                        try {
-                                            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/run`, {
-                                                method: 'POST',
-                                                headers: {
-                                                    'Authorization': `Bearer ${token}`,
-                                                    'Content-Type': 'application/json'
-                                                },
-                                                body: JSON.stringify({ dryRun: true })
-                                            });
-                                            
-                                            if (response.ok) {
-                                                const results = await response.json();
-                                                
-                                                // Format email list for SweetAlert2
-                                                let emailListHtml = '';
-                                                let skippedListHtml = '';
-                                                
-                                                // Format emails to be sent
-                                                if (results.emailsToSend && results.emailsToSend.length > 0) {
-                                                    emailListHtml = `
-                                                        <div class="email-preview-list">
-                                                            <table class="email-preview-table">
-                                                                <thead>
-                                                                    <tr>
-                                                                        <th>Applicant</th>
-                                                                        <th>Email</th>
-                                                                        <th>Email Type</th>
-                                                                        <th>Action</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    ${results.emailsToSend.map(email => `
-                                                                        <tr>
-                                                                            <td>${email.name}</td>
-                                                                            <td>${email.email}</td>
-                                                                            <td><span class="email-type">${email.email_type.replace(/_/g, ' ')}</span></td>
-                                                                            <td><span class="email-action">${email.action}</span></td>
-                                                                        </tr>
-                                                                    `).join('')}
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                    `;
-                                                } else {
-                                                    emailListHtml = '<p>No emails would be sent at this time.</p>';
-                                                }
-                                                
-                                                // Format skipped applicants
-                                                if (results.skippedApplicants && results.skippedApplicants.length > 0) {
-                                                    skippedListHtml = `
-                                                        <div class="skipped-applicants">
-                                                            <details>
-                                                                <summary>
-                                                                    <span class="skipped-summary-title">
-                                                                        Applicants Not Receiving Emails (${results.skippedApplicants.length})
-                                                                    </span>
-                                                                </summary>
-                                                                <div class="skipped-content">
-                                                                    <table class="skipped-applicants-table">
-                                                                        <thead>
-                                                                            <tr>
-                                                                                <th>Applicant</th>
-                                                                                <th>Email</th>
-                                                                                <th>Reason</th>
-                                                                            </tr>
-                                                                        </thead>
-                                                                        <tbody>
-                                                                            ${results.skippedApplicants.map(applicant => `
-                                                                                <tr>
-                                                                                    <td>${applicant.name}</td>
-                                                                                    <td>${applicant.email}</td>
-                                                                                    <td><span class="skip-reason">${applicant.reason}</span></td>
-                                                                                </tr>
-                                                                            `).join('')}
-                                                                        </tbody>
-                                                                    </table>
-                                                                </div>
-                                                            </details>
-                                                        </div>
-                                                    `;
-                                                }
-                                                
-                                                // Use SweetAlert2 for better formatting
-                                                Swal.fire({
-                                                    title: '🧪 Test Run Results',
-                                                    icon: 'info',
-                                                    html: `
-                                                        <div class="email-preview-summary">
-                                                            <div class="summary-item">
-                                                                <span class="summary-label">Applicants Processed:</span>
-                                                                <span class="summary-value">${results.applicantsProcessed}</span>
-                                                            </div>
-                                                            <div class="summary-item">
-                                                                <span class="summary-label">Emails to Send:</span>
-                                                                <span class="summary-value">${results.emailsSent}</span>
-                                                            </div>
-                                                            <div class="summary-item">
-                                                                <span class="summary-label">Emails to Queue:</span>
-                                                                <span class="summary-value">${results.emailsQueued}</span>
-                                                            </div>
-                                                            <div class="summary-item">
-                                                                <span class="summary-label">Applicants Skipped:</span>
-                                                                <span class="summary-value">${results.skippedApplicants ? results.skippedApplicants.length : 0}</span>
-                                                            </div>
-                                                        </div>
-                                                        <h4>Emails To Be Sent</h4>
-                                                        ${emailListHtml}
-                                                        ${skippedListHtml}
-                                                    `,
-                                                    customClass: {
-                                                        container: 'email-preview-container',
-                                                        popup: 'email-preview-popup',
-                                                        content: 'email-preview-content'
-                                                    },
-                                                    width: '800px',
-                                                    confirmButtonText: 'Close',
-                                                    confirmButtonColor: 'var(--color-primary)',
-                                                    background: 'var(--color-background-dark)',
-                                                    color: 'var(--color-text-primary)'
-                                                });
-                                            } else {
-                                                Swal.fire({
-                                                    title: 'Error',
-                                                    text: 'Failed to run test preview',
-                                                    icon: 'error',
-                                                    confirmButtonColor: 'var(--color-primary)',
-                                                    background: 'var(--color-background-dark)',
-                                                    color: 'var(--color-text-primary)'
-                                                });
-                                            }
-                                        } catch (error) {
-                                            console.error('Error running dry run:', error);
-                                            Swal.fire({
-                                                title: 'Error',
-                                                text: 'An error occurred while running the test preview',
-                                                icon: 'error',
-                                                confirmButtonColor: 'var(--color-primary)',
-                                                background: 'var(--color-background-dark)',
-                                                color: 'var(--color-text-primary)'
-                                            });
-                                        } finally {
-                                            setEmailAutomationLoading(false);
-                                        }
-                                    }}
-                                    className="create-btn create-btn--secondary"
-                                    disabled={emailAutomationLoading}
-                                >
-                                    {emailAutomationLoading ? 'Running...' : '🧪 Test Run (Preview)'}
-                                </button>
-                                
-                                {/* Test Email Section */}
-                                <div className="test-email-section">
-                                    <input
-                                        type="email"
-                                        placeholder="Enter email address for test"
-                                        value={testEmailAddress}
-                                        onChange={(e) => setTestEmailAddress(e.target.value)}
-                                        className="test-email-input"
-                                        disabled={testEmailLoading}
-                                    />
-                                    <button
-                                        onClick={sendTestEmail}
-                                        className="create-btn create-btn--secondary"
-                                        disabled={testEmailLoading || !testEmailAddress.trim()}
-                                    >
-                                        {testEmailLoading ? 'Sending...' : '📧 Send Test Email'}
-                                    </button>
-                                </div>
-                                
-                                <button
-                                    onClick={async () => {
-                                        // Use SweetAlert2 for confirmation
-                                        const confirmResult = await Swal.fire({
-                                            title: 'Send Real Emails?',
-                                            html: `
-                                                <div class="email-confirm-message">
-                                                    <p>This will send <strong>actual emails</strong> to applicants.</p>
-                                                    <p>Are you sure you want to continue?</p>
-                                                </div>
-                                            `,
-                                            icon: 'warning',
-                                            showCancelButton: true,
-                                            confirmButtonText: 'Yes, Send Emails',
-                                            cancelButtonText: 'Cancel',
-                                            confirmButtonColor: 'var(--color-danger)',
-                                            cancelButtonColor: 'var(--color-secondary)',
-                                            background: 'var(--color-background-dark)',
-                                            color: 'var(--color-text-primary)'
-                                        });
-                                        
-                                        if (!confirmResult.isConfirmed) {
-                                            return;
-                                        }
-                                        
-                                        setEmailAutomationLoading(true);
-                                        try {
-                                            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/run`, {
-                                                method: 'POST',
-                                                headers: {
-                                                    'Authorization': `Bearer ${token}`,
-                                                    'Content-Type': 'application/json'
-                                                },
-                                                body: JSON.stringify({ dryRun: false })
-                                            });
-                                            
-                                            if (response.ok) {
-                                                const results = await response.json();
-                                                if (results.success === false) {
-                                                    Swal.fire({
-                                                        title: 'Email Automation Disabled',
-                                                        text: results.message || 'Email automation is disabled',
-                                                        icon: 'error',
-                                                        confirmButtonColor: 'var(--color-primary)',
-                                                        background: 'var(--color-background-dark)',
-                                                        color: 'var(--color-text-primary)'
-                                                    });
-                                                } else {
-                                                    // Format results for SweetAlert2
-                                                    Swal.fire({
-                                                        title: 'Email Automation Complete',
-                                                        icon: 'success',
-                                                        html: `
-                                                            <div class="email-results-summary">
-                                                                <div class="summary-item">
-                                                                    <span class="summary-label">Emails Sent:</span>
-                                                                    <span class="summary-value">${results.emailsSent}</span>
-                                                                </div>
-                                                                <div class="summary-item">
-                                                                    <span class="summary-label">Emails Queued:</span>
-                                                                    <span class="summary-value">${results.emailsQueued}</span>
-                                                                </div>
-                                                            </div>
-                                                        `,
-                                                        confirmButtonText: 'View Details',
-                                                        confirmButtonColor: 'var(--color-primary)',
-                                                        background: 'var(--color-background-dark)',
-                                                        color: 'var(--color-text-primary)'
-                                                    });
-                                                    
-                                                    // Refresh all data
-                                                    fetchEmailStats();
-                                                    fetchQueuedEmails();
-                                                    fetchEmailHistory();
-                                                    fetchApplicantEmailStatus();
-                                                }
-                                            } else {
-                                                Swal.fire({
-                                                    title: 'Error',
-                                                    text: 'Failed to run email automation',
-                                                    icon: 'error',
-                                                    confirmButtonColor: 'var(--color-primary)',
-                                                    background: 'var(--color-background-dark)',
-                                                    color: 'var(--color-text-primary)'
-                                                });
-                                            }
-                                        } catch (error) {
-                                            console.error('Error running email automation:', error);
-                                            Swal.fire({
-                                                title: 'Error',
-                                                text: 'An error occurred while running email automation',
-                                                icon: 'error',
-                                                confirmButtonColor: 'var(--color-primary)',
-                                                background: 'var(--color-background-dark)',
-                                                color: 'var(--color-text-primary)'
-                                            });
-                                        } finally {
-                                            setEmailAutomationLoading(false);
-                                        }
-                                    }}
-                                    className="create-btn create-btn--danger"
-                                    disabled={emailAutomationLoading}
-                                >
-                                    {emailAutomationLoading ? 'Running...' : '📧 Run Email Automation'}
-                                </button>
                                 <button
                                     onClick={() => {
                                         fetchEmailStats();
@@ -2948,15 +2809,11 @@ const AdmissionsDashboard = () => {
                                 <div className="stats-grid">
                                     <div className="stat-card">
                                         <div className="stat-value">{emailStats.total_emails_sent || 0}</div>
-                                        <div className="stat-label">Total Emails Sent</div>
+                                        <div className="stat-label text-black">Total Emails Sent</div>
                                     </div>
                                     <div className="stat-card">
                                         <div className="stat-value">{emailStats.unique_recipients || 0}</div>
-                                        <div className="stat-label">Unique Recipients</div>
-                                    </div>
-                                    <div className="stat-card">
-                                        <div className="stat-value">{emailStats.emails_queued || 0}</div>
-                                        <div className="stat-label">Emails Queued</div>
+                                        <div className="stat-label text-black">Unique Recipients</div>
                                     </div>
                                     <div className="stat-card">
                                         <div className="stat-value">
@@ -2964,51 +2821,33 @@ const AdmissionsDashboard = () => {
                                                 ? Math.round((emailStats.emails_opened / emailStats.total_emails_sent) * 100) 
                                                 : 0}%
                                         </div>
-                                        <div className="stat-label">Open Rate</div>
+                                        <div className="stat-label text-black">Open Rate</div>
                                     </div>
                                 </div>
 
                                 {/* Opt-out Stats */}
-                                <div className="opt-out-stats">
-                                    <h4>Opt-out Reason Breakdown</h4>
-                                    <div className="opt-out-reasons-grid">
+                                <div className="opt-out-stats mt-6">
+                                    <h4 className="mb-4">Opt-out Reason Breakdown</h4>
+                                    <div className="stats-grid">
                                         {emailStats.optOutReasons && emailStats.optOutReasons.length > 0 ? (
                                             emailStats.optOutReasons.map((reason) => (
-                                                <div key={reason.reason_category} className="opt-out-reason-card">
-                                                    <div className="opt-out-reason-value">{reason.count}</div>
-                                                    <div className="opt-out-reason-label">{reason.reason_category}</div>
+                                                <div key={reason.reason_category} className="stat-card scale-90">
+                                                    <div className="stat-value">{reason.count}</div>
+                                                    <div className="stat-label text-black">{reason.reason_category}</div>
                                                 </div>
                                             ))
                                         ) : emailStats.total_opted_out > 0 ? (
-                                            <div className="opt-out-reason-card">
-                                                <div className="opt-out-reason-value">{emailStats.total_opted_out}</div>
-                                                <div className="opt-out-reason-label">Total Opted Out</div>
-                                                <div className="opt-out-reason-note">(No reason data available)</div>
+                                            <div className="stat-card scale-90">
+                                                <div className="stat-value">{emailStats.total_opted_out}</div>
+                                                <div className="stat-label text-black">Total Opted Out</div>
                                             </div>
                                         ) : (
-                                            <div className="opt-out-reason-card">
-                                                <div className="opt-out-reason-value">0</div>
-                                                <div className="opt-out-reason-label">No Opt-outs</div>
+                                            <div className="stat-card scale-90">
+                                                <div className="stat-value">0</div>
+                                                <div className="stat-label text-black">No Opt-outs</div>
                                             </div>
                                         )}
                                     </div>
-                                    
-                                    {/* Other Reasons Details */}
-                                    {emailStats.otherReasons && emailStats.otherReasons.length > 0 && (
-                                        <div className="other-reasons-section">
-                                            <h5>Custom Opt-out Reasons:</h5>
-                                            <div className="other-reasons-list">
-                                                {emailStats.otherReasons.map((reason, index) => (
-                                                    <div key={index} className="other-reason-item">
-                                                        <span className="other-reason-text">
-                                                            {reason.email_opt_out_reason.replace(/^(Unsubscribed|Deferred application) - /, '')}
-                                                        </span>
-                                                        <span className="other-reason-count">({reason.count})</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
 
                                 {/* Email Type Breakdown */}
@@ -3021,7 +2860,6 @@ const AdmissionsDashboard = () => {
                                                     <tr>
                                                         <th className="email-type-col">Email Type</th>
                                                         <th className="sent-col">Sent</th>
-                                                        <th className="queued-col">Queued</th>
                                                         <th className="avg-col">Avg Sends per Applicant</th>
                                                     </tr>
                                                 </thead>
@@ -3032,7 +2870,6 @@ const AdmissionsDashboard = () => {
                                                                 {type.email_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                                             </td>
                                                             <td className="sent-cell">{type.sent_count}</td>
-                                                            <td className="queued-cell">{type.queued_count}</td>
                                                             <td className="avg-cell">{parseFloat(type.avg_sends_per_applicant).toFixed(1)}</td>
                                                         </tr>
                                                     ))}
@@ -3043,41 +2880,6 @@ const AdmissionsDashboard = () => {
                                 )}
                             </div>
                         )}
-
-                        {/* Queued Emails */}
-                        <div className="queued-emails-section">
-                            <h3>Queued Emails ({queuedEmails.length})</h3>
-                            {queuedEmails.length > 0 ? (
-                                <div className="data-table-container">
-                                    <table className="data-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Applicant</th>
-                                                <th>Email</th>
-                                                <th>Email Type</th>
-                                                <th>Queued At</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {queuedEmails.map((email) => (
-                                                <tr key={email.log_id}>
-                                                    <td>{email.first_name} {email.last_name}</td>
-                                                    <td>{email.email}</td>
-                                                    <td className="email-type-cell">
-                                                        {email.email_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                                    </td>
-                                                    <td>{new Date(email.created_at).toLocaleString()}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : (
-                                <div className="no-data-message">
-                                    <p>No emails currently queued</p>
-                                </div>
-                            )}
-                        </div>
 
                         {/* Email History */}
                         <div className="email-history-section">
@@ -3131,7 +2933,7 @@ const AdmissionsDashboard = () => {
                         </div>
                     </div>
                 )}
-            </div>
+                </TabsContent>
 
             {/* Info Session Modal */}
             {infoSessionModalOpen && (
@@ -3259,15 +3061,6 @@ const AdmissionsDashboard = () => {
                                         className="delete-btn"
                                         onClick={() => handleDeleteInfoSession(editingInfoSession)}
                                         disabled={infoSessionSubmitting}
-                                        style={{
-                                            backgroundColor: '#dc3545',
-                                            color: 'white',
-                                            border: 'none',
-                                            padding: '10px 20px',
-                                            borderRadius: '5px',
-                                            cursor: 'pointer',
-                                            marginLeft: '10px'
-                                        }}
                                     >
                                         Delete
                                     </button>
@@ -3413,15 +3206,6 @@ const AdmissionsDashboard = () => {
                                         className="delete-btn"
                                         onClick={() => handleDeleteWorkshop(editingWorkshop)}
                                         disabled={workshopSubmitting}
-                                        style={{
-                                            backgroundColor: '#dc3545',
-                                            color: 'white',
-                                            border: 'none',
-                                            padding: '10px 20px',
-                                            borderRadius: '5px',
-                                            cursor: 'pointer',
-                                            marginLeft: '10px'
-                                        }}
                                     >
                                         Delete
                                     </button>
@@ -3483,75 +3267,48 @@ const AdmissionsDashboard = () => {
                                     </div>
                                 )}
                                 
-                                {/* SIMPLE - show names with dark theme styling */}
-                                <div style={{ 
-                                    border: '1px solid var(--color-border)', 
-                                    padding: '20px', 
-                                    margin: '10px',
-                                    backgroundColor: 'var(--color-background-dark)',
-                                    borderRadius: '8px'
-                                }}>
-                                    <h3 style={{ color: 'var(--color-text-primary)', marginTop: '0' }}>
-                                        APPLICANTS FOUND: {searchResults.length}
-                                    </h3>
-                                    {searchResults.map((applicant, index) => (
-                                        <div key={index} style={{ 
-                                            border: '1px solid var(--color-border)', 
-                                            padding: '15px', 
-                                            margin: '8px 0',
-                                            backgroundColor: 'var(--color-background-light)',
-                                            color: 'var(--color-text-primary)',
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            borderRadius: '6px',
-                                            cursor: applicant.already_registered_for_this_event ? 'not-allowed' : 'pointer',
-                                            opacity: applicant.already_registered_for_this_event ? '0.6' : '1'
-                                        }}>
-                                            <div>
-                                                <strong style={{ color: 'var(--color-text-primary)' }}>
-                                                    {applicant.display_name || applicant.first_name + ' ' + applicant.last_name}
-                                                </strong><br/>
-                                                <span style={{ color: 'var(--color-text-muted)' }}>{applicant.email}</span><br/>
-                                                <small style={{ color: 'var(--color-text-muted)' }}>
-                                                    Status: {applicant.application_status}
-                                                </small>
-                                                {applicant.already_registered_for_this_event && (
-                                                    <span style={{ 
-                                                        backgroundColor: '#6b7280', 
-                                                        color: 'white', 
-                                                        padding: '4px 8px', 
-                                                        borderRadius: '4px', 
-                                                        fontSize: '12px',
-                                                        marginLeft: '10px'
-                                                    }}>
-                                                        Already Registered
-                                                    </span>
+                                {/* Search Results */}
+                                <div className="search-results">
+                                    <h4>APPLICANTS FOUND: {searchResults.length}</h4>
+                                    <div className="applicant-list">
+                                        {searchResults.map((applicant, index) => (
+                                            <div 
+                                                key={index} 
+                                                className={`applicant-item ${applicant.already_registered_for_this_event ? 'already-registered' : ''} ${selectedApplicantsForRegistration.some(selected => selected.applicant_id === applicant.applicant_id) ? 'selected' : ''}`}
+                                                onClick={() => !applicant.already_registered_for_this_event && toggleApplicantSelection(applicant)}
+                                            >
+                                                <div className="applicant-info">
+                                                    <div className="applicant-name">
+                                                        {applicant.display_name || applicant.first_name + ' ' + applicant.last_name}
+                                                        {applicant.already_registered_for_this_event && (
+                                                            <span className="already-registered-badge">
+                                                                Already Registered
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="applicant-details">
+                                                        <div className="applicant-email">{applicant.email}</div>
+                                                        <div className="applicant-status">Status: {applicant.application_status}</div>
+                                                    </div>
+                                                </div>
+                                                {!applicant.already_registered_for_this_event && (
+                                                    <div className="selection-checkbox">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedApplicantsForRegistration.some(selected => selected.applicant_id === applicant.applicant_id)}
+                                                            onChange={() => toggleApplicantSelection(applicant)}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        />
+                                                    </div>
                                                 )}
                                             </div>
-                                            {!applicant.already_registered_for_this_event && (
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedApplicantsForRegistration.some(selected => selected.applicant_id === applicant.applicant_id)}
-                                                    onChange={() => toggleApplicantSelection(applicant)}
-                                                    style={{ 
-                                                        transform: 'scale(1.5)',
-                                                        accentColor: 'var(--color-primary)'
-                                                    }}
-                                                />
-                                            )}
-                                        </div>
-                                    ))}
-                                    {searchResults.length === 0 && (
-                                        <p style={{ 
-                                            color: 'var(--color-text-muted)', 
-                                            textAlign: 'center',
-                                            fontStyle: 'italic',
-                                            margin: '20px 0'
-                                        }}>
-                                            No results yet - type to search
-                                        </p>
-                                    )}
+                                        ))}
+                                        {searchResults.length === 0 && (
+                                            <p className="no-results">
+                                                No results yet - type to search
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                                 
                                 {selectedApplicantsForRegistration.length > 0 && (
@@ -3599,13 +3356,15 @@ const AdmissionsDashboard = () => {
                     </div>
                 </div>
             )}
+                </TabsContents>
+            </Tabs>
 
-            {/* Notes Modal */}
-            <NotesModal
+            {/* Notes Sidebar */}
+            <NotesSidebar
                 isOpen={notesModalOpen && selectedApplicant}
                 applicantId={selectedApplicant?.applicant_id}
                 applicantName={selectedApplicant?.name || `${selectedApplicant?.first_name} ${selectedApplicant?.last_name}`}
-                onClose={closeNotesModal}
+                onClose={closeNotesSidebar}
             />
         </div>
     );

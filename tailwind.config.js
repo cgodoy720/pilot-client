@@ -41,6 +41,13 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Custom brand colors for Pursuit
+        'pursuit-purple': '#4242EA',
+        'carbon-black': '#1E1E1E',
+        'stardust': '#E3E3E3',
+        'mastery-pink': '#FF33FF',
+        'bg-light': '#EFEFEF',
+        'divider': '#C8C8C8',
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -48,7 +55,11 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'Avenir', 'Helvetica', 'Arial', 'sans-serif'],
+        sans: ['Proxima Nova', '-apple-system', 'BlinkMacSystemFont', 'Helvetica Neue', 'Segoe UI', 'sans-serif'],
+      },
+      spacing: {
+        'navbar-collapsed': '50px',
+        'navbar-expanded': '250px',
       },
     },
   },
