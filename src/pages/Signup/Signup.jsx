@@ -5,12 +5,13 @@ import logoFull from '../../assets/logo-full.png';
 import './Signup.css';
 
 const Signup = () => {
-  const [userType, setUserType] = useState(''); // 'builder' or 'applicant'
+  const [userType, setUserType] = useState(''); // 'builder', 'applicant', or 'workshop'
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [accessCode, setAccessCode] = useState(''); // For workshop participants
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -51,6 +52,8 @@ const Signup = () => {
   const handleUserTypeSelect = (type) => {
     setUserType(type);
     setError('');
+    setSuccessMessage('');
+    setRegistrationComplete(false);
   };
 
   const handleSubmit = async (e) => {
@@ -90,7 +93,7 @@ const Signup = () => {
           setError(result.error || 'Failed to create account');
         }
         return;
-      } else {
+      } else if (userType === 'applicant') {
         // Create applicant account in admissions app
         endpoint = `${import.meta.env.VITE_API_URL}/api/applications/signup`;
         requestBody = { firstName, lastName, email, password };
@@ -110,6 +113,33 @@ const Signup = () => {
           setSuccessMessage('Applicant account created successfully! You can now log in to access the admissions portal.');
         } else {
           setError(data.error || data.message || 'Failed to create account');
+        }
+      } else if (userType === 'workshop') {
+        // Create workshop participant account
+        endpoint = `${import.meta.env.VITE_API_URL}/api/workshop/access`;
+        requestBody = {
+          access_code: accessCode,
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          password
+        };
+        
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setRegistrationComplete(true);
+          setSuccessMessage('Workshop account created successfully! Please check your email to verify your account before logging in.');
+        } else {
+          setError(data.error || 'Failed to create workshop account');
         }
       }
     } catch (err) {
@@ -161,6 +191,15 @@ const Signup = () => {
                 <h3>Builder</h3>
                 <p>For current Pursuit students and alumni who want to access the main learning platform</p>
               </button>
+              
+              <button 
+                onClick={() => handleUserTypeSelect('workshop')}
+                className="user-type-option"
+              >
+                <div className="user-type-icon">🎯</div>
+                <h3>Workshop</h3>
+                <p>For workshop participants with an access code from your organization</p>
+              </button>
             </div>
             
             <div className="signup-back-to-login">
@@ -186,7 +225,7 @@ const Signup = () => {
         {registrationComplete ? (
           <div className="signup-success">
             <p className="signup-success-message">{successMessage}</p>
-            {userType === 'builder' && (
+            {(userType === 'builder' || userType === 'workshop') && (
               <div className="signup-verification-instructions">
                 <h3>What's next?</h3>
                 <ol>
@@ -199,7 +238,7 @@ const Signup = () => {
             )}
             <div className="signup-actions">
               <Link to="/login" className="signup-button">Go to Login</Link>
-              {userType === 'builder' && (
+              {(userType === 'builder' || userType === 'workshop') && (
                 <Link to="/resend-verification" className="signup-link">Resend Verification Email</Link>
               )}
             </div>
@@ -219,6 +258,23 @@ const Signup = () => {
                 Change account type
               </button>
             </div>
+            
+            {/* Access Code field - only for workshop participants */}
+            {userType === 'workshop' && (
+              <div className="signup-input-group">
+                <input
+                  type="text"
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value)}
+                  placeholder="Workshop Access Code (e.g., META-WS-2025)"
+                  required
+                  className="signup-input"
+                  disabled={isSubmitting}
+                  autoComplete="off"
+                />
+                <p className="signup-input-hint">Enter the code provided by your workshop facilitator</p>
+              </div>
+            )}
             
             <div className="signup-input-group">
               <input
