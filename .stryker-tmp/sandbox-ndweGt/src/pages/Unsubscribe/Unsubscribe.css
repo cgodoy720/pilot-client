@@ -1,0 +1,531 @@
+.unsubscribe-email-page {
+    width: 100%;
+    /* height: 100vh; */
+    background-color: var(--color-background-dark);
+    color: var(--color-text-primary);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+.unsubscribe-email-page__content {
+    width: 100%;
+    height: 100%;
+    padding: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    overflow: hidden;
+}
+
+.unsubscribe-email-page__card {
+    background-color: var(--color-background-dark);
+    border-radius: 8px;
+    max-width: 1000px;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.unsubscribe-email-page__header {
+    text-align: center;
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-sm);
+    flex-shrink: 0;
+}
+
+.unsubscribe-email-page__header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-xs);
+    color: var(--color-text-primary);
+}
+
+.unsubscribe-email-page__header .program-title {
+    font-size: 1rem;
+    color: var(--color-primary);
+    font-weight: 500;
+    margin: 0;
+}
+
+.unsubscribe-email-page__applicant-info {
+    background-color: var(--color-background-darker);
+    border-radius: 8px;
+    padding: var(--spacing-md);
+    margin: 0 var(--spacing-lg) var(--spacing-md);
+    text-align: left;
+    flex-shrink: 0;
+}
+
+.unsubscribe-email-page__applicant-info p {
+    margin: 0.5rem 0;
+    color: var(--color-text-primary);
+    font-size: 1rem;
+}
+
+.unsubscribe-email-page__applicant-info strong {
+    color: var(--color-text-secondary);
+}
+
+/* Initial unsubscribe content */
+.unsubscribe-email-page__content-section {
+    display: flex;
+    flex-direction: column;
+    padding: 0 var(--spacing-lg);
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.unsubscribe-email-page__content-section h2 {
+    color: var(--color-text-primary);
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-md);
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.unsubscribe-email-page__content-section > p {
+    color: var(--color-text-secondary);
+    font-size: 1rem;
+    line-height: 1.5;
+    margin-bottom: var(--spacing-lg);
+    text-align: center;
+    max-width: 600px;
+    align-self: center;
+    flex-shrink: 0;
+}
+
+.unsubscribe-email-page__content-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
+    align-items: start;
+    flex: 1;
+    min-height: 0;
+}
+
+.unsubscribe-email-page__info-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.unsubscribe-email-page__actions-section {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.unsubscribe-email-page__email-types {
+    background-color: var(--color-background-darker);
+    border-radius: 8px;
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+}
+
+.unsubscribe-email-page__email-types p {
+    margin-bottom: var(--spacing-sm);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    font-size: 1rem;
+}
+
+.unsubscribe-email-page__email-types ul {
+    margin: 0;
+    padding-left: var(--spacing-lg);
+}
+
+.unsubscribe-email-page__email-types li {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-xs);
+    line-height: 1.5;
+    font-size: 0.95rem;
+}
+
+.unsubscribe-email-page__important-note {
+    background-color: rgba(255, 193, 7, 0.15);
+    border-radius: 8px;
+    padding: var(--spacing-md);
+    margin-top: var(--spacing-sm);
+}
+
+.unsubscribe-email-page__important-note p {
+    margin: 0;
+    color: #ffc107;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+.unsubscribe-email-page__actions {
+    display: flex;
+    justify-content: center;
+}
+
+.unsubscribe-email-page__continue-btn {
+    background-color: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: var(--spacing-md) var(--spacing-xl);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+    min-width: 180px;
+    box-shadow: 0 2px 8px rgba(var(--color-primary-rgb), 0.3);
+}
+
+.unsubscribe-email-page__continue-btn:hover:not(:disabled) {
+    background-color: var(--color-primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(var(--color-primary-rgb), 0.4);
+}
+
+.unsubscribe-email-page__continue-btn:disabled {
+    background-color: var(--color-border);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.unsubscribe-email-page__contact-info {
+    text-align: center;
+    padding-top: var(--spacing-md);
+    margin-top: var(--spacing-md);
+    border-top: 1px solid rgba(var(--color-border-rgb), 0.3);
+}
+
+.unsubscribe-email-page__contact-info p {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.unsubscribe-email-page__contact-info a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.unsubscribe-email-page__contact-info a:hover {
+    text-decoration: underline;
+}
+
+/* Confirmation Form Styles */
+.unsubscribe-email-page__confirmation-content {
+    text-align: center;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0 var(--spacing-lg);
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.unsubscribe-email-page__confirmation-content h2 {
+    color: var(--color-text-primary);
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-md);
+    flex-shrink: 0;
+}
+
+.unsubscribe-email-page__confirmation-content > p {
+    color: var(--color-text-secondary);
+    font-size: 1rem;
+    line-height: 1.5;
+    margin-bottom: var(--spacing-lg);
+    flex-shrink: 0;
+}
+
+.unsubscribe-email-page__confirmation-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+    text-align: left;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.unsubscribe-email-page__decision-options h3,
+.unsubscribe-email-page__reason-section h3 {
+    color: var(--color-text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-md);
+    text-align: center;
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 2px solid rgba(var(--color-primary-rgb), 0.2);
+}
+
+.required-asterisk {
+    color: var(--color-error);
+    font-weight: 700;
+    margin-left: 4px;
+}
+
+.unsubscribe-email-page__checkbox-option {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-sm);
+    cursor: pointer;
+    padding: var(--spacing-sm);
+    border-radius: 8px;
+    transition: all var(--transition-speed) ease;
+    background-color: transparent;
+}
+
+.unsubscribe-email-page__checkbox-option:hover {
+    background-color: rgba(var(--color-primary-rgb), 0.08);
+    transform: translateX(4px);
+}
+
+.unsubscribe-email-page__checkbox-option input[type="radio"] {
+    margin-right: var(--spacing-md);
+    margin-top: 3px;
+    accent-color: var(--color-primary);
+    transform: scale(1.2);
+    cursor: pointer;
+}
+
+.unsubscribe-email-page__other-reason {
+    margin-top: var(--spacing-sm);
+    margin-left: var(--spacing-lg);
+}
+
+.unsubscribe-email-page__other-reason-input {
+    width: 100%;
+    background-color: var(--color-background-darker);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    padding: var(--spacing-md);
+    color: var(--color-text-primary);
+    font-family: inherit;
+    font-size: 0.95rem;
+    resize: vertical;
+    min-height: 80px;
+    max-height: 120px;
+    transition: all var(--transition-speed) ease;
+}
+
+.unsubscribe-email-page__other-reason-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.15);
+    background-color: var(--color-background-dark);
+}
+
+.unsubscribe-email-page__other-reason-input::placeholder {
+    color: var(--color-text-muted);
+}
+
+.unsubscribe-email-page__confirmation-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: center;
+    padding: var(--spacing-md) 0;
+    flex-shrink: 0;
+    border-top: 1px solid rgba(var(--color-border-rgb), 0.3);
+    margin-top: var(--spacing-md);
+}
+
+.unsubscribe-email-page__back-btn,
+.unsubscribe-email-page__confirm-btn {
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+    min-width: 140px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.unsubscribe-email-page__back-btn {
+    background-color: var(--color-background-darker);
+    border: 2px solid rgba(var(--color-border-rgb), 0.5);
+    color: var(--color-text-secondary);
+}
+
+.unsubscribe-email-page__back-btn:hover:not(:disabled) {
+    background-color: var(--color-background-light);
+    color: var(--color-text-primary);
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.unsubscribe-email-page__confirm-btn {
+    background-color: var(--color-error);
+    border: 2px solid transparent;
+    color: white;
+}
+
+.unsubscribe-email-page__confirm-btn:hover:not(:disabled) {
+    background-color: #e53e3e;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(255, 79, 79, 0.4);
+}
+
+.unsubscribe-email-page__back-btn:disabled,
+.unsubscribe-email-page__confirm-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Already Unsubscribed State */
+.unsubscribe-email-page__already-unsubscribed {
+    text-align: center;
+    padding: var(--spacing-xl) 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.unsubscribe-email-page__success-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+}
+
+.unsubscribe-email-page__already-unsubscribed h2 {
+    color: #10b981;
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-md);
+}
+
+.unsubscribe-email-page__already-unsubscribed p {
+    color: var(--color-text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: var(--spacing-md);
+}
+
+/* Loading State */
+.unsubscribe-email-page__loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xl) 0;
+    flex: 1;
+}
+
+.unsubscribe-email-page__spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--color-border);
+    border-top: 4px solid var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: var(--spacing-md);
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.unsubscribe-email-page__loading-spinner p {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+/* Error State */
+.unsubscribe-email-page__error-message {
+    text-align: center;
+    padding: var(--spacing-xl) 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.unsubscribe-email-page__error-message h2 {
+    color: var(--color-error);
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-md);
+}
+
+.unsubscribe-email-page__error-message p {
+    color: var(--color-text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: var(--spacing-md);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .unsubscribe-email-page__content {
+        padding: var(--spacing-sm);
+    }
+    
+    .unsubscribe-email-page__card {
+        padding: 0;
+        max-height: calc(100vh - 2 * var(--spacing-sm));
+    }
+    
+    .unsubscribe-email-page__header h1 {
+        font-size: 1.5rem;
+    }
+    
+    /* Switch to single column on mobile */
+    .unsubscribe-email-page__content-grid,
+    .unsubscribe-email-page__confirmation-form {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+    
+    .unsubscribe-email-page__info-section,
+    .unsubscribe-email-page__actions-section {
+        text-align: center;
+    }
+    
+    .unsubscribe-email-page__confirmation-actions {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+    
+    .unsubscribe-email-page__back-btn,
+    .unsubscribe-email-page__confirm-btn {
+        width: 100%;
+        min-width: auto;
+    }
+    
+    .unsubscribe-email-page__other-reason {
+        margin-left: var(--spacing-md);
+    }
+}
+
+@media (max-width: 480px) {
+    .unsubscribe-email-page__card {
+        padding: var(--spacing-sm);
+    }
+    
+    .unsubscribe-email-page__header h1 {
+        font-size: 1.125rem;
+    }
+    
+    .unsubscribe-email-page__other-reason {
+        margin-left: var(--spacing-sm);
+    }
+}

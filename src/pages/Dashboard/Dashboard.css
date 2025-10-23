@@ -26,6 +26,54 @@
   display: none;
 }
 
+/* Workshop Preview Banner */
+.dashboard__workshop-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  animation: slideDown 0.4s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.workshop-banner__icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.workshop-banner__content h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.workshop-banner__content p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  opacity: 0.95;
+}
+
+.workshop-banner__content strong {
+  font-weight: 600;
+  text-decoration: underline;
+}
+
 .dashboard__content {
   display: flex;
   gap: var(--spacing-lg);

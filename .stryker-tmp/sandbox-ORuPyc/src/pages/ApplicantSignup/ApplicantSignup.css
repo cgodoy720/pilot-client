@@ -1,0 +1,139 @@
+.applicant-signup-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+}
+
+.applicant-signup-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    width: 100%;
+    max-width: 500px;
+}
+
+.applicant-signup-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.applicant-signup-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.applicant-signup-header p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+}
+
+.applicant-signup-form {
+    margin-bottom: 20px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #333;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e1e5e9;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.password-hint {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+    font-size: 12px;
+}
+
+.signup-button {
+    width: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.signup-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.signup-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.error-message {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.applicant-signup-footer {
+    text-align: center;
+    font-size: 14px;
+}
+
+.applicant-signup-footer p {
+    margin: 10px 0;
+    color: #666;
+}
+
+.applicant-signup-footer a {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.applicant-signup-footer a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+} 

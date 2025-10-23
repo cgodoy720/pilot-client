@@ -1,0 +1,877 @@
+/* Workshops Page - Fix for root padding */
+.admissions-dashboard {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100vh;
+  width: 100vw;
+  background: var(--color-background-dark);
+  color: var(--color-text-primary);
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* Top Bar */
+.admissions-dashboard__topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2vw;
+  background: var(--color-background-dark);
+  width: 100vw;
+  box-sizing: border-box;
+}
+
+.admissions-dashboard__topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.admissions-dashboard__logo-section {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.admissions-dashboard__logo {
+  height: 48px;
+  width: 48px;
+  object-fit: contain;
+  background: transparent;
+  display: block;
+  margin: 0 auto;
+  cursor: pointer;
+}
+
+.admissions-dashboard__logo-text {
+  font-weight: 700;
+  font-size: 2rem;
+  color: #fff;
+  margin-left: 0.5rem;
+  letter-spacing: 0.02em;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.admissions-dashboard__welcome-text {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: 2rem;
+}
+
+.admissions-dashboard__topbar-right {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.admissions-dashboard__button--primary {
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+}
+
+.admissions-dashboard__button--primary:hover {
+  background: #ff6b35;
+}
+
+.admissions-dashboard__button--secondary {
+  background: transparent;
+  color: var(--color-text-primary);
+  border: 2px solid var(--color-primary);
+  padding: 0.4rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.admissions-dashboard__button--secondary:hover {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+/* Title Section */
+.admissions-dashboard__title-section {
+  width: 100vw;
+  text-align: left;
+  padding: 1.25rem 0 0.5rem 2vw;
+  height: fit-content;
+}
+
+.admissions-dashboard__title {
+  font-size: 2.8rem;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: .035rem;
+  margin: 0;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.2;
+  width: 40%;
+  max-width: 40vw;
+}
+
+/* Workshops Main Container */
+.workshops-main {
+  background-color: var(--color-background-dark); /* Match header color */
+  min-height: 100vh;
+  padding: 0 1rem 2rem 1rem;
+  color: var(--color-text-primary);
+  box-sizing: border-box;
+  overflow: scroll;
+}
+
+.workshops-content {
+  max-width: 1000px;
+  margin: 1rem auto 0 auto; /* Consistent spacing with dashboard */
+  padding: 0 2rem 6rem 2rem; /* Match dashboard content padding */
+}
+
+/* Status Banner */
+.status-banner {
+  padding: 15px 20px;
+  margin-bottom: 25px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.status-banner.success {
+  border: 2px solid #10b981;
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.status-banner.error {
+  border: 2px solid #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.status-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.status-icon {
+  font-size: 20px;
+}
+
+/* Time Slots Grid */
+.time-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+@media (max-width: 768px) {
+  .time-slots-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .admissions-dashboard__topbar {
+    padding: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  .admissions-dashboard__topbar-left {
+    flex: 1;
+    min-width: 200px;
+  }
+  
+  .admissions-dashboard__welcome-text {
+    font-size: 1rem;
+    margin-left: 1rem;
+  }
+  
+  .admissions-dashboard__logo-text {
+    font-size: 1.2rem;
+  }
+  
+  .admissions-dashboard__title {
+    font-size: 2rem;
+    width: 60%;
+    max-width: 60vw;
+  }
+}
+
+@media (max-width: 600px) {
+  .admissions-dashboard__topbar {
+    padding: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  .admissions-dashboard__topbar-left {
+    flex: 1;
+    min-width: 200px;
+  }
+  
+  .admissions-dashboard__logo-text {
+    font-size: 1.2rem !important;
+  }
+  
+  .admissions-dashboard__welcome-text {
+    font-size: 1rem;
+    margin-left: 1rem;
+  }
+  
+  .admissions-dashboard__title {
+    font-size: 1.8rem;
+    width: 90%;
+    max-width: 90vw;
+  }
+}
+
+/* Time Slot Cards - Exact Dashboard Card Match */
+.time-slot-card {
+  background: #1a1a1a; /* Exact dashboard card background */
+  border-radius: 24px; /* Exact dashboard card border radius */
+  padding: 2rem 1.5rem; /* Exact dashboard card padding */
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  transition: transform 0.2s ease, box-shadow 0.2s ease; /* Exact dashboard transition */
+  overflow: visible;
+  position: relative;
+}
+
+/* Gradient border effect - Exact Dashboard Match */
+.time-slot-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 24px;
+  padding: 2px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  z-index: -1;
+}
+
+.time-slot-card:hover {
+  transform: translateY(-4px); /* Exact dashboard hover effect */
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 20px rgba(102, 126, 234, 0.3); /* Exact dashboard shadow */
+}
+
+.time-slot-card:hover::before {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 20%, #f093fb 40%, #f5576c 60%, #4facfe 80%, #00f2fe 100%);
+  animation: gradient-rotate 3s ease-in-out infinite;
+}
+
+@keyframes gradient-rotate {
+  0%, 100% {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+  }
+  25% {
+    background: linear-gradient(180deg, #764ba2 0%, #f093fb 25%, #f5576c 50%, #4facfe 75%, #667eea 100%);
+  }
+  50% {
+    background: linear-gradient(225deg, #f093fb 0%, #f5576c 25%, #4facfe 50%, #667eea 75%, #764ba2 100%);
+  }
+  75% {
+    background: linear-gradient(270deg, #f5576c 0%, #4facfe 25%, #667eea 50%, #764ba2 75%, #f093fb 100%);
+  }
+}
+
+/* Selected card styling - Match dashboard completed state */
+.time-slot-card.selected {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 20px rgba(72, 187, 120, 0.3);
+}
+
+.time-slot-card.selected::before {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 25%, #68d391 50%, #38a169 75%, #48bb78 100%);
+  animation: none;
+}
+
+.time-slot-card.full {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #151515; /* Match dashboard locked state */
+}
+
+.time-slot-card.full::before {
+  background: linear-gradient(135deg, #2d3748 0%, #4a5568 50%, #2d3748 100%);
+  animation: none;
+}
+
+.time-slot-card.passed {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #0f0f0f; /* Darker background for passed events */
+  color: #6b7280; /* Muted text color */
+  pointer-events: none; /* Prevent any interactions */
+}
+
+.time-slot-card.passed::before {
+  background: linear-gradient(135deg, #1f1f1f 0%, #2a2a2a 50%, #1f1f1f 100%);
+  animation: none;
+}
+
+.time-slot-card.passed:hover {
+  transform: none; /* Disable hover effects */
+  box-shadow: none;
+}
+
+.time-slot-card.passed * {
+  color: #6b7280 !important; /* Mute all text inside passed cards */
+}
+
+/* Card Header */
+.time-slot-header {
+  margin-bottom: 1rem;
+}
+
+.date-info {
+  margin-bottom: 0.75rem;
+}
+
+.month {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+}
+
+.day {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1;
+  margin: 0.25rem 0;
+  display: block;
+}
+
+.day-of-week {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+  display: block;
+}
+
+.time-info {
+  margin-bottom: 1rem;
+}
+
+.time-range {
+  font-size: 1.1rem;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+/* Location Info */
+.location-info {
+  margin-bottom: 1.5rem;
+}
+
+.location-type {
+  display: block;
+  font-size: 1rem;
+  color: var(--color-primary);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+/* Slot Actions */
+.slot-actions {
+  margin-top: auto;
+}
+
+.registered-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.selected-indicator {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.select-btn {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.select-btn:hover:not(:disabled) {
+  background: var(--color-primary);
+  color: white;
+  box-shadow: 0 4px 16px rgba(66, 66, 234, 0.15);
+}
+
+.select-btn:disabled,
+.full-btn {
+  background: transparent;
+  color: #a0aec0;
+  border-color: #a0aec0;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.select-btn--disabled {
+  background: transparent;
+  color: #a0aec0;
+  border-color: #a0aec0;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.cancel-selection-btn {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  color: var(--color-error);
+  border: 2px solid var(--color-error);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-selection-btn:hover:not(:disabled) {
+  background: var(--color-error);
+  color: white;
+  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+}
+
+.cancel-selection-btn:disabled {
+  background: transparent;
+  color: #a0aec0;
+  border-color: #a0aec0;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.meeting-link-section {
+  margin-top: 1rem;
+}
+
+.meeting-link {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #38b2ac 0%, #319795 100%);
+  color: white;
+  text-decoration: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.meeting-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(56, 178, 172, 0.4);
+}
+
+.no-sessions-message {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: #1a1a1a;
+  border-radius: 24px;
+  border: 2px solid #333;
+  position: relative;
+  overflow: hidden;
+}
+
+.no-sessions-message::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 24px;
+  padding: 2px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  z-index: -1;
+}
+
+.no-sessions-message h3 {
+  color: var(--color-text-primary);
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.no-sessions-message p {
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.admin-form-section {
+  background: #1a1a1a;
+  border-radius: 24px;
+  padding: 2rem;
+  margin-top: 3rem;
+  border: 2px solid #333;
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-form-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 24px;
+  padding: 2px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  z-index: -1;
+}
+
+.admin-form-section h3 {
+  color: var(--color-text-primary);
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+.admin-form-section form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.admin-form-section input,
+.admin-form-section select {
+  padding: 0.75rem 1rem;
+  background: #333;
+  border: 1px solid #555;
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.admin-form-section input::placeholder,
+.admin-form-section select::placeholder {
+  color: var(--color-text-muted);
+}
+
+.admin-form-section input:focus,
+.admin-form-section select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.admin-form-section button {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-form-section button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.admin-form-section label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.admin-form-section label input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+} /* 
+Laptop Selection Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: var(--color-background-light);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.laptop-modal {
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem 1rem 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
+}
+
+.modal-body {
+  padding: 1.5rem 2rem;
+}
+
+.modal-body p {
+  margin: 0 0 1.5rem 0;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.laptop-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.laptop-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.laptop-option:hover {
+  border-color: rgba(102, 126, 234, 0.3);
+  background: rgba(102, 126, 234, 0.05);
+}
+
+.laptop-option input[type="radio"] {
+  display: none;
+}
+
+.radio-custom {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: all 0.2s;
+}
+
+.laptop-option input[type="radio"]:checked + .radio-custom {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.laptop-option input[type="radio"]:checked + .radio-custom::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+}
+
+.option-content {
+  flex: 1;
+}
+
+.option-content strong {
+  display: block;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.option-content p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1rem 2rem 1.5rem 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-secondary {
+  padding: 0.75rem 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-primary {
+  padding: 0.75rem 1.5rem;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  min-width: 140px;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Mobile responsiveness for modal */
+@media (max-width: 600px) {
+  .modal-content {
+    width: 95%;
+    margin: 1rem;
+  }
+  
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+  
+  .laptop-option {
+    padding: 1rem;
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+  }
+  
+  .btn-secondary,
+  .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}

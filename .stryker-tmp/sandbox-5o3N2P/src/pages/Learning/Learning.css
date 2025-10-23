@@ -1,0 +1,1871 @@
+.learning {
+  width: 100%;
+  height: 100%;
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.learning__content {
+  width: 100%;
+  height: 100%;
+  padding: var(--spacing-md);
+  display: flex;
+  overflow: hidden;
+  flex: 1;
+}
+
+.learning__chat-container {
+  flex: 1;
+  height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Chat Panel Styles */
+.learning__chat-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--color-background-darker);
+  position: relative;
+}
+
+.learning__messages {
+  flex: 1;
+  overflow-y: auto; /* Allow vertical scrolling of the container */
+  overflow-x: hidden; /* Prevent horizontal scroll */
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  scroll-behavior: smooth;
+  padding-bottom: 20px; /* Add extra padding at the bottom */
+  background-color: var(--color-background-darker);
+  max-height: calc(100vh - 180px); /* Account for input form and other elements */
+  transition: opacity 0.2s ease;
+  /* Remove width constraints that might be causing issues */
+}
+
+.learning__messages.loading {
+  opacity: 0.7;
+}
+
+.learning__message {
+  display: flex;
+  max-width: 85%;
+  animation: fadeIn 0.3s ease-in;
+  /* Ensure messages can expand naturally */
+  overflow: visible;
+  height: auto;
+  min-height: auto;
+}
+
+/* User message styles with interactive indicators */
+.learning__message--user {
+  margin-left: auto !important;
+  margin-right: 0 !important;
+  flex-direction: row-reverse !important;
+  position: relative;
+}
+
+/* Hover effect on user messages */
+.learning__message--user .learning__message-content:hover {
+  background-color: var(--color-primary-hover, #5555ff);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Active/pressed state */
+.learning__message--user .learning__message-content:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Add a subtle "editable" indicator on hover */
+.learning__message--user .learning__message-content:hover::after {
+  content: "Click to edit";
+  position: absolute;
+  bottom: -20px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0.9;
+  pointer-events: none; /* Prevent it from interfering with clicks */
+  transition: opacity 0.2s ease;
+  z-index: 10;
+}
+
+.learning__message--assistant {
+  margin-right: auto;
+  padding-left: 40px;
+  position: relative;
+}
+
+.learning__message--assistant::before {
+  content: '';
+  width: 30px;
+  height: 30px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  background-color: var(--color-primary);
+  border-radius: 4px;
+  background-image: url("/logo.png");
+  background-size: 12px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.learning__message-content {
+  padding: 12px 16px;
+  border-radius: 12px;
+  line-height: 1.5;
+  font-size: 15px;
+  white-space: pre-wrap;
+  max-width: 100%;
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
+  position: relative;
+  /* SURGICAL WIDTH CONTAINMENT: Prevent horizontal expansion while allowing vertical */
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word; /* Force long words to break */
+  min-width: 0;
+  width: 100%; /* Force content to use full available width */
+  box-sizing: border-box; /* Include padding in width calculation */
+}
+
+.learning__message--user .learning__message-content {
+  background-color: var(--color-primary);
+  color: white;
+  border-top-right-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  text-align: left;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+  
+  /* CRITICAL: Ensure user messages never have scrollbars */
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  
+  /* Natural expansion - show all user content */
+  height: auto !important;
+  min-height: auto !important;
+  max-height: none !important;
+  
+  /* Proper text wrapping for user messages */
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  white-space: pre-wrap !important;
+}
+
+.learning__message--user .learning__message-content:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.learning__message--assistant .learning__message-content {
+  background-color: var(--color-background-dark);
+  color: var(--color-text-primary);
+  border-top-left-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05), 0 0 8px rgba(85, 85, 255, 0.3);
+  text-align: left;
+}
+
+/* Typing indicator */
+.learning__typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+  justify-content: center;
+  min-width: 40px;
+}
+
+.learning__typing-indicator span {
+  width: 8px;
+  height: 8px;
+  background: var(--color-text-secondary);
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out;
+}
+
+.learning__typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+.learning__typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+  0%, 80%, 100% { 
+    transform: translateY(0);
+  }
+  40% { 
+    transform: translateY(-3px);
+  }
+}
+
+/* Make the thinking message smaller */
+.learning__message-content--thinking {
+  padding: 8px;
+  width: fit-content;
+}
+
+/* Input form styles */
+.learning__input-form {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 12px;
+  background-color: var(--color-background-darker);
+  border-top: 1px solid var(--color-border);
+  position: relative;
+}
+
+.learning__input {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-background-dark);
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+  resize: none;
+  min-height: 24px;
+  max-height: 200px;
+  line-height: 1.5;
+  overflow-y: auto;
+  word-wrap: break-word;
+  font-family: inherit;
+  padding-right: 80px; /* Make room for the action buttons */
+}
+
+.learning__input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(66, 66, 234, 0.1);
+}
+
+.learning__input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.learning__input-actions {
+  display: flex;
+  align-items: center;
+  position: absolute;
+  right: 60px; /* Position to the left of the send button */
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.learning__send-btn {
+  width: 40px;
+  height: 40px;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.learning__send-btn:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+  transform: translateY(-2px);
+}
+
+.learning__send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.learning__deliverable-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 5px;
+  margin-right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.learning__deliverable-btn:hover {
+  color: var(--color-primary);
+  transform: translateY(-2px);
+}
+
+.learning__error {
+  color: #ff4d4f;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+/* Task Panel Styles */
+.learning__task-panel {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-background-dark);
+  padding: var(--spacing-md);
+  margin-right: var(--spacing-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.learning__task-header {
+  margin-bottom: var(--spacing-md);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Add a specific class for when the back button is present */
+.learning__task-header--with-back {
+  justify-content: space-between;
+}
+
+.back-to-calendar-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: var(--color-primary);
+  color: var(--color-text-light);
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.back-to-calendar-btn:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.back-to-calendar-btn svg {
+  font-size: 0.8rem;
+}
+
+.learning__tasks-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding-right: var(--spacing-sm);
+  padding-top: 4px; /* Add padding to the top to prevent cutoff during hover */
+  max-height: calc(100vh - 200px); /* Ensure it doesn't overflow */
+  scroll-behavior: smooth;
+}
+
+.learning__task-item {
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  padding: 12px 15px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background-color: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  min-height: 60px; /* Minimum height for task items */
+}
+
+.learning__task-item.current {
+  transition: background-color 0.5s ease, border-left-color 0.3s ease;
+  background-color: var(--color-primary-transparent);
+  border-left: 4px solid var(--color-primary);
+  animation: highlightTask 0.5s ease;
+}
+
+.learning__task-item.completed {
+  border-left-color: #4caf50;
+}
+
+.learning__task-item:hover {
+  background-color: var(--color-background-darker, #111827);
+  border-color: var(--color-primary, #4242ea);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1; /* Ensure hovered items appear above others */
+}
+
+.learning__task-icon {
+  margin-right: var(--spacing-sm);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0; /* Prevent icon from shrinking */
+}
+
+.learning__task-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 3px 0;
+}
+
+.learning__task-title {
+  font-weight: 500;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  max-width: 100%;
+  white-space: normal; /* Allow text to wrap */
+  margin-bottom: 2px;
+  line-height: 1.3;
+}
+
+.learning__task-title-text {
+  flex: 1;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.3;
+}
+
+.learning__task-deliverable-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  font-size: 0.8rem;
+  opacity: 0.8;
+  margin-left: 6px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 1px;
+}
+
+.learning__task-block {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Quick replies section */
+.learning__quick-replies {
+  padding: 12px;
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-background-darker);
+}
+
+.learning__quick-replies-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}
+
+.learning__quick-replies-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.learning__quick-reply-btn {
+  padding: 8px 12px;
+  background-color: var(--color-background-dark);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.learning__quick-reply-btn:hover:not(:disabled) {
+  background-color: rgba(66, 66, 234, 0.1);
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.learning__quick-reply-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Custom scrollbar styles */
+.learning__messages::-webkit-scrollbar,
+.learning__tasks-list::-webkit-scrollbar,
+.learning__quick-replies-list::-webkit-scrollbar,
+.learning__input::-webkit-scrollbar {
+  width: 8px;
+}
+
+.learning__messages::-webkit-scrollbar-track,
+.learning__tasks-list::-webkit-scrollbar-track,
+.learning__quick-replies-list::-webkit-scrollbar-track,
+.learning__input::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.learning__messages::-webkit-scrollbar-thumb,
+.learning__tasks-list::-webkit-scrollbar-thumb,
+.learning__quick-replies-list::-webkit-scrollbar-thumb,
+.learning__input::-webkit-scrollbar-thumb {
+  background-color: var(--color-primary, #4242ea);
+  border-radius: 4px;
+}
+
+.learning__messages::-webkit-scrollbar-thumb:hover,
+.learning__tasks-list::-webkit-scrollbar-thumb:hover,
+.learning__quick-replies-list::-webkit-scrollbar-thumb:hover,
+.learning__input::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-primary-hover, #5555ff);
+}
+
+/* Force scrollbars to always be visible */
+.learning__messages,
+.learning__tasks-list {
+  overflow-y: scroll;
+}
+
+/* Firefox scrollbar styling */
+.learning__messages,
+.learning__tasks-list,
+.learning__quick-replies-list,
+.learning__input {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary, #4242ea) rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .learning {
+    height: 100%;
+    overflow-y: auto;
+  }
+  
+  .learning__content {
+    flex-direction: column;
+    height: auto;
+    padding: var(--spacing-sm);
+    max-height: none; /* Remove max-height constraint on mobile */
+  }
+  
+  .learning__task-panel {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: var(--spacing-md);
+    max-height: 200px;
+  }
+  
+  .learning__chat-container {
+    height: 70vh;
+  }
+  
+  .learning__messages {
+    max-height: calc(70vh - 120px); /* Adjust for mobile */
+  }
+  
+  .learning__tasks-list {
+    max-height: 150px; /* Limit height on mobile */
+  }
+}
+
+/* Markdown specific styling */
+.markdown-paragraph {
+  margin-bottom: 0;
+  line-height: 1.6;
+}
+
+/* Add margin between paragraphs only when they follow another paragraph */
+.markdown-paragraph + .markdown-paragraph {
+  margin-top: 12px;
+}
+
+.markdown-heading {
+  font-weight: 600;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.markdown-list {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.markdown-list-item {
+  margin: 4px 0;
+}
+
+.markdown-link {
+  color: #58a6ff;
+  text-decoration: none;
+  transition: text-decoration 0.2s;
+}
+
+.markdown-link:hover {
+  text-decoration: underline;
+}
+
+.markdown-blockquote {
+  border-left: 3px solid rgba(255, 255, 255, 0.2);
+  padding-left: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 8px 0;
+  font-style: italic;
+}
+
+.inline-code {
+  background-color: rgba(0, 0, 0, 0.3);
+  color: var(--color-text-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Task Resources Styles */
+.learning__task-resources {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background-color: var(--color-background-dark);
+  border-radius: 8px;
+  border-left: 3px solid var(--color-primary);
+}
+
+.learning__task-resources h4 {
+  margin-top: 0;
+  margin-bottom: var(--spacing-sm);
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.learning__resources-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.learning__resource-item {
+  margin-bottom: 8px;
+}
+
+.learning__resource-item:last-child {
+  margin-bottom: 0;
+}
+
+.learning__resource-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-primary);
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.learning__resource-link::before {
+  content: '';
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234242ea'%3E%3Cpath d='M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm0 2v14h14V5H5zm8 2h2v7h-2V7zm-4 3h2v4H9v-4z'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.learning__resource-link:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+/* Task transition animations */
+@keyframes highlightTask {
+  0% { background-color: var(--color-background-darker); }
+  50% { background-color: var(--color-primary-transparent-light); }
+  100% { background-color: var(--color-primary-transparent); }
+}
+
+/* Message transition animations - removed conflicting styles */
+
+@keyframes fadeInMessage {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading state improvements */
+.learning__message-content--loading {
+  position: relative;
+}
+
+.learning__message-content--loading::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(to right, transparent, var(--color-primary), transparent);
+  animation: loadingPulse 1.5s infinite ease-in-out;
+}
+
+@keyframes loadingPulse {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+
+/* Task navigation indicator */
+.learning__task-navigation {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background-color: var(--color-background-dark);
+  border: 1px solid var(--color-border);
+}
+
+.learning__task-nav-button {
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.learning__task-nav-button:hover:not(:disabled) {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.learning__task-nav-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.learning__task-resources-container {
+  padding: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-background);
+  border-radius: 8px 8px 0 0;
+  position: relative;
+  animation: resourcesHighlight 1.5s ease-in-out;
+}
+
+@keyframes resourcesHighlight {
+  0% { background-color: rgba(var(--color-primary-rgb), 0.15); }
+  70% { background-color: rgba(var(--color-primary-rgb), 0.15); }
+  100% { background-color: var(--color-background); }
+}
+
+.learning__task-resources {
+  margin: var(--spacing-sm) 0;
+  padding: var(--spacing-md);
+  background-color: rgba(var(--color-primary-rgb), 0.08);
+  border-radius: 8px;
+  border-left: 4px solid var(--color-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.learning__task-resources::before {
+  content: none;
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  background-color: var(--color-primary);
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.learning__task-resources-title {
+  margin-top: 0;
+  margin-bottom: var(--spacing-sm);
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.learning__task-resources-intro {
+  margin-top: 0;
+  margin-bottom: var(--spacing-sm);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.learning__task-resources-list {
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.learning__task-resources-group {
+  margin-bottom: var(--spacing-sm);
+}
+
+.learning__task-resources-item {
+  margin-bottom: var(--spacing-xs);
+  transition: transform 0.2s ease;
+}
+
+.learning__task-resources-item:hover {
+  transform: translateX(3px);
+}
+
+.learning__task-resources-item:last-child {
+  margin-bottom: 0;
+}
+
+.learning__task-resources-link {
+  color: var(--color-primary-hover);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 500;
+  transition: color 0.2s ease;
+  padding: 4px 0;
+}
+
+.learning__task-resources-link::before {
+  content: '';
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230078d4'%3E%3Cpath d='M19 19H5V5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.6l-9.8 9.8 1.4 1.4L19 6.4V10h2V3h-7z'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  transition: transform 0.2s ease;
+}
+
+.learning__task-resources-link:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+.learning__task-resources-link:hover::before {
+  transform: translateY(-2px);
+}
+
+.learning__task-resources-type {
+  font-size: 0.75rem;
+  background-color: rgba(var(--color-primary-rgb), 0.1);
+  color: var(--color-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  text-transform: capitalize;
+}
+
+
+.learning__resource-group ul {
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.learning__resource-group li {
+  margin-bottom: 8px;
+  padding-left: 0;
+  position: relative;
+}
+
+.learning__resource-group li a {
+  color: var(--color-primary-hover);
+  text-decoration: none;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+  font-size: 18px;
+  transition: all 0.2s ease;
+  padding: 4px 0;
+}
+
+.learning__resource-group li a:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+  text-shadow: 0 0 1px rgba(var(--color-primary-rgb), 0.3);
+  background-color: rgba(var(--color-primary-rgb), 0.05);
+  border-radius: 4px;
+}
+
+.learning__resource-group li a::before {
+  content: none;
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.learning__resource-group li a[href*=".pdf"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ff4d4f'%3E%3Cpath d='M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z'/%3E%3C/svg%3E");
+}
+
+.learning__resource-group li a[href*="video"]::before,
+.learning__resource-group li a[href*="youtube"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234285f4'%3E%3Cpath d='M10 16.5l6-4.5-6-4.5v9zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z'/%3E%3C/svg%3E");
+}
+
+.learning__resource-group li a[href*="article"]::before,
+.learning__resource-group li a[href*="blog"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2334a853'%3E%3Cpath d='M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z'/%3E%3C/svg%3E");
+}
+
+.learning__resource-group li a[href*="tweet"]::before,
+.learning__resource-group li a[href*="twitter"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231DA1F2'%3E%3Cpath d='M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z'/%3E%3C/svg%3E");
+}
+
+.resource-description {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+  margin-bottom: 0;
+  line-height: 1.4;
+}
+
+/* Modal Styles for DOM-created elements */
+.learning__modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+  backdrop-filter: blur(3px);
+}
+
+.learning__modal {
+  background-color: var(--color-background);
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  animation: slideIn 0.3s ease;
+  border: 1px solid var(--color-border);
+}
+
+.learning__modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.learning__modal-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.learning__modal-close {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.learning__modal-close:hover {
+  color: var(--color-primary);
+}
+
+.learning__modal-body {
+  padding: 20px;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Form Styles */
+.learning__form-group {
+  margin-bottom: 20px;
+}
+
+.learning__form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.learning__input-with-icon {
+  position: relative;
+}
+
+.learning__input-with-icon input {
+  width: 100%;
+  padding: 12px 40px 12px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: var(--color-background-dark);
+  color: var(--color-text-primary);
+}
+
+.learning__input-with-icon input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(66, 66, 234, 0.1);
+}
+
+.learning__input-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  font-size: 16px;
+}
+
+.learning__submission-error {
+  color: #e74c3c;
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: rgba(231, 76, 60, 0.1);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.learning__modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.learning__modal-cancel {
+  padding: 10px 16px;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.learning__modal-cancel:hover {
+  background-color: var(--color-background-darker);
+}
+
+.learning__modal-submit {
+  padding: 10px 16px;
+  background-color: var(--color-primary);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.learning__modal-submit:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.learning__modal-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Empty state styling */
+.learning__empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 80vh;
+  padding: 2rem;
+}
+
+.learning__empty-state h2 {
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.learning__empty-state p {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  color: #666;
+  max-width: 500px;
+}
+
+.learning__back-btn {
+  margin-top: 2rem;
+  padding: 0.75rem 1.5rem;
+  background-color: #4a6cf7;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.learning__back-btn:hover {
+  background-color: #3a5ce5;
+}
+
+.learning__no-tasks {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  padding: 1rem;
+  text-align: center;
+  color: #666;
+  font-size: 1rem;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  margin: 1rem;
+}
+
+/* No content message in Dashboard */
+.no-content-message {
+  color: #666;
+  font-style: italic;
+  padding: 1rem 0;
+}
+
+.no-tasks-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 200px;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.no-tasks-message p {
+  margin: 0.5rem 0;
+  color: #666;
+}
+
+/* Message edit button */
+.learning__message-edit-btn {
+  display: none;
+}
+
+/* Only show edit button on the specific message being hovered */
+.learning__message--user:hover .learning__message-edit-btn {
+  opacity: 1;
+}
+
+/* On touch devices, show the edit button with lower opacity when not hovered */
+@media (hover: none) {
+  .learning__message--user .learning__message-content:active::after {
+    content: "Tap to edit";
+    position: absolute;
+    bottom: -20px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    opacity: 0.9;
+    z-index: 10;
+  }
+  
+  .learning__message--user .learning__message-content:hover::after {
+    /* Hide the hover tooltip on touch devices */
+    display: none;
+  }
+}
+
+/* Edit form */
+.learning__message-edit {
+  width: 100%;
+  padding: 4px 0;
+}
+
+.learning__edit-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 12px;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  background-color: var(--color-background-lighter, #2a2f3e);
+  color: var(--color-text-primary, #ffffff);
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  resize: vertical;
+  margin-bottom: 8px;
+  transition: border-color 0.2s ease;
+}
+
+.learning__edit-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary, #4242ea);
+  box-shadow: 0 0 0 2px rgba(66, 66, 234, 0.2);
+}
+
+.learning__edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.learning__edit-save-btn,
+.learning__edit-cancel-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.learning__edit-save-btn {
+  background-color: var(--color-primary, #4242ea);
+  color: white;
+  border: none;
+}
+
+.learning__edit-save-btn:hover {
+  background-color: var(--color-primary-hover, #5555ff);
+  transform: scale(1.05);
+}
+
+.learning__edit-cancel-btn {
+  background-color: var(--color-background, #212534);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  color: var(--color-text-secondary, #a0a0a0);
+}
+
+.learning__edit-cancel-btn:hover {
+  background-color: var(--color-background-lighter, #2a2f3e);
+  color: var(--color-text-primary, #ffffff);
+  transform: scale(1.05);
+}
+
+.learning__edit-save-btn:disabled,
+.learning__edit-cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Edited indicator */
+.learning__message-edited-indicator {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #a0a0a0);
+  margin-left: 8px;
+  font-style: italic;
+  display: inline-block;
+  margin-top: 4px;
+}
+
+/* Add this class for user messages being edited */
+.learning__message--user .learning__message-edit {
+  position: relative;
+  z-index: 2;
+}
+
+/* Prevent the edit tooltip from showing when any message is being edited */
+.learning__message--user .learning__message-content:hover::after {
+  content: "Click to edit";
+  position: absolute;
+  bottom: -20px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0.9;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 10;
+  display: var(--show-edit-tooltip, block);
+}
+
+/* Custom property to control tooltip visibility based on edit state */
+:root {
+  --show-edit-tooltip: block;
+}
+
+/* When any message is being edited, hide the tooltip globally */
+.learning__messages.has-editing-message .learning__message--user .learning__message-content:hover::after {
+  display: none;
+}
+
+/* When editing a specific message, change its cursor and visual style */
+.learning__message--user.editing .learning__message-content {
+  cursor: default; /* Remove the pointer cursor when in edit mode */
+  box-shadow: 0 0 0 2px var(--color-primary-hover, #5555ff);
+}
+
+/* Stop hover effects on messages while in edit mode */
+.learning__message--user.editing .learning__message-content:hover {
+  transform: none;
+  background-color: var(--color-primary);
+}
+
+/* Add styles for the task complete button */
+/* We've removed the task complete button from the UI */
+/* These styles are kept for reference but are no longer actively used */
+/*
+.learning__task-complete-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background-color: var(--color-primary, #4242ea);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.learning__task-complete-button:hover {
+  background-color: var(--color-primary-hover, #5555ff);
+}
+
+.learning__task-complete-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.learning__task-complete-button.feedback-submitted::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #27ae60;
+  border: 2px solid white;
+}
+*/
+
+/* Add new styles for feedback status */
+.learning__feedback-status {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  font-size: 0.9rem;
+  color: #27ae60;
+  padding: 8px 12px;
+  background-color: rgba(39, 174, 96, 0.1);
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.learning__feedback-status svg {
+  margin-right: 6px;
+  font-size: 1.1rem;
+}
+
+/* Success message styles - still needed for feedback confirmation */
+.learning__success {
+  padding: 10px 16px;
+  margin: 10px 0;
+  background-color: rgba(39, 174, 96, 0.1);
+  color: #27ae60;
+  border-radius: 4px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.learning__success::before {
+  content: '✓';
+  display: inline-block;
+  margin-right: 8px;
+  font-weight: bold;
+}
+
+/* Add feedback prompt styles for Learning component */
+.learning__feedback-prompt {
+  text-align: center;
+  margin: 16px 0;
+  padding: 16px;
+  background-color: rgba(66, 66, 234, 0.1);
+  border-radius: 8px;
+}
+
+.learning__feedback-btn {
+  background-color: var(--color-primary, #4242ea);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.learning__feedback-btn:hover {
+  background-color: var(--color-primary-hover, #5555ff);
+}
+
+/* Peer feedback form container styling */
+.learning__chat-container .peer-feedback {
+  margin-top: 0;
+  position: relative;
+  top: 0;
+  border-radius: 8px;
+  height: auto;
+  max-height: calc(100vh - 120px);
+}
+
+@media (max-width: 768px) {
+  .learning__chat-container .peer-feedback {
+    max-height: calc(100vh - 100px);
+  }
+}
+
+/* Add styles for the larger submission modal */
+.learning__modal--submission {
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.learning__modal--submission .learning__modal-body {
+  padding: 0;
+  overflow-y: auto;
+}
+
+/* Add styles for the historical access banner */
+.learning__historical-banner {
+  background-color: rgba(31, 36, 54, 0.8);
+  color: #e0e0e0;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border-left: 4px solid var(--color-primary, #4242ea);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  line-height: 1.6;
+}
+
+.learning__historical-banner p {
+  margin: 0;
+}
+
+/* Article Summary Button Styles */
+.learning__resource-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.learning__resource-content {
+  flex: 1;
+}
+
+.learning__resource-actions {
+  flex-shrink: 0;
+}
+
+.learning__summary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.learning__summary-btn--generate {
+  background-color: #007bff;
+  color: white;
+}
+
+.learning__summary-btn--generate:hover:not(:disabled) {
+  background-color: #0056b3;
+  transform: translateY(-1px);
+}
+
+.learning__summary-btn--generate:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.learning__summary-btn--view {
+  background-color: #28a745;
+  color: white;
+}
+
+.learning__summary-btn--view:hover {
+  background-color: #1e7e34;
+  transform: translateY(-1px);
+}
+
+.learning__summary-btn svg {
+  font-size: 0.9rem;
+}
+
+/* Responsive adjustments for resource items */
+@media (max-width: 768px) {
+  .learning__resource-item {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .learning__resource-actions {
+    align-self: flex-start;
+  }
+  
+  .learning__summary-btn {
+    font-size: 0.8rem;
+    padding: 5px 10px;
+  }
+}
+
+/* CRITICAL: Fix for formatMessageContent rendering - prevent horizontal overflow */
+
+/* Custom code block elements from formatMessageContent function */
+.code-block-wrapper {
+  margin: 12px 0;
+  /* border-radius: 6px; */
+  /* TEST 1: Aggressive wrapper containment */
+  /* overflow: hidden !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  min-width: 0 !important; */
+}
+
+.code-block-header {
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 8px 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.code-block {
+  background-color: rgba(0, 0, 0, 0.4);
+  padding: 12px;
+  margin: 0;
+  
+  /* TEST 2: Multiple containment strategies for <pre> element */
+  
+  /* Strategy A: Overflow control */
+  /* overflow-x: auto !important; Horizontal scroll within */ 
+  /* overflow-y: hidden !important; /* No vertical scroll */
+  
+  /* Strategy B: Width constraints */
+  /* max-width: 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important; */
+  
+  /* Strategy C: Display and positioning */
+  /* display: block !important;
+  position: relative !important; */
+  
+  /* Strategy D: Text handling */
+  /* white-space: pre !important;
+  /* word-wrap: normal !important; 
+  /* overflow-wrap: normal !important; 
+  /* word-break: normal !important;
+  
+  /* Strategy E: CSS containment */
+  /* contain: layout size; */
+  
+  /* Styling */
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+
+.code-language {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* NEW: CSS for preprocessed code content */
+.code-block-content {
+  background-color: rgba(0, 0, 0, 0.4);
+  padding: 12px;
+  margin: 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  
+  /* FIXED: Only width containment, no height restriction */
+  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  
+  /* Allow text to wrap naturally since we preprocessed it */
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  
+  /* Natural height expansion - show all content */
+  height: auto;
+  min-height: auto;
+  max-height: none;
+  overflow-y: visible;
+  
+  /* Only horizontal overflow control */
+  overflow-x: hidden;
+  
+  /* Create layout context without size restriction */
+  position: relative;
+  isolation: isolate;
+}
+
+/* ReactMarkdown component overrides */
+.markdown-paragraph {
+  /* margin-bottom: 12px; */
+  line-height: 1.6;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  max-width: 100%;
+  margin-bottom: 0px !important;
+}
+
+.markdown-heading {
+  font-weight: 600;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  max-width: 100%;
+}
+
+.markdown-list {
+  margin: 8px 0;
+  padding-left: 20px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  max-width: 100%;
+}
+
+.markdown-list-item {
+  margin: 4px 0;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  max-width: 100%;
+}
+
+.markdown-link {
+  color: #58a6ff;
+  text-decoration: none;
+  transition: text-decoration 0.2s;
+  /* CRITICAL: Force URL breaking */
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-all;
+  max-width: 100%;
+}
+
+.markdown-link:hover {
+  text-decoration: underline;
+}
+
+/* Inline code from ReactMarkdown */
+.inline-code {
+  background-color: rgba(0, 0, 0, 0.3);
+  color: var(--color-text-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-all;
+  max-width: 100%;
+}
+
+/* System and error messages from formatMessageContent */
+.system-message {
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 8px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  max-width: 100%;
+  white-space: pre-wrap;
+  box-sizing: border-box;
+}
+
+.error-message {
+  color: #ff6b6b;
+  background-color: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 14px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  max-width: 100%;
+}
+
+
+/* SURGICAL WIDTH CONTAINMENT: Prevent horizontal expansion of all message content */
+
+/* Force ALL children of message content to respect width boundaries */
+.learning__message-content *,
+.learning__message-content pre,
+.learning__message-content code,
+.learning__message-content p,
+.learning__message-content div,
+.learning__message-content span,
+.learning__message-content a,
+.learning__message-content table {
+  max-width: 100% !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+  box-sizing: border-box !important;
+}
+
+/* Code blocks should scroll internally but stay within bounds */
+.code-block,
+.learning__message-content pre {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  white-space: pre !important;
+  background-color: rgba(0, 0, 0, 0.4);
+  padding: 12px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  box-sizing: border-box !important;
+}
+
+/* Long URLs should break */
+.markdown-link,
+.learning__message-content a {
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  max-width: 100% !important;
+}
+
+/* Inline code should wrap */
+.inline-code,
+.learning__message-content code {
+  word-break: break-all !important;
+  overflow-wrap: break-word !important;
+  max-width: 100% !important;
+}
+
+/* Tables should be contained */
+.learning__message-content table {
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: fixed !important;
+  word-wrap: break-word !important;
+}

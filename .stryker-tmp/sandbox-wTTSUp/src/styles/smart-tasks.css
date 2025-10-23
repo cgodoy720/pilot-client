@@ -1,0 +1,105 @@
+/* Conversation Task Styling */
+
+/* Minimal styling for conversation tasks */
+
+/* Only use the brain icon to distinguish conversation tasks */
+
+/* Add a subtle styling for conversation task icons */
+.task-icon.conversation {
+  color: #1976d2; /* Blue color for brain icon */
+}
+
+/* Add styling for feedback task icons */
+.task-icon.feedback {
+  color: #7c3aed; /* Purple color for clipboard icon */
+}
+
+/* Fix hover state to use the same background color as regular tasks */
+.learning__task-item[data-mode="conversation"]:hover {
+  background-color: var(--color-background-darker, #111827);
+}
+
+/* We don't need to redefine the base avatar styling, just override it for conversation tasks */
+
+/* Override for conversation tasks to use smart-logo.png - maximum specificity */
+.learning__chat-container--conversation .learning__message--assistant::before,
+.past-session .learning__chat-container--conversation .learning__message--assistant::before {
+  background-color: transparent !important;
+  background-image: url("/smart-logo.png") !important;
+  background-size: contain !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* Ensure conversation task messages don't break container width */
+.learning__chat-container--conversation .learning__message-content,
+.past-session .learning__chat-container--conversation .learning__message-content {
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+  overflow-x: hidden !important;
+  min-width: 0 !important;
+}
+
+/* Message styling differences - removed background and border styling */
+
+/* Task type badge */
+.learning__task-type-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.learning__task-type-badge--conversation {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.learning__task-type-badge--basic {
+  background-color: #f5f5f5;
+  color: #666;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .learning__task-mode-indicator {
+    margin-left: 4px;
+    padding: 1px 4px;
+    font-size: 10px;
+  }
+  
+  .learning__progress-indicator {
+    font-size: 12px;
+  }
+  
+  .learning__task-mode-label {
+    display: none; /* Hide on mobile to save space */
+  }
+}
+
+/* Animation for conversation task indicators */
+.learning__task-mode-indicator--conversation {
+  animation: conversationTaskGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes conversationTaskGlow {
+  from {
+    box-shadow: 0 0 5px rgba(25, 118, 210, 0.3);
+  }
+  to {
+    box-shadow: 0 0 10px rgba(25, 118, 210, 0.5);
+  }
+}
+
+/* Disable animation when user prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .learning__task-mode-indicator--conversation {
+    animation: none;
+  }
+}

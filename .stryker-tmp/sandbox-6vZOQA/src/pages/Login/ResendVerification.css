@@ -1,0 +1,159 @@
+.resend-verification-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--color-background-darker, #1a1a1a);
+  padding: 20px;
+}
+
+.resend-verification-form-container {
+  width: 100%;
+  max-width: 500px;
+  background-color: var(--color-background-dark, #2a2a2a);
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  padding: 30px;
+  position: relative;
+}
+
+.resend-verification-logo-container {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.resend-verification-logo {
+  height: 60px;
+}
+
+.resend-verification-headline {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.resend-verification-headline h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--color-text-primary, #f0f0f0);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.resend-verification-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.resend-verification-instructions {
+  margin-bottom: 20px;
+  text-align: center;
+  color: var(--color-text-muted, #a0a0a0);
+  font-size: 1rem;
+}
+
+.resend-verification-input-group {
+  margin-bottom: 20px;
+}
+
+.resend-verification-input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid var(--color-border, #3a3a3a);
+  background-color: var(--color-background-darker, #1a1a1a);
+  color: var(--color-text-primary, #f0f0f0);
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.resend-verification-input:focus {
+  border-color: var(--color-primary, #5f3dc4);
+  outline: none;
+}
+
+.resend-verification-links {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+
+.resend-verification-link {
+  color: var(--color-primary, #5f3dc4);
+  text-decoration: none;
+  margin: 0 10px;
+  font-weight: 500;
+}
+
+.resend-verification-link:hover {
+  text-decoration: underline;
+}
+
+.resend-verification-button {
+  background-color: var(--color-primary, #5f3dc4);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.resend-verification-button:hover {
+  background-color: var(--color-primary-hover, #4c309e);
+}
+
+.resend-verification-button:disabled {
+  background-color: var(--color-disabled, #a695d3);
+  cursor: not-allowed;
+}
+
+.resend-verification-error {
+  color: var(--color-error, #ff6b6b);
+  margin-bottom: 15px;
+  padding: 10px;
+  border-radius: 4px;
+  background-color: rgba(255, 107, 107, 0.1);
+  text-align: center;
+}
+
+.resend-verification-message {
+  color: var(--color-success, #4caf50);
+  margin-bottom: 15px;
+  padding: 10px;
+  border-radius: 4px;
+  background-color: rgba(76, 175, 80, 0.1);
+  text-align: center;
+}
+
+.resend-verification-success {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.resend-verification-success p {
+  margin-bottom: 20px;
+  color: var(--color-success, #4caf50);
+  font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+  .resend-verification-form-container {
+    padding: 20px;
+  }
+  
+  .resend-verification-headline h1 {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .resend-verification-headline h1 {
+    font-size: 1.8rem;
+  }
+  
+  .resend-verification-button {
+    padding: 10px 20px;
+  }
+} 

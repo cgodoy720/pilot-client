@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Define filters for light and dark modes -->
+  <defs>
+    <filter id="blacken">
+      <feColorMatrix type="matrix" values="0 0 0 0 0
+                                           0 0 0 0 0
+                                           0 0 0 0 0
+                                           0 0 0 1 0"/>
+    </filter>
+  </defs>
+  
+  <!-- This SVG wraps your PNG logo in a square container with proper scaling -->
+  <rect width="32" height="32" fill="transparent" />
+  
+  <!-- Embed the PNG with proper scaling to maintain aspect ratio -->
+  <!-- The image is centered, scaled to fit, and filtered to be black -->
+  <image xlink:href="/logo.png" x="4" y="2" width="24" height="28" preserveAspectRatio="xMidYMid meet" filter="url(#blacken)" />
+</svg> 

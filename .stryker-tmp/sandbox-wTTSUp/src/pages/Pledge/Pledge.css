@@ -1,0 +1,845 @@
+/* ===== PLEDGE ROOT CONTAINER OVERRIDE ===== */
+.admissions-dashboard.pledge-page {
+    background: var(--color-background-darker);
+}
+
+.pledge__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 1.2rem;
+  color: var(--color-text-secondary);
+}
+
+/* ===== TOP BAR (MATCHING APPLICANT DASHBOARD) ===== */
+.admissions-dashboard__topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 2rem;
+    background: var(--color-background-dark);
+    width: 100%;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.admissions-dashboard__topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    min-width: 0;
+}
+
+.admissions-dashboard__logo-section {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.admissions-dashboard__logo-full {
+    height: 48px;
+    width: auto;
+    max-width: 180px;
+    object-fit: contain;
+    background: transparent;
+    display: block;
+    cursor: pointer;
+}
+
+.admissions-dashboard__welcome-text {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admissions-dashboard__topbar-right {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.admissions-dashboard__button--primary {
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.2s;
+}
+
+.admissions-dashboard__button--primary:hover {
+    background: var(--color-primary-hover);
+}
+
+.admissions-dashboard__button--secondary {
+    background: transparent;
+    color: var(--color-text-primary);
+    border: 2px solid var(--color-primary);
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.admissions-dashboard__button--secondary:hover {
+    background: var(--color-primary);
+    color: #fff;
+}
+
+/* Navigation links in header */
+.nav-link {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    margin: 0 0.25rem;
+}
+
+.nav-link:hover {
+    color: var(--color-text-primary);
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.nav-link--active {
+    color: var(--color-text-primary);
+    background-color: rgba(255, 255, 255, 0.1);
+    font-weight: 600;
+    position: relative;
+    border: none;
+}
+
+.nav-link--active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 8px;
+    padding: 2px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: xor;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+}
+
+/* ===== MAIN CONTENT ===== */
+.pledge__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  background: var(--color-background-darker);
+  /* padding: 2rem 0; */
+  box-sizing: border-box;
+}
+
+.pledge__content-inner {
+  width: 800px;
+  max-width: 100%;
+  padding: 0 1.5rem;
+  box-sizing: border-box;
+}
+
+/* Responsive fallback for smaller screens */
+@media (max-width: 850px) {
+  .pledge__content-inner {
+    width: 100%;
+    padding: 0 1rem;
+  }
+}
+
+/* Header styles removed - no longer needed */
+
+/* Progress Bar */
+.pledge__progress {
+  margin: 1.5rem 0 2.5rem 0;
+  padding: 0 1rem;
+}
+
+.pledge__progress-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 600px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.pledge__progress-bar::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 8.33%;
+  right: 8.33%;
+  height: 2px;
+  background: var(--color-border);
+  z-index: 1;
+}
+
+.pledge__progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  transition: all 0.3s ease;
+}
+
+.pledge__progress-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(26, 31, 44, 0.8);
+  border: 2px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  transition: all 0.3s ease;
+  margin-bottom: 0.5rem;
+}
+
+.pledge__progress-step.active .pledge__progress-number {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+  transform: scale(1.1);
+}
+
+.pledge__progress-step.completed .pledge__progress-number {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.pledge__progress-step.completed .pledge__progress-number::before {
+  content: '✓';
+  font-size: 0.9rem;
+}
+
+.pledge__progress-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  max-width: 80px;
+  line-height: 1.2;
+  transition: color 0.3s ease;
+}
+
+.pledge__progress-step.active .pledge__progress-label {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.pledge__progress-step.completed .pledge__progress-label {
+  color: var(--color-text-secondary);
+}
+
+/* Step Content */
+.pledge__main {
+  background: var(--color-background-dark);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-border);
+  line-height: 1.6;
+  min-height: 500px;
+  max-height: 600px;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.pledge__step {
+  animation: fadeInSlide 0.4s ease-in-out;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.pledge__step-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.pledge__step-content h2 {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.pledge__intro-text p {
+  margin-bottom: 1rem;
+  color: var(--color-text-secondary);
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.pledge__intro-text p:first-child {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: 1.2rem;
+}
+
+/* Navigation */
+.pledge__navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+  min-height: 80px;
+  box-sizing: border-box;
+}
+
+.pledge__navigation button {
+  min-width: 120px;
+  height: 44px;
+}
+
+.pledge__intro {
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+}
+
+.pledge__intro p {
+  margin-bottom: 1rem;
+}
+
+.pledge__commitments {
+  margin-bottom: 1.5rem;
+}
+
+.pledge__commitments > p {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  color: var(--color-text-secondary);
+}
+
+.pledge__commitment-section {
+  margin-bottom: 1.2rem;
+}
+
+.pledge__commitment-section h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: 0.4rem;
+}
+
+.pledge__commitment-section ul {
+  margin: 0 0 0 1.5rem;
+  padding: 0;
+}
+
+.pledge__commitment-section li {
+  margin-bottom: 0.5rem;
+}
+
+/* Clickable links */
+.code-of-conduct-link,
+.program-details-link {
+  color: #4242ea;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-size: inherit;
+}
+
+.code-of-conduct-link:hover,
+.program-details-link:hover {
+  color: #3333d1;
+}
+
+/* Agreement section with checkbox */
+.pledge__agreement-section {
+  margin: 2rem 0 1rem 0;
+  padding: 1.5rem;
+  background: rgba(26, 31, 44, 0.5);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.pledge__checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+.pledge__checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #4242ea;
+  cursor: pointer;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.pledge__checkbox-text {
+  color: var(--color-text-primary);
+  font-weight: 500;
+  user-select: none;
+}
+
+/* Form Styles */
+.pledge__form {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: rgba(26, 31, 44, 0.5);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.pledge__form h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 1rem;
+}
+
+.pledge__form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.pledge__form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pledge__form-field label {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.pledge__form-field input {
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 1rem;
+  background: var(--color-background-darker);
+  color: var(--color-text-primary);
+  transition: border-color 0.2s ease;
+}
+
+.pledge__form-field input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-transparent);
+}
+
+.pledge__form-field input.invalid {
+  border-color: var(--color-error);
+}
+
+.pledge__form-field input.invalid:focus {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
+}
+
+
+
+/* Date input calendar icon styling */
+.pledge__form-field input[type="date"] {
+  color-scheme: dark;
+  position: relative;
+}
+
+.pledge__form-field input[type="date"]::-webkit-calendar-picker-indicator {
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23ffffff' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5 0zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z'/%3E%3C/svg%3E");
+  cursor: pointer;
+  padding: 4px;
+}
+
+/* Firefox date input styling */
+.pledge__form-field input[type="date"]::-moz-calendar-picker-indicator {
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23ffffff' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5 0zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z'/%3E%3C/svg%3E");
+  cursor: pointer;
+}
+
+.pledge__acknowledgment {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: rgba(26, 31, 44, 0.5);
+  border-radius: 8px;
+  border: 1px solid var(--color-primary);
+}
+
+.pledge__acknowledgment p {
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Signature Section */
+.pledge__signature-section {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: rgba(26, 31, 44, 0.5);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.pledge__signature-field {
+  margin-bottom: 1.5rem;
+}
+
+.pledge__signature-field label {
+  display: block;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.pledge__signature-container {
+  position: relative;
+  display: inline-block;
+}
+
+.pledge__signature-canvas {
+  border: 2px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-background-darker);
+  cursor: crosshair;
+}
+
+.pledge__signature-canvas:hover {
+  border-color: var(--color-primary);
+}
+
+.pledge__clear-signature {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: var(--color-error);
+  color: white;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.pledge__clear-signature:hover {
+  background: #dc2626;
+}
+
+.pledge__actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Buttons */
+.pledge__button--primary,
+.pledge__button--secondary {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
+}
+
+.pledge__button--primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.pledge__button--primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.pledge__button--primary:disabled {
+  background: var(--color-text-muted);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pledge__button--secondary {
+  background: var(--color-background-darker);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.pledge__button--secondary:hover {
+  background: var(--color-background-darker);
+  color: var(--color-text-primary);
+  transform: translateY(-1px);
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal {
+  background: var(--color-background-dark);
+  border-radius: 12px;
+  max-width: 800px;
+  max-height: 90vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.modal-header {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.close-btn:hover {
+  background: var(--color-background-light);
+  color: var(--color-text-primary);
+}
+
+.pledge-modal-content {
+  padding: 1rem;
+  overflow-y: auto;
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  background: inherit; /* Inherit background from parent modal */
+}
+
+.modal-footer {
+  padding: 1.5rem 2rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+/* Program Details Modal */
+.program-details-content {
+  line-height: 1.6;
+  width: 100%;
+  text-align: left;
+}
+
+.program-details-text p {
+  margin-bottom: 0.75rem;
+  text-align: left;
+}
+
+.program-details-text h3 {
+  color: #4242ea;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  text-align: left;
+}
+
+/* Code of Conduct Modal */
+.code-of-conduct-content {
+  line-height: 1.6;
+  width: 100%;
+  text-align: left;
+}
+
+.code-of-conduct-content h3 {
+  color: #4242ea;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  text-align: left;
+}
+
+.code-of-conduct-content p {
+  text-align: left;
+}
+
+.code-of-conduct-content ul {
+  margin: 0.5rem 0 1rem 1.5rem;
+  text-align: left;
+}
+
+.code-of-conduct-content li {
+  margin-bottom: 0.5rem;
+  text-align: left;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .pledge__topbar {
+    padding: 1rem;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .pledge__topbar-left {
+    gap: 1rem;
+  }
+
+  .pledge__welcome-text {
+    font-size: 1rem;
+  }
+
+  .pledge__content {
+    padding: 1rem;
+  }
+
+  .pledge__title {
+    font-size: 2rem;
+  }
+
+  .pledge__subtitle {
+    font-size: 1.5rem;
+  }
+
+  .pledge__main {
+    padding: 1.5rem;
+  }
+
+  .pledge__form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pledge__signature-canvas {
+    width: 100%;
+    max-width: 350px;
+  }
+
+  .pledge__actions {
+    flex-direction: column;
+  }
+
+  .pledge__button--primary,
+  .pledge__button--secondary {
+    width: 100%;
+  }
+
+  .modal {
+    margin: 1rem;
+    max-height: 85vh;
+  }
+
+  .pledge-modal-content {
+    padding: 1.5rem;
+  }
+
+  .modal-header {
+    padding: 1rem 1.5rem;
+  }
+
+  .modal-footer {
+    padding: 1rem 1.5rem;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .pledge__topbar-right {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .pledge__title {
+    font-size: 1.75rem;
+  }
+
+  .pledge__subtitle {
+    font-size: 1.25rem;
+  }
+
+  .pledge__main {
+    padding: 1rem;
+  }
+
+  .pledge__signature-canvas {
+    width: 100%;
+    height: 120px;
+  }
+}

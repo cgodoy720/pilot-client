@@ -1,0 +1,158 @@
+// @ts-nocheck
+function stryNS_9fa48() {
+  var g = typeof globalThis === 'object' && globalThis && globalThis.Math === Math && globalThis || new Function("return this")();
+  var ns = g.__stryker__ || (g.__stryker__ = {});
+  if (ns.activeMutant === undefined && g.process && g.process.env && g.process.env.__STRYKER_ACTIVE_MUTANT__) {
+    ns.activeMutant = g.process.env.__STRYKER_ACTIVE_MUTANT__;
+  }
+  function retrieveNS() {
+    return ns;
+  }
+  stryNS_9fa48 = retrieveNS;
+  return retrieveNS();
+}
+stryNS_9fa48();
+function stryCov_9fa48() {
+  var ns = stryNS_9fa48();
+  var cov = ns.mutantCoverage || (ns.mutantCoverage = {
+    static: {},
+    perTest: {}
+  });
+  function cover() {
+    var c = cov.static;
+    if (ns.currentTestId) {
+      c = cov.perTest[ns.currentTestId] = cov.perTest[ns.currentTestId] || {};
+    }
+    var a = arguments;
+    for (var i = 0; i < a.length; i++) {
+      c[a[i]] = (c[a[i]] || 0) + 1;
+    }
+  }
+  stryCov_9fa48 = cover;
+  cover.apply(null, arguments);
+}
+function stryMutAct_9fa48(id) {
+  var ns = stryNS_9fa48();
+  function isActive(id) {
+    if (ns.activeMutant === id) {
+      if (ns.hitCount !== void 0 && ++ns.hitCount > ns.hitLimit) {
+        throw new Error('Stryker: Hit count limit reached (' + ns.hitCount + ')');
+      }
+      return true;
+    }
+    return false;
+  }
+  stryMutAct_9fa48 = isActive;
+  return isActive(id);
+}
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import pursuitLogoFull from '../../assets/logo-full.png';
+import './ProgramDetails.css';
+const ProgramDetails = () => {
+  if (stryMutAct_9fa48("25624")) {
+    {}
+  } else {
+    stryCov_9fa48("25624");
+    const navigate = useNavigate();
+    const [user, setUser] = useState(null);
+
+    // Load user data from localStorage on mount
+    useEffect(() => {
+      if (stryMutAct_9fa48("25625")) {
+        {}
+      } else {
+        stryCov_9fa48("25625");
+        const savedUser = localStorage.getItem(stryMutAct_9fa48("25626") ? "" : (stryCov_9fa48("25626"), 'user'));
+        if (stryMutAct_9fa48("25628") ? false : stryMutAct_9fa48("25627") ? true : (stryCov_9fa48("25627", "25628"), savedUser)) {
+          if (stryMutAct_9fa48("25629")) {
+            {}
+          } else {
+            stryCov_9fa48("25629");
+            const userData = JSON.parse(savedUser);
+            setUser(userData);
+          }
+        } else {
+          if (stryMutAct_9fa48("25630")) {
+            {}
+          } else {
+            stryCov_9fa48("25630");
+            // Redirect to login if no user data
+            navigate(stryMutAct_9fa48("25631") ? "" : (stryCov_9fa48("25631"), '/login'));
+          }
+        }
+      }
+    }, stryMutAct_9fa48("25632") ? [] : (stryCov_9fa48("25632"), [navigate]));
+    const handleLogout = () => {
+      if (stryMutAct_9fa48("25633")) {
+        {}
+      } else {
+        stryCov_9fa48("25633");
+        localStorage.removeItem(stryMutAct_9fa48("25634") ? "" : (stryCov_9fa48("25634"), 'user'));
+        setUser(null);
+        navigate(stryMutAct_9fa48("25635") ? "" : (stryCov_9fa48("25635"), '/login'));
+      }
+    };
+    const handleBackToDashboard = () => {
+      if (stryMutAct_9fa48("25636")) {
+        {}
+      } else {
+        stryCov_9fa48("25636");
+        navigate(stryMutAct_9fa48("25637") ? "" : (stryCov_9fa48("25637"), '/apply'));
+      }
+    };
+    if (stryMutAct_9fa48("25640") ? false : stryMutAct_9fa48("25639") ? true : stryMutAct_9fa48("25638") ? user : (stryCov_9fa48("25638", "25639", "25640"), !user)) {
+      if (stryMutAct_9fa48("25641")) {
+        {}
+      } else {
+        stryCov_9fa48("25641");
+        return <div className="admissions-dashboard__loading">Loading...</div>;
+      }
+    }
+    return <div className="admissions-dashboard">
+      {/* Top Bar */}
+      <div className="admissions-dashboard__topbar">
+        <div className="admissions-dashboard__topbar-left">
+                  <div className="admissions-dashboard__logo-section">
+          <Link to="/apply">
+            <img src={pursuitLogoFull} alt="Pursuit Logo" className="admissions-dashboard__logo-full" />
+          </Link>
+        </div>
+          <div className="admissions-dashboard__welcome-text">
+            Welcome, {stryMutAct_9fa48("25644") ? user.firstName && user.first_name : stryMutAct_9fa48("25643") ? false : stryMutAct_9fa48("25642") ? true : (stryCov_9fa48("25642", "25643", "25644"), user.firstName || user.first_name)}!
+          </div>
+        </div>
+        <div className="admissions-dashboard__topbar-right">
+          <Link to="/apply" className="nav-link">Apply</Link>
+          <Link to="/program-details" className="nav-link nav-link--active">Details</Link>
+          <button onClick={handleLogout} className="admissions-dashboard__button--primary">
+            Log Out
+          </button>
+        </div>
+      </div>
+
+      {/* Program Description Title and Content Side-by-Side */}
+      <div className="admissions-dashboard__title-section">
+        <h1 className="admissions-dashboard__title">
+        Pursuit AI-Native Program is designed to transform you into an AI-native builder. Learn cutting-edge technologies, build real-world projects, and join a community of builders shaping the future of tech.
+        </h1>
+        
+        {/* Program Details Content - positioned next to title */}
+        <div className="program-details__content">
+          <div className="program-details__text-box">
+            <p>
+              <strong>Start Date:</strong><br />
+              September 6, 2025<br /><br />
+              <strong>Schedule:</strong><br />
+              Mon - Wed: 6:00 - 10:30 PM<br />
+              Sat - Sun: 10:00AM - 6:00 PM<br /><br />
+              <strong>Location:</strong><br />
+              47-10 Austell Pl. Long Island City, NY 11101
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>;
+  }
+};
+export default ProgramDetails;

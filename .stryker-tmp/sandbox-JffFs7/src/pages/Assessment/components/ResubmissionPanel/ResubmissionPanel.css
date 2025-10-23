@@ -1,0 +1,291 @@
+.resubmission-panel {
+  max-width: 800px;
+  margin: 2rem auto 4rem auto;
+  background: var(--color-background);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  overflow: visible;
+  border: 2px solid #f59e0b;
+  min-height: auto;
+  max-height: none;
+}
+
+.resubmission-panel__header {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.resubmission-panel__icon {
+  font-size: 2rem;
+  opacity: 0.9;
+}
+
+.resubmission-panel__title h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.resubmission-panel__subtitle {
+  margin: 0.25rem 0 0 0;
+  opacity: 0.9;
+  font-size: 0.95rem;
+}
+
+.resubmission-panel__content {
+  padding: 2rem;
+  overflow: visible;
+  max-height: none;
+}
+
+.resubmission-panel__message {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.resubmission-panel__message p {
+  margin: 0 0 1rem 0;
+  color: var(--color-text-primary);
+  line-height: 1.6;
+}
+
+.resubmission-panel__message p:last-child {
+  margin-bottom: 0;
+}
+
+.resubmission-panel__deadline {
+  color: #d97706 !important;
+  font-weight: 600;
+}
+
+.resubmission-panel__section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--color-background-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.resubmission-panel__section h3 {
+  margin: 0 0 1rem 0;
+  color: var(--color-text-primary);
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-icon {
+  color: var(--color-primary);
+}
+
+/* File Upload Styles */
+.file-upload-area {
+  position: relative;
+  border: 2px dashed var(--color-border);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  background: var(--color-background);
+  transition: all 0.3s ease;
+}
+
+.file-upload-area:hover {
+  border-color: var(--color-primary);
+  background: var(--color-background-secondary);
+}
+
+.file-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.file-input:disabled {
+  cursor: not-allowed;
+}
+
+.file-upload-text p {
+  margin: 0.5rem 0;
+  color: var(--color-text-primary);
+}
+
+.file-upload-help {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Uploaded Files Display */
+.uploaded-files {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.uploaded-files h4 {
+  margin: 0 0 1rem 0;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+}
+
+.uploaded-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: var(--color-background);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--color-border);
+}
+
+.file-name {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.file-size {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.file-check {
+  color: #10b981;
+  font-size: 1.1rem;
+}
+
+/* Video Input Styles */
+.video-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.video-input-area label {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+}
+
+.video-url-input {
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+  transition: border-color 0.3s ease;
+}
+
+.video-url-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.video-url-input:disabled {
+  background: var(--color-background-secondary);
+  cursor: not-allowed;
+}
+
+.video-input-help {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Action Buttons */
+.resubmission-panel__actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  padding-top: 2rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.resubmission-panel__btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 120px;
+}
+
+.resubmission-panel__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.resubmission-panel__btn--cancel {
+  background: var(--color-background-secondary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.resubmission-panel__btn--cancel:hover:not(:disabled) {
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+.resubmission-panel__btn--submit {
+  background: var(--color-secondary);
+  color: white;
+  border: 1px solid var(--color-secondary);
+}
+
+.resubmission-panel__btn--submit.ready {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.resubmission-panel__btn--submit.ready:hover:not(:disabled) {
+  background: #059669;
+  border-color: #059669;
+  transform: translateY(-1px);
+}
+
+.resubmission-panel__btn--submit.disabled {
+  background: var(--color-background-secondary);
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .resubmission-panel {
+    margin: 1rem;
+    border-radius: 8px;
+  }
+  
+  .resubmission-panel__content {
+    padding: 1.5rem;
+  }
+  
+  .resubmission-panel__section {
+    padding: 1rem;
+  }
+  
+  .resubmission-panel__actions {
+    flex-direction: column-reverse;
+  }
+  
+  .resubmission-panel__btn {
+    width: 100%;
+  }
+}
