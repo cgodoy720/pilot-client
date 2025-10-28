@@ -14,6 +14,7 @@ import BugReportIcon from '@mui/icons-material/BugReport';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import PersonIcon from '@mui/icons-material/Person';
 import GroupsIcon from '@mui/icons-material/Groups';
+import PaymentIcon from '@mui/icons-material/Payment';
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 import logo from '../../assets/logo.png'
@@ -95,6 +96,11 @@ const Layout = ({ children }) => {
           <Link to="/stats" className={`layout__nav-item ${location.pathname === '/stats' ? 'layout__nav-item--active' : ''}`}>
             <AssessmentIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">My Progress</span>}
+          </Link>
+          
+          <Link to="/payment" className={`layout__nav-item ${location.pathname === '/payment' ? 'layout__nav-item--active' : ''}`}>
+            <PaymentIcon className="layout__nav-icon" />
+            {isExpanded && <span className="layout__nav-text">Payment</span>}
           </Link>
           
           {isAdmin && (

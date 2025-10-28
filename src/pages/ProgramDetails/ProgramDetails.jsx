@@ -77,6 +77,11 @@ const ProgramDetails = () => {
               <strong>Location:</strong><br/>
               47-10 Austell Pl. Long Island City, NY 11101
             </p>
+            <p>
+              <strong>Payment Terms:</strong><br/>
+              Review how your payments are structured, including deposits, installments, and due dates. 
+              <Link className="program-details__link" to="/payment-terms">View Payment Structure Terms</Link>
+            </p>
           </div>
         </div>
       </div>

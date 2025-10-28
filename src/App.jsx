@@ -13,6 +13,7 @@ import Content from './pages/Content';
 import FacilitatorView from './pages/FacilitatorView';
 import Stats from './pages/Stats';
 import Account from './pages/Account/Account';
+import Payment from './pages/Payment/Payment';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
 
 import { useAuth } from './context/AuthContext';
@@ -193,6 +194,11 @@ function App() {
         <Route path="/account" element={
           <Layout>
             <Account />
+          </Layout>
+        } />
+        <Route path="/payment" element={
+          <Layout>
+            <Payment />
           </Layout>
         } />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
