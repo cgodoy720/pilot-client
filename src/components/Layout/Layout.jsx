@@ -185,10 +185,10 @@ const Layout = ({ children }) => {
             <DarkModeIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Theme</span>}
           </a> */}
-          <Link to="/account" className={`layout__nav-item ${location.pathname === '/account' ? 'layout__nav-item--active' : ''}`}>
+          {/* <Link to="/account" className={`layout__nav-item ${location.pathname === '/account' ? 'layout__nav-item--active' : ''}`}>
             <PersonIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Account</span>}
-          </Link>
+          </Link> */}
           <button onClick={handleLogout} className="layout__nav-item layout__logout-btn">
             <LogoutIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Logout</span>}
