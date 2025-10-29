@@ -753,7 +753,7 @@ function Learning() {
   // Helper function to check if current task is a feedback slot
   const isCurrentTaskFeedbackSlot = () => {
     if (!tasks.length || currentTaskIndex >= tasks.length) return false;
-    return tasks[currentTaskIndex].feedback_slot === true;
+    return !!tasks[currentTaskIndex].feedback_slot;
   };
 
   // Modify the markTaskAsCompleted function to not handle peer feedback
@@ -1918,6 +1918,7 @@ function Learning() {
               taskId={tasks[currentTaskIndex].id}
               dayNumber={currentDay?.day_number}
               cohort={cohort}
+              surveyType={tasks[currentTaskIndex].feedback_slot}
               onComplete={handleBuilderFeedbackComplete}
             />
           ) : (

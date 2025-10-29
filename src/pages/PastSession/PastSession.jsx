@@ -1676,6 +1676,7 @@ function PastSession() {
               taskId={tasks[currentTaskIndex].id}
               dayNumber={daySchedule?.day?.day_number || dayNumber}
               cohort={cohort}
+              surveyType={tasks[currentTaskIndex].feedback_slot}
               onComplete={() => {
                 // Optional: Add any completion logic here
                 console.log('Builder feedback completed');

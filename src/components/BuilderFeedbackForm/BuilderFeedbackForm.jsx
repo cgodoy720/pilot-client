@@ -4,18 +4,34 @@ import { useAuth } from '../../context/AuthContext';
 import Swal from 'sweetalert2';
 import './BuilderFeedbackForm.css';
 
-const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, onComplete, onCancel }) => {
+const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onComplete, onCancel }) => {
   const { token, user } = useAuth();
   const isActive = user?.active !== false;
 
+  // Determine initial form state based on survey type
+  const getInitialFormData = () => {
+    if (surveyType === 'l1_final') {
+      return {
+        ai_experience_before: '',
+        ai_literacy_agreement: '',
+        explain_ai_confidence: '',
+        build_ai_confidence: '',
+        ai_literate_meaning: '',
+        referral_likelihood: ''
+      };
+    }
+    // Default to weekly survey fields
+    return {
+      referral_likelihood: '',
+      what_we_did_well: '',
+      what_to_improve: '',
+      tools_used: '',
+      programming_languages: ''
+    };
+  };
+
   // Form state
-  const [formData, setFormData] = useState({
-    referral_likelihood: '',
-    what_we_did_well: '',
-    what_to_improve: '',
-    tools_used: '',
-    programming_languages: ''
-  });
+  const [formData, setFormData] = useState(getInitialFormData());
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
@@ -43,13 +59,27 @@ const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, onComplete, onCancel }
           const data = await response.json();
           if (data.feedback) {
             setExistingFeedback(data.feedback);
-            setFormData({
-              referral_likelihood: data.feedback.referral_likelihood?.toString() || '',
-              what_we_did_well: data.feedback.what_we_did_well || '',
-              what_to_improve: data.feedback.what_to_improve || '',
-              tools_used: data.feedback.tools_used || '',
-              programming_languages: data.feedback.programming_languages || ''
-            });
+            
+            // Populate form data based on survey type
+            if (surveyType === 'l1_final') {
+              setFormData({
+                ai_experience_before: data.feedback.ai_experience_before?.toString() || '',
+                ai_literacy_agreement: data.feedback.ai_literacy_agreement || '',
+                explain_ai_confidence: data.feedback.explain_ai_confidence?.toString() || '',
+                build_ai_confidence: data.feedback.build_ai_confidence?.toString() || '',
+                ai_literate_meaning: data.feedback.ai_literate_meaning || '',
+                referral_likelihood: data.feedback.referral_likelihood?.toString() || ''
+              });
+            } else {
+              setFormData({
+                referral_likelihood: data.feedback.referral_likelihood?.toString() || '',
+                what_we_did_well: data.feedback.what_we_did_well || '',
+                what_to_improve: data.feedback.what_to_improve || '',
+                tools_used: data.feedback.tools_used || '',
+                programming_languages: data.feedback.programming_languages || ''
+              });
+            }
+            
             setIsSubmitted(true);
             setSubmittedAt(data.feedback.created_at);
           }
@@ -65,7 +95,7 @@ const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, onComplete, onCancel }
     };
 
     loadExistingFeedback();
-  }, [taskId, token]);
+  }, [taskId, token, surveyType]);
 
   // Handle form input changes
   const handleInputChange = (field, value) => {
@@ -88,17 +118,29 @@ const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, onComplete, onCancel }
       return 'Please select a referral likelihood between 1 and 10';
     }
 
-    // Check that at least one text field is filled
-    const textFields = [
-      formData.what_we_did_well,
-      formData.what_to_improve,
-      formData.tools_used,
-      formData.programming_languages
-    ];
-    
-    const hasTextContent = textFields.some(field => field && field.trim().length > 0);
-    if (!hasTextContent) {
-      return 'Please fill out at least one of the text fields';
+    // Check that at least one field is filled based on survey type
+    if (surveyType === 'l1_final') {
+      // L1 survey validation
+      const hasL1Numbers = formData.ai_experience_before || formData.explain_ai_confidence || formData.build_ai_confidence;
+      const hasL1Agreement = formData.ai_literacy_agreement && formData.ai_literacy_agreement.length > 0;
+      const hasL1Text = formData.ai_literate_meaning && formData.ai_literate_meaning.trim().length > 0;
+      
+      if (!hasL1Numbers && !hasL1Agreement && !hasL1Text) {
+        return 'Please fill out at least one of the survey fields';
+      }
+    } else {
+      // Weekly survey validation
+      const textFields = [
+        formData.what_we_did_well,
+        formData.what_to_improve,
+        formData.tools_used,
+        formData.programming_languages
+      ];
+      
+      const hasTextContent = textFields.some(field => field && field.trim().length > 0);
+      if (!hasTextContent) {
+        return 'Please fill out at least one of the text fields';
+      }
     }
 
     return null;
@@ -169,10 +211,17 @@ const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, onComplete, onCancel }
       const submitData = {
         taskId: parseInt(taskId),
         referral_likelihood: parseInt(formData.referral_likelihood),
-        what_we_did_well: formData.what_we_did_well.trim() || null,
-        what_to_improve: formData.what_to_improve.trim() || null,
-        tools_used: formData.tools_used.trim() || null,
-        programming_languages: formData.programming_languages.trim() || null,
+        // Weekly survey fields
+        what_we_did_well: formData.what_we_did_well?.trim() || null,
+        what_to_improve: formData.what_to_improve?.trim() || null,
+        tools_used: formData.tools_used?.trim() || null,
+        programming_languages: formData.programming_languages?.trim() || null,
+        // L1 survey fields
+        ai_experience_before: formData.ai_experience_before ? parseInt(formData.ai_experience_before) : null,
+        ai_literacy_agreement: formData.ai_literacy_agreement || null,
+        explain_ai_confidence: formData.explain_ai_confidence ? parseInt(formData.explain_ai_confidence) : null,
+        build_ai_confidence: formData.build_ai_confidence ? parseInt(formData.build_ai_confidence) : null,
+        ai_literate_meaning: formData.ai_literate_meaning?.trim() || null,
         dayNumber,
         cohort
       };
@@ -232,110 +281,138 @@ const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, onComplete, onCancel }
     );
   };
 
-  if (isLoading) {
+  // Render 1-5 rating scale for L1 survey
+  const render1to5Scale = (fieldName) => {
     return (
-      <div className="builder-feedback builder-feedback--loading">
-        <div className="builder-feedback__loading">
-          <FaSpinner className="builder-feedback__loading-icon" />
-          <p>Loading feedback form...</p>
-        </div>
+      <div className="builder-feedback__rating-scale">
+        {[1, 2, 3, 4, 5].map(num => (
+          <button
+            key={num}
+            type="button"
+            className={`builder-feedback__rating-button ${
+              formData[fieldName] === num.toString() ? 'builder-feedback__rating-button--selected' : ''
+            }`}
+            onClick={() => handleInputChange(fieldName, num.toString())}
+            disabled={!isActive || isSubmitting}
+          >
+            {num}
+          </button>
+        ))}
       </div>
     );
-  }
+  };
 
-  if (success) {
+  // Render agreement scale buttons
+  const renderAgreementScale = () => {
+    const options = [
+      { value: 'strongly_agree', label: 'I strongly agree' },
+      { value: 'agree', label: 'I agree' },
+      { value: 'disagree', label: 'I disagree' },
+      { value: 'strongly_disagree', label: 'I strongly disagree' },
+      { value: 'not_sure', label: "I'm not sure" }
+    ];
+
     return (
-      <div className="builder-feedback builder-feedback--success">
-        <div className="builder-feedback__success">
-          <FaCheckCircle className="builder-feedback__success-icon" />
-          <h2>Thank you for your feedback!</h2>
-          <p>Your response has been {existingFeedback ? 'updated' : 'submitted'} successfully.</p>
-        </div>
+      <div className="builder-feedback__options-list">
+        {options.map(option => (
+          <button
+            key={option.value}
+            type="button"
+            className={`builder-feedback__option-button ${
+              formData.ai_literacy_agreement === option.value ? 'builder-feedback__option-button--selected' : ''
+            }`}
+            onClick={() => handleInputChange('ai_literacy_agreement', option.value)}
+            disabled={!isActive || isSubmitting}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
     );
-  }
+  };
 
-  // Show read-only view if feedback has been submitted
-  if (isSubmitted && existingFeedback) {
+  // Render L1 Final Survey Questions
+  const renderL1SurveyQuestions = () => {
     return (
-      <div className="builder-feedback builder-feedback--readonly">
-        <div className="builder-feedback__header">
-          <FaEye className="builder-feedback__icon" />
-          <h2 className="builder-feedback__title">Feedback Submitted</h2>
-          <p className="builder-feedback__subtitle">
-            Your feedback has been captured and locked. This preserves your moment-in-time perspective.
-          </p>
-          {submittedAt && (
-            <p className="builder-feedback__submitted-date">
-              Submitted on {new Date(submittedAt).toLocaleDateString()} at {new Date(submittedAt).toLocaleTimeString()}
-            </p>
-          )}
-        </div>
-        
-        <div className="builder-feedback__form">
-          <div className="builder-feedback__form-group">
-            <label className="builder-feedback__label">How likely are you to refer this pilot to someone you know?</label>
-            <div className="builder-feedback__rating-container">
-              <span className="builder-feedback__rating-label">Not likely</span>
-              <div className="builder-feedback__rating-scale">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                  <div
-                    key={num}
-                    className={`builder-feedback__rating-display ${
-                      formData.referral_likelihood === num.toString() ? 'builder-feedback__rating-display--selected' : ''
-                    }`}
-                  >
-                    {num}
-                  </div>
-                ))}
-              </div>
-              <span className="builder-feedback__rating-label">Very likely</span>
-            </div>
-          </div>
-
-          <div className="builder-feedback__form-group">
-            <label className="builder-feedback__label">What did we do well?</label>
-            <div className="builder-feedback__readonly-text">
-              {formData.what_we_did_well || <em>No response provided</em>}
-            </div>
-          </div>
-
-          <div className="builder-feedback__form-group">
-            <label className="builder-feedback__label">What do we need to improve on?</label>
-            <div className="builder-feedback__readonly-text">
-              {formData.what_to_improve || <em>No response provided</em>}
-            </div>
-          </div>
-
-          <div className="builder-feedback__form-group">
-            <label className="builder-feedback__label">What tools did you use this week?</label>
-            <div className="builder-feedback__readonly-text">
-              {formData.tools_used || <em>No response provided</em>}
-            </div>
-          </div>
-
-          <div className="builder-feedback__form-group">
-            <label className="builder-feedback__label">What programming languages did you work with this week?</label>
-            <div className="builder-feedback__readonly-text">
-              {formData.programming_languages || <em>No response provided</em>}
-            </div>
+      <>
+        {/* AI Experience Before */}
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">
+            On a scale of 1–5, please rate your experience with AI prior to starting the program. *
+          </label>
+          <div className="builder-feedback__rating-container">
+            <span className="builder-feedback__rating-label">Little to no experience with AI</span>
+            {render1to5Scale('ai_experience_before')}
+            <span className="builder-feedback__rating-label">AI expert</span>
           </div>
         </div>
-      </div>
+
+        {/* AI Literacy Agreement */}
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">
+            One of the goals of L1 was to help participants build AI literacy skills. To what extent do you agree that you developed these skills?
+          </label>
+          {renderAgreementScale()}
+        </div>
+
+        {/* Explain AI Confidence */}
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">
+            On a scale of 1–5, how confident are you now in your ability to explain how AI systems work (e.g. LLMs, prompts)? *
+          </label>
+          <div className="builder-feedback__rating-container">
+            <span className="builder-feedback__rating-label">Not confident</span>
+            {render1to5Scale('explain_ai_confidence')}
+            <span className="builder-feedback__rating-label">Very confident</span>
+          </div>
+        </div>
+
+        {/* Build AI Confidence */}
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">
+            I can now confidently build an AI-powered app or product idea using the tools and/or methods introduced in this program? *
+          </label>
+          <div className="builder-feedback__rating-container">
+            <span className="builder-feedback__rating-label">Not confident</span>
+            {render1to5Scale('build_ai_confidence')}
+            <span className="builder-feedback__rating-label">Very confident</span>
+          </div>
+        </div>
+
+        {/* AI Literate Meaning */}
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">
+            In your own words, what does it mean to be "AI literate"? Do you feel that you are now? Why or why not? *
+          </label>
+          <textarea
+            className="builder-feedback__textarea"
+            rows="6"
+            value={formData.ai_literate_meaning}
+            onChange={(e) => handleInputChange('ai_literate_meaning', e.target.value)}
+            placeholder="Share your thoughts on AI literacy and your development..."
+            disabled={!isActive || isSubmitting}
+          />
+        </div>
+
+        {/* Referral Likelihood */}
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">
+            How likely are you to refer this program to someone you know? *
+          </label>
+          <div className="builder-feedback__rating-container">
+            <span className="builder-feedback__rating-label">Not at all likely</span>
+            {renderRatingScale()}
+            <span className="builder-feedback__rating-label">Very likely</span>
+          </div>
+        </div>
+      </>
     );
-  }
+  };
 
-  return (
-    <div className="builder-feedback">
-      <div className="builder-feedback__header">
-        <FaClipboardList className="builder-feedback__icon" />
-        <h2 className="builder-feedback__title">Weekly Builder Feedback</h2>
-        <p className="builder-feedback__subtitle">
-          Help us improve your experience by sharing your thoughts from this week.
-        </p>
-      </div>
-
-      <form className="builder-feedback__form" onSubmit={handleSubmit}>
+  // Render Weekly Survey Questions
+  const renderWeeklySurveyQuestions = () => {
+    return (
+      <>
         {/* Referral Likelihood */}
         <div className="builder-feedback__form-group">
           <label className="builder-feedback__label" htmlFor="referral_likelihood">
@@ -411,6 +488,241 @@ const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, onComplete, onCancel }
             disabled={!isActive || isSubmitting}
           />
         </div>
+      </>
+    );
+  };
+
+  // Render L1 readonly view
+  const renderL1ReadonlyView = () => {
+    const getAgreementLabel = (value) => {
+      const labels = {
+        'strongly_agree': 'I strongly agree',
+        'agree': 'I agree',
+        'disagree': 'I disagree',
+        'strongly_disagree': 'I strongly disagree',
+        'not_sure': "I'm not sure"
+      };
+      return labels[value] || value;
+    };
+
+    return (
+      <>
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">AI Experience Before Program</label>
+          <div className="builder-feedback__rating-container">
+            <span className="builder-feedback__rating-label">Little to no experience</span>
+            <div className="builder-feedback__rating-scale">
+              {[1, 2, 3, 4, 5].map(num => (
+                <div
+                  key={num}
+                  className={`builder-feedback__rating-display ${
+                    formData.ai_experience_before === num.toString() ? 'builder-feedback__rating-display--selected' : ''
+                  }`}
+                >
+                  {num}
+                </div>
+              ))}
+            </div>
+            <span className="builder-feedback__rating-label">AI expert</span>
+          </div>
+        </div>
+
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">AI Literacy Skills Development</label>
+          <div className="builder-feedback__readonly-text">
+            {getAgreementLabel(formData.ai_literacy_agreement) || <em>No response provided</em>}
+          </div>
+        </div>
+
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">Confidence Explaining AI Systems</label>
+          <div className="builder-feedback__rating-container">
+            <span className="builder-feedback__rating-label">Not confident</span>
+            <div className="builder-feedback__rating-scale">
+              {[1, 2, 3, 4, 5].map(num => (
+                <div
+                  key={num}
+                  className={`builder-feedback__rating-display ${
+                    formData.explain_ai_confidence === num.toString() ? 'builder-feedback__rating-display--selected' : ''
+                  }`}
+                >
+                  {num}
+                </div>
+              ))}
+            </div>
+            <span className="builder-feedback__rating-label">Very confident</span>
+          </div>
+        </div>
+
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">Confidence Building AI Products</label>
+          <div className="builder-feedback__rating-container">
+            <span className="builder-feedback__rating-label">Not confident</span>
+            <div className="builder-feedback__rating-scale">
+              {[1, 2, 3, 4, 5].map(num => (
+                <div
+                  key={num}
+                  className={`builder-feedback__rating-display ${
+                    formData.build_ai_confidence === num.toString() ? 'builder-feedback__rating-display--selected' : ''
+                  }`}
+                >
+                  {num}
+                </div>
+              ))}
+            </div>
+            <span className="builder-feedback__rating-label">Very confident</span>
+          </div>
+        </div>
+
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">What AI Literacy Means to You</label>
+          <div className="builder-feedback__readonly-text">
+            {formData.ai_literate_meaning || <em>No response provided</em>}
+          </div>
+        </div>
+
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">Program Referral Likelihood</label>
+          <div className="builder-feedback__rating-container">
+            <span className="builder-feedback__rating-label">Not at all likely</span>
+            <div className="builder-feedback__rating-scale">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                <div
+                  key={num}
+                  className={`builder-feedback__rating-display ${
+                    formData.referral_likelihood === num.toString() ? 'builder-feedback__rating-display--selected' : ''
+                  }`}
+                >
+                  {num}
+                </div>
+              ))}
+            </div>
+            <span className="builder-feedback__rating-label">Very likely</span>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Render weekly readonly view
+  const renderWeeklyReadonlyView = () => {
+    return (
+      <>
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">How likely are you to refer this pilot to someone you know?</label>
+          <div className="builder-feedback__rating-container">
+            <span className="builder-feedback__rating-label">Not likely</span>
+            <div className="builder-feedback__rating-scale">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                <div
+                  key={num}
+                  className={`builder-feedback__rating-display ${
+                    formData.referral_likelihood === num.toString() ? 'builder-feedback__rating-display--selected' : ''
+                  }`}
+                >
+                  {num}
+                </div>
+              ))}
+            </div>
+            <span className="builder-feedback__rating-label">Very likely</span>
+          </div>
+        </div>
+
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">What did we do well?</label>
+          <div className="builder-feedback__readonly-text">
+            {formData.what_we_did_well || <em>No response provided</em>}
+          </div>
+        </div>
+
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">What do we need to improve on?</label>
+          <div className="builder-feedback__readonly-text">
+            {formData.what_to_improve || <em>No response provided</em>}
+          </div>
+        </div>
+
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">What tools did you use this week?</label>
+          <div className="builder-feedback__readonly-text">
+            {formData.tools_used || <em>No response provided</em>}
+          </div>
+        </div>
+
+        <div className="builder-feedback__form-group">
+          <label className="builder-feedback__label">What programming languages did you work with this week?</label>
+          <div className="builder-feedback__readonly-text">
+            {formData.programming_languages || <em>No response provided</em>}
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="builder-feedback builder-feedback--loading">
+        <div className="builder-feedback__loading">
+          <FaSpinner className="builder-feedback__loading-icon" />
+          <p>Loading feedback form...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (success) {
+    return (
+      <div className="builder-feedback builder-feedback--success">
+        <div className="builder-feedback__success">
+          <FaCheckCircle className="builder-feedback__success-icon" />
+          <h2>Thank you for your feedback!</h2>
+          <p>Your response has been {existingFeedback ? 'updated' : 'submitted'} successfully.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show read-only view if feedback has been submitted
+  if (isSubmitted && existingFeedback) {
+    return (
+      <div className="builder-feedback builder-feedback--readonly">
+        <div className="builder-feedback__header">
+          <FaEye className="builder-feedback__icon" />
+          <h2 className="builder-feedback__title">Feedback Submitted</h2>
+          <p className="builder-feedback__subtitle">
+            Your feedback has been captured and locked. This preserves your moment-in-time perspective.
+          </p>
+          {submittedAt && (
+            <p className="builder-feedback__submitted-date">
+              Submitted on {new Date(submittedAt).toLocaleDateString()} at {new Date(submittedAt).toLocaleTimeString()}
+            </p>
+          )}
+        </div>
+        
+        <div className="builder-feedback__form">
+          {surveyType === 'l1_final' ? renderL1ReadonlyView() : renderWeeklyReadonlyView()}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="builder-feedback">
+      <div className="builder-feedback__header">
+        <FaClipboardList className="builder-feedback__icon" />
+        <h2 className="builder-feedback__title">
+          {surveyType === 'l1_final' ? 'Level 1 Final Assessment' : 'Weekly Builder Feedback'}
+        </h2>
+        <p className="builder-feedback__subtitle">
+          {surveyType === 'l1_final' 
+            ? 'Help us understand your learning journey and growth through Level 1.'
+            : 'Help us improve your experience by sharing your thoughts from this week.'
+          }
+        </p>
+      </div>
+
+      <form className="builder-feedback__form" onSubmit={handleSubmit}>
+        {surveyType === 'l1_final' ? renderL1SurveyQuestions() : renderWeeklySurveyQuestions()}
 
         {/* Error message */}
         {error && (
