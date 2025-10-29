@@ -120,6 +120,45 @@
   transform: none;
 }
 
+/* Options List (for agreement scale, etc.) */
+.builder-feedback__options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.builder-feedback__option-button {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background-dark);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.builder-feedback__option-button:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-background-darker);
+  transform: translateX(4px);
+}
+
+.builder-feedback__option-button--selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: white;
+}
+
+.builder-feedback__option-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* Text Areas */
 .builder-feedback__textarea {
   width: 100%;
