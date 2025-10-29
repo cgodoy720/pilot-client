@@ -25,6 +25,7 @@ function Learning() {
   const [error, setError] = useState('');
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isMessagesLoading, setIsMessagesLoading] = useState(false);
+  const [hasInitialMessage, setHasInitialMessage] = useState(false);
   
   // Check if user has active status
   const isActive = user?.active !== false;
@@ -107,6 +108,9 @@ function Learning() {
     // Generate a unique timestamp for this fetch
     const fetchTimestamp = Date.now();
     fetchTaskMessages.lastFetchTimestamp = fetchTimestamp;
+    
+    // Reset initial message flag when loading new task
+    setHasInitialMessage(false);
     
     try {
       // Clear any previous error
@@ -204,6 +208,8 @@ function Learning() {
         console.log(`Filtered out ${formattedMessages.length - filteredMessages.length} system metadata messages`);
         
         setMessages(filteredMessages);
+        // Mark that we have the initial message (existing messages mean task is ready)
+        setHasInitialMessage(true);
         console.log(`Displayed ${filteredMessages.length} messages`);
       } else {
         // No existing messages, send initial 'start' message
@@ -279,6 +285,7 @@ function Learning() {
               content: 'Starting conversation...',
               role: 'system'
             }]);
+            setHasInitialMessage(false); // System message doesn't count as initial message
           } else {
             // Display the assistant's response
             setMessages([{
@@ -287,6 +294,8 @@ function Learning() {
               role: messageData.role,
               timestamp: messageData.timestamp
             }]);
+            // Mark that we have the initial message from AI
+            setHasInitialMessage(true);
           }
           
           console.log(`Displayed initial assistant message`);
@@ -2060,10 +2069,11 @@ function Learning() {
                   onChange={handleTextareaChange}
                   placeholder={
                     workshopInfo?.isLocked ? "Workshop tasks locked until start date" :
-                    !isActive ? "Historical view only" : 
+                    !isActive ? "Historical view only" :
+                    !hasInitialMessage ? "Loading task..." :
                     (isSending ? "Sending..." : "Type your message...")
                   }
-                  disabled={workshopInfo?.isLocked || !isActive || isSending || isAiThinking}
+                  disabled={workshopInfo?.isLocked || !isActive || !hasInitialMessage || isSending || isAiThinking}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey && !workshopInfo?.isLocked) {
                       e.preventDefault();
@@ -2102,7 +2112,7 @@ function Learning() {
                 <button 
                   className="learning__send-btn" 
                   type="submit" 
-                  disabled={workshopInfo?.isLocked || !isActive || !newMessage.trim() || isSending || isAiThinking}
+                  disabled={workshopInfo?.isLocked || !isActive || !hasInitialMessage || !newMessage.trim() || isSending || isAiThinking}
                 >
                   {isSending ? "Sending..." : <FaPaperPlane />}
                 </button>

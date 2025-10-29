@@ -6,6 +6,7 @@ import './Signup.css';
 
 const Signup = () => {
   const [userType, setUserType] = useState(''); // 'builder', 'applicant', or 'workshop'
+  const [isReturningWorkshopUser, setIsReturningWorkshopUser] = useState(false); // For returning workshop participants
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -28,7 +29,7 @@ const Signup = () => {
   });
   
   const navigate = useNavigate();
-  const { signup, isAuthenticated } = useAuth();
+  const { signup, isAuthenticated, setAuthState } = useAuth();
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -67,12 +68,15 @@ const Signup = () => {
       return;
     }
     
-    // Check if all password validations pass
-    const allValidationsPass = Object.values(passwordValidation).every(value => value);
-    
-    if (!allValidationsPass) {
-      setError('Please ensure your password meets all requirements');
-      return;
+    // Skip password validation for returning workshop users (simpler form)
+    if (!isReturningWorkshopUser) {
+      // Check if all password validations pass
+      const allValidationsPass = Object.values(passwordValidation).every(value => value);
+      
+      if (!allValidationsPass) {
+        setError('Please ensure your password meets all requirements');
+        return;
+      }
     }
     
     setIsSubmitting(true);
@@ -110,36 +114,64 @@ const Signup = () => {
 
         if (response.ok) {
           setRegistrationComplete(true);
-          setSuccessMessage('Applicant account created successfully! You can now log in to access the admissions portal.');
+          setSuccessMessage(data.message || 'Account created successfully! Please check your email to verify your account before logging in.');
         } else {
           setError(data.error || data.message || 'Failed to create account');
         }
       } else if (userType === 'workshop') {
-        // Create workshop participant account
-        endpoint = `${import.meta.env.VITE_API_URL}/api/workshop/access`;
-        requestBody = {
-          access_code: accessCode,
-          first_name: firstName,
-          last_name: lastName,
-          email,
-          password
-        };
-        
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
+        if (isReturningWorkshopUser) {
+          // Login returning workshop participant
+          endpoint = `${import.meta.env.VITE_API_URL}/api/workshop/login-returning`;
+          requestBody = {
+            access_code: accessCode,
+            email,
+            password
+          };
+          
+          response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+          });
 
-        const data = await response.json();
+          const data = await response.json();
 
-        if (response.ok) {
-          setRegistrationComplete(true);
-          setSuccessMessage('Workshop account created successfully! Please check your email to verify your account before logging in.');
+          if (response.ok) {
+            // Set auth state and redirect
+            setAuthState(data.user, data.token);
+            navigate(data.redirectTo || '/dashboard');
+          } else {
+            setError(data.error || 'Failed to log in');
+          }
         } else {
-          setError(data.error || 'Failed to create workshop account');
+          // Create workshop participant account
+          endpoint = `${import.meta.env.VITE_API_URL}/api/workshop/access`;
+          requestBody = {
+            access_code: accessCode,
+            first_name: firstName,
+            last_name: lastName,
+            email,
+            password
+          };
+          
+          response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            setRegistrationComplete(true);
+            setSuccessMessage('Workshop account created successfully! Please check your email to verify your account before logging in.');
+          } else {
+            setError(data.error || 'Failed to create workshop account');
+          }
         }
       }
     } catch (err) {
@@ -276,29 +308,34 @@ const Signup = () => {
               </div>
             )}
             
-            <div className="signup-input-group">
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="First Name"
-                required
-                className="signup-input"
-                disabled={isSubmitting}
-              />
-            </div>
-            
-            <div className="signup-input-group">
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Last Name"
-                required
-                className="signup-input"
-                disabled={isSubmitting}
-              />
-            </div>
+            {/* Show name fields only for NEW workshop participants */}
+            {!(userType === 'workshop' && isReturningWorkshopUser) && (
+              <>
+                <div className="signup-input-group">
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="First Name"
+                    required
+                    className="signup-input"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                
+                <div className="signup-input-group">
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Last Name"
+                    required
+                    className="signup-input"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </>
+            )}
             
             <div className="signup-input-group">
               <input
@@ -333,20 +370,23 @@ const Signup = () => {
               </button>
             </div>
             
-            <div className="signup-input-group">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm Password"
-                required
-                className="signup-input"
-                disabled={isSubmitting}
-              />
-            </div>
+            {/* Confirm password field - not needed for returning workshop users */}
+            {!(userType === 'workshop' && isReturningWorkshopUser) && (
+              <div className="signup-input-group">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm Password"
+                  required
+                  className="signup-input"
+                  disabled={isSubmitting}
+                />
+              </div>
+            )}
             
-            {/* Password validation feedback - only show when password field is focused or has content */}
-            {(isPasswordFocused || password.length > 0) && (
+            {/* Password validation feedback - only show for new accounts */}
+            {!(userType === 'workshop' && isReturningWorkshopUser) && (isPasswordFocused || password.length > 0) && (
               <div className="password-validation">
                 <h4>Password must:</h4>
                 <ul>
@@ -375,10 +415,31 @@ const Signup = () => {
               </div>
             )}
             
-            <div className="signup-links">
-              <span>Already have an account?</span>
-              <Link to="/login" className="signup-link">Log in</Link>
-            </div>
+            {/* Workshop-specific toggle for returning users */}
+            {userType === 'workshop' && (
+              <div className="signup-links">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setIsReturningWorkshopUser(!isReturningWorkshopUser);
+                    setError('');
+                  }} 
+                  className="signup-link change-type-button"
+                >
+                  {isReturningWorkshopUser 
+                    ? 'New to workshops? Create a new account' 
+                    : 'Attended a workshop before? Log in here'}
+                </button>
+              </div>
+            )}
+            
+            {/* For non-workshop users */}
+            {userType !== 'workshop' && (
+              <div className="signup-links">
+                <span>Already have an account?</span>
+                <Link to="/login" className="signup-link">Log in</Link>
+              </div>
+            )}
             
             <div className="signup-links">
               <span>Changed your mind?</span>
@@ -396,7 +457,9 @@ const Signup = () => {
               className="signup-button"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Creating Account...' : 'Create Account'}
+              {isSubmitting 
+                ? (isReturningWorkshopUser ? 'Logging in...' : 'Creating Account...') 
+                : (isReturningWorkshopUser ? 'Log In' : 'Create Account')}
             </button>
           </form>
         )}

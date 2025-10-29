@@ -23,12 +23,10 @@ const AssessmentGrades = () => {
   // Filter states
   const [filters, setFilters] = useState({
     cohort: '',
-    date: '',
-    startDate: '',
-    endDate: '',
-    assessmentType: ''
+    assessmentPeriod: ''
   });
   const [availableCohorts, setAvailableCohorts] = useState([]);
+  const [availablePeriods, setAvailablePeriods] = useState([]);
 
   // Pagination - Increased limit to get more records per request
   const [pagination, setPagination] = useState({
@@ -53,6 +51,7 @@ const AssessmentGrades = () => {
     try {
       await Promise.all([
         fetchAvailableCohorts(),
+        fetchAvailablePeriods(),
         fetchAssessmentGrades(true)
       ]);
     } catch (err) {
@@ -82,6 +81,27 @@ const AssessmentGrades = () => {
       console.error('Error fetching cohorts:', err);
     }
   };
+
+  const fetchAvailablePeriods = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/periods`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch assessment periods');
+      }
+
+      const data = await response.json();
+      setAvailablePeriods(data.periods || []);
+    } catch (err) {
+      console.error('Error fetching periods:', err);
+    }
+  };
+
 
   const fetchAssessmentGrades = async (resetOffset = false) => {
     try {
@@ -155,10 +175,7 @@ const AssessmentGrades = () => {
   const clearFilters = () => {
     setFilters({
       cohort: '',
-      date: '',
-      startDate: '',
-      endDate: '',
-      assessmentType: ''
+      assessmentPeriod: ''
     });
     setSelectedUsers(new Set());
     fetchAssessmentGrades(true);
@@ -492,49 +509,19 @@ Check console for detailed results.`);
           </div>
 
           <div className="filter-group">
-            <label htmlFor="date">Specific Date:</label>
-            <input
-              type="date"
-              id="date"
-              value={filters.date}
-              onChange={(e) => handleFilterChange('date', e.target.value)}
-            />
-          </div>
-
-          <div className="filter-group">
-            <label htmlFor="startDate">Date Range:</label>
-            <div className="date-range">
-              <input
-                type="date"
-                id="startDate"
-                value={filters.startDate}
-                onChange={(e) => handleFilterChange('startDate', e.target.value)}
-                placeholder="Start Date"
-              />
-              <span>to</span>
-              <input
-                type="date"
-                value={filters.endDate}
-                onChange={(e) => handleFilterChange('endDate', e.target.value)}
-                placeholder="End Date"
-              />
-            </div>
-          </div>
-
-          <div className="filter-group">
-            <label htmlFor="assessmentType">Assessment Type:</label>
+            <label htmlFor="assessmentPeriod">Assessment Period:</label>
             <select
-              id="assessmentType"
-              value={filters.assessmentType}
-              onChange={(e) => handleFilterChange('assessmentType', e.target.value)}
+              id="assessmentPeriod"
+              value={filters.assessmentPeriod}
+              onChange={(e) => handleFilterChange('assessmentPeriod', e.target.value)}
             >
-              <option value="">All Types</option>
-              <option value="technical">Technical</option>
-              <option value="business">Business</option>
-              <option value="professional">Professional</option>
-              <option value="self">Self Assessment</option>
+              <option value="">All Periods</option>
+              {availablePeriods.map(period => (
+                <option key={period} value={period}>{period}</option>
+              ))}
             </select>
           </div>
+
         </div>
 
         <div className="filters-actions">
@@ -631,7 +618,7 @@ Check console for detailed results.`);
                 <th>Email</th>
                 <th>Cohort</th>
                 <th>Assessment Type</th>
-                <th>Date Graded</th>
+                <th>Assessment Period</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -653,7 +640,7 @@ Check console for detailed results.`);
                       holistic
                     </span>
                   </td>
-                  <td>{new Date(grade.created_at?.value || grade.created_at).toLocaleDateString()}</td>
+                  <td>{grade.assessment_period || 'N/A'}</td>
                   <td>
                     <button
                       className="btn btn-sm btn-primary"
@@ -1927,16 +1914,24 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send emails');
+        throw new Error('Failed to start email job');
       }
 
       const result = await response.json();
+
+      // Show success message - job has been started
       Swal.fire({
         icon: 'success',
-        title: 'Emails Sent Successfully!',
-        text: `Successfully processed ${result.results.length} emails`,
+        title: 'Email Job Started!',
+        html: `
+          <p>Started sending ${selectedUsers.length} assessment feedback emails.</p>
+          <p style="margin-top: 10px; font-size: 0.9em; color: #9ca3af;">
+            Emails are being sent in batches to avoid rate limits. 
+            Estimated completion: ${result.estimatedTime || 'a few minutes'}.
+          </p>
+        `,
         confirmButtonColor: '#10b981',
-        timer: 4000,
+        timer: 5000,
         timerProgressBar: true,
         background: '#1f2937',
         color: '#f9fafb',
@@ -1946,13 +1941,17 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
           content: 'swal-dark-content'
         }
       });
+
+      setSending(false);
       onEmailSent();
+
     } catch (err) {
-      console.error('Error sending emails:', err);
+      console.error('Error starting email job:', err);
+      setSending(false);
       Swal.fire({
         icon: 'error',
-        title: 'Email Sending Failed',
-        text: 'Failed to send emails. Please check your connection and try again.',
+        title: 'Failed to Start Email Job',
+        text: 'Failed to start email sending. Please check your connection and try again.',
         confirmButtonColor: '#d33',
         background: '#1f2937',
         color: '#f9fafb',
@@ -1962,8 +1961,6 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
           content: 'swal-dark-content'
         }
       });
-    } finally {
-      setSending(false);
     }
   };
 
@@ -2114,15 +2111,15 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
 
             <div className="assessment-grades-email-modal__preview-section">
               <div className="assessment-grades-email-modal__preview-actions">
-                <button 
+                <button
                   className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--outline assessment-grades-email-modal__btn--preview"
                   onClick={handlePreviewEmails}
-                  disabled={loadingPreviews || selectedUsers.length === 0}
+                  disabled={loadingPreviews || selectedUsers.length === 0 || sending}
                 >
                   {loadingPreviews ? 'Generating Previews...' : `Preview Emails (${Math.min(selectedUsers.length, 3)})`}
                 </button>
                 {showPreviews && (
-                  <button 
+                  <button
                     className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--secondary"
                     onClick={() => setShowPreviews(false)}
                   >
@@ -2179,23 +2176,29 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
         </div>
 
         <div className="assessment-grades-email-modal__footer">
-          <button 
-            className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--outline assessment-grades-email-modal__btn--test" 
+          <button
+            className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--outline assessment-grades-email-modal__btn--test"
             onClick={handleSendTestEmail}
             disabled={sending || loadingPreviews}
           >
             📧 Send Test Email
           </button>
+
           <div className="assessment-grades-email-modal__footer-actions">
-            <button className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--secondary" onClick={onClose} disabled={sending}>
+            <button
+              className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--secondary"
+              onClick={onClose}
+              disabled={sending}
+            >
               Cancel
             </button>
-            <button 
-              className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--success" 
+
+            <button
+              className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--success"
               onClick={handleSendEmails}
               disabled={sending || !emailSubject || selectedUsers.length === 0}
             >
-              {sending ? 'Sending...' : `Send to ${selectedUsers.length} Users`}
+              {sending ? '🚀 Starting...' : `📧 Send to ${selectedUsers.length} Users`}
             </button>
           </div>
         </div>

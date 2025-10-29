@@ -1171,7 +1171,11 @@ const AdmissionsDashboard = () => {
             organization_id: workshop.organization_id || null,
             access_window_days: workshop.access_window_days || 0,
             allow_early_access: workshop.allow_early_access || false,
-            access_code: workshop.access_code || ''
+            access_code: workshop.access_code || '',
+            // Workshop admin fields
+            admin_email: workshop.admin_email || '',
+            admin_is_pending: workshop.admin_is_pending || false, // Store pending status
+            send_admin_invitation: false // Don't auto-check on edit
         });
         setEditingWorkshop(workshop.event_id);
         setWorkshopModalOpen(true);
@@ -1340,6 +1344,43 @@ const AdmissionsDashboard = () => {
                 throw new Error(errorData.error || `Failed to ${editingWorkshop ? 'update' : 'create'} workshop`);
             }
 
+            const result = await response.json();
+            const workshopEventId = result.workshop?.event_id || editingWorkshop;
+
+            // If admin_email is provided for external workshops, assign the workshop admin
+            if (workshopForm.workshop_type === 'external' && workshopForm.admin_email && workshopEventId) {
+                try {
+                    const assignResponse = await fetch(
+                        `${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops/${workshopEventId}/assign-admin`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({
+                                email: workshopForm.admin_email,
+                                send_invitation: workshopForm.send_admin_invitation || false
+                            })
+                        }
+                    );
+
+                    if (!assignResponse.ok) {
+                        const errorData = await assignResponse.json().catch(() => ({}));
+                        console.error('Failed to assign workshop admin:', errorData);
+                        // Don't throw - workshop was created successfully, just admin assignment failed
+                        setError(`Workshop created, but failed to assign admin: ${errorData.error || 'Unknown error'}`);
+                    } else {
+                        const assignResult = await assignResponse.json();
+                        console.log('✅ Workshop admin assigned:', assignResult);
+                    }
+                } catch (adminError) {
+                    console.error('Error assigning workshop admin:', adminError);
+                    // Don't throw - workshop was created successfully
+                    setError(`Workshop created, but admin assignment encountered an error`);
+                }
+            }
+
             // Refresh workshops list
             await fetchWorkshops();
             closeWorkshopModal();
@@ -1398,16 +1439,28 @@ const AdmissionsDashboard = () => {
 
             if (response.ok) {
                 // Get the previous status to determine count changes
-                const previousRegistration = eventRegistrations.find(reg => reg.applicant_id === applicantId);
+                // Support both applicant-based and user-based registrations
+                const previousRegistration = eventRegistrations.find(reg => {
+                    if (applicantId === 'null') {
+                        // Match external participants with no applicant_id
+                        return !reg.applicant_id && reg.user_id;
+                    } else {
+                        // Match by applicant_id OR user_id for numeric IDs
+                        return reg.applicant_id == applicantId || reg.user_id == applicantId;
+                    }
+                });
                 const previousStatus = previousRegistration?.status;
 
                 // Update the registration in the local state instead of refetching
+                // Handle both applicant_id and user_id (for external participants)
                 setEventRegistrations(prevRegistrations =>
-                    prevRegistrations.map(reg =>
-                        reg.applicant_id === applicantId
-                            ? { ...reg, status }
-                            : reg
-                    )
+                    prevRegistrations.map(reg => {
+                        // Match by applicant_id OR user_id for numeric IDs, or by user_id existence for 'null'
+                        const isMatch = applicantId === 'null' 
+                            ? (!reg.applicant_id && reg.user_id)
+                            : (reg.applicant_id == applicantId || reg.user_id == applicantId);
+                        return isMatch ? { ...reg, status } : reg;
+                    })
                 );
 
                 // Update the event stats in local state based on status transitions
@@ -1427,7 +1480,7 @@ const AdmissionsDashboard = () => {
                         setInfoSessions(prevSessions =>
                             prevSessions.map(session =>
                                 session.event_id === eventId
-                                    ? { ...session, attended_count: session.attended_count + countChange }
+                                    ? { ...session, attended_count: parseInt(session.attended_count || 0) + countChange }
                                     : session
                             )
                         );
@@ -1435,7 +1488,7 @@ const AdmissionsDashboard = () => {
                         setWorkshops(prevWorkshops =>
                             prevWorkshops.map(workshop =>
                                 workshop.event_id === eventId
-                                    ? { ...workshop, attended_count: workshop.attended_count + countChange }
+                                    ? { ...workshop, attended_count: parseInt(workshop.attended_count || 0) + countChange }
                                     : workshop
                             )
                         );
@@ -3027,7 +3080,9 @@ const AdmissionsDashboard = () => {
                                                                                                 value={reg.status}
                                                                                                 onChange={(e) => {
                                                                                                     if (e.target.value !== reg.status) {
-                                                                                                        handleMarkAttendance('workshop', workshop.event_id, reg.applicant_id, e.target.value);
+                                                                                                        // Use applicant_id if available, otherwise use user_id (for external participants)
+                                                                                                        const attendeeId = reg.applicant_id || reg.user_id || 'null';
+                                                                                                        handleMarkAttendance('workshop', workshop.event_id, attendeeId, e.target.value);
                                                                                                     }
                                                                                                 }}
                                                                                             >
@@ -4053,6 +4108,80 @@ const AdmissionsDashboard = () => {
                                     </small>
                                 </div>
                             </div>
+
+                            {/* Workshop Admin Assignment - Only for External Workshops */}
+                            {workshopForm.workshop_type === 'external' && (
+                                <>
+                                    <div className="form-group" style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #374151' }}>
+                                        <label htmlFor="workshop-admin_email">
+                                            Workshop Admin Email
+                                            <span style={{ color: '#9ca3af', fontSize: '0.9em', marginLeft: '8px' }}>
+                                                {editingWorkshop && workshopForm.admin_email 
+                                                    ? '(Currently assigned - change to reassign)'
+                                                    : '(Optional - Assign a workshop administrator)'}
+                                            </span>
+                                        </label>
+                                        <input
+                                            type="email"
+                                            id="workshop-admin_email"
+                                            name="admin_email"
+                                            value={workshopForm.admin_email || ''}
+                                            onChange={handleWorkshopFormChange}
+                                            placeholder="admin@company.com"
+                                            style={{
+                                                width: '100%',
+                                                padding: '10px',
+                                                borderRadius: '6px',
+                                                border: '1px solid #374151',
+                                                backgroundColor: '#1f2937',
+                                                color: 'var(--color-text-primary)',
+                                                fontSize: '1rem'
+                                            }}
+                                        />
+                                        <small style={{ color: '#9ca3af', display: 'block', marginTop: '4px' }}>
+                                            {editingWorkshop && workshopForm.admin_email
+                                                ? `Current admin: ${workshopForm.admin_email}. ${workshopForm.admin_is_pending ? '⚠️ Pending invitation - user has not signed up yet. ' : ''}Change this email to assign a different workshop admin.`
+                                                : 'This person will be able to view participant progress and submissions'}
+                                        </small>
+                                    </div>
+
+                                    {workshopForm.admin_email && (
+                                        <div className="form-group">
+                                            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    name="send_admin_invitation"
+                                                    checked={workshopForm.send_admin_invitation || false}
+                                                    onChange={(e) => {
+                                                        handleWorkshopFormChange({
+                                                            target: {
+                                                                name: 'send_admin_invitation',
+                                                                value: e.target.checked
+                                                            }
+                                                        });
+                                                    }}
+                                                    style={{
+                                                        marginRight: '10px',
+                                                        width: '18px',
+                                                        height: '18px',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                />
+                                                <span>
+                                                    {editingWorkshop 
+                                                        ? 'Send invitation email (resend or send to new admin)'
+                                                        : 'Send invitation email with access code and instructions'}
+                                                </span>
+                                            </label>
+                                            <small style={{ color: '#9ca3af', display: 'block', marginTop: '4px', marginLeft: '28px' }}>
+                                                {editingWorkshop
+                                                    ? 'Check this to send/resend the invitation email with workshop details and access code'
+                                                    : 'The workshop admin will receive an email with the workshop details and access code to share with participants'}
+                                            </small>
+                                        </div>
+                                    )}
+                                </>
+                            )}
 
                             <div className="modal-actions">
                                 <button
