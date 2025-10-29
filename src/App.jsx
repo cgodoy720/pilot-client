@@ -21,6 +21,7 @@ import AssessmentGrades from './pages/AssessmentGrades/AssessmentGrades';
 
 import VolunteerFeedback from './pages/VolunteerFeedback/VolunteerFeedback';
 import AdminVolunteerFeedback from './pages/AdminVolunteerFeedback';
+import WorkshopAdminDashboard from './pages/WorkshopAdminDashboard/WorkshopAdminDashboard';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
 
 import { useAuth } from './context/AuthContext';
@@ -118,6 +119,17 @@ function App() {
     const isAdmin = user?.role === 'admin' || user?.role === 'staff';
     
     if (!isAdmin) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    
+    return children;
+  };
+
+  // Workshop Admin route protection component
+  const WorkshopAdminRoute = ({ children }) => {
+    const isWorkshopAdmin = user?.role === 'workshop_admin' || user?.role === 'admin' || user?.role === 'staff';
+    
+    if (!isWorkshopAdmin) {
       return <Navigate to="/dashboard" replace />;
     }
     
@@ -245,6 +257,13 @@ function App() {
             <AdminRoute>
               <AdminVolunteerFeedback />
             </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/workshop-admin-dashboard" element={
+          <Layout>
+            <WorkshopAdminRoute>
+              <WorkshopAdminDashboard />
+            </WorkshopAdminRoute>
           </Layout>
         } />
         <Route path="/stats" element={

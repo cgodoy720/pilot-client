@@ -14,11 +14,16 @@
 
 .signup-form-container {
   width: 100%;
-  max-width: 400px;
+  max-width: 1000px;
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
+}
+
+/* Constrain form width when showing the actual form (not user type selection) */
+.signup-form-container:has(.signup-form) {
+  max-width: 450px;
 }
 
 .signup-logo-container {
@@ -69,6 +74,13 @@
 
 .signup-input:focus {
   border-color: var(--color-primary);
+}
+
+.signup-input-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 4px 0 0 0;
+  font-style: italic;
 }
 
 .password-input-group {
@@ -322,23 +334,25 @@
 .user-type-options {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: var(--spacing-lg);
   margin-bottom: var(--spacing-lg);
+  width: 100%;
 }
 
 .user-type-option {
   background-color: var(--color-background);
   border: 2px solid var(--color-border);
   border-radius: 8px;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-xl);
   cursor: pointer;
   transition: all var(--transition-speed);
-  text-align: left;
+  text-align: center;
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
+  justify-content: center;
+  min-height: 200px;
 }
 
 .user-type-option:hover {
@@ -349,25 +363,25 @@
 }
 
 .user-type-icon {
-  font-size: 2.5rem;
-  margin-bottom: var(--spacing-sm);
+  font-size: 3.5rem;
+  margin-bottom: var(--spacing-md);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .user-type-option h3 {
-  margin: 0 0 var(--spacing-sm) 0;
+  margin: 0 0 var(--spacing-md) 0;
   color: var(--color-text-primary);
-  font-size: 1.2rem;
+  font-size: 1.35rem;
   font-weight: 600;
 }
 
 .user-type-option p {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.9rem;
-  line-height: 1.4;
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 .signup-back-to-login {
@@ -434,14 +448,21 @@
 }
 
 /* Responsive Design for User Type Selection */
-@media (min-width: 576px) {
+@media (min-width: 768px) {
   .user-type-options {
-    flex-direction: row;
-    gap: var(--spacing-lg);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-xl);
   }
   
   .user-type-option {
     flex: 1;
+  }
+}
+
+@media (max-width: 767px) {
+  .signup-form-container {
+    max-width: 500px;
   }
 }
 
@@ -456,5 +477,10 @@
   
   .user-type-option p {
     font-size: 0.85rem;
+  }
+  
+  .user-type-option {
+    min-height: 180px;
+    padding: var(--spacing-lg);
   }
 } 
