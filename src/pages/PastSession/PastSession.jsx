@@ -1889,7 +1889,6 @@ function PastSession() {
                            tasks[currentTaskIndex]?.deliverable_type === 'file' ||
                            tasks[currentTaskIndex]?.deliverable_type === 'document' ||
                            tasks[currentTaskIndex]?.deliverable_type === 'video' ||
-                           tasks[currentTaskIndex]?.deliverable_type === 'text' ||
                            tasks[currentTaskIndex]?.deliverable_type === 'structured') && (
                           <button 
                             type="button"

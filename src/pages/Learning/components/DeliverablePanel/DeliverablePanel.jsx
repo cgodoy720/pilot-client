@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaTimes, FaCheckCircle } from 'react-icons/fa';
-import TextSubmission from './TextSubmission';
-import LinkSubmission from './LinkSubmission';
-import VideoSubmission from './VideoSubmission';
 import StructuredSubmission from './StructuredSubmission';
+import FlexibleSubmission from './FlexibleSubmission';
 import './DeliverablePanel.css';
 
 function DeliverablePanel({
@@ -46,30 +44,14 @@ function DeliverablePanel({
     console.log('DeliverablePanel - deliverable_schema:', task.deliverable_schema);
     console.log('DeliverablePanel - deliverable_type:', task.deliverable_type);
 
-    // Check for structured deliverable first (schema-based custom forms)
+    // Check for structured deliverable first (workshop schema-based custom forms)
     if (task.deliverable_schema) {
       return <StructuredSubmission {...commonProps} schema={task.deliverable_schema} />;
     }
 
-    // Standard deliverable types
-    switch (task.deliverable_type) {
-      case 'text':
-        return <TextSubmission {...commonProps} />;
-      
-      case 'link':
-      case 'document':
-        return <LinkSubmission {...commonProps} />;
-      
-      case 'video':
-        return <VideoSubmission {...commonProps} />;
-      
-      default:
-        return (
-          <div className="deliverable-panel__error">
-            <p>Deliverable type "{task.deliverable_type}" not supported yet.</p>
-          </div>
-        );
-    }
+    // For all standard deliverable types (text, link, document, video), use FlexibleSubmission
+    // This gives builders the 3-option selector (Text, Google Drive Link, Video)
+    return <FlexibleSubmission {...commonProps} />;
   };
 
   return (
@@ -97,12 +79,14 @@ function DeliverablePanel({
           </button>
         </div>
 
-        {/* Deliverable label */}
-        <div className="deliverable-panel__label">
-          <span className="deliverable-panel__label-text">
-            {task.deliverable || 'Submit your work'}
-          </span>
-        </div>
+        {/* Deliverable label - Only show for structured submissions (workshops) */}
+        {task.deliverable_schema && (
+          <div className="deliverable-panel__label">
+            <span className="deliverable-panel__label-text">
+              {task.deliverable || 'Submit your work'}
+            </span>
+          </div>
+        )}
 
         {/* Body - Dynamic submission form */}
         <div className="deliverable-panel__body">
