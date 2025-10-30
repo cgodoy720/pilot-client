@@ -132,6 +132,7 @@ const AdmissionsDashboard = () => {
     const [selectedApplicantsForRegistration, setSelectedApplicantsForRegistration] = useState([]);
     const [searchLoading, setSearchLoading] = useState(false);
     const [registrationLoading, setRegistrationLoading] = useState(false);
+    const [laptopNeeds, setLaptopNeeds] = useState({}); // Track laptop needs per applicant
 
     // Event filtering state
     const [showInactiveInfoSessions, setShowInactiveInfoSessions] = useState(false);
@@ -1593,6 +1594,7 @@ const AdmissionsDashboard = () => {
         setApplicantSearch('');
         setSearchResults([]);
         setSelectedApplicantsForRegistration([]);
+        setLaptopNeeds({}); // Reset laptop needs tracking
     };
 
     // Search for applicants
@@ -1657,7 +1659,7 @@ const AdmissionsDashboard = () => {
                             applicantId: applicant.applicant_id,
                             name: applicant.display_name,
                             email: applicant.email,
-                            needsLaptop: false // Default to false, can be changed later
+                            needsLaptop: laptopNeeds[applicant.applicant_id] || false // Use individual laptop setting
                         })
                     });
 
@@ -4345,7 +4347,18 @@ const AdmissionsDashboard = () => {
                                         <div className="selected-list">
                                             {selectedApplicantsForRegistration.map((applicant) => (
                                                 <div key={applicant.applicant_id} className="selected-applicant">
-                                                    <span>{applicant.display_name}</span>
+                                                    <span className="applicant-name-selected">{applicant.display_name}</span>
+                                                    <label className="laptop-checkbox">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={laptopNeeds[applicant.applicant_id] || false}
+                                                            onChange={(e) => setLaptopNeeds({
+                                                                ...laptopNeeds,
+                                                                [applicant.applicant_id]: e.target.checked
+                                                            })}
+                                                        />
+                                                        <span className="laptop-label">💻 Needs laptop</span>
+                                                    </label>
                                                     <button
                                                         onClick={() => toggleApplicantSelection(applicant)}
                                                         className="remove-selected-btn"
