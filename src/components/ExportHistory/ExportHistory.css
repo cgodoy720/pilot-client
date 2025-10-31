@@ -1,0 +1,16 @@
+/* CRITICAL: Force Export History header to black */
+.export-history-header-force-black {
+  color: #000000 !important;
+  font-weight: 600 !important;
+}
+
+/* Extra specificity - targets the Typography element itself */
+.export-history-header-force-black.MuiTypography-root {
+  color: #000000 !important;
+  font-weight: 600 !important;
+}
+
+/* Nuclear option - targets all children too */
+.export-history-header-force-black * {
+  color: #000000 !important;
+}

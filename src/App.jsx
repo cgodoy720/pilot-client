@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { enableErrorTesting } from './utils/errorTestingUtils';
 import Layout from './components/Layout/Layout';
 import Dashboard from './pages/Dashboard/Dashboard';
 import GPT from './pages/GPT/GPT';
@@ -7,6 +8,7 @@ import Calendar from './pages/Calendar/Calendar';
 import Learning from './pages/Learning/Learning';
 import PastSession from './pages/PastSession/PastSession';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
+import AdminAttendanceDashboard from './pages/AdminAttendanceDashboard/AdminAttendanceDashboard';
 import AdmissionsDashboard from './pages/AdmissionsDashboard';
 import ApplicationDetail from './pages/AdmissionsDashboard/ApplicationDetail';
 import Content from './pages/Content';
@@ -47,6 +49,9 @@ function App() {
   // Reset auth state on app load
   useEffect(() => {
     resetAuthModalState();
+    
+    // Enable error testing utilities in development
+    enableErrorTesting();
   }, []);
   
   // Listen for auth error events from global error handler
@@ -210,10 +215,24 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
+        <Route path="/admin" element={
+          <Layout>
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
+          </Layout>
+        } />
         <Route path="/admin/assessment-grades" element={
           <Layout>
             <AdminRoute>
               <AssessmentGrades />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/attendance-management" element={
+          <Layout>
+            <AdminRoute>
+              <AdminAttendanceDashboard />
             </AdminRoute>
           </Layout>
         } />

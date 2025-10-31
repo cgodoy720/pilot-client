@@ -1,0 +1,305 @@
+/* CSV Export Component Styles */
+.csv-export {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.csv-export__card {
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+  border-radius: var(--spacing-sm);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.csv-export__header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.csv-export__icon {
+  color: var(--color-primary);
+  font-size: 1.5rem;
+}
+
+.csv-export__content {
+  padding: var(--spacing-lg);
+}
+
+.csv-export__section-title {
+  color: #1a1a1a !important; /* Dark text for section titles on white background */
+  font-weight: 600;
+  font-size: 15pt !important; /* 15pt for section headers (75% of 20pt main header) */
+  margin-bottom: 28px !important; /* 28px spacing to labels below */
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.csv-export__section-title::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background-color: var(--color-primary);
+  border-radius: 2px;
+}
+
+.csv-export__quick-actions {
+  margin-bottom: var(--spacing-lg);
+}
+
+.csv-export__quick-btn {
+  height: 48px;
+  font-weight: 500;
+  text-transform: none;
+  border-radius: var(--spacing-xs);
+  transition: all 0.2s ease-in-out;
+}
+
+.csv-export__quick-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.csv-export__divider {
+  margin: var(--spacing-lg) 0;
+  border-color: var(--color-border);
+}
+
+.csv-export__custom-form {
+  margin-bottom: var(--spacing-lg);
+}
+
+.csv-export__custom-form .MuiGrid-item {
+  padding-top: 12px !important; /* Add extra top padding to grid items */
+}
+
+.csv-export__export-btn {
+  height: 56px;
+  font-weight: 600;
+  text-transform: none;
+  border-radius: var(--spacing-xs);
+  background-color: var(--color-primary);
+  transition: all 0.2s ease-in-out;
+}
+
+.csv-export__export-btn:hover {
+  background-color: var(--color-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.csv-export__export-btn:disabled {
+  background-color: var(--color-text-disabled);
+  transform: none;
+  box-shadow: none;
+}
+
+.csv-export__status,
+.csv-export__error {
+  margin-top: var(--spacing-md);
+}
+
+.csv-export__alert {
+  border-radius: var(--spacing-xs);
+}
+
+.csv-export__info {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background-color: var(--color-background-darker);
+  border-radius: var(--spacing-xs);
+  border-left: 4px solid var(--color-primary);
+}
+
+.csv-export__info-text {
+  margin-bottom: var(--spacing-xs);
+  line-height: 1.5;
+  color: #FFFFFF !important; /* White text for info box on dark background */
+}
+
+.csv-export__info-text:last-child {
+  margin-bottom: 0;
+}
+
+/* Form Field Styling */
+.csv-export .MuiTextField-root,
+.csv-export .MuiFormControl-root {
+  margin-bottom: var(--spacing-sm);
+  margin-top: 24px; /* Increase top margin to prevent label cutoff */
+}
+
+.csv-export .MuiInputLabel-root {
+  color: #1a1a1a !important; /* Dark text for labels on white background */
+  font-weight: 700 !important; /* Bold labels */
+  font-size: 14pt !important; /* 14pt font size */
+  transform: translate(0px, -32px) scale(1) !important; /* Position label above input */
+  transform-origin: top left !important;
+  position: relative !important;
+}
+
+.csv-export .MuiInputLabel-root.MuiInputLabel-shrink {
+  color: #1a1a1a !important; /* Keep dark text when focused */
+  font-weight: 700 !important; /* Keep bold */
+  font-size: 14pt !important; /* Keep 14pt */
+  transform: translate(0px, -32px) scale(1) !important; /* Keep label above input when focused/filled */
+  transform-origin: top left !important;
+}
+
+.csv-export .MuiOutlinedInput-root {
+  border-radius: var(--spacing-xs);
+  min-height: 56px !important; /* Increase minimum height significantly */
+}
+
+.csv-export .MuiOutlinedInput-input {
+  padding: 18px 14px !important; /* Increase padding significantly */
+  height: auto !important;
+}
+
+.csv-export .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: var(--color-primary);
+}
+
+.csv-export .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--color-primary);
+  border-width: 2px;
+}
+
+.csv-export .MuiSelect-select {
+  padding: 18px 14px !important; /* Increase padding to match text fields */
+  min-height: 24px !important; /* Ensure consistent height */
+}
+
+.csv-export .MuiFormControl-root .MuiInputBase-root {
+  min-height: 56px !important; /* Match text field height */
+}
+
+.csv-export .MuiFormHelperText-root {
+  color: #1a1a1a !important; /* Dark text for helper text on white background */
+  font-size: 0.875rem !important; /* Slightly larger for readability */
+  margin-top: -28px !important; /* Position helper text ABOVE the input field */
+  margin-bottom: 8px !important;
+  order: -1; /* Move helper text above input */
+}
+
+/* Exception: Info box text must be white on dark background */
+/* Higher specificity (3 classes) beats the general rule (2 classes) */
+.csv-export .csv-export__info .MuiTypography-root {
+  color: #FFFFFF !important;
+}
+
+/* Change all text on white backgrounds to black/dark for readability */
+.csv-export .MuiTypography-root {
+  color: #1a1a1a !important; /* Dark text for all typography on white background */
+}
+
+.csv-export .MuiCardHeader-subheader {
+  color: #1a1a1a !important; /* Dark text for subheader on white background */
+}
+
+.csv-export .MuiCardHeader-title {
+  color: #000000 !important; /* Black text for main header */
+}
+
+/* Export History Table - White text for dark background */
+.export-history .MuiTableCell-root {
+  color: #FFFFFF !important; /* White text for all table cells */
+}
+
+.export-history .MuiTableCell-head {
+  color: #FFFFFF !important; /* White text for table headers */
+  font-weight: 600;
+}
+
+.export-history .MuiTableCell-body {
+  color: #FFFFFF !important; /* White text for table data */
+}
+
+.export-history .MuiTypography-root {
+  color: #FFFFFF !important; /* White text for typography in table */
+}
+
+/* Loading State */
+.csv-export__export-btn .MuiCircularProgress-root {
+  color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .csv-export {
+    max-width: 100%;
+    padding: 0 var(--spacing-sm);
+  }
+  
+  .csv-export__content {
+    padding: var(--spacing-md);
+  }
+  
+  .csv-export__quick-btn,
+  .csv-export__export-btn {
+    height: 44px;
+    font-size: 0.875rem;
+  }
+  
+  .csv-export__section-title {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .csv-export__content {
+    padding: var(--spacing-sm);
+  }
+  
+  .csv-export__quick-btn,
+  .csv-export__export-btn {
+    height: 40px;
+    font-size: 0.8rem;
+  }
+  
+  .csv-export__info {
+    padding: var(--spacing-sm);
+  }
+  
+  .csv-export__info-text {
+    font-size: 0.75rem;
+  }
+}
+
+/* Animation for status updates */
+.csv-export__status,
+.csv-export__error {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Button hover effects */
+.csv-export__quick-btn:not(:disabled):hover,
+.csv-export__export-btn:not(:disabled):hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Focus states for accessibility */
+.csv-export__quick-btn:focus,
+.csv-export__export-btn:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Disabled state styling */
+.csv-export__quick-btn:disabled,
+.csv-export__export-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

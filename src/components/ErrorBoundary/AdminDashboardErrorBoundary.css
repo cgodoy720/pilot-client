@@ -1,0 +1,198 @@
+/* Admin Dashboard Error Boundary Styles */
+.admin-dashboard-error-boundary {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+  background-color: var(--color-background-darker);
+}
+
+.admin-dashboard-error-boundary__card {
+  max-width: 600px;
+  width: 100%;
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+  border-radius: var(--spacing-sm);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.admin-dashboard-error-boundary__content {
+  padding: var(--spacing-xl);
+}
+
+.admin-dashboard-error-boundary__header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.admin-dashboard-error-boundary__icon {
+  color: var(--color-error);
+  font-size: 2rem;
+}
+
+.admin-dashboard-error-boundary__title {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  margin: 0;
+}
+
+.admin-dashboard-error-boundary__alert {
+  margin-bottom: var(--spacing-lg);
+  border-radius: var(--spacing-xs);
+}
+
+.admin-dashboard-error-boundary__details {
+  margin-bottom: var(--spacing-lg);
+}
+
+.admin-dashboard-error-boundary__debug {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  background-color: var(--color-background-darker);
+  border-radius: var(--spacing-xs);
+  border-left: 4px solid var(--color-error);
+}
+
+.admin-dashboard-error-boundary__error-text {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.admin-dashboard-error-boundary__actions {
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.admin-dashboard-error-boundary__retry-btn {
+  background-color: var(--color-primary);
+  color: white;
+  font-weight: 600;
+  text-transform: none;
+  border-radius: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  transition: all 0.2s ease-in-out;
+}
+
+.admin-dashboard-error-boundary__retry-btn:hover {
+  background-color: var(--color-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.admin-dashboard-error-boundary__home-btn {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 500;
+  text-transform: none;
+  border-radius: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  transition: all 0.2s ease-in-out;
+}
+
+.admin-dashboard-error-boundary__home-btn:hover {
+  background-color: var(--color-primary);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.admin-dashboard-error-boundary__report-btn {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  text-transform: none;
+  border-radius: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  transition: all 0.2s ease-in-out;
+}
+
+.admin-dashboard-error-boundary__report-btn:hover {
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
+}
+
+.admin-dashboard-error-boundary__help {
+  margin-top: var(--spacing-lg);
+  text-align: center;
+  padding: var(--spacing-md);
+  background-color: var(--color-background-darker);
+  border-radius: var(--spacing-xs);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .admin-dashboard-error-boundary {
+    padding: var(--spacing-md);
+  }
+  
+  .admin-dashboard-error-boundary__content {
+    padding: var(--spacing-lg);
+  }
+  
+  .admin-dashboard-error-boundary__header {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--spacing-sm);
+  }
+  
+  .admin-dashboard-error-boundary__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .admin-dashboard-error-boundary__retry-btn,
+  .admin-dashboard-error-boundary__home-btn,
+  .admin-dashboard-error-boundary__report-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-dashboard-error-boundary {
+    padding: var(--spacing-sm);
+  }
+  
+  .admin-dashboard-error-boundary__content {
+    padding: var(--spacing-md);
+  }
+  
+  .admin-dashboard-error-boundary__title {
+    font-size: 1.25rem;
+  }
+  
+  .admin-dashboard-error-boundary__icon {
+    font-size: 1.5rem;
+  }
+}
+
+/* Animation for error appearance */
+.admin-dashboard-error-boundary__card {
+  animation: errorSlideIn 0.3s ease-out;
+}
+
+@keyframes errorSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Focus states for accessibility */
+.admin-dashboard-error-boundary__retry-btn:focus,
+.admin-dashboard-error-boundary__home-btn:focus,
+.admin-dashboard-error-boundary__report-btn:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
