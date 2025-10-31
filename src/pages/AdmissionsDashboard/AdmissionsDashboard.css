@@ -4025,34 +4025,73 @@ p indicator styles */
   flex-shrink: 0;
 }
 
-.laptop-checkbox {
+.laptop-toggle-container {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  cursor: pointer;
-  user-select: none;
+  gap: 0.5rem;
   padding: 0.25rem 0.5rem;
   background: rgba(255, 255, 255, 0.15);
   border-radius: 4px;
-  transition: background 0.2s ease;
 }
 
-.laptop-checkbox:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.laptop-checkbox input[type="checkbox"] {
+.laptop-toggle-btn {
+  position: relative;
+  width: 42px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.3);
+  border: none;
+  border-radius: 11px;
   cursor: pointer;
-  accent-color: white;
-  width: 16px;
-  height: 16px;
-  margin: 0;
+  transition: all 0.3s ease;
+  outline: none;
+  flex-shrink: 0;
 }
 
-.laptop-label {
-  font-size: 0.8rem;
-  font-weight: 500;
+.laptop-toggle-btn:focus {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
+}
+
+.laptop-toggle-btn--needs {
+  background: #10b981; /* Green for needs laptop */
+}
+
+.laptop-toggle-btn--owns {
+  background: rgba(255, 255, 255, 0.3); /* Light for owns laptop */
+}
+
+.laptop-toggle-slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.laptop-toggle-btn--needs .laptop-toggle-slider {
+  transform: translateX(20px);
+}
+
+.laptop-toggle-btn--owns .laptop-toggle-slider {
+  transform: translateX(0);
+}
+
+.laptop-status-label {
+  font-size: 0.75rem;
+  font-weight: 600;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.laptop-status-label--needs {
+  color: white;
+}
+
+.laptop-status-label--owns {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .remove-selected-btn {
