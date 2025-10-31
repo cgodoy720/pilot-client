@@ -37,6 +37,7 @@
   flex: 1;
   border: 1px solid var(--color-border);
   margin-bottom: 0.5rem;
+  min-height: 0; /* Allow flex shrinking */
 }
 
 .stats__tabs {
@@ -46,8 +47,9 @@
 .stats__tab-content {
   padding: 1.5rem;
   overflow-y: auto;
-  max-height: calc(100vh - 300px);
   flex: 1;
+  min-height: 0; /* Allow flex shrinking */
+  height: 100%; /* Fill available space */
 }
 
 /* Empty state styling */
@@ -218,10 +220,12 @@
 .tasks-section,
 .submissions-section,
 .feedback-section,
-.resources-section {
+.resources-section,
+.work-product-section {
   height: 100%;
   display: flex;
   flex-direction: column;
+  min-height: 0; /* Allow flex shrinking */
 }
 
 .tasks-section__filters,
@@ -429,4 +433,20 @@
 
 .resources-section__search .MuiInputAdornment-root .MuiSvgIcon-root {
   color: var(--color-text-secondary) !important;
+}
+/* Work Product Section specific styles */
+.work-product-section {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.work-product-section .MuiGrid-container {
+  padding-bottom: 1rem; /* Add some bottom padding for better scrolling */
 } 
+
+
+.css-2v51w8 > h6 {
+  margin-bottom: 0 !important;
+}

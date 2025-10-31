@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt, FaEdit, FaCheck, FaTimes, FaFileAlt, FaVideo, FaBrain, FaComments } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt, FaEdit, FaCheck, FaTimes, FaFileAlt, FaVideo, FaBrain, FaComments, FaClipboardList, FaLock } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 
 import PeerFeedbackForm from '../../components/PeerFeedbackForm';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
 import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
+import BuilderFeedbackForm from '../../components/BuilderFeedbackForm/BuilderFeedbackForm';
+import DeliverablePanel from './components/DeliverablePanel/DeliverablePanel';
 
 import './Learning.css';
 import '../../styles/smart-tasks.css';
@@ -22,6 +25,7 @@ function Learning() {
   const [error, setError] = useState('');
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isMessagesLoading, setIsMessagesLoading] = useState(false);
+  const [hasInitialMessage, setHasInitialMessage] = useState(false);
   
   // Check if user has active status
   const isActive = user?.active !== false;
@@ -35,6 +39,7 @@ function Learning() {
   const [currentDay, setCurrentDay] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
+  const [workshopInfo, setWorkshopInfo] = useState(null);
   
   // Get dayId from URL query parameters
   const queryParams = new URLSearchParams(location.search);
@@ -49,11 +54,15 @@ function Learning() {
   // Add a debounce mechanism to prevent multiple calls
   const fetchingTasks = {};
   
-  // Add state for the submission modal
+  // Add state for the Pictures modal (OLD - will be replaced by DeliverablePanel)
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [submissionUrl, setSubmissionUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
+  
+  // NEW: DeliverablePanel state
+  const [showDeliverablePanel, setShowDeliverablePanel] = useState(false);
+  const [currentDeliverableTask, setCurrentDeliverableTask] = useState(null);
   
   // Add state for peer feedback
   const [showPeerFeedback, setShowPeerFeedback] = useState(false);
@@ -99,6 +108,9 @@ function Learning() {
     // Generate a unique timestamp for this fetch
     const fetchTimestamp = Date.now();
     fetchTaskMessages.lastFetchTimestamp = fetchTimestamp;
+    
+    // Reset initial message flag when loading new task
+    setHasInitialMessage(false);
     
     try {
       // Clear any previous error
@@ -196,6 +208,8 @@ function Learning() {
         console.log(`Filtered out ${formattedMessages.length - filteredMessages.length} system metadata messages`);
         
         setMessages(filteredMessages);
+        // Mark that we have the initial message (existing messages mean task is ready)
+        setHasInitialMessage(true);
         console.log(`Displayed ${filteredMessages.length} messages`);
       } else {
         // No existing messages, send initial 'start' message
@@ -271,6 +285,7 @@ function Learning() {
               content: 'Starting conversation...',
               role: 'system'
             }]);
+            setHasInitialMessage(false); // System message doesn't count as initial message
           } else {
             // Display the assistant's response
             setMessages([{
@@ -279,6 +294,8 @@ function Learning() {
               role: messageData.role,
               timestamp: messageData.timestamp
             }]);
+            // Mark that we have the initial message from AI
+            setHasInitialMessage(true);
           }
           
           console.log(`Displayed initial assistant message`);
@@ -424,6 +441,26 @@ function Learning() {
               }
             }
             
+            // Parse deliverable_schema if it's a string (JSONB from PostgreSQL)
+            let deliverableSchema = null;
+            if (task.deliverable_schema) {
+              try {
+                // If it's a string, try to parse it
+                if (typeof task.deliverable_schema === 'string') {
+                  deliverableSchema = JSON.parse(task.deliverable_schema);
+                } 
+                // If it's already an object, use it directly
+                else if (typeof task.deliverable_schema === 'object') {
+                  deliverableSchema = task.deliverable_schema;
+                }
+              } catch (e) {
+                console.error('Error parsing deliverable_schema:', e);
+                deliverableSchema = null;
+              }
+            }
+            
+            console.log('Task:', task.task_title, 'deliverable_schema from API:', task.deliverable_schema, 'parsed:', deliverableSchema);
+            
             allTasks.push({
               id: task.id,
               title: task.task_title,
@@ -435,11 +472,13 @@ function Learning() {
               resources: resources,
               deliverable: task.deliverable,
               deliverable_type: task.deliverable_type || 'none',
+              deliverable_schema: deliverableSchema,
               should_analyze: task.should_analyze || false,
               analyze_deliverable: task.analyze_deliverable || false,
               task_mode: task.task_mode || 'basic', // Add task mode support
               smart_prompt: task.smart_prompt || null,
-              conversation_model: task.conversation_model || null
+              conversation_model: task.conversation_model || null,
+              feedback_slot: task.feedback_slot || false // Add feedback slot support
             });
           });
         });
@@ -461,15 +500,19 @@ function Learning() {
         setCurrentDay(dayData);
         setTasks(allTasks);
         setCurrentTaskIndex(initialTaskIndex);
+        setWorkshopInfo(data.workshopInfo || null);
         
-        // Fetch messages for the initial task
+        // Fetch messages for the initial task (only if it's not a feedback slot)
         if (allTasks.length > 0) {
-          const initialTaskId = allTasks[initialTaskIndex].id;
-          await fetchTaskMessages(initialTaskId);
+          const initialTask = allTasks[initialTaskIndex];
           
-          // Check if there's an existing analysis for this task
-          if (allTasks[initialTaskIndex].should_analyze) {
-            await fetchTaskAnalysis(initialTaskId);
+          if (!initialTask.feedback_slot) {
+            await fetchTaskMessages(initialTask.id);
+            
+            // Check if there's an existing analysis for this task
+            if (initialTask.should_analyze) {
+              await fetchTaskAnalysis(initialTask.id);
+            }
           }
         }
       } catch (err) {
@@ -700,6 +743,19 @@ function Learning() {
     setShowPeerFeedback(false);
   };
 
+  // Add a function to handle builder feedback completion
+  const handleBuilderFeedbackComplete = () => {
+    // Builder feedback completion doesn't need special handling
+    // The form will show success state and can navigate away
+    console.log('Builder feedback completed successfully');
+  };
+
+  // Helper function to check if current task is a feedback slot
+  const isCurrentTaskFeedbackSlot = () => {
+    if (!tasks.length || currentTaskIndex >= tasks.length) return false;
+    return !!tasks[currentTaskIndex].feedback_slot;
+  };
+
   // Modify the markTaskAsCompleted function to not handle peer feedback
   const markTaskAsCompleted = async (taskId) => {
     try {
@@ -772,7 +828,15 @@ function Learning() {
   };
   
   // Helper function to get task icon based on type
-  const getTaskIcon = (type, completed, taskMode) => {
+  const getTaskIcon = (type, completed, taskMode, feedbackSlot) => {
+    // Check if this is a feedback slot task - use clipboard icon
+    if (feedbackSlot) {
+      if (completed) {
+        return <FaCheckCircle className="task-icon completed" />;
+      }
+      return <FaClipboardList className="task-icon feedback" />;
+    }
+    
     // Check if this is a conversation task - use brain icon
     if (taskMode === 'conversation') {
       if (completed) {
@@ -789,10 +853,7 @@ function Learning() {
       return <FaBook className="task-icon reflect" />;
     }
     
-    if (completed) {
-      return <FaCheckCircle className="task-icon completed" />;
-    }
-    
+    // Show type-specific icons based on task type
     switch (type) {
       case 'share':
       case 'discussion':
@@ -804,6 +865,10 @@ function Learning() {
       case 'individual':
         return <FaBook className="task-icon reflect" />;
       default:
+        // For unknown types or if completed is true, show checkmark
+        if (completed) {
+          return <FaCheckCircle className="task-icon completed" />;
+        }
         return <FaCheckCircle className="task-icon" />;
     }
   };
@@ -883,6 +948,43 @@ function Learning() {
     );
   };
   
+  // Helper function to preprocess code content for better wrapping
+  const preprocessCodeContent = (code) => {
+    if (!code) return code;
+    
+    // Split code into lines
+    const lines = code.split('\n');
+    const maxLineLength = 80; // Reasonable line length for code
+    
+    const processedLines = lines.map(line => {
+      // If line is too long, try to break it intelligently
+      if (line.length > maxLineLength) {
+        // Try to break at logical points (spaces, operators, etc.)
+        const breakPoints = [' ', '.', '(', ')', '{', '}', '[', ']', ',', ';', '=', '+', '-'];
+        let bestBreak = -1;
+        
+        // Find the best break point within reasonable range
+        for (let i = maxLineLength - 10; i >= maxLineLength - 30 && i >= 0; i--) {
+          if (breakPoints.includes(line[i])) {
+            bestBreak = i + 1;
+            break;
+          }
+        }
+        
+        // If we found a good break point, split the line
+        if (bestBreak > 0 && bestBreak < line.length) {
+          const firstPart = line.substring(0, bestBreak);
+          const secondPart = '  ' + line.substring(bestBreak).trim(); // Indent continuation
+          return firstPart + '\n' + secondPart;
+        }
+      }
+      
+      return line;
+    });
+    
+    return processedLines.join('\n');
+  };
+
   // Update the formatMessageContent function to NOT include resources for every message
   const formatMessageContent = (content) => {
     if (!content) return null;
@@ -912,14 +1014,17 @@ function Learning() {
             if (match) {
               const [, language, code] = match;
               
+              // Preprocess the code content for better wrapping
+              const processedCode = preprocessCodeContent(code);
+              
               return (
                 <div key={index} className="code-block-wrapper">
                   <div className="code-block-header">
                     {language && <span className="code-language">{language}</span>}
                   </div>
-                  <pre className="code-block">
-                    <code>{code}</code>
-                  </pre>
+                  <div className="code-block-content">
+                    {processedCode}
+                  </div>
                 </div>
               );
             }
@@ -1009,22 +1114,30 @@ function Learning() {
       // Update the URL without reloading the page
       navigate(`/learning?${params.toString()}`, { replace: true });
       
-      // IMPORTANT: Immediately clear previous messages and show loading state
-      // This prevents the previous task's messages from showing while loading
+      // Handle different task types
       const currentTask = tasks[newIndex];
-      setMessages([{
-        id: 'loading',
-        content: `Loading ${currentTask.title}...`,
-        role: 'system'
-      }]);
-      setIsMessagesLoading(true);
       
-      // Then fetch the messages for the new task
-      fetchTaskMessages(newTaskId);
-      
-      // Check if current task can be analyzed and if there's an existing analysis
-      if (tasks[newIndex].should_analyze) {
-        fetchTaskAnalysis(newTaskId);
+      if (!currentTask.feedback_slot) {
+        // IMPORTANT: Immediately clear previous messages and show loading state
+        // This prevents the previous task's messages from showing while loading
+        setMessages([{
+          id: 'loading',
+          content: `Loading ${currentTask.title}...`,
+          role: 'system'
+        }]);
+        setIsMessagesLoading(true);
+        
+        // Then fetch the messages for the new task
+        fetchTaskMessages(newTaskId);
+        
+        // Check if current task can be analyzed and if there's an existing analysis
+        if (tasks[newIndex].should_analyze) {
+          fetchTaskAnalysis(newTaskId);
+        }
+      } else {
+        // For feedback tasks, clear messages and loading state
+        setMessages([]);
+        setIsMessagesLoading(false);
       }
     }
   };
@@ -1059,9 +1172,16 @@ function Learning() {
         setShowSubmissionModal(false);
         setSubmissionUrl('');
         
-        // Show success message
-        setError('Deliverable submitted successfully!');
-        setTimeout(() => setError(''), 3000);
+        // Show success message with SweetAlert2
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Deliverable submitted successfully!',
+          confirmButtonColor: '#667eea',
+          background: '#1f2937',
+          color: '#f9fafb',
+          iconColor: '#4caf50'
+        });
       } else {
         const data = await response.json();
         setSubmissionError(data.error || 'Failed to submit deliverable');
@@ -1071,6 +1191,75 @@ function Learning() {
       setSubmissionError('Network error. Please try again.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // NEW: Handle deliverable panel submission
+  const handleDeliverablePanelSubmit = async (submissionData) => {
+    if (!currentDeliverableTask) return;
+    
+    try {
+      // Determine content format based on deliverable type
+      let content;
+      if (typeof submissionData === 'object' && submissionData !== null) {
+        // Structured submission - stringify the object
+        content = JSON.stringify(submissionData);
+      } else {
+        // Plain text/url submission
+        content = submissionData;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          taskId: currentDeliverableTask.id,
+          content: content
+        })
+      });
+      
+      if (response.ok) {
+        // Close the panel on success
+        setShowDeliverablePanel(false);
+        setCurrentDeliverableTask(null);
+        
+        // Refresh submission data
+        await fetchTaskSubmission(currentDeliverableTask.id);
+        
+        // Show success message with SweetAlert2
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Deliverable submitted successfully!',
+          confirmButtonColor: '#667eea',
+          background: '#1f2937',
+          color: '#f9fafb',
+          iconColor: '#4caf50',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      } else {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to submit deliverable');
+      }
+    } catch (error) {
+      console.error('Error submitting deliverable:', error);
+      
+      // Show error with SweetAlert2
+      Swal.fire({
+        icon: 'error',
+        title: 'Submission Failed',
+        text: error.message || 'An error occurred while submitting your deliverable',
+        confirmButtonColor: '#667eea',
+        background: '#1f2937',
+        color: '#f9fafb',
+        iconColor: '#ef4444'
+      });
+      
+      // Don't close panel on error - let user try again
     }
   };
 
@@ -1604,6 +1793,32 @@ function Learning() {
   return (
     <div className="learning">
       {renderHistoricalBanner()}
+      
+      {/* Workshop Lock Banner */}
+      {workshopInfo?.isLocked && (
+        <div className="learning__workshop-banner">
+          <div className="workshop-banner__icon">🔒</div>
+          <div className="workshop-banner__content">
+            <h3>Workshop Content Locked</h3>
+            <p>
+              Tasks will be available on{' '}
+              <strong>
+                {new Date(workshopInfo.startDate).toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric',
+                  timeZone: 'America/New_York'
+                })}
+              </strong>
+              {workshopInfo.daysUntilStart > 0 && (
+                <span> ({workshopInfo.daysUntilStart} {workshopInfo.daysUntilStart === 1 ? 'day' : 'days'} from now)</span>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
+      
       <div className="learning__content">
         <div className="learning__task-panel">
           <div className={`learning__task-header ${dayId ? 'learning__task-header--with-back' : ''}`}>
@@ -1622,28 +1837,44 @@ function Learning() {
               {tasks.map((task, index) => (
                 <div
                   key={task.id}
-                  className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''} ${task.completed ? 'completed' : ''}`}
+                  className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''} ${task.completed ? 'completed' : ''} ${workshopInfo?.isLocked ? 'locked' : ''}`}
                   data-mode={task.task_mode}
+                  data-feedback-slot={task.feedback_slot}
                   onClick={() => {
+                    // Prevent interaction if workshop is locked
+                    if (workshopInfo?.isLocked) {
+                      return;
+                    }
                     if (index !== currentTaskIndex) {
                       // Update the current task index
                       setCurrentTaskIndex(index);
                       
-                      // IMPORTANT: Immediately clear previous messages and show loading state
-                      setMessages([{
-                        id: 'loading',
-                        content: `Loading ${task.title}...`,
-                        role: 'system'
-                      }]);
-                      setIsMessagesLoading(true);
-                      
-                      console.log('Task should_analyze:', task.should_analyze);
-                      fetchTaskMessages(task.id);
+                      // Only fetch messages for non-feedback tasks
+                      if (!task.feedback_slot) {
+                        // IMPORTANT: Immediately clear previous messages and show loading state
+                        setMessages([{
+                          id: 'loading',
+                          content: `Loading ${task.title}...`,
+                          role: 'system'
+                        }]);
+                        setIsMessagesLoading(true);
+                        
+                        console.log('Task should_analyze:', task.should_analyze);
+                        fetchTaskMessages(task.id);
+                      } else {
+                        // Clear messages for feedback tasks
+                        setMessages([]);
+                        setIsMessagesLoading(false);
+                      }
                     }
                   }}
                 >
                   <div className="learning__task-icon">
-                    {getTaskIcon(task.type, task.completed, task.task_mode)}
+                    {workshopInfo?.isLocked ? (
+                      <FaLock className="task-icon task-icon--locked" />
+                    ) : (
+                      getTaskIcon(task.type, task.completed, task.task_mode, task.feedback_slot)
+                    )}
                   </div>
                   <div className="learning__task-content">
                     <h3 className="learning__task-title">
@@ -1680,6 +1911,15 @@ function Learning() {
               dayNumber={currentDay?.day_number}
               onComplete={handlePeerFeedbackComplete}
               onCancel={handlePeerFeedbackCancel}
+            />
+          ) : isCurrentTaskFeedbackSlot() ? (
+            // Show the builder feedback form for feedback slot tasks
+            <BuilderFeedbackForm
+              taskId={tasks[currentTaskIndex].id}
+              dayNumber={currentDay?.day_number}
+              cohort={cohort}
+              surveyType={tasks[currentTaskIndex].feedback_slot}
+              onComplete={handleBuilderFeedbackComplete}
             />
           ) : (
             <div className="learning__chat-panel">
@@ -1828,10 +2068,15 @@ function Learning() {
                   className="learning__input"
                   value={newMessage}
                   onChange={handleTextareaChange}
-                  placeholder={!isActive ? "Historical view only" : (isSending ? "Sending..." : "Type your message...")}
-                  disabled={!isActive || isSending || isAiThinking}
+                  placeholder={
+                    workshopInfo?.isLocked ? "Workshop tasks locked until start date" :
+                    !isActive ? "Historical view only" :
+                    !hasInitialMessage ? "Loading task..." :
+                    (isSending ? "Sending..." : "Type your message...")
+                  }
+                  disabled={workshopInfo?.isLocked || !isActive || !hasInitialMessage || isSending || isAiThinking}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
+                    if (e.key === 'Enter' && !e.shiftKey && !workshopInfo?.isLocked) {
                       e.preventDefault();
                       handleSendMessage(e);
                     }
@@ -1844,12 +2089,20 @@ function Learning() {
                       (tasks[currentTaskIndex].deliverable_type === 'link' || 
                        tasks[currentTaskIndex].deliverable_type === 'file' ||
                        tasks[currentTaskIndex].deliverable_type === 'document' ||
-                       tasks[currentTaskIndex].deliverable_type === 'video') && (
+                       tasks[currentTaskIndex].deliverable_type === 'video' ||
+                       tasks[currentTaskIndex].deliverable_type === 'structured') && (
                       <button 
                         type="button"
                         className="learning__deliverable-btn"
-                        onClick={() => setShowSubmissionModal(true)}
+                        onClick={async () => {
+                          const task = tasks[currentTaskIndex];
+                          setCurrentDeliverableTask(task);
+                          // Fetch submission for this specific task
+                          await fetchTaskSubmission(task.id);
+                          setShowDeliverablePanel(true);
+                        }}
                         title={`Submit ${tasks[currentTaskIndex].deliverable}`}
+                        disabled={workshopInfo?.isLocked}
                       >
                         <FaLink />
                       </button>
@@ -1859,7 +2112,7 @@ function Learning() {
                 <button 
                   className="learning__send-btn" 
                   type="submit" 
-                  disabled={!isActive || !newMessage.trim() || isSending || isAiThinking}
+                  disabled={workshopInfo?.isLocked || !isActive || !hasInitialMessage || !newMessage.trim() || isSending || isAiThinking}
                 >
                   {isSending ? "Sending..." : <FaPaperPlane />}
                 </button>
@@ -1900,7 +2153,7 @@ function Learning() {
         </div>
       </div>
       
-      {/* Submission Modal */}
+      {/* Submission Modal (OLD - keeping for backward compatibility) */}
       {showSubmissionModal && (
         <div className="learning__modal-overlay">
           <div className="learning__modal learning__modal--submission">
@@ -1923,6 +2176,20 @@ function Learning() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* NEW: Deliverable Panel (Sidebar) */}
+      {showDeliverablePanel && currentDeliverableTask && (
+        <DeliverablePanel
+          task={currentDeliverableTask}
+          currentSubmission={submission}
+          onClose={() => {
+            setShowDeliverablePanel(false);
+            setCurrentDeliverableTask(null);
+          }}
+          onSubmit={handleDeliverablePanelSubmit}
+          isLocked={workshopInfo?.isLocked || false}
+        />
       )}
 
       {/* Analysis Modal */}

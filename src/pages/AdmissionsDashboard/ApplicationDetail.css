@@ -1729,3 +1729,130 @@ ion Buttons Container */
     min-width: 0;
   }
 }
+
+/* Email Tracking Styles */
+.application-detail__email-tracking {
+  margin-top: 1rem;
+}
+
+.application-detail__email-tracking-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.application-detail__email-stat {
+  background-color: var(--color-background-light);
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  border: 1px solid var(--color-border);
+}
+
+.application-detail__email-stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 0.5rem;
+}
+
+.application-detail__email-stat-label {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.application-detail__email-logs {
+  margin-top: 2rem;
+}
+
+.application-detail__email-logs h3 {
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  color: var(--color-text-primary);
+}
+
+.application-detail__email-logs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.application-detail__email-log-item {
+  background-color: var(--color-background-light);
+  border-radius: 6px;
+  padding: 1rem;
+  border-left: 4px solid var(--color-primary);
+}
+
+.application-detail__email-log-type {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.application-detail__email-log-count {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.application-detail__email-log-date {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.application-detail__email-log-queued {
+  font-size: 0.85rem;
+  color: var(--color-primary);
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+.application-detail__opt-out-info {
+  margin-top: 2rem;
+  background-color: rgba(255, 193, 7, 0.1);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border-left: 4px solid #ffc107;
+}
+
+.application-detail__opt-out-info h3 {
+  color: #ffc107;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.application-detail__opt-out-details p {
+  margin-bottom: 0.5rem;
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+}
+
+.application-detail__opt-out-details strong {
+  color: var(--color-text-secondary);
+}
+
+.application-detail__no-email-data {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* Responsive adjustments for email tracking */
+@media (max-width: 768px) {
+  .application-detail__email-tracking-stats {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .application-detail__email-stat {
+    padding: 1rem;
+  }
+  
+  .application-detail__email-stat-value {
+    font-size: 1.5rem;
+  }
+}

@@ -9,6 +9,11 @@
   color: #1976d2; /* Blue color for brain icon */
 }
 
+/* Add styling for feedback task icons */
+.task-icon.feedback {
+  color: #7c3aed; /* Purple color for clipboard icon */
+}
+
 /* Fix hover state to use the same background color as regular tasks */
 .learning__task-item[data-mode="conversation"]:hover {
   background-color: var(--color-background-darker, #111827);
@@ -16,14 +21,24 @@
 
 /* We don't need to redefine the base avatar styling, just override it for conversation tasks */
 
-/* Override for conversation tasks to use smart-logo.png - maximum specificity */
+/* Override for conversation tasks to use regular logo.png */
 .learning__chat-container--conversation .learning__message--assistant::before,
 .past-session .learning__chat-container--conversation .learning__message--assistant::before {
-  background-color: transparent !important;
-  background-image: url("/smart-logo.png") !important;
-  background-size: contain !important;
+  background-color: var(--color-primary) !important;
+  background-image: url("/logo.png") !important;
+  background-size: 12px !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
+}
+
+/* Ensure conversation task messages don't break container width */
+.learning__chat-container--conversation .learning__message-content,
+.past-session .learning__chat-container--conversation .learning__message-content {
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+  overflow-x: hidden !important;
+  min-width: 0 !important;
 }
 
 /* Message styling differences - removed background and border styling */

@@ -233,6 +233,10 @@
   background: #ed8936;
 }
 
+.admissions-dashboard__status-indicator--no_application {
+  background: #9ca3af;
+}
+
 .admissions-dashboard__status-indicator--ineligible {
   background: #f56565;
 }
@@ -1501,6 +1505,47 @@
   cursor: not-allowed;
 }
 
+/* SweetAlert2 Dark Theme Customization */
+.dark-swal-popup {
+  border: 1px solid var(--color-border) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark-swal-title {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.dark-swal-content {
+  color: #d1d5db !important;
+}
+
+.dark-swal-confirm-btn {
+  background-color: #dc3545 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  padding: 10px 20px !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.dark-swal-confirm-btn:hover {
+  background-color: #c82333 !important;
+}
+
+.dark-swal-cancel-btn {
+  background-color: #6c757d !important;
+  border: none !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  padding: 10px 20px !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.dark-swal-cancel-btn:hover {
+  background-color: #5a6268 !important;
+}
+
 /* Data section actions */
 .data-section__actions {
   display: flex;
@@ -1896,6 +1941,13 @@ Assessment Funnel Styles */
   color: #a855f7;
 }
 
+.admission-badge--withdrawn {
+  background: rgba(107, 114, 128, 0.2);
+  color: #6b7280;
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
 /* Program Admission Pipeline Styles */
 .program-admission-pipeline {
   display: flex;
@@ -2075,6 +2127,11 @@ Assessment Funnel Styles */
 .status-badge--in_progress {
   background: rgba(59, 130, 246, 0.2);
   color: #3b82f6;
+}
+
+.status-badge--no_application {
+  background: rgba(156, 163, 175, 0.2);
+  color: #9ca3af;
 }
 
 .status-badge--ineligible {
@@ -2451,12 +2508,12 @@ Assessment Funnel Styles */
 }
 
 /* Improved content area with subtle border */
-.admissions-dashboard__content {
+/* .admissions-dashboard__content {
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   position: relative;
-}
+} */
 
-.admissions-dashboard__content::before {
+/* .admissions-dashboard__content::before {
   content: '';
   position: absolute;
   top: 0;
@@ -2467,7 +2524,7 @@ Assessment Funnel Styles */
       transparent 0%,
       rgba(102, 126, 234, 0.3) 50%,
       transparent 100%);
-}
+} */
 
 /* Enhanced tab navigation with better visual hierarchy */
 .admissions-dashboard__tabs {
@@ -2748,6 +2805,603 @@ lumn Widths for Consistent Layout */
   white-space: nowrap;
 }
 
+/* Allow actions cell to show full content */
+.data-table .actions-cell {
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+}
+
+/* Email Automation Styles */
+.admissions-dashboard__email-automation {
+    padding: 1.5rem;
+}
+
+.email-automation-stats {
+    margin-bottom: 2rem;
+    background: var(--color-background-light);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid var(--color-border);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: var(--color-background-dark);
+    padding: 1rem;
+    border-radius: 6px;
+    text-align: center;
+    border: 1px solid var(--color-border);
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+    color: #FFFFFF !important;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.opt-out-stats {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.opt-out-stats h4 {
+    margin-bottom: 1rem;
+    color: var(--color-text-primary);
+    font-size: 1.1rem;
+}
+
+.opt-out-reasons-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.opt-out-reason-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    background: var(--color-background-light);
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    transition: all 0.2s ease;
+}
+
+.opt-out-reason-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.opt-out-reason-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+}
+
+.opt-out-reason-label {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.opt-out-reason-note {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+    text-align: center;
+    margin-top: 0.25rem;
+}
+
+.other-reasons-section {
+    background-color: var(--color-background-darker);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.other-reasons-section h5 {
+    color: var(--color-text-primary);
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.other-reasons-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.other-reason-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--color-background-light);
+    border-radius: 4px;
+    border-left: 3px solid var(--color-primary);
+}
+
+.other-reason-text {
+    flex: 1;
+    color: var(--color-text-primary);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.other-reason-count {
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
+
+/* Email Type Table Column Widths */
+.email-type-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.email-type-col {
+    width: 50% !important;
+    text-align: left !important;
+}
+
+.sent-col,
+.queued-col {
+    width: 15% !important;
+    text-align: center !important;
+}
+
+.avg-col {
+    width: 20% !important;
+    text-align: center !important;
+}
+
+.email-type-cell {
+    text-align: left !important;
+    font-weight: 500;
+    padding-left: 1rem !important;
+}
+
+.sent-cell,
+.queued-cell,
+.avg-cell {
+    text-align: center !important;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+/* Test Email Section */
+.test-email-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.75rem 0;
+    padding: 1rem;
+    background-color: var(--color-background-darker);
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+}
+
+.test-email-input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--color-border);
+    border-radius: 6px;
+    background-color: var(--color-background-light);
+    color: var(--color-text-primary);
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.test-email-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.test-email-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.test-email-input::placeholder {
+    color: var(--color-text-muted);
+}
+
+.opt-out-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--color-warning);
+    margin-bottom: 0.25rem;
+}
+
+.opt-out-label {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    text-align: center;
+}
+
+.email-type-breakdown {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.email-type-breakdown h4 {
+    margin-bottom: 1rem;
+    color: var(--color-text-primary);
+    font-size: 1.1rem;
+}
+
+.email-type-cell {
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.applicant-email-status-section,
+.queued-emails-section,
+.email-history-section {
+    margin-top: 2rem;
+    background: var(--color-background-light);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid var(--color-border);
+}
+
+.applicant-email-status-section h3,
+.queued-emails-section h3,
+.email-history-section h3 {
+    margin-bottom: 1rem;
+    color: var(--color-text-primary);
+    font-size: 1.2rem;
+}
+
+.send-count {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    background: var(--color-success-light);
+    color: var(--color-success-dark);
+}
+
+.send-count--max {
+    background: var(--color-warning-light);
+    color: var(--color-warning-dark);
+}
+
+.next-send {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+}
+
+.next-send--none {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+.create-btn--secondary {
+    background: var(--color-secondary);
+    border: 1px solid var(--color-secondary);
+}
+
+.create-btn--secondary:hover {
+    background: var(--color-secondary-dark);
+    border-color: var(--color-secondary-dark);
+}
+
+.create-btn--danger {
+    background: var(--color-danger);
+    border: 1px solid var(--color-danger);
+}
+
+.create-btn--danger:hover {
+    background: var(--color-danger-dark);
+    border-color: var(--color-danger-dark);
+}
+
+/* Applicant Email Status Styles */
+.opt-out-indicator {
+    margin-left: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.stage-badge, .app-status-badge, .info-session-badge, .workshop-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: capitalize;
+}
+
+.stage-badge--created { background: var(--color-info-light); color: var(--color-info-dark); }
+.stage-badge--application_started { background: var(--color-warning-light); color: var(--color-warning-dark); }
+.stage-badge--application_submitted { background: var(--color-primary-light); color: var(--color-primary-dark); }
+.stage-badge--info_session_attended { background: var(--color-success-light); color: var(--color-success-dark); }
+.stage-badge--workshop_invited { background: var(--color-secondary-light); color: var(--color-secondary-dark); }
+.stage-badge--workshop_attended { background: var(--color-success-light); color: var(--color-success-dark); }
+
+.app-status-badge--not_started { background: var(--color-text-muted); color: white; }
+.app-status-badge--no_application { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
+.app-status-badge--in_progress { background: var(--color-warning-light); color: var(--color-warning-dark); }
+.app-status-badge--submitted { background: var(--color-success-light); color: var(--color-success-dark); }
+.app-status-badge--incomplete { background: var(--color-danger-light); color: var(--color-danger-dark); }
+
+.info-session-badge--attended { background: var(--color-success-light); color: var(--color-success-dark); }
+.info-session-badge--not-attended { background: var(--color-danger-light); color: var(--color-danger-dark); }
+
+.workshop-badge--not_invited { background: var(--color-text-muted); color: white; }
+.workshop-badge--invited { background: var(--color-secondary-light); color: var(--color-secondary-dark); }
+.workshop-badge--attended { background: var(--color-success-light); color: var(--color-success-dark); }
+
+.days-since {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+}
+
+.email-logs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.email-log-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.email-type {
+    font-weight: 500;
+    color: var(--color-text-primary);
+    text-transform: capitalize;
+}
+
+.queued-indicator {
+    background: var(--color-warning-light);
+    color: var(--color-warning-dark);
+    padding: 0.1rem 0.3rem;
+    border-radius: 8px;
+    font-size: 0.7rem;
+}
+
+.no-emails {
+    color: var(--color-text-muted);
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.next-email-info {
+    font-size: 0.8rem;
+}
+
+.next-email-type {
+    font-weight: 500;
+    color: var(--color-text-primary);
+    text-transform: capitalize;
+}
+
+.next-email-date {
+    color: var(--color-text-secondary);
+    font-size: 0.75rem;
+}
+
+.email-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* SweetAlert2 Email Preview Styles */
+.email-preview-summary,
+.email-results-summary {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--color-background-light);
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.summary-label {
+    font-weight: bold;
+    color: var(--color-text-primary);
+}
+
+.summary-value {
+    font-weight: bold;
+    color: var(--color-primary);
+}
+
+.email-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.email-preview-table th,
+.email-preview-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.email-preview-table th {
+    background: var(--color-background-light);
+    font-weight: bold;
+    color: var(--color-text-primary);
+}
+
+.email-preview-table tr:nth-child(even) {
+    background: var(--color-background-light);
+}
+
+.email-type {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: var(--color-primary-light);
+    color: var(--color-primary-dark);
+    font-size: 0.8rem;
+    text-transform: capitalize;
+}
+
+.email-action {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: var(--color-success-light);
+    color: var(--color-success-dark);
+    font-size: 0.8rem;
+}
+
+.email-confirm-message {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: var(--color-danger-light);
+    border-radius: 8px;
+    border: 1px solid var(--color-danger);
+}
+
+.email-confirm-message p {
+    margin: 0.5rem 0;
+    color: var(--color-danger-dark);
+}
+
+/* Skipped Applicants Styles */
+.skipped-applicants {
+    margin-top: 2rem;
+    border-top: 1px solid var(--color-border);
+    padding-top: 1rem;
+}
+
+.skipped-applicants details {
+    background: var(--color-background-light);
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.skipped-applicants summary {
+    padding: 1rem;
+    cursor: pointer;
+    user-select: none;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--color-background-light);
+}
+
+.skipped-applicants summary:hover {
+    background: var(--color-background);
+}
+
+.skipped-summary-title {
+    color: var(--color-text-secondary);
+}
+
+.skipped-content {
+    padding: 1rem;
+    background: var(--color-background);
+    border-top: 1px solid var(--color-border);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.skipped-applicants-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.skipped-applicants-table th,
+.skipped-applicants-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.skipped-applicants-table th {
+    font-weight: bold;
+    color: var(--color-text-secondary);
+}
+
+.skip-reason {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: var(--color-warning-light);
+    color: var(--color-warning-dark);
+    font-size: 0.8rem;
+}
+
+/* Responsive adjustments for email automation */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.75rem;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    .opt-out-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .admissions-dashboard__email-automation {
+        padding: 1rem;
+    }
+    
+    .applicant-email-status-section .data-table {
+        font-size: 0.8rem;
+    }
+    
+    .applicant-email-status-section th,
+    .applicant-email-status-section td {
+        padding: 0.5rem 0.25rem;
+    }
+}
+
 /* Allow name and email columns to wrap if needed */
 .data-table td:nth-child(2),
 .data-table td:nth-child(3) {
@@ -2901,22 +3555,38 @@ o Sessions and Workshops Table Column Widths */
   /* Attended count */
 }
 
+/* Workshops: Laptops Needed count (column 5) */
 .admissions-dashboard__workshops .data-table th:nth-child(5),
 .admissions-dashboard__workshops .data-table td:nth-child(5) {
   width: 10%;
-  /* Laptops Needed count */
 }
 
+/* Info Sessions: Active column (column 5) */
 .admissions-dashboard__info-sessions .data-table th:nth-child(5),
 .admissions-dashboard__info-sessions .data-table td:nth-child(5) {
-  width: 26%;
-  /* Actions - Info Sessions (5 columns) */
+  width: 100px;
+  min-width: 100px;
 }
 
+/* Workshops: Active column (column 6) */
 .admissions-dashboard__workshops .data-table th:nth-child(6),
 .admissions-dashboard__workshops .data-table td:nth-child(6) {
-  width: 24%;
-  /* Actions - Workshops (6 columns) */
+  width: 100px;
+  min-width: 100px;
+}
+
+/* Info Sessions: Actions column (column 6) */
+.admissions-dashboard__info-sessions .data-table th:nth-child(6),
+.admissions-dashboard__info-sessions .data-table td:nth-child(6) {
+  width: 180px;
+  min-width: 180px;
+}
+
+/* Workshops: Actions column (column 7) */
+.admissions-dashboard__workshops .data-table th:nth-child(7),
+.admissions-dashboard__workshops .data-table td:nth-child(7) {
+  width: 180px;
+  min-width: 180px;
 }
 
 /* Allow event names to wrap and show full text */
@@ -2946,22 +3616,38 @@ o Sessions and Workshops Table Column Widths */
     /* More space for date/time */
   }
 
+  /* Info Sessions: Active column (column 5) - tablet */
   .admissions-dashboard__info-sessions .data-table th:nth-child(5),
   .admissions-dashboard__info-sessions .data-table td:nth-child(5) {
-    width: 26%;
-    /* Keep actions space consistent - Info Sessions */
+    width: 80px;
+    min-width: 80px;
   }
 
+  /* Info Sessions: Actions column (column 6) - tablet */
+  .admissions-dashboard__info-sessions .data-table th:nth-child(6),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(6) {
+    width: 140px;
+    min-width: 140px;
+  }
+
+  /* Workshops: Laptops Needed (column 5) - tablet */
   .admissions-dashboard__workshops .data-table th:nth-child(5),
   .admissions-dashboard__workshops .data-table td:nth-child(5) {
     width: 10%;
-    /* Laptops Needed - Workshops */
   }
 
+  /* Workshops: Active column (column 6) - tablet */
   .admissions-dashboard__workshops .data-table th:nth-child(6),
   .admissions-dashboard__workshops .data-table td:nth-child(6) {
-    width: 24%;
-    /* Actions - Workshops */
+    width: 80px;
+    min-width: 80px;
+  }
+
+  /* Workshops: Actions column (column 7) - tablet */
+  .admissions-dashboard__workshops .data-table th:nth-child(7),
+  .admissions-dashboard__workshops .data-table td:nth-child(7) {
+    width: 140px;
+    min-width: 140px;
   }
 }
 
@@ -2999,22 +3685,38 @@ o Sessions and Workshops Table Column Widths */
     /* Compact numbers */
   }
 
+  /* Info Sessions: Active column (column 5) - mobile */
   .admissions-dashboard__info-sessions .data-table th:nth-child(5),
   .admissions-dashboard__info-sessions .data-table td:nth-child(5) {
-    width: 30%;
-    /* Adequate space for actions on mobile - Info Sessions */
+    width: 60px;
+    min-width: 60px;
   }
 
+  /* Info Sessions: Actions column (column 6) - mobile */
+  .admissions-dashboard__info-sessions .data-table th:nth-child(6),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(6) {
+    width: 120px;
+    min-width: 120px;
+  }
+
+  /* Workshops: Laptops Needed (column 5) - mobile */
   .admissions-dashboard__workshops .data-table th:nth-child(5),
   .admissions-dashboard__workshops .data-table td:nth-child(5) {
     width: 8%;
-    /* Laptops Needed - Workshops mobile */
   }
 
+  /* Workshops: Active column (column 6) - mobile */
   .admissions-dashboard__workshops .data-table th:nth-child(6),
   .admissions-dashboard__workshops .data-table td:nth-child(6) {
-    width: 27%;
-    /* Actions - Workshops mobile */
+    width: 60px;
+    min-width: 60px;
+  }
+
+  /* Workshops: Actions column (column 7) - mobile */
+  .admissions-dashboard__workshops .data-table th:nth-child(7),
+  .admissions-dashboard__workshops .data-table td:nth-child(7) {
+    width: 120px;
+    min-width: 120px;
   }
 }
 
@@ -3308,31 +4010,110 @@ p indicator styles */
 .selected-applicant {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   background: var(--color-primary);
   color: white;
-  padding: 0.4rem 0.8rem;
-  border-radius: 4px;
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
   font-size: 0.85rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.applicant-name-selected {
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.laptop-toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.laptop-toggle-btn {
+  position: relative;
+  width: 42px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.3);
+  border: none;
+  border-radius: 11px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.laptop-toggle-btn:focus {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
+}
+
+.laptop-toggle-btn--needs {
+  background: #10b981; /* Green for needs laptop */
+}
+
+.laptop-toggle-btn--owns {
+  background: rgba(255, 255, 255, 0.3); /* Light for owns laptop */
+}
+
+.laptop-toggle-slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.laptop-toggle-btn--needs .laptop-toggle-slider {
+  transform: translateX(20px);
+}
+
+.laptop-toggle-btn--owns .laptop-toggle-slider {
+  transform: translateX(0);
+}
+
+.laptop-status-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.laptop-status-label--needs {
+  color: white;
+}
+
+.laptop-status-label--owns {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .remove-selected-btn {
   background: rgba(255, 255, 255, 0.2);
   border: none;
   color: white;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 1rem;
   line-height: 1;
+  flex-shrink: 0;
+  margin-left: auto;
+  transition: background 0.2s ease;
 }
 
 .remove-selected-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.35);
 }
 
 /* Mobile Responsiveness */
@@ -3366,5 +4147,132 @@ p indicator styles */
 
   .selected-list {
     flex-direction: column;
+  }
+}
+
+/* ===== ACTIVE/INACTIVE TOGGLE STYLES ===== */
+.active-status-cell {
+  text-align: center;
+  padding: 0.75rem;
+  vertical-align: middle;
+}
+
+.active-toggle-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.active-toggle-btn {
+  position: relative;
+  width: 48px;
+  height: 24px;
+  background: var(--color-border);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.active-toggle-btn:focus {
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
+.active-toggle-btn--active {
+  background: var(--color-primary);
+}
+
+.active-toggle-btn--inactive {
+  background: #ccc;
+}
+
+.active-toggle-slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.active-toggle-btn--active .active-toggle-slider {
+  transform: translateX(24px);
+}
+
+.active-toggle-btn--inactive .active-toggle-slider {
+  transform: translateX(0);
+}
+
+.active-status-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.active-status-label--active {
+  color: var(--color-primary);
+}
+
+.active-status-label--inactive {
+  color: #666;
+}
+
+/* Hover effects */
+.active-toggle-btn:hover {
+  transform: scale(1.05);
+}
+
+.active-toggle-btn--active:hover {
+  background: var(--color-primary-dark);
+}
+
+.active-toggle-btn--inactive:hover {
+  background: #bbb;
+}
+
+/* ===== EVENT FILTER TOGGLE STYLES ===== */
+.event-filter-toggle {
+  display: flex;
+  align-items: center;
+  margin-right: 1rem;
+}
+
+.event-filter-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.event-filter-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.event-filter-label:hover {
+  color: var(--color-primary);
+}
+
+/* Responsive adjustments for filter toggle */
+@media (max-width: 768px) {
+  .event-filter-toggle {
+    margin-bottom: 0.5rem;
+    margin-right: 0;
+  }
+  
+  .data-section__actions {
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 }

@@ -339,7 +339,10 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
         icon: 'warning',
         title: 'Incomplete Form',
         text: 'Please fill out all fields and provide your signature.',
-        confirmButtonColor: '#4242ea'
+        confirmButtonColor: '#4242ea',
+        background: 'var(--color-background-dark)',
+        color: 'var(--color-text-primary)',
+        confirmButtonText: 'OK, I\'ll complete it'
       });
       return;
     }
@@ -350,7 +353,10 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
         icon: 'warning',
         title: 'Invalid Phone Number',
         text: 'Please enter a valid 10-digit phone number.',
-        confirmButtonColor: '#4242ea'
+        confirmButtonColor: '#4242ea',
+        background: 'var(--color-background-dark)',
+        color: 'var(--color-text-primary)',
+        confirmButtonText: 'OK, I\'ll fix it'
       });
       return;
     }
@@ -406,13 +412,15 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
         html: `
           <div style="text-align: center;">
             <h3 style="color: #4242ea; margin: 20px 0;">Welcome to the AI-Native Program!</h3>
-            <p style="font-size: 18px; margin: 15px 0;">🚀 Your journey as a Builder starts now! 🚀</p>
-            <p style="font-size: 16px; margin: 10px 0;">Thank you for making this commitment to transform yourself and shape the future with AI.</p>
-            <p style="font-size: 14px; color: #666; margin-top: 20px;">Get ready to build, learn, and innovate like never before!</p>
+            <p style="font-size: 18px; margin: 15px 0; color: var(--color-text-primary);">🚀 Your journey as a Builder starts now! 🚀</p>
+            <p style="font-size: 16px; margin: 10px 0; color: var(--color-text-secondary);">Thank you for making this commitment to transform yourself and shape the future with AI.</p>
+            <p style="font-size: 14px; color: var(--color-text-muted); margin-top: 20px;">Get ready to build, learn, and innovate like never before!</p>
           </div>
         `,
         confirmButtonText: '🎯 Let\'s Build the Future!',
         confirmButtonColor: '#4242ea',
+        background: 'var(--color-background-dark)',
+        color: 'var(--color-text-primary)',
         timer: 6000,
         timerProgressBar: true,
         showClass: {
@@ -431,7 +439,10 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
         icon: 'error',
         title: 'Submission Failed',
         text: error.message || 'There was an error submitting your pledge. Please try again.',
-        confirmButtonColor: '#4242ea'
+        confirmButtonColor: '#4242ea',
+        background: 'var(--color-background-dark)',
+        color: 'var(--color-text-primary)',
+        confirmButtonText: 'Try Again'
       });
     } finally {
       setIsSubmitting(false);

@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaArrowRight, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes, FaLink, FaExternalLinkAlt, FaFileAlt, FaVideo, FaBars, FaBrain, FaComments } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaArrowRight, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes, FaLink, FaExternalLinkAlt, FaFileAlt, FaVideo, FaBars, FaBrain, FaComments, FaClipboardList } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import PeerFeedbackForm from '../../components/PeerFeedbackForm';
+import BuilderFeedbackForm from '../../components/BuilderFeedbackForm/BuilderFeedbackForm';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
 import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
+import DeliverablePanel from '../Learning/components/DeliverablePanel/DeliverablePanel';
 
 import './PastSession.css';
 import '../../styles/smart-tasks.css';
@@ -45,11 +47,15 @@ function PastSession() {
   const [isLazyLoading, setIsLazyLoading] = useState(false);
   const [rateLimitHit, setRateLimitHit] = useState(false);
   
-  // Add state for the submission modal
+  // Add state for the submission modal (OLD - keeping for backward compatibility)
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [submissionUrl, setSubmissionUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
+  
+  // NEW: DeliverablePanel state
+  const [showDeliverablePanel, setShowDeliverablePanel] = useState(false);
+  const [currentDeliverableTask, setCurrentDeliverableTask] = useState(null);
   
   // Add peer feedback state
   const [showPeerFeedback, setShowPeerFeedback] = useState(false);
@@ -503,10 +509,15 @@ function PastSession() {
     navigate('/calendar');
   };
 
-  const getTaskIcon = (type, taskMode) => {
+  const getTaskIcon = (type, taskMode, feedbackSlot) => {
     // Ensure task_mode has a value (default to 'basic')
     const mode = taskMode || 'basic';
-    console.log('getTaskIcon called with:', { type, taskMode, normalizedMode: mode });
+    console.log('getTaskIcon called with:', { type, taskMode, normalizedMode: mode, feedbackSlot });
+    
+    // Check if this is a feedback slot task - use clipboard icon
+    if (feedbackSlot) {
+      return <FaClipboardList className="task-icon feedback" />;
+    }
     
     // Check if this is a conversation task - use brain icon
     if (mode === 'conversation') {
@@ -630,6 +641,43 @@ function PastSession() {
     );
   };
 
+  // Helper function to preprocess code content for better wrapping
+  const preprocessCodeContent = (code) => {
+    if (!code) return code;
+    
+    // Split code into lines
+    const lines = code.split('\n');
+    const maxLineLength = 80; // Reasonable line length for code
+    
+    const processedLines = lines.map(line => {
+      // If line is too long, try to break it intelligently
+      if (line.length > maxLineLength) {
+        // Try to break at logical points (spaces, operators, etc.)
+        const breakPoints = [' ', '.', '(', ')', '{', '}', '[', ']', ',', ';', '=', '+', '-'];
+        let bestBreak = -1;
+        
+        // Find the best break point within reasonable range
+        for (let i = maxLineLength - 10; i >= maxLineLength - 30 && i >= 0; i--) {
+          if (breakPoints.includes(line[i])) {
+            bestBreak = i + 1;
+            break;
+          }
+        }
+        
+        // If we found a good break point, split the line
+        if (bestBreak > 0 && bestBreak < line.length) {
+          const firstPart = line.substring(0, bestBreak);
+          const secondPart = '  ' + line.substring(bestBreak).trim(); // Indent continuation
+          return firstPart + '\n' + secondPart;
+        }
+      }
+      
+      return line;
+    });
+    
+    return processedLines.join('\n');
+  };
+
   // Add a format function for message content with markdown support
   const formatMessageContent = (content) => {
     if (!content) return null;
@@ -659,14 +707,17 @@ function PastSession() {
             if (match) {
               const [, language, code] = match;
               
+              // Preprocess the code content for better wrapping
+              const processedCode = preprocessCodeContent(code);
+              
               return (
                 <div key={index} className="code-block-wrapper">
                   <div className="code-block-header">
                     {language && <span className="code-language">{language}</span>}
                   </div>
-                  <pre className="code-block">
-                    <code>{code}</code>
-                  </pre>
+                  <div className="code-block-content">
+                    {processedCode}
+                  </div>
                 </div>
               );
             }
@@ -1047,7 +1098,7 @@ function PastSession() {
     }
   };
 
-  // Handle deliverable submission
+  // Handle deliverable submission (OLD - keeping for backward compatibility)
   const handleDeliverableSubmit = async (e) => {
     e.preventDefault();
     
@@ -1088,6 +1139,51 @@ function PastSession() {
       setSubmissionError('Network error. Please try again.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // NEW: Handle deliverable panel submission
+  const handleDeliverablePanelSubmit = async (submissionData) => {
+    if (!currentDeliverableTask) return;
+    
+    try {
+      // Determine content format based on deliverable type
+      let content = submissionData;
+      
+      // For structured submissions, stringify the object
+      if (typeof submissionData === 'object' && submissionData !== null) {
+        content = JSON.stringify(submissionData);
+      }
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          taskId: currentDeliverableTask.id,
+          content: content
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to submit deliverable');
+      }
+      
+      // Refresh submission data
+      await fetchTaskSubmission(currentDeliverableTask.id);
+      
+      // Show success message
+      setSuccessMessage('Deliverable submitted successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      
+      // Keep panel open so user can see their submission
+      // They can close it manually when ready
+    } catch (error) {
+      console.error('Error submitting deliverable:', error);
+      setError('Failed to submit deliverable. Please try again.');
+      throw error; // Re-throw so DeliverablePanel can handle it
     }
   };
 
@@ -1508,7 +1604,7 @@ function PastSession() {
                   }}
                 >
                   <div className="learning__task-icon">
-                    {getTaskIcon(task.type, task.task_mode)}
+                    {getTaskIcon(task.type, task.task_mode, task.feedback_slot)}
                   </div>
                   <div className="learning__task-content">
                     <h3 className="learning__task-title">
@@ -1573,6 +1669,18 @@ function PastSession() {
               dayNumber={daySchedule?.day?.day_number || dayNumber}
               onComplete={handlePeerFeedbackComplete}
               onCancel={handlePeerFeedbackCancel}
+            />
+          ) : tasks.length > 0 && tasks[currentTaskIndex]?.feedback_slot ? (
+            // Show the builder feedback form for feedback_slot tasks
+            <BuilderFeedbackForm
+              taskId={tasks[currentTaskIndex].id}
+              dayNumber={daySchedule?.day?.day_number || dayNumber}
+              cohort={cohort}
+              surveyType={tasks[currentTaskIndex].feedback_slot}
+              onComplete={() => {
+                // Optional: Add any completion logic here
+                console.log('Builder feedback completed');
+              }}
             />
           ) : (
             <div className="learning__chat-panel">
@@ -1781,11 +1889,18 @@ function PastSession() {
                           (tasks[currentTaskIndex]?.deliverable_type === 'link' ||
                            tasks[currentTaskIndex]?.deliverable_type === 'file' ||
                            tasks[currentTaskIndex]?.deliverable_type === 'document' ||
-                           tasks[currentTaskIndex]?.deliverable_type === 'video') && (
+                           tasks[currentTaskIndex]?.deliverable_type === 'video' ||
+                           tasks[currentTaskIndex]?.deliverable_type === 'structured') && (
                           <button 
                             type="button"
                             className="learning__deliverable-btn"
-                            onClick={() => setShowSubmissionModal(true)}
+                            onClick={async () => {
+                              const task = tasks[currentTaskIndex];
+                              setCurrentDeliverableTask(task);
+                              // Fetch submission for this specific task
+                              await fetchTaskSubmission(task.id);
+                              setShowDeliverablePanel(true);
+                            }}
                             title={`Submit ${tasks[currentTaskIndex].deliverable}`}
                           >
                             <FaLink />
@@ -1856,6 +1971,19 @@ function PastSession() {
         />
       )}
       
+      {/* NEW: Deliverable Panel (Sidebar) */}
+      {showDeliverablePanel && currentDeliverableTask && (
+        <DeliverablePanel
+          task={currentDeliverableTask}
+          currentSubmission={submission}
+          onClose={() => {
+            setShowDeliverablePanel(false);
+            setCurrentDeliverableTask(null);
+          }}
+          onSubmit={handleDeliverablePanelSubmit}
+          isLocked={false}
+        />
+      )}
 
     </div>
   );

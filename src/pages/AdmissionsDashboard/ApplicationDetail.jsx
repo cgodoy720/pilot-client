@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotesModal from '../../components/NotesModal';
 import BulkActionsModal from '../../components/BulkActionsModal';
+import Swal from 'sweetalert2';
 import './ApplicationDetail.css';
 
 // Utility functions for formatting response values
@@ -93,6 +94,10 @@ const ApplicationDetail = () => {
     const [actionsModalOpen, setActionsModalOpen] = useState(false);
     const [actionInProgress, setActionInProgress] = useState(false);
 
+    // Email tracking data
+    const [emailTrackingData, setEmailTrackingData] = useState(null);
+    const [emailTrackingLoading, setEmailTrackingLoading] = useState(false);
+
     // Collapsible sections state - all collapsed by default
     const [expandedSections, setExpandedSections] = useState({});
 
@@ -122,12 +127,46 @@ const ApplicationDetail = () => {
             }
 
             const data = await response.json();
+            console.log('📋 Application Detail Data:', data);
+            console.log('🔍 Deferred status:', data.application?.deferred);
+            console.log('📅 Deferred at:', data.application?.deferred_at);
             setApplicationData(data);
+            
+            // Also fetch email tracking data
+            if (data.applicant?.applicant_id) {
+                fetchEmailTrackingData(data.applicant.applicant_id);
+            }
         } catch (error) {
             console.error('Error fetching application details:', error);
             setError('Failed to load application details. Please try again.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Fetch email tracking data
+    const fetchEmailTrackingData = async (applicantId) => {
+        try {
+            setEmailTrackingLoading(true);
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${applicantId}/email-tracking`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setEmailTrackingData(data);
+            } else {
+                console.log('No email tracking data available for this applicant');
+                setEmailTrackingData(null);
+            }
+        } catch (error) {
+            console.error('Error fetching email tracking data:', error);
+            setEmailTrackingData(null);
+        } finally {
+            setEmailTrackingLoading(false);
         }
     };
 
@@ -153,6 +192,70 @@ const ApplicationDetail = () => {
 
     const closeActionsModal = () => {
         setActionsModalOpen(false);
+    };
+
+    // Handle defer/undefer toggle
+    const handleDeferToggle = async () => {
+        const isDeferred = application?.deferred;
+        const action = isDeferred ? 'undefer' : 'defer';
+        
+        const result = await Swal.fire({
+            title: isDeferred ? 'Remove Deferral?' : 'Defer Application?',
+            html: isDeferred 
+                ? `<p style="font-size: 16px; margin: 20px 0;">This will remove the deferral status and return the applicant to the active pool.</p>`
+                : `<p style="font-size: 16px; margin: 20px 0;">This will mark the applicant as deferred and move them out of the current cohort pool.</p>`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: isDeferred ? 'Yes, Remove Deferral' : 'Yes, Defer Application',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: isDeferred ? '#4242ea' : '#dc3545',
+            cancelButtonColor: '#6c757d',
+            background: 'var(--color-background-dark)',
+            color: 'var(--color-text-primary)',
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/${action}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ applicantId: applicant.applicant_id })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || `Failed to ${action} application`);
+                }
+
+                const deferResult = await response.json();
+                
+                await Swal.fire({
+                    icon: 'success',
+                    title: isDeferred ? 'Deferral Removed' : 'Application Deferred',
+                    html: `<p style="font-size: 16px;">${deferResult.message}</p>`,
+                    confirmButtonColor: '#4242ea',
+                    background: 'var(--color-background-dark)',
+                    color: 'var(--color-text-primary)',
+                    confirmButtonText: 'OK'
+                });
+                
+                // Reload application data
+                fetchApplicationDetail();
+            } catch (error) {
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: error.message || `Failed to ${action} application. Please try again.`,
+                    confirmButtonColor: '#dc3545',
+                    background: 'var(--color-background-dark)',
+                    color: 'var(--color-text-primary)',
+                    confirmButtonText: 'OK'
+                });
+            }
+        }
     };
 
     // Handle single applicant action
@@ -448,6 +551,96 @@ const ApplicationDetail = () => {
                                     ⚡ Actions
                                 </button>
                             </div>
+                            
+                            {/* Deferral Status & Button */}
+                            {application?.status === 'submitted' && (
+                                <div className="application-detail__deferral-section" style={{
+                                    marginTop: '16px',
+                                    padding: '12px',
+                                    borderRadius: '8px',
+                                    background: application?.deferred 
+                                        ? 'rgba(255, 193, 7, 0.1)' 
+                                        : 'rgba(66, 66, 234, 0.05)',
+                                    border: `1px solid ${application?.deferred ? '#ffc107' : 'rgba(66, 66, 234, 0.2)'}`
+                                }}>
+                                    {application?.deferred ? (
+                                        <>
+                                            <div style={{ 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                gap: '8px',
+                                                marginBottom: '8px',
+                                                color: '#ffc107'
+                                            }}>
+                                                <span style={{ fontSize: '18px' }}>📅</span>
+                                                <strong>Application Deferred</strong>
+                                            </div>
+                                            <p style={{ 
+                                                margin: '0 0 8px 0', 
+                                                fontSize: '0.85rem',
+                                                color: 'var(--color-text-secondary)'
+                                            }}>
+                                                Deferred on {new Date(application.deferred_at).toLocaleDateString()}
+                                            </p>
+                                            <button
+                                                onClick={handleDeferToggle}
+                                                style={{
+                                                    background: '#4242ea',
+                                                    color: 'white',
+                                                    padding: '8px 14px',
+                                                    border: 'none',
+                                                    borderRadius: '6px',
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: '600',
+                                                    cursor: 'pointer',
+                                                    width: '100%',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                                onMouseEnter={(e) => e.target.style.background = '#3636d1'}
+                                                onMouseLeave={(e) => e.target.style.background = '#4242ea'}
+                                            >
+                                                Remove Deferral
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div style={{ 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                gap: '8px',
+                                                marginBottom: '8px'
+                                            }}>
+                                                <strong style={{ fontSize: '0.9rem' }}>Deferral Options</strong>
+                                            </div>
+                                            <button
+                                                onClick={handleDeferToggle}
+                                                style={{
+                                                    background: 'rgba(220, 53, 69, 0.1)',
+                                                    color: '#dc3545',
+                                                    padding: '8px 14px',
+                                                    border: '1px solid #dc3545',
+                                                    borderRadius: '6px',
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: '600',
+                                                    cursor: 'pointer',
+                                                    width: '100%',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.target.style.background = '#dc3545';
+                                                    e.target.style.color = 'white';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.target.style.background = 'rgba(220, 53, 69, 0.1)';
+                                                    e.target.style.color = '#dc3545';
+                                                }}
+                                            >
+                                                Defer Application
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <div className="application-detail__condensed-header-right">
@@ -849,6 +1042,104 @@ const ApplicationDetail = () => {
                     ) : (
                         <div className="no-responses">
                             <p>No responses found for this application.</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Email Tracking Section */}
+                <div className="application-detail__section">
+                    <h2>Email Tracking</h2>
+                    {emailTrackingLoading ? (
+                        <div className="application-detail__loading">
+                            <div className="application-detail__loading-spinner"></div>
+                            <p>Loading email tracking data...</p>
+                        </div>
+                    ) : emailTrackingData ? (
+                        <div className="application-detail__email-tracking">
+                            <div className="application-detail__email-tracking-stats">
+                                <div className="application-detail__email-stat">
+                                    <div className="application-detail__email-stat-value">
+                                        {Math.floor(emailTrackingData.days_since_account_created)} days
+                                    </div>
+                                    <div className="application-detail__email-stat-label">Days Since Account</div>
+                                </div>
+                                
+                                <div className="application-detail__email-stat">
+                                    <div className="application-detail__email-stat-value">
+                                        {emailTrackingData.email_logs && emailTrackingData.email_logs.length > 0 
+                                            ? emailTrackingData.email_logs.reduce((total, log) => total + (log.send_count || 0), 0)
+                                            : 0
+                                        }
+                                    </div>
+                                    <div className="application-detail__email-stat-label">Total Emails Sent</div>
+                                </div>
+                                
+                                <div className="application-detail__email-stat">
+                                    <div className="application-detail__email-stat-value">
+                                        {(() => {
+                                            if (!emailTrackingData.email_logs || emailTrackingData.email_logs.length === 0) {
+                                                return 'None';
+                                            }
+                                            
+                                            const nextEmails = emailTrackingData.email_logs
+                                                ?.filter(log => log.next_send_at && !log.is_queued)
+                                                ?.sort((a, b) => new Date(a.next_send_at) - new Date(b.next_send_at));
+                                            
+                                            if (nextEmails && nextEmails.length > 0) {
+                                                const nextEmail = nextEmails[0];
+                                                const nextDate = new Date(nextEmail.next_send_at);
+                                                return nextDate.toLocaleDateString();
+                                            } else {
+                                                return 'None';
+                                            }
+                                        })()}
+                                    </div>
+                                    <div className="application-detail__email-stat-label">Next Email</div>
+                                </div>
+                            </div>
+
+                            {emailTrackingData.email_logs && emailTrackingData.email_logs.length > 0 && (
+                                <div className="application-detail__email-logs">
+                                    <h3>Email History</h3>
+                                    <div className="application-detail__email-logs-list">
+                                        {emailTrackingData.email_logs.map((log, index) => (
+                                            <div key={index} className="application-detail__email-log-item">
+                                                <div className="application-detail__email-log-type">
+                                                    {log.email_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                </div>
+                                                <div className="application-detail__email-log-count">
+                                                    Sent {log.send_count} time{log.send_count !== 1 ? 's' : ''}
+                                                </div>
+                                                {log.email_sent_at && (
+                                                    <div className="application-detail__email-log-date">
+                                                        Last sent: {new Date(log.email_sent_at).toLocaleDateString()}
+                                                    </div>
+                                                )}
+                                                {log.is_queued && (
+                                                    <div className="application-detail__email-log-queued">
+                                                        📋 Queued for next send
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {emailTrackingData.email_opt_out && (
+                                <div className="application-detail__opt-out-info">
+                                    <h3>Opt-out Information</h3>
+                                    <div className="application-detail__opt-out-details">
+                                        <p><strong>Status:</strong> Opted out of automated emails</p>
+                                        <p><strong>Date:</strong> {new Date(emailTrackingData.email_opt_out_date_est).toLocaleDateString()}</p>
+                                        <p><strong>Reason:</strong> {emailTrackingData.email_opt_out_reason}</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="application-detail__no-email-data">
+                            <p>No email tracking data available for this applicant.</p>
                         </div>
                     )}
                 </div>

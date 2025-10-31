@@ -713,6 +713,12 @@
   background-color: var(--color-background-darker, #111827);
   color: var(--color-text-primary, #ffffff);
   position: relative;
+  /* Fix horizontal scrolling issues */
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-x: hidden;
+  min-width: 0; /* Allow flex children to shrink */
 }
 
 .learning__message--user .learning__message-content {
@@ -1410,4 +1416,160 @@
     font-size: 0.8rem;
     padding: 5px 10px;
   }
+}
+
+/* Code block styling - prevent horizontal overflow */
+.code-block-wrapper {
+  margin: 12px 0;
+  border-radius: 6px;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.code-block-header {
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 8px 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.code-block {
+  background-color: rgba(0, 0, 0, 0.4);
+  padding: 12px;
+  margin: 0;
+  overflow-x: auto; /* Allow horizontal scrolling within code blocks */
+  overflow-y: hidden;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre; /* Preserve formatting but allow scrolling */
+  max-width: 100%;
+}
+
+.code-block code {
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* NEW: CSS for preprocessed code content - same as Learning.css */
+.code-block-content {
+  background-color: rgba(0, 0, 0, 0.4);
+  padding: 12px;
+  margin: 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  
+  /* FIXED: Only width containment, no height restriction */
+  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  
+  /* Allow text to wrap naturally since we preprocessed it */
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  
+  /* Natural height expansion - show all content */
+  height: auto;
+  min-height: auto;
+  max-height: none;
+  overflow-y: visible;
+  
+  /* Only horizontal overflow control */
+  overflow-x: hidden;
+  
+  /* Create layout context without size restriction */
+  position: relative;
+  isolation: isolate;
+}
+
+/* Inline code styling */
+.inline-code {
+  background-color: rgba(0, 0, 0, 0.3);
+  color: var(--color-text-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* System message styling */
+.system-message {
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 8px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  max-width: 100%;
+  white-space: pre-wrap;
+}
+
+/* Error message styling */
+.error-message {
+  color: #ff6b6b;
+  background-color: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 14px;
+}
+
+/* Markdown content styling - prevent horizontal overflow */
+.markdown-paragraph {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.markdown-heading {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.markdown-list {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.markdown-list-item {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.markdown-link {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-all; /* Force long URLs to break */
+}
+
+/* Make markdown tables responsive */
+.markdown-table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+  border-collapse: collapse;
+  margin: 16px 0;
+}
+
+.markdown-table th,
+.markdown-table td {
+  border: 1px solid var(--color-border);
+  padding: 8px 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.markdown-table th {
+  background-color: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
 } 

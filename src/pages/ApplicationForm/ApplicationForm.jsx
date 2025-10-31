@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import databaseService from '../../services/databaseService';
 import AddressAutocomplete from '../../components/AddressAutocomplete/AddressAutocomplete';
 import IneligibleModal from '../../components/IneligibleScreen/IneligibleScreen';
+import Swal from 'sweetalert2';
 import './ApplicationForm.css';
 
 const ApplicationForm = () => {
@@ -833,12 +834,22 @@ const ApplicationForm = () => {
           }, 100);
         }
         
-        alert(`Please complete all required fields. Found ${Object.keys(allErrors).length} missing required field(s).`);
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Incomplete Application',
+          text: `Please complete all required fields. Found ${Object.keys(allErrors).length} missing required field(s).`,
+          confirmButtonColor: '#4242ea',
+          background: 'var(--color-background-dark)',
+          color: 'var(--color-text-primary)',
+          confirmButtonText: 'OK, I\'ll complete them'
+        });
         return;
       }
 
       if (currentSession?.application) {
-        await databaseService.submitApplication(currentSession.application.application_id);
+        console.log('🎯 Submitting application:', currentSession.application.application_id);
+        const result = await databaseService.submitApplication(currentSession.application.application_id);
+        console.log('✅ Submission result:', result);
         
         // Clear saved data
         localStorage.removeItem('applicationFormData');
@@ -846,14 +857,42 @@ const ApplicationForm = () => {
         localStorage.removeItem('applicationCurrentQuestionIndex');
         localStorage.setItem('applicationStatus', 'submitted');
         
-        alert('Application submitted successfully!');
-        navigate('/apply');
+        await Swal.fire({
+          icon: 'success',
+          title: '🎉 Application Submitted!',
+          html: `
+            <div style="text-align: center;">
+              <p style="font-size: 18px; margin: 15px 0;">Your application has been successfully submitted!</p>
+              <p style="font-size: 16px; margin: 10px 0;">We'll review your application and get back to you soon.</p>
+              <p style="font-size: 14px; color: #888; margin-top: 20px;">Thank you for your interest in our program!</p>
+            </div>
+          `,
+          confirmButtonText: 'Continue to Dashboard',
+          confirmButtonColor: '#4242ea',
+          background: 'var(--color-background-dark)',
+          color: 'var(--color-text-primary)',
+          timer: 5000,
+          timerProgressBar: true,
+          showClass: {
+            popup: 'animate__animated animate__bounceIn'
+          }
+        });
+        // Force reload the page to refresh dashboard with updated data
+        window.location.href = '/apply';
       } else {
         throw new Error('No active application session');
       }
     } catch (error) {
       console.error('Error submitting application:', error);
-      alert('Error submitting application. Please try again.');
+      await Swal.fire({
+        icon: 'error',
+        title: 'Submission Failed',
+        text: 'Error submitting application. Please try again.',
+        confirmButtonColor: '#4242ea',
+        background: 'var(--color-background-dark)',
+        color: 'var(--color-text-primary)',
+        confirmButtonText: 'Try Again'
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -1426,23 +1465,35 @@ const ApplicationForm = () => {
                   </button>
                 )}
                 
-                {getCurrentQuestionGlobalIndex() < getAllRootQuestions().length - 1 ? (
-                  <button
-                    type="button"
-                    onClick={handleNext}
-                    className="application-form__nav-button application-form__nav-button--next"
-                  >
-                    Next
-                  </button>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="application-form__nav-button application-form__nav-button--next"
-                  >
-                    {isSubmitting ? 'Submitting...' : 'Submit Application'}
-                  </button>
-                )}
+                {(() => {
+                  const currentIdx = getCurrentQuestionGlobalIndex();
+                  const totalQ = getAllRootQuestions().length;
+                  const isLast = currentIdx >= totalQ - 1;
+                  
+                  console.log(`Question ${currentIdx + 1} of ${totalQ} - Button: ${isLast ? 'SUBMIT' : 'NEXT'}`);
+                  
+                  return isLast ? (
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="application-form__nav-button application-form__nav-button--submit"
+                    >
+                      {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleNext();
+                      }}
+                      className="application-form__nav-button application-form__nav-button--next"
+                    >
+                      Next
+                    </button>
+                  );
+                })()}
             </div>
           </form>
             )}

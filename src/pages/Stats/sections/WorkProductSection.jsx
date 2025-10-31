@@ -323,15 +323,17 @@ const WorkProductSection = ({ cohortMonth }) => {
         </Box>
       </Box>
       
-      {/* AI Trend Analysis */}
-      <AITrendAnalysis 
-        analysisType="work_product"
-        cohortMonth={cohortMonth}
-        title="Work Product"
-      />
-      
       {/* List view of work products */}
       <Grid container spacing={2}>
+        {/* AI Trend Analysis */}
+        <Grid item xs={12}>
+          <AITrendAnalysis 
+            analysisType="work_product"
+            cohortMonth={cohortMonth}
+            title="Work Product"
+          />
+        </Grid>
+        
         {workProductData.map((item, index) => {
           const score = getCompletionScore(item);
           const feedback = getFeedback(item);
