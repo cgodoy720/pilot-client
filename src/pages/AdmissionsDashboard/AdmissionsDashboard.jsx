@@ -4348,17 +4348,22 @@ const AdmissionsDashboard = () => {
                                             {selectedApplicantsForRegistration.map((applicant) => (
                                                 <div key={applicant.applicant_id} className="selected-applicant">
                                                     <span className="applicant-name-selected">{applicant.display_name}</span>
-                                                    <label className="laptop-checkbox">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={laptopNeeds[applicant.applicant_id] || false}
-                                                            onChange={(e) => setLaptopNeeds({
+                                                    <div className="laptop-toggle-container">
+                                                        <button
+                                                            type="button"
+                                                            className={`laptop-toggle-btn ${laptopNeeds[applicant.applicant_id] ? 'laptop-toggle-btn--needs' : 'laptop-toggle-btn--owns'}`}
+                                                            onClick={() => setLaptopNeeds({
                                                                 ...laptopNeeds,
-                                                                [applicant.applicant_id]: e.target.checked
+                                                                [applicant.applicant_id]: !laptopNeeds[applicant.applicant_id]
                                                             })}
-                                                        />
-                                                        <span className="laptop-label">💻 Needs laptop</span>
-                                                    </label>
+                                                            title={laptopNeeds[applicant.applicant_id] ? 'Needs laptop' : 'Has own laptop'}
+                                                        >
+                                                            <span className="laptop-toggle-slider"></span>
+                                                        </button>
+                                                        <span className={`laptop-status-label ${laptopNeeds[applicant.applicant_id] ? 'laptop-status-label--needs' : 'laptop-status-label--owns'}`}>
+                                                            {laptopNeeds[applicant.applicant_id] ? '💻 Needs' : '✓ Own'}
+                                                        </span>
+                                                    </div>
                                                     <button
                                                         onClick={() => toggleApplicantSelection(applicant)}
                                                         className="remove-selected-btn"
