@@ -1,0 +1,94 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  background-color: #0a0f1e;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Remove ALL other styles - delete everything else */
+
+:root {
+  /* Color palette */
+  --color-primary: #4242ea;
+  --color-primary-hover: #5555ff;
+  --color-primary-dark: #3131d9; /* Darker shade for hover states */
+  --color-primary-rgb: 66, 66, 234; /* RGB values of primary color for rgba() */
+  --color-primary-transparent: rgba(66, 66, 234, 0.1); /* Transparent primary for backgrounds */
+  --color-primary-transparent-light: rgba(66, 66, 234, 0.05); /* Lighter transparent primary */
+  --color-error: #ff4f4f; /* Error/danger color */
+  --color-navbar: #1a1f2c;
+  --color-background-dark: #1a1f2c; /* Dark mode: dark navy */
+  --color-background-darker: #0a0f1e; /* Dark mode: darker navy */
+  --color-background-light: #242938; /* Dark mode: lighter navy */
+  --color-text-primary: #ffffff; /* Dark mode: white text */
+  --color-text-secondary: #a0a0a0; /* Dark mode: light gray text */
+  --color-text-muted: rgba(255, 255, 255, 0.5); /* Dark mode: muted white text */
+  --color-border: #2a2f3e; /* Dark mode: dark gray borders */
+  
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  
+  /* Transitions */
+  --transition-speed: 0.3s;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
+  overflow-x: hidden;
+}
+
+/* Hide scrollbars globally */
+*::-webkit-scrollbar {
+  display: none;
+}
+
+* {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Loading screen */
+.loading-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100%;
+  background-color: var(--color-background-dark);
+  color: var(--color-text-primary);
+  font-size: 1.5rem;
+}

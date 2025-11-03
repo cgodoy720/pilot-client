@@ -1,0 +1,571 @@
+.content-placeholder {
+  /* background-color: var(--color-background-light); */
+  border-radius: 8px;
+  padding: var(--spacing-lg);
+  margin-top: var(--spacing-md);
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+}
+
+.dashboard {
+  width: 100%;
+  height: 100%;
+  padding: var(--spacing-lg);
+  background-color: #0a0f1e;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Hide the header */
+.dashboard__header {
+  display: none;
+}
+
+.dashboard__content {
+  display: flex;
+  gap: var(--spacing-lg);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  height: calc(100vh - 150px); /* Set a specific height based on viewport */
+}
+
+/* Left Panel Styles - Objectives */
+.dashboard__left-panel {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  overflow: visible;
+  padding-right: var(--spacing-sm);
+  max-height: none;
+  height: 100%;
+}
+
+.dashboard__objectives {
+  background-color: #1a1f2c;
+  border-radius: 8px;
+  padding: var(--spacing-lg);
+  border: 1px solid #2a2f3e;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Schedule Panel Styles */
+.dashboard__schedule-panel {
+  flex: 1;
+  background-color: #1a1f2c;
+  border-radius: 8px;
+  padding: var(--spacing-lg);
+  border: 1px solid #2a2f3e;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+}
+
+.panel-title {
+  font-size: 1.2rem;
+  margin-bottom: var(--spacing-md);
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  overflow-y: auto;
+  padding-right: var(--spacing-sm);
+  flex: 1; /* Take all available space */
+  max-height: none; /* Remove fixed max-height */
+  padding-top: 8px;
+}
+
+.schedule-item {
+  display: flex;
+  padding: var(--spacing-md);
+  background-color: #242938;
+  border-radius: 6px;
+  border: 1px solid transparent; /* Add transparent border by default */
+  border-left: 3px solid #2a2f3e;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+  align-items: center; /* Center items vertically */
+  height: 60px; /* Fixed height for consistent sizing */
+  box-sizing: border-box; /* Include padding in height calculation */
+}
+
+.schedule-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  background-color: #2d3342;
+  border: 1px solid var(--color-primary);
+  border-left: 3px solid var(--color-primary);
+}
+
+.schedule-item.completed {
+  border: 1px solid transparent; /* Add transparent border by default */
+  border-left: 3px solid #4caf50;
+  opacity: 0.8;
+}
+
+.schedule-item.completed:hover {
+  border: 1px solid #4caf50;
+  border-left: 3px solid #4caf50;
+}
+
+.schedule-time {
+  width: 80px;
+  font-weight: 500;
+  color: #ffffff;
+  flex-shrink: 0; /* Prevent time from shrinking */
+  display: flex;
+  align-items: center; /* Center time vertically */
+}
+
+.schedule-details {
+  flex: 1;
+  display: flex;
+  align-items: center; /* Align items horizontally */
+  gap: 12px; /* Add space between title and duration */
+}
+
+.schedule-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  flex: 1; /* Allow title to take available space */
+}
+
+/* Task icon styles */
+.task-icon {
+  font-size: 1rem;
+  flex-shrink: 0; /* Prevent icon from shrinking */
+  width: 20px; /* Fixed width for consistent spacing */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.task-icon.completed {
+  color: #4caf50;
+}
+
+.task-icon.standup {
+  color: #4caf50;
+}
+
+.task-icon.group {
+  color: #2196f3;
+}
+
+.task-icon.individual {
+  color: #ff9800;
+}
+
+.task-icon.reflection {
+  color: #9c27b0;
+}
+
+.schedule-duration {
+  font-size: 0.85rem;
+  color: #999999;
+  flex-shrink: 0; /* Prevent duration from shrinking */
+  min-width: 60px; /* Give duration a minimum width */
+  text-align: right; /* Right align duration */
+}
+
+
+
+/* Objectives Styles */
+.objectives-list {
+  list-style-type: none;
+  overflow-y: auto;
+  padding-left: 0;
+  flex: 1; /* Make it take all available space */
+  max-height: none; /* Remove max-height limitation */
+  margin: 0; /* Remove default margin */
+}
+
+.objective-item {
+  margin-bottom: var(--spacing-sm);
+  display: flex;
+  align-items: flex-start;
+  line-height: 1.4;
+  padding: var(--spacing-xs) 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05); /* Add subtle separator */
+  text-align: left; /* Ensure text is left-aligned */
+}
+
+.objective-item:last-child {
+  border-bottom: none; /* Remove border from last item */
+  margin-bottom: 0; /* Remove margin from last item */
+}
+
+.bullet {
+  margin-right: 8px;
+  color: var(--color-primary);
+  font-size: 1.2rem;
+  flex-shrink: 0; /* Prevent bullet from shrinking */
+  display: inline-block; /* Ensure proper alignment */
+  width: 15px; /* Fixed width for better alignment */
+  text-align: center; /* Center the bullet */
+}
+
+
+
+/* Continue Button Styles */
+.dashboard__continue {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--spacing-md);
+  padding-bottom: 0;
+}
+
+.continue-btn {
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 30px;
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.continue-btn:hover {
+  background-color: var(--color-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+.continue-icon {
+  font-size: 0.9rem;
+}
+
+/* Custom scrollbar styles */
+.schedule-list::-webkit-scrollbar,
+.objectives-list::-webkit-scrollbar,
+.dashboard__left-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.schedule-list::-webkit-scrollbar-track,
+.objectives-list::-webkit-scrollbar-track,
+.dashboard__left-panel::-webkit-scrollbar-track {
+  background: #f5f5f5;
+  border-radius: 3px;
+}
+
+.schedule-list::-webkit-scrollbar-thumb,
+.objectives-list::-webkit-scrollbar-thumb,
+.dashboard__left-panel::-webkit-scrollbar-thumb {
+  background: #d0d0d0;
+  border-radius: 3px;
+}
+
+.schedule-list::-webkit-scrollbar-thumb:hover,
+.objectives-list::-webkit-scrollbar-thumb:hover,
+.dashboard__left-panel::-webkit-scrollbar-thumb:hover {
+  background: #999999;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .dashboard {
+    height: 100%;
+    overflow-y: auto;
+  }
+  
+  .dashboard__content {
+    flex-direction: column;
+    max-height: none;
+  }
+  
+  .dashboard__left-panel {
+    width: 100%;
+    max-height: none;
+  }
+  
+  .schedule-list {
+    max-height: 400px;
+  }
+  
+  .objectives-list {
+    max-height: 200px;
+  }
+}
+
+.objective-text {
+  flex: 1;
+  text-align: left;
+  word-break: break-word; /* Allow long words to break */
+}
+
+/* No content messages */
+.no-content-message {
+  color: #a0a0a0;
+  font-style: italic;
+  padding: 1rem 0;
+  text-align: center;
+}
+
+.no-tasks-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 200px;
+  padding: 2rem;
+  background-color: #1a1f2c !important;
+  border-radius: 8px;
+  margin: 1rem 0;
+  /* border: 1px solid var(--color-border); */
+}
+
+.no-tasks-message p {
+  margin: 0.5rem 0;
+  font-size: 1.2rem;
+}
+
+/* Disabled button styling */
+.continue-btn:disabled {
+  background-color: var(--color-primary) !important;
+  color: white !important;
+  cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+.continue-btn:disabled:hover {
+  background-color: var(--color-primary) !important;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Add styles for the cohort selector */
+.dashboard__cohort-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.dashboard__cohort-selector label {
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.dashboard__cohort-selector select {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #2a2f3e;
+  background-color: #1a1f2c;
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.dashboard__cohort-selector select:focus {
+  outline: none;
+  border-color: #4285f4;
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+}
+
+/* Historical access container for full-page view */
+.dashboard__historical-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 200px);
+  padding: 2rem;
+}
+
+.dashboard__historical-notice {
+  background-color: #1a1f2c;
+  color: #ffffff;
+  padding: 30px;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border-left: 4px solid var(--color-primary, #4242ea);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dashboard__notice-icon {
+  font-size: 2rem;
+  margin-bottom: 15px;
+  color: var(--color-primary, #4242ea);
+}
+
+.dashboard__notice-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dashboard__notice-content h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.dashboard__notice-content p {
+  margin: 0 0 20px 0;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #a0a0a0;
+}
+
+.dashboard__calendar-btn {
+  background-color: var(--color-primary, #4242ea);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  margin: 0 auto;
+}
+
+.dashboard__calendar-btn:hover {
+  background-color: var(--color-primary-hover, #5555ff);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Disabled task items */
+.schedule-item.disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.schedule-item.disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.schedule-item.disabled .schedule-checkbox {
+  pointer-events: none;
+}
+
+/* Error message styles */
+.dashboard__error-message {
+  padding: 10px 16px;
+  margin: 15px 0;
+  background-color: rgba(255, 79, 79, 0.1);
+  border-radius: 4px;
+  color: #ff4f4f;
+  text-align: center;
+  font-weight: 500;
+  border-left: 4px solid #ff4f4f;
+}
+
+/* Historical button styles */
+.continue-btn.historical-btn {
+  background-color: #4a6cf7;
+}
+
+.continue-btn.historical-btn:hover {
+  background-color: #3a5ce5;
+}
+
+/* Volunteer Dashboard Styles */
+.dashboard__volunteer-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 200px);
+  padding: 2rem;
+}
+
+.dashboard__volunteer-welcome {
+  background-color: #1a1f2c;
+  color: #ffffff;
+  padding: 30px;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border-left: 4px solid var(--color-primary, #4242ea);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.dashboard__volunteer-welcome h2 {
+  margin: 0 0 15px 0;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.dashboard__volunteer-welcome p {
+  margin: 0 0 25px 0;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #a0a0a0;
+}
+
+.dashboard__volunteer-feedback-btn {
+  background-color: var(--color-primary, #4242ea);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  min-width: 200px;
+  justify-content: center;
+}
+
+.dashboard__volunteer-feedback-btn:hover {
+  background-color: var(--color-primary-dark, #3232d8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(66, 66, 234, 0.3);
+} 

@@ -1,0 +1,949 @@
+.pathfinder-personal-dashboard {
+  width: 100%;
+  padding: 0 var(--spacing-xl);
+  color: #1a1a1a;
+}
+
+.pathfinder-personal-dashboard__loading {
+  padding: var(--spacing-xl);
+  text-align: center;
+  color: #666666;
+}
+
+.pathfinder-personal-dashboard__error {
+  padding: var(--spacing-md);
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 6px;
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Two-column layout */
+.pathfinder-personal-dashboard__layout {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: stretch;
+}
+
+.pathfinder-personal-dashboard__left {
+  flex: 0 0 40%;
+  display: flex;
+  flex-direction: column;
+}
+
+.pathfinder-personal-dashboard__right {
+  flex: 0 0 60%;
+  display: flex;
+  flex-direction: column;
+}
+
+.pathfinder-personal-dashboard__welcome {
+  height: auto;
+  padding: var(--spacing-md);
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid rgba(66, 66, 234, 0.2);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.pathfinder-personal-dashboard__welcome-title {
+  margin: 0 0 var(--spacing-lg) 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: -0.5px;
+  text-align: left;
+}
+
+.pathfinder-personal-dashboard__welcome h2 {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.pathfinder-personal-dashboard__welcome p {
+  margin: 0;
+  font-size: 1rem;
+  color: #666666;
+}
+
+.pathfinder-personal-dashboard__section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.pathfinder-personal-dashboard__section--with-divider {
+  padding-top: var(--spacing-xl);
+  border-top: 1px solid rgba(66, 66, 234, 0.15);
+}
+
+.pathfinder-personal-dashboard__section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.pathfinder-personal-dashboard__section-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.pathfinder-personal-dashboard__view-link {
+  color: #4242ea;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: color 0.2s ease;
+}
+
+.pathfinder-personal-dashboard__view-link:hover {
+  color: #3333d1;
+}
+
+.pathfinder-personal-dashboard__stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--spacing-md);
+  overflow: visible;
+}
+
+.pathfinder-personal-dashboard__stats-period {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-lg);
+  margin-bottom: var(--spacing-sm);
+}
+
+.pathfinder-personal-dashboard__section > .pathfinder-personal-dashboard__stats-period:first-of-type {
+  margin-top: 0;
+}
+
+.pathfinder-personal-dashboard__period-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #666666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pathfinder-personal-dashboard__period-dates {
+  font-size: 0.7rem;
+  color: #999999;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.pathfinder-personal-dashboard__stats--weekly {
+  margin-bottom: var(--spacing-md);
+}
+
+.pathfinder-personal-dashboard__stat-card {
+  background-color: #ffffff;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  text-align: left;
+  position: relative;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+}
+
+.pathfinder-personal-dashboard__stat-card--merged {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  grid-column: span 3;
+  overflow: visible !important;
+}
+
+.pathfinder-personal-dashboard__stat-card--builds {
+  grid-column: span 2;
+}
+
+.pathfinder-personal-dashboard__stat-card--clickable {
+  text-decoration: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+.pathfinder-personal-dashboard__stat-card--clickable:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.pathfinder-personal-dashboard__stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  align-self: flex-start;
+  text-align: left;
+}
+
+.pathfinder-personal-dashboard__stat-divider {
+  width: 1px;
+  align-self: stretch;
+  background-color: #d1d5db;
+  margin: 0 var(--spacing-md);
+}
+
+.pathfinder-personal-dashboard__stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Fire indicator positioned inline with title */
+.pathfinder-personal-dashboard__fire-indicator {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 1rem;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+/* Tier 2: Animated fire emoji */
+.pathfinder-personal-dashboard__fire-indicator--tier-2 {
+  animation: fireFlicker 1.5s ease-in-out infinite;
+}
+
+/* Tier 3: Animated fire emoji */
+.pathfinder-personal-dashboard__fire-indicator--tier-3 {
+  animation: fireFlicker 1.5s ease-in-out infinite;
+}
+
+@keyframes fireFlicker {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  25% {
+    transform: scale(1.1) rotate(-5deg);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.15) rotate(5deg);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(1.05) rotate(-3deg);
+    opacity: 0.95;
+  }
+}
+
+/* Tier 3: Shimmering fire border effect with orange background */
+.pathfinder-personal-dashboard__stat-card--fire-tier-3 {
+  position: relative;
+  background: rgba(255, 140, 0, 0.12) !important;
+  border: 1px solid #ff8c00 !important;
+  animation: shimmerBorder 3s linear infinite;
+  box-shadow: 
+    0 0 15px rgba(255, 80, 0, 0.2),
+    0 0 30px rgba(255, 140, 0, 0.15);
+}
+
+@keyframes shimmerBorder {
+  0% {
+    border-color: #ff5000;
+  }
+  25% {
+    border-color: #ff8c00;
+  }
+  50% {
+    border-color: #ffa500;
+  }
+  75% {
+    border-color: #ff8c00;
+  }
+  100% {
+    border-color: #ff5000;
+  }
+}
+
+/* Tier 3 trend text styling */
+.pathfinder-personal-dashboard__stat-card--fire-tier-3 .pathfinder-personal-dashboard__trend {
+  font-weight: 600;
+  color: #ff8c00;
+}
+
+.pathfinder-personal-dashboard__stat-card--fire-tier-3 .pathfinder-personal-dashboard__trend-percent {
+  font-weight: 700;
+  color: #ff8c00;
+}
+
+.pathfinder-personal-dashboard__stat-card--fire-tier-3 .pathfinder-personal-dashboard__trend-arrow {
+  color: #ff8c00;
+}
+
+.pathfinder-personal-dashboard__stat-card--weekly {
+  background: linear-gradient(135deg, rgba(66, 66, 234, 0.15) 0%, rgba(107, 92, 246, 0.1) 100%);
+  border: 1px solid rgba(66, 66, 234, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.pathfinder-personal-dashboard__stat-card--weekly.pathfinder-personal-dashboard__stat-card--merged {
+  overflow: visible;
+}
+
+.pathfinder-personal-dashboard__stat-card--weekly:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(66, 66, 234, 0.3);
+  border-color: rgba(66, 66, 234, 0.4);
+}
+
+/* Build Progress - Orange tint */
+.pathfinder-personal-dashboard__stat-card--build-progress {
+  background: linear-gradient(135deg, rgba(255, 140, 0, 0.12) 0%, rgba(255, 165, 0, 0.08) 100%) !important;
+  border: 1px solid rgba(255, 140, 0, 0.25) !important;
+}
+
+.pathfinder-personal-dashboard__stat-card--build-progress:hover {
+  box-shadow: 0 4px 12px rgba(255, 140, 0, 0.25) !important;
+  border-color: rgba(255, 140, 0, 0.35) !important;
+}
+
+/* Build Completed - Green tint */
+.pathfinder-personal-dashboard__stat-card--build-completed {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(16, 185, 129, 0.08) 100%) !important;
+  border: 1px solid rgba(34, 197, 94, 0.25) !important;
+}
+
+.pathfinder-personal-dashboard__stat-card--build-completed:hover {
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25) !important;
+  border-color: rgba(34, 197, 94, 0.35) !important;
+}
+
+.pathfinder-personal-dashboard__stat-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1;
+  margin-bottom: 0;
+  text-align: left;
+}
+
+.pathfinder-personal-dashboard__trend {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.875rem;
+  font-weight: 400;
+  margin-top: var(--spacing-lg);
+  color: #666666;
+}
+
+.pathfinder-personal-dashboard__trend--negative {
+  color: #dc2626;
+}
+
+.pathfinder-personal-dashboard__trend--negative .pathfinder-personal-dashboard__trend-explanation {
+  color: #999999;
+}
+
+.pathfinder-personal-dashboard__trend-main {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pathfinder-personal-dashboard__trend-arrow {
+  font-size: 1.1rem;
+}
+
+.pathfinder-personal-dashboard__trend-percent {
+  font-weight: 400;
+}
+
+.pathfinder-personal-dashboard__trend-explanation {
+  font-size: 0.875rem;
+  color: #999999;
+  font-weight: 400;
+}
+
+.pathfinder-personal-dashboard__stat-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: #666666;
+  text-align: left;
+  margin-bottom: var(--spacing-sm);
+}
+
+.pathfinder-personal-dashboard__stat-breakdown {
+  margin-top: auto;
+  padding-top: var(--spacing-sm);
+  font-size: 0.875rem;
+  color: #666666;
+  line-height: 1.4;
+}
+
+.pathfinder-personal-dashboard__stat-breakdown div {
+  margin: 2px 0;
+}
+
+/* Bottom section with Quick Actions and Streak */
+.pathfinder-personal-dashboard__bottom-section {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid rgba(66, 66, 234, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.pathfinder-personal-dashboard__actions {
+  flex: 1;
+  padding-bottom: 0;
+}
+
+.pathfinder-personal-dashboard__actions h3 {
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-align: left;
+}
+
+.pathfinder-personal-dashboard__action-cards {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.pathfinder-personal-dashboard__action-card {
+  background-color: #4242ea;
+  color: white;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: 6px;
+  border: none;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 8px rgba(66, 66, 234, 0.2);
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.pathfinder-personal-dashboard__action-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.pathfinder-personal-dashboard__action-card:hover::before {
+  left: 100%;
+}
+
+.pathfinder-personal-dashboard__action-card:hover {
+  background-color: #3333d1;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(66, 66, 234, 0.4);
+}
+
+.pathfinder-personal-dashboard__action-card:active {
+  transform: translateY(0) scale(1);
+  box-shadow: 0 2px 8px rgba(66, 66, 234, 0.2);
+}
+
+.pathfinder-personal-dashboard__action-icon {
+  display: none;
+}
+
+.pathfinder-personal-dashboard__action-title {
+  font-size: 0.9rem;
+}
+
+.pathfinder-personal-dashboard__action-desc {
+  display: none;
+}
+
+/* Milestone and achievement styling */
+.pathfinder-personal-dashboard__milestone-container {
+  padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-sm);
+  background: linear-gradient(135deg, rgba(66, 66, 234, 0.08) 0%, rgba(107, 92, 246, 0.05) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(66, 66, 234, 0.15);
+  transition: all 0.3s ease;
+  margin-bottom: var(--spacing-sm);
+  position: relative;
+}
+
+.pathfinder-personal-dashboard__milestone-container:first-of-type {
+  margin-top: 0;
+}
+
+.pathfinder-personal-dashboard__milestone-container:last-of-type {
+  margin-bottom: var(--spacing-md);
+}
+
+.pathfinder-personal-dashboard__milestone-container.celebrating {
+  animation: celebrate 0.6s ease-out;
+}
+
+.pathfinder-personal-dashboard__milestone {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  text-align: left;
+}
+
+.pathfinder-personal-dashboard__milestone-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  width: 50px;
+  height: 50px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(66, 66, 234, 0.15) 0%, rgba(107, 92, 246, 0.1) 100%);
+  border-radius: 50%;
+  border: 2px solid rgba(66, 66, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(66, 66, 234, 0.2);
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 12px rgba(66, 66, 234, 0.2);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(66, 66, 234, 0.3);
+  }
+}
+
+.pathfinder-personal-dashboard__milestone-content {
+  flex: 1;
+}
+
+.pathfinder-personal-dashboard__milestone-content h2 {
+  font-size: 1.25rem;
+  line-height: 1.3;
+  margin: 0 0 var(--spacing-xs) 0;
+  color: #1a1a1a;
+}
+
+.pathfinder-personal-dashboard__milestone-content p {
+  font-size: 0.875rem;
+  color: #666666;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.pathfinder-personal-dashboard__milestone-date {
+  display: block;
+  font-size: 0.75rem;
+  color: #666666;
+  opacity: 0.6;
+  margin-top: var(--spacing-xs);
+  font-weight: 400;
+}
+
+@keyframes celebrate {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.pathfinder-personal-dashboard__next-goal {
+  padding: 0;
+  background: transparent;
+  border: none;
+  margin-top: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
+  margin-left: calc(50px + var(--spacing-md)); /* Align with milestone content text (icon width + gap) */
+}
+
+.pathfinder-personal-dashboard__next-goal-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: var(--spacing-md);
+  align-items: flex-start;
+}
+
+.pathfinder-personal-dashboard__next-goal-cta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pathfinder-personal-dashboard__next-goal-arrow {
+  color: #999999;
+}
+
+.pathfinder-personal-dashboard__next-goal-label {
+  font-size: 0.7rem;
+  color: #666666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.pathfinder-personal-dashboard__next-goal-target {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.pathfinder-personal-dashboard__progress-bar {
+  width: 100%;
+  height: 24px;
+  background-color: rgba(66, 66, 234, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: var(--spacing-sm);
+  position: relative;
+}
+
+.pathfinder-personal-dashboard__progress-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.2) 50%, 
+    transparent 100%);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.pathfinder-personal-dashboard__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4242ea 0%, #6b5cf6 100%);
+  transition: width 0.5s ease-out;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(66, 66, 234, 0.3);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+}
+
+.pathfinder-personal-dashboard__progress-percentage {
+  position: absolute;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  z-index: 1;
+}
+
+.pathfinder-personal-dashboard__progress-text {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  color: #666666;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+/* Share Buttons */
+/* Action and Share Buttons Row */
+.pathfinder-personal-dashboard__milestone-actions {
+  display: flex;
+  align-items: center;
+  padding-top: var(--spacing-lg);
+  margin-top: var(--spacing-md);
+  border-top: none;
+}
+
+.pathfinder-personal-dashboard__milestone-cta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pathfinder-personal-dashboard__milestone-cta-text {
+  color: #666666;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.pathfinder-personal-dashboard__milestone-action-link {
+  color: #4242ea;
+  text-decoration: underline;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.pathfinder-personal-dashboard__milestone-action-link:hover {
+  color: #3535d8;
+}
+
+.pathfinder-personal-dashboard__share-buttons--top-right {
+  position: absolute;
+  top: var(--spacing-lg);
+  right: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  z-index: 10;
+}
+
+.pathfinder-personal-dashboard__share-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  background: #f5f5f5;
+  color: #666666;
+}
+
+.pathfinder-personal-dashboard__share-btn:hover {
+  transform: translateY(-2px);
+  background: #e8e8e8;
+  border-color: #d0d0d0;
+}
+
+.pathfinder-personal-dashboard__share-btn:active {
+  transform: translateY(0);
+}
+
+.pathfinder-personal-dashboard__share-btn--twitter {
+  background: #f5f5f5;
+  color: #666666;
+}
+
+.pathfinder-personal-dashboard__share-btn--twitter:hover {
+  background: #e8e8e8;
+}
+
+.pathfinder-personal-dashboard__share-btn--linkedin {
+  background: #f5f5f5;
+  color: #666666;
+}
+
+.pathfinder-personal-dashboard__share-btn--linkedin:hover {
+  background: #e8e8e8;
+}
+
+/* Milestone History */
+.pathfinder-personal-dashboard__milestone-history {
+  margin-top: var(--spacing-xs);
+  margin-left: var(--spacing-xl);
+  padding-top: 0;
+  border-top: none;
+}
+
+.pathfinder-personal-dashboard__history-label {
+  font-size: 0.7rem;
+  color: #666666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+  opacity: 0.8;
+  display: block;
+  text-align: left;
+}
+
+.pathfinder-personal-dashboard__history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.pathfinder-personal-dashboard__history-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 0;
+  background: transparent;
+  border: none;
+  transition: none;
+}
+
+.pathfinder-personal-dashboard__history-item:hover {
+  background: transparent;
+  border-color: transparent;
+  transform: none;
+}
+
+.pathfinder-personal-dashboard__history-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.pathfinder-personal-dashboard__history-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+.pathfinder-personal-dashboard__history-text {
+  font-size: 0.85rem;
+  color: #666666;
+  line-height: 1.4;
+  flex: 1;
+  text-align: left;
+}
+
+.pathfinder-personal-dashboard__history-date {
+  font-size: 0.75rem;
+  color: #999999;
+  font-weight: 500;
+  opacity: 0.7;
+  white-space: nowrap;
+  padding-right: var(--spacing-xl);
+}
+
+.pathfinder-personal-dashboard__streak {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: 0;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: #1a1a1a;
+  border-radius: 8px;
+  border: 1px solid #333333;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: fit-content;
+}
+
+.pathfinder-personal-dashboard__streak:hover {
+  background: #2a2a2a;
+  border-color: #444444;
+}
+
+.pathfinder-personal-dashboard__streak-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(255, 165, 0, 0.15) 0%, rgba(255, 140, 0, 0.1) 100%);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 165, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(255, 165, 0, 0.2);
+  animation: flicker 1.5s ease-in-out infinite;
+}
+
+@keyframes flicker {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 12px rgba(255, 165, 0, 0.2);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(255, 165, 0, 0.3);
+  }
+}
+
+.pathfinder-personal-dashboard__streak-content {
+  flex: 1;
+}
+
+.pathfinder-personal-dashboard__streak-text {
+  font-size: 1rem;
+  line-height: 1.3;
+  margin: 0 0 2px 0;
+  color: #ffffff;
+  font-weight: 700;
+  display: block;
+}
+
+.pathfinder-personal-dashboard__streak-subtext {
+  font-size: 0.75rem;
+  color: #ffffff;
+  line-height: 1.3;
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pathfinder-personal-dashboard__layout {
+    flex-direction: column;
+  }
+
+  .pathfinder-personal-dashboard__left,
+  .pathfinder-personal-dashboard__right {
+    flex: 1 1 100%;
+  }
+
+  .pathfinder-personal-dashboard__welcome {
+    padding: var(--spacing-lg);
+    height: auto;
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .pathfinder-personal-dashboard__welcome h2 {
+    font-size: 1.25rem;
+  }
+
+  .pathfinder-personal-dashboard__stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .pathfinder-personal-dashboard__stat-value {
+    font-size: 2rem;
+  }
+
+  .pathfinder-personal-dashboard__action-cards {
+    grid-template-columns: 1fr;
+  }
+}

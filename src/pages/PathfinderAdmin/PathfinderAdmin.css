@@ -1,0 +1,708 @@
+.pathfinder-admin {
+  width: 100%;
+  height: 100%;
+  background-color: #f5f5f5;
+  color: #1a1a1a;
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+}
+
+.pathfinder-admin__container {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.pathfinder-admin__loading,
+.pathfinder-admin__access-denied {
+  text-align: center;
+  padding: var(--spacing-xl);
+  font-size: 1.2rem;
+}
+
+.pathfinder-admin__access-denied {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: var(--spacing-xl);
+  border: 1px solid #e0e0e0;
+}
+
+/* Header */
+.pathfinder-admin__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.pathfinder-admin__title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.pathfinder-admin__export-btn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: #4242ea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(66, 66, 234, 0.2);
+}
+
+.pathfinder-admin__export-btn:hover {
+  background-color: #3333d1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(66, 66, 234, 0.3);
+}
+
+/* Messages */
+.pathfinder-admin__message {
+  padding: var(--spacing-md);
+  border-radius: 6px;
+  margin-bottom: var(--spacing-lg);
+  font-weight: 500;
+}
+
+.pathfinder-admin__message--error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Filters */
+.pathfinder-admin__filters {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  border: 1px solid #e0e0e0;
+}
+
+.pathfinder-admin__filter-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.pathfinder-admin__filter-group label {
+  font-weight: 500;
+  color: #1a1a1a;
+  white-space: nowrap;
+}
+
+.pathfinder-admin__filter-group input {
+  flex: 1;
+  max-width: 400px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #1a1a1a;
+  font-size: 1rem;
+}
+
+.pathfinder-admin__filter-group input:focus {
+  outline: none;
+  border-color: #4242ea;
+}
+
+.pathfinder-admin__filter-select {
+  flex: 1;
+  max-width: 400px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #1a1a1a;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.pathfinder-admin__filter-select:focus {
+  outline: none;
+  border-color: #4242ea;
+}
+
+/* Tabs Row Container */
+.pathfinder-admin__tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+/* Tabs */
+.pathfinder-admin__tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #e0e0e0;
+  background-color: #f5f5f5;
+}
+
+.pathfinder-admin__tab {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #666666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  top: 2px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pathfinder-admin__tab:hover {
+  color: #1a1a1a;
+  background-color: rgba(66, 66, 234, 0.05);
+}
+
+.pathfinder-admin__tab--active {
+  color: #4242ea;
+  border-bottom-color: #4242ea;
+  background-color: rgba(66, 66, 234, 0.05);
+}
+
+.pathfinder-admin__tab--active:hover {
+  background-color: #3333d1;
+}
+
+/* Stats Grid */
+.pathfinder-admin__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.pathfinder-admin__stat-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: var(--spacing-xl);
+  border: 1px solid #e0e0e0;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.pathfinder-admin__stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.pathfinder-admin__stat-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #4242ea;
+  margin-bottom: var(--spacing-sm);
+}
+
+.pathfinder-admin__stat-label {
+  font-size: 0.9rem;
+  color: #666666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+/* Table */
+.pathfinder-admin__table-container {
+  background-color: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+}
+
+.pathfinder-admin__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pathfinder-admin__table thead {
+  background-color: #f9f9f9;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.pathfinder-admin__table th {
+  padding: 16px 24px;
+  text-align: left;
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.pathfinder-admin__table tbody tr {
+  border-bottom: 1px solid #e0e0e0;
+  transition: background-color 0.2s;
+}
+
+.pathfinder-admin__table tbody tr:hover {
+  background-color: rgba(66, 66, 234, 0.05);
+}
+
+.pathfinder-admin__table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.pathfinder-admin__table td {
+  padding: 16px 24px;
+  color: #666666;
+  vertical-align: middle;
+  text-align: left;
+}
+
+.pathfinder-admin__view-btn {
+  padding: 6px 16px;
+  background-color: #4242ea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.pathfinder-admin__view-btn:hover {
+  background-color: #3333d1;
+}
+
+.pathfinder-admin__empty {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: #666666;
+}
+
+/* Modal */
+.pathfinder-admin__modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--spacing-lg);
+}
+
+.pathfinder-admin__modal {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 0;
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid #d0d0d0;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.pathfinder-admin__modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xl);
+  border-bottom: 2px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  background-color: #ffffff;
+  z-index: 1;
+}
+
+.pathfinder-admin__modal-header h2 {
+  margin: 0;
+  color: #1a1a1a;
+  font-size: 1.5rem;
+}
+
+.pathfinder-admin__modal-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #666666;
+  cursor: pointer;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.pathfinder-admin__modal-close:hover {
+  color: #1a1a1a;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.pathfinder-admin__modal-content {
+  padding: var(--spacing-xl);
+}
+
+.pathfinder-admin__modal-stats {
+  display: flex;
+  gap: var(--spacing-xl);
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-md);
+  background-color: #f9f9f9;
+  border-radius: 6px;
+}
+
+.pathfinder-admin__modal-stat {
+  font-size: 1rem;
+  color: #1a1a1a;
+}
+
+.pathfinder-admin__modal-stat strong {
+  font-weight: 600;
+  margin-right: var(--spacing-xs);
+}
+
+.pathfinder-admin__modal-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.pathfinder-admin__modal-section h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: var(--spacing-md);
+}
+
+.pathfinder-admin__modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.pathfinder-admin__modal-item {
+  padding: var(--spacing-md);
+  background-color: #f9f9f9;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.pathfinder-admin__modal-item-title {
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: var(--spacing-xs);
+}
+
+.pathfinder-admin__modal-item-meta {
+  display: flex;
+  gap: var(--spacing-md);
+  font-size: 0.9rem;
+  color: #666666;
+}
+
+.pathfinder-admin__modal-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.pathfinder-admin__modal-badge--prospect {
+  background-color: rgba(156, 163, 175, 0.2);
+  color: #6b7280;
+}
+
+.pathfinder-admin__modal-badge--applied {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.pathfinder-admin__modal-badge--screen,
+.pathfinder-admin__modal-badge--oa,
+.pathfinder-admin__modal-badge--interview {
+  background-color: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+}
+
+.pathfinder-admin__modal-badge--offer {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.pathfinder-admin__modal-badge--rejected {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.pathfinder-admin__modal-badge--withdrawn {
+  background-color: rgba(107, 114, 128, 0.2);
+  color: #6b7280;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pathfinder-admin__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pathfinder-admin__stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .pathfinder-admin__table-container {
+    overflow-x: auto;
+  }
+
+  .pathfinder-admin__table {
+    min-width: 800px;
+  }
+
+  .pathfinder-admin__modal {
+    margin: var(--spacing-sm);
+    max-height: 95vh;
+  }
+}
+
+/* PRD Approvals Specific Styles */
+.pathfinder-admin__section-header {
+  margin-bottom: var(--spacing-lg);
+  text-align: left;
+}
+
+.pathfinder-admin__section-header h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 var(--spacing-xs) 0;
+  text-align: left;
+}
+
+.pathfinder-admin__section-header p {
+  font-size: 0.9375rem;
+  color: #666666;
+  margin: 0;
+}
+
+.pathfinder-admin__builder-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pathfinder-admin__builder-email {
+  font-size: 0.8125rem;
+  color: #666666;
+}
+
+.pathfinder-admin__stage-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.pathfinder-admin__stage-badge--planning {
+  background-color: #e3f2fd;
+  color: #1565c0;
+}
+
+.pathfinder-admin__stage-badge--development {
+  background-color: #fff3e0;
+  color: #e65100;
+}
+
+.pathfinder-admin__stage-badge--testing {
+  background-color: #f3e5f5;
+  color: #6a1b9a;
+}
+
+.pathfinder-admin__stage-badge--launch {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.pathfinder-admin__prd-link {
+  color: #4242ea;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.pathfinder-admin__prd-link:hover {
+  color: #3333d1;
+  text-decoration: underline;
+}
+
+.pathfinder-admin__approve-btn {
+  padding: 8px 16px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pathfinder-admin__approve-btn:hover {
+  background-color: #45a049;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.pathfinder-admin__tab-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background-color: #ff5252;
+  color: white;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.pathfinder-admin__view-notes-btn {
+  padding: 6px 12px;
+  background-color: #4242ea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pathfinder-admin__view-notes-btn:hover {
+  background-color: #3333d1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(66, 66, 234, 0.2);
+}
+
+/* Build Projects View Specific Styles */
+.pathfinder-admin__build-projects {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.pathfinder-admin__stats-grid--compact {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+}
+
+.pathfinder-admin__stat-card--warning .pathfinder-admin__stat-value {
+  color: #ff9800;
+}
+
+.pathfinder-admin__cohort-section,
+.pathfinder-admin__projects-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.pathfinder-admin__cohort-section h3,
+.pathfinder-admin__projects-section h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.pathfinder-admin__stage-badge--ideation {
+  background-color: #f3e5f5;
+  color: #9c27b0;
+}
+
+.pathfinder-admin__overdue-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  background-color: rgba(255, 152, 0, 0.1);
+  color: #ff9800;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.pathfinder-admin__prd-status {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pathfinder-admin__prd-status--approved {
+  background-color: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+}
+
+.pathfinder-admin__prd-status--pending {
+  background-color: rgba(255, 152, 0, 0.1);
+  color: #ff9800;
+}
+
+.pathfinder-admin__prd-status--draft {
+  background-color: rgba(66, 66, 234, 0.1);
+  color: #4242ea;
+}
+
+.pathfinder-admin__linked-job {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.85rem;
+}
+
+.pathfinder-admin__linked-job strong {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.pathfinder-admin__linked-job span {
+  font-size: 0.8rem;
+  color: #666666;
+}
+
+.pathfinder-admin__project-links {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pathfinder-admin__project-link {
+  font-size: 1.25rem;
+  text-decoration: none;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.pathfinder-admin__project-link:hover {
+  transform: scale(1.2);
+}
+

@@ -1,0 +1,1318 @@
+.pathfinder-projects {
+  width: 100%;
+  max-width: 100vw;
+  height: 100%;
+  background-color: #f5f5f5;
+  color: #1a1a1a;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 var(--spacing-lg) var(--spacing-lg) var(--spacing-lg);
+  box-sizing: border-box;
+  position: relative;
+}
+
+.pathfinder-projects__container {
+  max-width: calc(100vw - calc(var(--spacing-lg) * 2));
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+.pathfinder-projects__loading {
+  text-align: center;
+  padding: var(--spacing-xl);
+  font-size: 1.2rem;
+}
+
+/* Header */
+.pathfinder-projects__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  max-width: 100%;
+  width: 100%;
+}
+
+.pathfinder-projects__add-btn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: #4242ea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(66, 66, 234, 0.2);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.pathfinder-projects__add-btn:hover {
+  background-color: #3333d1;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(66, 66, 234, 0.4);
+}
+
+.pathfinder-projects__add-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(66, 66, 234, 0.2);
+}
+
+/* Error Message */
+.pathfinder-projects__error {
+  background-color: #fee;
+  color: #c33;
+  padding: var(--spacing-md);
+  border-radius: 6px;
+  margin-bottom: var(--spacing-md);
+  border-left: 4px solid #c33;
+  font-size: 0.875rem;
+  text-align: left;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Modal */
+.pathfinder-projects__modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: var(--spacing-md);
+}
+
+.pathfinder-projects__modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* Wider modal when showing feedback sidebar */
+.pathfinder-projects__modal:has(.pathfinder-projects__modal-body--two-column) {
+  max-width: 1000px;
+}
+
+.pathfinder-projects__modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.pathfinder-projects__modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #1a1a1a;
+  text-align: left;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-weight: 600;
+}
+
+.pathfinder-projects__modal-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.pathfinder-projects__modal-close:hover {
+  background-color: #f0f0f0;
+}
+
+.pathfinder-projects__modal-content {
+  padding: 0;
+  overflow: hidden;
+}
+
+.pathfinder-projects__modal-body {
+  padding: var(--spacing-xl);
+}
+
+.pathfinder-projects__modal-body--two-column {
+  padding: 0;
+}
+
+/* Form */
+.pathfinder-projects__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.pathfinder-projects__form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.pathfinder-projects__form-group label {
+  font-weight: 500;
+  color: #1a1a1a;
+  font-size: 0.875rem;
+  text-align: left;
+  font-family: inherit;
+}
+
+.pathfinder-projects__form-group input,
+.pathfinder-projects__form-group select,
+.pathfinder-projects__form-group textarea {
+  padding: var(--spacing-md);
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #1a1a1a;
+  background-color: #ffffff;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+
+.pathfinder-projects__form-group input::placeholder,
+.pathfinder-projects__form-group textarea::placeholder {
+  color: #999;
+  font-size: 0.9375rem;
+}
+
+.pathfinder-projects__form-group input:focus,
+.pathfinder-projects__form-group select:focus,
+.pathfinder-projects__form-group textarea:focus {
+  outline: none;
+  border-color: #4242ea;
+}
+
+.pathfinder-projects__form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+}
+
+.pathfinder-projects__form-row .pathfinder-projects__form-group {
+  text-align: left;
+}
+
+.pathfinder-projects__form-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+
+.pathfinder-projects__submit-btn {
+  flex: 1;
+  padding: var(--spacing-md);
+  background-color: #4242ea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.pathfinder-projects__submit-btn:hover {
+  background-color: #3333d1;
+  transform: translateY(-1px);
+}
+
+.pathfinder-projects__cancel-btn {
+  flex: 1;
+  padding: var(--spacing-md);
+  background-color: #e0e0e0;
+  color: #333;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.pathfinder-projects__cancel-btn:hover {
+  background-color: #d0d0d0;
+}
+
+/* Kanban Board */
+.pathfinder-projects__kanban {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-bottom: var(--spacing-md);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+/* Scrollbar styling for Kanban */
+.pathfinder-projects__kanban::-webkit-scrollbar {
+  height: 12px;
+}
+
+.pathfinder-projects__kanban::-webkit-scrollbar-track {
+  background: #f5f5f5;
+  border-radius: 6px;
+  margin: 0 var(--spacing-md);
+}
+
+.pathfinder-projects__kanban::-webkit-scrollbar-thumb {
+  background: #d0d0d0;
+  border-radius: 6px;
+}
+
+.pathfinder-projects__kanban::-webkit-scrollbar-thumb:hover {
+  background: #4242ea;
+}
+
+/* Firefox scrollbar styling */
+.pathfinder-projects__kanban {
+  scrollbar-width: thin;
+  scrollbar-color: #d0d0d0 #f5f5f5;
+}
+
+.pathfinder-projects__empty {
+  background-color: white;
+  padding: var(--spacing-xl);
+  border-radius: 8px;
+  text-align: center;
+  color: #666;
+  font-size: 1.1rem;
+  border: 1px solid #e0e0e0;
+}
+
+.pathfinder-projects__kanban-board {
+  display: flex;
+  gap: var(--spacing-lg);
+  min-width: min-content;
+}
+
+.pathfinder-projects__kanban-column {
+  flex: 0 0 320px;
+  min-width: 320px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 240px);
+  transition: all 0.2s ease;
+}
+
+.pathfinder-projects__kanban-column:hover {
+  border-color: rgba(66, 66, 234, 0.3);
+  box-shadow: 0 0 0 2px rgba(66, 66, 234, 0.1);
+}
+
+.pathfinder-projects__kanban-header {
+  padding: var(--spacing-md);
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  background-color: #ffffff;
+  z-index: 1;
+  border-radius: 8px 8px 0 0;
+}
+
+.pathfinder-projects__kanban-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pathfinder-projects__kanban-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pathfinder-projects__kanban-collapse-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 1.2rem;
+  line-height: 1;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.pathfinder-projects__kanban-collapse-btn:hover {
+  background-color: rgba(107, 114, 128, 0.1);
+  color: #4242ea;
+}
+
+.pathfinder-projects__kanban-column--collapsed {
+  flex: 0 0 60px;
+  min-width: 60px;
+  max-width: 60px;
+}
+
+.pathfinder-projects__kanban-column--collapsed .pathfinder-projects__kanban-header {
+  flex-direction: column;
+  padding: var(--spacing-sm);
+  gap: 8px;
+}
+
+.pathfinder-projects__kanban-column--collapsed .pathfinder-projects__kanban-header h3 {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 0.85rem;
+}
+
+.pathfinder-projects__kanban-column--collapsed .pathfinder-projects__kanban-header-right {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pathfinder-projects__kanban-count {
+  background: linear-gradient(135deg, rgba(66, 66, 234, 0.15) 0%, rgba(107, 92, 246, 0.1) 100%);
+  color: #4242ea;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pathfinder-projects__kanban-cards {
+  padding: var(--spacing-sm);
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  min-height: 100px;
+}
+
+/* Kanban Cards */
+.pathfinder-projects__kanban-card {
+  background: linear-gradient(135deg, rgba(66, 66, 234, 0.08) 0%, rgba(107, 92, 246, 0.05) 100%);
+  border: 1px solid rgba(66, 66, 234, 0.15);
+  border-radius: 6px;
+  padding: var(--spacing-md);
+  cursor: grab;
+  transition: all 0.2s ease;
+  text-align: left;
+  position: relative;
+}
+
+.pathfinder-projects__kanban-card:active {
+  cursor: grabbing;
+}
+
+.pathfinder-projects__kanban-card:hover {
+  border-color: #4242ea;
+  box-shadow: 0 2px 8px rgba(66, 66, 234, 0.1);
+  transform: translateY(-2px);
+}
+
+.pathfinder-projects__kanban-card--dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+  cursor: grabbing;
+}
+
+.pathfinder-projects__kanban-card-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 2;
+}
+
+.pathfinder-projects__kanban-card:hover .pathfinder-projects__kanban-card-actions {
+  opacity: 1;
+}
+
+.pathfinder-projects__kanban-card-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.pathfinder-projects__kanban-card-btn:hover {
+  background-color: rgba(66, 66, 234, 0.1);
+}
+
+.pathfinder-projects__kanban-card-btn--delete:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.pathfinder-projects__kanban-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pathfinder-projects__kanban-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: 0;
+}
+
+.pathfinder-projects__project-initial,
+.pathfinder-projects__project-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  color: #666;
+  border: 1px solid #d0d0d0;
+  font-weight: 600;
+  font-size: 13px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+/* Icon Picker */
+.pathfinder-projects__icon-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+}
+
+.pathfinder-projects__icon-option {
+  width: 48px;
+  height: 48px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #666;
+}
+
+.pathfinder-projects__icon-option:hover {
+  border-color: #4242ea;
+  background: rgba(66, 66, 234, 0.05);
+  color: #4242ea;
+  transform: translateY(-2px);
+}
+
+.pathfinder-projects__icon-option--selected {
+  border-color: #4242ea;
+  background: rgba(66, 66, 234, 0.1);
+  color: #4242ea;
+  box-shadow: 0 2px 8px rgba(66, 66, 234, 0.2);
+}
+
+.pathfinder-projects__kanban-card-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  line-height: 1.3;
+  word-break: break-word;
+  flex: 1;
+  text-align: left;
+}
+
+.pathfinder-projects__kanban-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+  padding-left: 38px; /* Align with project name text (28px icon + 10px gap) */
+}
+
+.pathfinder-projects__target-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.pathfinder-projects__meta-label {
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 600;
+}
+
+.pathfinder-projects__meta-value {
+  font-size: 0.85rem;
+  color: #1a1a1a;
+}
+
+.pathfinder-projects__overdue-badge {
+  background-color: white;
+  color: #c33;
+  border: 1px solid #c33;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.pathfinder-projects__due-soon-badge {
+  background-color: white;
+  color: #f59e0b;
+  border: 1px solid #f59e0b;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.pathfinder-projects__prd-link {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pathfinder-projects__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #4242ea;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.pathfinder-projects__link:hover {
+  color: #3333d1;
+  text-decoration: underline;
+}
+
+/* PRD Approval Status */
+.pathfinder-projects__prd-approval {
+  margin-top: var(--spacing-xs);
+}
+
+.pathfinder-projects__prd-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.pathfinder-projects__prd-status--approved {
+  background-color: transparent;
+  color: #666;
+  border: 1px solid rgba(66, 66, 234, 0.15);
+}
+
+.pathfinder-projects__prd-status--pending {
+  background-color: rgba(255, 152, 0, 0.08);
+  color: #666;
+  border: 1px solid rgba(255, 152, 0, 0.25);
+}
+
+.pathfinder-projects__prd-status--missing {
+  background-color: rgba(158, 158, 158, 0.08);
+  color: #666;
+  border: 1px solid rgba(158, 158, 158, 0.25);
+  cursor: default;
+}
+
+.pathfinder-projects__status-icon {
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.pathfinder-projects__status-text {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.pathfinder-projects__approver {
+  font-weight: 400;
+  color: inherit;
+  opacity: 0.8;
+  font-size: 0.75rem;
+}
+
+.pathfinder-projects__submit-prd-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background-color: #f0f4ff;
+  color: #4242ea;
+  border: 1px solid #d4e0ff;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.pathfinder-projects__submit-prd-btn:hover {
+  background-color: #e6edff;
+  border-color: #b8cbff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(66, 66, 234, 0.15);
+}
+
+.pathfinder-projects__submit-prd-btn:active {
+  transform: translateY(0);
+}
+
+/* Two-column modal layout */
+.pathfinder-projects__modal-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.pathfinder-projects__modal-body--two-column {
+  display: grid;
+  grid-template-columns: 60% 40%;
+  gap: 0;
+  align-items: stretch;
+}
+
+.pathfinder-projects__form-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pathfinder-projects__modal-body--two-column .pathfinder-projects__form-panel {
+  padding: var(--spacing-xl);
+  padding-right: var(--spacing-xl);
+  border-right: 1px solid #ddd;
+}
+
+/* Feedback Sidebar */
+.pathfinder-projects__feedback-sidebar {
+  background-color: #fafafa;
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-xl);
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.pathfinder-projects__feedback-sidebar-header {
+  margin-bottom: var(--spacing-lg);
+}
+
+.pathfinder-projects__feedback-sidebar-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-align: left;
+}
+
+.pathfinder-projects__feedback-sidebar-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  flex: 1;
+}
+
+.pathfinder-projects__feedback-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* Approval Section in Modal (for inline display when no feedback) */
+.pathfinder-projects__approval-section {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid #e0e0e0;
+}
+
+.pathfinder-projects__approval-section-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 var(--spacing-md) 0;
+  text-align: left;
+}
+
+.pathfinder-projects__approval-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid;
+}
+
+.pathfinder-projects__approval-status--approved {
+  background-color: #e8f5e9;
+  border-color: #c8e6c9;
+  color: #2e7d32;
+}
+
+/* Approval status in sidebar - compact version */
+.pathfinder-projects__feedback-sidebar .pathfinder-projects__approval-status {
+  padding: 12px 14px;
+  margin-bottom: 0;
+}
+
+.pathfinder-projects__feedback-sidebar .pathfinder-projects__approval-icon {
+  font-size: 1.125rem;
+}
+
+.pathfinder-projects__feedback-sidebar .pathfinder-projects__approval-text {
+  font-size: 0.875rem;
+}
+
+.pathfinder-projects__feedback-sidebar .pathfinder-projects__approval-date {
+  font-size: 0.75rem;
+}
+
+.pathfinder-projects__approval-status--pending {
+  background-color: #fff3e0;
+  border-color: #ffe0b2;
+  color: #e65100;
+}
+
+.pathfinder-projects__unsubmit-btn {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: transparent;
+  border: 1px solid #e65100;
+  color: #e65100;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: var(--spacing-sm);
+}
+
+.pathfinder-projects__unsubmit-btn:hover {
+  background-color: #fff3e0;
+  border-color: #d84315;
+  color: #d84315;
+}
+
+.pathfinder-projects__unsubmit-btn:active {
+  transform: scale(0.98);
+}
+
+.pathfinder-projects__approval-status--not-submitted {
+  background-color: #f5f5f5;
+  border-color: #e0e0e0;
+  color: #666666;
+}
+
+.pathfinder-projects__approval-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.pathfinder-projects__approval-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pathfinder-projects__approval-text {
+  font-size: 0.875rem;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.pathfinder-projects__approval-date {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  text-align: left;
+}
+
+.pathfinder-projects__approval-feedback-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #424242;
+  margin-bottom: var(--spacing-sm);
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pathfinder-projects__approval-feedback-text {
+  font-size: 0.875rem;
+  color: #1a1a1a;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  text-align: left;
+  padding: var(--spacing-md);
+  background-color: #fff;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* ========================================
+   Launch Checklist Styles (in right panel)
+   ======================================== */
+
+.pathfinder-projects__checklist-desc {
+  font-size: 0.8125rem;
+  color: #666;
+  margin: var(--spacing-xs) 0 0 0;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.pathfinder-projects__checklist-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.pathfinder-projects__checklist-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.pathfinder-projects__checklist-item--nested {
+  padding-left: calc(var(--spacing-md) + 4px);
+  border-left: 2px solid #e3e8ef;
+  margin-left: 10px;
+  padding-top: var(--spacing-xs);
+  padding-bottom: var(--spacing-xs);
+}
+
+.pathfinder-projects__checklist-group-header {
+  font-size: 0.9375rem;
+  font-weight: normal;
+  color: #1a1a1a;
+  margin-top: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+  text-align: left;
+}
+
+.pathfinder-projects__checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  user-select: none;
+}
+
+.pathfinder-projects__checkbox-label input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #4242ea;
+  flex-shrink: 0;
+}
+
+.pathfinder-projects__checkbox-text {
+  font-size: 0.9375rem;
+  color: #1a1a1a;
+  line-height: 1.4;
+}
+
+/* Make nested checkbox text smaller and lighter */
+.pathfinder-projects__checklist-item--nested .pathfinder-projects__checkbox-text {
+  font-size: 0.875rem;
+  color: #424242;
+  font-weight: normal;
+}
+
+.pathfinder-projects__checklist-detail {
+  padding-left: calc(20px + var(--spacing-sm));
+  margin-top: var(--spacing-xs);
+}
+
+.pathfinder-projects__checklist-input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+}
+
+.pathfinder-projects__checklist-input:focus {
+  outline: none;
+  border-color: #4242ea;
+  box-shadow: 0 0 0 3px rgba(66, 66, 234, 0.1);
+}
+
+.pathfinder-projects__checklist-input::placeholder {
+  color: #9ca3af;
+}
+
+.pathfinder-projects__checklist-progress {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid #e3e8ef;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #4242ea;
+  text-align: center;
+}
+
+/* Launch Checklist Progress on Kanban Cards */
+.pathfinder-projects__checklist-progress-card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) 0;
+  font-size: 0.8125rem;
+}
+
+.pathfinder-projects__checklist-progress-card .pathfinder-projects__meta-label {
+  font-weight: 500;
+  color: #666;
+}
+
+.pathfinder-projects__checklist-progress-card .pathfinder-projects__meta-value {
+  font-weight: 600;
+  color: #4242ea;
+}
+
+/* Launch Celebration Modal */
+.pathfinder-projects__launch-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.pathfinder-projects__launch-modal {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+  border-radius: 20px;
+  padding: var(--spacing-xl);
+  max-width: 600px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalSlideUp 0.4s ease;
+  border: 2px solid #FFD700;
+}
+
+@keyframes modalSlideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.pathfinder-projects__launch-modal-content {
+  text-align: center;
+}
+
+.pathfinder-projects__launch-icon {
+  font-size: 5rem;
+  margin-bottom: var(--spacing-md);
+  animation: rocketBounce 0.6s ease;
+}
+
+@keyframes rocketBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.pathfinder-projects__launch-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #4242ea;
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
+.pathfinder-projects__launch-project-name {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 var(--spacing-lg) 0;
+}
+
+.pathfinder-projects__launch-message {
+  margin: var(--spacing-lg) 0;
+  color: #666;
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+.pathfinder-projects__launch-message p {
+  margin: var(--spacing-sm) 0;
+}
+
+.pathfinder-projects__launch-stats {
+  display: flex;
+  gap: var(--spacing-lg);
+  justify-content: center;
+  margin: var(--spacing-xl) 0;
+}
+
+.pathfinder-projects__launch-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-md);
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e3e8ef;
+  min-width: 200px;
+}
+
+.pathfinder-projects__launch-stat-icon {
+  font-size: 2rem;
+}
+
+.pathfinder-projects__launch-stat-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pathfinder-projects__launch-stat-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.pathfinder-projects__launch-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: center;
+  margin-top: var(--spacing-xl);
+}
+
+.pathfinder-projects__launch-share-btn {
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: linear-gradient(135deg, #FFD700, #FFA500);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(255, 165, 0, 0.3);
+}
+
+.pathfinder-projects__launch-share-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 165, 0, 0.4);
+}
+
+.pathfinder-projects__launch-close-btn {
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: transparent;
+  color: #666;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pathfinder-projects__launch-close-btn:hover {
+  background: #f5f5f5;
+  border-color: #999;
+}
+
+/* Job Search Dropdown Styles */
+.pathfinder-projects__job-search-container {
+  position: relative;
+}
+
+.pathfinder-projects__job-search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pathfinder-projects__job-search-input {
+  width: 100%;
+  padding: var(--spacing-sm);
+  padding-right: 2.5rem;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  font-size: 0.9375rem;
+  transition: border-color 0.2s;
+}
+
+.pathfinder-projects__job-search-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.pathfinder-projects__job-clear-btn {
+  position: absolute;
+  right: var(--spacing-sm);
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 1.25rem;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.pathfinder-projects__job-clear-btn:hover {
+  color: #666;
+}
+
+.pathfinder-projects__job-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  margin-top: 4px;
+}
+
+.pathfinder-projects__job-option {
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.pathfinder-projects__job-option:last-child {
+  border-bottom: none;
+}
+
+.pathfinder-projects__job-option:hover {
+  background-color: #f5f5f5;
+}
+
+.pathfinder-projects__job-option-company {
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 0.25rem;
+}
+
+.pathfinder-projects__job-option-role {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+/* Linked Job on Card */
+.pathfinder-projects__linked-job {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  margin-top: 0.5rem;
+}
+
+.pathfinder-projects__linked-job .pathfinder-projects__meta-label {
+  flex-shrink: 0;
+}
+
+.pathfinder-projects__linked-job .pathfinder-projects__job-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.pathfinder-projects__linked-job .pathfinder-projects__job-link:hover {
+  color: #3232ba;
+  text-decoration: underline;
+}
+
+
