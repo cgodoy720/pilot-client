@@ -749,6 +749,7 @@ const GradeViewModal = ({
   // Assessment types mapping from BigQuery to our display names
   const assessmentTypeMapping = {
     'quiz': 'self',
+    'knowledge_assessment': 'self',
     'project': 'technical', 
     'problem_solution': 'business',
     'video': 'professional'
@@ -1814,18 +1815,46 @@ const GradeViewModal = ({
                         renderAnalysisFeedback(currentAnalysis[0])
                       ) : (
                         <div className="no-feedback">
-                          <p>No specific feedback available for {currentTabType} assessment.</p>
-                          <div className="fallback-feedback">
-                            <h4>Overall Feedback</h4>
-                            <div className="strengths-section">
-                              <h5>Strengths</h5>
-                              <div className="grade-text">{grade.strengths_summary || 'No strengths summary available'}</div>
-                            </div>
-                            <div className="growth-areas-section">
-                              <h5>Growth Areas</h5>
-                              <div className="grade-text">{grade.growth_areas_summary || 'No growth areas summary available'}</div>
-                            </div>
-                          </div>
+                          {/* Check if submission exists for this assessment type */}
+                          {(() => {
+                            const submission = userSubmissions.find(sub => {
+                              const mappedType = assessmentTypeMapping[sub.assessment_type] || sub.assessment_type;
+                              return mappedType === currentTabType;
+                            });
+                            
+                            if (!submission) {
+                              return (
+                                <div className="fallback-feedback">
+                                  <h4>Overall Feedback</h4>
+                                  <div className="strengths-section">
+                                    <h5>Strengths</h5>
+                                    <div className="grade-text">{grade.strengths_summary || 'No strengths summary available'}</div>
+                                  </div>
+                                  <div className="growth-areas-section">
+                                    <h5>Areas for Continued Focus</h5>
+                                    <div className="grade-text">Assessment not submitted</div>
+                                  </div>
+                                </div>
+                              );
+                            } else {
+                              return (
+                                <>
+                                  <p>No specific feedback available for {currentTabType} assessment.</p>
+                                  <div className="fallback-feedback">
+                                    <h4>Overall Feedback</h4>
+                                    <div className="strengths-section">
+                                      <h5>Strengths</h5>
+                                      <div className="grade-text">{grade.strengths_summary || 'No strengths summary available'}</div>
+                                    </div>
+                                    <div className="growth-areas-section">
+                                      <h5>Areas for Continued Focus</h5>
+                                      <div className="grade-text">{grade.growth_areas_summary || 'No growth areas summary available'}</div>
+                                    </div>
+                                  </div>
+                                </>
+                              );
+                            }
+                          })()}
                         </div>
                       )}
                     </div>
@@ -1842,7 +1871,7 @@ const GradeViewModal = ({
 
 // Mass Email Modal Component
 const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, onEmailSent }) => {
-  const [emailSubject, setEmailSubject] = useState('Your L1 Assessment Feedback - Great Work, [Builder Name]!');
+  const [emailSubject, setEmailSubject] = useState('Your Week 8 Assessment Feedback - Great Work, [Builder Name]!');
   const [emailTemplate, setEmailTemplate] = useState('pursuit_feedback');
   const [customMessage, setCustomMessage] = useState('');
   const [sending, setSending] = useState(false);
