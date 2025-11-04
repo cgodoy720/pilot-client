@@ -1782,6 +1782,21 @@
   text-align: left;
 }
 
+.pathfinder-admin__goal-cohort-badge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  background-color: #4242ea;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+.pathfinder-admin__goal-cohort-badge--all {
+  background-color: #666;
+}
+
 .pathfinder-admin__goal-card-actions {
   display: flex;
   gap: var(--spacing-sm);

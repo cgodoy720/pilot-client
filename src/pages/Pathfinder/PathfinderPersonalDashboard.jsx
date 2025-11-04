@@ -5,7 +5,7 @@ import confetti from 'canvas-confetti';
 import './PathfinderPersonalDashboard.css';
 
 function PathfinderPersonalDashboard() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [applicationStats, setApplicationStats] = useState(null);
   const [networkingStats, setNetworkingStats] = useState(null);
   const [projectStats, setProjectStats] = useState(null);
@@ -37,7 +37,7 @@ function PathfinderPersonalDashboard() {
         fetch(`${import.meta.env.VITE_API_URL}/api/pathfinder/applications/dashboard`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch(`${import.meta.env.VITE_API_URL}/api/weekly-goals/current`, {
+        fetch(`${import.meta.env.VITE_API_URL}/api/weekly-goals/current${user?.cohort ? `?cohort=${encodeURIComponent(user.cohort)}` : ''}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);

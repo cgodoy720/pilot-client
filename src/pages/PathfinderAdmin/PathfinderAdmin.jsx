@@ -43,7 +43,8 @@ function PathfinderAdmin() {
     applicationsGoal: 0,
     networkingGoal: 0,
     interviewsGoal: 0,
-    message: ''
+    message: '',
+    cohort: ''
   });
   const [editingGoalId, setEditingGoalId] = useState(null);
 
@@ -650,7 +651,8 @@ function PathfinderAdmin() {
       applicationsGoal: goal.applications_goal,
       networkingGoal: goal.networking_goal,
       interviewsGoal: goal.interviews_goal,
-      message: goal.message || ''
+      message: goal.message || '',
+      cohort: goal.cohort || ''
     });
     setEditingGoalId(goal.goal_id);
     
@@ -718,7 +720,8 @@ function PathfinderAdmin() {
       applicationsGoal: 0,
       networkingGoal: 0,
       interviewsGoal: 0,
-      message: ''
+      message: '',
+      cohort: ''
     });
     setEditingGoalId(null);
   };
@@ -2743,6 +2746,18 @@ function PathfinderAdmin() {
                     required
                   />
                 </div>
+                <div className="pathfinder-admin__form-group">
+                  <label>Cohort (Optional)</label>
+                  <select
+                    value={weeklyGoalsForm.cohort}
+                    onChange={(e) => setWeeklyGoalsForm({...weeklyGoalsForm, cohort: e.target.value})}
+                  >
+                    <option value="">All Cohorts</option>
+                    {availableCohorts.map(cohort => (
+                      <option key={cohort} value={cohort}>{cohort}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="pathfinder-admin__form-row">
@@ -2814,10 +2829,22 @@ function PathfinderAdmin() {
                 {weeklyGoals.map(goal => (
                   <div key={goal.goal_id} className="pathfinder-admin__goal-card">
                     <div className="pathfinder-admin__goal-card-header">
-                      <h4>
-                        {new Date(goal.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {' '}
-                        {new Date(goal.week_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </h4>
+                      <div>
+                        <h4>
+                          {new Date(goal.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {' '}
+                          {new Date(goal.week_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </h4>
+                        {goal.cohort && (
+                          <span className="pathfinder-admin__goal-cohort-badge">
+                            {goal.cohort}
+                          </span>
+                        )}
+                        {!goal.cohort && (
+                          <span className="pathfinder-admin__goal-cohort-badge pathfinder-admin__goal-cohort-badge--all">
+                            All Cohorts
+                          </span>
+                        )}
+                      </div>
                       <div className="pathfinder-admin__goal-card-actions">
                         <button 
                           onClick={() => handleEditGoal(goal)}
