@@ -285,8 +285,8 @@
 }
 
 .pathfinder-personal-dashboard__stat-card--weekly {
-  background: linear-gradient(135deg, rgba(66, 66, 234, 0.15) 0%, rgba(107, 92, 246, 0.1) 100%);
-  border: 1px solid rgba(66, 66, 234, 0.3);
+  background: linear-gradient(135deg, rgba(66, 66, 234, 0.08) 0%, rgba(107, 92, 246, 0.05) 100%);
+  border: 1px solid rgba(66, 66, 234, 0.15);
   position: relative;
   overflow: hidden;
 }
@@ -297,30 +297,30 @@
 
 .pathfinder-personal-dashboard__stat-card--weekly:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(66, 66, 234, 0.3);
-  border-color: rgba(66, 66, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(66, 66, 234, 0.2);
+  border-color: rgba(66, 66, 234, 0.25);
 }
 
 /* Build Progress - Orange tint */
 .pathfinder-personal-dashboard__stat-card--build-progress {
-  background: linear-gradient(135deg, rgba(255, 140, 0, 0.12) 0%, rgba(255, 165, 0, 0.08) 100%) !important;
-  border: 1px solid rgba(255, 140, 0, 0.25) !important;
+  background: linear-gradient(135deg, rgba(66, 66, 234, 0.15) 0%, rgba(107, 92, 246, 0.1) 100%) !important;
+  border: 1px solid rgba(66, 66, 234, 0.3) !important;
 }
 
 .pathfinder-personal-dashboard__stat-card--build-progress:hover {
-  box-shadow: 0 4px 12px rgba(255, 140, 0, 0.25) !important;
-  border-color: rgba(255, 140, 0, 0.35) !important;
+  box-shadow: 0 4px 12px rgba(66, 66, 234, 0.3) !important;
+  border-color: rgba(66, 66, 234, 0.4) !important;
 }
 
 /* Build Completed - Green tint */
 .pathfinder-personal-dashboard__stat-card--build-completed {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(16, 185, 129, 0.08) 100%) !important;
-  border: 1px solid rgba(34, 197, 94, 0.25) !important;
+  background: linear-gradient(135deg, rgba(66, 66, 234, 0.15) 0%, rgba(107, 92, 246, 0.1) 100%) !important;
+  border: 1px solid rgba(66, 66, 234, 0.3) !important;
 }
 
 .pathfinder-personal-dashboard__stat-card--build-completed:hover {
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25) !important;
-  border-color: rgba(34, 197, 94, 0.35) !important;
+  box-shadow: 0 4px 12px rgba(66, 66, 234, 0.3) !important;
+  border-color: rgba(66, 66, 234, 0.4) !important;
 }
 
 .pathfinder-personal-dashboard__stat-value {
