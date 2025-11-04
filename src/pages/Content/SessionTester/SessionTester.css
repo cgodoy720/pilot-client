@@ -2172,8 +2172,6 @@
 
 .session-data-tester__modal-task-delete-btn svg {
   font-size: 0.8rem;
-<<<<<<< HEAD
-=======
 }
 
 /* ============================================ */
@@ -2305,5 +2303,4 @@
   .session-data-tester__smart-config-grid {
     grid-template-columns: 1fr;
   }
->>>>>>> dev
 }
