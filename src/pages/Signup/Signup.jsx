@@ -5,21 +5,14 @@ import logoFull from '../../assets/logo-full.png';
 import './Signup.css';
 
 const Signup = () => {
-<<<<<<< HEAD
-  const [userType, setUserType] = useState(''); // 'builder' or 'applicant'
-=======
   const [userType, setUserType] = useState(''); // 'builder', 'applicant', or 'workshop'
   const [isReturningWorkshopUser, setIsReturningWorkshopUser] = useState(false); // For returning workshop participants
->>>>>>> dev
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-<<<<<<< HEAD
-=======
   const [accessCode, setAccessCode] = useState(''); // For workshop participants
->>>>>>> dev
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -36,11 +29,7 @@ const Signup = () => {
   });
   
   const navigate = useNavigate();
-<<<<<<< HEAD
-  const { signup, isAuthenticated } = useAuth();
-=======
   const { signup, isAuthenticated, setAuthState } = useAuth();
->>>>>>> dev
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -64,11 +53,8 @@ const Signup = () => {
   const handleUserTypeSelect = (type) => {
     setUserType(type);
     setError('');
-<<<<<<< HEAD
-=======
     setSuccessMessage('');
     setRegistrationComplete(false);
->>>>>>> dev
   };
 
   const handleSubmit = async (e) => {
@@ -82,14 +68,6 @@ const Signup = () => {
       return;
     }
     
-<<<<<<< HEAD
-    // Check if all password validations pass
-    const allValidationsPass = Object.values(passwordValidation).every(value => value);
-    
-    if (!allValidationsPass) {
-      setError('Please ensure your password meets all requirements');
-      return;
-=======
     // Skip password validation for returning workshop users (simpler form)
     if (!isReturningWorkshopUser) {
       // Check if all password validations pass
@@ -99,7 +77,6 @@ const Signup = () => {
         setError('Please ensure your password meets all requirements');
         return;
       }
->>>>>>> dev
     }
     
     setIsSubmitting(true);
@@ -120,11 +97,7 @@ const Signup = () => {
           setError(result.error || 'Failed to create account');
         }
         return;
-<<<<<<< HEAD
-      } else {
-=======
       } else if (userType === 'applicant') {
->>>>>>> dev
         // Create applicant account in admissions app
         endpoint = `${import.meta.env.VITE_API_URL}/api/applications/signup`;
         requestBody = { firstName, lastName, email, password };
@@ -141,12 +114,6 @@ const Signup = () => {
 
         if (response.ok) {
           setRegistrationComplete(true);
-<<<<<<< HEAD
-          setSuccessMessage('Applicant account created successfully! You can now log in to access the admissions portal.');
-        } else {
-          setError(data.error || data.message || 'Failed to create account');
-        }
-=======
           setSuccessMessage(data.message || 'Account created successfully! Please check your email to verify your account before logging in.');
         } else {
           setError(data.error || data.message || 'Failed to create account');
@@ -206,7 +173,6 @@ const Signup = () => {
             setError(data.error || 'Failed to create workshop account');
           }
         }
->>>>>>> dev
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -257,8 +223,6 @@ const Signup = () => {
                 <h3>Builder</h3>
                 <p>For current Pursuit students and alumni who want to access the main learning platform</p>
               </button>
-<<<<<<< HEAD
-=======
               
               <button 
                 onClick={() => handleUserTypeSelect('workshop')}
@@ -268,7 +232,6 @@ const Signup = () => {
                 <h3>Workshop</h3>
                 <p>For workshop participants with an access code from your organization</p>
               </button>
->>>>>>> dev
             </div>
             
             <div className="signup-back-to-login">
@@ -294,11 +257,7 @@ const Signup = () => {
         {registrationComplete ? (
           <div className="signup-success">
             <p className="signup-success-message">{successMessage}</p>
-<<<<<<< HEAD
-            {userType === 'builder' && (
-=======
             {(userType === 'builder' || userType === 'workshop') && (
->>>>>>> dev
               <div className="signup-verification-instructions">
                 <h3>What's next?</h3>
                 <ol>
@@ -311,11 +270,7 @@ const Signup = () => {
             )}
             <div className="signup-actions">
               <Link to="/login" className="signup-button">Go to Login</Link>
-<<<<<<< HEAD
-              {userType === 'builder' && (
-=======
               {(userType === 'builder' || userType === 'workshop') && (
->>>>>>> dev
                 <Link to="/resend-verification" className="signup-link">Resend Verification Email</Link>
               )}
             </div>
@@ -336,31 +291,6 @@ const Signup = () => {
               </button>
             </div>
             
-<<<<<<< HEAD
-            <div className="signup-input-group">
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="First Name"
-                required
-                className="signup-input"
-                disabled={isSubmitting}
-              />
-            </div>
-            
-            <div className="signup-input-group">
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Last Name"
-                required
-                className="signup-input"
-                disabled={isSubmitting}
-              />
-            </div>
-=======
             {/* Access Code field - only for workshop participants */}
             {userType === 'workshop' && (
               <div className="signup-input-group">
@@ -406,7 +336,6 @@ const Signup = () => {
                 </div>
               </>
             )}
->>>>>>> dev
             
             <div className="signup-input-group">
               <input
@@ -441,22 +370,6 @@ const Signup = () => {
               </button>
             </div>
             
-<<<<<<< HEAD
-            <div className="signup-input-group">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm Password"
-                required
-                className="signup-input"
-                disabled={isSubmitting}
-              />
-            </div>
-            
-            {/* Password validation feedback - only show when password field is focused or has content */}
-            {(isPasswordFocused || password.length > 0) && (
-=======
             {/* Confirm password field - not needed for returning workshop users */}
             {!(userType === 'workshop' && isReturningWorkshopUser) && (
               <div className="signup-input-group">
@@ -474,7 +387,6 @@ const Signup = () => {
             
             {/* Password validation feedback - only show for new accounts */}
             {!(userType === 'workshop' && isReturningWorkshopUser) && (isPasswordFocused || password.length > 0) && (
->>>>>>> dev
               <div className="password-validation">
                 <h4>Password must:</h4>
                 <ul>
@@ -503,12 +415,6 @@ const Signup = () => {
               </div>
             )}
             
-<<<<<<< HEAD
-            <div className="signup-links">
-              <span>Already have an account?</span>
-              <Link to="/login" className="signup-link">Log in</Link>
-            </div>
-=======
             {/* Workshop-specific toggle for returning users */}
             {userType === 'workshop' && (
               <div className="signup-links">
@@ -534,7 +440,6 @@ const Signup = () => {
                 <Link to="/login" className="signup-link">Log in</Link>
               </div>
             )}
->>>>>>> dev
             
             <div className="signup-links">
               <span>Changed your mind?</span>
@@ -552,13 +457,9 @@ const Signup = () => {
               className="signup-button"
               disabled={isSubmitting}
             >
-<<<<<<< HEAD
-              {isSubmitting ? 'Creating Account...' : 'Create Account'}
-=======
               {isSubmitting 
                 ? (isReturningWorkshopUser ? 'Logging in...' : 'Creating Account...') 
                 : (isReturningWorkshopUser ? 'Log In' : 'Create Account')}
->>>>>>> dev
             </button>
           </form>
         )}

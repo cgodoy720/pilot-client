@@ -1,25 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-<<<<<<< HEAD
-import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt, FaEdit, FaCheck, FaTimes, FaFileAlt, FaVideo, FaBrain, FaComments, FaClipboardList } from 'react-icons/fa';
-import ReactMarkdown from 'react-markdown';
-import { useAuth } from '../../context/AuthContext';
-import { useLocation, useNavigate } from 'react-router-dom';
-=======
 import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt, FaEdit, FaCheck, FaTimes, FaFileAlt, FaVideo, FaBrain, FaComments, FaClipboardList, FaLock } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
->>>>>>> dev
 
 import PeerFeedbackForm from '../../components/PeerFeedbackForm';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
 import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
 import BuilderFeedbackForm from '../../components/BuilderFeedbackForm/BuilderFeedbackForm';
-<<<<<<< HEAD
-=======
 import DeliverablePanel from './components/DeliverablePanel/DeliverablePanel';
->>>>>>> dev
 
 import './Learning.css';
 import '../../styles/smart-tasks.css';
@@ -35,10 +25,7 @@ function Learning() {
   const [error, setError] = useState('');
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isMessagesLoading, setIsMessagesLoading] = useState(false);
-<<<<<<< HEAD
-=======
   const [hasInitialMessage, setHasInitialMessage] = useState(false);
->>>>>>> dev
   
   // Check if user has active status
   const isActive = user?.active !== false;
@@ -52,10 +39,7 @@ function Learning() {
   const [currentDay, setCurrentDay] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
-<<<<<<< HEAD
-=======
   const [workshopInfo, setWorkshopInfo] = useState(null);
->>>>>>> dev
   
   // Get dayId from URL query parameters
   const queryParams = new URLSearchParams(location.search);
@@ -70,23 +54,16 @@ function Learning() {
   // Add a debounce mechanism to prevent multiple calls
   const fetchingTasks = {};
   
-<<<<<<< HEAD
-  // Add state for the submission modal
-=======
   // Add state for the Pictures modal (OLD - will be replaced by DeliverablePanel)
->>>>>>> dev
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [submissionUrl, setSubmissionUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
   
-<<<<<<< HEAD
-=======
   // NEW: DeliverablePanel state
   const [showDeliverablePanel, setShowDeliverablePanel] = useState(false);
   const [currentDeliverableTask, setCurrentDeliverableTask] = useState(null);
   
->>>>>>> dev
   // Add state for peer feedback
   const [showPeerFeedback, setShowPeerFeedback] = useState(false);
   const [peerFeedbackCompleted, setPeerFeedbackCompleted] = useState(false);
@@ -132,12 +109,9 @@ function Learning() {
     const fetchTimestamp = Date.now();
     fetchTaskMessages.lastFetchTimestamp = fetchTimestamp;
     
-<<<<<<< HEAD
-=======
     // Reset initial message flag when loading new task
     setHasInitialMessage(false);
     
->>>>>>> dev
     try {
       // Clear any previous error
       setError('');
@@ -234,11 +208,8 @@ function Learning() {
         console.log(`Filtered out ${formattedMessages.length - filteredMessages.length} system metadata messages`);
         
         setMessages(filteredMessages);
-<<<<<<< HEAD
-=======
         // Mark that we have the initial message (existing messages mean task is ready)
         setHasInitialMessage(true);
->>>>>>> dev
         console.log(`Displayed ${filteredMessages.length} messages`);
       } else {
         // No existing messages, send initial 'start' message
@@ -314,10 +285,7 @@ function Learning() {
               content: 'Starting conversation...',
               role: 'system'
             }]);
-<<<<<<< HEAD
-=======
             setHasInitialMessage(false); // System message doesn't count as initial message
->>>>>>> dev
           } else {
             // Display the assistant's response
             setMessages([{
@@ -326,11 +294,8 @@ function Learning() {
               role: messageData.role,
               timestamp: messageData.timestamp
             }]);
-<<<<<<< HEAD
-=======
             // Mark that we have the initial message from AI
             setHasInitialMessage(true);
->>>>>>> dev
           }
           
           console.log(`Displayed initial assistant message`);
@@ -476,8 +441,6 @@ function Learning() {
               }
             }
             
-<<<<<<< HEAD
-=======
             // Parse deliverable_schema if it's a string (JSONB from PostgreSQL)
             let deliverableSchema = null;
             if (task.deliverable_schema) {
@@ -498,7 +461,6 @@ function Learning() {
             
             console.log('Task:', task.task_title, 'deliverable_schema from API:', task.deliverable_schema, 'parsed:', deliverableSchema);
             
->>>>>>> dev
             allTasks.push({
               id: task.id,
               title: task.task_title,
@@ -510,20 +472,13 @@ function Learning() {
               resources: resources,
               deliverable: task.deliverable,
               deliverable_type: task.deliverable_type || 'none',
-<<<<<<< HEAD
-=======
               deliverable_schema: deliverableSchema,
->>>>>>> dev
               should_analyze: task.should_analyze || false,
               analyze_deliverable: task.analyze_deliverable || false,
               task_mode: task.task_mode || 'basic', // Add task mode support
               smart_prompt: task.smart_prompt || null,
               conversation_model: task.conversation_model || null,
-<<<<<<< HEAD
-              feedback_slot: task.feedback_slot || false // Add feedback slot support
-=======
               feedback_slot: task.feedback_slot || null // Add feedback slot support
->>>>>>> dev
             });
           });
         });
@@ -545,10 +500,7 @@ function Learning() {
         setCurrentDay(dayData);
         setTasks(allTasks);
         setCurrentTaskIndex(initialTaskIndex);
-<<<<<<< HEAD
-=======
         setWorkshopInfo(data.workshopInfo || null);
->>>>>>> dev
         
         // Fetch messages for the initial task (only if it's not a feedback slot)
         if (allTasks.length > 0) {
@@ -801,11 +753,7 @@ function Learning() {
   // Helper function to check if current task is a feedback slot
   const isCurrentTaskFeedbackSlot = () => {
     if (!tasks.length || currentTaskIndex >= tasks.length) return false;
-<<<<<<< HEAD
-    return tasks[currentTaskIndex].feedback_slot === true;
-=======
     return !!tasks[currentTaskIndex].feedback_slot;
->>>>>>> dev
   };
 
   // Modify the markTaskAsCompleted function to not handle peer feedback
@@ -1224,11 +1172,6 @@ function Learning() {
         setShowSubmissionModal(false);
         setSubmissionUrl('');
         
-<<<<<<< HEAD
-        // Show success message
-        setError('Deliverable submitted successfully!');
-        setTimeout(() => setError(''), 3000);
-=======
         // Show success message with SweetAlert2
         Swal.fire({
           icon: 'success',
@@ -1239,7 +1182,6 @@ function Learning() {
           color: '#f9fafb',
           iconColor: '#4caf50'
         });
->>>>>>> dev
       } else {
         const data = await response.json();
         setSubmissionError(data.error || 'Failed to submit deliverable');
@@ -1252,8 +1194,6 @@ function Learning() {
     }
   };
 
-<<<<<<< HEAD
-=======
   // NEW: Handle deliverable panel submission
   const handleDeliverablePanelSubmit = async (submissionData) => {
     if (!currentDeliverableTask) return;
@@ -1323,7 +1263,6 @@ function Learning() {
     }
   };
 
->>>>>>> dev
   // Add message editing functions after the handleSendMessage function
   // Handle edit message button click
   const handleEditMessage = (message) => {
@@ -1854,8 +1793,6 @@ function Learning() {
   return (
     <div className="learning">
       {renderHistoricalBanner()}
-<<<<<<< HEAD
-=======
       
       {/* Workshop Lock Banner */}
       {workshopInfo?.isLocked && (
@@ -1882,7 +1819,6 @@ function Learning() {
         </div>
       )}
       
->>>>>>> dev
       <div className="learning__content">
         <div className="learning__task-panel">
           <div className={`learning__task-header ${dayId ? 'learning__task-header--with-back' : ''}`}>
@@ -1901,12 +1837,6 @@ function Learning() {
               {tasks.map((task, index) => (
                 <div
                   key={task.id}
-<<<<<<< HEAD
-                  className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''} ${task.completed ? 'completed' : ''}`}
-                  data-mode={task.task_mode}
-                  data-feedback-slot={task.feedback_slot}
-                  onClick={() => {
-=======
                   className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''} ${task.completed ? 'completed' : ''} ${workshopInfo?.isLocked ? 'locked' : ''}`}
                   data-mode={task.task_mode}
                   data-feedback-slot={task.feedback_slot}
@@ -1915,7 +1845,6 @@ function Learning() {
                     if (workshopInfo?.isLocked) {
                       return;
                     }
->>>>>>> dev
                     if (index !== currentTaskIndex) {
                       // Update the current task index
                       setCurrentTaskIndex(index);
@@ -1941,15 +1870,11 @@ function Learning() {
                   }}
                 >
                   <div className="learning__task-icon">
-<<<<<<< HEAD
-                    {getTaskIcon(task.type, task.completed, task.task_mode, task.feedback_slot)}
-=======
                     {workshopInfo?.isLocked ? (
                       <FaLock className="task-icon task-icon--locked" />
                     ) : (
                       getTaskIcon(task.type, task.completed, task.task_mode, task.feedback_slot)
                     )}
->>>>>>> dev
                   </div>
                   <div className="learning__task-content">
                     <h3 className="learning__task-title">
@@ -1993,10 +1918,7 @@ function Learning() {
               taskId={tasks[currentTaskIndex].id}
               dayNumber={currentDay?.day_number}
               cohort={cohort}
-<<<<<<< HEAD
-=======
               surveyType={tasks[currentTaskIndex].feedback_slot}
->>>>>>> dev
               onComplete={handleBuilderFeedbackComplete}
             />
           ) : (
@@ -2146,12 +2068,6 @@ function Learning() {
                   className="learning__input"
                   value={newMessage}
                   onChange={handleTextareaChange}
-<<<<<<< HEAD
-                  placeholder={!isActive ? "Historical view only" : (isSending ? "Sending..." : "Type your message...")}
-                  disabled={!isActive || isSending || isAiThinking}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-=======
                   placeholder={
                     workshopInfo?.isLocked ? "Workshop tasks locked until start date" :
                     !isActive ? "Historical view only" :
@@ -2161,7 +2077,6 @@ function Learning() {
                   disabled={workshopInfo?.isLocked || !isActive || !hasInitialMessage || isSending || isAiThinking}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey && !workshopInfo?.isLocked) {
->>>>>>> dev
                       e.preventDefault();
                       handleSendMessage(e);
                     }
@@ -2174,14 +2089,6 @@ function Learning() {
                       (tasks[currentTaskIndex].deliverable_type === 'link' || 
                        tasks[currentTaskIndex].deliverable_type === 'file' ||
                        tasks[currentTaskIndex].deliverable_type === 'document' ||
-<<<<<<< HEAD
-                       tasks[currentTaskIndex].deliverable_type === 'video') && (
-                      <button 
-                        type="button"
-                        className="learning__deliverable-btn"
-                        onClick={() => setShowSubmissionModal(true)}
-                        title={`Submit ${tasks[currentTaskIndex].deliverable}`}
-=======
                        tasks[currentTaskIndex].deliverable_type === 'video' ||
                        tasks[currentTaskIndex].deliverable_type === 'structured') && (
                       <button 
@@ -2196,7 +2103,6 @@ function Learning() {
                         }}
                         title={`Submit ${tasks[currentTaskIndex].deliverable}`}
                         disabled={workshopInfo?.isLocked}
->>>>>>> dev
                       >
                         <FaLink />
                       </button>
@@ -2206,11 +2112,7 @@ function Learning() {
                 <button 
                   className="learning__send-btn" 
                   type="submit" 
-<<<<<<< HEAD
-                  disabled={!isActive || !newMessage.trim() || isSending || isAiThinking}
-=======
                   disabled={workshopInfo?.isLocked || !isActive || !hasInitialMessage || !newMessage.trim() || isSending || isAiThinking}
->>>>>>> dev
                 >
                   {isSending ? "Sending..." : <FaPaperPlane />}
                 </button>
@@ -2251,11 +2153,7 @@ function Learning() {
         </div>
       </div>
       
-<<<<<<< HEAD
-      {/* Submission Modal */}
-=======
       {/* Submission Modal (OLD - keeping for backward compatibility) */}
->>>>>>> dev
       {showSubmissionModal && (
         <div className="learning__modal-overlay">
           <div className="learning__modal learning__modal--submission">
@@ -2280,8 +2178,6 @@ function Learning() {
         </div>
       )}
 
-<<<<<<< HEAD
-=======
       {/* NEW: Deliverable Panel (Sidebar) */}
       {showDeliverablePanel && currentDeliverableTask && (
         <DeliverablePanel
@@ -2296,7 +2192,6 @@ function Learning() {
         />
       )}
 
->>>>>>> dev
       {/* Analysis Modal */}
       {showAnalysisModal && analysisResults && (
         <AnalysisModal 

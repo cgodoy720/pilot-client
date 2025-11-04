@@ -30,11 +30,7 @@ const AdmissionsDashboard = () => {
     const [workshops, setWorkshops] = useState([]);
     const [cohorts, setCohorts] = useState([]);
 
-<<<<<<< HEAD
-    // Pagination and filters
-=======
     // Infinite scroll and filters
->>>>>>> dev
     const [applicationFilters, setApplicationFilters] = useState({
         status: '',
         info_session_status: '',
@@ -43,16 +39,10 @@ const AdmissionsDashboard = () => {
         ready_for_workshop_invitation: false,
         name_search: '',
         cohort_id: '',
-<<<<<<< HEAD
-        limit: 50,
-        offset: 0
-    });
-=======
         limit: 10000, // High limit to get all records
         offset: 0
     });
     const [hasMore, setHasMore] = useState(true);
->>>>>>> dev
     const [nameSearchInput, setNameSearchInput] = useState('');
     const [columnSort, setColumnSort] = useState({
         column: 'created_at',
@@ -94,11 +84,6 @@ const AdmissionsDashboard = () => {
         location: 'Pursuit NYC Campus - 47-10 Austell Pl 2nd floor, Long Island City, NY',
         capacity: 50,
         is_online: false,
-<<<<<<< HEAD
-        meeting_link: ''
-    });
-    const [workshopSubmitting, setWorkshopSubmitting] = useState(false);
-=======
         meeting_link: '',
         // NEW: Workshop system fields
         cohort_name: 'December 2025 - Workshop',
@@ -111,7 +96,6 @@ const AdmissionsDashboard = () => {
     // Available cohorts for workshops
     const [availableCohorts, setAvailableCohorts] = useState([]);
     const [loadingCohorts, setLoadingCohorts] = useState(true);
->>>>>>> dev
 
     // Bulk actions state
     const [selectedApplicants, setSelectedApplicants] = useState([]);
@@ -148,10 +132,7 @@ const AdmissionsDashboard = () => {
     const [selectedApplicantsForRegistration, setSelectedApplicantsForRegistration] = useState([]);
     const [searchLoading, setSearchLoading] = useState(false);
     const [registrationLoading, setRegistrationLoading] = useState(false);
-<<<<<<< HEAD
-=======
     const [laptopNeeds, setLaptopNeeds] = useState({}); // Track laptop needs per applicant
->>>>>>> dev
 
     // Event filtering state
     const [showInactiveInfoSessions, setShowInactiveInfoSessions] = useState(false);
@@ -206,8 +187,6 @@ const AdmissionsDashboard = () => {
         }
     };
 
-<<<<<<< HEAD
-=======
     // Fetch workshop-specific cohorts (separate from program cohorts)
     const fetchWorkshopCohorts = async () => {
         if (!hasAdminAccess || !token) {
@@ -248,7 +227,6 @@ const AdmissionsDashboard = () => {
         }
     };
 
->>>>>>> dev
     const fetchAdmissionsData = async () => {
         if (!hasAdminAccess || !token) {
             setError('You do not have permission to view this page.');
@@ -271,11 +249,7 @@ const AdmissionsDashboard = () => {
                 fetch(`${import.meta.env.VITE_API_URL}/api/admissions/info-sessions`, {
                     headers: { Authorization: `Bearer ${token}` }
                 }),
-<<<<<<< HEAD
-                fetch(`${import.meta.env.VITE_API_URL}/api/admissions/workshops`, {
-=======
                 fetch(`${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops`, {
->>>>>>> dev
                     headers: { Authorization: `Bearer ${token}` }
                 })
             ]);
@@ -297,11 +271,7 @@ const AdmissionsDashboard = () => {
             setStats(statsData);
             setApplications(applicationsData);
             setInfoSessions(infoSessionsData);
-<<<<<<< HEAD
-            setWorkshops(workshopsData);
-=======
             setWorkshops(workshopsData.workshops || workshopsData);
->>>>>>> dev
 
         } catch (error) {
             console.error('Error fetching admissions data:', error);
@@ -376,11 +346,7 @@ const AdmissionsDashboard = () => {
 
         try {
             setLoading(true);
-<<<<<<< HEAD
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/workshops`, {
-=======
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops`, {
->>>>>>> dev
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -389,11 +355,7 @@ const AdmissionsDashboard = () => {
 
             if (response.ok) {
                 const data = await response.json();
-<<<<<<< HEAD
-                setWorkshops(data);
-=======
                 setWorkshops(data.workshops || data);
->>>>>>> dev
             }
         } catch (error) {
             console.error('Error fetching workshops:', error);
@@ -588,10 +550,7 @@ const AdmissionsDashboard = () => {
     // Fetch cohorts on mount
     useEffect(() => {
         fetchCohorts();
-<<<<<<< HEAD
-=======
         fetchWorkshopCohorts();  // Fetch workshop-specific cohorts for the dropdown
->>>>>>> dev
     }, [token, hasAdminAccess]);
 
     useEffect(() => {
@@ -805,15 +764,9 @@ const AdmissionsDashboard = () => {
         if (!events || !Array.isArray(events)) return events;
 
         return [...events].sort((a, b) => {
-<<<<<<< HEAD
-            // Since event_date is in ISO format, just parse it directly
-            const dateA = new Date(a.event_date);
-            const dateB = new Date(b.event_date);
-=======
             // Use start_time for workshops, event_date for info sessions
             const dateA = new Date(a.start_time || a.event_date);
             const dateB = new Date(b.start_time || b.event_date);
->>>>>>> dev
 
             // For earliest to latest: smaller date - larger date gives negative (comes first)
             return dateA.getTime() - dateB.getTime();
@@ -830,11 +783,7 @@ const AdmissionsDashboard = () => {
 
     const getFilteredWorkshops = () => {
         if (showInactiveWorkshops) {
-<<<<<<< HEAD
-            return workshops; // Show all events
-=======
             return workshops;
->>>>>>> dev
         }
         return workshops.filter(workshop => workshop.is_active);
     };
@@ -848,18 +797,6 @@ const AdmissionsDashboard = () => {
     // Format time from 24-hour to 12-hour EST format
     const formatEventTime = (timeString) => {
         try {
-<<<<<<< HEAD
-            // Parse the time string (e.g., "17:30:00")
-            const [hours, minutes] = timeString.split(':');
-            const date = new Date();
-            date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
-            return date.toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-                timeZone: 'America/New_York'
-            });
-=======
             // Database stores times AS EST (no timezone conversion needed)
             // Just extract and format the time portion
             let hours, minutes;
@@ -884,7 +821,6 @@ const AdmissionsDashboard = () => {
             const displayMinutes = minutes.toString().padStart(2, '0');
             
             return `${displayHours}:${displayMinutes} ${period}`;
->>>>>>> dev
         } catch (error) {
             console.error('Error formatting time:', error);
             return timeString; // Fallback to original
@@ -1198,16 +1134,12 @@ const AdmissionsDashboard = () => {
             location: 'Pursuit NYC Campus - 47-10 Austell Pl 2nd floor, Long Island City, NY',
             capacity: 50,
             is_online: false,
-<<<<<<< HEAD
-            meeting_link: ''
-=======
             meeting_link: '',
             // NEW: Workshop system fields
             cohort_name: 'December 2025 - Workshop',
             workshop_type: 'admissions',
             access_window_days: 0,
             allow_early_access: false
->>>>>>> dev
         });
         setEditingWorkshop(null);
         setWorkshopModalOpen(true);
@@ -1224,12 +1156,8 @@ const AdmissionsDashboard = () => {
         };
 
         setWorkshopForm({
-<<<<<<< HEAD
-            title: workshop.event_name,
-=======
             // Event fields
             title: workshop.title || workshop.name || workshop.event_name || '',
->>>>>>> dev
             description: workshop.description || '',
             start_time: formatDateForInput(startTime),
             end_time: formatDateForInput(endTime),
@@ -1237,9 +1165,6 @@ const AdmissionsDashboard = () => {
             capacity: workshop.capacity || 50,
             is_online: workshop.is_online || false,
             meeting_link: workshop.meeting_link || '',
-<<<<<<< HEAD
-            status: workshop.status || 'scheduled'
-=======
             status: workshop.status || 'scheduled',
             // Workshop-specific fields
             cohort_name: workshop.cohort_name || 'December 2025 - Workshop',
@@ -1252,7 +1177,6 @@ const AdmissionsDashboard = () => {
             admin_email: workshop.admin_email || '',
             admin_is_pending: workshop.admin_is_pending || false, // Store pending status
             send_admin_invitation: false // Don't auto-check on edit
->>>>>>> dev
         });
         setEditingWorkshop(workshop.event_id);
         setWorkshopModalOpen(true);
@@ -1400,16 +1324,10 @@ const AdmissionsDashboard = () => {
         setWorkshopSubmitting(true);
 
         try {
-<<<<<<< HEAD
-            const endpoint = editingWorkshop
-                ? `${import.meta.env.VITE_API_URL}/api/admissions/workshops/${editingWorkshop}`
-                : `${import.meta.env.VITE_API_URL}/api/admissions/workshops`;
-=======
             // Use new workshop endpoint for both create and update
             const endpoint = editingWorkshop
                 ? `${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops/${editingWorkshop}`
                 : `${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops`;
->>>>>>> dev
 
             const method = editingWorkshop ? 'PUT' : 'POST';
 
@@ -1423,9 +1341,6 @@ const AdmissionsDashboard = () => {
             });
 
             if (!response.ok) {
-<<<<<<< HEAD
-                throw new Error(`Failed to ${editingWorkshop ? 'update' : 'create'} workshop`);
-=======
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.error || `Failed to ${editingWorkshop ? 'update' : 'create'} workshop`);
             }
@@ -1465,7 +1380,6 @@ const AdmissionsDashboard = () => {
                     // Don't throw - workshop was created successfully
                     setError(`Workshop created, but admin assignment encountered an error`);
                 }
->>>>>>> dev
             }
 
             // Refresh workshops list
@@ -1526,18 +1440,6 @@ const AdmissionsDashboard = () => {
 
             if (response.ok) {
                 // Get the previous status to determine count changes
-<<<<<<< HEAD
-                const previousRegistration = eventRegistrations.find(reg => reg.applicant_id === applicantId);
-                const previousStatus = previousRegistration?.status;
-
-                // Update the registration in the local state instead of refetching
-                setEventRegistrations(prevRegistrations =>
-                    prevRegistrations.map(reg =>
-                        reg.applicant_id === applicantId
-                            ? { ...reg, status }
-                            : reg
-                    )
-=======
                 // Support both applicant-based and user-based registrations
                 const previousRegistration = eventRegistrations.find(reg => {
                     if (applicantId === 'null') {
@@ -1560,7 +1462,6 @@ const AdmissionsDashboard = () => {
                             : (reg.applicant_id == applicantId || reg.user_id == applicantId);
                         return isMatch ? { ...reg, status } : reg;
                     })
->>>>>>> dev
                 );
 
                 // Update the event stats in local state based on status transitions
@@ -1580,11 +1481,7 @@ const AdmissionsDashboard = () => {
                         setInfoSessions(prevSessions =>
                             prevSessions.map(session =>
                                 session.event_id === eventId
-<<<<<<< HEAD
-                                    ? { ...session, attended_count: session.attended_count + countChange }
-=======
                                     ? { ...session, attended_count: parseInt(session.attended_count || 0) + countChange }
->>>>>>> dev
                                     : session
                             )
                         );
@@ -1592,11 +1489,7 @@ const AdmissionsDashboard = () => {
                         setWorkshops(prevWorkshops =>
                             prevWorkshops.map(workshop =>
                                 workshop.event_id === eventId
-<<<<<<< HEAD
-                                    ? { ...workshop, attended_count: workshop.attended_count + countChange }
-=======
                                     ? { ...workshop, attended_count: parseInt(workshop.attended_count || 0) + countChange }
->>>>>>> dev
                                     : workshop
                             )
                         );
@@ -1701,10 +1594,7 @@ const AdmissionsDashboard = () => {
         setApplicantSearch('');
         setSearchResults([]);
         setSelectedApplicantsForRegistration([]);
-<<<<<<< HEAD
-=======
         setLaptopNeeds({}); // Reset laptop needs tracking
->>>>>>> dev
     };
 
     // Search for applicants
@@ -1769,11 +1659,7 @@ const AdmissionsDashboard = () => {
                             applicantId: applicant.applicant_id,
                             name: applicant.display_name,
                             email: applicant.email,
-<<<<<<< HEAD
-                            needsLaptop: false // Default to false, can be changed later
-=======
                             needsLaptop: laptopNeeds[applicant.applicant_id] || false // Use individual laptop setting
->>>>>>> dev
                         })
                     });
 
@@ -2242,11 +2128,7 @@ const AdmissionsDashboard = () => {
                                                         minWidth: '150px',
                                                         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
                                                     }}>
-<<<<<<< HEAD
-                                                        {['', 'submitted', 'in_progress', 'ineligible'].map(value => (
-=======
                                                         {['', 'no_application', 'in_progress', 'submitted', 'ineligible'].map(value => (
->>>>>>> dev
                                                             <div
                                                                 key={value}
                                                                 onClick={() => {
@@ -2263,11 +2145,7 @@ const AdmissionsDashboard = () => {
                                                                 onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
                                                                 onMouseLeave={(e) => e.target.style.backgroundColor = applicationFilters.status === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent'}
                                                             >
-<<<<<<< HEAD
-                                                                {value === '' ? 'All' : value === 'in_progress' ? 'In Progress' : value.charAt(0).toUpperCase() + value.slice(1)}
-=======
                                                                 {value === '' ? 'All' : value === 'no_application' ? 'Account Created' : value === 'in_progress' ? 'In Progress' : value.charAt(0).toUpperCase() + value.slice(1)}
->>>>>>> dev
                                                             </div>
                                                         ))}
                                                     </div>
@@ -2540,11 +2418,7 @@ const AdmissionsDashboard = () => {
                                     <tbody>
                                         {sortAndFilterApplications(applications.applications).map((app) => (
                                             <tr
-<<<<<<< HEAD
-                                                key={app.application_id}
-=======
                                                 key={app.applicant_id}
->>>>>>> dev
                                                 className={`clickable-row ${selectedApplicants.includes(app.applicant_id) ? 'admissions-dashboard__row--selected' : ''}`}
                                             >
                                                 <td className="admissions-dashboard__checkbox-column">
@@ -2563,14 +2437,9 @@ const AdmissionsDashboard = () => {
                                                     />
                                                 </td>
                                                 <td
-<<<<<<< HEAD
-                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
-=======
                                                     onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className={app.application_id ? "clickable-cell" : ""}
                                                     style={{ cursor: app.application_id ? 'pointer' : 'default' }}
->>>>>>> dev
                                                 >
                                                     <div className="applicant-name">
                                                         {app.full_name || `${app.first_name} ${app.last_name}`}
@@ -2609,20 +2478,12 @@ const AdmissionsDashboard = () => {
                                                     </span>
                                                 </td>
                                                 <td
-<<<<<<< HEAD
-                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
-                                                >
-                                                    <span className={`status-badge status-badge--${app.status}`}>
-                                                        {app.status}
-=======
                                                     onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className={app.application_id ? "clickable-cell" : ""}
                                                     style={{ cursor: app.application_id ? 'pointer' : 'default' }}
                                                 >
                                                     <span className={`status-badge status-badge--${app.status}`}>
                                                         {app.status === 'no_application' ? 'Account Created' : app.status === 'in_progress' ? 'In Progress' : app.status}
->>>>>>> dev
                                                     </span>
                                                 </td>
                                                 <td className="admissions-dashboard__assessment-cell">
@@ -2650,42 +2511,27 @@ const AdmissionsDashboard = () => {
                                                     </div>
                                                 </td>
                                                 <td
-<<<<<<< HEAD
-                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
-=======
                                                     onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className={app.application_id ? "clickable-cell" : ""}
                                                     style={{ cursor: app.application_id ? 'pointer' : 'default' }}
->>>>>>> dev
                                                 >
                                                     <span className={`info-session-badge info-session-badge--${app.info_session_status || 'not_registered'}`}>
                                                         {(app.info_session_status || 'not_registered').replace('_', ' ')}
                                                     </span>
                                                 </td>
                                                 <td
-<<<<<<< HEAD
-                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
-=======
                                                     onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className={app.application_id ? "clickable-cell" : ""}
                                                     style={{ cursor: app.application_id ? 'pointer' : 'default' }}
->>>>>>> dev
                                                 >
                                                     <span className={`workshop-badge workshop-badge--${app.workshop_status || 'pending'}`}>
                                                         {(app.workshop_status || 'pending').replace('_', ' ')}
                                                     </span>
                                                 </td>
                                                 <td
-<<<<<<< HEAD
-                                                    onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className="clickable-cell"
-=======
                                                     onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className={app.application_id ? "clickable-cell" : ""}
                                                     style={{ cursor: app.application_id ? 'pointer' : 'default' }}
->>>>>>> dev
                                                 >
                                                     <span className={`admission-badge admission-badge--${app.program_admission_status || 'pending'}`}>
                                                         {(app.program_admission_status || 'pending').replace('_', ' ')}
@@ -2712,56 +2558,8 @@ const AdmissionsDashboard = () => {
 
                                 <div className="table-footer">
                                     <span className="table-count">
-<<<<<<< HEAD
-                                        Showing {applications.applications.length} applicants
-                                        {applications.total > applications.applications.length &&
-                                            ` of ${applications.total} total`
-                                        }
-                                    </span>
-                                    {applications.total > applicationFilters.limit && (
-                                        <div className="pagination-controls">
-                                            <button
-                                                onClick={() => setApplicationFilters(prev => ({
-                                                    ...prev,
-                                                    offset: Math.max(0, prev.offset - prev.limit)
-                                                }))}
-                                                disabled={applicationFilters.offset === 0}
-                                                className="pagination-btn"
-                                            >
-                                                ← Previous
-                                            </button>
-
-                                            <span className="pagination-info">
-                                                Page {Math.floor(applicationFilters.offset / applicationFilters.limit) + 1} of {Math.ceil(applications.total / applicationFilters.limit)}
-                                            </span>
-
-                                            <button
-                                                onClick={() => setApplicationFilters(prev => ({
-                                                    ...prev,
-                                                    offset: prev.offset + prev.limit
-                                                }))}
-                                                disabled={applicationFilters.offset + applicationFilters.limit >= applications.total}
-                                                className="pagination-btn"
-                                            >
-                                                Next →
-                                            </button>
-
-                                            <button
-                                                onClick={() => setApplicationFilters(prev => ({
-                                                    ...prev,
-                                                    limit: applications.total,
-                                                    offset: 0
-                                                }))}
-                                                className="pagination-btn show-all-btn"
-                                            >
-                                                Show All ({applications.total})
-                                            </button>
-                                        </div>
-                                    )}
-=======
                                         Showing {applications.applications.length} of {applications.total} applicants
                                     </span>
->>>>>>> dev
                                 </div>
                             </div>
                         ) : (
@@ -3056,18 +2854,6 @@ const AdmissionsDashboard = () => {
                             </div>
                         ) : getFilteredWorkshops()?.length > 0 ? (
                             <div className="data-table-container">
-<<<<<<< HEAD
-                                <table className="data-table events-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Event Name</th>
-                                            <th>Date & Time</th>
-                                            <th>Registered</th>
-                                            <th>Attended</th>
-                                            <th>Laptops Needed</th>
-                                            <th>Active</th>
-                                            <th>Actions</th>
-=======
                                 <table className="data-table events-table" style={{ fontSize: '0.8rem' }}>
                                     <thead>
                                         <tr>
@@ -3081,7 +2867,6 @@ const AdmissionsDashboard = () => {
                                             <th style={{ width: '70px', textAlign: 'center' }}>Laptops</th>
                                             <th style={{ width: '80px', textAlign: 'center' }}>Active</th>
                                             <th style={{ width: '180px' }}>Actions</th>
->>>>>>> dev
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -3089,35 +2874,6 @@ const AdmissionsDashboard = () => {
                                             <React.Fragment key={workshop.event_id}>
                                                 <tr className="event-row">
                                                     <td className="event-name">
-<<<<<<< HEAD
-                                                        {workshop.event_name}
-                                                        {isEventPast(workshop.event_date, workshop.event_time) && (
-                                                            <span className="event-status event-status--past">Past Event</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="event-datetime">
-                                                        <div className="date-time-info">
-                                                            <div className="event-date">
-                                                                {new Date(workshop.event_date).toLocaleDateString('en-US', {
-                                                                    weekday: 'short',
-                                                                    month: 'short',
-                                                                    day: 'numeric',
-                                                                    year: 'numeric'
-                                                                })}
-                                                            </div>
-                                                            <div className="event-time">{formatEventTime(workshop.event_time)}</div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="stat-cell">
-                                                        <span className="stat-number">{workshop.registration_count}</span>
-                                                    </td>
-                                                    <td className="stat-cell">
-                                                        <span className="stat-number stat-number--attended">{workshop.attended_count}</span>
-                                                    </td>
-                                                    <td className="stat-cell">
-                                                        <span className="stat-number stat-number--laptops">
-                                                            {workshop.registrations?.filter(reg => reg.needs_laptop).length || 0}
-=======
                                                         {workshop.event_name || workshop.name || workshop.title}
                                                         {isEventPast(workshop.start_date, workshop.start_time) && (
                                                             <span className="event-status event-status--past">Past Event</span>
@@ -3206,7 +2962,6 @@ const AdmissionsDashboard = () => {
                                                     <td className="stat-cell" style={{ textAlign: 'center' }}>
                                                         <span className="stat-number stat-number--laptops">
                                                             {workshop.laptop_count || 0}
->>>>>>> dev
                                                         </span>
                                                     </td>
                                                     <td className="active-status-cell">
@@ -3226,20 +2981,14 @@ const AdmissionsDashboard = () => {
                                                     <td className="actions-cell">
                                                         <button
                                                             className="edit-btn"
-<<<<<<< HEAD
-=======
                                                             style={{ fontSize: '0.75rem', padding: '4px 10px' }}
->>>>>>> dev
                                                             onClick={() => openEditWorkshopModal(workshop)}
                                                         >
                                                             Edit
                                                         </button>
                                                         <button
                                                             className="view-registrations-btn"
-<<<<<<< HEAD
-=======
                                                             style={{ fontSize: '0.75rem', padding: '4px 10px' }}
->>>>>>> dev
                                                             onClick={() => handleViewRegistrations('workshop', workshop.event_id)}
                                                         >
                                                             {selectedEvent === workshop.event_id ? 'Hide Registrations' : 'View Registrations'}
@@ -3333,13 +3082,9 @@ const AdmissionsDashboard = () => {
                                                                                                 value={reg.status}
                                                                                                 onChange={(e) => {
                                                                                                     if (e.target.value !== reg.status) {
-<<<<<<< HEAD
-                                                                                                        handleMarkAttendance('workshop', workshop.event_id, reg.applicant_id, e.target.value);
-=======
                                                                                                         // Use applicant_id if available, otherwise use user_id (for external participants)
                                                                                                         const attendeeId = reg.applicant_id || reg.user_id || 'null';
                                                                                                         handleMarkAttendance('workshop', workshop.event_id, attendeeId, e.target.value);
->>>>>>> dev
                                                                                                     }
                                                                                                 }}
                                                                                             >
@@ -4099,17 +3844,6 @@ const AdmissionsDashboard = () => {
                                 />
                             </div>
 
-<<<<<<< HEAD
-                            <div className="form-group checkbox-group">
-                                <input
-                                    type="checkbox"
-                                    id="workshop-is_online"
-                                    name="is_online"
-                                    checked={workshopForm.is_online}
-                                    onChange={handleWorkshopFormChange}
-                                />
-                                <label htmlFor="workshop-is_online">Online Event</label>
-=======
                             {/* Modern Toggle: Online Event */}
                             <div className="form-group">
                                 <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -4143,7 +3877,6 @@ const AdmissionsDashboard = () => {
                                 <small style={{ color: '#9ca3af', display: 'block', marginTop: '4px' }}>
                                     {workshopForm.is_online ? 'Workshop will be held online' : 'Workshop will be held in person'}
                                 </small>
->>>>>>> dev
                             </div>
 
                             <div className="form-group">
@@ -4173,8 +3906,6 @@ const AdmissionsDashboard = () => {
                                 </div>
                             )}
 
-<<<<<<< HEAD
-=======
                             {/* NEW: Workshop System Fields */}
                             <div className="form-section-divider" style={{ margin: '24px 0', borderTop: '2px solid #374151', paddingTop: '24px' }}>
                                 <h3 style={{ marginBottom: '16px', color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>Workshop Configuration</h3>
@@ -4454,7 +4185,6 @@ const AdmissionsDashboard = () => {
                                 </>
                             )}
 
->>>>>>> dev
                             <div className="modal-actions">
                                 <button
                                     type="button"
@@ -4617,9 +4347,6 @@ const AdmissionsDashboard = () => {
                                         <div className="selected-list">
                                             {selectedApplicantsForRegistration.map((applicant) => (
                                                 <div key={applicant.applicant_id} className="selected-applicant">
-<<<<<<< HEAD
-                                                    <span>{applicant.display_name}</span>
-=======
                                                     <span className="applicant-name-selected">{applicant.display_name}</span>
                                                     <div className="laptop-toggle-container">
                                                         <button
@@ -4637,7 +4364,6 @@ const AdmissionsDashboard = () => {
                                                             {laptopNeeds[applicant.applicant_id] ? '💻 Needs' : '✓ Own'}
                                                         </span>
                                                     </div>
->>>>>>> dev
                                                     <button
                                                         onClick={() => toggleApplicantSelection(applicant)}
                                                         className="remove-selected-btn"

@@ -86,16 +86,10 @@ const Workshops = () => {
             try {
                 console.log('=== STARTING WORKSHOPS FETCH ===');
                 console.log('API URL:', import.meta.env.VITE_API_URL);
-<<<<<<< HEAD
-                console.log('Full URL:', `${import.meta.env.VITE_API_URL}/api/workshops`);
-                
-                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops`);
-=======
                 console.log('Full URL:', `${import.meta.env.VITE_API_URL}/api/workshop/public/admissions-workshops`);
                 
                 // Fetch from new endpoint that only returns ACTIVE admissions workshops
                 const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshop/public/admissions-workshops`);
->>>>>>> dev
                 console.log('Response received:', response);
                 console.log('Response status:', response.status);
                 console.log('Response ok:', response.ok);
@@ -107,15 +101,6 @@ const Workshops = () => {
                 console.log('=== WORKSHOPS DATA RECEIVED ===');
                 console.log('Raw data:', data);
                 console.log('Data type:', typeof data);
-<<<<<<< HEAD
-                console.log('Is array:', Array.isArray(data));
-                console.log('Number of workshops:', data.length);
-                
-                // Add registrations data to each event
-                const eventsWithRegistrations = data.map(event => ({
-                    ...event,
-                    registrations: event.registrations || []
-=======
                 
                 // New endpoint returns { workshops: [...] }
                 const workshopsArray = data.workshops || data;
@@ -135,7 +120,6 @@ const Workshops = () => {
                     capacity: workshop.event_capacity || workshop.capacity,
                     registration_count: workshop.total_participants || 0,
                     registrations: workshop.registrations || []
->>>>>>> dev
                 }));
                 
                 console.log('Events with registrations:', eventsWithRegistrations);

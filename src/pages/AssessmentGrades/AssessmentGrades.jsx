@@ -23,19 +23,10 @@ const AssessmentGrades = () => {
   // Filter states
   const [filters, setFilters] = useState({
     cohort: '',
-<<<<<<< HEAD
-    date: '',
-    startDate: '',
-    endDate: '',
-    assessmentType: ''
-  });
-  const [availableCohorts, setAvailableCohorts] = useState([]);
-=======
     assessmentPeriod: ''
   });
   const [availableCohorts, setAvailableCohorts] = useState([]);
   const [availablePeriods, setAvailablePeriods] = useState([]);
->>>>>>> dev
 
   // Pagination - Increased limit to get more records per request
   const [pagination, setPagination] = useState({
@@ -60,10 +51,7 @@ const AssessmentGrades = () => {
     try {
       await Promise.all([
         fetchAvailableCohorts(),
-<<<<<<< HEAD
-=======
         fetchAvailablePeriods(),
->>>>>>> dev
         fetchAssessmentGrades(true)
       ]);
     } catch (err) {
@@ -94,8 +82,6 @@ const AssessmentGrades = () => {
     }
   };
 
-<<<<<<< HEAD
-=======
   const fetchAvailablePeriods = async () => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/periods`, {
@@ -117,7 +103,6 @@ const AssessmentGrades = () => {
   };
 
 
->>>>>>> dev
   const fetchAssessmentGrades = async (resetOffset = false) => {
     try {
       setLoading(true);
@@ -190,14 +175,7 @@ const AssessmentGrades = () => {
   const clearFilters = () => {
     setFilters({
       cohort: '',
-<<<<<<< HEAD
-      date: '',
-      startDate: '',
-      endDate: '',
-      assessmentType: ''
-=======
       assessmentPeriod: ''
->>>>>>> dev
     });
     setSelectedUsers(new Set());
     fetchAssessmentGrades(true);
@@ -531,51 +509,6 @@ Check console for detailed results.`);
           </div>
 
           <div className="filter-group">
-<<<<<<< HEAD
-            <label htmlFor="date">Specific Date:</label>
-            <input
-              type="date"
-              id="date"
-              value={filters.date}
-              onChange={(e) => handleFilterChange('date', e.target.value)}
-            />
-          </div>
-
-          <div className="filter-group">
-            <label htmlFor="startDate">Date Range:</label>
-            <div className="date-range">
-              <input
-                type="date"
-                id="startDate"
-                value={filters.startDate}
-                onChange={(e) => handleFilterChange('startDate', e.target.value)}
-                placeholder="Start Date"
-              />
-              <span>to</span>
-              <input
-                type="date"
-                value={filters.endDate}
-                onChange={(e) => handleFilterChange('endDate', e.target.value)}
-                placeholder="End Date"
-              />
-            </div>
-          </div>
-
-          <div className="filter-group">
-            <label htmlFor="assessmentType">Assessment Type:</label>
-            <select
-              id="assessmentType"
-              value={filters.assessmentType}
-              onChange={(e) => handleFilterChange('assessmentType', e.target.value)}
-            >
-              <option value="">All Types</option>
-              <option value="technical">Technical</option>
-              <option value="business">Business</option>
-              <option value="professional">Professional</option>
-              <option value="self">Self Assessment</option>
-            </select>
-          </div>
-=======
             <label htmlFor="assessmentPeriod">Assessment Period:</label>
             <select
               id="assessmentPeriod"
@@ -589,7 +522,6 @@ Check console for detailed results.`);
             </select>
           </div>
 
->>>>>>> dev
         </div>
 
         <div className="filters-actions">
@@ -686,11 +618,7 @@ Check console for detailed results.`);
                 <th>Email</th>
                 <th>Cohort</th>
                 <th>Assessment Type</th>
-<<<<<<< HEAD
-                <th>Date Graded</th>
-=======
                 <th>Assessment Period</th>
->>>>>>> dev
                 <th>Actions</th>
               </tr>
             </thead>
@@ -712,11 +640,7 @@ Check console for detailed results.`);
                       holistic
                     </span>
                   </td>
-<<<<<<< HEAD
-                  <td>{new Date(grade.created_at?.value || grade.created_at).toLocaleDateString()}</td>
-=======
                   <td>{grade.assessment_period || 'N/A'}</td>
->>>>>>> dev
                   <td>
                     <button
                       className="btn btn-sm btn-primary"
@@ -825,10 +749,7 @@ const GradeViewModal = ({
   // Assessment types mapping from BigQuery to our display names
   const assessmentTypeMapping = {
     'quiz': 'self',
-<<<<<<< HEAD
-=======
     'knowledge_assessment': 'self',
->>>>>>> dev
     'project': 'technical', 
     'problem_solution': 'business',
     'video': 'professional'
@@ -1894,20 +1815,6 @@ const GradeViewModal = ({
                         renderAnalysisFeedback(currentAnalysis[0])
                       ) : (
                         <div className="no-feedback">
-<<<<<<< HEAD
-                          <p>No specific feedback available for {currentTabType} assessment.</p>
-                          <div className="fallback-feedback">
-                            <h4>Overall Feedback</h4>
-                            <div className="strengths-section">
-                              <h5>Strengths</h5>
-                              <div className="grade-text">{grade.strengths_summary || 'No strengths summary available'}</div>
-                            </div>
-                            <div className="growth-areas-section">
-                              <h5>Growth Areas</h5>
-                              <div className="grade-text">{grade.growth_areas_summary || 'No growth areas summary available'}</div>
-                            </div>
-                          </div>
-=======
                           {/* Check if submission exists for this assessment type */}
                           {(() => {
                             const submission = userSubmissions.find(sub => {
@@ -1948,7 +1855,6 @@ const GradeViewModal = ({
                               );
                             }
                           })()}
->>>>>>> dev
                         </div>
                       )}
                     </div>
@@ -1965,11 +1871,7 @@ const GradeViewModal = ({
 
 // Mass Email Modal Component
 const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, onEmailSent }) => {
-<<<<<<< HEAD
-  const [emailSubject, setEmailSubject] = useState('Your L1 Assessment Feedback - Great Work, [Builder Name]!');
-=======
   const [emailSubject, setEmailSubject] = useState('Your Week 8 Assessment Feedback - Great Work, [Builder Name]!');
->>>>>>> dev
   const [emailTemplate, setEmailTemplate] = useState('pursuit_feedback');
   const [customMessage, setCustomMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -2041,18 +1943,6 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
       });
 
       if (!response.ok) {
-<<<<<<< HEAD
-        throw new Error('Failed to send emails');
-      }
-
-      const result = await response.json();
-      Swal.fire({
-        icon: 'success',
-        title: 'Emails Sent Successfully!',
-        text: `Successfully processed ${result.results.length} emails`,
-        confirmButtonColor: '#10b981',
-        timer: 4000,
-=======
         throw new Error('Failed to start email job');
       }
 
@@ -2071,7 +1961,6 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
         `,
         confirmButtonColor: '#10b981',
         timer: 5000,
->>>>>>> dev
         timerProgressBar: true,
         background: '#1f2937',
         color: '#f9fafb',
@@ -2081,15 +1970,6 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
           content: 'swal-dark-content'
         }
       });
-<<<<<<< HEAD
-      onEmailSent();
-    } catch (err) {
-      console.error('Error sending emails:', err);
-      Swal.fire({
-        icon: 'error',
-        title: 'Email Sending Failed',
-        text: 'Failed to send emails. Please check your connection and try again.',
-=======
 
       setSending(false);
       onEmailSent();
@@ -2101,7 +1981,6 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
         icon: 'error',
         title: 'Failed to Start Email Job',
         text: 'Failed to start email sending. Please check your connection and try again.',
->>>>>>> dev
         confirmButtonColor: '#d33',
         background: '#1f2937',
         color: '#f9fafb',
@@ -2111,11 +1990,6 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
           content: 'swal-dark-content'
         }
       });
-<<<<<<< HEAD
-    } finally {
-      setSending(false);
-=======
->>>>>>> dev
     }
   };
 
@@ -2266,26 +2140,15 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
 
             <div className="assessment-grades-email-modal__preview-section">
               <div className="assessment-grades-email-modal__preview-actions">
-<<<<<<< HEAD
-                <button 
-                  className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--outline assessment-grades-email-modal__btn--preview"
-                  onClick={handlePreviewEmails}
-                  disabled={loadingPreviews || selectedUsers.length === 0}
-=======
                 <button
                   className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--outline assessment-grades-email-modal__btn--preview"
                   onClick={handlePreviewEmails}
                   disabled={loadingPreviews || selectedUsers.length === 0 || sending}
->>>>>>> dev
                 >
                   {loadingPreviews ? 'Generating Previews...' : `Preview Emails (${Math.min(selectedUsers.length, 3)})`}
                 </button>
                 {showPreviews && (
-<<<<<<< HEAD
-                  <button 
-=======
                   <button
->>>>>>> dev
                     className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--secondary"
                     onClick={() => setShowPreviews(false)}
                   >
@@ -2342,30 +2205,13 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
         </div>
 
         <div className="assessment-grades-email-modal__footer">
-<<<<<<< HEAD
-          <button 
-            className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--outline assessment-grades-email-modal__btn--test" 
-=======
           <button
             className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--outline assessment-grades-email-modal__btn--test"
->>>>>>> dev
             onClick={handleSendTestEmail}
             disabled={sending || loadingPreviews}
           >
             📧 Send Test Email
           </button>
-<<<<<<< HEAD
-          <div className="assessment-grades-email-modal__footer-actions">
-            <button className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--secondary" onClick={onClose} disabled={sending}>
-              Cancel
-            </button>
-            <button 
-              className="assessment-grades-email-modal__btn assessment-grades-email-modal__btn--success" 
-              onClick={handleSendEmails}
-              disabled={sending || !emailSubject || selectedUsers.length === 0}
-            >
-              {sending ? 'Sending...' : `Send to ${selectedUsers.length} Users`}
-=======
 
           <div className="assessment-grades-email-modal__footer-actions">
             <button
@@ -2382,7 +2228,6 @@ const MassEmailModal = ({ selectedUsers, assessmentGrades, authToken, onClose, o
               disabled={sending || !emailSubject || selectedUsers.length === 0}
             >
               {sending ? '🚀 Starting...' : `📧 Send to ${selectedUsers.length} Users`}
->>>>>>> dev
             </button>
           </div>
         </div>

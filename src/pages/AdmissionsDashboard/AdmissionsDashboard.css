@@ -233,13 +233,10 @@
   background: #ed8936;
 }
 
-<<<<<<< HEAD
-=======
 .admissions-dashboard__status-indicator--no_application {
   background: #9ca3af;
 }
 
->>>>>>> dev
 .admissions-dashboard__status-indicator--ineligible {
   background: #f56565;
 }
@@ -1944,8 +1941,6 @@ Assessment Funnel Styles */
   color: #a855f7;
 }
 
-<<<<<<< HEAD
-=======
 .admission-badge--withdrawn {
   background: rgba(107, 114, 128, 0.2);
   color: #6b7280;
@@ -1953,7 +1948,6 @@ Assessment Funnel Styles */
   opacity: 0.8;
 }
 
->>>>>>> dev
 /* Program Admission Pipeline Styles */
 .program-admission-pipeline {
   display: flex;
@@ -2135,14 +2129,11 @@ Assessment Funnel Styles */
   color: #3b82f6;
 }
 
-<<<<<<< HEAD
-=======
 .status-badge--no_application {
   background: rgba(156, 163, 175, 0.2);
   color: #9ca3af;
 }
 
->>>>>>> dev
 .status-badge--ineligible {
   background: rgba(239, 68, 68, 0.2);
   color: #ef4444;
@@ -3157,10 +3148,7 @@ lumn Widths for Consistent Layout */
 .stage-badge--workshop_attended { background: var(--color-success-light); color: var(--color-success-dark); }
 
 .app-status-badge--not_started { background: var(--color-text-muted); color: white; }
-<<<<<<< HEAD
-=======
 .app-status-badge--no_application { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
->>>>>>> dev
 .app-status-badge--in_progress { background: var(--color-warning-light); color: var(--color-warning-dark); }
 .app-status-badge--submitted { background: var(--color-success-light); color: var(--color-success-dark); }
 .app-status-badge--incomplete { background: var(--color-danger-light); color: var(--color-danger-dark); }
@@ -4022,14 +4010,6 @@ p indicator styles */
 .selected-applicant {
   display: flex;
   align-items: center;
-<<<<<<< HEAD
-  gap: 0.5rem;
-  background: var(--color-primary);
-  color: white;
-  padding: 0.4rem 0.8rem;
-  border-radius: 4px;
-  font-size: 0.85rem;
-=======
   gap: 0.75rem;
   background: var(--color-primary);
   color: white;
@@ -4112,33 +4092,19 @@ p indicator styles */
 
 .laptop-status-label--owns {
   color: rgba(255, 255, 255, 0.9);
->>>>>>> dev
 }
 
 .remove-selected-btn {
   background: rgba(255, 255, 255, 0.2);
   border: none;
   color: white;
-<<<<<<< HEAD
-  width: 20px;
-  height: 20px;
-=======
   width: 22px;
   height: 22px;
->>>>>>> dev
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-<<<<<<< HEAD
-  font-size: 0.9rem;
-  line-height: 1;
-}
-
-.remove-selected-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-=======
   font-size: 1rem;
   line-height: 1;
   flex-shrink: 0;
@@ -4148,7 +4114,6 @@ p indicator styles */
 
 .remove-selected-btn:hover {
   background: rgba(255, 255, 255, 0.35);
->>>>>>> dev
 }
 
 /* Mobile Responsiveness */

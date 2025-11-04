@@ -608,11 +608,6 @@ const AttendanceDashboard = () => {
       console.log('🔍 Processing cohort group:', cohortGroup);
       
       const cohortName = cohortGroup.cohort || 'Unknown Cohort';
-<<<<<<< HEAD
-      const attendees = cohortGroup.records || [];
-      
-      console.log(`Processing ${attendees.length} attendees for cohort: ${cohortName}`);
-=======
       const allRecords = cohortGroup.records || [];
       
       // Filter to only show present/late attendees (not absent ones)
@@ -621,7 +616,6 @@ const AttendanceDashboard = () => {
       );
       
       console.log(`Processing ${attendees.length} present/late attendees out of ${allRecords.length} total records for cohort: ${cohortName}`);
->>>>>>> dev
       
       // Normalize attendee records
       const normalizedAttendees = attendees.map(record => {

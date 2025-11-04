@@ -1133,8 +1133,6 @@ const SessionTester = ({ sharedData, updateSharedData }) => {
                         </button>
                       </div>
                     </div>
-<<<<<<< HEAD
-=======
                     
                     {/* Smart Task Configuration Section */}
                     <div className="session-data-tester__smart-config">
@@ -1175,7 +1173,6 @@ const SessionTester = ({ sharedData, updateSharedData }) => {
                         )}
                       </div>
                     </div>
->>>>>>> dev
                   </div>
 
                   {/* Resources */}
@@ -1702,8 +1699,6 @@ const SessionTester = ({ sharedData, updateSharedData }) => {
                           </button>
                         </div>
                       </div>
-<<<<<<< HEAD
-=======
                       
                       {/* Smart Task Configuration Section */}
                       <div className="session-data-tester__smart-config session-data-tester__smart-config--modal">
@@ -1744,7 +1739,6 @@ const SessionTester = ({ sharedData, updateSharedData }) => {
                           )}
                         </div>
                       </div>
->>>>>>> dev
                     </div>
 
                     {/* Resources */}

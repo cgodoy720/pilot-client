@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-<<<<<<< HEAD
-=======
 import { useAuth } from '../../context/AuthContext';
->>>>>>> dev
 import pursuitLogoFull from '../../assets/logo-full.png';
 import databaseService from '../../services/databaseService';
 import Swal from 'sweetalert2';
@@ -78,10 +75,7 @@ const SECTION_CONFIG = [
 function ApplicantDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-<<<<<<< HEAD
-=======
   const { setAuthState } = useAuth();
->>>>>>> dev
   const [user, setUser] = useState(null);
   const [currentApplicantId, setCurrentApplicantId] = useState(null);
   const [statuses, setStatuses] = useState({
@@ -405,34 +399,6 @@ function ApplicantDashboard() {
       }
       
       const workshops = await response.json();
-<<<<<<< HEAD
-      console.log('DEBUG: Workshops received for applicant', currentApplicantId, ':', workshops.map(w => ({
-        title: w.title, 
-        id: w.event_id, 
-        active: w.is_active,
-        registrations: w.registrations.length,
-        userRegistrations: w.registrations.filter(r => r.applicant_id === currentApplicantId)
-      })));
-      let foundRegistration = null;
-      let registeredWorkshop = null;
-      
-      // Check all workshops for current user's registration (any status)
-      for (const workshop of workshops) {
-        const registrations = workshop.registrations || [];
-        const userRegistration = registrations.find(reg => 
-          reg.applicant_id === currentApplicantId
-        );
-        
-        if (userRegistration) {
-          foundRegistration = userRegistration;
-          registeredWorkshop = workshop;
-          break;
-        }
-      }
-      
-      if (foundRegistration && registeredWorkshop) {
-        // Treat database time as Eastern Time (extract UTC components and use as Eastern)
-=======
       console.log('DEBUG: Workshops received for applicant', currentApplicantId, ':', workshops);
       
       // New format: workshops are returned as flat objects with registration data already joined
@@ -452,7 +418,6 @@ function ApplicantDashboard() {
         
         // Set workshop details
         // Format date/time treating database time as EST
->>>>>>> dev
         const dbDate = new Date(registeredWorkshop.start_time);
         const year = dbDate.getUTCFullYear();
         const month = dbDate.getUTCMonth();
@@ -461,61 +426,6 @@ function ApplicantDashboard() {
         const minute = dbDate.getUTCMinutes();
         const easternDate = new Date(year, month, day, hour, minute);
 
-<<<<<<< HEAD
-        const workshopEventDetails = {
-          date: easternDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-          time: easternDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-          location: registeredWorkshop.location
-        };
-        
-        // Set workshop status based on stage data first, then registration status
-        let workshopStatus = 'signed-up'; // default for 'registered'
-        
-        if (hasAttendedWorkshop) {
-          // Stage data takes priority - already attended
-          workshopStatus = 'attended';
-          console.log('Dashboard: Workshop status set to attended based on stage data');
-        } else if (foundRegistration.status === 'attended' || 
-                   foundRegistration.status === 'attended_late' || 
-                   foundRegistration.status === 'very_late') {
-          workshopStatus = 'attended';
-          console.log('Dashboard: Workshop marked as attended with registration status:', foundRegistration.status);
-        } else if (foundRegistration.status === 'registered') {
-          workshopStatus = 'signed-up';
-          console.log('Dashboard: Workshop registration found, status:', foundRegistration.status);
-        }
-        
-        setStatuses(prev => ({ ...prev, workshop: workshopStatus }));
-        setWorkshopDetails(workshopEventDetails);
-        console.log('Dashboard: Found workshop registration', workshopEventDetails, 'Status:', workshopStatus);
-      } else if (hasAttendedWorkshop) {
-        // Attended based on stage but no registration details found
-        // Try to get details from any workshop for display purposes
-        if (workshops && workshops.length > 0) {
-          // Use the first available workshop as a fallback for display purposes
-          const firstWorkshop = workshops[0];
-          const dbDate = new Date(firstWorkshop.start_time);
-          const year = dbDate.getUTCFullYear();
-          const month = dbDate.getUTCMonth();
-          const day = dbDate.getUTCDate();
-          const hour = dbDate.getUTCHours();
-          const minute = dbDate.getUTCMinutes();
-          const easternDate = new Date(year, month, day, hour, minute);
-
-          const workshopEventDetails = {
-            date: easternDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-            time: easternDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-            location: firstWorkshop.location
-          };
-          
-          setWorkshopDetails(workshopEventDetails);
-        }
-      } else {
-        // Invited but not registered yet (and hasn't attended)
-        setStatuses(prev => ({ ...prev, workshop: 'not signed-up' }));
-        setWorkshopDetails(null);
-        console.log('Dashboard: Workshop available for signup');
-=======
         setWorkshopDetails({
           event_id: registeredWorkshop.event_id,
           name: registeredWorkshop.name || registeredWorkshop.title,
@@ -535,7 +445,6 @@ function ApplicantDashboard() {
         setStatuses(prev => ({ ...prev, workshop: 'not signed-up' }));
         setWorkshopDetails(null);
         console.log('Dashboard: Workshop status set to not signed-up');
->>>>>>> dev
       }
     } catch (error) {
       console.error('Error loading workshop status for dashboard:', error);
@@ -708,8 +617,6 @@ function ApplicantDashboard() {
     navigate('/dashboard');
   };
 
-<<<<<<< HEAD
-=======
   // Check if workshop is currently accessible
   const isWorkshopAccessible = () => {
     if (!workshopDetails) return false;
@@ -857,7 +764,6 @@ function ApplicantDashboard() {
     }
   };
 
->>>>>>> dev
   const handleEditEligibility = async () => {
     try {
       // Get applicant ID from localStorage or user data
@@ -1179,8 +1085,6 @@ function ApplicantDashboard() {
                           ✅ Attended
                         </div>
                       )}
-<<<<<<< HEAD
-=======
                       {status === 'signed-up' && (
                         <>
                           <button
@@ -1224,7 +1128,6 @@ function ApplicantDashboard() {
                           </button>
                         </>
                       )}
->>>>>>> dev
                     </div>
                   )}
 

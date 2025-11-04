@@ -1,10 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './GPT.css';
-<<<<<<< HEAD
-import { FaPlus, FaChevronLeft, FaFileAlt, FaVideo, FaLink, FaTimes } from 'react-icons/fa';
-=======
 import { FaPlus, FaChevronLeft, FaFileAlt, FaVideo, FaLink, FaTimes, FaCog } from 'react-icons/fa';
->>>>>>> dev
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -32,13 +28,10 @@ function GPT() {
   const [summaryLoading, setSummaryLoading] = useState(false); // Track if we're fetching summary
   const [modalSummaryData, setModalSummaryData] = useState(null); // Summary data for the modal
   
-<<<<<<< HEAD
-=======
   // Model selection state
-  const [selectedModel, setSelectedModel] = useState('anthropic/claude-3.7-sonnet');
+  const [selectedModel, setSelectedModel] = useState('anthropic/claude-sonnet-4.5');
   const [showModelSelector, setShowModelSelector] = useState(false);
   
->>>>>>> dev
   // Enhanced content management state
   const [contentSources, setContentSources] = useState({}); // Store multiple content sources per thread
   const [showUploadDropdown, setShowUploadDropdown] = useState(false);
@@ -53,10 +46,7 @@ function GPT() {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const uploadDropdownRef = useRef(null);
-<<<<<<< HEAD
-=======
   const modelSelectorRef = useRef(null);
->>>>>>> dev
 
   // Check if user is inactive (in historical access mode)
   const isInactiveUser = user && user.active === false;
@@ -302,13 +292,8 @@ function GPT() {
       // Check if this is the first message in the thread
       const isFirstMessage = messages.length === 0;
       
-<<<<<<< HEAD
-      // Send message to API
-      const response = await sendMessageToGPT(messageToSend, activeThread, token);
-=======
       // Send message to API with selected model
       const response = await sendMessageToGPT(messageToSend, activeThread, token, selectedModel);
->>>>>>> dev
       
       // If this is the first message, refresh threads to get updated titles
       if (isFirstMessage) {
@@ -904,13 +889,10 @@ function GPT() {
         setShowUploadDropdown(false);
         setShowUrlInput(false);
       }
-<<<<<<< HEAD
-=======
       
       if (modelSelectorRef.current && !modelSelectorRef.current.contains(event.target)) {
         setShowModelSelector(false);
       }
->>>>>>> dev
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -1020,11 +1002,7 @@ function GPT() {
             
             {!activeThread ? (
               <div className="gpt__empty-state">
-<<<<<<< HEAD
-                <h3 className="gpt__empty-state-title">Welcome to GPT-4-TURBO</h3>
-=======
-                <h3 className="gpt__empty-state-title">Welcome!</h3>
->>>>>>> dev
+                <h3 className="gpt__empty-state-title">Welcome to your personal AI assistant!</h3>
                 <p className="gpt__empty-state-text">
                   {isInactiveUser 
                     ? "You can view your past conversations, but cannot create new ones in historical access mode." 
@@ -1236,8 +1214,6 @@ function GPT() {
                 </div>
                 
                 <form className="gpt__input-form" onSubmit={handleSendMessage}>
-<<<<<<< HEAD
-=======
                   {/* Model Selector */}
                   <div className="gpt__model-selector-container" ref={modelSelectorRef}>
                     <button
@@ -1290,7 +1266,6 @@ function GPT() {
                     )}
                   </div>
                   
->>>>>>> dev
                   {/* Upload Controls */}
                   <div className="gpt__upload-container" ref={uploadDropdownRef}>
                     <button

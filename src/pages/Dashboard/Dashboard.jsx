@@ -20,10 +20,7 @@ function Dashboard() {
   const [dailyTasks, setDailyTasks] = useState([]);
   const [objectives, setObjectives] = useState([]);
   const [cohortFilter, setCohortFilter] = useState(null);
-<<<<<<< HEAD
-=======
   const [workshopInfo, setWorkshopInfo] = useState(null);
->>>>>>> dev
 
   useEffect(() => {
     // Only fetch dashboard data if user is active
@@ -108,12 +105,9 @@ function Dashboard() {
         data.day.learning_objectives : [];
       setObjectives(dayObjectives);
       
-<<<<<<< HEAD
-=======
       // Store workshop info if present
       setWorkshopInfo(data.workshopInfo || null);
       
->>>>>>> dev
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setError('Failed to load dashboard data. Please try again later.');
@@ -246,10 +240,6 @@ function Dashboard() {
 
   // Render regular dashboard content
   const renderDashboardContent = () => {
-<<<<<<< HEAD
-    return (
-      <>
-=======
     // Format workshop start date for display (DATE ONLY - no time)
     const formatWorkshopDate = (dateString) => {
       const date = new Date(dateString);
@@ -282,7 +272,6 @@ function Dashboard() {
           </div>
         )}
         
->>>>>>> dev
         <div className="dashboard__content">
           {/* Left panel - Objectives */}
           <div className="dashboard__left-panel">
