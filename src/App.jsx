@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-<<<<<<< HEAD
-=======
 import { enableErrorTesting } from './utils/errorTestingUtils';
->>>>>>> dev
 import Layout from './components/Layout/Layout';
 import Dashboard from './pages/Dashboard/Dashboard';
 import GPT from './pages/GPT/GPT';
@@ -11,10 +8,7 @@ import Calendar from './pages/Calendar/Calendar';
 import Learning from './pages/Learning/Learning';
 import PastSession from './pages/PastSession/PastSession';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
-<<<<<<< HEAD
-=======
 import AdminAttendanceDashboard from './pages/AdminAttendanceDashboard/AdminAttendanceDashboard';
->>>>>>> dev
 import AdmissionsDashboard from './pages/AdmissionsDashboard';
 import ApplicationDetail from './pages/AdmissionsDashboard/ApplicationDetail';
 import Content from './pages/Content';
@@ -29,7 +23,6 @@ import AssessmentGrades from './pages/AssessmentGrades/AssessmentGrades';
 
 import VolunteerFeedback from './pages/VolunteerFeedback/VolunteerFeedback';
 import AdminVolunteerFeedback from './pages/AdminVolunteerFeedback';
-<<<<<<< HEAD
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
 
 // Pathfinder pages
@@ -41,11 +34,9 @@ import PathfinderProjects from './pages/PathfinderProjects';
 import PathfinderAdminDashboard from './pages/PathfinderDashboard';
 import PathfinderAdmin from './pages/PathfinderAdmin';
 
-=======
 import WorkshopAdminDashboard from './pages/WorkshopAdminDashboard/WorkshopAdminDashboard';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
 
->>>>>>> dev
 import { useAuth } from './context/AuthContext';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
@@ -69,12 +60,9 @@ function App() {
   // Reset auth state on app load
   useEffect(() => {
     resetAuthModalState();
-<<<<<<< HEAD
-=======
     
     // Enable error testing utilities in development
     enableErrorTesting();
->>>>>>> dev
   }, []);
   
   // Listen for auth error events from global error handler
@@ -153,8 +141,6 @@ function App() {
     return children;
   };
 
-<<<<<<< HEAD
-=======
   // Workshop Admin route protection component
   const WorkshopAdminRoute = ({ children }) => {
     const isWorkshopAdmin = user?.role === 'workshop_admin' || user?.role === 'admin' || user?.role === 'staff';
@@ -166,7 +152,6 @@ function App() {
     return children;
   };
 
->>>>>>> dev
 
 
   // If auth is still loading, show a minimal loading state
@@ -241,8 +226,6 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
-<<<<<<< HEAD
-=======
         <Route path="/admin" element={
           <Layout>
             <AdminRoute>
@@ -250,7 +233,6 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
->>>>>>> dev
         <Route path="/admin/assessment-grades" element={
           <Layout>
             <AdminRoute>
@@ -258,8 +240,6 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
-<<<<<<< HEAD
-=======
         <Route path="/attendance-management" element={
           <Layout>
             <AdminRoute>
@@ -267,7 +247,6 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
->>>>>>> dev
         <Route path="/admissions-dashboard" element={
           <Layout>
             <AdminRoute>
@@ -310,8 +289,6 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
-<<<<<<< HEAD
-=======
         <Route path="/workshop-admin-dashboard" element={
           <Layout>
             <WorkshopAdminRoute>
@@ -319,7 +296,6 @@ function App() {
             </WorkshopAdminRoute>
           </Layout>
         } />
->>>>>>> dev
         <Route path="/stats" element={
           <Layout>
             <Stats />
@@ -330,7 +306,6 @@ function App() {
             <Account />
           </Layout>
         } />
-<<<<<<< HEAD
         
         {/* Pathfinder routes - personal view with nested routes */}
         <Route path="/pathfinder/*" element={
@@ -362,8 +337,6 @@ function App() {
           </Layout>
         } />
         
-=======
->>>>>>> dev
         <Route path="/volunteer-feedback" element={
           <VolunteerFeedback />
         } />
