@@ -1,15 +1,8 @@
-<<<<<<< HEAD
-/* Full page wrapper */
-.volunteer-feedback-page {
-    min-height: 100vh;
-    background: var(--color-background-darker);
-=======
 /* Full page wrapper - respects Layout container */
 .volunteer-feedback-page {
     height: 100%;
     display: flex;
     flex-direction: column;
->>>>>>> dev
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: var(--color-text-primary);
 }
@@ -17,16 +10,11 @@
 /* Main content container */
 .volunteer-feedback {
     max-width: 1200px;
-<<<<<<< HEAD
-    margin: 0 auto;
-    padding: 2rem;
-=======
     width: 100%;
     margin: 0 auto;
     padding: 1rem 2rem;
     flex: 1;
     overflow-y: auto;
->>>>>>> dev
 }
 
 .volunteer-feedback__header {
@@ -208,11 +196,7 @@
 
 @media (max-width: 480px) {
     .volunteer-feedback {
-<<<<<<< HEAD
-        padding: 0.5rem;
-=======
         padding: 0.75rem;
->>>>>>> dev
     }
 
     .stats-grid {

@@ -693,8 +693,6 @@
   }
 }
 
-<<<<<<< HEAD
-=======
 /* Model selector styles */
 .gpt__model-selector-container {
   position: relative;
@@ -789,7 +787,6 @@
   cursor: not-allowed;
 }
 
->>>>>>> dev
 /* Upload functionality styles */
 .gpt__upload-container {
   position: relative;
