@@ -30,7 +30,11 @@ const AdmissionsDashboard = () => {
     const [workshops, setWorkshops] = useState([]);
     const [cohorts, setCohorts] = useState([]);
 
+<<<<<<< HEAD
     // Pagination and filters
+=======
+    // Infinite scroll and filters
+>>>>>>> dev
     const [applicationFilters, setApplicationFilters] = useState({
         status: '',
         info_session_status: '',
@@ -39,9 +43,16 @@ const AdmissionsDashboard = () => {
         ready_for_workshop_invitation: false,
         name_search: '',
         cohort_id: '',
+<<<<<<< HEAD
         limit: 50,
         offset: 0
     });
+=======
+        limit: 10000, // High limit to get all records
+        offset: 0
+    });
+    const [hasMore, setHasMore] = useState(true);
+>>>>>>> dev
     const [nameSearchInput, setNameSearchInput] = useState('');
     const [columnSort, setColumnSort] = useState({
         column: 'created_at',
@@ -83,9 +94,24 @@ const AdmissionsDashboard = () => {
         location: 'Pursuit NYC Campus - 47-10 Austell Pl 2nd floor, Long Island City, NY',
         capacity: 50,
         is_online: false,
+<<<<<<< HEAD
         meeting_link: ''
     });
     const [workshopSubmitting, setWorkshopSubmitting] = useState(false);
+=======
+        meeting_link: '',
+        // NEW: Workshop system fields
+        cohort_name: 'December 2025 - Workshop',
+        workshop_type: 'admissions',
+        access_window_days: 0,
+        allow_early_access: false
+    });
+    const [workshopSubmitting, setWorkshopSubmitting] = useState(false);
+    
+    // Available cohorts for workshops
+    const [availableCohorts, setAvailableCohorts] = useState([]);
+    const [loadingCohorts, setLoadingCohorts] = useState(true);
+>>>>>>> dev
 
     // Bulk actions state
     const [selectedApplicants, setSelectedApplicants] = useState([]);
@@ -122,6 +148,10 @@ const AdmissionsDashboard = () => {
     const [selectedApplicantsForRegistration, setSelectedApplicantsForRegistration] = useState([]);
     const [searchLoading, setSearchLoading] = useState(false);
     const [registrationLoading, setRegistrationLoading] = useState(false);
+<<<<<<< HEAD
+=======
+    const [laptopNeeds, setLaptopNeeds] = useState({}); // Track laptop needs per applicant
+>>>>>>> dev
 
     // Event filtering state
     const [showInactiveInfoSessions, setShowInactiveInfoSessions] = useState(false);
@@ -176,6 +206,49 @@ const AdmissionsDashboard = () => {
         }
     };
 
+<<<<<<< HEAD
+=======
+    // Fetch workshop-specific cohorts (separate from program cohorts)
+    const fetchWorkshopCohorts = async () => {
+        if (!hasAdminAccess || !token) {
+            console.log('⚠️ Cannot fetch workshop cohorts - no admin access or token');
+            setLoadingCohorts(false);
+            return;
+        }
+        
+        console.log('🔄 Fetching workshop cohorts from:', `${import.meta.env.VITE_API_URL}/api/workshop/workshop-cohorts`);
+        
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshop/workshop-cohorts`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            console.log('📡 Workshop cohorts response status:', response.status);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ Workshop cohorts fetched:', data);
+                
+                // Extract just the names for the dropdown
+                const cohortNames = data.map(cohort => cohort.name);
+                setAvailableCohorts(cohortNames);
+                
+                console.log('📊 Available workshop cohorts:', cohortNames);
+            } else {
+                console.error('❌ Failed to fetch workshop cohorts:', response.status);
+                // Fallback to a default
+                setAvailableCohorts(['Admissions Workshop Experience']);
+            }
+        } catch (error) {
+            console.error('❌ Error fetching workshop cohorts:', error);
+            // Fallback to a default
+            setAvailableCohorts(['Admissions Workshop Experience']);
+        } finally {
+            setLoadingCohorts(false);
+        }
+    };
+
+>>>>>>> dev
     const fetchAdmissionsData = async () => {
         if (!hasAdminAccess || !token) {
             setError('You do not have permission to view this page.');
@@ -198,7 +271,11 @@ const AdmissionsDashboard = () => {
                 fetch(`${import.meta.env.VITE_API_URL}/api/admissions/info-sessions`, {
                     headers: { Authorization: `Bearer ${token}` }
                 }),
+<<<<<<< HEAD
                 fetch(`${import.meta.env.VITE_API_URL}/api/admissions/workshops`, {
+=======
+                fetch(`${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops`, {
+>>>>>>> dev
                     headers: { Authorization: `Bearer ${token}` }
                 })
             ]);
@@ -220,7 +297,11 @@ const AdmissionsDashboard = () => {
             setStats(statsData);
             setApplications(applicationsData);
             setInfoSessions(infoSessionsData);
+<<<<<<< HEAD
             setWorkshops(workshopsData);
+=======
+            setWorkshops(workshopsData.workshops || workshopsData);
+>>>>>>> dev
 
         } catch (error) {
             console.error('Error fetching admissions data:', error);
@@ -295,7 +376,11 @@ const AdmissionsDashboard = () => {
 
         try {
             setLoading(true);
+<<<<<<< HEAD
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/workshops`, {
+=======
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops`, {
+>>>>>>> dev
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -304,7 +389,11 @@ const AdmissionsDashboard = () => {
 
             if (response.ok) {
                 const data = await response.json();
+<<<<<<< HEAD
                 setWorkshops(data);
+=======
+                setWorkshops(data.workshops || data);
+>>>>>>> dev
             }
         } catch (error) {
             console.error('Error fetching workshops:', error);
@@ -499,6 +588,10 @@ const AdmissionsDashboard = () => {
     // Fetch cohorts on mount
     useEffect(() => {
         fetchCohorts();
+<<<<<<< HEAD
+=======
+        fetchWorkshopCohorts();  // Fetch workshop-specific cohorts for the dropdown
+>>>>>>> dev
     }, [token, hasAdminAccess]);
 
     useEffect(() => {
@@ -712,9 +805,15 @@ const AdmissionsDashboard = () => {
         if (!events || !Array.isArray(events)) return events;
 
         return [...events].sort((a, b) => {
+<<<<<<< HEAD
             // Since event_date is in ISO format, just parse it directly
             const dateA = new Date(a.event_date);
             const dateB = new Date(b.event_date);
+=======
+            // Use start_time for workshops, event_date for info sessions
+            const dateA = new Date(a.start_time || a.event_date);
+            const dateB = new Date(b.start_time || b.event_date);
+>>>>>>> dev
 
             // For earliest to latest: smaller date - larger date gives negative (comes first)
             return dateA.getTime() - dateB.getTime();
@@ -731,7 +830,11 @@ const AdmissionsDashboard = () => {
 
     const getFilteredWorkshops = () => {
         if (showInactiveWorkshops) {
+<<<<<<< HEAD
             return workshops; // Show all events
+=======
+            return workshops;
+>>>>>>> dev
         }
         return workshops.filter(workshop => workshop.is_active);
     };
@@ -745,6 +848,7 @@ const AdmissionsDashboard = () => {
     // Format time from 24-hour to 12-hour EST format
     const formatEventTime = (timeString) => {
         try {
+<<<<<<< HEAD
             // Parse the time string (e.g., "17:30:00")
             const [hours, minutes] = timeString.split(':');
             const date = new Date();
@@ -755,6 +859,32 @@ const AdmissionsDashboard = () => {
                 minute: '2-digit',
                 timeZone: 'America/New_York'
             });
+=======
+            // Database stores times AS EST (no timezone conversion needed)
+            // Just extract and format the time portion
+            let hours, minutes;
+            
+            if (timeString.includes('T') || timeString.includes('-')) {
+                // It's a full datetime - extract the time portion
+                const timeMatch = timeString.match(/(\d{2}):(\d{2}):/);
+                if (timeMatch) {
+                    hours = parseInt(timeMatch[1]);
+                    minutes = parseInt(timeMatch[2]);
+                } else {
+                    return timeString;
+                }
+            } else {
+                // It's just a time string (e.g., "17:30:00")
+                [hours, minutes] = timeString.split(':').map(n => parseInt(n));
+            }
+
+            // Convert to 12-hour format
+            const period = hours >= 12 ? 'PM' : 'AM';
+            const displayHours = hours % 12 || 12;
+            const displayMinutes = minutes.toString().padStart(2, '0');
+            
+            return `${displayHours}:${displayMinutes} ${period}`;
+>>>>>>> dev
         } catch (error) {
             console.error('Error formatting time:', error);
             return timeString; // Fallback to original
@@ -1068,7 +1198,16 @@ const AdmissionsDashboard = () => {
             location: 'Pursuit NYC Campus - 47-10 Austell Pl 2nd floor, Long Island City, NY',
             capacity: 50,
             is_online: false,
+<<<<<<< HEAD
             meeting_link: ''
+=======
+            meeting_link: '',
+            // NEW: Workshop system fields
+            cohort_name: 'December 2025 - Workshop',
+            workshop_type: 'admissions',
+            access_window_days: 0,
+            allow_early_access: false
+>>>>>>> dev
         });
         setEditingWorkshop(null);
         setWorkshopModalOpen(true);
@@ -1085,7 +1224,12 @@ const AdmissionsDashboard = () => {
         };
 
         setWorkshopForm({
+<<<<<<< HEAD
             title: workshop.event_name,
+=======
+            // Event fields
+            title: workshop.title || workshop.name || workshop.event_name || '',
+>>>>>>> dev
             description: workshop.description || '',
             start_time: formatDateForInput(startTime),
             end_time: formatDateForInput(endTime),
@@ -1093,7 +1237,22 @@ const AdmissionsDashboard = () => {
             capacity: workshop.capacity || 50,
             is_online: workshop.is_online || false,
             meeting_link: workshop.meeting_link || '',
+<<<<<<< HEAD
             status: workshop.status || 'scheduled'
+=======
+            status: workshop.status || 'scheduled',
+            // Workshop-specific fields
+            cohort_name: workshop.cohort_name || 'December 2025 - Workshop',
+            workshop_type: workshop.workshop_type || 'admissions',
+            organization_id: workshop.organization_id || null,
+            access_window_days: workshop.access_window_days || 0,
+            allow_early_access: workshop.allow_early_access || false,
+            access_code: workshop.access_code || '',
+            // Workshop admin fields
+            admin_email: workshop.admin_email || '',
+            admin_is_pending: workshop.admin_is_pending || false, // Store pending status
+            send_admin_invitation: false // Don't auto-check on edit
+>>>>>>> dev
         });
         setEditingWorkshop(workshop.event_id);
         setWorkshopModalOpen(true);
@@ -1241,9 +1400,16 @@ const AdmissionsDashboard = () => {
         setWorkshopSubmitting(true);
 
         try {
+<<<<<<< HEAD
             const endpoint = editingWorkshop
                 ? `${import.meta.env.VITE_API_URL}/api/admissions/workshops/${editingWorkshop}`
                 : `${import.meta.env.VITE_API_URL}/api/admissions/workshops`;
+=======
+            // Use new workshop endpoint for both create and update
+            const endpoint = editingWorkshop
+                ? `${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops/${editingWorkshop}`
+                : `${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops`;
+>>>>>>> dev
 
             const method = editingWorkshop ? 'PUT' : 'POST';
 
@@ -1257,7 +1423,49 @@ const AdmissionsDashboard = () => {
             });
 
             if (!response.ok) {
+<<<<<<< HEAD
                 throw new Error(`Failed to ${editingWorkshop ? 'update' : 'create'} workshop`);
+=======
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Failed to ${editingWorkshop ? 'update' : 'create'} workshop`);
+            }
+
+            const result = await response.json();
+            const workshopEventId = result.workshop?.event_id || editingWorkshop;
+
+            // If admin_email is provided for external workshops, assign the workshop admin
+            if (workshopForm.workshop_type === 'external' && workshopForm.admin_email && workshopEventId) {
+                try {
+                    const assignResponse = await fetch(
+                        `${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops/${workshopEventId}/assign-admin`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({
+                                email: workshopForm.admin_email,
+                                send_invitation: workshopForm.send_admin_invitation || false
+                            })
+                        }
+                    );
+
+                    if (!assignResponse.ok) {
+                        const errorData = await assignResponse.json().catch(() => ({}));
+                        console.error('Failed to assign workshop admin:', errorData);
+                        // Don't throw - workshop was created successfully, just admin assignment failed
+                        setError(`Workshop created, but failed to assign admin: ${errorData.error || 'Unknown error'}`);
+                    } else {
+                        const assignResult = await assignResponse.json();
+                        console.log('✅ Workshop admin assigned:', assignResult);
+                    }
+                } catch (adminError) {
+                    console.error('Error assigning workshop admin:', adminError);
+                    // Don't throw - workshop was created successfully
+                    setError(`Workshop created, but admin assignment encountered an error`);
+                }
+>>>>>>> dev
             }
 
             // Refresh workshops list
@@ -1318,6 +1526,7 @@ const AdmissionsDashboard = () => {
 
             if (response.ok) {
                 // Get the previous status to determine count changes
+<<<<<<< HEAD
                 const previousRegistration = eventRegistrations.find(reg => reg.applicant_id === applicantId);
                 const previousStatus = previousRegistration?.status;
 
@@ -1328,6 +1537,30 @@ const AdmissionsDashboard = () => {
                             ? { ...reg, status }
                             : reg
                     )
+=======
+                // Support both applicant-based and user-based registrations
+                const previousRegistration = eventRegistrations.find(reg => {
+                    if (applicantId === 'null') {
+                        // Match external participants with no applicant_id
+                        return !reg.applicant_id && reg.user_id;
+                    } else {
+                        // Match by applicant_id OR user_id for numeric IDs
+                        return reg.applicant_id == applicantId || reg.user_id == applicantId;
+                    }
+                });
+                const previousStatus = previousRegistration?.status;
+
+                // Update the registration in the local state instead of refetching
+                // Handle both applicant_id and user_id (for external participants)
+                setEventRegistrations(prevRegistrations =>
+                    prevRegistrations.map(reg => {
+                        // Match by applicant_id OR user_id for numeric IDs, or by user_id existence for 'null'
+                        const isMatch = applicantId === 'null' 
+                            ? (!reg.applicant_id && reg.user_id)
+                            : (reg.applicant_id == applicantId || reg.user_id == applicantId);
+                        return isMatch ? { ...reg, status } : reg;
+                    })
+>>>>>>> dev
                 );
 
                 // Update the event stats in local state based on status transitions
@@ -1347,7 +1580,11 @@ const AdmissionsDashboard = () => {
                         setInfoSessions(prevSessions =>
                             prevSessions.map(session =>
                                 session.event_id === eventId
+<<<<<<< HEAD
                                     ? { ...session, attended_count: session.attended_count + countChange }
+=======
+                                    ? { ...session, attended_count: parseInt(session.attended_count || 0) + countChange }
+>>>>>>> dev
                                     : session
                             )
                         );
@@ -1355,7 +1592,11 @@ const AdmissionsDashboard = () => {
                         setWorkshops(prevWorkshops =>
                             prevWorkshops.map(workshop =>
                                 workshop.event_id === eventId
+<<<<<<< HEAD
                                     ? { ...workshop, attended_count: workshop.attended_count + countChange }
+=======
+                                    ? { ...workshop, attended_count: parseInt(workshop.attended_count || 0) + countChange }
+>>>>>>> dev
                                     : workshop
                             )
                         );
@@ -1460,6 +1701,10 @@ const AdmissionsDashboard = () => {
         setApplicantSearch('');
         setSearchResults([]);
         setSelectedApplicantsForRegistration([]);
+<<<<<<< HEAD
+=======
+        setLaptopNeeds({}); // Reset laptop needs tracking
+>>>>>>> dev
     };
 
     // Search for applicants
@@ -1524,7 +1769,11 @@ const AdmissionsDashboard = () => {
                             applicantId: applicant.applicant_id,
                             name: applicant.display_name,
                             email: applicant.email,
+<<<<<<< HEAD
                             needsLaptop: false // Default to false, can be changed later
+=======
+                            needsLaptop: laptopNeeds[applicant.applicant_id] || false // Use individual laptop setting
+>>>>>>> dev
                         })
                     });
 
@@ -1993,7 +2242,11 @@ const AdmissionsDashboard = () => {
                                                         minWidth: '150px',
                                                         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
                                                     }}>
+<<<<<<< HEAD
                                                         {['', 'submitted', 'in_progress', 'ineligible'].map(value => (
+=======
+                                                        {['', 'no_application', 'in_progress', 'submitted', 'ineligible'].map(value => (
+>>>>>>> dev
                                                             <div
                                                                 key={value}
                                                                 onClick={() => {
@@ -2010,7 +2263,11 @@ const AdmissionsDashboard = () => {
                                                                 onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
                                                                 onMouseLeave={(e) => e.target.style.backgroundColor = applicationFilters.status === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent'}
                                                             >
+<<<<<<< HEAD
                                                                 {value === '' ? 'All' : value === 'in_progress' ? 'In Progress' : value.charAt(0).toUpperCase() + value.slice(1)}
+=======
+                                                                {value === '' ? 'All' : value === 'no_application' ? 'Account Created' : value === 'in_progress' ? 'In Progress' : value.charAt(0).toUpperCase() + value.slice(1)}
+>>>>>>> dev
                                                             </div>
                                                         ))}
                                                     </div>
@@ -2283,7 +2540,11 @@ const AdmissionsDashboard = () => {
                                     <tbody>
                                         {sortAndFilterApplications(applications.applications).map((app) => (
                                             <tr
+<<<<<<< HEAD
                                                 key={app.application_id}
+=======
+                                                key={app.applicant_id}
+>>>>>>> dev
                                                 className={`clickable-row ${selectedApplicants.includes(app.applicant_id) ? 'admissions-dashboard__row--selected' : ''}`}
                                             >
                                                 <td className="admissions-dashboard__checkbox-column">
@@ -2302,8 +2563,14 @@ const AdmissionsDashboard = () => {
                                                     />
                                                 </td>
                                                 <td
+<<<<<<< HEAD
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className="clickable-cell"
+=======
+                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                    className={app.application_id ? "clickable-cell" : ""}
+                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+>>>>>>> dev
                                                 >
                                                     <div className="applicant-name">
                                                         {app.full_name || `${app.first_name} ${app.last_name}`}
@@ -2342,11 +2609,20 @@ const AdmissionsDashboard = () => {
                                                     </span>
                                                 </td>
                                                 <td
+<<<<<<< HEAD
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className="clickable-cell"
                                                 >
                                                     <span className={`status-badge status-badge--${app.status}`}>
                                                         {app.status}
+=======
+                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                    className={app.application_id ? "clickable-cell" : ""}
+                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                >
+                                                    <span className={`status-badge status-badge--${app.status}`}>
+                                                        {app.status === 'no_application' ? 'Account Created' : app.status === 'in_progress' ? 'In Progress' : app.status}
+>>>>>>> dev
                                                     </span>
                                                 </td>
                                                 <td className="admissions-dashboard__assessment-cell">
@@ -2374,24 +2650,42 @@ const AdmissionsDashboard = () => {
                                                     </div>
                                                 </td>
                                                 <td
+<<<<<<< HEAD
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className="clickable-cell"
+=======
+                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                    className={app.application_id ? "clickable-cell" : ""}
+                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+>>>>>>> dev
                                                 >
                                                     <span className={`info-session-badge info-session-badge--${app.info_session_status || 'not_registered'}`}>
                                                         {(app.info_session_status || 'not_registered').replace('_', ' ')}
                                                     </span>
                                                 </td>
                                                 <td
+<<<<<<< HEAD
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className="clickable-cell"
+=======
+                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                    className={app.application_id ? "clickable-cell" : ""}
+                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+>>>>>>> dev
                                                 >
                                                     <span className={`workshop-badge workshop-badge--${app.workshop_status || 'pending'}`}>
                                                         {(app.workshop_status || 'pending').replace('_', ' ')}
                                                     </span>
                                                 </td>
                                                 <td
+<<<<<<< HEAD
                                                     onClick={() => navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className="clickable-cell"
+=======
+                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                    className={app.application_id ? "clickable-cell" : ""}
+                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+>>>>>>> dev
                                                 >
                                                     <span className={`admission-badge admission-badge--${app.program_admission_status || 'pending'}`}>
                                                         {(app.program_admission_status || 'pending').replace('_', ' ')}
@@ -2418,6 +2712,7 @@ const AdmissionsDashboard = () => {
 
                                 <div className="table-footer">
                                     <span className="table-count">
+<<<<<<< HEAD
                                         Showing {applications.applications.length} applicants
                                         {applications.total > applications.applications.length &&
                                             ` of ${applications.total} total`
@@ -2463,6 +2758,10 @@ const AdmissionsDashboard = () => {
                                             </button>
                                         </div>
                                     )}
+=======
+                                        Showing {applications.applications.length} of {applications.total} applicants
+                                    </span>
+>>>>>>> dev
                                 </div>
                             </div>
                         ) : (
@@ -2757,6 +3056,7 @@ const AdmissionsDashboard = () => {
                             </div>
                         ) : getFilteredWorkshops()?.length > 0 ? (
                             <div className="data-table-container">
+<<<<<<< HEAD
                                 <table className="data-table events-table">
                                     <thead>
                                         <tr>
@@ -2767,6 +3067,21 @@ const AdmissionsDashboard = () => {
                                             <th>Laptops Needed</th>
                                             <th>Active</th>
                                             <th>Actions</th>
+=======
+                                <table className="data-table events-table" style={{ fontSize: '0.8rem' }}>
+                                    <thead>
+                                        <tr>
+                                            <th>Event Name</th>
+                                            <th>Type</th>
+                                            <th>Access Code</th>
+                                            <th>Cohort</th>
+                                            <th>Date & Time</th>
+                                            <th style={{ width: '70px', textAlign: 'center' }}>Registered</th>
+                                            <th style={{ width: '70px', textAlign: 'center' }}>Attended</th>
+                                            <th style={{ width: '70px', textAlign: 'center' }}>Laptops</th>
+                                            <th style={{ width: '80px', textAlign: 'center' }}>Active</th>
+                                            <th style={{ width: '180px' }}>Actions</th>
+>>>>>>> dev
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -2774,6 +3089,7 @@ const AdmissionsDashboard = () => {
                                             <React.Fragment key={workshop.event_id}>
                                                 <tr className="event-row">
                                                     <td className="event-name">
+<<<<<<< HEAD
                                                         {workshop.event_name}
                                                         {isEventPast(workshop.event_date, workshop.event_time) && (
                                                             <span className="event-status event-status--past">Past Event</span>
@@ -2801,6 +3117,96 @@ const AdmissionsDashboard = () => {
                                                     <td className="stat-cell">
                                                         <span className="stat-number stat-number--laptops">
                                                             {workshop.registrations?.filter(reg => reg.needs_laptop).length || 0}
+=======
+                                                        {workshop.event_name || workshop.name || workshop.title}
+                                                        {isEventPast(workshop.start_date, workshop.start_time) && (
+                                                            <span className="event-status event-status--past">Past Event</span>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        <span 
+                                                            className={`workshop-type-badge ${
+                                                                workshop.workshop_type === 'admissions' 
+                                                                    ? 'workshop-type-badge--admissions' 
+                                                                    : 'workshop-type-badge--external'
+                                                            }`}
+                                                            style={{
+                                                                display: 'inline-block',
+                                                                padding: '2px 8px',
+                                                                borderRadius: '10px',
+                                                                fontSize: '0.7rem',
+                                                                fontWeight: '500',
+                                                                backgroundColor: workshop.workshop_type === 'admissions' ? '#3b82f6' : '#8b5cf6',
+                                                                color: 'white'
+                                                            }}
+                                                        >
+                                                            {workshop.workshop_type === 'admissions' ? 'Admissions' : 'External'}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        {workshop.workshop_type === 'external' && workshop.access_code ? (
+                                                            <code 
+                                                                className="copyable-code"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    copyToClipboard(workshop.access_code, 'Access code');
+                                                                }}
+                                                                title="Click to copy access code"
+                                                                style={{ 
+                                                                    backgroundColor: '#374151', 
+                                                                    padding: '3px 8px', 
+                                                                    borderRadius: '4px',
+                                                                    fontFamily: 'monospace',
+                                                                    fontSize: '0.75rem',
+                                                                    cursor: 'pointer',
+                                                                    transition: 'background-color 0.2s'
+                                                                }}
+                                                                onMouseEnter={(e) => e.target.style.backgroundColor = '#4b5563'}
+                                                                onMouseLeave={(e) => e.target.style.backgroundColor = '#374151'}
+                                                            >
+                                                                {workshop.access_code}
+                                                            </code>
+                                                        ) : (
+                                                            <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>—</span>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        <span style={{ color: '#9ca3af' }}>
+                                                            {workshop.cohort_name || '—'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="event-datetime">
+                                                        <div className="date-time-info">
+                                                            <div className="event-date">
+                                                                {(() => {
+                                                                    // Database stores dates AS EST - extract date portion directly
+                                                                    const dateMatch = workshop.start_time.match(/(\d{4})-(\d{2})-(\d{2})/);
+                                                                    if (dateMatch) {
+                                                                        const [_, year, month, day] = dateMatch;
+                                                                        const date = new Date(year, parseInt(month) - 1, day);
+                                                                        return date.toLocaleDateString('en-US', {
+                                                                            weekday: 'short',
+                                                                            month: 'short',
+                                                                            day: 'numeric',
+                                                                            year: 'numeric'
+                                                                        });
+                                                                    }
+                                                                    return 'Invalid date';
+                                                                })()}
+                                                            </div>
+                                                            <div className="event-time">{formatEventTime(workshop.start_time)}</div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="stat-cell" style={{ textAlign: 'center' }}>
+                                                        <span className="stat-number">{workshop.total_participants || 0}</span>
+                                                    </td>
+                                                    <td className="stat-cell" style={{ textAlign: 'center' }}>
+                                                        <span className="stat-number stat-number--attended">{workshop.attended_count || 0}</span>
+                                                    </td>
+                                                    <td className="stat-cell" style={{ textAlign: 'center' }}>
+                                                        <span className="stat-number stat-number--laptops">
+                                                            {workshop.laptop_count || 0}
+>>>>>>> dev
                                                         </span>
                                                     </td>
                                                     <td className="active-status-cell">
@@ -2820,12 +3226,20 @@ const AdmissionsDashboard = () => {
                                                     <td className="actions-cell">
                                                         <button
                                                             className="edit-btn"
+<<<<<<< HEAD
+=======
+                                                            style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+>>>>>>> dev
                                                             onClick={() => openEditWorkshopModal(workshop)}
                                                         >
                                                             Edit
                                                         </button>
                                                         <button
                                                             className="view-registrations-btn"
+<<<<<<< HEAD
+=======
+                                                            style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+>>>>>>> dev
                                                             onClick={() => handleViewRegistrations('workshop', workshop.event_id)}
                                                         >
                                                             {selectedEvent === workshop.event_id ? 'Hide Registrations' : 'View Registrations'}
@@ -2919,7 +3333,13 @@ const AdmissionsDashboard = () => {
                                                                                                 value={reg.status}
                                                                                                 onChange={(e) => {
                                                                                                     if (e.target.value !== reg.status) {
+<<<<<<< HEAD
                                                                                                         handleMarkAttendance('workshop', workshop.event_id, reg.applicant_id, e.target.value);
+=======
+                                                                                                        // Use applicant_id if available, otherwise use user_id (for external participants)
+                                                                                                        const attendeeId = reg.applicant_id || reg.user_id || 'null';
+                                                                                                        handleMarkAttendance('workshop', workshop.event_id, attendeeId, e.target.value);
+>>>>>>> dev
                                                                                                     }
                                                                                                 }}
                                                                                             >
@@ -3679,6 +4099,7 @@ const AdmissionsDashboard = () => {
                                 />
                             </div>
 
+<<<<<<< HEAD
                             <div className="form-group checkbox-group">
                                 <input
                                     type="checkbox"
@@ -3688,6 +4109,41 @@ const AdmissionsDashboard = () => {
                                     onChange={handleWorkshopFormChange}
                                 />
                                 <label htmlFor="workshop-is_online">Online Event</label>
+=======
+                            {/* Modern Toggle: Online Event */}
+                            <div className="form-group">
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                    <span style={{ fontWeight: '600' }}>Online Event</span>
+                                    <div 
+                                        onClick={() => setWorkshopForm(prev => ({ ...prev, is_online: !prev.is_online }))}
+                                        style={{
+                                            position: 'relative',
+                                            width: '48px',
+                                            height: '24px',
+                                            backgroundColor: workshopForm.is_online ? 'var(--color-primary)' : '#4b5563',
+                                            borderRadius: '12px',
+                                            cursor: 'pointer',
+                                            transition: 'background-color 0.2s',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            padding: '2px'
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: '20px',
+                                            height: '20px',
+                                            backgroundColor: 'white',
+                                            borderRadius: '50%',
+                                            transform: workshopForm.is_online ? 'translateX(24px)' : 'translateX(0)',
+                                            transition: 'transform 0.2s',
+                                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                        }} />
+                                    </div>
+                                </label>
+                                <small style={{ color: '#9ca3af', display: 'block', marginTop: '4px' }}>
+                                    {workshopForm.is_online ? 'Workshop will be held online' : 'Workshop will be held in person'}
+                                </small>
+>>>>>>> dev
                             </div>
 
                             <div className="form-group">
@@ -3717,6 +4173,288 @@ const AdmissionsDashboard = () => {
                                 </div>
                             )}
 
+<<<<<<< HEAD
+=======
+                            {/* NEW: Workshop System Fields */}
+                            <div className="form-section-divider" style={{ margin: '24px 0', borderTop: '2px solid #374151', paddingTop: '24px' }}>
+                                <h3 style={{ marginBottom: '16px', color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>Workshop Configuration</h3>
+                            </div>
+
+                            <div className="form-group">
+                                <label htmlFor="workshop-workshop_type">
+                                    Workshop Type
+                                    <span style={{ color: '#f59e0b', fontSize: '0.9em', marginLeft: '8px' }}>
+                                        (Cannot be changed after creation)
+                                    </span>
+                                </label>
+                                <select
+                                    id="workshop-workshop_type"
+                                    name="workshop_type"
+                                    value={workshopForm.workshop_type}
+                                    onChange={handleWorkshopFormChange}
+                                    required
+                                    disabled={editingWorkshop}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px',
+                                        borderRadius: '6px',
+                                        border: '1px solid #374151',
+                                        backgroundColor: editingWorkshop ? '#374151' : '#1f2937',
+                                        color: editingWorkshop ? '#9ca3af' : 'var(--color-text-primary)',
+                                        fontSize: '1rem',
+                                        cursor: editingWorkshop ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    <option value="admissions">Admissions Workshop</option>
+                                    <option value="external">External Workshop</option>
+                                </select>
+                                <small style={{ color: '#9ca3af', display: 'block', marginTop: '4px' }}>
+                                    {editingWorkshop ? 'Workshop type is locked after creation' : 'Choose the type of workshop to create'}
+                                </small>
+                            </div>
+
+                            {/* Access Code - Only for External Workshops */}
+                            {workshopForm.workshop_type === 'external' && (
+                                <div className="form-group">
+                                    <label htmlFor="workshop-access_code">
+                                        Workshop Access Code
+                                        <span style={{ color: '#9ca3af', fontSize: '0.9em', marginLeft: '8px' }}>
+                                            (Leave blank to auto-generate)
+                                        </span>
+                                    </label>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                        <input
+                                            type="text"
+                                            id="workshop-access_code"
+                                            name="access_code"
+                                            value={workshopForm.access_code || ''}
+                                            onChange={handleWorkshopFormChange}
+                                            placeholder="e.g., META-WS-2025"
+                                            style={{
+                                                flex: 1,
+                                                padding: '10px',
+                                                borderRadius: '6px',
+                                                border: '1px solid #374151',
+                                                backgroundColor: '#1f2937',
+                                                color: 'var(--color-text-primary)',
+                                                fontSize: '1rem',
+                                                fontFamily: 'monospace'
+                                            }}
+                                        />
+                                        {editingWorkshop && workshopForm.access_code && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    copyToClipboard(workshopForm.access_code, 'Access code');
+                                                }}
+                                                style={{
+                                                    padding: '10px 16px',
+                                                    borderRadius: '6px',
+                                                    border: '1px solid #374151',
+                                                    backgroundColor: '#374151',
+                                                    color: 'white',
+                                                    cursor: 'pointer',
+                                                    whiteSpace: 'nowrap'
+                                                }}
+                                            >
+                                                📋 Copy
+                                            </button>
+                                        )}
+                                    </div>
+                                    <small style={{ color: '#9ca3af', display: 'block', marginTop: '4px' }}>
+                                        {editingWorkshop 
+                                            ? 'Share this code with external workshop participants' 
+                                            : 'Custom access code or leave blank for auto-generated code'}
+                                    </small>
+                                </div>
+                            )}
+
+                            <div className="form-group">
+                                <label htmlFor="workshop-cohort_name">
+                                    Workshop Cohort
+                                    <span style={{ color: '#9ca3af', fontSize: '0.9em', marginLeft: '8px' }}>
+                                        (Determines which curriculum is shown)
+                                    </span>
+                                </label>
+                                <select
+                                    id="workshop-cohort_name"
+                                    name="cohort_name"
+                                    value={workshopForm.cohort_name}
+                                    onChange={handleWorkshopFormChange}
+                                    required
+                                    disabled={loadingCohorts}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px',
+                                        borderRadius: '6px',
+                                        border: '1px solid #374151',
+                                        backgroundColor: '#1f2937',
+                                        color: 'var(--color-text-primary)',
+                                        fontSize: '1rem'
+                                    }}
+                                >
+                                    {loadingCohorts ? (
+                                        <option value="">Loading cohorts...</option>
+                                    ) : availableCohorts.length === 0 ? (
+                                        <option value="">No workshop cohorts available</option>
+                                    ) : (
+                                        <>
+                                            <option value="">Select a cohort</option>
+                                            {availableCohorts.map(cohortName => (
+                                                <option key={cohortName} value={cohortName}>
+                                                    {cohortName}
+                                                </option>
+                                            ))}
+                                        </>
+                                    )}
+                                </select>
+                                <small style={{ color: '#9ca3af', display: 'block', marginTop: '4px' }}>
+                                    {workshopForm.workshop_type === 'admissions' 
+                                        ? 'Select admissions cohort for applicant workshops' 
+                                        : 'Select organization cohort for external workshops'}
+                                </small>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="workshop-access_window_days">
+                                        Post-Workshop Access (days)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="workshop-access_window_days"
+                                        name="access_window_days"
+                                        value={workshopForm.access_window_days}
+                                        onChange={handleWorkshopFormChange}
+                                        min="0"
+                                        max="30"
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px',
+                                            borderRadius: '6px',
+                                            border: '1px solid #374151',
+                                            backgroundColor: '#1f2937',
+                                            color: 'var(--color-text-primary)'
+                                        }}
+                                    />
+                                    <small style={{ color: '#9ca3af', display: 'block', marginTop: '4px' }}>
+                                        Days participants can access after workshop ends (0 = day-of only)
+                                    </small>
+                                </div>
+
+                                {/* Modern Toggle: Allow Early Access */}
+                                <div className="form-group">
+                                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                        <span style={{ fontWeight: '600' }}>Allow Early Access</span>
+                                        <div 
+                                            onClick={() => setWorkshopForm(prev => ({ ...prev, allow_early_access: !prev.allow_early_access }))}
+                                            style={{
+                                                position: 'relative',
+                                                width: '48px',
+                                                height: '24px',
+                                                backgroundColor: workshopForm.allow_early_access ? 'var(--color-primary)' : '#4b5563',
+                                                borderRadius: '12px',
+                                                cursor: 'pointer',
+                                                transition: 'background-color 0.2s',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                padding: '2px'
+                                            }}
+                                        >
+                                            <div style={{
+                                                width: '20px',
+                                                height: '20px',
+                                                backgroundColor: 'white',
+                                                borderRadius: '50%',
+                                                transform: workshopForm.allow_early_access ? 'translateX(24px)' : 'translateX(0)',
+                                                transition: 'transform 0.2s',
+                                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                            }} />
+                                        </div>
+                                    </label>
+                                    <small style={{ color: '#9ca3af', display: 'block', marginTop: '4px' }}>
+                                        {workshopForm.allow_early_access 
+                                            ? 'Participants can access the workshop content before the start date' 
+                                            : 'Participants can only access on/after the workshop start date'}
+                                    </small>
+                                </div>
+                            </div>
+
+                            {/* Workshop Admin Assignment - Only for External Workshops */}
+                            {workshopForm.workshop_type === 'external' && (
+                                <>
+                                    <div className="form-group" style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #374151' }}>
+                                        <label htmlFor="workshop-admin_email">
+                                            Workshop Admin Email
+                                            <span style={{ color: '#9ca3af', fontSize: '0.9em', marginLeft: '8px' }}>
+                                                {editingWorkshop && workshopForm.admin_email 
+                                                    ? '(Currently assigned - change to reassign)'
+                                                    : '(Optional - Assign a workshop administrator)'}
+                                            </span>
+                                        </label>
+                                        <input
+                                            type="email"
+                                            id="workshop-admin_email"
+                                            name="admin_email"
+                                            value={workshopForm.admin_email || ''}
+                                            onChange={handleWorkshopFormChange}
+                                            placeholder="admin@company.com"
+                                            style={{
+                                                width: '100%',
+                                                padding: '10px',
+                                                borderRadius: '6px',
+                                                border: '1px solid #374151',
+                                                backgroundColor: '#1f2937',
+                                                color: 'var(--color-text-primary)',
+                                                fontSize: '1rem'
+                                            }}
+                                        />
+                                        <small style={{ color: '#9ca3af', display: 'block', marginTop: '4px' }}>
+                                            {editingWorkshop && workshopForm.admin_email
+                                                ? `Current admin: ${workshopForm.admin_email}. ${workshopForm.admin_is_pending ? '⚠️ Pending invitation - user has not signed up yet. ' : ''}Change this email to assign a different workshop admin.`
+                                                : 'This person will be able to view participant progress and submissions'}
+                                        </small>
+                                    </div>
+
+                                    {workshopForm.admin_email && (
+                                        <div className="form-group">
+                                            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    name="send_admin_invitation"
+                                                    checked={workshopForm.send_admin_invitation || false}
+                                                    onChange={(e) => {
+                                                        handleWorkshopFormChange({
+                                                            target: {
+                                                                name: 'send_admin_invitation',
+                                                                value: e.target.checked
+                                                            }
+                                                        });
+                                                    }}
+                                                    style={{
+                                                        marginRight: '10px',
+                                                        width: '18px',
+                                                        height: '18px',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                />
+                                                <span>
+                                                    {editingWorkshop 
+                                                        ? 'Send invitation email (resend or send to new admin)'
+                                                        : 'Send invitation email with access code and instructions'}
+                                                </span>
+                                            </label>
+                                            <small style={{ color: '#9ca3af', display: 'block', marginTop: '4px', marginLeft: '28px' }}>
+                                                {editingWorkshop
+                                                    ? 'Check this to send/resend the invitation email with workshop details and access code'
+                                                    : 'The workshop admin will receive an email with the workshop details and access code to share with participants'}
+                                            </small>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+
+>>>>>>> dev
                             <div className="modal-actions">
                                 <button
                                     type="button"
@@ -3879,7 +4617,27 @@ const AdmissionsDashboard = () => {
                                         <div className="selected-list">
                                             {selectedApplicantsForRegistration.map((applicant) => (
                                                 <div key={applicant.applicant_id} className="selected-applicant">
+<<<<<<< HEAD
                                                     <span>{applicant.display_name}</span>
+=======
+                                                    <span className="applicant-name-selected">{applicant.display_name}</span>
+                                                    <div className="laptop-toggle-container">
+                                                        <button
+                                                            type="button"
+                                                            className={`laptop-toggle-btn ${laptopNeeds[applicant.applicant_id] ? 'laptop-toggle-btn--needs' : 'laptop-toggle-btn--owns'}`}
+                                                            onClick={() => setLaptopNeeds({
+                                                                ...laptopNeeds,
+                                                                [applicant.applicant_id]: !laptopNeeds[applicant.applicant_id]
+                                                            })}
+                                                            title={laptopNeeds[applicant.applicant_id] ? 'Needs laptop' : 'Has own laptop'}
+                                                        >
+                                                            <span className="laptop-toggle-slider"></span>
+                                                        </button>
+                                                        <span className={`laptop-status-label ${laptopNeeds[applicant.applicant_id] ? 'laptop-status-label--needs' : 'laptop-status-label--owns'}`}>
+                                                            {laptopNeeds[applicant.applicant_id] ? '💻 Needs' : '✓ Own'}
+                                                        </span>
+                                                    </div>
+>>>>>>> dev
                                                     <button
                                                         onClick={() => toggleApplicantSelection(applicant)}
                                                         className="remove-selected-btn"

@@ -693,6 +693,103 @@
   }
 }
 
+<<<<<<< HEAD
+=======
+/* Model selector styles */
+.gpt__model-selector-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin-right: var(--spacing-sm);
+}
+
+.gpt__model-selector-btn {
+  height: 48px;
+  width: 48px;
+  background: var(--color-background-dark);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gpt__model-selector-btn:hover:not(:disabled) {
+  background-color: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.gpt__model-selector-btn--active {
+  background-color: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.gpt__model-selector-btn:disabled {
+  background-color: var(--color-background-dark);
+  color: var(--color-text-disabled);
+  border-color: var(--color-border);
+  cursor: not-allowed;
+}
+
+.gpt__model-dropdown {
+  position: absolute;
+  bottom: 45px;
+  left: 0;
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  overflow: hidden;
+  min-width: 220px;
+}
+
+.gpt__model-dropdown-header {
+  padding: 12px 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.9rem;
+}
+
+.gpt__model-options {
+  display: flex;
+  flex-direction: column;
+}
+
+.gpt__model-option {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: transparent;
+  color: var(--color-text-primary);
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.gpt__model-option:hover:not(:disabled) {
+  background-color: rgba(66, 66, 234, 0.1);
+}
+
+.gpt__model-option--selected {
+  background-color: rgba(66, 66, 234, 0.1);
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.gpt__model-option:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+>>>>>>> dev
 /* Upload functionality styles */
 .gpt__upload-container {
   position: relative;

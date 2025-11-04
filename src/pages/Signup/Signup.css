@@ -14,13 +14,25 @@
 
 .signup-form-container {
   width: 100%;
+<<<<<<< HEAD
   max-width: 400px;
+=======
+  max-width: 1000px;
+>>>>>>> dev
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
 }
 
+<<<<<<< HEAD
+=======
+/* Constrain form width when showing the actual form (not user type selection) */
+.signup-form-container:has(.signup-form) {
+  max-width: 450px;
+}
+
+>>>>>>> dev
 .signup-logo-container {
   margin-bottom: var(--spacing-md); /* Reduced from 1.5rem */
 }
@@ -71,6 +83,16 @@
   border-color: var(--color-primary);
 }
 
+<<<<<<< HEAD
+=======
+.signup-input-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 4px 0 0 0;
+  font-style: italic;
+}
+
+>>>>>>> dev
 .password-input-group {
   position: relative;
 }
@@ -322,23 +344,41 @@
 .user-type-options {
   display: flex;
   flex-direction: column;
+<<<<<<< HEAD
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-lg);
+=======
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  width: 100%;
+>>>>>>> dev
 }
 
 .user-type-option {
   background-color: var(--color-background);
   border: 2px solid var(--color-border);
   border-radius: 8px;
+<<<<<<< HEAD
   padding: var(--spacing-lg);
   cursor: pointer;
   transition: all var(--transition-speed);
   text-align: left;
+=======
+  padding: var(--spacing-xl);
+  cursor: pointer;
+  transition: all var(--transition-speed);
+  text-align: center;
+>>>>>>> dev
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+<<<<<<< HEAD
   text-align: center;
+=======
+  justify-content: center;
+  min-height: 200px;
+>>>>>>> dev
 }
 
 .user-type-option:hover {
@@ -349,25 +389,41 @@
 }
 
 .user-type-icon {
+<<<<<<< HEAD
   font-size: 2.5rem;
   margin-bottom: var(--spacing-sm);
+=======
+  font-size: 3.5rem;
+  margin-bottom: var(--spacing-md);
+>>>>>>> dev
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .user-type-option h3 {
+<<<<<<< HEAD
   margin: 0 0 var(--spacing-sm) 0;
   color: var(--color-text-primary);
   font-size: 1.2rem;
+=======
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--color-text-primary);
+  font-size: 1.35rem;
+>>>>>>> dev
   font-weight: 600;
 }
 
 .user-type-option p {
   margin: 0;
   color: var(--color-text-muted);
+<<<<<<< HEAD
   font-size: 0.9rem;
   line-height: 1.4;
+=======
+  font-size: 0.95rem;
+  line-height: 1.5;
+>>>>>>> dev
 }
 
 .signup-back-to-login {
@@ -434,10 +490,18 @@
 }
 
 /* Responsive Design for User Type Selection */
+<<<<<<< HEAD
 @media (min-width: 576px) {
   .user-type-options {
     flex-direction: row;
     gap: var(--spacing-lg);
+=======
+@media (min-width: 768px) {
+  .user-type-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-xl);
+>>>>>>> dev
   }
   
   .user-type-option {
@@ -445,6 +509,15 @@
   }
 }
 
+<<<<<<< HEAD
+=======
+@media (max-width: 767px) {
+  .signup-form-container {
+    max-width: 500px;
+  }
+}
+
+>>>>>>> dev
 @media (max-width: 480px) {
   .user-type-icon {
     font-size: 2rem;
@@ -457,4 +530,12 @@
   .user-type-option p {
     font-size: 0.85rem;
   }
+<<<<<<< HEAD
+=======
+  
+  .user-type-option {
+    min-height: 180px;
+    padding: var(--spacing-lg);
+  }
+>>>>>>> dev
 } 

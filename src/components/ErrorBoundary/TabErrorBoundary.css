@@ -1,0 +1,159 @@
+/* Tab Error Boundary Styles */
+.tab-error-boundary {
+  padding: var(--spacing-lg);
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-error-boundary__card {
+  max-width: 500px;
+  width: 100%;
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+  border-radius: var(--spacing-sm);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tab-error-boundary__content {
+  padding: var(--spacing-lg);
+}
+
+.tab-error-boundary__header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.tab-error-boundary__icon {
+  color: var(--color-warning);
+  font-size: 1.5rem;
+}
+
+.tab-error-boundary__title {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  margin: 0;
+}
+
+.tab-error-boundary__alert {
+  margin-bottom: var(--spacing-md);
+  border-radius: var(--spacing-xs);
+}
+
+.tab-error-boundary__details {
+  margin-bottom: var(--spacing-md);
+}
+
+.tab-error-boundary__debug {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: var(--color-background-darker);
+  border-radius: var(--spacing-xs);
+  border-left: 3px solid var(--color-warning);
+}
+
+.tab-error-boundary__error-text {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tab-error-boundary__actions {
+  justify-content: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.tab-error-boundary__retry-btn {
+  background-color: var(--color-warning);
+  color: white;
+  font-weight: 500;
+  text-transform: none;
+  border-radius: var(--spacing-xs);
+  transition: all 0.2s ease-in-out;
+}
+
+.tab-error-boundary__retry-btn:hover {
+  background-color: var(--color-warning-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.tab-error-boundary__help {
+  text-align: center;
+  padding: var(--spacing-sm);
+  background-color: var(--color-background-darker);
+  border-radius: var(--spacing-xs);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .tab-error-boundary {
+    padding: var(--spacing-md);
+  }
+  
+  .tab-error-boundary__content {
+    padding: var(--spacing-md);
+  }
+  
+  .tab-error-boundary__header {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--spacing-xs);
+  }
+  
+  .tab-error-boundary__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .tab-error-boundary__retry-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .tab-error-boundary {
+    padding: var(--spacing-sm);
+  }
+  
+  .tab-error-boundary__content {
+    padding: var(--spacing-sm);
+  }
+  
+  .tab-error-boundary__title {
+    font-size: 1.1rem;
+  }
+  
+  .tab-error-boundary__icon {
+    font-size: 1.25rem;
+  }
+}
+
+/* Animation for error appearance */
+.tab-error-boundary__card {
+  animation: tabErrorSlideIn 0.3s ease-out;
+}
+
+@keyframes tabErrorSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Focus states for accessibility */
+.tab-error-boundary__retry-btn:focus {
+  outline: 2px solid var(--color-warning);
+  outline-offset: 2px;
+}

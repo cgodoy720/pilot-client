@@ -17,7 +17,11 @@ const ForgotPassword = () => {
     setIsSubmitting(true);
     
     try {
+<<<<<<< HEAD
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/forgot-password`, {
+=======
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/forgot-password`, {
+>>>>>>> dev
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

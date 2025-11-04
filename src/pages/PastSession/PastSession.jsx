@@ -7,6 +7,10 @@ import PeerFeedbackForm from '../../components/PeerFeedbackForm';
 import BuilderFeedbackForm from '../../components/BuilderFeedbackForm/BuilderFeedbackForm';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
 import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
+<<<<<<< HEAD
+=======
+import DeliverablePanel from '../Learning/components/DeliverablePanel/DeliverablePanel';
+>>>>>>> dev
 
 import './PastSession.css';
 import '../../styles/smart-tasks.css';
@@ -46,12 +50,23 @@ function PastSession() {
   const [isLazyLoading, setIsLazyLoading] = useState(false);
   const [rateLimitHit, setRateLimitHit] = useState(false);
   
+<<<<<<< HEAD
   // Add state for the submission modal
+=======
+  // Add state for the submission modal (OLD - keeping for backward compatibility)
+>>>>>>> dev
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [submissionUrl, setSubmissionUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
   
+<<<<<<< HEAD
+=======
+  // NEW: DeliverablePanel state
+  const [showDeliverablePanel, setShowDeliverablePanel] = useState(false);
+  const [currentDeliverableTask, setCurrentDeliverableTask] = useState(null);
+  
+>>>>>>> dev
   // Add peer feedback state
   const [showPeerFeedback, setShowPeerFeedback] = useState(false);
   const [peerFeedbackCompleted, setPeerFeedbackCompleted] = useState(false);
@@ -1093,7 +1108,11 @@ function PastSession() {
     }
   };
 
+<<<<<<< HEAD
   // Handle deliverable submission
+=======
+  // Handle deliverable submission (OLD - keeping for backward compatibility)
+>>>>>>> dev
   const handleDeliverableSubmit = async (e) => {
     e.preventDefault();
     
@@ -1137,6 +1156,54 @@ function PastSession() {
     }
   };
 
+<<<<<<< HEAD
+=======
+  // NEW: Handle deliverable panel submission
+  const handleDeliverablePanelSubmit = async (submissionData) => {
+    if (!currentDeliverableTask) return;
+    
+    try {
+      // Determine content format based on deliverable type
+      let content = submissionData;
+      
+      // For structured submissions, stringify the object
+      if (typeof submissionData === 'object' && submissionData !== null) {
+        content = JSON.stringify(submissionData);
+      }
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          taskId: currentDeliverableTask.id,
+          content: content
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to submit deliverable');
+      }
+      
+      // Refresh submission data
+      await fetchTaskSubmission(currentDeliverableTask.id);
+      
+      // Show success message
+      setSuccessMessage('Deliverable submitted successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      
+      // Keep panel open so user can see their submission
+      // They can close it manually when ready
+    } catch (error) {
+      console.error('Error submitting deliverable:', error);
+      setError('Failed to submit deliverable. Please try again.');
+      throw error; // Re-throw so DeliverablePanel can handle it
+    }
+  };
+
+>>>>>>> dev
   // Add a helper function to check if current task is the Independent Retrospective
   const isIndependentRetroTask = () => {
     if (!tasks.length || currentTaskIndex >= tasks.length) return false;
@@ -1626,6 +1693,10 @@ function PastSession() {
               taskId={tasks[currentTaskIndex].id}
               dayNumber={daySchedule?.day?.day_number || dayNumber}
               cohort={cohort}
+<<<<<<< HEAD
+=======
+              surveyType={tasks[currentTaskIndex].feedback_slot}
+>>>>>>> dev
               onComplete={() => {
                 // Optional: Add any completion logic here
                 console.log('Builder feedback completed');
@@ -1838,11 +1909,26 @@ function PastSession() {
                           (tasks[currentTaskIndex]?.deliverable_type === 'link' ||
                            tasks[currentTaskIndex]?.deliverable_type === 'file' ||
                            tasks[currentTaskIndex]?.deliverable_type === 'document' ||
+<<<<<<< HEAD
                            tasks[currentTaskIndex]?.deliverable_type === 'video') && (
                           <button 
                             type="button"
                             className="learning__deliverable-btn"
                             onClick={() => setShowSubmissionModal(true)}
+=======
+                           tasks[currentTaskIndex]?.deliverable_type === 'video' ||
+                           tasks[currentTaskIndex]?.deliverable_type === 'structured') && (
+                          <button 
+                            type="button"
+                            className="learning__deliverable-btn"
+                            onClick={async () => {
+                              const task = tasks[currentTaskIndex];
+                              setCurrentDeliverableTask(task);
+                              // Fetch submission for this specific task
+                              await fetchTaskSubmission(task.id);
+                              setShowDeliverablePanel(true);
+                            }}
+>>>>>>> dev
                             title={`Submit ${tasks[currentTaskIndex].deliverable}`}
                           >
                             <FaLink />
@@ -1913,6 +1999,22 @@ function PastSession() {
         />
       )}
       
+<<<<<<< HEAD
+=======
+      {/* NEW: Deliverable Panel (Sidebar) */}
+      {showDeliverablePanel && currentDeliverableTask && (
+        <DeliverablePanel
+          task={currentDeliverableTask}
+          currentSubmission={submission}
+          onClose={() => {
+            setShowDeliverablePanel(false);
+            setCurrentDeliverableTask(null);
+          }}
+          onSubmit={handleDeliverablePanelSubmit}
+          isLocked={false}
+        />
+      )}
+>>>>>>> dev
 
     </div>
   );

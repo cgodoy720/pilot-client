@@ -47,7 +47,7 @@
   align-items: center;
   height: 100vh;
   width: 100%;
-  background-color: #0a0f1e;
-  color: #ffffff;
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
   font-size: 1.2rem;
 }

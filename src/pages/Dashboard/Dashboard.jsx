@@ -20,6 +20,10 @@ function Dashboard() {
   const [dailyTasks, setDailyTasks] = useState([]);
   const [objectives, setObjectives] = useState([]);
   const [cohortFilter, setCohortFilter] = useState(null);
+<<<<<<< HEAD
+=======
+  const [workshopInfo, setWorkshopInfo] = useState(null);
+>>>>>>> dev
 
   useEffect(() => {
     // Only fetch dashboard data if user is active
@@ -104,6 +108,12 @@ function Dashboard() {
         data.day.learning_objectives : [];
       setObjectives(dayObjectives);
       
+<<<<<<< HEAD
+=======
+      // Store workshop info if present
+      setWorkshopInfo(data.workshopInfo || null);
+      
+>>>>>>> dev
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setError('Failed to load dashboard data. Please try again later.');
@@ -236,8 +246,43 @@ function Dashboard() {
 
   // Render regular dashboard content
   const renderDashboardContent = () => {
+<<<<<<< HEAD
     return (
       <>
+=======
+    // Format workshop start date for display (DATE ONLY - no time)
+    const formatWorkshopDate = (dateString) => {
+      const date = new Date(dateString);
+      const options = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        timeZone: 'America/New_York'
+      };
+      return date.toLocaleString('en-US', options);
+    };
+    
+    return (
+      <>
+        {/* Workshop Preview Banner */}
+        {workshopInfo?.isLocked && (
+          <div className="dashboard__workshop-banner">
+            <div className="workshop-banner__icon">⏰</div>
+            <div className="workshop-banner__content">
+              <h3>Workshop Preview Mode</h3>
+              <p>
+                You're viewing the workshop schedule. Full access begins on{' '}
+                <strong>{formatWorkshopDate(workshopInfo.startDate)}</strong>
+                {workshopInfo.daysUntilStart > 0 && (
+                  <span> ({workshopInfo.daysUntilStart} {workshopInfo.daysUntilStart === 1 ? 'day' : 'days'} from now)</span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+        
+>>>>>>> dev
         <div className="dashboard__content">
           {/* Left panel - Objectives */}
           <div className="dashboard__left-panel">

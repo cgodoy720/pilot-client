@@ -1,0 +1,520 @@
+/* Excuse Management Interface Component Styles */
+.excuse-management-interface {
+  padding: var(--spacing-lg);
+  background-color: var(--color-background-darker);
+  min-height: 100vh;
+}
+
+.excuse-management-interface__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+  color: var(--color-text-secondary);
+}
+
+.excuse-management-interface__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.excuse-management-interface__title-section {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.excuse-management-interface__title-icon {
+  color: var(--color-primary);
+  font-size: 2rem;
+}
+
+.excuse-management-interface__title {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  margin: 0;
+}
+
+.excuse-management-interface__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.excuse-management-interface__tabs {
+  margin-bottom: var(--spacing-lg);
+}
+
+.excuse-management-interface__tabs .MuiTabs-root {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.excuse-management-interface__tabs .MuiTab-root {
+  color: var(--color-text-secondary);
+  text-transform: none;
+  font-weight: 500;
+}
+
+.excuse-management-interface__tabs .MuiTab-root.Mui-selected {
+  color: var(--color-primary);
+}
+
+.excuse-management-interface__tabs .MuiTabs-indicator {
+  background-color: var(--color-primary);
+}
+
+.excuse-management-interface__tab-content {
+  margin-top: var(--spacing-lg);
+}
+
+.excuse-management-interface__table {
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+}
+
+.excuse-management-interface__table .MuiTableHead-root {
+  background-color: var(--color-background-darker);
+}
+
+.excuse-management-interface__table .MuiTableCell-head {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.excuse-management-interface__table .MuiTableCell-body {
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.excuse-management-interface__table .MuiTableRow-root:hover {
+  background-color: var(--color-background-darker);
+}
+
+.excuse-management-interface__empty-state {
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+  text-align: center;
+  padding: var(--spacing-xl);
+}
+
+.excuse-management-interface__empty-icon {
+  color: var(--color-text-muted);
+  font-size: 4rem;
+  margin-bottom: var(--spacing-md);
+}
+
+.excuse-management-interface__unexcused-card {
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+  margin-top: var(--spacing-lg);
+}
+
+/* Unexcused Absences tab text - black for visibility */
+.excuse-management-interface__unexcused-card .MuiTypography-h6 {
+  color: #1a1a1a !important; /* black text for title */
+}
+
+.excuse-management-interface__unexcused-card .MuiTypography-body2 {
+  color: #374151 !important; /* dark gray for description */
+}
+
+.excuse-management-interface__absence-card {
+  background-color: var(--color-background-light); /* white background for better visibility */
+  border: 1px solid var(--color-border);
+  transition: all 0.3s ease;
+  width: calc(25% - var(--spacing-md)) !important; /* 4 cards per row */
+  min-width: 200px !important;
+  max-width: 280px !important;
+  padding: var(--spacing-md) !important; /* reduced padding */
+  margin: var(--spacing-sm) !important;
+}
+
+.excuse-management-interface__absence-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: var(--color-primary);
+}
+
+/* Builder name text - black for visibility on white cards */
+.excuse-management-interface__absence-card .MuiTypography-root {
+  color: #1a1a1a !important; /* black text for all typography */
+}
+
+.excuse-management-interface__absence-card .MuiTypography-body2 {
+  color: #1a1a1a !important; /* black text for builder names */
+  font-weight: 600 !important;
+}
+
+.excuse-management-interface__absence-card .MuiTypography-caption {
+  color: #4b5563 !important; /* dark gray for secondary text */
+}
+
+/* Grid layout for 4 cards per row */
+.excuse-management-interface__cards-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: var(--spacing-md) !important;
+}
+
+/* Responsive: 3 cards on medium screens */
+@media (max-width: 1200px) {
+  .excuse-management-interface__cards-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  
+  .excuse-management-interface__absence-card {
+    width: calc(33.333% - var(--spacing-md)) !important;
+  }
+}
+
+/* Responsive: 2 cards on small screens */
+@media (max-width: 768px) {
+  .excuse-management-interface__cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .excuse-management-interface__absence-card {
+    width: calc(50% - var(--spacing-md)) !important;
+  }
+}
+
+/* Responsive: 1 card on mobile */
+@media (max-width: 480px) {
+  .excuse-management-interface__cards-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .excuse-management-interface__absence-card {
+    width: 100% !important;
+  }
+}
+
+/* Dialog Styling */
+.excuse-management-interface .MuiDialog-paper {
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+}
+
+.excuse-management-interface .MuiDialogTitle-root {
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.excuse-management-interface .MuiDialogContent-root {
+  color: var(--color-text-secondary);
+}
+
+.excuse-management-interface .MuiDialogActions-root {
+  border-top: 1px solid var(--color-border);
+  padding: var(--spacing-md);
+}
+
+/* Form Styling */
+.excuse-management-interface .MuiFormControl-root {
+  margin-bottom: var(--spacing-md);
+}
+
+.excuse-management-interface .MuiInputLabel-root {
+  color: var(--color-text-secondary);
+}
+
+.excuse-management-interface .MuiInputLabel-root.Mui-focused {
+  color: var(--color-primary);
+}
+
+.excuse-management-interface .MuiOutlinedInput-root {
+  color: var(--color-text-primary);
+}
+
+.excuse-management-interface .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline {
+  border-color: var(--color-border);
+}
+
+.excuse-management-interface .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: var(--color-primary);
+}
+
+.excuse-management-interface .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--color-primary);
+}
+
+.excuse-management-interface .MuiSelect-select {
+  color: var(--color-text-primary);
+}
+
+.excuse-management-interface .MuiMenuItem-root {
+  color: var(--color-text-primary);
+}
+
+.excuse-management-interface .MuiMenuItem-root:hover {
+  background-color: var(--color-primary-transparent);
+}
+
+/* Button Styling */
+.excuse-management-interface .MuiButton-root {
+  text-transform: none;
+  font-weight: 500;
+}
+
+.excuse-management-interface .MuiButton-contained {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+/* Override Material-UI button styles with more specific selectors */
+.excuse-management-interface .MuiButton-contained:hover {
+  background-color: var(--color-primary-hover);
+}
+
+/* Bulk Excuse button - override Material-UI styles */
+.excuse-management-interface .MuiButton-outlined[class*="bulk-excuse"],
+.excuse-management-interface .MuiButton-outlined:has-text("Bulk Excuse") {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  border: 1px solid #d1d5db !important;
+}
+
+.excuse-management-interface .MuiButton-outlined[class*="bulk-excuse"]:hover,
+.excuse-management-interface .MuiButton-outlined:has-text("Bulk Excuse"):hover {
+  background-color: #f3f4f6 !important;
+  color: #1a1a1a !important;
+  border: 1px solid #d1d5db !important;
+}
+
+/* Add Excuse buttons - override Material-UI styles */
+.excuse-management-interface__add-excuse-button,
+.excuse-management-interface .MuiButton-contained[class*="add-excuse"] {
+  background-color: #6366f1 !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.excuse-management-interface__add-excuse-button:hover,
+.excuse-management-interface .MuiButton-contained[class*="add-excuse"]:hover {
+  background-color: #5b21b6 !important;
+  color: #ffffff !important;
+}
+
+.excuse-management-interface__add-excuse-button:active,
+.excuse-management-interface .MuiButton-contained[class*="add-excuse"]:active {
+  background-color: #4c1d95 !important;
+  color: #ffffff !important;
+}
+
+.excuse-management-interface .MuiButton-outlined {
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.excuse-management-interface .MuiButton-outlined:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background-color: var(--color-primary-transparent);
+}
+
+/* Bulk Excuse button styling now handled via sx prop in JSX for better specificity */
+
+/* Chip Styling */
+.excuse-management-interface .MuiChip-colorSuccess {
+  background-color: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+  border-color: #4caf50;
+}
+
+.excuse-management-interface .MuiChip-colorWarning {
+  background-color: rgba(255, 152, 0, 0.1);
+  color: #ff9800;
+  border-color: #ff9800;
+}
+
+.excuse-management-interface .MuiChip-colorError {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+  border-color: #f44336;
+}
+
+.excuse-management-interface .MuiChip-colorInfo {
+  background-color: rgba(33, 150, 243, 0.1);
+  color: #2196f3;
+  border-color: #2196f3;
+}
+
+.excuse-management-interface .MuiChip-colorSecondary {
+  background-color: rgba(156, 39, 176, 0.1);
+  color: #9c27b0;
+  border-color: #9c27b0;
+}
+
+.excuse-management-interface .MuiChip-colorDefault {
+  background-color: rgba(158, 158, 158, 0.1);
+  color: #616161;
+  border-color: #9e9e9e;
+}
+
+/* Ensure all chips in table have good visibility */
+.excuse-management-interface__table .MuiChip-root {
+  font-weight: 500;
+  min-width: 80px;
+}
+
+/* Specifically style the Reason column chips for better visibility */
+.excuse-management-interface__table .MuiChip-outlined {
+  background-color: #ffffff !important;
+  border-width: 1.5px !important;
+  font-weight: 600 !important;
+}
+
+/* Badge Styling */
+.excuse-management-interface .MuiBadge-badge {
+  background-color: var(--color-error);
+  color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .excuse-management-interface {
+    padding: var(--spacing-md);
+  }
+
+  .excuse-management-interface__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .excuse-management-interface__actions {
+    align-self: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .excuse-management-interface__table {
+    overflow-x: auto;
+  }
+
+  .excuse-management-interface__absence-card {
+    margin-bottom: var(--spacing-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .excuse-management-interface {
+    padding: var(--spacing-sm);
+  }
+
+  .excuse-management-interface__title {
+    font-size: 1.5rem;
+  }
+
+  .excuse-management-interface__title-icon {
+    font-size: 1.5rem;
+  }
+
+  .excuse-management-interface__empty-icon {
+    font-size: 3rem;
+  }
+
+  .excuse-management-interface__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Loading Animation */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.excuse-management-interface__loading .MuiCircularProgress-root {
+  animation: pulse 2s infinite;
+}
+
+/* Typography Overrides */
+.excuse-management-interface .MuiTypography-h6 {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.excuse-management-interface .MuiTypography-body2 {
+  color: var(--color-text-secondary);
+}
+
+.excuse-management-interface .MuiTypography-caption {
+  color: var(--color-text-muted);
+}
+
+/* Alert Styling */
+.excuse-management-interface .MuiAlert-root {
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+}
+
+.excuse-management-interface .MuiAlert-message {
+  color: var(--color-text-primary);
+}
+
+/* Icon Button Styling */
+.excuse-management-interface .MuiIconButton-root {
+  color: var(--color-text-secondary);
+  transition: color 0.3s ease;
+}
+
+.excuse-management-interface .MuiIconButton-root:hover {
+  color: var(--color-primary);
+  background-color: var(--color-primary-transparent);
+}
+
+.excuse-management-interface .MuiIconButton-root:disabled {
+  color: var(--color-text-muted);
+  background-color: transparent;
+}
+
+/* Table Responsive */
+@media (max-width: 600px) {
+  .excuse-management-interface__table .MuiTableCell-root {
+    padding: var(--spacing-xs);
+    font-size: 0.875rem;
+  }
+}
+
+/* Dialog Responsive */
+@media (max-width: 600px) {
+  .excuse-management-interface .MuiDialog-paper {
+    margin: var(--spacing-sm);
+    width: calc(100% - var(--spacing-md));
+  }
+}
+
+/* Focus States */
+.excuse-management-interface .MuiButton-root:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.excuse-management-interface .MuiIconButton-root:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Hover Effects - Removed conflicting rule that affected all buttons */
+
+/* Tab Badge Styling */
+.excuse-management-interface__tabs .MuiBadge-root .MuiBadge-badge {
+  font-size: 0.75rem;
+  height: 18px;
+  min-width: 18px;
+  padding: 0 6px;
+}

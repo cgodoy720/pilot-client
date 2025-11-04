@@ -2069,6 +2069,108 @@ body .submission-panel[style*="position: fixed"],
   color: #ef4444;
 }
 
+<<<<<<< HEAD
+=======
+/* Progress Section */
+.assessment-grades-email-modal__progress-section {
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+.assessment-grades-email-modal__progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.assessment-grades-email-modal__progress-header h4 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
+}
+
+.assessment-grades-email-modal__progress-count {
+  font-weight: 600;
+  color: var(--color-primary);
+  font-size: 1rem;
+}
+
+.assessment-grades-email-modal__progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--color-background);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.assessment-grades-email-modal__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary) 0%, #10b981 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.assessment-grades-email-modal__progress-details {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1rem;
+}
+
+.assessment-grades-email-modal__progress-stat {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.assessment-grades-email-modal__stat-label {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.assessment-grades-email-modal__stat-error {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.assessment-grades-email-modal__batch-info {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.assessment-grades-email-modal__time-remaining {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.assessment-grades-email-modal__progress-note {
+  padding: 0.75rem;
+  background: rgba(66, 66, 234, 0.1);
+  border: 1px solid rgba(66, 66, 234, 0.3);
+  border-radius: 6px;
+  color: var(--color-primary);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.assessment-grades-email-modal__progress-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.assessment-grades-email-modal__progress-text {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+}
+
+>>>>>>> dev
 /* Footer */
 .assessment-grades-email-modal__footer {
   display: flex;
@@ -2089,6 +2191,10 @@ body .submission-panel[style*="position: fixed"],
   min-height: 100px;
 }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> dev
 /* Overview Editing Styles */
 .overview-header {
   display: flex;

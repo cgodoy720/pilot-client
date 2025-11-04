@@ -1,0 +1,457 @@
+.workshop-admin-dashboard {
+    padding: 0;
+    max-width: 1400px;
+    margin: 0 auto;
+    min-height: 100%;
+    color: #f9fafb;
+}
+
+.dashboard-header {
+    margin-bottom: 2rem;
+}
+
+.dashboard-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #f9fafb;
+    margin-bottom: 0.5rem;
+}
+
+/* Breadcrumb Navigation */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    font-size: 0.95rem;
+}
+
+.breadcrumb-link {
+    background: none;
+    border: none;
+    color: #667eea;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.2s;
+    padding: 0;
+    font-size: inherit;
+}
+
+.breadcrumb-link:hover {
+    color: #8b9cff;
+    text-decoration: underline;
+}
+
+.breadcrumb-separator {
+    color: #6b7280;
+}
+
+.breadcrumb-current {
+    color: #f9fafb;
+    font-weight: 500;
+}
+
+/* Loading & Error States */
+.loading {
+    text-align: center;
+    padding: 3rem;
+    font-size: 1.2rem;
+    color: #9ca3af;
+}
+
+.error-message {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid #ef4444;
+    color: #fca5a5;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: rgba(31, 41, 55, 0.5);
+    border-radius: 12px;
+    border: 2px dashed rgba(102, 126, 234, 0.3);
+}
+
+.empty-state h3 {
+    color: #f9fafb;
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: #9ca3af;
+    font-size: 1rem;
+}
+
+/* Workshops View */
+.workshops-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.summary-card {
+    background: rgba(31, 41, 55, 0.6);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.summary-card:hover {
+    border-color: rgba(102, 126, 234, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+}
+
+.summary-card h3 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #667eea;
+    margin-bottom: 0.5rem;
+}
+
+.summary-card p {
+    color: #9ca3af;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.workshops-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+.workshop-card {
+    background: rgba(31, 41, 55, 0.6);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    border-radius: 12px;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.workshop-card:hover {
+    border-color: #667eea;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
+}
+
+.workshop-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.workshop-card-header h3 {
+    font-size: 1.25rem;
+    color: #f9fafb;
+    margin: 0;
+    flex: 1;
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-scheduled {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+}
+
+.status-active {
+    background: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+}
+
+.status-completed {
+    background: rgba(107, 114, 128, 0.2);
+    color: #9ca3af;
+}
+
+.status-cancelled {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+}
+
+.workshop-card-body p {
+    margin: 0.5rem 0;
+    color: #d1d5db;
+    font-size: 0.95rem;
+}
+
+.workshop-stats {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(102, 126, 234, 0.2);
+    font-size: 0.85rem;
+    color: #9ca3af;
+}
+
+/* Participants View */
+.participants-container {
+    background: rgba(31, 41, 55, 0.5);
+    border-radius: 12px;
+    padding: 2rem;
+}
+
+.participants-header {
+    margin-bottom: 2rem;
+}
+
+.participants-header h2 {
+    font-size: 2rem;
+    color: #f9fafb;
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    color: #9ca3af;
+    font-size: 1rem;
+}
+
+.participants-table {
+    overflow-x: auto;
+}
+
+.participants-table table {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(17, 24, 39, 0.5);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.participants-table th,
+.participants-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+.participants-table th {
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.participants-table td {
+    color: #d1d5db;
+    font-size: 0.95rem;
+}
+
+.participants-table tr:hover {
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.badge-success {
+    background: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+}
+
+.badge-secondary {
+    background: rgba(107, 114, 128, 0.2);
+    color: #9ca3af;
+}
+
+.btn-view-submissions {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-view-submissions:hover:not(:disabled) {
+    background: #5568d3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-view-submissions:disabled {
+    background: rgba(107, 114, 128, 0.3);
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+/* Submissions View */
+.submissions-container {
+    background: rgba(31, 41, 55, 0.5);
+    border-radius: 12px;
+    padding: 2rem;
+}
+
+.submissions-header {
+    margin-bottom: 2rem;
+}
+
+.submissions-header h2 {
+    font-size: 2rem;
+    color: #f9fafb;
+    margin-bottom: 0.5rem;
+}
+
+.submissions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.submission-card {
+    background: rgba(17, 24, 39, 0.5);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.submission-card:hover {
+    border-color: rgba(102, 126, 234, 0.5);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+}
+
+.submission-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.submission-header h3 {
+    font-size: 1.25rem;
+    color: #f9fafb;
+    margin: 0;
+}
+
+.submission-date {
+    color: #9ca3af;
+    font-size: 0.875rem;
+}
+
+.submission-description {
+    color: #9ca3af;
+    font-size: 0.95rem;
+    margin-bottom: 1rem;
+    font-style: italic;
+}
+
+.submission-content {
+    margin: 1rem 0;
+}
+
+.submission-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.submission-field {
+    background: rgba(31, 41, 55, 0.5);
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 3px solid #667eea;
+}
+
+.submission-field strong {
+    display: block;
+    color: #667eea;
+    margin-bottom: 0.5rem;
+    text-transform: capitalize;
+    font-size: 0.875rem;
+}
+
+.submission-field p {
+    color: #d1d5db;
+    margin: 0;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.submission-text {
+    color: #d1d5db;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.submission-meta {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+.type-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: rgba(102, 126, 234, 0.2);
+    color: #8b9cff;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .workshop-admin-dashboard {
+        padding: 0;
+    }
+
+    .dashboard-header h1 {
+        font-size: 2rem;
+    }
+
+    .workshops-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .workshops-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .participants-table {
+        font-size: 0.875rem;
+    }
+
+    .participants-table th,
+    .participants-table td {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .workshop-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+

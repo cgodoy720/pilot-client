@@ -16,6 +16,10 @@ const BulkActionsModal = ({ selectedCount, onClose, onAction, isLoading }) => {
         { value: 'reject_from_program', label: 'Reject from program' },
         { value: 'waitlist_applicant', label: 'Add to waitlist' },
         { value: 'defer_applicant', label: 'Defer application' },
+<<<<<<< HEAD
+=======
+        { value: 'withdraw_applicant', label: 'Mark as withdrawn' },
+>>>>>>> dev
         { value: 'send_custom_email', label: 'Send custom email' }
     ];
 
@@ -54,6 +58,11 @@ const BulkActionsModal = ({ selectedCount, onClose, onAction, isLoading }) => {
                 return 'Update admission status to "waitlisted" and send waitlist notification';
             case 'defer_applicant':
                 return 'Update admission status to "deferred" for future consideration';
+<<<<<<< HEAD
+=======
+            case 'withdraw_applicant':
+                return 'Update admission status to "withdrawn" - applicant has voluntarily withdrawn from consideration';
+>>>>>>> dev
             case 'send_custom_email':
                 return 'Send custom email with your provided subject and body';
             default:

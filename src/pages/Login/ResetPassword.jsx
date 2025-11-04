@@ -37,7 +37,11 @@ const ResetPassword = () => {
             const encodedToken = encodeURIComponent(cleanToken);
             console.log('Encoded token:', encodedToken);
             
+<<<<<<< HEAD
             const apiUrl = `${import.meta.env.VITE_API_URL}/api/users/reset-password/${encodedToken}`;
+=======
+            const apiUrl = `${import.meta.env.VITE_API_URL}/api/auth/reset-password/${encodedToken}`;
+>>>>>>> dev
             console.log('API URL:', apiUrl);
             
             // Check if the password meets the requirements

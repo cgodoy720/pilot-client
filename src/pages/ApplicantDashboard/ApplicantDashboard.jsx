@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
+<<<<<<< HEAD
+=======
+import { useAuth } from '../../context/AuthContext';
+>>>>>>> dev
 import pursuitLogoFull from '../../assets/logo-full.png';
 import databaseService from '../../services/databaseService';
 import Swal from 'sweetalert2';
@@ -74,6 +78,10 @@ const SECTION_CONFIG = [
 function ApplicantDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
+<<<<<<< HEAD
+=======
+  const { setAuthState } = useAuth();
+>>>>>>> dev
   const [user, setUser] = useState(null);
   const [currentApplicantId, setCurrentApplicantId] = useState(null);
   const [statuses, setStatuses] = useState({
@@ -397,6 +405,7 @@ function ApplicantDashboard() {
       }
       
       const workshops = await response.json();
+<<<<<<< HEAD
       console.log('DEBUG: Workshops received for applicant', currentApplicantId, ':', workshops.map(w => ({
         title: w.title, 
         id: w.event_id, 
@@ -423,6 +432,27 @@ function ApplicantDashboard() {
       
       if (foundRegistration && registeredWorkshop) {
         // Treat database time as Eastern Time (extract UTC components and use as Eastern)
+=======
+      console.log('DEBUG: Workshops received for applicant', currentApplicantId, ':', workshops);
+      
+      // New format: workshops are returned as flat objects with registration data already joined
+      // Each workshop object has registration_id, registered_at, attended, etc. if user is registered
+      if (workshops.length > 0 && workshops[0].registration_id) {
+        // User is registered for at least one workshop
+        const registeredWorkshop = workshops[0]; // Take first registered workshop
+        
+        // Check if they attended
+        if (registeredWorkshop.attended) {
+          setStatuses(prev => ({ ...prev, workshop: 'attended' }));
+          console.log('Dashboard: Workshop status set to attended based on registration');
+        } else {
+          setStatuses(prev => ({ ...prev, workshop: 'signed-up' }));
+          console.log('Dashboard: Workshop status set to signed-up');
+        }
+        
+        // Set workshop details
+        // Format date/time treating database time as EST
+>>>>>>> dev
         const dbDate = new Date(registeredWorkshop.start_time);
         const year = dbDate.getUTCFullYear();
         const month = dbDate.getUTCMonth();
@@ -431,6 +461,7 @@ function ApplicantDashboard() {
         const minute = dbDate.getUTCMinutes();
         const easternDate = new Date(year, month, day, hour, minute);
 
+<<<<<<< HEAD
         const workshopEventDetails = {
           date: easternDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
           time: easternDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
@@ -484,6 +515,27 @@ function ApplicantDashboard() {
         setStatuses(prev => ({ ...prev, workshop: 'not signed-up' }));
         setWorkshopDetails(null);
         console.log('Dashboard: Workshop available for signup');
+=======
+        setWorkshopDetails({
+          event_id: registeredWorkshop.event_id,
+          name: registeredWorkshop.name || registeredWorkshop.title,
+          date: easternDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+          time: easternDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+          location: registeredWorkshop.location,
+          registration_id: registeredWorkshop.registration_id,
+          registered_at: registeredWorkshop.registered_at,
+          attended: registeredWorkshop.attended,
+          // Add fields needed for workshop access logic
+          start_time: registeredWorkshop.start_time,
+          allow_early_access: registeredWorkshop.allow_early_access,
+          access_window_days: registeredWorkshop.access_window_days
+        });
+      } else {
+        // User is invited but not yet registered
+        setStatuses(prev => ({ ...prev, workshop: 'not signed-up' }));
+        setWorkshopDetails(null);
+        console.log('Dashboard: Workshop status set to not signed-up');
+>>>>>>> dev
       }
     } catch (error) {
       console.error('Error loading workshop status for dashboard:', error);
@@ -656,6 +708,156 @@ function ApplicantDashboard() {
     navigate('/dashboard');
   };
 
+<<<<<<< HEAD
+=======
+  // Check if workshop is currently accessible
+  const isWorkshopAccessible = () => {
+    if (!workshopDetails) return false;
+    
+    console.log('Workshop details:', workshopDetails);
+    
+    // If early access is allowed, always accessible
+    if (workshopDetails.allow_early_access) {
+      console.log('Workshop accessible: early access is allowed');
+      return true;
+    }
+    
+    // Get current date in EST (DATE ONLY, no time)
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: 'America/New_York'
+    });
+    
+    const currentParts = formatter.formatToParts(now);
+    const currentYear = currentParts.find(part => part.type === 'year').value;
+    const currentMonth = currentParts.find(part => part.type === 'month').value;
+    const currentDay = currentParts.find(part => part.type === 'day').value;
+    const currentDate = `${currentYear}-${currentMonth}-${currentDay}`;
+    
+    // Get workshop start date in EST (DATE ONLY, no time)
+    const workshopStart = new Date(workshopDetails.start_time);
+    const workshopParts = formatter.formatToParts(workshopStart);
+    const workshopYear = workshopParts.find(part => part.type === 'year').value;
+    const workshopMonth = workshopParts.find(part => part.type === 'month').value;
+    const workshopDay = workshopParts.find(part => part.type === 'day').value;
+    const workshopStartDate = `${workshopYear}-${workshopMonth}-${workshopDay}`;
+    
+    console.log(`Workshop access check - Current date: ${currentDate}, Workshop date: ${workshopStartDate}`);
+    
+    // Workshop is accessible if current date >= workshop date
+    const isAccessible = currentDate >= workshopStartDate;
+    console.log(`Workshop accessible: ${isAccessible}`);
+    return isAccessible;
+  };
+
+  // Format workshop start date for display
+  const formatWorkshopStartDate = () => {
+    if (!workshopDetails?.start_time) return '';
+    
+    const date = new Date(workshopDetails.start_time);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'America/New_York'
+    });
+  };
+
+  // Enter workshop - creates user account and auto-login
+  const handleEnterWorkshop = async () => {
+    try {
+      console.log('=== ENTERING WORKSHOP FROM DASHBOARD ===');
+      console.log('Workshop Event ID:', workshopDetails?.event_id);
+      console.log('User email:', user?.email);
+      
+      if (!user?.email || !workshopDetails?.event_id) {
+        throw new Error('Missing required data to enter workshop');
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshop/enter`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event_id: workshopDetails.event_id,
+          applicant_email: user.email
+        }),
+      });
+
+      console.log('Enter workshop response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Enter workshop error:', errorData);
+        
+        // Show error in SweetAlert
+        await Swal.fire({
+          icon: 'error',
+          title: 'Cannot Access Workshop',
+          text: errorData.error || `Failed to enter workshop (${response.status})`,
+          confirmButtonColor: '#667eea'
+        });
+        return; // Don't throw - just return
+      }
+
+      const data = await response.json();
+      console.log('✅ Workshop entry successful:', data);
+
+      // Prepare user data with userType for AuthContext
+      const userData = {
+        ...data.user,
+        userType: 'builder', // Set as builder so AuthContext recognizes it
+        firstName: data.user.first_name,
+        lastName: data.user.last_name
+      };
+
+      // Store the user token and data in localStorage
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      // Update AuthContext to set authenticated state
+      setAuthState(userData, data.token);
+      console.log('✅ AuthContext updated, user authenticated');
+
+      // Show success message
+      await Swal.fire({
+        icon: 'success',
+        title: 'Entering Workshop',
+        text: `Loading workshop...`,
+        timer: 1500,
+        showConfirmButton: false
+      });
+
+      // Redirect to dashboard
+      navigate('/dashboard');
+
+    } catch (error) {
+      console.error('Error entering workshop:', error);
+      
+      let errorMessage = 'Failed to enter workshop.';
+      
+      if (error.message.includes('not registered')) {
+        errorMessage = 'You must be registered for this workshop to enter it.';
+      } else if (error.message.includes('not currently accessible')) {
+        errorMessage = error.message; // Use the detailed access message from backend
+      } else {
+        errorMessage = `${error.message} Please try again or contact support.`;
+      }
+      
+      await Swal.fire({
+        icon: 'error',
+        title: 'Workshop Entry Failed',
+        text: errorMessage
+      });
+    }
+  };
+
+>>>>>>> dev
   const handleEditEligibility = async () => {
     try {
       // Get applicant ID from localStorage or user data
@@ -977,6 +1179,52 @@ function ApplicantDashboard() {
                           ✅ Attended
                         </div>
                       )}
+<<<<<<< HEAD
+=======
+                      {status === 'signed-up' && (
+                        <>
+                          <button
+                            onClick={handleEnterWorkshop}
+                            disabled={!isWorkshopAccessible()}
+                            className="enter-workshop-button"
+                            style={{
+                              marginTop: '12px',
+                              padding: '10px 20px',
+                              background: isWorkshopAccessible() 
+                                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                : '#6c757d',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '8px',
+                              fontWeight: '600',
+                              fontSize: '0.95rem',
+                              cursor: isWorkshopAccessible() ? 'pointer' : 'not-allowed',
+                              transition: 'all 0.2s ease',
+                              boxShadow: isWorkshopAccessible() 
+                                ? '0 2px 8px rgba(102, 126, 234, 0.3)'
+                                : 'none',
+                              width: '100%',
+                              maxWidth: '280px',
+                              opacity: isWorkshopAccessible() ? 1 : 0.6
+                            }}
+                            onMouseOver={(e) => {
+                              if (isWorkshopAccessible()) {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                              }
+                            }}
+                            onMouseOut={(e) => {
+                              if (isWorkshopAccessible()) {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+                              }
+                            }}
+                          >
+                            {isWorkshopAccessible() ? 'Enter Workshop' : 'Workshop Locked'}
+                          </button>
+                        </>
+                      )}
+>>>>>>> dev
                     </div>
                   )}
 
