@@ -993,6 +993,27 @@
   color: #ffffff;
 }
 
+.pathfinder-personal-dashboard__weekly-goal-achieved {
+  animation: goalCelebration 2s ease-in-out infinite;
+  color: #EDFF00 !important;
+  text-shadow: 0 0 20px rgba(237, 255, 0, 0.5);
+}
+
+@keyframes goalCelebration {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.15) rotate(-5deg);
+  }
+  50% {
+    transform: scale(1.1) rotate(5deg);
+  }
+  75% {
+    transform: scale(1.15) rotate(-5deg);
+  }
+}
+
 .pathfinder-personal-dashboard__weekly-goal-separator {
   font-size: 2.5rem;
   color: #ffffff;

@@ -482,7 +482,11 @@ function PathfinderPersonalDashboard() {
                   <div className="pathfinder-personal-dashboard__weekly-goal">
                     <span className="pathfinder-personal-dashboard__weekly-goal-label">Hustle</span>
                     <div className="pathfinder-personal-dashboard__weekly-goal-progress">
-                      <span className="pathfinder-personal-dashboard__weekly-goal-current">
+                      <span className={`pathfinder-personal-dashboard__weekly-goal-current ${
+                        (networkingStats?.weekly?.total_activities || 0) >= weeklyGoals.networking_goal 
+                          ? 'pathfinder-personal-dashboard__weekly-goal-achieved' 
+                          : ''
+                      }`}>
                         {networkingStats?.weekly?.total_activities || 0}
                       </span>
                       <span className="pathfinder-personal-dashboard__weekly-goal-separator">/</span>
@@ -496,7 +500,11 @@ function PathfinderPersonalDashboard() {
                   <div className="pathfinder-personal-dashboard__weekly-goal">
                     <span className="pathfinder-personal-dashboard__weekly-goal-label">Applications</span>
                     <div className="pathfinder-personal-dashboard__weekly-goal-progress">
-                      <span className="pathfinder-personal-dashboard__weekly-goal-current">
+                      <span className={`pathfinder-personal-dashboard__weekly-goal-current ${
+                        (applicationStats?.weekly?.total_applications || 0) >= weeklyGoals.applications_goal 
+                          ? 'pathfinder-personal-dashboard__weekly-goal-achieved' 
+                          : ''
+                      }`}>
                         {applicationStats?.weekly?.total_applications || 0}
                       </span>
                       <span className="pathfinder-personal-dashboard__weekly-goal-separator">/</span>
@@ -510,7 +518,11 @@ function PathfinderPersonalDashboard() {
                   <div className="pathfinder-personal-dashboard__weekly-goal">
                     <span className="pathfinder-personal-dashboard__weekly-goal-label">Interviews</span>
                     <div className="pathfinder-personal-dashboard__weekly-goal-progress">
-                      <span className="pathfinder-personal-dashboard__weekly-goal-current">
+                      <span className={`pathfinder-personal-dashboard__weekly-goal-current ${
+                        (applicationStats?.weekly?.interviews || 0) >= weeklyGoals.interviews_goal 
+                          ? 'pathfinder-personal-dashboard__weekly-goal-achieved' 
+                          : ''
+                      }`}>
                         {applicationStats?.weekly?.interviews || 0}
                       </span>
                       <span className="pathfinder-personal-dashboard__weekly-goal-separator">/</span>
