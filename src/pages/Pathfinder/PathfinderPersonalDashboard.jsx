@@ -10,6 +10,7 @@ function PathfinderPersonalDashboard() {
   const [networkingStats, setNetworkingStats] = useState(null);
   const [projectStats, setProjectStats] = useState(null);
   const [milestones, setMilestones] = useState(null);
+  const [weeklyGoals, setWeeklyGoals] = useState(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -22,8 +23,8 @@ function PathfinderPersonalDashboard() {
     try {
       setIsLoading(true);
       
-      // Fetch application stats, networking stats, project stats, and milestones
-      const [appResponse, netResponse, projResponse, dashResponse] = await Promise.all([
+      // Fetch application stats, networking stats, project stats, milestones, and weekly goals
+      const [appResponse, netResponse, projResponse, dashResponse, goalsResponse] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL}/api/pathfinder/applications/stats`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
@@ -34,6 +35,9 @@ function PathfinderPersonalDashboard() {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         fetch(`${import.meta.env.VITE_API_URL}/api/pathfinder/applications/dashboard`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/weekly-goals/current`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -61,6 +65,11 @@ function PathfinderPersonalDashboard() {
         
         // Check for new achievements
         checkForNewAchievements(dashData.milestones);
+      }
+
+      if (goalsResponse.ok) {
+        const goalsData = await goalsResponse.json();
+        setWeeklyGoals(goalsData);
       }
     } catch (err) {
       console.error('Error fetching stats:', err);
@@ -449,6 +458,73 @@ function PathfinderPersonalDashboard() {
     return (
       <>
         <h1 className="pathfinder-personal-dashboard__welcome-title">Welcome to Pathfinder</h1>
+        
+        {/* Weekly Goals Card */}
+        {weeklyGoals && (
+          <div className="pathfinder-personal-dashboard__weekly-goals">
+            <div className="pathfinder-personal-dashboard__weekly-goals-left">
+              <h3>This Week's Goals</h3>
+              <p className="pathfinder-personal-dashboard__weekly-goals-dates">
+                {new Date(weeklyGoals.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {' '}
+                {new Date(weeklyGoals.week_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </p>
+              {weeklyGoals.message && (
+                <div className="pathfinder-personal-dashboard__weekly-goals-message">
+                  {weeklyGoals.created_by_first_name || 'Pursuit'} says:
+                  <br />
+                  "{weeklyGoals.message}"
+                </div>
+              )}
+            </div>
+            <div className="pathfinder-personal-dashboard__weekly-goals-right">
+              <div className="pathfinder-personal-dashboard__weekly-goals-stats">
+                {weeklyGoals.networking_goal > 0 && (
+                  <div className="pathfinder-personal-dashboard__weekly-goal">
+                    <span className="pathfinder-personal-dashboard__weekly-goal-label">Hustle</span>
+                    <div className="pathfinder-personal-dashboard__weekly-goal-progress">
+                      <span className="pathfinder-personal-dashboard__weekly-goal-current">
+                        {networkingStats?.weekly?.total_activities || 0}
+                      </span>
+                      <span className="pathfinder-personal-dashboard__weekly-goal-separator">/</span>
+                      <span className="pathfinder-personal-dashboard__weekly-goal-target">
+                        {weeklyGoals.networking_goal}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {weeklyGoals.applications_goal > 0 && (
+                  <div className="pathfinder-personal-dashboard__weekly-goal">
+                    <span className="pathfinder-personal-dashboard__weekly-goal-label">Applications</span>
+                    <div className="pathfinder-personal-dashboard__weekly-goal-progress">
+                      <span className="pathfinder-personal-dashboard__weekly-goal-current">
+                        {applicationStats?.weekly?.total_applications || 0}
+                      </span>
+                      <span className="pathfinder-personal-dashboard__weekly-goal-separator">/</span>
+                      <span className="pathfinder-personal-dashboard__weekly-goal-target">
+                        {weeklyGoals.applications_goal}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {weeklyGoals.interviews_goal > 0 && (
+                  <div className="pathfinder-personal-dashboard__weekly-goal">
+                    <span className="pathfinder-personal-dashboard__weekly-goal-label">Interviews</span>
+                    <div className="pathfinder-personal-dashboard__weekly-goal-progress">
+                      <span className="pathfinder-personal-dashboard__weekly-goal-current">
+                        {applicationStats?.weekly?.interviews || 0}
+                      </span>
+                      <span className="pathfinder-personal-dashboard__weekly-goal-separator">/</span>
+                      <span className="pathfinder-personal-dashboard__weekly-goal-target">
+                        {weeklyGoals.interviews_goal}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        
         {milestonesToShow.map((milestone, index) => renderMilestoneCard(milestone, index))}
         
         {/* Milestone History */}

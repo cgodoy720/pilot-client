@@ -15,6 +15,7 @@ function PathfinderDashboard() {
   // Filter state
   const [cohortFilter, setCohortFilter] = useState('');
   const [view, setView] = useState('overview'); // overview, builders, companies
+  const [companiesViewMode, setCompaniesViewMode] = useState('table'); // table or cards
 
   useEffect(() => {
     if (user.role === 'staff' || user.role === 'admin') {
@@ -116,6 +117,21 @@ function PathfinderDashboard() {
   const handleBuilderClick = (builder) => {
     setSelectedBuilder(builder);
     fetchBuilderDetails(builder.builder_id);
+  };
+
+  const getCompanyInitial = (companyName) => {
+    return companyName ? companyName.charAt(0).toUpperCase() : '?';
+  };
+
+  const getInitialColor = (companyName) => {
+    const colors = [
+      '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16',
+      '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
+      '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
+      '#ec4899', '#f43f5e'
+    ];
+    const charCode = companyName ? companyName.charCodeAt(0) : 0;
+    return colors[charCode % colors.length];
   };
 
   const handleExport = () => {
@@ -334,28 +350,122 @@ function PathfinderDashboard() {
         {/* Companies View */}
         {view === 'companies' && (
           <div className="pathfinder-dashboard__companies">
-            <table className="pathfinder-dashboard__table">
-              <thead>
-                <tr>
-                  <th>Company</th>
-                  <th>Applications</th>
-                  <th>Unique Builders</th>
-                  <th>Interviews</th>
-                  <th>Offers</th>
-                </tr>
-              </thead>
-              <tbody>
-                {companies.map((company, index) => (
-                  <tr key={index}>
-                    <td><strong>{company.company_name}</strong></td>
-                    <td>{company.application_count}</td>
-                    <td>{company.builder_count}</td>
-                    <td>{company.interview_count}</td>
-                    <td>{company.offer_count}</td>
+            {/* View Mode Toggle */}
+            <div className="pathfinder-dashboard__view-toggle">
+              <button
+                className={companiesViewMode === 'table' ? 'active' : ''}
+                onClick={() => setCompaniesViewMode('table')}
+                title="Table View"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="3" y1="9" x2="21" y2="9"/>
+                  <line x1="3" y1="15" x2="21" y2="15"/>
+                </svg>
+                Table
+              </button>
+              <button
+                className={companiesViewMode === 'cards' ? 'active' : ''}
+                onClick={() => setCompaniesViewMode('cards')}
+                title="Card View"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="7" height="7"/>
+                  <rect x="14" y="3" width="7" height="7"/>
+                  <rect x="3" y="14" width="7" height="7"/>
+                  <rect x="14" y="14" width="7" height="7"/>
+                </svg>
+                Cards
+              </button>
+            </div>
+
+            {/* Table View */}
+            {companiesViewMode === 'table' && (
+              <table className="pathfinder-dashboard__table">
+                <thead>
+                  <tr>
+                    <th>Company</th>
+                    <th>Applications</th>
+                    <th>Unique Builders</th>
+                    <th>Interviews</th>
+                    <th>Offers</th>
                   </tr>
+                </thead>
+                <tbody>
+                  {companies.map((company, index) => (
+                    <tr key={index}>
+                      <td><strong>{company.company_name}</strong></td>
+                      <td>{company.application_count}</td>
+                      <td>{company.builder_count}</td>
+                      <td>{company.interview_count}</td>
+                      <td>{company.offer_count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {/* Card Grid View */}
+            {companiesViewMode === 'cards' && (
+              <div className="pathfinder-dashboard__cards-grid">
+                {companies.map((company, index) => (
+                  <div key={index} className="pathfinder-dashboard__company-card">
+                    <div className="pathfinder-dashboard__company-card-header">
+                      <div className="pathfinder-dashboard__company-card-title-wrapper">
+                        {company.company_logo ? (
+                          <img 
+                            src={company.company_logo} 
+                            alt={company.company_name}
+                            className="pathfinder-dashboard__company-card-logo"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              const placeholder = e.target.nextElementSibling;
+                              if (placeholder) placeholder.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div 
+                          className="pathfinder-dashboard__company-card-logo-initial"
+                          style={{ 
+                            backgroundColor: getInitialColor(company.company_name),
+                            display: company.company_logo ? 'none' : 'flex'
+                          }}
+                        >
+                          {getCompanyInitial(company.company_name)}
+                        </div>
+                        <h3 className="pathfinder-dashboard__company-card-title">{company.company_name}</h3>
+                      </div>
+                    </div>
+                    <div className="pathfinder-dashboard__company-card-stats">
+                      <div className="pathfinder-dashboard__company-card-stat">
+                        <div className="pathfinder-dashboard__company-card-stat-value">
+                          {company.application_count}
+                        </div>
+                        <div className="pathfinder-dashboard__company-card-stat-label">Applications</div>
+                      </div>
+                      <div className="pathfinder-dashboard__company-card-stat">
+                        <div className="pathfinder-dashboard__company-card-stat-value">
+                          {company.builder_count}
+                        </div>
+                        <div className="pathfinder-dashboard__company-card-stat-label">Builders</div>
+                      </div>
+                      <div className="pathfinder-dashboard__company-card-stat">
+                        <div className="pathfinder-dashboard__company-card-stat-value">
+                          {company.interview_count}
+                        </div>
+                        <div className="pathfinder-dashboard__company-card-stat-label">Interviews</div>
+                      </div>
+                      <div className="pathfinder-dashboard__company-card-stat">
+                        <div className="pathfinder-dashboard__company-card-stat-value">
+                          {company.offer_count}
+                        </div>
+                        <div className="pathfinder-dashboard__company-card-stat-label">Offers</div>
+                      </div>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            )}
           </div>
         )}
       </div>
