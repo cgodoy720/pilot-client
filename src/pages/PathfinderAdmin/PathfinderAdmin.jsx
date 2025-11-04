@@ -78,28 +78,48 @@ function PathfinderAdmin() {
 
   useEffect(() => {
     if (user.role === 'staff' || user.role === 'admin') {
-      fetchOverview();
-      fetchBuilders();
-      fetchCompanies();
-      fetchPendingApprovals();
-      fetchApprovedPRDs();
-      fetchProjects();
-      fetchProjectsOverview();
-      fetchCohortStats();
-      fetchHighlights();
-      fetchLeaderboard();
-      if (view === 'ceremonies') {
-        fetchCeremonies();
-      }
-      if (view === 'weekly-goals') {
-        fetchWeeklyGoals();
-      }
+      // Fetch all data in parallel for better performance
+      const fetchAllData = async () => {
+        setIsLoading(true);
+        
+        try {
+          // Core data that's always needed
+          const corePromises = [
+            fetchOverview(),
+            fetchBuilders(),
+            fetchCompanies(),
+            fetchPendingApprovals(),
+            fetchApprovedPRDs(),
+            fetchProjects(),
+            fetchProjectsOverview(),
+            fetchCohortStats(),
+            fetchHighlights(),
+            fetchLeaderboard()
+          ];
+          
+          // View-specific data
+          if (view === 'ceremonies') {
+            corePromises.push(fetchCeremonies());
+          }
+          if (view === 'weekly-goals') {
+            corePromises.push(fetchWeeklyGoals());
+          }
+          
+          // Execute all fetches in parallel
+          await Promise.all(corePromises);
+        } catch (err) {
+          console.error('Error fetching admin data:', err);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      fetchAllData();
     }
   }, [token, cohortFilter, weekOffset, view]);
 
   const fetchOverview = async () => {
     try {
-      setIsLoading(true);
       let url = `${import.meta.env.VITE_API_URL}/api/pathfinder/admin/overview?weekOffset=${weekOffset}`;
       if (cohortFilter) {
         url += `&cohort=${encodeURIComponent(cohortFilter)}`;
@@ -120,8 +140,6 @@ function PathfinderAdmin() {
     } catch (err) {
       console.error('Error fetching overview:', err);
       setError('Error loading overview');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -635,6 +653,14 @@ function PathfinderAdmin() {
       message: goal.message || ''
     });
     setEditingGoalId(goal.goal_id);
+    
+    // Scroll to the form
+    setTimeout(() => {
+      const formElement = document.querySelector('.pathfinder-admin__weekly-goals-form');
+      if (formElement) {
+        formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
   };
 
   const handleDeleteGoal = async (goalId) => {
