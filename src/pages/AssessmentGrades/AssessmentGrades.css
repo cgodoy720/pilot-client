@@ -2069,6 +2069,8 @@ body .submission-panel[style*="position: fixed"],
   color: #ef4444;
 }
 
+<<<<<<< HEAD
+=======
 /* Progress Section */
 .assessment-grades-email-modal__progress-section {
   background: var(--color-background-darker);
@@ -2168,6 +2170,7 @@ body .submission-panel[style*="position: fixed"],
   font-size: 0.95rem;
 }
 
+>>>>>>> dev
 /* Footer */
 .assessment-grades-email-modal__footer {
   display: flex;
@@ -2188,7 +2191,10 @@ body .submission-panel[style*="position: fixed"],
   min-height: 100px;
 }
 
+<<<<<<< HEAD
+=======
 
+>>>>>>> dev
 /* Overview Editing Styles */
 .overview-header {
   display: flex;

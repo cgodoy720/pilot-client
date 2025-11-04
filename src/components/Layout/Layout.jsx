@@ -18,7 +18,9 @@ import PsychologyIcon from '@mui/icons-material/Psychology';
 import QuizIcon from '@mui/icons-material/Quiz';
 import FeedbackIcon from '@mui/icons-material/Feedback';
 import GradeIcon from '@mui/icons-material/Grade';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import WorkspacesIcon from '@mui/icons-material/Workspaces';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 import logo from '../../assets/logo.png'
@@ -36,6 +38,9 @@ const Layout = ({ children }) => {
   const isAdmin = user?.role === 'admin' || user?.role === 'staff';
   // Check if user is volunteer
   const isVolunteer = user?.role === 'volunteer';
+  
+  // Check if on Pathfinder pages for light mode styling
+  const isPathfinderPage = location.pathname.startsWith('/pathfinder');
   // Check if user is workshop admin
   const isWorkshopAdmin = user?.role === 'workshop_admin';
   // Check if user is a workshop participant (external participants with limited access)
@@ -105,16 +110,28 @@ const Layout = ({ children }) => {
             {isExpanded && <span className="layout__nav-text">Calendar</span>}
           </Link>
           
-          {/* Hide My Progress for workshop participants, workshop admins, and applicants */}
-          {!isWorkshopParticipant && !isWorkshopAdmin && !isApplicant && (
+          <Link to="/pathfinder/dashboard" className={`layout__nav-item ${location.pathname.startsWith('/pathfinder') ? 'layout__nav-item--active' : ''}`}>
+            <ArrowForwardIcon className="layout__nav-icon" />
+            {isExpanded && <span className="layout__nav-text">Pathfinder</span>}
+          </Link>
+
+          {(user.role === 'staff' || user.role === 'admin') && (
+            <Link to="/pathfinder/admin" className={`layout__nav-item layout__nav-item--sub ${location.pathname === '/pathfinder/admin' ? 'layout__nav-item--active' : ''}`}>
+              <AdminPanelSettingsIcon className="layout__nav-icon" />
+              {isExpanded && <span className="layout__nav-text">Pathfinder Admin</span>}
+            </Link>
+          )}
+          
+          {/* Hide My Progress for workshop participants, workshop admins, applicants, admin, and staff */}
+          {!isWorkshopParticipant && !isWorkshopAdmin && !isApplicant && !isAdmin && (
             <Link to="/stats" className={`layout__nav-item ${location.pathname === '/stats' ? 'layout__nav-item--active' : ''}`}>
               <AssessmentIcon className="layout__nav-icon" />
               {isExpanded && <span className="layout__nav-text">My Progress</span>}
             </Link>
           )}
           
-          {/* Hide Assessment for workshop participants, workshop admins, and applicants */}
-          {!isWorkshopParticipant && !isWorkshopAdmin && !isApplicant && (
+          {/* Hide Assessment for workshop participants, workshop admins, applicants, admin, and staff */}
+          {!isWorkshopParticipant && !isWorkshopAdmin && !isApplicant && !isAdmin && (
             <>
               {isActive ? (
                 <Link to="/assessment" className={`layout__nav-item ${location.pathname === '/assessment' ? 'layout__nav-item--active' : ''}`}>
@@ -148,13 +165,17 @@ const Layout = ({ children }) => {
           
           {isAdmin && (
             <>
-              <Link to="/admin-dashboard" className={`layout__nav-item ${location.pathname === '/admin-dashboard' ? 'layout__nav-item--active' : ''}`}>
+              <Link to="/admin" className={`layout__nav-item ${location.pathname === '/admin' ? 'layout__nav-item--active' : ''}`}>
                 <AdminPanelSettingsIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">Admin Dashboard</span>}
               </Link>
               <Link to="/admin/assessment-grades" className={`layout__nav-item ${location.pathname === '/admin/assessment-grades' ? 'layout__nav-item--active' : ''}`}>
                 <GradeIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">Assessment Grades</span>}
+              </Link>
+              <Link to="/attendance-management" className={`layout__nav-item ${location.pathname === '/attendance-management' ? 'layout__nav-item--active' : ''}`}>
+                <EventAvailableIcon className="layout__nav-icon" />
+                {isExpanded && <span className="layout__nav-text">Attendance</span>}
               </Link>
               <Link to="/admissions-dashboard" className={`layout__nav-item ${location.pathname === '/admissions-dashboard' ? 'layout__nav-item--active' : ''}`}>
                 <GroupsIcon className="layout__nav-icon" />
@@ -196,7 +217,7 @@ const Layout = ({ children }) => {
         </div>
       </nav>
       
-      <main className="layout__content">
+      <main className={`layout__content ${isPathfinderPage ? 'layout__content--light' : ''}`}>
         {children}
       </main>
     </Box>

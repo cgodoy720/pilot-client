@@ -14,8 +14,8 @@
   width: 100%;
   height: 100%;
   padding: var(--spacing-lg);
-  background-color: var(--color-background-darker);
-  color: var(--color-text-primary);
+  background-color: #1a1f2c;
+  color: #ffffff;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -96,10 +96,10 @@
 }
 
 .dashboard__objectives {
-  background-color: var(--color-background-dark);
+  background-color: #1a1f2c;
   border-radius: 8px;
   padding: var(--spacing-lg);
-  border: 1px solid var(--color-border);
+  border: 1px solid #2a2f3e;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -109,10 +109,10 @@
 /* Schedule Panel Styles */
 .dashboard__schedule-panel {
   flex: 1;
-  background-color: var(--color-background-dark);
+  background-color: #1a1f2c;
   border-radius: 8px;
   padding: var(--spacing-lg);
-  border: 1px solid var(--color-border);
+  border: 1px solid #2a2f3e;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -122,7 +122,7 @@
 .panel-title {
   font-size: 1.2rem;
   margin-bottom: var(--spacing-md);
-  color: var(--color-text-primary);
+  color: #ffffff;
   font-weight: 500;
 }
 
@@ -140,10 +140,10 @@
 .schedule-item {
   display: flex;
   padding: var(--spacing-md);
-  background-color: var(--color-background-darker);
+  background-color: #242938;
   border-radius: 6px;
   border: 1px solid transparent; /* Add transparent border by default */
-  border-left: 3px solid var(--color-border);
+  border-left: 3px solid #2a2f3e;
   transition: all 0.2s ease;
   cursor: pointer;
   position: relative;
@@ -154,8 +154,8 @@
 
 .schedule-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  background-color: var(--color-background-dark);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  background-color: #2d3342;
   border: 1px solid var(--color-primary);
   border-left: 3px solid var(--color-primary);
 }
@@ -174,7 +174,7 @@
 .schedule-time {
   width: 80px;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  color: #ffffff;
   flex-shrink: 0; /* Prevent time from shrinking */
   display: flex;
   align-items: center; /* Center time vertically */
@@ -227,7 +227,7 @@
 
 .schedule-duration {
   font-size: 0.85rem;
-  color: var(--color-text-muted);
+  color: #999999;
   flex-shrink: 0; /* Prevent duration from shrinking */
   min-width: 60px; /* Give duration a minimum width */
   text-align: right; /* Right align duration */
@@ -330,7 +330,7 @@
 .schedule-list::-webkit-scrollbar-thumb:hover,
 .objectives-list::-webkit-scrollbar-thumb:hover,
 .dashboard__left-panel::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
+  background: #999999;
 }
 
 /* Responsive adjustments */
@@ -367,7 +367,7 @@
 
 /* No content messages */
 .no-content-message {
-  color: #666;
+  color: #a0a0a0;
   font-style: italic;
   padding: 1rem 0;
   text-align: center;
@@ -381,7 +381,7 @@
   text-align: center;
   height: 200px;
   padding: 2rem;
-  background-color: var(--color-background-dark) !important;
+  background-color: #1a1f2c !important;
   border-radius: 8px;
   margin: 1rem 0;
   /* border: 1px solid var(--color-border); */
@@ -417,14 +417,15 @@
 
 .dashboard__cohort-selector label {
   font-weight: 500;
-  color: #333;
+  color: #ffffff;
 }
 
 .dashboard__cohort-selector select {
   padding: 8px 12px;
   border-radius: 4px;
-  border: 1px solid #ddd;
-  background-color: white;
+  border: 1px solid #2a2f3e;
+  background-color: #1a1f2c;
+  color: #ffffff;
   font-size: 14px;
   cursor: pointer;
 }
@@ -446,8 +447,8 @@
 }
 
 .dashboard__historical-notice {
-  background-color: rgba(31, 36, 54, 0.8);
-  color: #e0e0e0;
+  background-color: #1a1f2c;
+  color: #ffffff;
   padding: 30px;
   border-radius: 8px;
   max-width: 600px;
@@ -457,7 +458,7 @@
   align-items: center;
   text-align: center;
   border-left: 4px solid var(--color-primary, #4242ea);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   animation: fadeIn 0.3s ease-out;
 }
 
@@ -490,7 +491,7 @@
   margin: 0 0 20px 0;
   font-size: 1.1rem;
   line-height: 1.6;
-  color: #e0e0e0;
+  color: #a0a0a0;
 }
 
 .dashboard__calendar-btn {
@@ -564,8 +565,8 @@
 }
 
 .dashboard__volunteer-welcome {
-  background-color: rgba(31, 36, 54, 0.8);
-  color: #e0e0e0;
+  background-color: #1a1f2c;
+  color: #ffffff;
   padding: 30px;
   border-radius: 8px;
   max-width: 600px;
@@ -575,7 +576,7 @@
   align-items: center;
   text-align: center;
   border-left: 4px solid var(--color-primary, #4242ea);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   animation: fadeIn 0.3s ease-out;
 }
 
@@ -590,7 +591,7 @@
   margin: 0 0 25px 0;
   font-size: 1.1rem;
   line-height: 1.6;
-  color: #e0e0e0;
+  color: #a0a0a0;
 }
 
 .dashboard__volunteer-feedback-btn {

@@ -2172,4 +2172,138 @@
 
 .session-data-tester__modal-task-delete-btn svg {
   font-size: 0.8rem;
+<<<<<<< HEAD
+=======
+}
+
+/* ============================================ */
+/* SMART TASK CONFIGURATION STYLES */
+/* ============================================ */
+
+.session-data-tester__smart-config {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.session-data-tester__smart-config--modal {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.session-data-tester__smart-config-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.session-data-tester__smart-config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.session-data-tester__smart-config-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.session-data-tester__smart-config-item label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Badge Styles */
+.session-data-tester__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+  width: fit-content;
+}
+
+/* Task Mode Badges */
+.session-data-tester__badge--basic {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.session-data-tester__badge--conversation {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+/* Persona Badge */
+.session-data-tester__badge--persona {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+/* AI Helper Mode Badge */
+.session-data-tester__badge--helper {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Survey Type Badges */
+.session-data-tester__badge--survey {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+  border: 1px solid rgba(251, 146, 60, 0.3);
+}
+
+.session-data-tester__badge--survey-weekly {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.session-data-tester__badge--survey-end_of_l1 {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.session-data-tester__badge--survey-mid_program {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+  border: 1px solid rgba(251, 146, 60, 0.3);
+}
+
+.session-data-tester__badge--survey-final {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+/* Responsive adjustments for smart config */
+@media (max-width: 1024px) {
+  .session-data-tester__smart-config-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .session-data-tester__smart-config-grid {
+    grid-template-columns: 1fr;
+  }
+>>>>>>> dev
 }

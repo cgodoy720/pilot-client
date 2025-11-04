@@ -9,7 +9,7 @@ html, body {
   padding: 0;
   height: 100%;
   width: 100%;
-  background-color: #0f1115;
+  background-color: #0a0f1e;
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -34,13 +34,13 @@ html, body {
   --color-primary-transparent-light: rgba(66, 66, 234, 0.05); /* Lighter transparent primary */
   --color-error: #ff4f4f; /* Error/danger color */
   --color-navbar: #1a1f2c;
-  --color-background-dark: #1a1f2c; /* Navbar color */
-  --color-background-darker: #121212; /* Darker than navbar for contrast */
-  --color-background-light: #252525; /* Lighter than navbar for contrast */
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #e3e3e3;
-  --color-text-muted: rgba(255, 255, 255, 0.7);
-  --color-border: #333333;
+  --color-background-dark: #1a1f2c; /* Dark mode: dark navy */
+  --color-background-darker: #0a0f1e; /* Dark mode: darker navy */
+  --color-background-light: #242938; /* Dark mode: lighter navy */
+  --color-text-primary: #ffffff; /* Dark mode: white text */
+  --color-text-secondary: #a0a0a0; /* Dark mode: light gray text */
+  --color-text-muted: rgba(255, 255, 255, 0.5); /* Dark mode: muted white text */
+  --color-border: #2a2f3e; /* Dark mode: dark gray borders */
   
   /* Spacing */
   --spacing-xs: 0.25rem;

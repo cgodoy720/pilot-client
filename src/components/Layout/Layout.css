@@ -31,7 +31,7 @@
 .layout__sidebar-header {
   display: flex;
   justify-content: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   position: relative;
   width: 100%;
 }
@@ -70,18 +70,21 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.35rem;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .layout__nav-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.75rem;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
   text-decoration: none;
   color: #e3e3e3;
   border-radius: 8px;
   transition: all 0.2s;
+  font-size: 0.9rem;
 }
 
 .layout__nav-item:hover {
@@ -99,27 +102,45 @@
   color: #4242ea;
 }
 
+.layout__nav-item--sub {
+  padding-left: 2.5rem;
+  font-size: 0.95rem;
+}
+
+.layout__sidebar--collapsed .layout__nav-item--sub {
+  padding-left: 0.75rem;
+}
+
 .layout__bottom-links {
   margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding-bottom: 0.5rem;
+  gap: 0.35rem;
+  padding-bottom: 0.25rem;
 }
 
 .layout__content {
   flex: 1;
   padding: 2rem;
-  /* background-color: #1e1e1e; */
-  /* background-color: #252525; */
-  /* background-color: #1A1F2C; */
   background-color: #1a1f2c;
   color: #FFFFFF;
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100%;
+  min-height: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.layout__content--light {
+  background-color: #f5f5f5;
+  color: #1a1a1a;
+  padding-top: 0;
 }
 
 .layout__nav-icon {
-  font-size: 1.25rem;
-  min-width: 24px;
+  font-size: 1.15rem;
+  min-width: 20px;
   opacity: 0.7;
   display: flex;
   align-items: center;
@@ -177,17 +198,18 @@
   cursor: pointer;
   width: 100%;
   text-align: left;
-  padding: 0.75rem; /* Match the padding of other nav items */
+  padding: 0.5rem 0.75rem; /* Match the padding of other nav items */
   font-family: inherit;
   color: inherit;
   display: flex;
   align-items: center;
-  gap: 1rem; /* Match the gap of other nav items */
+  gap: 0.75rem; /* Match the gap of other nav items */
+  font-size: 0.9rem;
 }
 
 /* Ensure the logout icon aligns with other nav icons */
 .layout__bottom-links .layout__nav-item {
-  height: 42px; /* Set a consistent height for all bottom nav items */
+  height: 36px; /* Set a consistent height for all bottom nav items */
   display: flex;
   align-items: center;
 }
@@ -197,8 +219,8 @@
   margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding-bottom: 0.5rem;
+  gap: 0.35rem;
+  padding-bottom: 0.25rem;
 }
 
 /* Disabled navigation item */

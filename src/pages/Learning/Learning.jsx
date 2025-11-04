@@ -478,7 +478,7 @@ function Learning() {
               task_mode: task.task_mode || 'basic', // Add task mode support
               smart_prompt: task.smart_prompt || null,
               conversation_model: task.conversation_model || null,
-              feedback_slot: task.feedback_slot || false // Add feedback slot support
+              feedback_slot: task.feedback_slot || null // Add feedback slot support
             });
           });
         });
