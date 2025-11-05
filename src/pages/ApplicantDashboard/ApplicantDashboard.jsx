@@ -1085,7 +1085,7 @@ function ApplicantDashboard() {
                           ✅ Attended
                         </div>
                       )}
-                      {status === 'signed-up' && (
+                      {(status === 'signed-up' || status === 'attended') && (
                         <>
                           <button
                             onClick={handleEnterWorkshop}
