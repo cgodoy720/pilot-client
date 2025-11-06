@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaArrowRight, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes, FaLink, FaExternalLinkAlt, FaFileAlt, FaVideo, FaBars } from 'react-icons/fa';
+import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaArrowRight, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes, FaLink, FaExternalLinkAlt, FaFileAlt, FaVideo, FaBars, FaBrain, FaComments, FaClipboardList } from 'react-icons/fa';
+import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import PeerFeedbackForm from '../../components/PeerFeedbackForm';
+import BuilderFeedbackForm from '../../components/BuilderFeedbackForm/BuilderFeedbackForm';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
 import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
-import SummaryModal from '../../components/SummaryModal/SummaryModal';
+import DeliverablePanel from '../Learning/components/DeliverablePanel/DeliverablePanel';
+
 import './PastSession.css';
+import '../../styles/smart-tasks.css';
 
 function PastSession() {
   const [searchParams] = useSearchParams();
@@ -43,11 +47,15 @@ function PastSession() {
   const [isLazyLoading, setIsLazyLoading] = useState(false);
   const [rateLimitHit, setRateLimitHit] = useState(false);
   
-  // Add state for the submission modal
+  // Add state for the submission modal (OLD - keeping for backward compatibility)
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [submissionUrl, setSubmissionUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
+  
+  // NEW: DeliverablePanel state
+  const [showDeliverablePanel, setShowDeliverablePanel] = useState(false);
+  const [currentDeliverableTask, setCurrentDeliverableTask] = useState(null);
   
   // Add peer feedback state
   const [showPeerFeedback, setShowPeerFeedback] = useState(false);
@@ -66,12 +74,7 @@ function PastSession() {
   // Initialize submission state
   const [submission, setSubmission] = useState(null);
   
-  // Add state for summary functionality
-  const [showSummaryModal, setShowSummaryModal] = useState(false);
-  const [summaryData, setSummaryData] = useState(null);
-  const [summarizingUrl, setSummarizingUrl] = useState(null); // Track which URL is being summarized
-  const [summaryError, setSummaryError] = useState(null);
-  const [generatedSummaries, setGeneratedSummaries] = useState({}); // Cache summaries by URL
+
   
   // Add refs for scrolling and textarea handling
   const messagesEndRef = useRef(null);
@@ -132,9 +135,16 @@ function PastSession() {
         // Set day schedule data
         setDaySchedule(data);
         
-        // Set tasks data directly from the response
+        // Set tasks data from the response, ensuring task_mode is set
         if (data.flattenedTasks && Array.isArray(data.flattenedTasks)) {
-          setTasks(data.flattenedTasks);
+          // Process flattened tasks to ensure task_mode is set
+          const processedTasks = data.flattenedTasks.map(task => ({
+            ...task,
+            task_mode: task.task_mode || 'basic' // Ensure task_mode is set
+          }));
+          console.log('Processed flattenedTasks with task_mode:', 
+            processedTasks.map(t => ({ id: t.id, title: t.title, task_mode: t.task_mode })));
+          setTasks(processedTasks);
           setTasksLoading(false);
         } else {
           // Fallback to processing from timeBlocks if needed
@@ -182,6 +192,18 @@ function PastSession() {
               }
             }
             
+            // Debug: Log the task data to see what we're getting
+            console.log('Processing task:', {
+              id: task.task_id || task.id,
+              title: task.task_title || task.title,
+              task_mode: task.task_mode,
+              raw_task: task
+            });
+            
+            // Ensure task_mode is properly set
+            const taskMode = task.task_mode || 'basic';
+            console.log(`Setting task_mode for task ${task.task_id || task.id} to: ${taskMode}`);
+            
             allTasks.push({
               id: task.task_id || task.id,
               title: task.task_title || task.title,
@@ -201,11 +223,21 @@ function PastSession() {
               deliverable_type: task.deliverable_type || 'none',
               should_analyze: task.should_analyze || false,
               analyze_deliverable: task.analyze_deliverable || false,
-              analyze_conversation: task.analyze_conversation || false
+              analyze_conversation: task.analyze_conversation || false,
+              task_mode: taskMode, // Explicitly set task mode
+              smart_prompt: task.smart_prompt || null,
+              conversation_model: task.conversation_model || null
             });
           });
         }
       });
+      
+      // Debug: Log the final tasks array
+      console.log('Final tasks array:', allTasks.map(t => ({ 
+        id: t.id, 
+        title: t.title, 
+        task_mode: t.task_mode 
+      })));
       
       setTasks(allTasks);
       setTasksLoading(false);
@@ -477,7 +509,22 @@ function PastSession() {
     navigate('/calendar');
   };
 
-  const getTaskIcon = (type) => {
+  const getTaskIcon = (type, taskMode, feedbackSlot) => {
+    // Ensure task_mode has a value (default to 'basic')
+    const mode = taskMode || 'basic';
+    console.log('getTaskIcon called with:', { type, taskMode, normalizedMode: mode, feedbackSlot });
+    
+    // Check if this is a feedback slot task - use clipboard icon
+    if (feedbackSlot) {
+      return <FaClipboardList className="task-icon feedback" />;
+    }
+    
+    // Check if this is a conversation task - use brain icon
+    if (mode === 'conversation') {
+      console.log('Returning brain icon for conversation task');
+      return <FaBrain className="task-icon conversation" />;
+    }
+    
     // Special case for Independent Retrospective
     if (type === 'reflect' && tasks.length > 0 && 
         currentTaskIndex < tasks.length &&
@@ -502,126 +549,7 @@ function PastSession() {
     }
   };
 
-  // Function to generate summary for an article
-  const handleGenerateSummary = async (url, title) => {
-    // Check if user is active
-    if (!isActive) {
-      setError('You have historical access only and cannot generate summaries.');
-      return;
-    }
-    
-    setSummarizingUrl(url);
-    setSummaryError(null);
-    
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/resources/summarize`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ url, title })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details || errorData.error || 'Failed to generate summary');
-      }
-      
-      const data = await response.json();
-      
-      // Store in cache
-      setGeneratedSummaries(prev => ({
-        ...prev,
-        [url]: data
-      }));
-      
-      // Set current summary data and open modal
-      setSummaryData(data);
-      setShowSummaryModal(true);
-      
-    } catch (error) {
-      console.error('Error generating summary:', error);
-      const errorMessage = error?.message || 'An unknown error occurred';
-      
-      // Show error in the summary modal instead of main page error
-      setSummaryError(errorMessage);
-      setSummaryData({ title, url }); // Set basic data for modal display
-      setShowSummaryModal(true); // Show modal with error state
-      
-      // Don't set the main page error for summary-related issues
-      // setError(`Failed to generate summary: ${errorMessage}`);
-    } finally {
-      setSummarizingUrl(null);
-    }
-  };
-  
-  // Function to view an existing summary
-  const handleViewSummary = (url) => {
-    const cachedSummary = generatedSummaries[url];
-    if (cachedSummary) {
-      setSummaryData(cachedSummary);
-      setShowSummaryModal(true);
-    }
-  };
-  
-  // Function to close summary modal
-  const handleCloseSummaryModal = () => {
-    setShowSummaryModal(false);
-    setSummaryData(null);
-    setSummaryError(null);
-  };
-  
-  // Helper function to check if a resource is an article
-  const isArticleResource = (resource) => {
-    console.log('Checking resource:', resource); // Debug log
-    const type = resource.type;
-    console.log('Resource type:', type); // Debug log
-    
-    // Check for various article-related types
-    const isArticle = type && (
-      type.toLowerCase() === 'article' || 
-      type.toLowerCase() === 'blog' ||
-      type.toLowerCase() === 'post' ||
-      type.toLowerCase() === 'news' ||
-      type.toLowerCase() === 'medium' ||
-      (resource.url && (
-        resource.url.includes('medium.com') ||
-        resource.url.includes('blog') ||
-        resource.url.includes('article') ||
-        resource.url.includes('.com/post/') ||
-        resource.url.includes('hackernoon') ||
-        resource.url.includes('dev.to')
-      ))
-    );
-    
-    console.log('Is article:', isArticle); // Debug log
-    return isArticle;
-  };
 
-  // Helper function to check if a resource is a YouTube video
-  const isYouTubeVideo = (resource) => {
-    console.log('Checking for YouTube video:', resource); // Debug log
-    const type = resource.type;
-    const url = resource.url;
-    
-    // Check for video type or YouTube URL patterns
-    const isVideo = (type && type.toLowerCase() === 'video') || 
-      (url && (
-        url.includes('youtube.com/watch') ||
-        url.includes('youtu.be/') ||
-        url.includes('youtube.com/embed') ||
-        url.includes('youtube.com/v/')
-      ));
-    
-    console.log('Is YouTube video:', isVideo); // Debug log
-    return isVideo;
-  };
-
-  // Helper function to check if a resource can be summarized (article or video)
-  const canSummarizeResource = (resource) => {
-    return isArticleResource(resource) || isYouTubeVideo(resource);
-  };
 
   const renderTaskResources = (resources) => {
     if (!resources || resources.length === 0) {
@@ -703,28 +631,7 @@ function PastSession() {
                       {resource.title || 'Resource Link'}
                     </a>
                   </div>
-                  {canSummarizeResource(resource) && (
-                    <div className="past-session__resource-actions">
-                      {generatedSummaries[resource.url] ? (
-                        <button
-                          className="past-session__summary-btn past-session__summary-btn--view"
-                          onClick={() => handleViewSummary(resource.url)}
-                          title={`View ${isYouTubeVideo(resource) ? 'video' : 'article'} summary`}
-                        >
-                          {isYouTubeVideo(resource) ? <FaVideo /> : <FaFileAlt />} View Summary
-                        </button>
-                      ) : (
-                        <button
-                          className="past-session__summary-btn past-session__summary-btn--generate"
-                          onClick={() => handleGenerateSummary(resource.url, resource.title)}
-                          disabled={summarizingUrl === resource.url}
-                          title={`Generate AI summary of this ${isYouTubeVideo(resource) ? 'video' : 'article'}`}
-                        >
-                          {isYouTubeVideo(resource) ? <FaVideo /> : <FaFileAlt />} {summarizingUrl === resource.url ? 'Generating...' : 'Summarize'}
-                        </button>
-                      )}
-                    </div>
-                  )}
+
                 </li>
               ))}
             </ul>
@@ -734,16 +641,135 @@ function PastSession() {
     );
   };
 
-  // Add a format function for message content
+  // Helper function to preprocess code content for better wrapping
+  const preprocessCodeContent = (code) => {
+    if (!code) return code;
+    
+    // Split code into lines
+    const lines = code.split('\n');
+    const maxLineLength = 80; // Reasonable line length for code
+    
+    const processedLines = lines.map(line => {
+      // If line is too long, try to break it intelligently
+      if (line.length > maxLineLength) {
+        // Try to break at logical points (spaces, operators, etc.)
+        const breakPoints = [' ', '.', '(', ')', '{', '}', '[', ']', ',', ';', '=', '+', '-'];
+        let bestBreak = -1;
+        
+        // Find the best break point within reasonable range
+        for (let i = maxLineLength - 10; i >= maxLineLength - 30 && i >= 0; i--) {
+          if (breakPoints.includes(line[i])) {
+            bestBreak = i + 1;
+            break;
+          }
+        }
+        
+        // If we found a good break point, split the line
+        if (bestBreak > 0 && bestBreak < line.length) {
+          const firstPart = line.substring(0, bestBreak);
+          const secondPart = '  ' + line.substring(bestBreak).trim(); // Indent continuation
+          return firstPart + '\n' + secondPart;
+        }
+      }
+      
+      return line;
+    });
+    
+    return processedLines.join('\n');
+  };
+
+  // Add a format function for message content with markdown support
   const formatMessageContent = (content) => {
-    // Basic formatting for message content
-    // You can enhance this with markdown parsing if needed
+    if (!content) return null;
+    
+    // Check if content is an object and not a string
+    if (typeof content === 'object') {
+      // Convert the object to a readable string format
+      try {
+        return <pre className="system-message">System message: {JSON.stringify(content, null, 2)}</pre>;
+      } catch (e) {
+        console.error('Error stringifying content object:', e);
+        return <p className="error-message">Error displaying message content</p>;
+      }
+    }
+    
+    // Split content by code blocks to handle them separately
+    const parts = content.split(/(```[\s\S]*?```)/g);
+    
     return (
-      <div className="past-session__message-text">
-        {content.split('\n').map((line, i) => (
-          <p key={i}>{line}</p>
-        ))}
-      </div>
+      <>
+        {parts.map((part, index) => {
+          // Check if this part is a code block
+          if (part.startsWith('```') && part.endsWith('```')) {
+            // Extract language and code
+            const match = part.match(/```(\w*)\n([\s\S]*?)```/);
+            
+            if (match) {
+              const [, language, code] = match;
+              
+              // Preprocess the code content for better wrapping
+              const processedCode = preprocessCodeContent(code);
+              
+              return (
+                <div key={index} className="code-block-wrapper">
+                  <div className="code-block-header">
+                    {language && <span className="code-language">{language}</span>}
+                  </div>
+                  <div className="code-block-content">
+                    {processedCode}
+                  </div>
+                </div>
+              );
+            }
+          }
+          
+          // Regular markdown for non-code parts
+          return (
+            <ReactMarkdown key={index}
+              components={{
+                p: ({node, children, ...props}) => (
+                  <p className="markdown-paragraph" {...props}>{children}</p>
+                ),
+                h1: ({node, children, ...props}) => (
+                  <h1 className="markdown-heading" {...props}>{children}</h1>
+                ),
+                h2: ({node, children, ...props}) => (
+                  <h2 className="markdown-heading" {...props}>{children}</h2>
+                ),
+                h3: ({node, children, ...props}) => (
+                  <h3 className="markdown-heading" {...props}>{children}</h3>
+                ),
+                ul: ({node, children, ...props}) => (
+                  <ul className="markdown-list" {...props}>{children}</ul>
+                ),
+                ol: ({node, children, ...props}) => (
+                  <ol className="markdown-list" {...props}>{children}</ol>
+                ),
+                li: ({node, children, ...props}) => (
+                  <li className="markdown-list-item" {...props}>{children}</li>
+                ),
+                a: ({node, children, ...props}) => (
+                  <a className="markdown-link" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+                ),
+                strong: ({node, children, ...props}) => (
+                  <strong {...props}>{children}</strong>
+                ),
+                em: ({node, children, ...props}) => (
+                  <em {...props}>{children}</em>
+                ),
+                code: ({node, inline, className, children, ...props}) => {
+                  if (inline) {
+                    return <code className="inline-code" {...props}>{children}</code>;
+                  }
+                  return <code {...props}>{children}</code>;
+                }
+              }}
+            >
+              {part}
+            </ReactMarkdown>
+          );
+        })}
+      </>
     );
   };
 
@@ -796,6 +822,9 @@ function PastSession() {
       
       setMessages(prev => [...prev, optimisticMessage]);
       setNewMessage('');
+      
+      // Show AI thinking indicator
+      setIsAiThinking(true);
       
       // Auto expand the textarea
       if (textareaRef.current) {
@@ -1069,7 +1098,7 @@ function PastSession() {
     }
   };
 
-  // Handle deliverable submission
+  // Handle deliverable submission (OLD - keeping for backward compatibility)
   const handleDeliverableSubmit = async (e) => {
     e.preventDefault();
     
@@ -1110,6 +1139,51 @@ function PastSession() {
       setSubmissionError('Network error. Please try again.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // NEW: Handle deliverable panel submission
+  const handleDeliverablePanelSubmit = async (submissionData) => {
+    if (!currentDeliverableTask) return;
+    
+    try {
+      // Determine content format based on deliverable type
+      let content = submissionData;
+      
+      // For structured submissions, stringify the object
+      if (typeof submissionData === 'object' && submissionData !== null) {
+        content = JSON.stringify(submissionData);
+      }
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          taskId: currentDeliverableTask.id,
+          content: content
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to submit deliverable');
+      }
+      
+      // Refresh submission data
+      await fetchTaskSubmission(currentDeliverableTask.id);
+      
+      // Show success message
+      setSuccessMessage('Deliverable submitted successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      
+      // Keep panel open so user can see their submission
+      // They can close it manually when ready
+    } catch (error) {
+      console.error('Error submitting deliverable:', error);
+      setError('Failed to submit deliverable. Please try again.');
+      throw error; // Re-throw so DeliverablePanel can handle it
     }
   };
 
@@ -1443,7 +1517,7 @@ function PastSession() {
     return (
       <div className="learning past-session">
         <div className="learning__content">
-          <div className="learning__chat-container">
+          <div className={`learning__chat-container ${currentTaskIndex < tasks.length ? `learning__chat-container--${tasks[currentTaskIndex].task_mode || 'basic'}` : ''}`}>
             <div className="learning__loading">
               <p>Loading session details...</p>
             </div>
@@ -1457,7 +1531,7 @@ function PastSession() {
     return (
       <div className="learning past-session">
         <div className="learning__content">
-          <div className="learning__chat-container">
+          <div className={`learning__chat-container ${currentTaskIndex < tasks.length ? `learning__chat-container--${tasks[currentTaskIndex].task_mode || 'basic'}` : ''}`}>
             <div className="learning__error">
               <h2>Error</h2>
               <p>{error || 'Unable to load session details'}</p>
@@ -1510,6 +1584,7 @@ function PastSession() {
                 <div
                   key={task.id}
                   className={`learning__task-item ${index === currentTaskIndex ? 'current' : ''}`}
+                  data-mode={task.task_mode || 'basic'}
                   onClick={() => {
                     if (index !== currentTaskIndex) {
                       // Update the task index
@@ -1529,10 +1604,22 @@ function PastSession() {
                   }}
                 >
                   <div className="learning__task-icon">
-                    {getTaskIcon(task.type)}
+                    {getTaskIcon(task.type, task.task_mode, task.feedback_slot)}
                   </div>
                   <div className="learning__task-content">
-                    <h3 className="learning__task-title">{task.title}</h3>
+                    <h3 className="learning__task-title">
+                      <span className="learning__task-title-text">{task.title}</span>
+
+                      {(task.deliverable_type === 'link' || 
+                        task.deliverable_type === 'file' || 
+                        task.deliverable_type === 'document' || 
+                        task.deliverable_type === 'video') && (
+                        <span className="learning__task-deliverable-indicator">
+                          <FaLink />
+                        </span>
+                      )}
+                    </h3>
+
                   </div>
                 </div>
               ))}
@@ -1575,13 +1662,25 @@ function PastSession() {
           </button>
         </div>
         
-        <div className="learning__chat-container">
+        <div className={`learning__chat-container ${currentTaskIndex < tasks.length ? `learning__chat-container--${tasks[currentTaskIndex].task_mode}` : ''}`}>
           {showPeerFeedback ? (
             // Show the peer feedback form when needed
             <PeerFeedbackForm
               dayNumber={daySchedule?.day?.day_number || dayNumber}
               onComplete={handlePeerFeedbackComplete}
               onCancel={handlePeerFeedbackCancel}
+            />
+          ) : tasks.length > 0 && tasks[currentTaskIndex]?.feedback_slot ? (
+            // Show the builder feedback form for feedback_slot tasks
+            <BuilderFeedbackForm
+              taskId={tasks[currentTaskIndex].id}
+              dayNumber={daySchedule?.day?.day_number || dayNumber}
+              cohort={cohort}
+              surveyType={tasks[currentTaskIndex].feedback_slot}
+              onComplete={() => {
+                // Optional: Add any completion logic here
+                console.log('Builder feedback completed');
+              }}
             />
           ) : (
             <div className="learning__chat-panel">
@@ -1790,11 +1889,18 @@ function PastSession() {
                           (tasks[currentTaskIndex]?.deliverable_type === 'link' ||
                            tasks[currentTaskIndex]?.deliverable_type === 'file' ||
                            tasks[currentTaskIndex]?.deliverable_type === 'document' ||
-                           tasks[currentTaskIndex]?.deliverable_type === 'video') && (
+                           tasks[currentTaskIndex]?.deliverable_type === 'video' ||
+                           tasks[currentTaskIndex]?.deliverable_type === 'structured') && (
                           <button 
                             type="button"
                             className="learning__deliverable-btn"
-                            onClick={() => setShowSubmissionModal(true)}
+                            onClick={async () => {
+                              const task = tasks[currentTaskIndex];
+                              setCurrentDeliverableTask(task);
+                              // Fetch submission for this specific task
+                              await fetchTaskSubmission(task.id);
+                              setShowDeliverablePanel(true);
+                            }}
                             title={`Submit ${tasks[currentTaskIndex].deliverable}`}
                           >
                             <FaLink />
@@ -1865,17 +1971,20 @@ function PastSession() {
         />
       )}
       
-      {/* Summary Modal */}
-      <SummaryModal
-        isOpen={showSummaryModal}
-        onClose={handleCloseSummaryModal}
-        summary={summaryData?.summary}
-        title={summaryData?.title}
-        url={summaryData?.url}
-        cached={summaryData?.cached}
-        loading={summarizingUrl === summaryData?.url}
-        error={summaryError}
-      />
+      {/* NEW: Deliverable Panel (Sidebar) */}
+      {showDeliverablePanel && currentDeliverableTask && (
+        <DeliverablePanel
+          task={currentDeliverableTask}
+          currentSubmission={submission}
+          onClose={() => {
+            setShowDeliverablePanel(false);
+            setCurrentDeliverableTask(null);
+          }}
+          onSubmit={handleDeliverablePanelSubmit}
+          isLocked={false}
+        />
+      )}
+
     </div>
   );
 }

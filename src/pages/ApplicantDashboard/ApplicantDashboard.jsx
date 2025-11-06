@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext';
 import pursuitLogoFull from '../../assets/logo-full.png';
 import databaseService from '../../services/databaseService';
+import Swal from 'sweetalert2';
 import './ApplicantDashboard.css';
 
 const SECTION_CONFIG = [
   {
     key: 'infoSession',
     label: 'Attend an Info Session',
-    description: 'Learn more about the org, our goals, and the program. All applicants are required to attend one Info Session.',
+    description: 'Please note that info session attendance, in addition to a completed application, is required to be considered for the AI Native Program. This is a great opportunity to learn more about the program and our community.',
     statusOptions: ['not signed-up', 'signed-up', 'attended'],
     defaultStatus: 'not signed-up',
     getButtonLabel: (status) => {
@@ -65,13 +67,15 @@ const SECTION_CONFIG = [
       if (status === 'completed') return 'Pledge Completed';
       return 'Make Pledge';
     },
-    buttonEnabled: (status, workshopStatus) => workshopStatus === 'attended' && status !== 'completed',
-    lockedLabel: 'Workshop Required',
+    buttonEnabled: (status) => status === 'not completed',
+    lockedLabel: 'Program Admission Required',
   },
 ]
 
 function ApplicantDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { setAuthState } = useAuth();
   const [user, setUser] = useState(null);
   const [currentApplicantId, setCurrentApplicantId] = useState(null);
   const [statuses, setStatuses] = useState({
@@ -82,8 +86,10 @@ function ApplicantDashboard() {
   });
   const [sessionDetails, setSessionDetails] = useState(null);
   const [workshopDetails, setWorkshopDetails] = useState(null);
+  const [applicantStage, setApplicantStage] = useState(null);
   const [applicationProgress, setApplicationProgress] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Load user data from localStorage on mount
   useEffect(() => {
@@ -126,6 +132,12 @@ function ApplicantDashboard() {
     }
   }, [user]);
 
+  // Trigger refresh when returning to dashboard (e.g., from application form)
+  useEffect(() => {
+    // Increment refresh trigger when location changes
+    setRefreshTrigger(prev => prev + 1);
+  }, [location]);
+
   // Load real data from database when applicant ID is available
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -157,7 +169,7 @@ function ApplicantDashboard() {
     if (currentApplicantId) {
       loadDashboardData();
     }
-  }, [currentApplicantId]);
+  }, [currentApplicantId, refreshTrigger]); // Reload when refreshTrigger changes (i.e., location changes)
 
   const loadInfoSessionStatus = async () => {
     try {
@@ -167,18 +179,38 @@ function ApplicantDashboard() {
       const events = await response.json();
       let foundRegistration = null;
       let registeredEvent = null;
+      let hasAttendedSession = false;
       
-      // Check all events for current user's registration
+      // First check if the user has attended any info session
       for (const event of events) {
         const registrations = event.registrations || [];
-        const userRegistration = registrations.find(reg => 
-          reg.applicant_id === currentApplicantId && reg.status === 'registered'
+        const attendedRegistration = registrations.find(reg => 
+          reg.applicant_id === currentApplicantId && 
+          (reg.status === 'attended' || reg.status === 'attended_late' || reg.status === 'very_late')
         );
         
-        if (userRegistration) {
-          foundRegistration = userRegistration;
+        if (attendedRegistration) {
+          foundRegistration = attendedRegistration;
           registeredEvent = event;
+          hasAttendedSession = true;
+          console.log('Dashboard: Found attended info session', attendedRegistration);
           break;
+        }
+      }
+      
+      // If no attended session found, check for registered sessions
+      if (!hasAttendedSession) {
+        for (const event of events) {
+          const registrations = event.registrations || [];
+          const userRegistration = registrations.find(reg => 
+            reg.applicant_id === currentApplicantId && reg.status === 'registered'
+          );
+          
+          if (userRegistration) {
+            foundRegistration = userRegistration;
+            registeredEvent = event;
+            break;
+          }
         }
       }
       
@@ -198,9 +230,13 @@ function ApplicantDashboard() {
           location: registeredEvent.location
         };
         
-        setStatuses(prev => ({ ...prev, infoSession: 'signed-up' }));
+        // Set status based on whether they've attended or just registered
+        setStatuses(prev => ({ 
+          ...prev, 
+          infoSession: hasAttendedSession ? 'attended' : 'signed-up' 
+        }));
         setSessionDetails(eventDetails);
-        console.log('Dashboard: Found info session registration', eventDetails);
+        console.log(`Dashboard: Found info session ${hasAttendedSession ? 'attendance' : 'registration'}`, eventDetails);
       } else {
         setStatuses(prev => ({ ...prev, infoSession: 'not signed-up' }));
         setSessionDetails(null);
@@ -235,6 +271,18 @@ function ApplicantDashboard() {
       }
       
       console.log('Dashboard: Application found:', application.status, 'ID:', application.application_id);
+      
+      // Fetch applicant stage data (including deferred status)
+      try {
+        const stageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${applicant.applicant_id}/stage`);
+        if (stageResponse.ok) {
+          const stageData = await stageResponse.json();
+          console.log('Dashboard: Applicant stage data:', stageData);
+          setApplicantStage(stageData);
+        }
+      } catch (error) {
+        console.error('Error fetching applicant stage:', error);
+      }
       
       if (application.status === 'ineligible') {
         setStatuses(prev => ({ ...prev, application: 'ineligible' }));
@@ -303,10 +351,17 @@ function ApplicantDashboard() {
       // First check if the applicant has been invited to workshops by checking their stage
       const stageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/stage`);
       let isInvited = false;
+      let hasAttendedWorkshop = false;
       
       if (stageResponse.ok) {
         const stageData = await stageResponse.json();
         console.log('Dashboard: Applicant stage data:', stageData);
+        
+        // Check if already attended workshop based on stage
+        if (stageData.current_stage === 'workshop_attended') {
+          hasAttendedWorkshop = true;
+          console.log('Dashboard: Workshop marked as attended based on stage');
+        }
         
         // If current_stage is workshop_invited or any workshop-related stage, unlock workshops
         if (stageData.current_stage && 
@@ -327,8 +382,15 @@ function ApplicantDashboard() {
         return;
       }
       
+      // If stage shows workshop attended, set status immediately
+      if (hasAttendedWorkshop) {
+        setStatuses(prev => ({ ...prev, workshop: 'attended' }));
+        console.log('Dashboard: Workshop status set to attended based on stage');
+      }
+      
       // If invited, check for existing registrations
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops`);
+      // Pass applicant_id to include inactive workshops where user has registrations
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops?applicant_id=${currentApplicantId}`);
       if (!response.ok) {
         // If we can't load workshops but they're invited, show as available
         setStatuses(prev => ({ ...prev, workshop: 'not signed-up' }));
@@ -337,25 +399,25 @@ function ApplicantDashboard() {
       }
       
       const workshops = await response.json();
-      let foundRegistration = null;
-      let registeredWorkshop = null;
+      console.log('DEBUG: Workshops received for applicant', currentApplicantId, ':', workshops);
       
-      // Check all workshops for current user's registration
-      for (const workshop of workshops) {
-        const registrations = workshop.registrations || [];
-        const userRegistration = registrations.find(reg => 
-          reg.applicant_id === currentApplicantId && reg.status === 'registered'
-        );
+      // New format: workshops are returned as flat objects with registration data already joined
+      // Each workshop object has registration_id, registered_at, attended, etc. if user is registered
+      if (workshops.length > 0 && workshops[0].registration_id) {
+        // User is registered for at least one workshop
+        const registeredWorkshop = workshops[0]; // Take first registered workshop
         
-        if (userRegistration) {
-          foundRegistration = userRegistration;
-          registeredWorkshop = workshop;
-          break;
+        // Check if they attended
+        if (registeredWorkshop.attended) {
+          setStatuses(prev => ({ ...prev, workshop: 'attended' }));
+          console.log('Dashboard: Workshop status set to attended based on registration');
+        } else {
+          setStatuses(prev => ({ ...prev, workshop: 'signed-up' }));
+          console.log('Dashboard: Workshop status set to signed-up');
         }
-      }
-      
-      if (foundRegistration && registeredWorkshop) {
-        // Treat database time as Eastern Time (extract UTC components and use as Eastern)
+        
+        // Set workshop details
+        // Format date/time treating database time as EST
         const dbDate = new Date(registeredWorkshop.start_time);
         const year = dbDate.getUTCFullYear();
         const month = dbDate.getUTCMonth();
@@ -364,20 +426,25 @@ function ApplicantDashboard() {
         const minute = dbDate.getUTCMinutes();
         const easternDate = new Date(year, month, day, hour, minute);
 
-        const workshopEventDetails = {
+        setWorkshopDetails({
+          event_id: registeredWorkshop.event_id,
+          name: registeredWorkshop.name || registeredWorkshop.title,
           date: easternDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
           time: easternDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-          location: registeredWorkshop.location
-        };
-        
-        setStatuses(prev => ({ ...prev, workshop: 'signed-up' }));
-        setWorkshopDetails(workshopEventDetails);
-        console.log('Dashboard: Found workshop registration', workshopEventDetails);
+          location: registeredWorkshop.location,
+          registration_id: registeredWorkshop.registration_id,
+          registered_at: registeredWorkshop.registered_at,
+          attended: registeredWorkshop.attended,
+          // Add fields needed for workshop access logic
+          start_time: registeredWorkshop.start_time,
+          allow_early_access: registeredWorkshop.allow_early_access,
+          access_window_days: registeredWorkshop.access_window_days
+        });
       } else {
-        // Invited but not registered yet
+        // User is invited but not yet registered
         setStatuses(prev => ({ ...prev, workshop: 'not signed-up' }));
         setWorkshopDetails(null);
-        console.log('Dashboard: Workshop available for signup');
+        console.log('Dashboard: Workshop status set to not signed-up');
       }
     } catch (error) {
       console.error('Error loading workshop status for dashboard:', error);
@@ -386,10 +453,48 @@ function ApplicantDashboard() {
   };
 
   const loadPledgeStatus = async () => {
-    // For now, just check if workshop is attended to unlock pledge
-    // This would need to be implemented based on your pledge system
-    setStatuses(prev => ({ ...prev, pledge: 'locked' }));
-    console.log('Dashboard: Pledge status loaded (placeholder)');
+    try {
+      // Check if applicant has been admitted to the program
+      const stageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/stage`);
+      
+      if (stageResponse.ok) {
+        const stageData = await stageResponse.json();
+        console.log('Dashboard: Applicant stage data for pledge:', stageData);
+        
+        // If program_admission_status is 'accepted', check pledge completion status
+        if (stageData.program_admission_status === 'accepted') {
+          // Check if pledge has been completed
+          const pledgeResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/pledge/status/${currentApplicantId}`);
+          
+          if (pledgeResponse.ok) {
+            const pledgeData = await pledgeResponse.json();
+            console.log('Dashboard: Pledge status data:', pledgeData);
+            
+            if (pledgeData.pledge_completed) {
+              setStatuses(prev => ({ ...prev, pledge: 'completed' }));
+              console.log('Dashboard: Pledge completed');
+            } else {
+              setStatuses(prev => ({ ...prev, pledge: 'not completed' }));
+              console.log('Dashboard: Pledge available but not completed');
+            }
+          } else {
+            // If can't load pledge status, assume not completed but available
+            setStatuses(prev => ({ ...prev, pledge: 'not completed' }));
+            console.log('Dashboard: Pledge unlocked but status unknown');
+          }
+        } else {
+          setStatuses(prev => ({ ...prev, pledge: 'locked' }));
+          console.log('Dashboard: Pledge locked - applicant not yet admitted to program');
+        }
+      } else {
+        // If we can't load stage data, keep pledge locked
+        setStatuses(prev => ({ ...prev, pledge: 'locked' }));
+        console.log('Dashboard: Pledge locked - could not load stage data');
+      }
+    } catch (error) {
+      console.error('Error loading pledge status:', error);
+      setStatuses(prev => ({ ...prev, pledge: 'locked' }));
+    }
   };
 
   const isComplete = (key, status) => {
@@ -407,7 +512,7 @@ function ApplicantDashboard() {
 
   const isLocked = (key, status) => {
     if (key === 'workshop') return status === 'locked' // Workshop is locked only if status is 'locked'
-    if (key === 'pledge') return status === 'locked' || statuses.workshop !== 'attended'
+    if (key === 'pledge') return status === 'locked' // Pledge is locked until program admission
     return false
   }
 
@@ -416,17 +521,19 @@ function ApplicantDashboard() {
       return section.buttonEnabled(statuses.workshop, statuses.application)
     }
     if (section.key === 'pledge') {
-      return section.buttonEnabled(statuses.pledge, statuses.workshop)
+      return section.buttonEnabled(statuses.pledge)
     }
     return section.buttonEnabled(statuses[section.key])
   }
 
-  const getButtonStyle = (enabled, isLockedState = false, isIneligibleState = false, isSubmittedState = false) => ({
-    background: isSubmittedState ? '#48bb78' :
+  const getButtonStyle = (enabled, isLockedState = false, isIneligibleState = false, isSubmittedState = false, isCompletedState = false) => ({
+    background: isCompletedState ? '#48bb78' :
+                isSubmittedState ? '#48bb78' :
                 enabled ? 'var(--color-primary)' : 
                 isIneligibleState ? 'var(--color-background-darker)' : 
                 isLockedState ? '#f5f5f5' : 'var(--color-border)',
-    color: isSubmittedState ? '#fff' :
+    color: isCompletedState ? '#fff' :
+           isSubmittedState ? '#fff' :
            enabled ? '#fff' : 
            isIneligibleState ? 'var(--color-text-secondary)' :
            isLockedState ? '#999' : 'var(--color-text-muted)',
@@ -469,6 +576,20 @@ function ApplicantDashboard() {
     );
   };
 
+  const getWorkshopDetailsText = () => {
+    if (!workshopDetails) return null;
+    return (
+      <div className="session-details">
+        <div className="session-details__icon">📅</div>
+        <div className="session-details__content">
+          <div className="session-details__date">{workshopDetails.date}</div>
+          <div className="session-details__time">{workshopDetails.time}</div>
+          <div className="session-details__location">{workshopDetails.location}</div>
+        </div>
+      </div>
+    );
+  };
+
   // Function to get application progress details
   const getApplicationProgressText = () => {
     if (applicationProgress) {
@@ -494,6 +615,153 @@ function ApplicantDashboard() {
 
   const handleBackToMainApp = () => {
     navigate('/dashboard');
+  };
+
+  // Check if workshop is currently accessible
+  const isWorkshopAccessible = () => {
+    if (!workshopDetails) return false;
+    
+    console.log('Workshop details:', workshopDetails);
+    
+    // If early access is allowed, always accessible
+    if (workshopDetails.allow_early_access) {
+      console.log('Workshop accessible: early access is allowed');
+      return true;
+    }
+    
+    // Get current date in EST (DATE ONLY, no time)
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: 'America/New_York'
+    });
+    
+    const currentParts = formatter.formatToParts(now);
+    const currentYear = currentParts.find(part => part.type === 'year').value;
+    const currentMonth = currentParts.find(part => part.type === 'month').value;
+    const currentDay = currentParts.find(part => part.type === 'day').value;
+    const currentDate = `${currentYear}-${currentMonth}-${currentDay}`;
+    
+    // Get workshop start date in EST (DATE ONLY, no time)
+    const workshopStart = new Date(workshopDetails.start_time);
+    const workshopParts = formatter.formatToParts(workshopStart);
+    const workshopYear = workshopParts.find(part => part.type === 'year').value;
+    const workshopMonth = workshopParts.find(part => part.type === 'month').value;
+    const workshopDay = workshopParts.find(part => part.type === 'day').value;
+    const workshopStartDate = `${workshopYear}-${workshopMonth}-${workshopDay}`;
+    
+    console.log(`Workshop access check - Current date: ${currentDate}, Workshop date: ${workshopStartDate}`);
+    
+    // Workshop is accessible if current date >= workshop date
+    const isAccessible = currentDate >= workshopStartDate;
+    console.log(`Workshop accessible: ${isAccessible}`);
+    return isAccessible;
+  };
+
+  // Format workshop start date for display
+  const formatWorkshopStartDate = () => {
+    if (!workshopDetails?.start_time) return '';
+    
+    const date = new Date(workshopDetails.start_time);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'America/New_York'
+    });
+  };
+
+  // Enter workshop - creates user account and auto-login
+  const handleEnterWorkshop = async () => {
+    try {
+      console.log('=== ENTERING WORKSHOP FROM DASHBOARD ===');
+      console.log('Workshop Event ID:', workshopDetails?.event_id);
+      console.log('User email:', user?.email);
+      
+      if (!user?.email || !workshopDetails?.event_id) {
+        throw new Error('Missing required data to enter workshop');
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshop/enter`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event_id: workshopDetails.event_id,
+          applicant_email: user.email
+        }),
+      });
+
+      console.log('Enter workshop response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Enter workshop error:', errorData);
+        
+        // Show error in SweetAlert
+        await Swal.fire({
+          icon: 'error',
+          title: 'Cannot Access Workshop',
+          text: errorData.error || `Failed to enter workshop (${response.status})`,
+          confirmButtonColor: '#667eea'
+        });
+        return; // Don't throw - just return
+      }
+
+      const data = await response.json();
+      console.log('✅ Workshop entry successful:', data);
+
+      // Prepare user data with userType for AuthContext
+      const userData = {
+        ...data.user,
+        userType: 'builder', // Set as builder so AuthContext recognizes it
+        firstName: data.user.first_name,
+        lastName: data.user.last_name
+      };
+
+      // Store the user token and data in localStorage
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      // Update AuthContext to set authenticated state
+      setAuthState(userData, data.token);
+      console.log('✅ AuthContext updated, user authenticated');
+
+      // Show success message
+      await Swal.fire({
+        icon: 'success',
+        title: 'Entering Workshop',
+        text: `Loading workshop...`,
+        timer: 1500,
+        showConfirmButton: false
+      });
+
+      // Redirect to dashboard
+      navigate('/dashboard');
+
+    } catch (error) {
+      console.error('Error entering workshop:', error);
+      
+      let errorMessage = 'Failed to enter workshop.';
+      
+      if (error.message.includes('not registered')) {
+        errorMessage = 'You must be registered for this workshop to enter it.';
+      } else if (error.message.includes('not currently accessible')) {
+        errorMessage = error.message; // Use the detailed access message from backend
+      } else {
+        errorMessage = `${error.message} Please try again or contact support.`;
+      }
+      
+      await Swal.fire({
+        icon: 'error',
+        title: 'Workshop Entry Failed',
+        text: errorMessage
+      });
+    }
   };
 
   const handleEditEligibility = async () => {
@@ -527,27 +795,19 @@ function ApplicantDashboard() {
         return;
       }
 
-      // Reset eligibility status
-      const result = await databaseService.resetEligibility(applicantId);
+      // Set flag for ApplicationForm to handle the reset synchronously
+      localStorage.setItem('eligibilityResetForEditing', 'true');
+      console.log('🚀 DASHBOARD DEBUG: Set eligibilityResetForEditing flag to true');
       
-      if (result.success) {
-        // Update local state
-        setStatuses(prev => ({
-          ...prev,
-          application: 'in process'
-        }));
-        localStorage.setItem('applicationStatus', 'in process');
-        
-        // Set flag to navigate to eligibility section
-        localStorage.setItem('eligibilityResetForEditing', 'true');
-        
-        alert('Your eligibility status has been reset. You can now edit your responses.');
-        
-        // Navigate to application form
-        navigate('/application-form');
-      } else {
-        alert('Failed to reset eligibility status. Please try again.');
-      }
+      // Update local state optimistically
+      setStatuses(prev => ({
+        ...prev,
+        application: 'in process'
+      }));
+      
+      // Navigate to application form with a URL parameter to ensure the reset flag is preserved
+      console.log('🚀 DASHBOARD DEBUG: Navigating to application form with reset parameter...');
+      navigate('/application-form?resetEligibility=true');
     } catch (error) {
       console.error('Error resetting eligibility:', error);
       alert('An error occurred while resetting your eligibility. Please try again.');
@@ -656,7 +916,7 @@ function ApplicantDashboard() {
                   {/* Locked state message for pledge */}
                   {section.key === 'pledge' && locked && (
                     <div className="action-card__locked-message">
-                      Pledge will be available after completing the workshop.
+                      Pledge will be available after you are admitted to the program.
                     </div>
                   )}
 
@@ -672,24 +932,378 @@ function ApplicantDashboard() {
                     </div>
                   )}
                   
+                  {/* Defer application button for submitted applications */}
+                  {section.key === 'application' && status === 'submitted' && currentApplicantId && !applicantStage?.deferred && (
+                    <div className="session-details__container" style={{ marginTop: '12px' }}>
+                      <button
+                        onClick={async () => {
+                          const result = await Swal.fire({
+                            title: 'Defer Your Application?',
+                            html: `
+                              <p style="font-size: 16px; margin: 20px 0;">
+                                If you defer, your application will be removed from the current cohort and automatically reconsidered for the next one.
+                              </p>
+                              <p style="font-size: 14px; color: #666; margin: 15px 0;">
+                                We'll reach out with details about the next cohort timeline.
+                              </p>
+                            `,
+                            icon: 'question',
+                            showCancelButton: true,
+                            confirmButtonText: 'Yes, Defer My Application',
+                            cancelButtonText: 'Cancel',
+                            confirmButtonColor: '#dc3545',
+                            cancelButtonColor: '#6c757d',
+                            background: 'var(--color-background-dark)',
+                            color: 'var(--color-text-primary)',
+                            customClass: {
+                              popup: 'custom-swal-popup'
+                            }
+                          });
 
-                  {section.key === 'infoSession' && status === 'signed-up' && sessionDetails && (
+                          if (result.isConfirmed) {
+                            try {
+                              // Call the defer endpoint directly with applicant ID
+                              const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/defer`, {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ applicantId: currentApplicantId })
+                              });
+
+                              if (!response.ok) {
+                                const error = await response.json();
+                                throw new Error(error.error || 'Failed to defer application');
+                              }
+
+                              const deferResult = await response.json();
+                              
+                              await Swal.fire({
+                                icon: 'success',
+                                title: 'Application Deferred',
+                                html: `<p style="font-size: 16px;">${deferResult.message}</p>`,
+                                confirmButtonColor: '#4242ea',
+                                background: 'var(--color-background-dark)',
+                                color: 'var(--color-text-primary)',
+                                confirmButtonText: 'OK'
+                              });
+                              
+                              // Reload the page to reflect the updated status
+                              window.location.reload();
+                            } catch (error) {
+                              await Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: error.message || 'Failed to defer application. Please try again.',
+                                confirmButtonColor: '#dc3545',
+                                background: 'var(--color-background-dark)',
+                                color: 'var(--color-text-primary)',
+                                confirmButtonText: 'OK'
+                              });
+                            }
+                          }
+                        }}
+                        style={{
+                          background: 'rgba(220, 53, 69, 0.1)',
+                          color: '#dc3545',
+                          padding: '10px 16px',
+                          border: '1px solid #dc3545',
+                          borderRadius: '8px',
+                          fontSize: '0.85rem',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          width: '100%',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.background = '#dc3545';
+                          e.target.style.color = 'white';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.background = 'rgba(220, 53, 69, 0.1)';
+                          e.target.style.color = '#dc3545';
+                        }}
+                      >
+                        Change of plans? Defer your application
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Show deferred status message */}
+                  {section.key === 'application' && status === 'submitted' && applicantStage?.deferred && (
+                    <div className="session-details__container" style={{ 
+                      marginTop: '12px', 
+                      background: 'rgba(255, 193, 7, 0.1)',
+                      border: '1px solid #ffc107',
+                      borderRadius: '8px',
+                      padding: '16px'
+                    }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '8px',
+                        marginBottom: '8px'
+                      }}>
+                        <span style={{ fontSize: '20px' }}>📅</span>
+                        <strong style={{ color: '#ffc107' }}>Application Deferred</strong>
+                      </div>
+                      <p style={{ 
+                        margin: 0, 
+                        fontSize: '0.9rem',
+                        color: 'var(--color-text-secondary)'
+                      }}>
+                        Your application will be automatically reconsidered for the next cohort. We'll reach out with details about the timeline.
+                      </p>
+                      {applicantStage.deferred_at && (
+                        <p style={{ 
+                          margin: '8px 0 0 0', 
+                          fontSize: '0.8rem',
+                          color: 'var(--color-text-tertiary)'
+                        }}>
+                          Deferred on {new Date(applicantStage.deferred_at).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {section.key === 'infoSession' && (status === 'signed-up' || status === 'attended') && sessionDetails && (
                     <div className="session-details__container">
                       {getSessionDetailsText()}
+                      {status === 'attended' && (
+                        <div className="session-details__attended-badge">
+                          ✅ Attended
+                        </div>
+                      )}
                     </div>
                   )}
                   
-                  {section.key === 'workshop' && status === 'signed-up' && workshopDetails && (
+                  {section.key === 'workshop' && (status === 'signed-up' || status === 'attended') && workshopDetails && (
                     <div className="session-details__container">
-                      <div className="session-details">
-                        <div className="session-details__icon">📅</div>
-                        <div className="session-details__content">
-                          <div className="session-details__date">{workshopDetails.date}</div>
-                          <div className="session-details__time">{workshopDetails.time}</div>
-                          <div className="session-details__location">{workshopDetails.location}</div>
+                      {getWorkshopDetailsText()}
+                      {status === 'attended' && (
+                        <div className="session-details__attended-badge">
+                          ✅ Attended
                         </div>
-                      </div>
+                      )}
+                      {(status === 'signed-up' || status === 'attended') && (
+                        <>
+                          <button
+                            onClick={handleEnterWorkshop}
+                            disabled={!isWorkshopAccessible()}
+                            className="enter-workshop-button"
+                            style={{
+                              marginTop: '12px',
+                              padding: '10px 20px',
+                              background: isWorkshopAccessible() 
+                                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                : '#6c757d',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '8px',
+                              fontWeight: '600',
+                              fontSize: '0.95rem',
+                              cursor: isWorkshopAccessible() ? 'pointer' : 'not-allowed',
+                              transition: 'all 0.2s ease',
+                              boxShadow: isWorkshopAccessible() 
+                                ? '0 2px 8px rgba(102, 126, 234, 0.3)'
+                                : 'none',
+                              width: '100%',
+                              maxWidth: '280px',
+                              opacity: isWorkshopAccessible() ? 1 : 0.6
+                            }}
+                            onMouseOver={(e) => {
+                              if (isWorkshopAccessible()) {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                              }
+                            }}
+                            onMouseOut={(e) => {
+                              if (isWorkshopAccessible()) {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+                              }
+                            }}
+                          >
+                            {isWorkshopAccessible() ? 'Enter Workshop' : 'Workshop Locked'}
+                          </button>
+                        </>
+                      )}
                     </div>
+                  )}
+
+                  {/* Pledge completed details with review buttons */}
+                  {section.key === 'pledge' && status === 'completed' && (
+                    <div className="pledge-review-buttons" style={{ 
+                      display: 'flex', 
+                      flexWrap: 'wrap', 
+                      gap: '10px', 
+                      justifyContent: 'center',
+                      margin: '15px 0'
+                    }}>
+                        <button
+                          onClick={() => {
+                            // Show Pledge content modal
+                            const modal = document.createElement('div');
+                            modal.innerHTML = `
+                              <div class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
+                                <div style="background: var(--color-background-dark); padding: 30px; border-radius: 12px; max-width: 800px; max-height: 80vh; overflow-y: auto; margin: 20px;" onclick="event.stopPropagation()">
+                                  <h3 style="color: #4242ea; margin-bottom: 20px;">PURSUIT AI-Native Program Pledge</h3>
+                                  <div style="line-height: 1.6;">
+                                    <h4>Everyone in the AI-Native Program is a Builder</h4>
+                                    <p>The world is evolving at an unprecedented pace, driven by technology and innovation. By taking this pledge, you're committing not just to learn, but to drive your own transformation. You'll gain the skills to build powerful apps, harness the potential of AI, and position yourself as a leader in this rapidly changing digital age.</p>
+                                    <p>This is your opportunity to become not just a consumer of technology, but a creator—an AI-native who shapes the future. Let's embark on this journey together.</p>
+                                    
+                                    <h4>As a Builder in the Pursuit AI-native Program, I commit to embracing learning and building with passion, curiosity, and determination. I pledge to:</h4>
+                                    
+                                    <h4>Learning</h4>
+                                    <ul>
+                                      <li>Cultivate a growth mindset, and engage deeply with every aspect of the program, such as workshops, projects, and community events.</li>
+                                      <li>Drive my own learning through consistent practice and research.</li>
+                                      <li>Share my learning openly and teach others.</li>
+                                    </ul>
+                                    
+                                    <h4>Community</h4>
+                                    <ul>
+                                      <li>Foster a positive, inclusive, supportive community environment.</li>
+                                      <li>Uphold Pursuit's code of conduct</li>
+                                    </ul>
+                                    
+                                    <h4>Adapting</h4>
+                                    <ul>
+                                      <li>Embrace the uncertainty and fluidity of this ever-evolving program and the AI field itself.</li>
+                                      <li>Remain resilient in the face of challenges, demonstrating initiative to solve problems.</li>
+                                    </ul>
+                                    
+                                    <h4>Building</h4>
+                                    <ul>
+                                      <li>Consistently work on projects and apply my learning to real-world scenarios.</li>
+                                      <li>Be proactive in seeking opportunities to build and create.</li>
+                                      <li>Embrace a "building in public" approach to share my journey and contribute to the AI community.</li>
+                                    </ul>
+                                  </div>
+                                  <button onclick="this.closest('.modal-overlay').remove()" style="background: #4242ea; color: white; border: none; padding: 8px 16px; border-radius: 6px; margin-top: 20px; cursor: pointer;">Close</button>
+                                </div>
+                              </div>
+                            `;
+                            document.body.appendChild(modal);
+                          }}
+                          style={{
+                            background: 'rgba(66, 66, 234, 0.1)', 
+                            color: 'var(--color-primary)', 
+                            padding: '10px 16px', 
+                            border: '1px solid var(--color-primary)', 
+                            borderRadius: '8px', 
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            transition: 'all 0.2s',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.transform = "translateY(-2px)";
+                            e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.transform = "translateY(0)";
+                            e.target.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
+                          }}
+                        >
+                          📜 Review Pledge
+                        </button>
+                        <button 
+                          onClick={() => {
+                            // Show Code of Conduct modal (we'll implement this)
+                            const modal = document.createElement('div');
+                            modal.innerHTML = `
+                              <div class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
+                                <div style="background: var(--color-background-dark); padding: 30px; border-radius: 12px; max-width: 600px; max-height: 80vh; overflow-y: auto; margin: 20px;" onclick="event.stopPropagation()">
+                                  <h3 style="color: #4242ea; margin-bottom: 20px;">Code of Conduct</h3>
+                                  <div style="line-height: 1.6;">
+                                    <p><strong>Mutual Respect:</strong> We foster an environment where everyone feels valued, heard, and respected, regardless of background, identity, or experience level.</p>
+                                    <p><strong>Collaborative Learning:</strong> We commit to learning together, sharing knowledge openly, and supporting each other's growth without judgment.</p>
+                                    <p><strong>Constructive Communication:</strong> We communicate thoughtfully and constructively, offering feedback that helps others improve while maintaining kindness and professionalism.</p>
+                                    <p><strong>Inclusive Participation:</strong> We actively work to include all voices and perspectives, ensuring that everyone has the opportunity to contribute and succeed.</p>
+                                    <p><strong>Accountability:</strong> We take responsibility for our actions, admit our mistakes, and work together to create solutions that benefit the entire community.</p>
+                                  </div>
+                                  <button onclick="this.closest('.modal-overlay').remove()" style="background: #4242ea; color: white; border: none; padding: 8px 16px; border-radius: 6px; margin-top: 20px; cursor: pointer;">Close</button>
+                                </div>
+                              </div>
+                            `;
+                            document.body.appendChild(modal);
+                          }}
+                          style={{
+                            background: 'rgba(108, 117, 125, 0.1)', 
+                            color: 'var(--color-secondary)', 
+                            padding: '10px 16px', 
+                            border: '1px solid var(--color-secondary)', 
+                            borderRadius: '8px', 
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.transform = "translateY(-2px)";
+                            e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.transform = "translateY(0)";
+                            e.target.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
+                          }}
+                        >
+                          📋 Code of Conduct
+                        </button>
+                        <button 
+                          onClick={() => {
+                            // Show Program Details modal
+                            const modal = document.createElement('div');
+                            modal.innerHTML = `
+                              <div class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
+                                <div style="background: var(--color-background-dark); padding: 30px; border-radius: 12px; max-width: 700px; max-height: 80vh; overflow-y: auto; margin: 20px;" onclick="event.stopPropagation()">
+                                  <h3 style="color: #4242ea; margin-bottom: 20px;">AI-Native Program Details</h3>
+                                  <div style="line-height: 1.6;">
+                                    <h4>Program Overview</h4>
+                                    <p>The Pursuit AI-Native Program is a 7-month intensive program designed to empower individuals to become AI-natives, capable of securing good jobs and leading in the AI-driven future.</p>
+                                    <h4>Core Pillars</h4>
+                                    <ul>
+                                      <li><strong>AI-Powered Individual Learning:</strong> Utilizing AI tools for personalized learning pathways and skill development.</li>
+                                      <li><strong>Self-Driven, Active Learning Through Building:</strong> Focusing on practical application and project-based learning.</li>
+                                      <li><strong>Many-to-Many Learning and Teaching:</strong> Fostering a collaborative environment where participants learn from each other.</li>
+                                    </ul>
+                                    <h4>What You'll Build</h4>
+                                    <p>Throughout the program, you'll work on real-world AI projects, develop modern applications, and create solutions that demonstrate your AI-native capabilities.</p>
+                                  </div>
+                                  <button onclick="this.closest('.modal-overlay').remove()" style="background: #4242ea; color: white; border: none; padding: 8px 16px; border-radius: 6px; margin-top: 20px; cursor: pointer;">Close</button>
+                                </div>
+                              </div>
+                            `;
+                            document.body.appendChild(modal);
+                          }}
+                          style={{
+                            background: 'rgba(40, 167, 69, 0.1)', 
+                            color: '#28a745', 
+                            padding: '10px 16px', 
+                            border: '1px solid #28a745', 
+                            borderRadius: '8px', 
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.transform = "translateY(-2px)";
+                            e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.transform = "translateY(0)";
+                            e.target.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
+                          }}
+                        >
+                          📚 Program Details
+                        </button>
+                      </div>
                   )}
                 </div>
                 
@@ -740,7 +1354,15 @@ function ApplicantDashboard() {
                             section.key === 'pledge' ? '/pledge' : '#') : '#'} 
                           className="action-card__button-link">
                       <button
-                        style={getButtonStyle(enabled, false, false, section.key === 'application' && status === 'submitted')}
+                        style={getButtonStyle(
+                          enabled, 
+                          false, 
+                          false, 
+                          section.key === 'application' && status === 'submitted',
+                          (section.key === 'infoSession' && status === 'attended') || 
+                          (section.key === 'workshop' && status === 'attended') ||
+                          (section.key === 'pledge' && status === 'completed')
+                        )}
                         disabled={!enabled}
                       >
                         {section.getButtonLabel(status)}

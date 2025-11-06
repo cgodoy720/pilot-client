@@ -79,6 +79,7 @@ function Calendar() {
     console.log('Event extendedProps:', clickInfo.event.extendedProps);
     
     const dayNumber = clickInfo.event.extendedProps.dayNumber;
+    const dayResource = clickInfo.event.extendedProps.resource;
     
     // Fix: Create date strings using local timezone instead of UTC
     const today = new Date();
@@ -101,8 +102,12 @@ function Calendar() {
       url = `/past-session?dayNumber=${dayNumber}`;
     }
 
-    // If staff/admin user has selected a cohort, add it to the URL
-    if (cohortFilter && (user.role === 'staff' || user.role === 'admin')) {
+    // Add cohort parameter for workshop participants or staff/admin
+    const dayHasCohort = dayResource && dayResource.cohort;
+    if (dayHasCohort) {
+      url += `&cohort=${encodeURIComponent(dayResource.cohort)}`;
+    } else if (cohortFilter && (user.role === 'staff' || user.role === 'admin')) {
+      // If staff/admin user has selected a cohort, add it to the URL
       url += `&cohort=${encodeURIComponent(cohortFilter)}`;
     }
     
@@ -164,6 +169,7 @@ function Calendar() {
                     <option value="">My Cohort</option>
                     <option value="March 2025">March 2025</option>
                     <option value="June 2025">June 2025</option>
+                    <option value="September 2025">September 2025</option>
                     {/* Add more cohorts as needed */}
                   </select>
                 </div>

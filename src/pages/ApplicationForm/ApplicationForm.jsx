@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import databaseService from '../../services/databaseService';
 import AddressAutocomplete from '../../components/AddressAutocomplete/AddressAutocomplete';
 import IneligibleModal from '../../components/IneligibleScreen/IneligibleScreen';
+import Swal from 'sweetalert2';
 import './ApplicationForm.css';
 
 const ApplicationForm = () => {
@@ -90,19 +91,85 @@ const ApplicationForm = () => {
         
         // Check if application is ineligible and handle accordingly
         if (application && application.status === 'ineligible') {
-          console.log('Application is marked as ineligible, redirecting to dashboard');
-          localStorage.setItem('applicationStatus', 'ineligible');
-          navigate('/apply');
-          return;
+          const wasResetForEditing = localStorage.getItem('eligibilityResetForEditing');
+          const urlParams = new URLSearchParams(window.location.search);
+          const resetFromUrl = urlParams.get('resetEligibility') === 'true';
+          
+          console.log('🔍 RESET DEBUG: Found ineligible application', {
+            applicationId: application.application_id,
+            status: application.status,
+            wasResetForEditing,
+            resetFromUrl,
+            applicantId: applicant.applicant_id,
+            allLocalStorageKeys: Object.keys(localStorage),
+            currentUrl: window.location.href
+          });
+          
+          if (wasResetForEditing === 'true' || resetFromUrl) {
+            console.log('🔄 RESET DEBUG: Starting reset process...');
+            localStorage.removeItem('eligibilityResetForEditing');
+            
+            // Clean up URL parameter
+            if (resetFromUrl) {
+              const url = new URL(window.location);
+              url.searchParams.delete('resetEligibility');
+              window.history.replaceState({}, '', url);
+            }
+            
+            try {
+              // Reset the application status synchronously before proceeding
+              console.log('🔄 RESET DEBUG: Calling resetEligibility...');
+              const resetResult = await databaseService.resetEligibility(applicant.applicant_id);
+              console.log('🔄 RESET DEBUG: Reset result:', resetResult);
+              
+              if (resetResult && resetResult.success) {
+                // Re-fetch the application to ensure we have the updated status
+                console.log('🔄 RESET DEBUG: Re-fetching application after reset...');
+                try {
+                  const updatedApplication = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/applicant/${applicant.applicant_id}/application`, {
+                    headers: { 'Content-Type': 'application/json' }
+                  });
+                  
+                  if (updatedApplication.ok) {
+                    application = await updatedApplication.json();
+                    console.log('✅ RESET DEBUG: Re-fetched application:', application);
+                  } else {
+                    // Fallback: just update the local object
+                    application.status = 'in_progress';
+                    console.log('⚠️ RESET DEBUG: Could not re-fetch, updating local object');
+                  }
+                } catch (fetchError) {
+                  console.warn('⚠️ RESET DEBUG: Error re-fetching application:', fetchError);
+                  // Fallback: just update the local object
+                  application.status = 'in_progress';
+                }
+                
+                console.log('✅ RESET DEBUG: Application status after reset:', application.status);
+                
+                // Also update localStorage to reflect the change
+                localStorage.setItem('applicationStatus', 'in_progress');
+              } else {
+                console.error('❌ RESET DEBUG: Reset result indicates failure:', resetResult);
+                throw new Error('Reset eligibility failed - invalid response');
+              }
+            } catch (error) {
+              console.error('❌ RESET DEBUG: Error during reset:', error);
+              alert('Failed to reset your application. Please try again.');
+              navigate('/apply');
+              return;
+            }
+          } else {
+            // Normal ineligible flow
+            console.log('Application is marked as ineligible, redirecting to dashboard');
+            localStorage.setItem('applicationStatus', 'ineligible');
+            navigate('/apply');
+            return;
+          }
         }
+        
+        console.log('🔍 RESET DEBUG: After reset check, application status:', application?.status);
 
-        // If application was recently reset from ineligible, navigate to eligibility section
-        const wasResetForEditing = localStorage.getItem('eligibilityResetForEditing');
-        if (wasResetForEditing === 'true') {
-          console.log('Application was reset for eligibility editing, navigating to eligibility section');
-          localStorage.removeItem('eligibilityResetForEditing');
-          // We'll set the section to eligibility after questions load
-        }
+        // Note: eligibilityResetForEditing is now handled above in the ineligible check
         
         const session = {
           applicant,
@@ -157,7 +224,7 @@ const ApplicationForm = () => {
   useEffect(() => {
     const loadQuestions = async () => {
       try {
-        const questionsData = await databaseService.getQuestions();
+        const questionsData = await databaseService.fetchApplicationQuestions();
         setApplicationQuestions(questionsData);
       } catch (error) {
         console.error('Error loading questions:', error);
@@ -767,12 +834,22 @@ const ApplicationForm = () => {
           }, 100);
         }
         
-        alert(`Please complete all required fields. Found ${Object.keys(allErrors).length} missing required field(s).`);
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Incomplete Application',
+          text: `Please complete all required fields. Found ${Object.keys(allErrors).length} missing required field(s).`,
+          confirmButtonColor: '#4242ea',
+          background: 'var(--color-background-dark)',
+          color: 'var(--color-text-primary)',
+          confirmButtonText: 'OK, I\'ll complete them'
+        });
         return;
       }
 
       if (currentSession?.application) {
-        await databaseService.submitApplication(currentSession.application.application_id);
+        console.log('🎯 Submitting application:', currentSession.application.application_id);
+        const result = await databaseService.submitApplication(currentSession.application.application_id);
+        console.log('✅ Submission result:', result);
         
         // Clear saved data
         localStorage.removeItem('applicationFormData');
@@ -780,14 +857,42 @@ const ApplicationForm = () => {
         localStorage.removeItem('applicationCurrentQuestionIndex');
         localStorage.setItem('applicationStatus', 'submitted');
         
-        alert('Application submitted successfully!');
-        navigate('/apply');
+        await Swal.fire({
+          icon: 'success',
+          title: '🎉 Application Submitted!',
+          html: `
+            <div style="text-align: center;">
+              <p style="font-size: 18px; margin: 15px 0;">Your application has been successfully submitted!</p>
+              <p style="font-size: 16px; margin: 10px 0;">We'll review your application and get back to you soon.</p>
+              <p style="font-size: 14px; color: #888; margin-top: 20px;">Thank you for your interest in our program!</p>
+            </div>
+          `,
+          confirmButtonText: 'Continue to Dashboard',
+          confirmButtonColor: '#4242ea',
+          background: 'var(--color-background-dark)',
+          color: 'var(--color-text-primary)',
+          timer: 5000,
+          timerProgressBar: true,
+          showClass: {
+            popup: 'animate__animated animate__bounceIn'
+          }
+        });
+        // Force reload the page to refresh dashboard with updated data
+        window.location.href = '/apply';
       } else {
         throw new Error('No active application session');
       }
     } catch (error) {
       console.error('Error submitting application:', error);
-      alert('Error submitting application. Please try again.');
+      await Swal.fire({
+        icon: 'error',
+        title: 'Submission Failed',
+        text: 'Error submitting application. Please try again.',
+        confirmButtonColor: '#4242ea',
+        background: 'var(--color-background-dark)',
+        color: 'var(--color-text-primary)',
+        confirmButtonText: 'Try Again'
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -1360,23 +1465,35 @@ const ApplicationForm = () => {
                   </button>
                 )}
                 
-                {getCurrentQuestionGlobalIndex() < getAllRootQuestions().length - 1 ? (
-                  <button
-                    type="button"
-                    onClick={handleNext}
-                    className="application-form__nav-button application-form__nav-button--next"
-                  >
-                    Next
-                  </button>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="application-form__nav-button application-form__nav-button--next"
-                  >
-                    {isSubmitting ? 'Submitting...' : 'Submit Application'}
-                  </button>
-                )}
+                {(() => {
+                  const currentIdx = getCurrentQuestionGlobalIndex();
+                  const totalQ = getAllRootQuestions().length;
+                  const isLast = currentIdx >= totalQ - 1;
+                  
+                  console.log(`Question ${currentIdx + 1} of ${totalQ} - Button: ${isLast ? 'SUBMIT' : 'NEXT'}`);
+                  
+                  return isLast ? (
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="application-form__nav-button application-form__nav-button--submit"
+                    >
+                      {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleNext();
+                      }}
+                      className="application-form__nav-button application-form__nav-button--next"
+                    >
+                      Next
+                    </button>
+                  );
+                })()}
             </div>
           </form>
             )}

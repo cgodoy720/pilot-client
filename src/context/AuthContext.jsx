@@ -20,8 +20,8 @@ export const AuthProvider = ({ children }) => {
     if (storedUser && storedToken) {
       try {
         const parsedUser = JSON.parse(storedUser);
-        // Only set auth state for builder users (unified auth handles this)
-        if (parsedUser.userType === 'builder') {
+        // Set auth state for builder users AND workshop participants
+        if (parsedUser.userType === 'builder' || parsedUser.userType === 'workshop_participant') {
           setUser(parsedUser);
           setToken(storedToken);
           setIsAuthenticated(true);

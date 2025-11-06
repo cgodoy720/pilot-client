@@ -31,6 +31,9 @@ const Workshops = () => {
     const [cancelReason, setCancelReason] = useState('');
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+    const [showLaptopModal, setShowLaptopModal] = useState(false);
+    const [selectedEventId, setSelectedEventId] = useState(null);
+    const [needsLaptop, setNeedsLaptop] = useState(false);
 
     // Self-managed status state (no longer relying on props)
     const [workshopStatus, setWorkshopStatus] = useState(localStorage.getItem('workshopStatus') || 'locked');
@@ -83,9 +86,10 @@ const Workshops = () => {
             try {
                 console.log('=== STARTING WORKSHOPS FETCH ===');
                 console.log('API URL:', import.meta.env.VITE_API_URL);
-                console.log('Full URL:', `${import.meta.env.VITE_API_URL}/api/workshops`);
+                console.log('Full URL:', `${import.meta.env.VITE_API_URL}/api/workshop/public/admissions-workshops`);
                 
-                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops`);
+                // Fetch from new endpoint that only returns ACTIVE admissions workshops
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshop/public/admissions-workshops`);
                 console.log('Response received:', response);
                 console.log('Response status:', response.status);
                 console.log('Response ok:', response.ok);
@@ -97,13 +101,25 @@ const Workshops = () => {
                 console.log('=== WORKSHOPS DATA RECEIVED ===');
                 console.log('Raw data:', data);
                 console.log('Data type:', typeof data);
-                console.log('Is array:', Array.isArray(data));
-                console.log('Number of workshops:', data.length);
                 
-                // Add registrations data to each event
-                const eventsWithRegistrations = data.map(event => ({
-                    ...event,
-                    registrations: event.registrations || []
+                // New endpoint returns { workshops: [...] }
+                const workshopsArray = data.workshops || data;
+                console.log('Workshops array:', workshopsArray);
+                console.log('Is array:', Array.isArray(workshopsArray));
+                console.log('Number of workshops:', workshopsArray.length);
+                
+                // Transform workshop data to match expected event format
+                const eventsWithRegistrations = workshopsArray.map(workshop => ({
+                    ...workshop,
+                    // Map new workshop fields to expected event fields
+                    event_id: workshop.event_id || workshop.workshop_id,
+                    event_name: workshop.name || workshop.event_title || workshop.title,
+                    event_date: workshop.start_date || workshop.event_start_time,
+                    event_time: workshop.event_start_time || workshop.start_time,
+                    start_time: workshop.start_time || workshop.event_start_time,
+                    capacity: workshop.event_capacity || workshop.capacity,
+                    registration_count: workshop.total_participants || 0,
+                    registrations: workshop.registrations || []
                 }));
                 
                 console.log('Events with registrations:', eventsWithRegistrations);
@@ -129,7 +145,114 @@ const Workshops = () => {
         console.log('Event creation not available for applicants');
     };
 
-    // Sign up for an event
+    // Show laptop selection modal
+    const handleReserveClick = (eventId) => {
+        setSelectedEventId(eventId);
+        setNeedsLaptop(false); // Reset selection
+        setShowLaptopModal(true);
+    };
+
+    // Close laptop modal
+    const handleCloseLaptopModal = () => {
+        setShowLaptopModal(false);
+        setSelectedEventId(null);
+        setNeedsLaptop(false);
+    };
+
+    // Complete registration after laptop selection
+    const handleCompleteRegistration = async () => {
+        if (!selectedEventId) return;
+        
+        setProcessingEventId(selectedEventId);
+        setShowLaptopModal(false);
+        
+        try {
+            if (!currentApplicantId) {
+                throw new Error('Applicant ID not available');
+            }
+
+            const registrationData = {
+                applicantId: currentApplicantId,
+                name: user?.firstName || 'Applicant',
+                email: user?.email || 'jac@pursuit.org',
+                needsLaptop: needsLaptop
+            };
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops/${selectedEventId}/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(registrationData),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to register for event');
+            }
+
+            const responseData = await response.json();
+
+            // SUCCESS - Show success status
+            const event = events.find(e => e.event_id === selectedEventId);
+            const easternEventTime = getEasternTimeParts(event.start_time);
+            const eventDate = format(easternEventTime, 'MMMM d, yyyy');
+            const eventTime = formatInEasternTime(event.start_time, 'time');
+            
+            const laptopMessage = needsLaptop ? ' A laptop will be provided for you.' : '';
+            setRegistrationStatus('success');
+            setStatusMessage(`You're registered for the Workshop on ${eventDate} at ${eventTime}!${laptopMessage}`);
+
+            // Update local status state (multiple registrations now allowed)
+            setWorkshopStatus('signed-up');
+
+            // IMMEDIATE STATE UPDATE - Add the registration to the event in state
+            setEvents(prevEvents => 
+                prevEvents.map(evt => {
+                    if (evt.event_id === selectedEventId) {
+                        const newRegistration = {
+                            registration_id: responseData.registration_id || `temp-${Date.now()}`,
+                            applicant_id: currentApplicantId,
+                            name: user?.firstName || 'Applicant',
+                            email: user?.email || 'jac@pursuit.org',
+                            status: 'registered',
+                            registered_at: new Date().toISOString(),
+                            needs_laptop: needsLaptop
+                        };
+                        return {
+                            ...evt,
+                            registrations: [...(evt.registrations || []), newRegistration]
+                        };
+                    }
+                    return evt;
+                })
+            );
+        } catch (error) {
+            console.error('Error signing up for event:', error);
+            
+            // Enhanced error messages based on error type
+            let errorMessage = 'Failed to register for this workshop.';
+            
+            if (error.message.includes('already registered') || error.message.includes('User already registered') || error.message.includes("You're already registered for an event")) {
+                errorMessage = error.message; // Use the backend message directly
+            } else if (error.message.includes('capacity') || error.message.includes('full')) {
+                errorMessage = 'Sorry, this workshop is fully booked. Please try registering for another session.';
+            } else if (error.message.includes('not found')) {
+                errorMessage = 'This workshop is no longer available. Please refresh the page and try again.';
+            } else {
+                errorMessage = `Registration failed: ${error.message}. Please try again or contact support.`;
+            }
+            
+            setRegistrationStatus('error');
+            setStatusMessage(errorMessage);
+        } finally {
+            setProcessingEventId(null);
+            setSelectedEventId(null);
+            setNeedsLaptop(false);
+        }
+    };
+
+    // Sign up for an event (keeping original for backward compatibility)
     const handleSignUp = async (eventId) => {
         setProcessingEventId(eventId);
         try {
@@ -473,7 +596,7 @@ const Workshops = () => {
                                             <div className="slot-actions">
                                                 <button
                                                     className={`select-btn ${isFull ? 'full-btn' : ''} ${isPassed ? 'select-btn--disabled' : ''}`}
-                                                    onClick={() => !isFull && !isPassed && handleSignUp(event.event_id)}
+                                                    onClick={() => !isFull && !isPassed && handleReserveClick(event.event_id)}
                                                     disabled={processingEventId === event.event_id || isFull || isPassed}
                                                 >
                                                     {isPassed ? 'Event Passed' :
@@ -554,6 +677,63 @@ const Workshops = () => {
                     )}
                 </div>
             </div>
+
+            {/* Laptop Selection Modal */}
+            {showLaptopModal && (
+                <div className="modal-overlay" onClick={handleCloseLaptopModal}>
+                    <div className="modal-content laptop-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>Workshop Registration</h3>
+                            <button className="modal-close" onClick={handleCloseLaptopModal}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <p>Please let us know about your laptop situation for the workshop:</p>
+                            <div className="laptop-options">
+                                <label className="laptop-option">
+                                    <input
+                                        type="radio"
+                                        name="laptop"
+                                        value="have"
+                                        checked={!needsLaptop}
+                                        onChange={() => setNeedsLaptop(false)}
+                                    />
+                                    <span className="radio-custom"></span>
+                                    <div className="option-content">
+                                        <strong>I have my own laptop</strong>
+                                        <p>I'll bring my own laptop to the workshop</p>
+                                    </div>
+                                </label>
+                                <label className="laptop-option">
+                                    <input
+                                        type="radio"
+                                        name="laptop"
+                                        value="need"
+                                        checked={needsLaptop}
+                                        onChange={() => setNeedsLaptop(true)}
+                                    />
+                                    <span className="radio-custom"></span>
+                                    <div className="option-content">
+                                        <strong>I need to borrow a laptop</strong>
+                                        <p>Please provide a laptop for me to use during the workshop</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn-secondary" onClick={handleCloseLaptopModal}>
+                                Cancel
+                            </button>
+                            <button 
+                                className="btn-primary" 
+                                onClick={handleCompleteRegistration}
+                                disabled={processingEventId === selectedEventId}
+                            >
+                                {processingEventId === selectedEventId ? 'Registering...' : 'Complete Registration'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

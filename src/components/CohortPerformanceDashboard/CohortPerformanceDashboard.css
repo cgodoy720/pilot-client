@@ -1,0 +1,615 @@
+/* Cohort Performance Dashboard Component Styles */
+.cohort-performance-dashboard {
+  padding: var(--spacing-lg);
+  background-color: var(--color-background-darker);
+  min-height: 100vh;
+}
+
+.cohort-performance-dashboard__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+  color: var(--color-text-secondary);
+}
+
+.cohort-performance-dashboard__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cohort-performance-dashboard__title-section {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.cohort-performance-dashboard__title-icon {
+  color: var(--color-primary);
+  font-size: 2rem;
+}
+
+.cohort-performance-dashboard__title {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  margin: 0;
+}
+
+.cohort-performance-dashboard__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.cohort-performance-dashboard__actions .MuiTypography-caption {
+  color: #ffffff !important; /* white text for visibility */
+}
+
+/* Ensure Last Updated text is always white */
+.cohort-performance-dashboard__last-updated {
+  color: #ffffff !important;
+}
+
+.cohort-performance-dashboard__cache-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.cohort-performance-dashboard__cohort-card {
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+  border-radius: 12px; /* rounded corners for modern look */
+  transition: all 0.3s ease;
+  height: 100%;
+}
+
+.cohort-performance-dashboard__cohort-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: var(--color-primary);
+}
+
+.cohort-performance-dashboard__cohort-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.cohort-performance-dashboard__requirement-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm);
+  background-color: var(--color-background-darker);
+  border-radius: var(--spacing-xs);
+  border: 1px solid var(--color-border);
+}
+
+.cohort-performance-dashboard__progress-section {
+  margin-bottom: var(--spacing-md);
+}
+
+.cohort-performance-dashboard__progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.cohort-performance-dashboard__cohort-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+
+.cohort-performance-dashboard__trend-section {
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.cohort-performance-dashboard__trend-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cohort-performance-dashboard__risk-card {
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+  border-radius: 12px; /* rounded corners for modern look */
+  margin-bottom: var(--spacing-lg);
+}
+
+.cohort-performance-dashboard__risk-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.cohort-performance-dashboard__risk-icon {
+  color: var(--color-error);
+  font-size: 1.5rem;
+}
+
+.cohort-performance-dashboard__risk-table {
+  background-color: var(--color-background-darker);
+}
+
+.cohort-performance-dashboard__risk-table .MuiTableHead-root {
+  background-color: var(--color-background-light);
+}
+
+.cohort-performance-dashboard__risk-table .MuiTableCell-head {
+  color: #FFFFFF !important; /* White text for better readability on dark backgrounds */
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cohort-performance-dashboard__risk-table .MuiTableCell-body {
+  color: #FFFFFF !important; /* White text for better readability on dark backgrounds */
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Override Typography colors specifically in the risk table body */
+.cohort-performance-dashboard__risk-table .MuiTableCell-body .MuiTypography-body2 {
+  color: #FFFFFF !important; /* White text for builder names on dark background */
+}
+
+.cohort-performance-dashboard__risk-table .MuiTableCell-body .MuiTypography-caption {
+  color: #FFFFFF !important; /* White text for email addresses on dark background */
+}
+
+.cohort-performance-dashboard__risk-table .MuiTableRow-root:hover {
+  background-color: var(--color-background-light);
+}
+
+.cohort-performance-dashboard__builder-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.cohort-performance-dashboard__builder-icon {
+  color: var(--color-primary);
+  font-size: 1.2rem;
+}
+
+.cohort-performance-dashboard__summary-card {
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+  border-radius: 12px; /* rounded corners for modern look */
+  transition: all 0.3s ease;
+  min-height: 150px !important; /* reduced from 200px - 25% smaller */
+  max-height: 150px !important; /* reduced from 200px - 25% smaller */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.cohort-performance-dashboard__summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Progress Bar Styling */
+.cohort-performance-dashboard .MuiLinearProgress-root {
+  background-color: var(--color-background-darker);
+  border-radius: var(--spacing-xs);
+}
+
+.cohort-performance-dashboard .MuiLinearProgress-bar {
+  border-radius: var(--spacing-xs);
+}
+
+/* Chip Styling */
+.cohort-performance-dashboard .MuiChip-colorSuccess {
+  background-color: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+  border-color: #4caf50;
+}
+
+.cohort-performance-dashboard .MuiChip-colorWarning {
+  background-color: rgba(255, 152, 0, 0.1);
+  color: #ff9800;
+  border-color: #ff9800;
+}
+
+.cohort-performance-dashboard .MuiChip-colorError {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+  border-color: #f44336;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .cohort-performance-dashboard {
+    padding: var(--spacing-md);
+  }
+
+  .cohort-performance-dashboard__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .cohort-performance-dashboard__actions {
+    align-self: flex-end;
+  }
+
+  .cohort-performance-dashboard__cohort-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .cohort-performance-dashboard__requirement-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .cohort-performance-dashboard__progress-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+
+  .cohort-performance-dashboard__trend-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .cohort-performance-dashboard__risk-table {
+    overflow-x: auto;
+  }
+
+  .cohort-performance-dashboard__builder-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+}
+
+@media (max-width: 480px) {
+  .cohort-performance-dashboard {
+    padding: var(--spacing-sm);
+  }
+
+  .cohort-performance-dashboard__title {
+    font-size: 1.5rem;
+  }
+
+  .cohort-performance-dashboard__title-icon {
+    font-size: 1.5rem;
+  }
+
+  .cohort-performance-dashboard__risk-icon {
+    font-size: 1.2rem;
+  }
+}
+
+/* Loading Animation */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cohort-performance-dashboard__loading .MuiCircularProgress-root {
+  animation: pulse 2s infinite;
+}
+
+.cohort-performance-dashboard .rotating {
+  animation: rotate 1s linear infinite;
+}
+
+/* Card Hover Effects */
+.cohort-performance-dashboard__cohort-card:hover .cohort-performance-dashboard__title-icon {
+  color: var(--color-primary-hover);
+  transform: scale(1.1);
+  transition: all 0.3s ease;
+}
+
+.cohort-performance-dashboard__summary-card:hover {
+  border-color: var(--color-primary);
+}
+
+/* Typography Overrides - Enhanced Contrast for White Cards */
+.cohort-performance-dashboard .MuiTypography-h4 {
+  color: #1a1a1a !important; /* text-gray-900 for high contrast on white cards */
+  font-weight: 700;
+}
+
+.cohort-performance-dashboard .MuiTypography-h6 {
+  color: #1a1a1a !important; /* text-gray-900 for high contrast on white cards */
+  font-weight: 600;
+}
+
+.cohort-performance-dashboard .MuiTypography-body2 {
+  color: #374151 !important; /* text-gray-700 for good contrast on white cards */
+}
+
+.cohort-performance-dashboard .MuiTypography-caption {
+  color: #4b5563 !important; /* text-gray-600 for secondary text on white cards */
+}
+
+/* Override for Last updated text to be white on dark background */
+.cohort-performance-dashboard__last-updated {
+  color: #FFFFFF !important; /* White text for Last updated on dark background */
+}
+
+/* Cohort Cards - Ensure dark text on white backgrounds */
+.cohort-performance-dashboard__cohort-card .MuiTypography-h6 {
+  color: #1a1a1a !important; /* cohort names */
+  font-weight: 600;
+}
+
+.cohort-performance-dashboard__cohort-card .MuiTypography-body2 {
+  color: #374151 !important; /* labels and secondary text */
+}
+
+/* Progress section text */
+.cohort-performance-dashboard__progress-header .MuiTypography-body2 {
+  color: #374151 !important; /* "Progress to Requirement" label */
+}
+
+/* Stats section text */
+.cohort-performance-dashboard__stat-row .MuiTypography-body2 {
+  color: #374151 !important; /* "Total Builders:", "Present Today:", etc. */
+}
+
+/* Stat row styling for horizontal alignment */
+.cohort-performance-dashboard__stat-row .MuiTypography-body2:first-child {
+  font-weight: 500; /* label weight */
+  text-align: left;
+  flex: 1;
+}
+
+.cohort-performance-dashboard__stat-row .MuiTypography-body2:last-child {
+  font-weight: 600; /* value weight */
+  text-align: right;
+  flex: 0 0 auto;
+}
+
+/* Summary Cards - 25% font size reduction for better proportion */
+.cohort-performance-dashboard__summary-card .MuiTypography-h6 {
+  color: #1a1a1a !important; /* card titles */
+  font-weight: 600;
+  font-size: 1.125rem !important; /* 18px - 25% smaller than 24px */
+}
+
+.cohort-performance-dashboard__summary-card .MuiTypography-h4 {
+  color: #1a1a1a !important; /* metric values */
+  font-weight: 700;
+  font-size: 2rem !important; /* 32px - 25% smaller than ~42-48px */
+}
+
+.cohort-performance-dashboard__summary-card .MuiTypography-body2 {
+  color: #374151 !important; /* descriptions */
+  font-size: 0.75rem !important; /* 12px - 25% smaller than 16px */
+}
+
+/* Risk Card - Ensure dark text on light background */
+.cohort-performance-dashboard__risk-card .MuiTypography-h6 {
+  color: #1a1a1a !important; /* "Builders at Risk" header - dark text on light background */
+  font-weight: 600;
+  text-align: center; /* center the header */
+}
+
+.cohort-performance-dashboard__risk-card .MuiTypography-body2 {
+  color: #374151 !important; /* subtitle text - dark gray on light background */
+  text-align: center; /* center the subtitle */
+}
+
+/* Requirement Info Section - White text on dark background */
+.cohort-performance-dashboard__requirement-info .MuiTypography-body2 {
+  color: #ffffff !important; /* "Requirement: 85%" text - white on dark background */
+  font-weight: 500;
+}
+
+/* Center alignment for all card content */
+.cohort-performance-dashboard__cohort-card .MuiCardContent-root {
+  text-align: center;
+}
+
+.cohort-performance-dashboard__summary-card .MuiCardContent-root {
+  text-align: center;
+  padding: var(--spacing-md) !important; /* reduced padding - 25% smaller */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Reduce internal spacing in summary cards */
+.cohort-performance-dashboard__summary-card .MuiTypography-root {
+  margin: var(--spacing-xs) 0 !important; /* reduced margins */
+}
+
+/* Center align specific sections */
+.cohort-performance-dashboard__cohort-header {
+  justify-content: center;
+  text-align: center;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.cohort-performance-dashboard__requirement-info {
+  justify-content: center;
+  text-align: center;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.cohort-performance-dashboard__progress-header {
+  justify-content: center;
+  text-align: center;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.cohort-performance-dashboard__cohort-stats {
+  align-items: center;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.cohort-performance-dashboard__stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: var(--spacing-xs) 0;
+}
+
+.cohort-performance-dashboard__trend-header {
+  justify-content: center;
+  text-align: center;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+/* Alert Styling */
+.cohort-performance-dashboard .MuiAlert-root {
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+}
+
+.cohort-performance-dashboard .MuiAlert-message {
+  color: var(--color-text-primary);
+}
+
+/* Icon Button Styling */
+.cohort-performance-dashboard .MuiIconButton-root {
+  color: var(--color-text-secondary);
+  transition: color 0.3s ease;
+}
+
+.cohort-performance-dashboard .MuiIconButton-root:hover {
+  color: var(--color-primary);
+  background-color: var(--color-primary-transparent);
+}
+
+.cohort-performance-dashboard .MuiIconButton-root:disabled {
+  color: var(--color-text-muted);
+  background-color: transparent;
+}
+
+/* Table Styling */
+.cohort-performance-dashboard__risk-table .MuiTableContainer-root {
+  border-radius: var(--spacing-xs);
+  border: 1px solid var(--color-border);
+}
+
+.cohort-performance-dashboard__risk-table .MuiTable-root {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Filter Row Styling */
+.cohort-performance-dashboard__filter-row {
+  background-color: var(--color-background-light);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cohort-performance-dashboard__filter-row .MuiTableCell-root {
+  padding: var(--spacing-xs);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cohort-performance-dashboard__filter-row .MuiTextField-root,
+.cohort-performance-dashboard__filter-row .MuiSelect-root {
+  width: 100%;
+}
+
+.cohort-performance-dashboard__filter-row .MuiInputBase-input {
+  font-size: 0.75rem;
+  padding: var(--spacing-xs);
+}
+
+/* Filter Input Text Color Fixes - Critical for Visibility */
+.cohort-performance-dashboard__filter-row .MuiInputBase-input {
+  color: #1a1a1a !important; /* dark text for visibility */
+  background-color: #ffffff !important; /* white background */
+}
+
+.cohort-performance-dashboard__filter-row .MuiInputBase-input::placeholder {
+  color: #6b7280 !important; /* medium gray for placeholders */
+  opacity: 1 !important;
+}
+
+.cohort-performance-dashboard__filter-row .MuiSelect-select {
+  color: #1a1a1a !important; /* dark text for selected values */
+  background-color: #ffffff !important; /* white background */
+}
+
+.cohort-performance-dashboard__filter-row .MuiOutlinedInput-notchedOutline {
+  border-color: #d1d5db !important; /* subtle border */
+}
+
+.cohort-performance-dashboard__filter-row .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: #9ca3af !important; /* hover border */
+}
+
+.cohort-performance-dashboard__filter-row .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #3b82f6 !important; /* focus border */
+}
+
+/* Dropdown Menu Items */
+.MuiMenu-paper .MuiMenuItem-root {
+  color: #1a1a1a !important; /* dark text for menu items */
+  background-color: #ffffff !important; /* white background */
+}
+
+.MuiMenu-paper .MuiMenuItem-root:hover {
+  background-color: #f3f4f6 !important; /* light gray hover */
+  color: #1a1a1a !important; /* maintain dark text on hover */
+}
+
+.MuiMenu-paper .MuiMenuItem-root.Mui-selected {
+  background-color: #e5e7eb !important; /* selected background */
+  color: #1a1a1a !important; /* dark text for selected */
+}
+
+/* Progress Bar Custom Colors */
+.cohort-performance-dashboard .MuiLinearProgress-colorSuccess .MuiLinearProgress-bar {
+  background-color: #4caf50;
+}
+
+.cohort-performance-dashboard .MuiLinearProgress-colorWarning .MuiLinearProgress-bar {
+  background-color: #ff9800;
+}
+
+.cohort-performance-dashboard .MuiLinearProgress-colorError .MuiLinearProgress-bar {
+  background-color: #f44336;
+}

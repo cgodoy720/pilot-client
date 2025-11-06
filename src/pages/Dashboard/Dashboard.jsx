@@ -11,6 +11,8 @@ function Dashboard() {
   
   // Check if user has active status
   const isActive = user?.active !== false;
+  // Check if user is volunteer
+  const isVolunteer = user?.role === 'volunteer';
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,6 +20,7 @@ function Dashboard() {
   const [dailyTasks, setDailyTasks] = useState([]);
   const [objectives, setObjectives] = useState([]);
   const [cohortFilter, setCohortFilter] = useState(null);
+  const [workshopInfo, setWorkshopInfo] = useState(null);
 
   useEffect(() => {
     // Only fetch dashboard data if user is active
@@ -102,6 +105,9 @@ function Dashboard() {
         data.day.learning_objectives : [];
       setObjectives(dayObjectives);
       
+      // Store workshop info if present
+      setWorkshopInfo(data.workshopInfo || null);
+      
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setError('Failed to load dashboard data. Please try again later.');
@@ -185,6 +191,11 @@ function Dashboard() {
     return `${formattedHours}:${minutes} ${period}`;
   };
 
+  // Navigate to volunteer feedback
+  const navigateToVolunteerFeedback = () => {
+    navigate('/volunteer-feedback');
+  };
+
   // Render historical access view
   const renderHistoricalView = () => {
     return (
@@ -209,10 +220,58 @@ function Dashboard() {
     );
   };
 
+  // Render volunteer dashboard view
+  const renderVolunteerView = () => {
+    return (
+      <div className="dashboard__volunteer-container">
+        <div className="dashboard__volunteer-welcome">
+          <h2>Welcome, Volunteer!</h2>
+          <p>Thank you for volunteering with us. You can provide feedback on learner sessions below.</p>
+          <button 
+            className="dashboard__volunteer-feedback-btn"
+            onClick={navigateToVolunteerFeedback}
+          >
+            <FaBook /> Go to Volunteer Feedback
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   // Render regular dashboard content
   const renderDashboardContent = () => {
+    // Format workshop start date for display (DATE ONLY - no time)
+    const formatWorkshopDate = (dateString) => {
+      const date = new Date(dateString);
+      const options = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        timeZone: 'America/New_York'
+      };
+      return date.toLocaleString('en-US', options);
+    };
+    
     return (
       <>
+        {/* Workshop Preview Banner */}
+        {workshopInfo?.isLocked && (
+          <div className="dashboard__workshop-banner">
+            <div className="workshop-banner__icon">⏰</div>
+            <div className="workshop-banner__content">
+              <h3>Workshop Preview Mode</h3>
+              <p>
+                You're viewing the workshop schedule. Full access begins on{' '}
+                <strong>{formatWorkshopDate(workshopInfo.startDate)}</strong>
+                {workshopInfo.daysUntilStart > 0 && (
+                  <span> ({workshopInfo.daysUntilStart} {workshopInfo.daysUntilStart === 1 ? 'day' : 'days'} from now)</span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+        
         <div className="dashboard__content">
           {/* Left panel - Objectives */}
           <div className="dashboard__left-panel">
@@ -306,8 +365,10 @@ function Dashboard() {
         )}
       </div>
       
-      {/* Conditionally render either historical view or dashboard content */}
-      {!isActive ? renderHistoricalView() : renderDashboardContent()}
+      {/* Conditionally render based on user status and role */}
+      {!isActive ? renderHistoricalView() : 
+       isVolunteer ? renderVolunteerView() : 
+       renderDashboardContent()}
       
       {error && <div className="dashboard__error-message">{error}</div>}
     </div>
