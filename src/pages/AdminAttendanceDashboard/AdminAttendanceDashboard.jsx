@@ -97,7 +97,7 @@ const AdminAttendanceDashboard = () => {
       title: 'Builder Check-in Site',
       description: 'Direct link to the builder-facing attendance check-in interface.',
       icon: <SchoolIcon sx={{ fontSize: 40 }} />,
-      path: 'https://pursuit-ai-native.netlify.app/admin-dashboard',
+      path: 'https://platform.pursuit.org/admin-dashboard',
       color: '#f57c00',
       external: true
     }
