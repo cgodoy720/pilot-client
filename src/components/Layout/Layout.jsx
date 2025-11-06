@@ -14,6 +14,7 @@ import BugReportIcon from '@mui/icons-material/BugReport';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import PersonIcon from '@mui/icons-material/Person';
 import GroupsIcon from '@mui/icons-material/Groups';
+import PaymentIcon from '@mui/icons-material/Payment';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import QuizIcon from '@mui/icons-material/Quiz';
 import FeedbackIcon from '@mui/icons-material/Feedback';
@@ -162,6 +163,11 @@ const Layout = ({ children }) => {
               {isExpanded && <span className="layout__nav-text">My Workshops</span>}
             </Link>
           )}
+          
+          <Link to="/payment" className={`layout__nav-item ${location.pathname === '/payment' ? 'layout__nav-item--active' : ''}`}>
+            <PaymentIcon className="layout__nav-icon" />
+            {isExpanded && <span className="layout__nav-text">Payment</span>}
+          </Link>
           
           {isAdmin && (
             <>
