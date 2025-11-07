@@ -21,12 +21,12 @@
 
 /* We don't need to redefine the base avatar styling, just override it for conversation tasks */
 
-/* Override for conversation tasks to use smart-logo.png - maximum specificity */
+/* Override for conversation tasks to use regular logo.png */
 .learning__chat-container--conversation .learning__message--assistant::before,
 .past-session .learning__chat-container--conversation .learning__message--assistant::before {
-  background-color: transparent !important;
-  background-image: url("/smart-logo.png") !important;
-  background-size: contain !important;
+  background-color: var(--color-primary) !important;
+  background-image: url("/logo.png") !important;
+  background-size: 12px !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
 }

@@ -847,7 +847,9 @@ const ApplicationForm = () => {
       }
 
       if (currentSession?.application) {
-        await databaseService.submitApplication(currentSession.application.application_id);
+        console.log('🎯 Submitting application:', currentSession.application.application_id);
+        const result = await databaseService.submitApplication(currentSession.application.application_id);
+        console.log('✅ Submission result:', result);
         
         // Clear saved data
         localStorage.removeItem('applicationFormData');
@@ -875,7 +877,8 @@ const ApplicationForm = () => {
             popup: 'animate__animated animate__bounceIn'
           }
         });
-        navigate('/apply');
+        // Force reload the page to refresh dashboard with updated data
+        window.location.href = '/apply';
       } else {
         throw new Error('No active application session');
       }
@@ -1462,23 +1465,35 @@ const ApplicationForm = () => {
                   </button>
                 )}
                 
-                {getCurrentQuestionGlobalIndex() < getAllRootQuestions().length - 1 ? (
-                  <button
-                    type="button"
-                    onClick={handleNext}
-                    className="application-form__nav-button application-form__nav-button--next"
-                  >
-                    Next
-                  </button>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="application-form__nav-button application-form__nav-button--next"
-                  >
-                    {isSubmitting ? 'Submitting...' : 'Submit Application'}
-                  </button>
-                )}
+                {(() => {
+                  const currentIdx = getCurrentQuestionGlobalIndex();
+                  const totalQ = getAllRootQuestions().length;
+                  const isLast = currentIdx >= totalQ - 1;
+                  
+                  console.log(`Question ${currentIdx + 1} of ${totalQ} - Button: ${isLast ? 'SUBMIT' : 'NEXT'}`);
+                  
+                  return isLast ? (
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="application-form__nav-button application-form__nav-button--submit"
+                    >
+                      {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleNext();
+                      }}
+                      className="application-form__nav-button application-form__nav-button--next"
+                    >
+                      Next
+                    </button>
+                  );
+                })()}
             </div>
           </form>
             )}

@@ -64,13 +64,6 @@ const Content = () => {
 
   return (
     <div className="content-generation">
-      <div className="content-generation__header">
-        <h1 className="content-generation__title">Content Generation Suite</h1>
-        <p className="content-generation__subtitle">
-          Create and test curriculum content with AI-powered tools
-        </p>
-      </div>
-
       <div className="content-generation__nav">
         <div className="content-generation__tabs">
           <button

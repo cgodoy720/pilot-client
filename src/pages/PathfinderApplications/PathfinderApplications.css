@@ -1,0 +1,2450 @@
+.pathfinder-applications {
+  width: 100%;
+  max-width: 100vw;
+  height: 100%;
+  background-color: #f5f5f5;
+  color: #1a1a1a;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 var(--spacing-lg) var(--spacing-lg) var(--spacing-lg);
+  box-sizing: border-box;
+  position: relative;
+}
+
+.pathfinder-applications__container {
+  max-width: calc(100vw - calc(var(--spacing-lg) * 2));
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+.pathfinder-applications__loading {
+  text-align: center;
+  padding: var(--spacing-xl);
+  font-size: 1.2rem;
+}
+
+/* Header */
+.pathfinder-applications__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  max-width: 100%;
+  width: 100%;
+  position: relative;
+}
+
+.pathfinder-applications__title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.pathfinder-applications__add-btn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: #4242ea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(66, 66, 234, 0.2);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  white-space: nowrap;
+  z-index: 100;
+}
+
+.pathfinder-applications__add-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.pathfinder-applications__add-btn:hover::before {
+  left: 100%;
+}
+
+.pathfinder-applications__add-btn::after {
+  content: '🚀';
+  position: absolute;
+  right: -30px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+  opacity: 0;
+  transition: all 0.4s ease;
+}
+
+.pathfinder-applications__add-btn:hover::after {
+  right: 12px;
+  opacity: 1;
+  animation: rocket-launch 1.2s ease-in-out infinite;
+}
+
+.pathfinder-applications__add-btn:hover {
+  background-color: #3333d1;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 20px rgba(66, 66, 234, 0.4);
+  padding-right: calc(var(--spacing-lg) + 24px);
+}
+
+.pathfinder-applications__add-btn:active {
+  transform: translateY(0) scale(1);
+  box-shadow: 0 2px 8px rgba(66, 66, 234, 0.2);
+}
+
+@keyframes rocket-launch {
+  0% {
+    transform: translateY(-50%) translateX(0) scale(1);
+    filter: brightness(1);
+  }
+  20% {
+    transform: translateY(-55%) translateX(-3px) scale(1.15);
+    filter: brightness(1.2);
+  }
+  40% {
+    transform: translateY(-50%) translateX(0) scale(1);
+    filter: brightness(1);
+  }
+  60% {
+    transform: translateY(-52%) translateX(-2px) scale(1.08);
+    filter: brightness(1.1);
+  }
+  80% {
+    transform: translateY(-50%) translateX(0) scale(1);
+    filter: brightness(1);
+  }
+  100% {
+    transform: translateY(-50%) translateX(0) scale(1);
+    filter: brightness(1);
+  }
+}
+
+/* Header Controls */
+.pathfinder-applications__header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex: 1 1 auto;
+  min-width: min-content;
+  justify-content: flex-end;
+}
+
+/* Search */
+.pathfinder-applications__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 1 280px;
+  min-width: 150px;
+}
+
+.pathfinder-applications__search-icon {
+  position: absolute;
+  left: 12px;
+  color: #666666;
+  pointer-events: none;
+}
+
+.pathfinder-applications__search-input {
+  padding: 8px 36px 8px 36px;
+  background-color: #ffffff;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  color: #1a1a1a;
+  font-size: 0.95rem;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.pathfinder-applications__search-input:focus {
+  outline: none;
+  border-color: #4242ea;
+}
+
+.pathfinder-applications__search-input::placeholder {
+  color: #666666;
+  opacity: 0.6;
+}
+
+.pathfinder-applications__search-clear {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #666666;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.pathfinder-applications__search-clear:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Filter Dropdown */
+.pathfinder-applications__filter-dropdown {
+  display: flex;
+  align-items: center;
+}
+
+.pathfinder-applications__filter-dropdown select {
+  padding: 8px 32px 8px 12px;
+  background-color: #ffffff;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  color: #1a1a1a;
+  font-size: 0.95rem;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  min-width: 150px;
+  transition: border-color 0.2s;
+}
+
+.pathfinder-applications__filter-dropdown select:focus {
+  outline: none;
+  border-color: #4242ea;
+}
+
+.pathfinder-applications__filter-dropdown select:hover {
+  border-color: #999999;
+}
+
+/* View Toggle */
+.pathfinder-applications__view-toggle {
+  display: flex;
+  gap: 4px;
+  background-color: #ffffff;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.pathfinder-applications__view-btn {
+  padding: 8px 12px;
+  background-color: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #666666;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pathfinder-applications__view-btn:hover {
+  background-color: rgba(66, 66, 234, 0.1);
+  color: #1a1a1a;
+}
+
+.pathfinder-applications__view-btn--active {
+  background-color: #4242ea;
+  color: white;
+}
+
+.pathfinder-applications__view-btn--active:hover {
+  background-color: #3333d1;
+}
+
+/* Messages */
+.pathfinder-applications__message {
+  padding: var(--spacing-md);
+  border-radius: 6px;
+  margin-bottom: var(--spacing-lg);
+  font-weight: 500;
+}
+
+.pathfinder-applications__message--error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Statistics Cards */
+.pathfinder-applications__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.pathfinder-applications__stat-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: var(--spacing-lg);
+  border: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.pathfinder-applications__stat-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #3b82f6;
+  margin-bottom: var(--spacing-sm);
+}
+
+.pathfinder-applications__stat-label {
+  font-size: 0.9rem;
+  color: #666666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Modal */
+.pathfinder-applications__modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--spacing-lg);
+}
+
+.pathfinder-applications__modal {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 0;
+  max-width: 1200px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid #d0d0d0;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.pathfinder-applications__modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xl);
+  border-bottom: 2px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  background-color: #ffffff;
+  z-index: 1;
+}
+
+.pathfinder-applications__modal-header h2 {
+  margin: 0;
+  color: #1a1a1a;
+  font-size: 1.5rem;
+}
+
+.pathfinder-applications__modal-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #666666;
+  cursor: pointer;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.pathfinder-applications__modal-close:hover {
+  color: #1a1a1a;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Modal Content - Flexible Layout */
+.pathfinder-applications__modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+  min-height: 500px;
+}
+
+/* Content Wrapper - contains left section (tabs + form) and right panel (timeline) */
+.pathfinder-applications__content-wrapper {
+  display: flex;
+  gap: 0;
+  flex: 1;
+}
+
+.pathfinder-applications__content-wrapper--two-col {
+  gap: 0;
+}
+
+.pathfinder-applications__content-wrapper--two-col .pathfinder-applications__form-panel--left {
+  flex: 0 0 380px;
+  width: 380px;
+  background-color: #f9f9f9;
+  border-right: 2px solid #e0e0e0;
+  padding: var(--spacing-xl);
+  border: none;
+  box-shadow: none;
+}
+
+.pathfinder-applications__content-wrapper--two-col .pathfinder-applications__form-panel--right {
+  flex: 1;
+  border: none;
+  padding: var(--spacing-xl);
+  background-color: transparent;
+  box-shadow: none;
+}
+
+
+/* Left Section - contains tabs and form panel */
+.pathfinder-applications__left-section {
+  flex: 1.5;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #e0e0e0;
+}
+
+/* Form Panels Container */
+.pathfinder-applications__form-panels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.pathfinder-applications__form-panels--two-col {
+  flex-direction: row;
+  gap: var(--spacing-xl);
+}
+
+/* Panel Title */
+.pathfinder-applications__panel-title {
+  margin: 0 0 var(--spacing-md) 0;
+  padding-top: 0;
+  color: #1a1a1a;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+/* Tab Navigation */
+.pathfinder-applications__tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #e0e0e0;
+  background-color: #ffffff;
+  padding: 0 var(--spacing-xl);
+}
+
+.pathfinder-applications__tab {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #666666;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: -2px;
+  font-family: inherit;
+}
+
+.pathfinder-applications__tab:hover {
+  color: #1a1a1a;
+  background-color: rgba(66, 66, 234, 0.05);
+}
+
+.pathfinder-applications__tab--active {
+  color: #4242ea;
+  border-bottom-color: #4242ea;
+  font-weight: 600;
+  background-color: rgba(66, 66, 234, 0.05);
+}
+
+/* URL Import Panel */
+.pathfinder-applications__url-panel {
+  padding: var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* Form Panel */
+.pathfinder-applications__form-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.pathfinder-applications__form-panel--left {
+  flex: 1;
+  padding: var(--spacing-xl);
+  overflow-y: auto;
+}
+
+.pathfinder-applications__form-panel--right {
+  flex: 0 0 500px;
+  width: 500px;
+  background-color: #fafafa;
+  border-left: none;
+  border-radius: 0;
+  padding: var(--spacing-xl);
+  overflow-y: auto;
+}
+
+.pathfinder-applications__url-description {
+  color: #666666;
+  font-size: 0.95rem;
+  margin: 0;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.pathfinder-applications__url-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.pathfinder-applications__url-input {
+  width: 100%;
+  padding: var(--spacing-md);
+  border: 2px solid #d0d0d0;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #1a1a1a;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+}
+
+.pathfinder-applications__url-input:focus {
+  outline: none;
+  border-color: #4242ea;
+}
+
+.pathfinder-applications__fetch-btn {
+  width: 100%;
+  padding: var(--spacing-md) var(--spacing-xl);
+  background-color: #4242ea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 1rem;
+}
+
+.pathfinder-applications__fetch-btn:hover:not(:disabled) {
+  background-color: #3333d1;
+}
+
+.pathfinder-applications__fetch-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pathfinder-applications__url-examples {
+  padding: var(--spacing-sm);
+  background-color: rgba(66, 66, 234, 0.05);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #666666;
+  text-align: left;
+}
+
+.pathfinder-applications__url-examples strong {
+  color: #1a1a1a;
+  display: inline;
+  margin-bottom: 2px;
+}
+
+.pathfinder-applications__url-error {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+  color: #ef4444;
+  font-size: 0.85rem;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.pathfinder-applications__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  flex: 1;
+  min-height: 500px;
+}
+
+.pathfinder-applications__form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+}
+
+/* Specific row layouts for better field proportions */
+.pathfinder-applications__form-row--three-col {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.pathfinder-applications__form-row--four-col {
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+}
+
+.pathfinder-applications__form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.pathfinder-applications__form-group label {
+  font-weight: 500;
+  color: #1a1a1a;
+  text-align: left;
+  font-size: 0.875rem;
+  font-family: inherit;
+}
+
+/* Field hint (e.g., saved for reference message) */
+.pathfinder-applications__field-hint {
+  font-weight: 400;
+  color: #666666;
+  font-size: 0.6875rem;
+  margin-left: 8px;
+  font-style: italic;
+}
+
+/* Company input wrapper with logo */
+.pathfinder-applications__company-input-wrapper {
+  position: relative;
+}
+
+.pathfinder-applications__company-input-logo {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 4px;
+  background-color: #ffffff;
+  padding: 4px;
+  pointer-events: none;
+}
+
+.pathfinder-applications__form-group input,
+.pathfinder-applications__form-group select,
+.pathfinder-applications__form-group textarea {
+  padding: var(--spacing-md);
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #1a1a1a;
+  font-size: 0.875rem;
+  font-family: inherit;
+}
+
+/* For regular textareas (not job description), preserve formatting */
+.pathfinder-applications__form-group textarea {
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+/* Rich text editor within form groups */
+.pathfinder-applications__form-group .rich-text-editor {
+  margin-top: 4px;
+}
+
+.pathfinder-applications__form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.pathfinder-applications__form-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #4242ea;
+}
+
+.pathfinder-applications__form-checkbox label {
+  margin: 0;
+  cursor: pointer;
+  font-weight: 400;
+  font-size: 0.875rem;
+  font-family: inherit;
+}
+
+/* Date input styling for better calendar picker visibility */
+.pathfinder-applications__form-group input[type="date"] {
+  position: relative;
+  cursor: pointer;
+  padding-right: var(--spacing-md);
+}
+
+.pathfinder-applications__form-group input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 4px;
+  filter: invert(0.8);
+  transition: all 0.2s ease;
+}
+
+.pathfinder-applications__form-group input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  background-color: rgba(66, 66, 234, 0.1);
+  filter: invert(0.8) brightness(1.2);
+}
+
+.pathfinder-applications__form-group input:focus,
+.pathfinder-applications__form-group select:focus,
+.pathfinder-applications__form-group textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.pathfinder-applications__form-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+
+.pathfinder-applications__submit-btn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: #22c55e;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.pathfinder-applications__submit-btn:hover {
+  background-color: #16a34a;
+}
+
+.pathfinder-applications__cancel-btn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: #ffffff;
+  color: #1a1a1a;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pathfinder-applications__cancel-btn:hover {
+  background-color: #f5f5f5;
+}
+
+/* Filters */
+.pathfinder-applications__filters {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background-color: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #d0d0d0;
+  box-sizing: border-box;
+  max-width: 100%;
+  width: 100%;
+}
+
+.pathfinder-applications__filters label {
+  font-weight: 500;
+}
+
+.pathfinder-applications__filters select {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #1a1a1a;
+  cursor: pointer;
+}
+
+/* Applications Table */
+.pathfinder-applications__table-container {
+  background-color: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pathfinder-applications__table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.pathfinder-applications__table thead {
+  background-color: #f9f9f9;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.pathfinder-applications__table th {
+  padding: 16px 24px;
+  text-align: left;
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  box-sizing: border-box;
+  margin: 0;
+  border: none;
+}
+
+.pathfinder-applications__sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s, color 0.2s;
+  position: relative;
+}
+
+.pathfinder-applications__sortable:hover {
+  background-color: rgba(66, 66, 234, 0.1);
+  color: #4242ea;
+}
+
+.pathfinder-applications__sort-icon {
+  font-size: 0.7rem;
+  margin-left: 4px;
+  opacity: 0.8;
+}
+
+.pathfinder-applications__table th:first-child,
+.pathfinder-applications__table td:first-child {
+  padding-left: 24px;
+}
+
+.pathfinder-applications__table th:last-child {
+  text-align: right;
+  padding-right: 24px;
+}
+
+.pathfinder-applications__table tbody tr {
+  border-bottom: 1px solid #e0e0e0;
+  transition: background-color 0.2s;
+}
+
+.pathfinder-applications__table tbody tr:hover {
+  background-color: rgba(66, 66, 234, 0.05);
+}
+
+.pathfinder-applications__table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.pathfinder-applications__table td {
+  padding: 16px 24px;
+  color: #666666;
+  vertical-align: middle;
+  white-space: nowrap;
+  box-sizing: border-box;
+  margin: 0;
+  border: none;
+  text-align: left;
+}
+
+.pathfinder-applications__table td:nth-child(4) {
+  white-space: normal;
+}
+
+.pathfinder-applications__table td:last-child {
+  text-align: right;
+  padding-right: 24px;
+}
+
+.pathfinder-applications__table-company {
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 1rem;
+}
+
+.pathfinder-applications__company-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pathfinder-applications__company-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: contain;
+  background-color: white;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.pathfinder-applications__company-logo-initial {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.pathfinder-applications__table-stage {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.pathfinder-applications__table-link {
+  color: #4242ea;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.pathfinder-applications__table-link:hover {
+  color: #3333d1;
+  text-decoration: underline;
+}
+
+.pathfinder-applications__table-no-link {
+  color: #999999;
+  opacity: 0.5;
+}
+
+.pathfinder-applications__table-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+}
+
+.pathfinder-applications__table-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pathfinder-applications__table-btn--edit {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.pathfinder-applications__table-btn--edit:hover {
+  background-color: #2563eb;
+}
+
+.pathfinder-applications__table-btn--delete {
+  background-color: #ef4444;
+  color: white;
+}
+
+.pathfinder-applications__table-btn--delete:hover {
+  background-color: #dc2626;
+}
+
+.pathfinder-applications__empty {
+  text-align: center;
+  padding: var(--spacing-xl);
+  background-color: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  color: #666666;
+}
+
+/* Kanban View */
+.pathfinder-applications__kanban {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-bottom: var(--spacing-md);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.pathfinder-applications__kanban-board {
+  display: flex;
+  gap: var(--spacing-lg);
+  min-width: min-content;
+}
+
+/* Scrollbar styling for Kanban */
+.pathfinder-applications__kanban::-webkit-scrollbar {
+  height: 12px;
+}
+
+.pathfinder-applications__kanban::-webkit-scrollbar-track {
+  background: #f5f5f5;
+  border-radius: 6px;
+  margin: 0 var(--spacing-md);
+}
+
+.pathfinder-applications__kanban::-webkit-scrollbar-thumb {
+  background: #d0d0d0;
+  border-radius: 6px;
+}
+
+.pathfinder-applications__kanban::-webkit-scrollbar-thumb:hover {
+  background: #4242ea;
+}
+
+/* Firefox scrollbar styling */
+.pathfinder-applications__kanban {
+  scrollbar-width: thin;
+  scrollbar-color: #d0d0d0 #f5f5f5;
+}
+
+.pathfinder-applications__kanban-column {
+  flex: 0 0 320px;
+  min-width: 320px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 240px);
+  transition: all 0.2s ease;
+}
+
+.pathfinder-applications__kanban-column:hover {
+  border-color: rgba(66, 66, 234, 0.3);
+  box-shadow: 0 0 0 2px rgba(66, 66, 234, 0.1);
+}
+
+.pathfinder-applications__kanban-header {
+  padding: var(--spacing-md);
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  background-color: #ffffff;
+  z-index: 1;
+  border-radius: 8px 8px 0 0; /* Match the column's top border-radius */
+}
+
+.pathfinder-applications__kanban-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pathfinder-applications__kanban-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pathfinder-applications__kanban-collapse-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 1.2rem;
+  line-height: 1;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pathfinder-applications__kanban-collapse-btn:hover {
+  background-color: rgba(107, 114, 128, 0.1);
+  color: #4242ea;
+}
+
+.pathfinder-applications__kanban-column--collapsed {
+  flex: 0 0 60px;
+  min-width: 60px;
+  max-width: 60px;
+}
+
+.pathfinder-applications__kanban-column--collapsed .pathfinder-applications__kanban-header {
+  flex-direction: column;
+  padding: var(--spacing-sm);
+  gap: 8px;
+}
+
+.pathfinder-applications__kanban-column--collapsed .pathfinder-applications__kanban-header h3 {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 0.85rem;
+}
+
+.pathfinder-applications__kanban-column--collapsed .pathfinder-applications__kanban-header-right {
+  flex-direction: column;
+}
+
+.pathfinder-applications__kanban-count {
+  background: linear-gradient(135deg, rgba(66, 66, 234, 0.15) 0%, rgba(107, 92, 246, 0.1) 100%);
+  color: #4242ea;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pathfinder-applications__kanban-cards {
+  padding: var(--spacing-sm);
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  min-height: 100px;
+}
+
+.pathfinder-applications__kanban-card {
+  background: linear-gradient(135deg, rgba(66, 66, 234, 0.08) 0%, rgba(107, 92, 246, 0.05) 100%);
+  border: 1px solid rgba(66, 66, 234, 0.15);
+  border-radius: 6px;
+  padding: 0; /* Remove padding from card itself */
+  cursor: grab;
+  transition: all 0.2s ease;
+  text-align: left;
+  position: relative;
+  overflow: visible; /* Allow timeline to show at bottom */
+}
+
+/* Content wrapper with padding */
+.pathfinder-applications__kanban-card-content {
+  padding: var(--spacing-md);
+}
+
+.pathfinder-applications__kanban-card:active {
+  cursor: grabbing;
+}
+
+.pathfinder-applications__kanban-card:hover {
+  border-color: #4242ea;
+  box-shadow: 0 2px 8px rgba(66, 66, 234, 0.1);
+  transform: translateY(-2px);
+}
+
+.pathfinder-applications__kanban-card--dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+  cursor: grabbing;
+}
+
+.pathfinder-applications__kanban-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0;
+  position: relative;
+}
+
+.pathfinder-applications__kanban-company {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.pathfinder-applications__kanban-company-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: contain;
+  background-color: white;
+  padding: 4px;
+  flex-shrink: 0;
+  border: 1px solid #d1d5db;
+}
+
+.pathfinder-applications__kanban-company-logo-initial {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.pathfinder-applications__kanban-trophy-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background: linear-gradient(135deg, #FFD700, #FFA500);
+  border: 2px solid #FFD700;
+  animation: trophyPulse 2s ease-in-out infinite;
+}
+
+@keyframes trophyPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.1);
+  }
+}
+
+.pathfinder-applications__kanban-card-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  flex: 1;
+  text-align: left;
+  line-height: 1;
+}
+
+.pathfinder-applications__kanban-card-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+  opacity: 0;
+}
+
+.pathfinder-applications__kanban-card:hover .pathfinder-applications__kanban-card-btn {
+  opacity: 1;
+}
+
+.pathfinder-applications__kanban-card-btn:hover {
+  background-color: rgba(66, 66, 234, 0.1);
+}
+
+.pathfinder-applications__kanban-card-btn--delete:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.pathfinder-applications__kanban-card-title {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #666666;
+  line-height: 1;
+  text-align: left;
+  padding-left: 38px; /* Align with company name text (28px logo + 10px gap) */
+}
+
+.pathfinder-applications__withdrawal-reason {
+  margin-top: 8px;
+  padding: 6px 10px;
+  padding-left: 38px; /* Align with company name text (28px logo + 10px gap) */
+  background-color: #f9fafb;
+  border-left: 3px solid #9ca3af;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.pathfinder-applications__withdrawal-reason-label {
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.pathfinder-applications__kanban-card-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+  padding-left: 38px; /* Align with company name text (28px logo + 10px gap) */
+}
+
+.pathfinder-applications__kanban-card-date {
+  font-size: 0.85rem;
+  color: #666666;
+}
+
+.pathfinder-applications__kanban-card-link {
+  color: #4242ea;
+  text-decoration: none;
+  font-size: 1rem;
+  transition: transform 0.2s ease;
+}
+
+.pathfinder-applications__kanban-card-link:hover {
+  transform: scale(1.2);
+}
+
+.pathfinder-applications__kanban-card-badge {
+  position: absolute;
+  top: 16px;
+  right: 12px;
+  display: inline-block;
+  padding: 4px 10px;
+  background-color: rgba(66, 66, 234, 0.1);
+  color: #4242ea;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 1;
+  line-height: 1.2;
+}
+
+.pathfinder-applications__kanban-card-badge--stage {
+  color: #6b7280;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  font-weight: 500;
+  text-transform: none;
+}
+
+/* Stage History Timeline */
+.pathfinder-applications__stage-timeline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0; /* No margin */
+  padding: var(--spacing-xs) var(--spacing-sm);
+  padding-left: var(--spacing-md); /* Match the content padding for alignment with logo */
+  background: linear-gradient(135deg, rgba(66, 66, 234, 0.15) 0%, rgba(107, 92, 246, 0.1) 100%);
+  border-radius: 0; /* No border radius to sit flush at bottom */
+  border-top: 1px solid rgba(66, 66, 234, 0.3); /* Subtle separator */
+  font-size: 0.75rem;
+  color: #666666;
+  flex-wrap: wrap;
+}
+
+/* Timeline item with stage and date stacked */
+.pathfinder-applications__timeline-item {
+  display: inline-block;
+}
+
+.pathfinder-applications__timeline-stage {
+  font-weight: 500;
+  color: #1a1a1a;
+  font-size: 0.75rem;
+  line-height: 1;
+  display: inline-block;
+}
+
+.pathfinder-applications__timeline-date {
+  font-size: 0.65rem;
+  color: #666666;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.pathfinder-applications__timeline-arrow {
+  color: #999999;
+  opacity: 0.5;
+  font-size: 0.7rem;
+}
+
+/* Stale Application Badges */
+.pathfinder-applications__stale-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Stale badge positioned at top-right of card */
+.pathfinder-applications__stale-badge--top {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+}
+
+.pathfinder-applications__stale-badge--warning {
+  background-color: rgba(251, 191, 36, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.pathfinder-applications__stale-badge--critical {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  animation: pulse-warning 2s ease-in-out infinite;
+}
+
+@keyframes pulse-warning {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Response Received Badge */
+.pathfinder-applications__response-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  white-space: nowrap;
+}
+
+.pathfinder-applications__kanban-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-left: 38px; /* Align with company name text (28px logo + 10px gap) */
+}
+
+.pathfinder-applications__activity-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background-color: #1a1a1a;
+  color: #ffffff;
+  border: 1px solid #1a1a1a;
+  white-space: nowrap;
+}
+
+.pathfinder-applications__build-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background-color: #4242ea;
+  color: #ffffff;
+  border: 1px solid #4242ea;
+  white-space: nowrap;
+}
+
+/* Activity Timeline (Right Panel) */
+.pathfinder-applications__timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  position: relative;
+  padding-left: 24px;
+}
+
+/* Vertical line */
+.pathfinder-applications__timeline::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 12px;
+  bottom: var(--spacing-lg);
+  width: 2px;
+  background-color: #d0d0d0;
+}
+
+.pathfinder-applications__timeline-item {
+  padding: 0;
+  background: transparent;
+  border: none;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.pathfinder-applications__timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+/* Timeline marker (dot) */
+.pathfinder-applications__timeline-marker {
+  position: absolute;
+  left: -23px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #4242ea;
+  border: 3px solid #fafafa;
+  z-index: 1;
+}
+
+/* Timeline content */
+.pathfinder-applications__timeline-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.pathfinder-applications__timeline-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  width: 100%;
+}
+
+/* Stage select styled as badge */
+.pathfinder-applications__timeline-stage-select {
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+  transition: all 0.2s;
+}
+
+.pathfinder-applications__timeline-stage-select:hover {
+  border-color: #9ca3af;
+  background-color: #f9fafb;
+}
+
+.pathfinder-applications__timeline-stage-select:focus {
+  outline: none;
+  border-color: #4242ea;
+  box-shadow: 0 0 0 3px rgba(66, 66, 234, 0.1);
+}
+
+/* Timeline actions (date + delete button) */
+.pathfinder-applications__timeline-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pathfinder-applications__timeline-date-input {
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-family: inherit;
+  cursor: pointer;
+  width: 130px;
+  text-align: center;
+}
+
+.pathfinder-applications__timeline-date-input:focus {
+  outline: none;
+  border-color: #4242ea;
+  box-shadow: 0 0 0 3px rgba(66, 66, 234, 0.1);
+}
+
+.pathfinder-applications__timeline-delete-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background-color: transparent;
+  color: #9ca3af;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+  padding: 0;
+  line-height: 1;
+}
+
+.pathfinder-applications__timeline-delete-btn:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Legacy Stage History Section (kept for backwards compatibility) */
+.pathfinder-applications__stage-history-section {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  background: rgba(66, 66, 234, 0.02);
+  border-radius: 8px;
+  border: 1px solid rgba(66, 66, 234, 0.1);
+}
+
+.pathfinder-applications__section-title {
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-align: left;
+}
+
+.pathfinder-applications__stage-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.pathfinder-applications__stage-history-item {
+  padding: var(--spacing-md);
+  background: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.pathfinder-applications__stage-history-item .pathfinder-applications__form-row {
+  display: grid;
+  grid-template-columns: 2fr 2fr auto;
+  gap: var(--spacing-md);
+  align-items: end;
+}
+
+.pathfinder-applications__form-group--button {
+  margin-bottom: 0;
+}
+
+.pathfinder-applications__form-group--button label {
+  display: none;
+}
+
+.pathfinder-applications__remove-stage-btn {
+  margin-top: 0;
+  padding: 6px 12px;
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  height: 38px;
+}
+
+.pathfinder-applications__remove-stage-btn:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.pathfinder-applications__add-stage-btn {
+  width: auto;
+  padding: 8px 16px;
+  background-color: #4242ea;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-self: flex-start;
+  margin-top: var(--spacing-xl);
+}
+
+.pathfinder-applications__add-stage-btn:hover {
+  background-color: #3535d1;
+}
+
+/* Associated Hustle Section */
+.pathfinder-applications__hustle-section {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid #e0e0e0;
+}
+
+.pathfinder-applications__hustle-title {
+  margin: 0 0 var(--spacing-md) 0;
+  padding-top: 0;
+  color: #1a1a1a;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.pathfinder-applications__hustle-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.pathfinder-applications__hustle-empty {
+  text-align: center;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  background-color: #fafafa;
+  border-radius: 8px;
+  border: 1px dashed #d0d0d0;
+}
+
+.pathfinder-applications__hustle-empty-text {
+  margin: 0 0 var(--spacing-md) 0;
+  color: #666666;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.pathfinder-applications__hustle-empty-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  background-color: #4242ea;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.pathfinder-applications__hustle-empty-btn:hover {
+  background-color: #3535d1;
+}
+
+.pathfinder-applications__hustle-item {
+  padding: var(--spacing-md);
+  background-color: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.pathfinder-applications__hustle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.pathfinder-applications__hustle-type {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: #4242ea;
+  text-transform: capitalize;
+}
+
+.pathfinder-applications__hustle-date {
+  font-size: 0.75rem;
+  color: #666666;
+  font-weight: 400;
+}
+
+.pathfinder-applications__hustle-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  font-size: 0.875rem;
+}
+
+.pathfinder-applications__hustle-platform,
+.pathfinder-applications__hustle-event,
+.pathfinder-applications__hustle-contact,
+.pathfinder-applications__hustle-direction,
+.pathfinder-applications__hustle-outcome {
+  color: #1a1a1a;
+  line-height: 1.4;
+}
+
+.pathfinder-applications__hustle-platform strong,
+.pathfinder-applications__hustle-event strong,
+.pathfinder-applications__hustle-contact strong,
+.pathfinder-applications__hustle-direction strong,
+.pathfinder-applications__hustle-outcome strong {
+  color: #666666;
+  font-weight: 500;
+}
+
+.pathfinder-applications__hustle-notes {
+  margin-top: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  background-color: #ffffff;
+  border-radius: 4px;
+  color: #666666;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  border: 1px solid #e0e0e0;
+}
+
+/* Associated Builds Section */
+.pathfinder-applications__builds-section {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid #e0e0e0;
+}
+
+.pathfinder-applications__builds-title {
+  margin: 0 0 var(--spacing-md) 0;
+  padding-top: 0;
+  color: #1a1a1a;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.pathfinder-applications__builds-empty {
+  text-align: center;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  background-color: #fafafa;
+  border-radius: 8px;
+  border: 1px dashed #d0d0d0;
+}
+
+.pathfinder-applications__builds-empty-text {
+  margin: 0 0 var(--spacing-md) 0;
+  color: #666666;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.pathfinder-applications__builds-empty-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  background-color: #4242ea !important;
+  color: #ffffff !important;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.pathfinder-applications__builds-empty-btn:hover {
+  background-color: #3535d1 !important;
+}
+
+/* Table Stage Cell */
+.pathfinder-applications__table-stage-cell {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.pathfinder-applications__table-timeline {
+  font-size: 0.7rem;
+  color: #666666;
+  margin-top: var(--spacing-xs);
+}
+
+.pathfinder-applications__table-timeline .pathfinder-applications__stage-timeline {
+  padding: 2px 6px;
+  margin: 0;
+  background: rgba(66, 66, 234, 0.03);
+  font-size: 0.7rem;
+}
+
+.pathfinder-applications__response-badge--table,
+.pathfinder-applications__stale-badge--table {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pathfinder-applications__form-row,
+  .pathfinder-applications__form-row--three-col,
+  .pathfinder-applications__form-row--four-col {
+    grid-template-columns: 1fr;
+  }
+  
+  .pathfinder-applications__form-panels--two-col {
+    flex-direction: column;
+  }
+  
+  .pathfinder-applications__form-panel--right {
+    max-height: none;
+  }
+
+  .pathfinder-applications__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .pathfinder-applications__stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .pathfinder-applications__modal {
+    max-height: 95vh;
+    margin: var(--spacing-sm);
+  }
+
+  .pathfinder-applications__url-panel {
+    border-right: none;
+    border-bottom: none;
+    padding: var(--spacing-md);
+  }
+
+  .pathfinder-applications__form-panel {
+    padding: var(--spacing-md);
+  }
+
+  .pathfinder-applications__modal-header {
+    padding: var(--spacing-md);
+  }
+
+  .pathfinder-applications__table-container {
+    overflow-x: auto;
+  }
+
+  .pathfinder-applications__table {
+    min-width: 800px;
+  }
+
+  .pathfinder-applications__table th,
+  .pathfinder-applications__table td {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.85rem;
+  }
+
+  .pathfinder-applications__table-actions {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .pathfinder-applications__table-btn {
+    padding: 4px 12px;
+    font-size: 0.8rem;
+  }
+
+  .pathfinder-applications__kanban-column {
+    flex: 0 0 280px;
+  }
+
+  .pathfinder-applications__kanban-card-content {
+    padding: var(--spacing-sm);
+  }
+
+  .pathfinder-applications__kanban-card-header h4 {
+    font-size: 0.9rem;
+  }
+
+  .pathfinder-applications__view-toggle {
+    order: -1;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .pathfinder-applications__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Withdrawal Reason Modal */
+.pathfinder-applications__withdrawal-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: modalSlideIn 0.2s ease-out;
+}
+
+.pathfinder-applications__withdrawal-modal-header {
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.pathfinder-applications__withdrawal-modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  line-height: 1.4;
+  flex: 1;
+  padding-right: 16px;
+}
+
+.pathfinder-applications__withdrawal-modal-content {
+  padding: 24px;
+}
+
+.pathfinder-applications__withdrawal-modal-description {
+  margin: 0 0 20px 0;
+  color: #6b7280;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+/* Add spacing above form field labels in modals */
+.pathfinder-applications__withdrawal-modal-content .pathfinder-applications__form-group {
+  margin-top: 20px;
+}
+
+.pathfinder-applications__withdrawal-modal-content .pathfinder-applications__form-group:first-of-type {
+  margin-top: 0;
+}
+
+.pathfinder-applications__withdrawal-select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  color: #1a1a1a;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pathfinder-applications__withdrawal-select:hover {
+  border-color: #9ca3af;
+}
+
+.pathfinder-applications__withdrawal-select:focus {
+  outline: none;
+  border-color: #4242ea;
+  box-shadow: 0 0 0 3px rgba(66, 66, 234, 0.1);
+}
+
+.pathfinder-applications__withdrawal-modal-actions {
+  padding: 16px 24px 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.pathfinder-applications__withdrawal-btn-cancel,
+.pathfinder-applications__withdrawal-btn-confirm {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  font-family: inherit;
+}
+
+.pathfinder-applications__withdrawal-btn-cancel {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.pathfinder-applications__withdrawal-btn-cancel:hover {
+  background-color: #e5e7eb;
+}
+
+.pathfinder-applications__withdrawal-btn-confirm {
+  background-color: #4242ea;
+  color: white;
+}
+
+.pathfinder-applications__withdrawal-btn-confirm:hover:not(:disabled) {
+  background-color: #3333d1;
+}
+
+.pathfinder-applications__withdrawal-btn-confirm:disabled {
+  background-color: #d1d5db;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Victory Celebration Modal - Clean Pathfinder Style */
+.pathfinder-applications__victory-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--spacing-lg);
+}
+
+.pathfinder-applications__victory-modal {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 0;
+  max-width: 600px;
+  width: 100%;
+  border: 1px solid #d0d0d0;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.pathfinder-applications__victory-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xl);
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.pathfinder-applications__victory-modal-header h2 {
+  margin: 0;
+  color: #1a1a1a;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.pathfinder-applications__victory-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.pathfinder-applications__victory-modal-close:hover {
+  background-color: #f5f5f5;
+  color: #1a1a1a;
+}
+
+.pathfinder-applications__victory-modal-content {
+  padding: var(--spacing-xl);
+}
+
+.pathfinder-applications__victory-company-info {
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-xl);
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.pathfinder-applications__victory-company-name {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: var(--spacing-xs);
+}
+
+.pathfinder-applications__victory-role-title {
+  font-size: 1rem;
+  color: #666;
+}
+
+.pathfinder-applications__victory-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.pathfinder-applications__victory-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.pathfinder-applications__victory-stat-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pathfinder-applications__victory-stat-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.pathfinder-applications__victory-timeline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  background: #f9fafb;
+  border-radius: 6px;
+  margin-bottom: var(--spacing-lg);
+}
+
+.pathfinder-applications__victory-timeline-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  text-align: center;
+}
+
+.pathfinder-applications__victory-timeline-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pathfinder-applications__victory-timeline-date {
+  font-size: 0.875rem;
+  color: #1a1a1a;
+  font-weight: 500;
+}
+
+.pathfinder-applications__victory-timeline-arrow {
+  font-size: 1.25rem;
+  color: #4242ea;
+  font-weight: 600;
+}
+
+.pathfinder-applications__victory-contributions {
+  padding: var(--spacing-md);
+  background: #f9fafb;
+  border-radius: 6px;
+}
+
+.pathfinder-applications__victory-contributions-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #999;
+  margin-bottom: var(--spacing-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pathfinder-applications__victory-contributions-items {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.pathfinder-applications__victory-contribution-badge {
+  padding: 4px 10px;
+  background: white;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+/* Associated Builds Styling */
+.pathfinder-applications__builds-section {
+  margin-top: var(--spacing-lg);
+}
+
+.pathfinder-applications__builds-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+.pathfinder-applications__builds-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.pathfinder-applications__build-item {
+  padding: var(--spacing-md);
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.pathfinder-applications__build-item:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.pathfinder-applications__build-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-sm);
+}
+
+.pathfinder-applications__build-name {
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 1rem;
+}
+
+.pathfinder-applications__build-stage {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.pathfinder-applications__build-stage--ideation {
+  background-color: rgba(156, 163, 175, 0.15);
+  color: #4b5563;
+}
+
+.pathfinder-applications__build-stage--planning {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #2563eb;
+}
+
+.pathfinder-applications__build-stage--development {
+  background-color: rgba(251, 191, 36, 0.15);
+  color: #d97706;
+}
+
+.pathfinder-applications__build-stage--testing {
+  background-color: rgba(249, 115, 22, 0.15);
+  color: #ea580c;
+}
+
+.pathfinder-applications__build-stage--launch {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+}
+
+.pathfinder-applications__build-date {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: var(--spacing-xs);
+}
+
+.pathfinder-applications__build-link {
+  margin-top: var(--spacing-sm);
+}
+
+.pathfinder-applications__build-link a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.pathfinder-applications__build-link a:hover {
+  color: #3232ba;
+  text-decoration: underline;
+}
+
+.pathfinder-applications__build-notes {
+  margin-top: var(--spacing-sm);
+  font-size: 0.875rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.pathfinder-applications__builds-empty {
+  text-align: center;
+  padding: var(--spacing-xl);
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+}
+
+.pathfinder-applications__builds-empty-text {
+  color: #6b7280;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+.pathfinder-applications__builds-empty-btn {
+  display: inline-block;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--primary-color);
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.9375rem;
+  transition: background-color 0.2s;
+}
+
+.pathfinder-applications__builds-empty-btn:hover {
+  background-color: #3232ba;
+}
+

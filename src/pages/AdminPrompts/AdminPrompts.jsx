@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Container,
   Typography,
-  Paper,
   Tabs,
   Tab,
   Alert,
@@ -14,6 +12,7 @@ import BasePromptsTab from './components/BasePromptsTab';
 import PersonasTab from './components/PersonasTab';
 import ProgramContextsTab from './components/ProgramContextsTab';
 import ModesTab from './components/ModesTab';
+import ContentGenerationPromptsTab from './components/ContentGenerationPromptsTab';
 import StatusTab from './components/StatusTab';
 import './AdminPrompts.css';
 
@@ -68,55 +67,60 @@ const AdminPrompts = () => {
   };
 
   return (
-    <Container maxWidth="xl" className="admin-prompts">
-      <Paper className="admin-prompts__content">
-        <Tabs
-          value={currentTab}
-          onChange={handleTabChange}
-          className="admin-prompts__tabs"
-          variant="scrollable"
-          scrollButtons="auto"
-        >
-          <Tab label="Base Prompts" />
-          <Tab label="Personas" />
-          <Tab label="Program Contexts" />
-          <Tab label="Modes" />
-          <Tab label="Current AI Prompt" />
-        </Tabs>
+    <div className="admin-prompts">
+      <Tabs
+        value={currentTab}
+        onChange={handleTabChange}
+        className="admin-prompts__tabs"
+        variant="scrollable"
+        scrollButtons="auto"
+      >
+        <Tab label="Base Prompts" />
+        <Tab label="Personas" />
+        <Tab label="Program Contexts" />
+        <Tab label="Modes" />
+        <Tab label="Content Generation" />
+        <Tab label="Current AI Prompt" />
+      </Tabs>
 
-        <Box className="admin-prompts__tab-content">
-          {currentTab === 0 && (
-            <BasePromptsTab 
-              showNotification={showNotification}
-              reloadPrompts={reloadPrompts}
-            />
-          )}
-          {currentTab === 1 && (
-            <PersonasTab 
-              showNotification={showNotification}
-              reloadPrompts={reloadPrompts}
-            />
-          )}
-          {currentTab === 2 && (
-            <ProgramContextsTab 
-              showNotification={showNotification}
-              reloadPrompts={reloadPrompts}
-            />
-          )}
-          {currentTab === 3 && (
-            <ModesTab 
-              showNotification={showNotification}
-              reloadPrompts={reloadPrompts}
-            />
-          )}
-          {currentTab === 4 && (
-            <StatusTab 
-              showNotification={showNotification}
-              reloadPrompts={reloadPrompts}
-            />
-          )}
-        </Box>
-      </Paper>
+      <div className="admin-prompts__tab-content">
+        {currentTab === 0 && (
+          <BasePromptsTab 
+            showNotification={showNotification}
+            reloadPrompts={reloadPrompts}
+          />
+        )}
+        {currentTab === 1 && (
+          <PersonasTab 
+            showNotification={showNotification}
+            reloadPrompts={reloadPrompts}
+          />
+        )}
+        {currentTab === 2 && (
+          <ProgramContextsTab 
+            showNotification={showNotification}
+            reloadPrompts={reloadPrompts}
+          />
+        )}
+        {currentTab === 3 && (
+          <ModesTab 
+            showNotification={showNotification}
+            reloadPrompts={reloadPrompts}
+          />
+        )}
+        {currentTab === 4 && (
+          <ContentGenerationPromptsTab 
+            showNotification={showNotification}
+            reloadPrompts={reloadPrompts}
+          />
+        )}
+        {currentTab === 5 && (
+          <StatusTab 
+            showNotification={showNotification}
+            reloadPrompts={reloadPrompts}
+          />
+        )}
+      </div>
 
       {/* Global loading overlay */}
       {loading && (
@@ -143,7 +147,7 @@ const AdminPrompts = () => {
           {notification.message}
         </Alert>
       </Snackbar>
-    </Container>
+    </div>
   );
 };
 

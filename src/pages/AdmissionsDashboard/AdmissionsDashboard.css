@@ -1,205 +1,938 @@
-/* Admissions Dashboard - Light Theme with Tailwind + shadcn */
-
-/* Force light theme for shadcn components within AdmissionsDashboard */
-.admissions-dashboard__applications input,
-.admissions-dashboard__applications button[role="combobox"] {
-  background-color: white !important;
-  color: var(--color-carbon-black) !important;
-  border-color: var(--color-divider) !important;
+/* Admissions Dashboard - BEM naming and optimized layout */
+.admissions-dashboard {
+  width: 100%;
+  height: 100vh;
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
 }
 
-.admissions-dashboard__applications input:focus,
-.admissions-dashboard__applications button[role="combobox"]:focus {
-  border-color: var(--color-pursuit-purple) !important;
-  box-shadow: 0 0 0 2px rgba(111, 61, 235, 0.1) !important;
+
+
+/* Tab Navigation */
+.admissions-dashboard__tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid var(--color-border);
+  padding: 1rem 2rem 0 2rem;
+  align-items: center;
+  background-color: var(--color-background-dark);
+  flex-shrink: 0;
 }
 
-.admissions-dashboard__applications button[role="combobox"] {
-  cursor: pointer;
-}
-
-/* Select dropdown content */
-[data-radix-select-content] {
-  background-color: white !important;
-  border: 1px solid var(--color-divider) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-}
-
-[data-radix-select-item] {
-  color: var(--color-carbon-black) !important;
-}
-
-[data-radix-select-item]:hover,
-[data-radix-select-item][data-highlighted] {
-  background-color: var(--color-bg-light) !important;
-}
-
-[data-radix-select-item][data-state="checked"] {
-  background-color: rgba(111, 61, 235, 0.1) !important;
-}
-
-/* Badge overrides for light theme with semantic colors */
-.admissions-dashboard__applications [class*="inline-flex"][class*="rounded-full"] {
+.admissions-dashboard__tab {
+  background: none;
+  border: none;
+  padding: 1rem 1.5rem;
+  color: var(--color-text-secondary);
+  font-size: 1rem;
   font-weight: 600;
-  text-transform: capitalize;
-  font-size: 0.75rem;
-  padding: 0.25rem 0.75rem;
-}
-
-/* Column-specific badge colors using nth-child */
-
-/* Column 5: Application Status */
-/* Submitted (variant=default) = Light Green */
-.admissions-dashboard__applications tbody tr td:nth-child(5) [class*="bg-primary"] {
-  background-color: #d1fae5 !important;
-  color: #065f46 !important;
-  border: 1px solid #6ee7b7 !important;
-}
-
-/* In Progress (variant=secondary) = Light Blue */
-.admissions-dashboard__applications tbody tr td:nth-child(5) [class*="bg-secondary"] {
-  background-color: #dbeafe !important;
-  color: #1e40af !important;
-  border: 1px solid #93c5fd !important;
-}
-
-/* Ineligible (variant=destructive) = Light Red */
-.admissions-dashboard__applications tbody tr td:nth-child(5) [class*="bg-destructive"] {
-  background-color: #fee2e2 !important;
-  color: #991b1b !important;
-  border: 1px solid #fecaca !important;
-}
-
-/* Column 6: Assessment - uses custom select, handled separately below */
-
-/* Column 7: Info Session Status */
-/* Attended/Attended Late (variant=default) = Light Green */
-.admissions-dashboard__applications tbody tr td:nth-child(7) [class*="bg-primary"] {
-  background-color: #d1fae5 !important;
-  color: #065f46 !important;
-  border: 1px solid #6ee7b7 !important;
-}
-
-/* Registered (variant=secondary) = Light Blue */
-.admissions-dashboard__applications tbody tr td:nth-child(7) [class*="bg-secondary"] {
-  background-color: #dbeafe !important;
-  color: #1e40af !important;
-  border: 1px solid #93c5fd !important;
-}
-
-/* Not Registered (variant=outline) = Light Gray with border */
-.admissions-dashboard__applications tbody tr td:nth-child(7) [class*="text-foreground"]:not([class*="bg-primary"]):not([class*="bg-secondary"]) {
-  background-color: #f3f4f6 !important;
-  color: #6b7280 !important;
-  border: 1px solid #d1d5db !important;
-}
-
-/* Column 8: Workshop Status */
-/* Attended/Attended Late (variant=default) = Light Green */
-.admissions-dashboard__applications tbody tr td:nth-child(8) [class*="bg-primary"] {
-  background-color: #d1fae5 !important;
-  color: #065f46 !important;
-  border: 1px solid #6ee7b7 !important;
-}
-
-/* Registered (variant=secondary) = Light Blue */
-.admissions-dashboard__applications tbody tr td:nth-child(8) [class*="bg-secondary"] {
-  background-color: #dbeafe !important;
-  color: #1e40af !important;
-  border: 1px solid #93c5fd !important;
-}
-
-/* Pending (variant=outline) = Light Gray with border */
-.admissions-dashboard__applications tbody tr td:nth-child(8) [class*="text-foreground"]:not([class*="bg-primary"]):not([class*="bg-secondary"]) {
-  background-color: #f3f4f6 !important;
-  color: #6b7280 !important;
-  border: 1px solid #d1d5db !important;
-}
-
-/* Column 9: Program Admission Status */
-/* Accepted/Admitted (variant=default) = Light Green */
-.admissions-dashboard__applications tbody tr td:nth-child(9) [class*="bg-primary"] {
-  background-color: #d1fae5 !important;
-  color: #065f46 !important;
-  border: 1px solid #6ee7b7 !important;
-}
-
-/* Pending (variant=secondary) = Light grey like Workshop Pending */
-.admissions-dashboard__applications tbody tr td:nth-child(9) [class*="bg-secondary"] {
-  background-color: #f3f4f6 !important;
-  color: #6b7280 !important;
-  border: 1px solid #d1d5db !important;
-}
-
-/* Rejected/Waitlisted (variant=destructive) = Light Red */
-.admissions-dashboard__applications tbody tr td:nth-child(9) [class*="bg-destructive"] {
-  background-color: #fee2e2 !important;
-  color: #991b1b !important;
-  border: 1px solid #fecaca !important;
-}
-
-/* Withdrawn (variant=destructive with custom class) = Light Red with strikethrough */
-.admissions-dashboard__applications tbody tr td:nth-child(9) .admission-badge--withdrawn {
-  background-color: #fee2e2 !important;
-  color: #991b1b !important;
-  border: 1px solid #fecaca !important;
-  text-decoration: line-through !important;
-  text-decoration-thickness: 2px !important;
-}
-
-/* Assessment Select Dropdown Styling */
-.admissions-dashboard__assessment-select {
-  background-color: white !important;
-  color: white !important;
-  border: none !important;
-  border-radius: 9999px;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: capitalize;
   cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
 }
 
-/* Strong Recommend = Dark Green */
+.admissions-dashboard__tab:hover {
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.admissions-dashboard__tab--active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  background: var(--color-primary-transparent);
+}
+
+.admissions-dashboard__back-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: auto;
+}
+
+.admissions-dashboard__back-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* Content Area - Optimized for full viewport usage */
+.admissions-dashboard__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem 2rem 1rem 2rem;
+  width: 100%;
+  height: 0;
+  /* Force flex child to respect parent height */
+}
+
+/* Overview Section - Full height layout */
+.admissions-dashboard__overview {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.admissions-dashboard__overview .admissions-dashboard__stats-grid {
+  flex: 1;
+  align-content: stretch;
+  /* Fill available space */
+  min-height: 0;
+  /* Allow grid to shrink */
+}
+
+/* Statistics Grid - Fill container with uniform heights */
+.admissions-dashboard__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  /* Two equal-height rows */
+  gap: 1rem;
+  height: 100%;
+  /* Fill the container */
+  align-content: stretch;
+}
+
+/* Responsive adjustments with uniform heights */
+@media (max-width: 1400px) {
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(6, minmax(120px, 1fr));
+  }
+}
+
+.admissions-dashboard__stat-card {
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
+  height: 100%;
+  /* Fill grid cell height */
+  display: flex;
+  flex-direction: column;
+}
+
+.admissions-dashboard__stat-card--wide {
+  grid-column: span 2;
+}
+
+@media (max-width: 1400px) {
+  .admissions-dashboard__stat-card--wide {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 1024px) {
+  .admissions-dashboard__stat-card--wide {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .admissions-dashboard__stat-card--wide {
+    grid-column: span 1;
+  }
+}
+
+.admissions-dashboard__stat-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.admissions-dashboard__stat-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.admissions-dashboard__stat-card-icon {
+  font-size: 1.25rem;
+  opacity: 0.7;
+  color: var(--color-text-secondary);
+}
+
+.admissions-dashboard__stat-card-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 0.25rem;
+  line-height: 1;
+}
+
+.admissions-dashboard__stat-card-subtitle {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  opacity: 0.9;
+  line-height: 1.3;
+}
+
+/* Applications Breakdown */
+.admissions-dashboard__applications-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+  flex: 1;
+  /* Fill remaining space in card */
+  justify-content: space-evenly;
+  /* Distribute items evenly */
+}
+
+.admissions-dashboard__application-status-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  border-radius: 4px;
+  flex: 1;
+  /* Equal height for all items */
+  min-height: 28px;
+  /* Minimum height for consistency */
+}
+
+.admissions-dashboard__status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.admissions-dashboard__status-indicator--submitted {
+  background: #48bb78;
+}
+
+.admissions-dashboard__status-indicator--in_progress {
+  background: #ed8936;
+}
+
+.admissions-dashboard__status-indicator--no_application {
+  background: #9ca3af;
+}
+
+.admissions-dashboard__status-indicator--ineligible {
+  background: #f56565;
+}
+
+.admissions-dashboard__status-label {
+  flex: 1;
+  font-weight: 500;
+  text-transform: capitalize;
+  font-size: 0.8rem;
+  color: var(--color-text-primary);
+}
+
+.admissions-dashboard__status-count {
+  font-weight: 600;
+  color: var(--color-primary);
+  font-size: 0.8rem;
+}
+
+/* Loading State */
+.admissions-dashboard__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 1rem;
+}
+
+.admissions-dashboard__loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(102, 126, 234, 0.2);
+  border-top: 3px solid var(--color-primary);
+  border-radius: 50%;
+  animation: admissions-dashboard-spin 1s linear infinite;
+}
+
+@keyframes admissions-dashboard-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.admissions-dashboard__loading p {
+  color: var(--color-text-secondary);
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+/* Error State */
+.admissions-dashboard__error {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 12px;
+  margin: 2rem 0;
+}
+
+.admissions-dashboard__error h2 {
+  color: #ef4444;
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+}
+
+.admissions-dashboard__error p {
+  color: var(--color-text-secondary);
+  margin: 0 0 1.5rem 0;
+  font-size: 1rem;
+}
+
+.admissions-dashboard__retry-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.admissions-dashboard__retry-btn:hover {
+  background: #dc2626;
+}
+
+/* No Access State */
+.admissions-dashboard__no-access {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: rgba(251, 146, 60, 0.1);
+  border: 1px solid rgba(251, 146, 60, 0.3);
+  border-radius: 12px;
+  margin: 2rem 0;
+}
+
+.admissions-dashboard__no-access h2 {
+  color: #f59e0b;
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+}
+
+.admissions-dashboard__no-access p {
+  color: var(--color-text-secondary);
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Tab Content Sections */
+.admissions-dashboard__overview,
+.admissions-dashboard__applications,
+.admissions-dashboard__info-sessions,
+.admissions-dashboard__workshops {
+  padding: 2rem;
+  background: var(--color-background-dark);
+  border-radius: 8px;
+  /* border: 1px solid var(--color-border); */
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure Applications section maintains consistent width */
+.admissions-dashboard__applications {
+  min-width: 0;
+  /* Allow flexbox to work properly */
+  overflow: hidden;
+  /* Prevent content from breaking out */
+}
+
+.admissions-dashboard__overview h2,
+.admissions-dashboard__applications h2,
+.admissions-dashboard__info-sessions h2,
+.admissions-dashboard__workshops h2 {
+  color: var(--color-text-primary);
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.admissions-dashboard__overview p,
+.admissions-dashboard__applications p,
+.admissions-dashboard__info-sessions p,
+.admissions-dashboard__workshops p {
+  color: var(--color-text-secondary);
+  margin: 0 0 1rem 0;
+  line-height: 1.6;
+}
+
+.admissions-dashboard__overview pre {
+  background: var(--color-background-darker);
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .admissions-dashboard {
+    padding: 0;
+    height: calc(100vh - 2rem);
+  }
+
+  .admissions-dashboard__tabs {
+    overflow-x: auto;
+    padding-bottom: 0;
+    margin-bottom: 1rem;
+  }
+
+  .admissions-dashboard__tab {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+
+  .stat-card__value {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .admissions-dashboard__tabs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admissions-dashboard__tab {
+    text-align: center;
+    border-bottom: none;
+    border-left: 3px solid transparent;
+  }
+
+  .admissions-dashboard__tab--active {
+    border-bottom: none;
+    border-left-color: var(--color-primary);
+  }
+}
+
+/* Data Section Headers */
+.data-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.data-section__header h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.data-section__controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.filter-select {
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+/* Filter Toggle Button */
+.filter-toggle-btn {
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.filter-toggle-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
+.filter-toggle-btn--active {
+  background: var(--color-primary-transparent);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.filter-toggle-btn--active:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+.filter-toggle-btn__icon {
+  font-size: 1rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.filter-toggle-btn--active .filter-toggle-btn__icon {
+  background: var(--color-primary);
+  color: white;
+}
+
+.filter-toggle-btn--active:hover .filter-toggle-btn__icon {
+  background: white;
+  color: var(--color-primary);
+}
+
+.refresh-btn,
+.retry-btn,
+.clear-filter-btn {
+  background: transparent;
+  border: 1px solid var(--color-primary);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refresh-btn:hover,
+.retry-btn:hover,
+.clear-filter-btn:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* Data Tables */
+.data-table-container {
+  background: rgba(30, 36, 48, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  overflow: hidden;
+  width: 100%;
+  /* Always take full width of parent */
+  overflow-x: auto;
+  /* Allow horizontal scrolling if needed */
+}
+
+.data-table {
+  width: 100%;
+  min-width: 1200px;
+  /* Ensure minimum width to prevent shrinking */
+  border-collapse: collapse;
+  table-layout: fixed;
+  /* Fixed layout for consistent column widths */
+}
+
+.data-table th,
+.data-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.data-table th {
+  background: rgba(45, 55, 72, 0.6);
+  font-weight: 600;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.data-table td {
+  color: #cbd5e0;
+  background: rgba(26, 32, 44, 0.4);
+}
+
+.data-table tbody tr:hover {
+  background: rgba(45, 55, 72, 0.4) !important;
+}
+
+.data-table tbody tr:hover td {
+  background: rgba(45, 55, 72, 0.4) !important;
+}
+
+.clickable-row {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clickable-row:hover {
+  background: var(--color-primary-transparent) !important;
+  transform: scale(1.005);
+}
+
+.applicant-name {
+  font-weight: 500;
+  color: #f7fafc;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-badge--submitted {
+  background: rgba(72, 187, 120, 0.2);
+  color: #48bb78;
+}
+
+.status-badge--in_progress {
+  background: rgba(237, 137, 54, 0.2);
+  color: #ed8936;
+}
+
+.status-badge--ineligible {
+  background: rgba(245, 101, 101, 0.2);
+  color: #f56565;
+}
+
+/* Assessment badges */
+.assessment-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
 .assessment-badge--strong_recommend {
-  background-color: #a7f3d0 !important;
-  color: #064e3b !important;
-  border: 1px solid #6ee7b7 !important;
+  background: rgba(56, 178, 172, 0.2);
+  color: #38b2ac;
 }
 
-/* Recommend = Light Green */
 .assessment-badge--recommend {
-  background-color: #d1fae5 !important;
-  color: #065f46 !important;
-  border: 1px solid #6ee7b7 !important;
+  background: rgba(72, 187, 120, 0.2);
+  color: #48bb78;
 }
 
-/* Review Needed = Light Yellow */
 .assessment-badge--review_needed {
-  background-color: #fef3c7 !important;
-  color: #92400e !important;
-  border: 1px solid #fde68a !important;
+  background: rgba(237, 137, 54, 0.2);
+  color: #ed8936;
 }
 
-/* Not Recommend = Light Red */
 .assessment-badge--not_recommend {
-  background-color: #fee2e2 !important;
-  color: #991b1b !important;
-  border: 1px solid #fecaca !important;
+  background: rgba(245, 101, 101, 0.2);
+  color: #f56565;
 }
 
-/* Assessment Pending Badge - light grey style like Workshop Pending */
-.admissions-dashboard__assessment-cell [class*="bg-secondary"] {
-  background-color: #f3f4f6 !important;
-  color: #6b7280 !important;
-  border: 1px solid #d1d5db !important;
+.assessment-badge--pending {
+  background: rgba(160, 174, 192, 0.2);
+  color: #a0aec0;
+}
+
+/* Info session badges */
+.info-session-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.info-session-badge--attended {
+  background: rgba(72, 187, 120, 0.2);
+  color: #48bb78;
+}
+
+.info-session-badge--registered {
+  background: rgba(66, 153, 225, 0.2);
+  color: #4299e1;
+}
+
+.info-session-badge--no_show {
+  background: rgba(245, 101, 101, 0.2);
+  color: #f56565;
+}
+
+.info-session-badge--not_registered {
+  background: rgba(160, 174, 192, 0.2);
+  color: #a0aec0;
+}
+
+.table-footer {
+  padding: 1rem;
+  background: rgba(45, 55, 72, 0.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.table-count {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+/* Pagination Controls */
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pagination-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--color-background-light);
+  border-color: var(--color-primary);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.show-all-btn {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+  margin-left: 0.5rem;
+}
+
+.show-all-btn:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.pagination-info {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  padding: 0 0.5rem;
+}
+
+/* Events Grid */
+.events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+
+.event-card {
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.event-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: var(--color-primary);
+}
+
+.event-card__header h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 0.5rem 0;
+}
+
+.event-date {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 1rem;
+}
+
+.event-stats {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.event-actions {
+  margin-bottom: 1rem;
+}
+
+.view-registrations-btn,
+.mark-attendance-btn {
+  background: transparent;
+  border: 1px solid var(--color-primary);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-registrations-btn:hover,
+.mark-attendance-btn:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+.mark-attendance-btn {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.75rem;
+}
+
+/* Registrations List */
+.registrations-list {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.registrations-list h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 1rem 0;
+}
+
+.mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.mini-table th,
+.mini-table td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.mini-table th {
+  background: rgba(255, 255, 255, 0.03);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.attendance-status {
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.attendance-status--registered {
+  background: rgba(237, 137, 54, 0.2);
+  color: #ed8936;
+}
+
+.attendance-status--attended {
+  background: rgba(72, 187, 120, 0.2);
+  color: #48bb78;
+}
+
+/* Loading and Error States */
+.table-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: var(--color-text-secondary);
+  gap: 1rem;
+}
+
+.no-data-message {
+  text-align: center;
+  padding: 3rem;
+  color: var(--color-text-secondary);
 }
 
 /* Notes Button */
 .notes-btn {
-  background: transparent !important;
-  border: 1px solid var(--color-pursuit-purple) !important;
-  color: var(--color-pursuit-purple) !important;
+  background: transparent;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
   padding: 0.5rem 1rem;
   border-radius: 6px;
   font-size: 0.8rem;
@@ -210,49 +943,189 @@
 }
 
 .notes-btn:hover {
-  background: var(--color-pursuit-purple) !important;
-  color: white !important;
+  background: var(--color-primary);
+  color: white;
 }
 
-/* Override shadcn Button for Notes column */
-.admissions-dashboard__applications tbody tr td:nth-child(10) button {
-  background: transparent !important;
-  border: 1px solid var(--color-pursuit-purple) !important;
-  color: var(--color-pursuit-purple) !important;
-  font-size: 0.875rem;
+/* Clickable cells for table rows */
+.clickable-cell {
+  cursor: pointer;
+}
+
+.clickable-row {
+  transition: background-color 0.2s ease;
+}
+
+.clickable-row:hover .clickable-cell {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Events Table Layout */
+.events-table {
+  margin-top: 1rem;
+  min-width: 900px;
+  /* Ensure table is wide enough */
+}
+
+/* Make Info Sessions and Workshops containers wider */
+.admissions-dashboard__info-sessions .data-table-container,
+.admissions-dashboard__workshops .data-table-container {
+  width: 100%;
+  max-width: none;
+  /* Remove any max-width constraints */
+  overflow-x: auto;
+  /* Allow horizontal scrolling if needed */
+}
+
+.event-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.event-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  width: 35%;
+  /* Give event name more space */
+}
+
+.event-status {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
   font-weight: 500;
+  text-transform: uppercase;
 }
 
-.admissions-dashboard__applications tbody tr td:nth-child(10) button:hover {
-  background: var(--color-pursuit-purple) !important;
-  color: white !important;
+.event-status--past {
+  background: rgba(156, 163, 175, 0.2);
+  color: #9ca3af;
 }
 
-/* Checkbox styling - fix blue color to purple */
-.admissions-dashboard__applications input[type="checkbox"] {
-  accent-color: var(--color-pursuit-purple) !important;
-  cursor: pointer;
-  width: 16px;
-  height: 16px;
+.event-datetime {
+  text-align: left;
+  width: 25%;
+  /* Give date/time adequate space */
 }
 
-/* Custom utility styles for sorting indicators */
-.sortable-header {
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.2s ease;
-  position: relative;
+.date-time-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
-.sortable-header:hover {
-  color: var(--color-pursuit-purple);
+.event-date {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
 }
 
-.sort-indicator {
+.event-time {
+  color: var(--color-text-secondary);
   font-size: 0.8rem;
-  color: var(--color-pursuit-purple);
-  margin-left: 0.25rem;
-  font-weight: bold;
+}
+
+.stat-cell {
+  text-align: center;
+  width: 10%;
+  /* Compact columns for numbers */
+}
+
+.stat-number {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--color-text-primary);
+}
+
+.stat-number--attended {
+  color: var(--color-success);
+}
+
+.stat-number--pending {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.actions-cell {
+  text-align: center;
+  width: 20%;
+  /* Give actions button adequate space */
+}
+
+.view-registrations-btn {
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.view-registrations-btn:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* Registrations expanded row */
+.registrations-row {
+  background: rgba(37, 47, 63, 0.5);
+}
+
+.registrations-cell {
+  padding: 1.5rem !important;
+}
+
+.registrations-list h4 {
+  margin: 0 0 1rem 0;
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
+}
+
+.registrations-table {
+  margin-top: 0.5rem;
+}
+
+.mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(30, 36, 48, 0.6);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mini-table th,
+.mini-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.mini-table th {
+  background: rgba(45, 55, 72, 0.7);
+  font-weight: 600;
+  color: #a0aec0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mini-table td {
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  background: rgba(26, 32, 44, 0.3);
+}
+
+/* Phone column styling */
+.mini-table th:nth-child(3),
+.mini-table td:nth-child(3) {
+  width: 120px;
+  white-space: nowrap;
+  font-family: 'Courier New', monospace;
 }
 
 /* Copyable elements styling */
@@ -266,8 +1139,8 @@
 }
 
 .copyable-email:hover {
-  background-color: rgba(var(--color-pursuit-purple-rgb, 111, 61, 235), 0.1);
-  color: var(--color-pursuit-purple);
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
   transform: translateY(-1px);
 }
 
@@ -277,7 +1150,681 @@
   transform: translateY(-1px);
 }
 
-/* Assessment select dropdown */
+.copyable-email:active,
+.copyable-phone:active {
+  transform: translateY(0);
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+/* Copy All buttons styling */
+.copy-all-btn {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #3b82f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-left: 8px;
+  transition: all 0.2s ease;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.copy-all-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+  transform: translateY(-1px);
+}
+
+.copy-all-btn:active {
+  transform: translateY(0);
+  background: rgba(59, 130, 246, 0.3);
+}
+
+.attendance-status {
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.attendance-status--registered {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.attendance-status--attended {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.mark-attendance-btn {
+  background: var(--color-success);
+  border: none;
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mark-attendance-btn:hover {
+  background: #16a34a;
+}
+
+/* Attendance Status Dropdown */
+.attendance-status-dropdown {
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background-color: white;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  min-width: 120px;
+}
+
+.attendance-status-dropdown:hover {
+  border-color: var(--color-primary);
+}
+
+.attendance-status-dropdown:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+/* Additional Attendance Status Styles */
+.attendance-status--attended_late {
+  background: rgba(251, 191, 36, 0.2);
+  color: #f59e0b;
+}
+
+.attendance-status--very_late {
+  background: rgba(249, 115, 22, 0.2);
+  color: #ea580c;
+}
+
+.attendance-status--no_show {
+  background: rgba(239, 68, 68, 0.2);
+  color: #dc2626;
+}
+
+.attendance-action-completed {
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  font-style: italic;
+}
+
+/* Unified Attendance Status Dropdown */
+.attendance-status-dropdown-unified {
+  padding: 0.4rem 1.8rem 0.4rem 0.8rem;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 130px;
+  appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 14px;
+  text-transform: capitalize;
+
+  /* Down arrow icon - darker for better visibility */
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+}
+
+.attendance-status-dropdown-unified:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.attendance-status-dropdown-unified:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* Color-coded dropdown backgrounds - stronger theme colors */
+.attendance-status-dropdown-unified.status-registered {
+  background:
+    url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.6rem center,
+    linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%);
+  background-size: 14px, 100%;
+  color: #60a5fa !important;
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.attendance-status-dropdown-unified.status-attended {
+  background:
+    url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.6rem center,
+    linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.1) 100%);
+  background-size: 14px, 100%;
+  color: #16a34a !important;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.attendance-status-dropdown-unified.status-attended_late {
+  background:
+    url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.6rem center,
+    linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(251, 191, 36, 0.15) 100%);
+  background-size: 14px, 100%;
+  color: #d97706 !important;
+  border-color: rgba(251, 191, 36, 0.5);
+}
+
+.attendance-status-dropdown-unified.status-very_late {
+  background:
+    url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.6rem center,
+    linear-gradient(135deg, rgba(249, 115, 22, 0.25) 0%, rgba(249, 115, 22, 0.15) 100%);
+  background-size: 14px, 100%;
+  color: #fb923c !important;
+  border-color: rgba(249, 115, 22, 0.5);
+}
+
+.attendance-status-dropdown-unified.status-no_show {
+  background:
+    url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.6rem center,
+    linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(239, 68, 68, 0.15) 100%);
+  background-size: 14px, 100%;
+  color: #dc2626 !important;
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* Info Session Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(3px);
+}
+
+.modal {
+  background-color: var(--color-background-dark);
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--color-border);
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20px;
+  color: var(--color-text-primary);
+}
+
+.info-session-modal {
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 10px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--color-text-primary);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  transition: color var(--transition-speed);
+}
+
+.close-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-row {
+  display: flex;
+  gap: 15px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #ffffff !important;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 1rem;
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-speed);
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-transparent);
+}
+
+.checkbox-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+  width: fit-content;
+  align-items: center;
+}
+
+.checkbox-group input {
+  width: auto;
+  margin: 0;
+  margin-top: 2px;
+  /* Align with first line of label text */
+}
+
+.checkbox-group label {
+  margin-bottom: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 15px;
+}
+
+.cancel-btn,
+.submit-btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all var(--transition-speed);
+}
+
+.cancel-btn {
+  background-color: var(--color-background-light);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.submit-btn {
+  background-color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  color: white;
+}
+
+.cancel-btn:hover {
+  background-color: var(--color-background-darker);
+  border-color: var(--color-text-muted);
+}
+
+.submit-btn:hover {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.cancel-btn:disabled,
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* SweetAlert2 Dark Theme Customization */
+.dark-swal-popup {
+  border: 1px solid var(--color-border) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark-swal-title {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.dark-swal-content {
+  color: #d1d5db !important;
+}
+
+.dark-swal-confirm-btn {
+  background-color: #dc3545 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  padding: 10px 20px !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.dark-swal-confirm-btn:hover {
+  background-color: #c82333 !important;
+}
+
+.dark-swal-cancel-btn {
+  background-color: #6c757d !important;
+  border: none !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  padding: 10px 20px !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.dark-swal-cancel-btn:hover {
+  background-color: #5a6268 !important;
+}
+
+/* Data section actions */
+.data-section__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.create-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.create-btn:hover {
+  background-color: #43A047;
+}
+
+.edit-btn {
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-right: 8px;
+}
+
+.edit-btn:hover {
+  background-color: #0b7dda;
+}
+
+/* Error message */
+.error-message {
+  background-color: #ffebee;
+  border: 1px solid #ffcdd2;
+  border-radius: 4px;
+  padding: 10px 15px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-message p {
+  margin: 0;
+  color: #c62828;
+}
+
+.error-message button {
+  background: none;
+  border: none;
+  color: #c62828;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+/* 
+Assessment Funnel Styles */
+.assessment-funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.assessment-funnel__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+}
+
+.assessment-funnel__indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.assessment-funnel__indicator--strong-recommend {
+  background: #48bb78;
+  /* Green */
+}
+
+.assessment-funnel__indicator--recommend {
+  background: #38b2ac;
+  /* Teal */
+}
+
+.assessment-funnel__indicator--review-needed {
+  background: #ed8936;
+  /* Orange */
+}
+
+.assessment-funnel__indicator--not-recommend {
+  background: #f56565;
+  /* Red */
+}
+
+.assessment-funnel__label {
+  flex: 1;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+.assessment-funnel__count {
+  font-weight: 600;
+  color: var(--color-primary);
+  font-size: 0.9rem;
+  margin-right: 0.5rem;
+}
+
+.assessment-funnel__override {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  cursor: help;
+}
+
+/* Workshop Pipeline Styles */
+.workshop-pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.workshop-pipeline__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+}
+
+.workshop-pipeline__indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.workshop-pipeline__indicator--pending {
+  background: #9ca3af;
+  /* Gray */
+}
+
+.workshop-pipeline__indicator--invited {
+  background: #3b82f6;
+  /* Blue */
+}
+
+.workshop-pipeline__indicator--registered {
+  background: #8b5cf6;
+  /* Purple */
+}
+
+.workshop-pipeline__indicator--attended {
+  background: #10b981;
+  /* Emerald */
+}
+
+.workshop-pipeline__indicator--no-show {
+  background: #ef4444;
+  /* Red */
+}
+
+.workshop-pipeline__label {
+  flex: 1;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+.workshop-pipeline__count {
+  font-weight: 600;
+  color: var(--color-primary);
+  font-size: 0.9rem;
+}
+
+/*Enhanced Applications Table Styles*/
+.admissions-dashboard__checkbox-column {
+  width: 40px;
+  text-align: center;
+}
+
+.admissions-dashboard__select-all-checkbox,
+.admissions-dashboard__row-checkbox {
+  cursor: pointer;
+  transform: scale(1.1);
+}
+
+.admissions-dashboard__row--selected {
+  background: var(--color-primary-transparent);
+}
+
+.admissions-dashboard__bulk-actions-btn {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admissions-dashboard__bulk-actions-btn:disabled {
+  background: #4a5568;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.admissions-dashboard__bulk-actions-btn:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.admissions-dashboard__export-csv-btn {
+  background: #22c55e;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admissions-dashboard__export-csv-btn:disabled {
+  background: #4a5568;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.admissions-dashboard__export-csv-btn:hover:not(:disabled) {
+  background: #16a34a;
+  transform: translateY(-1px);
+}
+
+.admissions-dashboard__masters-flag {
+  margin-left: 0.3rem;
+  font-size: 0.8rem;
+  cursor: help;
+  transition: transform 0.2s ease;
+}
+
+.admissions-dashboard__masters-flag:hover {
+  transform: scale(1.1);
+}
+
+.admissions-dashboard__missing-flag {
+  margin-left: 0.3rem;
+  font-size: 0.65rem;
+  color: #ed8936;
+  background: rgba(237, 137, 54, 0.1);
+  padding: 0.1rem 0.25rem;
+  border-radius: 2px;
+}
+
+.admissions-dashboard__assessment-cell {
+  position: relative;
+}
+
 .admissions-dashboard__assessment-container {
   display: flex;
   align-items: center;
@@ -287,7 +1834,7 @@
 .admissions-dashboard__assessment-select {
   background: transparent;
   border: none;
-  color: var(--color-carbon-black);
+  color: white;
   font-size: 0.75rem;
   font-weight: 500;
   padding: 0.2rem 0.4rem;
@@ -322,321 +1869,1954 @@
   cursor: help;
 }
 
-/* Flags for applicant info */
-.admissions-dashboard__masters-flag {
-  margin-left: 0.3rem;
-  font-size: 0.8rem;
-  cursor: help;
-  transition: transform 0.2s ease;
-}
-
-.admissions-dashboard__masters-flag:hover {
-  transform: scale(1.1);
-}
-
-.admissions-dashboard__missing-flag {
-  margin-left: 0.3rem;
-  font-size: 0.65rem;
-  color: #ed8936;
-  background: rgba(237, 137, 54, 0.1);
-  padding: 0.1rem 0.25rem;
+/* Workshop Badge Styles - Extra Compact */
+.workshop-badge {
+  display: inline-block;
+  padding: 0.15rem 0.35rem;
   border-radius: 2px;
-}
-
-/* Filter toggle button */
-.filter-toggle-btn {
-  background: var(--color-bg-light);
-  border: 1px solid var(--color-divider);
-  color: var(--color-carbon-black);
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.9rem;
+  font-size: 0.65rem;
   font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  text-transform: capitalize;
   white-space: nowrap;
 }
 
-.filter-toggle-btn:hover {
-  border-color: var(--color-pursuit-purple);
-  color: var(--color-pursuit-purple);
+.workshop-badge--pending {
+  background: rgba(156, 163, 175, 0.2);
+  color: #9ca3af;
 }
 
-.filter-toggle-btn--active {
-  background: rgba(var(--color-pursuit-purple-rgb, 111, 61, 235), 0.1);
-  border-color: var(--color-pursuit-purple);
-  color: var(--color-pursuit-purple);
+.workshop-badge--invited {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
 }
 
-.filter-toggle-btn__icon {
-  font-size: 1rem;
-  font-weight: bold;
+.workshop-badge--registered {
+  background: rgba(139, 92, 246, 0.2);
+  color: #8b5cf6;
+}
+
+.workshop-badge--attended {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.workshop-badge--no_show {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+/* Program Admission Badge Styles - Extra Compact */
+.admission-badge {
+  display: inline-block;
+  padding: 0.15rem 0.35rem;
+  border-radius: 2px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.admission-badge--pending {
+  background: rgba(156, 163, 175, 0.2);
+  color: #9ca3af;
+}
+
+.admission-badge--accepted {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.admission-badge--rejected {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.admission-badge--waitlisted {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+.admission-badge--deferred {
+  background: rgba(168, 85, 247, 0.2);
+  color: #a855f7;
+}
+
+.admission-badge--withdrawn {
+  background: rgba(107, 114, 128, 0.2);
+  color: #6b7280;
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+/* Program Admission Pipeline Styles */
+.program-admission-pipeline {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.2rem;
-  height: 1.2rem;
-  border-radius: 50%;
-  transition: all 0.2s ease;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.filter-toggle-btn--active .filter-toggle-btn__icon {
-  background: var(--color-pursuit-purple);
-  color: white;
-}
-
-/* Refresh/retry buttons */
-.refresh-btn,
-.retry-btn {
-  background: transparent;
-  border: 1px solid var(--color-pursuit-purple);
-  color: var(--color-pursuit-purple);
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.refresh-btn:hover,
-.retry-btn:hover {
-  background: var(--color-pursuit-purple);
-  color: white;
-}
-
-/* Bulk actions button */
-.admissions-dashboard__bulk-actions-btn {
-  background: var(--color-pursuit-purple);
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.admissions-dashboard__bulk-actions-btn:disabled {
-  background: #cbd5e0;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.admissions-dashboard__bulk-actions-btn:hover:not(:disabled) {
-  background: rgba(var(--color-pursuit-purple-rgb, 111, 61, 235), 0.9);
-  transform: translateY(-1px);
-}
-
-/* Export CSV button */
-.admissions-dashboard__export-csv-btn {
-  background: #22c55e;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.admissions-dashboard__export-csv-btn:disabled {
-  background: #cbd5e0;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.admissions-dashboard__export-csv-btn:hover:not(:disabled) {
-  background: #16a34a;
-  transform: translateY(-1px);
-}
-
-/* Modal styles (for Add Registration modal that hasn't been converted yet) */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  backdrop-filter: blur(3px);
-}
-
-.modal {
-  background-color: white !important;
-  border-radius: 8px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--color-divider);
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-  padding: 20px;
-  color: var(--color-carbon-black);
-}
-
-.modal form {
-  background: white;
-  color: var(--color-carbon-black);
-}
-
-.modal-header {
+.program-admission-pipeline__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--color-divider);
-  padding-bottom: 10px;
+  margin-bottom: 0.5rem;
 }
 
-.modal-header h2 {
+.program-admission-pipeline__header h4 {
   margin: 0;
-  font-size: 1.5rem;
-  color: var(--color-carbon-black);
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--color-carbon-black);
-  transition: color 0.2s;
-}
-
-.close-btn:hover {
-  color: var(--color-pursuit-purple);
-}
-
-.form-group {
-  margin-bottom: 15px;
-}
-
-.form-row {
-  display: flex;
-  gap: 15px;
-}
-
-.form-row .form-group {
-  flex: 1;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: 500;
-  color: var(--color-carbon-black) !important;
-}
-
-.form-group input,
-.form-group textarea {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--color-divider);
-  border-radius: 4px;
   font-size: 1rem;
-  background-color: white !important;
-  color: var(--color-carbon-black) !important;
-  transition: border-color 0.2s;
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
-.form-group input:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: var(--color-pursuit-purple);
-  box-shadow: 0 0 0 2px rgba(var(--color-pursuit-purple-rgb, 111, 61, 235), 0.1);
+.program-admission-pipeline__total {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
 }
 
-.checkbox-group {
+.program-admission-pipeline__items {
   display: flex;
-  gap: 8px;
-  margin-bottom: 15px;
-  width: fit-content;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.program-admission-pipeline__item {
+  display: flex;
   align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
 }
 
-.checkbox-group input {
-  width: auto !important;
+.program-admission-pipeline__item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.program-admission-pipeline__indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.program-admission-pipeline__label {
+  flex: 1;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+.program-admission-pipeline__count {
+  font-weight: 600;
+  color: var(--color-primary);
+  font-size: 0.95rem;
+  min-width: 30px;
+  text-align: right;
+}
+
+.program-admission-pipeline__percentage {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  min-width: 40px;
+  text-align: right;
+}
+
+.program-admission-pipeline__summary {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.admission-rate {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: rgba(34, 197, 94, 0.1);
+  border-radius: 6px;
+  border-left: 4px solid #22c55e;
+}
+
+.admission-rate__label {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+.admission-rate__value {
+  font-weight: 700;
+  color: #22c55e;
+  font-size: 1.1rem;
+}
+
+/* Compact Applications Table Styles */
+.admissions-dashboard__applications .data-table {
+  font-size: 0.8rem;
+}
+
+.admissions-dashboard__applications .data-table th {
+  font-size: 0.75rem;
+  padding: 0.6rem 0.4rem;
+  font-weight: 600;
+}
+
+.admissions-dashboard__applications .data-table td {
+  font-size: 0.8rem;
+  padding: 0.6rem 0.4rem;
+  line-height: 1.3;
+  vertical-align: middle;
+}
+
+/* Compact copyable elements */
+.copyable-email,
+.copyable-phone {
+  font-size: 0.8rem;
+  padding: 1px 3px;
+}
+
+/* Extra compact info session badges */
+.info-session-badge {
+  display: inline-block;
+  padding: 0.15rem 0.35rem;
+  border-radius: 2px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.info-session-badge--not_registered {
+  background: rgba(156, 163, 175, 0.2);
+  color: #9ca3af;
+}
+
+.info-session-badge--registered {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.info-session-badge--attended {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.info-session-badge--no_show {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+/* Compact status badges */
+.status-badge {
+  display: inline-block;
+  padding: 0.15rem 0.35rem;
+  border-radius: 2px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.status-badge--submitted {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.status-badge--in_progress {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.status-badge--no_application {
+  background: rgba(156, 163, 175, 0.2);
+  color: #9ca3af;
+}
+
+.status-badge--ineligible {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+/* Compact notes button */
+.notes-btn {
+  font-size: 0.65rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-secondary);
+  transition: all 0.2s ease;
+}
+
+.notes-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
+}
+
+/* Larger applicant name for better readability */
+.applicant-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Assessment Funnel */
+.admissions-dashboard__assessment-funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+  flex: 1;
+  /* Fill remaining space in card */
+  justify-content: space-evenly;
+  /* Distribute items evenly */
+}
+
+.admissions-dashboard__assessment-funnel-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  border-radius: 4px;
+  flex: 1;
+  /* Equal height for all items */
+  min-height: 28px;
+  /* Minimum height for consistency */
+}
+
+.admissions-dashboard__assessment-funnel-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.admissions-dashboard__assessment-funnel-indicator--strong-recommend {
+  background: #48bb78;
+}
+
+.admissions-dashboard__assessment-funnel-indicator--recommend {
+  background: #68d391;
+}
+
+.admissions-dashboard__assessment-funnel-indicator--review-needed {
+  background: #ed8936;
+}
+
+.admissions-dashboard__assessment-funnel-indicator--not-recommend {
+  background: #f56565;
+}
+
+.admissions-dashboard__assessment-funnel-label {
+  flex: 1;
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: var(--color-text-primary);
+}
+
+.admissions-dashboard__assessment-funnel-count {
+  font-weight: 600;
+  color: var(--color-primary);
+  font-size: 0.8rem;
+}
+
+.admissions-dashboard__assessment-funnel-override {
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+  margin-left: 0.25rem;
+}
+
+/* Workshop Pipeline */
+.admissions-dashboard__workshop-pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+  flex: 1;
+  /* Fill remaining space in card */
+  justify-content: space-evenly;
+  /* Distribute items evenly */
+}
+
+.admissions-dashboard__workshop-pipeline-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  border-radius: 4px;
+  flex: 1;
+  /* Equal height for all items */
+  min-height: 28px;
+  /* Minimum height for consistency */
+}
+
+.admissions-dashboard__workshop-pipeline-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.admissions-dashboard__workshop-pipeline-indicator--pending {
+  background: #a0aec0;
+}
+
+.admissions-dashboard__workshop-pipeline-indicator--invited {
+  background: #4299e1;
+}
+
+.admissions-dashboard__workshop-pipeline-indicator--registered {
+  background: #ed8936;
+}
+
+.admissions-dashboard__workshop-pipeline-indicator--attended {
+  background: #48bb78;
+}
+
+.admissions-dashboard__workshop-pipeline-indicator--no_show {
+  background: #f56565;
+}
+
+.admissions-dashboard__workshop-pipeline-label {
+  flex: 1;
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: var(--color-text-primary);
+}
+
+.admissions-dashboard__workshop-pipeline-count {
+  font-weight: 600;
+  color: var(--color-primary);
+  font-size: 0.8rem;
+}
+
+/* Enhanced Modern Dashboard Styling */
+
+/* Subtle card entrance animation */
+.admissions-dashboard__stat-card {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Staggered animation for grid items */
+.admissions-dashboard__stat-card:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.admissions-dashboard__stat-card:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.admissions-dashboard__stat-card:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.admissions-dashboard__stat-card:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+.admissions-dashboard__stat-card:nth-child(5) {
+  animation-delay: 0.5s;
+}
+
+.admissions-dashboard__stat-card:nth-child(6) {
+  animation-delay: 0.6s;
+}
+
+/* Enhanced hover effects for interactive elements */
+.admissions-dashboard__assessment-funnel-item,
+.admissions-dashboard__workshop-pipeline-item,
+.admissions-dashboard__application-status-item {
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.admissions-dashboard__assessment-funnel-item::before,
+.admissions-dashboard__workshop-pipeline-item::before,
+.admissions-dashboard__application-status-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.admissions-dashboard__assessment-funnel-item:hover::before,
+.admissions-dashboard__workshop-pipeline-item:hover::before,
+.admissions-dashboard__application-status-item:hover::before {
+  left: 100%;
+}
+
+/* Improved stat card value styling */
+.admissions-dashboard__stat-card-value {
+  background: linear-gradient(135deg, var(--color-primary), #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced grid layout with better spacing */
+.admissions-dashboard__stats-grid {
+  padding: 0.5rem;
+  background: transparent;
+  border-radius: 8px;
+}
+
+/* Improved tab styling */
+.admissions-dashboard__tab {
+  position: relative;
+  overflow: hidden;
+}
+
+.admissions-dashboard__tab::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 3px;
+  background: var(--color-primary);
+  transition: all 0.3s ease;
+  transform: translateX(-50%);
+}
+
+.admissions-dashboard__tab:hover::after {
+  width: 80%;
+}
+
+.admissions-dashboard__tab--active::after {
+  width: 100%;
+}
+
+/* Subtle glow effect for active elements */
+.admissions-dashboard__stat-card:hover {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.2),
+    0 0 20px rgba(102, 126, 234, 0.1);
+}
+
+/* Enhanced loading state */
+.admissions-dashboard__loading-spinner {
+  background: conic-gradient(from 0deg, transparent, var(--color-primary), transparent);
+  border: none;
+  border-radius: 50%;
+  position: relative;
+}
+
+.admissions-dashboard__loading-spinner::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  right: 3px;
+  bottom: 3px;
+  background: var(--color-background-darker);
+  border-radius: 50%;
+}
+
+/* Improved responsive design with uniform heights */
+@media (max-width: 1400px) {
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    /* Maintain equal row heights */
+    gap: 0.8rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    /* Three equal rows for 2-column layout */
+    gap: 0.8rem;
+  }
+
+  .admissions-dashboard__content {
+    padding: 1rem 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .admissions-dashboard__stats-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(6, minmax(120px, 1fr));
+    /* Six equal rows for mobile */
+    gap: 0.8rem;
+    padding: 0.25rem;
+  }
+
+  .admissions-dashboard__content {
+    padding: 1rem;
+  }
+
+  .admissions-dashboard__tabs {
+    padding: 1rem 1rem 0 1rem;
+    gap: 0.25rem;
+  }
+
+  .admissions-dashboard__tab {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .admissions-dashboard__stat-card {
+    padding: 0.8rem;
+  }
+
+  .admissions-dashboard__stat-card-value {
+    font-size: 1.5rem;
+  }
+}
+
+/*
+ Modern Dashboard Background Pattern */
+.admissions-dashboard {
+  background:
+    radial-gradient(circle at 20% 80%, rgba(102, 126, 234, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.03) 0%, transparent 50%),
+    var(--color-background-darker);
+}
+
+/* Enhanced stat card styling with subtle gradients */
+.admissions-dashboard__stat-card {
+  background: linear-gradient(135deg,
+      var(--color-background-dark) 0%,
+      rgba(255, 255, 255, 0.02) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Improved content area with subtle border */
+/* .admissions-dashboard__content {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
+} */
+
+/* .admissions-dashboard__content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(102, 126, 234, 0.3) 50%,
+      transparent 100%);
+} */
+
+/* Enhanced tab navigation with better visual hierarchy */
+.admissions-dashboard__tabs {
+  background: linear-gradient(135deg,
+      var(--color-background-darker) 0%,
+      rgba(255, 255, 255, 0.01) 100%);
+  border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+  position: relative;
+}
+
+.admissions-dashboard__tabs::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(102, 126, 234, 0.5) 50%,
+      transparent 100%);
+}
+
+/* Improved stat card icons with subtle glow */
+.admissions-dashboard__stat-card-icon {
+  filter: drop-shadow(0 0 8px rgba(102, 126, 234, 0.2));
+  transition: all 0.3s ease;
+}
+
+.admissions-dashboard__stat-card:hover .admissions-dashboard__stat-card-icon {
+  filter: drop-shadow(0 0 12px rgba(102, 126, 234, 0.4));
+  transform: scale(1.1);
+}
+
+/* Enhanced overview grid with better visual separation */
+.admissions-dashboard__stats-grid {
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.01) 0%,
+      rgba(255, 255, 255, 0.03) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Subtle pulse animation for loading states */
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.admissions-dashboard__loading p {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Enhanced error state styling */
+.admissions-dashboard__error {
+  background: linear-gradient(135deg,
+      rgba(239, 68, 68, 0.08) 0%,
+      rgba(239, 68, 68, 0.12) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+/* Improved no-data state */
+.admissions-dashboard__no-data {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.02) 0%,
+      rgba(255, 255, 255, 0.05) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: var(--color-text-secondary);
+}
+
+.admissions-dashboard__no-data p {
+  font-size: 1.1rem;
   margin: 0;
-  margin-top: 2px;
-  accent-color: var(--color-pursuit-purple);
+  opacity: 0.8;
 }
 
-.checkbox-group label {
-  margin-bottom: 0 !important;
+/* Sort
+able Table Headers */
+.sortable-header {
   cursor: pointer;
   user-select: none;
-  color: var(--color-carbon-black) !important;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
-.modal-actions {
+.sortable-header:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: var(--color-primary);
+}
+
+.sort-indicator {
+  font-size: 0.8rem;
+  color: var(--color-primary);
+  margin-left: 0.25rem;
+  font-weight: bold;
+}
+
+/* Name Search Input */
+.name-search-input {
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-background-darker);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  min-width: 200px;
+  transition: all 0.2s ease;
+}
+
+.name-search-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: var(--color-background-light);
+  box-shadow: 0 0 0 2px var(--color-primary-transparent);
+}
+
+.name-search-input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+}
+
+/* Enhanced data section controls */
+.data-section__controls {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-  border-top: 1px solid var(--color-divider);
-  padding-top: 15px;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
-.cancel-btn,
-.submit-btn,
-.delete-btn {
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
+/* Responsive adjustments for search input */
+@media (max-width: 768px) {
+  .name-search-input {
+    min-width: 150px;
+    font-size: 0.8rem;
+    padding: 0.5rem 0.8rem;
+  }
+
+  .data-section__controls {
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .name-search-input {
+    min-width: 120px;
+    width: 100%;
+  }
+
+  .data-section__controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-select {
+    width: 100%;
+  }
+}
+
+/* Fixed Co
+lumn Widths for Consistent Layout */
+.data-table th:nth-child(1) {
+  width: 50px;
+}
+
+/* Checkbox */
+.data-table th:nth-child(2) {
+  width: 180px;
+}
+
+/* Name */
+.data-table th:nth-child(3) {
+  width: 200px;
+}
+
+/* Email */
+.data-table th:nth-child(4) {
+  width: 130px;
+}
+
+/* Phone */
+.data-table th:nth-child(5) {
+  width: 120px;
+}
+
+/* Status */
+.data-table th:nth-child(6) {
+  width: 140px;
+}
+
+/* Assessment */
+.data-table th:nth-child(7) {
+  width: 130px;
+}
+
+/* Info Session */
+.data-table th:nth-child(8) {
+  width: 120px;
+}
+
+/* Workshop */
+.data-table th:nth-child(9) {
+  width: 120px;
+}
+
+/* Admission */
+.data-table th:nth-child(10) {
+  width: 100px;
+}
+
+/* Notes */
+
+.data-table td:nth-child(1) {
+  width: 50px;
+}
+
+/* Checkbox */
+.data-table td:nth-child(2) {
+  width: 180px;
+}
+
+/* Name */
+.data-table td:nth-child(3) {
+  width: 200px;
+}
+
+/* Email */
+.data-table td:nth-child(4) {
+  width: 130px;
+}
+
+/* Phone */
+.data-table td:nth-child(5) {
+  width: 120px;
+}
+
+/* Status */
+.data-table td:nth-child(6) {
+  width: 140px;
+}
+
+/* Assessment */
+.data-table td:nth-child(7) {
+  width: 130px;
+}
+
+/* Info Session */
+.data-table td:nth-child(8) {
+  width: 120px;
+}
+
+/* Workshop */
+.data-table td:nth-child(9) {
+  width: 120px;
+}
+
+/* Admission */
+.data-table td:nth-child(10) {
+  width: 100px;
+}
+
+/* Notes */
+
+/* Ensure content doesn't overflow in fixed width cells */
+.data-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Allow actions cell to show full content */
+.data-table .actions-cell {
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+}
+
+/* Email Automation Styles */
+.admissions-dashboard__email-automation {
+    padding: 1.5rem;
+}
+
+.email-automation-stats {
+    margin-bottom: 2rem;
+    background: var(--color-background-light);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid var(--color-border);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: var(--color-background-dark);
+    padding: 1rem;
+    border-radius: 6px;
+    text-align: center;
+    border: 1px solid var(--color-border);
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+    color: #FFFFFF !important;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.opt-out-stats {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.opt-out-stats h4 {
+    margin-bottom: 1rem;
+    color: var(--color-text-primary);
+    font-size: 1.1rem;
+}
+
+.opt-out-reasons-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.opt-out-reason-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    background: var(--color-background-light);
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    transition: all 0.2s ease;
+}
+
+.opt-out-reason-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.opt-out-reason-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+}
+
+.opt-out-reason-label {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.opt-out-reason-note {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+    text-align: center;
+    margin-top: 0.25rem;
+}
+
+.other-reasons-section {
+    background-color: var(--color-background-darker);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.other-reasons-section h5 {
+    color: var(--color-text-primary);
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.other-reasons-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.other-reason-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--color-background-light);
+    border-radius: 4px;
+    border-left: 3px solid var(--color-primary);
+}
+
+.other-reason-text {
+    flex: 1;
+    color: var(--color-text-primary);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.other-reason-count {
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
+
+/* Email Type Table Column Widths */
+.email-type-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.email-type-col {
+    width: 50% !important;
+    text-align: left !important;
+}
+
+.sent-col,
+.queued-col {
+    width: 15% !important;
+    text-align: center !important;
+}
+
+.avg-col {
+    width: 20% !important;
+    text-align: center !important;
+}
+
+.email-type-cell {
+    text-align: left !important;
+    font-weight: 500;
+    padding-left: 1rem !important;
+}
+
+.sent-cell,
+.queued-cell,
+.avg-cell {
+    text-align: center !important;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+/* Test Email Section */
+.test-email-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.75rem 0;
+    padding: 1rem;
+    background-color: var(--color-background-darker);
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+}
+
+.test-email-input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--color-border);
+    border-radius: 6px;
+    background-color: var(--color-background-light);
+    color: var(--color-text-primary);
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.test-email-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.test-email-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.test-email-input::placeholder {
+    color: var(--color-text-muted);
+}
+
+.opt-out-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--color-warning);
+    margin-bottom: 0.25rem;
+}
+
+.opt-out-label {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    text-align: center;
+}
+
+.email-type-breakdown {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.email-type-breakdown h4 {
+    margin-bottom: 1rem;
+    color: var(--color-text-primary);
+    font-size: 1.1rem;
+}
+
+.email-type-cell {
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.applicant-email-status-section,
+.queued-emails-section,
+.email-history-section {
+    margin-top: 2rem;
+    background: var(--color-background-light);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid var(--color-border);
+}
+
+.applicant-email-status-section h3,
+.queued-emails-section h3,
+.email-history-section h3 {
+    margin-bottom: 1rem;
+    color: var(--color-text-primary);
+    font-size: 1.2rem;
+}
+
+.send-count {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    background: var(--color-success-light);
+    color: var(--color-success-dark);
+}
+
+.send-count--max {
+    background: var(--color-warning-light);
+    color: var(--color-warning-dark);
+}
+
+.next-send {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+}
+
+.next-send--none {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+.create-btn--secondary {
+    background: var(--color-secondary);
+    border: 1px solid var(--color-secondary);
+}
+
+.create-btn--secondary:hover {
+    background: var(--color-secondary-dark);
+    border-color: var(--color-secondary-dark);
+}
+
+.create-btn--danger {
+    background: var(--color-danger);
+    border: 1px solid var(--color-danger);
+}
+
+.create-btn--danger:hover {
+    background: var(--color-danger-dark);
+    border-color: var(--color-danger-dark);
+}
+
+/* Applicant Email Status Styles */
+.opt-out-indicator {
+    margin-left: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.stage-badge, .app-status-badge, .info-session-badge, .workshop-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: capitalize;
+}
+
+.stage-badge--created { background: var(--color-info-light); color: var(--color-info-dark); }
+.stage-badge--application_started { background: var(--color-warning-light); color: var(--color-warning-dark); }
+.stage-badge--application_submitted { background: var(--color-primary-light); color: var(--color-primary-dark); }
+.stage-badge--info_session_attended { background: var(--color-success-light); color: var(--color-success-dark); }
+.stage-badge--workshop_invited { background: var(--color-secondary-light); color: var(--color-secondary-dark); }
+.stage-badge--workshop_attended { background: var(--color-success-light); color: var(--color-success-dark); }
+
+.app-status-badge--not_started { background: var(--color-text-muted); color: white; }
+.app-status-badge--no_application { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
+.app-status-badge--in_progress { background: var(--color-warning-light); color: var(--color-warning-dark); }
+.app-status-badge--submitted { background: var(--color-success-light); color: var(--color-success-dark); }
+.app-status-badge--incomplete { background: var(--color-danger-light); color: var(--color-danger-dark); }
+
+.info-session-badge--attended { background: var(--color-success-light); color: var(--color-success-dark); }
+.info-session-badge--not-attended { background: var(--color-danger-light); color: var(--color-danger-dark); }
+
+.workshop-badge--not_invited { background: var(--color-text-muted); color: white; }
+.workshop-badge--invited { background: var(--color-secondary-light); color: var(--color-secondary-dark); }
+.workshop-badge--attended { background: var(--color-success-light); color: var(--color-success-dark); }
+
+.days-since {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+}
+
+.email-logs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.email-log-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.email-type {
+    font-weight: 500;
+    color: var(--color-text-primary);
+    text-transform: capitalize;
+}
+
+.queued-indicator {
+    background: var(--color-warning-light);
+    color: var(--color-warning-dark);
+    padding: 0.1rem 0.3rem;
+    border-radius: 8px;
+    font-size: 0.7rem;
+}
+
+.no-emails {
+    color: var(--color-text-muted);
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.next-email-info {
+    font-size: 0.8rem;
+}
+
+.next-email-type {
+    font-weight: 500;
+    color: var(--color-text-primary);
+    text-transform: capitalize;
+}
+
+.next-email-date {
+    color: var(--color-text-secondary);
+    font-size: 0.75rem;
+}
+
+.email-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* SweetAlert2 Email Preview Styles */
+.email-preview-summary,
+.email-results-summary {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--color-background-light);
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.summary-label {
+    font-weight: bold;
+    color: var(--color-text-primary);
+}
+
+.summary-value {
+    font-weight: bold;
+    color: var(--color-primary);
+}
+
+.email-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.email-preview-table th,
+.email-preview-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.email-preview-table th {
+    background: var(--color-background-light);
+    font-weight: bold;
+    color: var(--color-text-primary);
+}
+
+.email-preview-table tr:nth-child(even) {
+    background: var(--color-background-light);
+}
+
+.email-type {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: var(--color-primary-light);
+    color: var(--color-primary-dark);
+    font-size: 0.8rem;
+    text-transform: capitalize;
+}
+
+.email-action {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: var(--color-success-light);
+    color: var(--color-success-dark);
+    font-size: 0.8rem;
+}
+
+.email-confirm-message {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: var(--color-danger-light);
+    border-radius: 8px;
+    border: 1px solid var(--color-danger);
+}
+
+.email-confirm-message p {
+    margin: 0.5rem 0;
+    color: var(--color-danger-dark);
+}
+
+/* Skipped Applicants Styles */
+.skipped-applicants {
+    margin-top: 2rem;
+    border-top: 1px solid var(--color-border);
+    padding-top: 1rem;
+}
+
+.skipped-applicants details {
+    background: var(--color-background-light);
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.skipped-applicants summary {
+    padding: 1rem;
+    cursor: pointer;
+    user-select: none;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--color-background-light);
+}
+
+.skipped-applicants summary:hover {
+    background: var(--color-background);
+}
+
+.skipped-summary-title {
+    color: var(--color-text-secondary);
+}
+
+.skipped-content {
+    padding: 1rem;
+    background: var(--color-background);
+    border-top: 1px solid var(--color-border);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.skipped-applicants-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.skipped-applicants-table th,
+.skipped-applicants-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.skipped-applicants-table th {
+    font-weight: bold;
+    color: var(--color-text-secondary);
+}
+
+.skip-reason {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: var(--color-warning-light);
+    color: var(--color-warning-dark);
+    font-size: 0.8rem;
+}
+
+/* Responsive adjustments for email automation */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.75rem;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    .opt-out-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .admissions-dashboard__email-automation {
+        padding: 1rem;
+    }
+    
+    .applicant-email-status-section .data-table {
+        font-size: 0.8rem;
+    }
+    
+    .applicant-email-status-section th,
+    .applicant-email-status-section td {
+        padding: 0.5rem 0.25rem;
+    }
+}
+
+/* Allow name and email columns to wrap if needed */
+.data-table td:nth-child(2),
+.data-table td:nth-child(3) {
+  white-space: normal;
+  word-wrap: break-word;
+  max-width: 0;
+  /* This forces the cell to respect the width */
+}
+
+/* Resp
+onsive table adjustments */
+@media (max-width: 1400px) {
+  .data-table {
+    min-width: 1000px;
+    /* Reduce minimum width on smaller screens */
+  }
+}
+
+@media (max-width: 1024px) {
+  .data-table {
+    min-width: 900px;
+  }
+
+  /* Adjust column widths for tablets */
+  .data-table th:nth-child(2),
+  .data-table td:nth-child(2) {
+    width: 150px;
+  }
+
+  /* Name */
+  .data-table th:nth-child(3),
+  .data-table td:nth-child(3) {
+    width: 180px;
+  }
+
+  /* Email */
+  .data-table th:nth-child(4),
+  .data-table td:nth-child(4) {
+    width: 110px;
+  }
+
+  /* Phone */
+}
+
+@media (max-width: 768px) {
+  .data-table {
+    min-width: 800px;
+  }
+
+  /* Further reduce column widths for mobile */
+  .data-table th:nth-child(2),
+  .data-table td:nth-child(2) {
+    width: 130px;
+  }
+
+  /* Name */
+  .data-table th:nth-child(3),
+  .data-table td:nth-child(3) {
+    width: 160px;
+  }
+
+  /* Email */
+  .data-table th:nth-child(4),
+  .data-table td:nth-child(4) {
+    width: 100px;
+  }
+
+  /* Phone */
+  .data-table th:nth-child(5),
+  .data-table td:nth-child(5) {
+    width: 100px;
+  }
+
+  /* Status */
+  .data-table th:nth-child(6),
+  .data-table td:nth-child(6) {
+    width: 120px;
+  }
+
+  /* Assessment */
+  .data-table th:nth-child(7),
+  .data-table td:nth-child(7) {
+    width: 110px;
+  }
+
+  /* Info Session */
+  .data-table th:nth-child(8),
+  .data-table td:nth-child(8) {
+    width: 100px;
+  }
+
+  /* Workshop */
+  .data-table th:nth-child(9),
+  .data-table td:nth-child(9) {
+    width: 100px;
+  }
+
+  /* Admission */
+  .data-table th:nth-child(10),
+  .data-table td:nth-child(10) {
+    width: 80px;
+  }
+
+  /* Notes */
+}
+
+/* Ensure the table container always maintains its width */
+.data-table-container {
+  flex-shrink: 0;
+  /* Prevent the container from shrinking */
+}
+
+/* Make sure the applications section doesn't change width */
+.admissions-dashboard__applications .data-section__header,
+.admissions-dashboard__applications .data-table-container {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Inf
+o Sessions and Workshops Table Column Widths */
+.admissions-dashboard__info-sessions .data-table th:nth-child(1),
+.admissions-dashboard__info-sessions .data-table td:nth-child(1),
+.admissions-dashboard__workshops .data-table th:nth-child(1),
+.admissions-dashboard__workshops .data-table td:nth-child(1) {
+  width: 30%;
+  /* Event Name - wider but balanced */
+}
+
+.admissions-dashboard__info-sessions .data-table th:nth-child(2),
+.admissions-dashboard__info-sessions .data-table td:nth-child(2),
+.admissions-dashboard__workshops .data-table th:nth-child(2),
+.admissions-dashboard__workshops .data-table td:nth-child(2) {
+  width: 20%;
+  /* Date & Time */
+}
+
+.admissions-dashboard__info-sessions .data-table th:nth-child(3),
+.admissions-dashboard__info-sessions .data-table td:nth-child(3),
+.admissions-dashboard__workshops .data-table th:nth-child(3),
+.admissions-dashboard__workshops .data-table td:nth-child(3) {
+  width: 12%;
+  /* Registered count */
+}
+
+.admissions-dashboard__info-sessions .data-table th:nth-child(4),
+.admissions-dashboard__info-sessions .data-table td:nth-child(4),
+.admissions-dashboard__workshops .data-table th:nth-child(4),
+.admissions-dashboard__workshops .data-table td:nth-child(4) {
+  width: 12%;
+  /* Attended count */
+}
+
+/* Workshops: Laptops Needed count (column 5) */
+.admissions-dashboard__workshops .data-table th:nth-child(5),
+.admissions-dashboard__workshops .data-table td:nth-child(5) {
+  width: 10%;
+}
+
+/* Info Sessions: Active column (column 5) */
+.admissions-dashboard__info-sessions .data-table th:nth-child(5),
+.admissions-dashboard__info-sessions .data-table td:nth-child(5) {
+  width: 100px;
+  min-width: 100px;
+}
+
+/* Workshops: Active column (column 6) */
+.admissions-dashboard__workshops .data-table th:nth-child(6),
+.admissions-dashboard__workshops .data-table td:nth-child(6) {
+  width: 100px;
+  min-width: 100px;
+}
+
+/* Info Sessions: Actions column (column 6) */
+.admissions-dashboard__info-sessions .data-table th:nth-child(6),
+.admissions-dashboard__info-sessions .data-table td:nth-child(6) {
+  width: 180px;
+  min-width: 180px;
+}
+
+/* Workshops: Actions column (column 7) */
+.admissions-dashboard__workshops .data-table th:nth-child(7),
+.admissions-dashboard__workshops .data-table td:nth-child(7) {
+  width: 180px;
+  min-width: 180px;
+}
+
+/* Allow event names to wrap and show full text */
+.admissions-dashboard__info-sessions .data-table td:nth-child(1),
+.admissions-dashboard__workshops .data-table td:nth-child(1) {
+  white-space: normal;
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+
+/* Responsive adjustments for Info Sessions and Workshops */
+@media (max-width: 1024px) {
+
+  .admissions-dashboard__info-sessions .data-table th:nth-child(1),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(1),
+  .admissions-dashboard__workshops .data-table th:nth-child(1),
+  .admissions-dashboard__workshops .data-table td:nth-child(1) {
+    width: 28%;
+    /* Slightly smaller on tablets */
+  }
+
+  .admissions-dashboard__info-sessions .data-table th:nth-child(2),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(2),
+  .admissions-dashboard__workshops .data-table th:nth-child(2),
+  .admissions-dashboard__workshops .data-table td:nth-child(2) {
+    width: 22%;
+    /* More space for date/time */
+  }
+
+  /* Info Sessions: Active column (column 5) - tablet */
+  .admissions-dashboard__info-sessions .data-table th:nth-child(5),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(5) {
+    width: 80px;
+    min-width: 80px;
+  }
+
+  /* Info Sessions: Actions column (column 6) - tablet */
+  .admissions-dashboard__info-sessions .data-table th:nth-child(6),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(6) {
+    width: 140px;
+    min-width: 140px;
+  }
+
+  /* Workshops: Laptops Needed (column 5) - tablet */
+  .admissions-dashboard__workshops .data-table th:nth-child(5),
+  .admissions-dashboard__workshops .data-table td:nth-child(5) {
+    width: 10%;
+  }
+
+  /* Workshops: Active column (column 6) - tablet */
+  .admissions-dashboard__workshops .data-table th:nth-child(6),
+  .admissions-dashboard__workshops .data-table td:nth-child(6) {
+    width: 80px;
+    min-width: 80px;
+  }
+
+  /* Workshops: Actions column (column 7) - tablet */
+  .admissions-dashboard__workshops .data-table th:nth-child(7),
+  .admissions-dashboard__workshops .data-table td:nth-child(7) {
+    width: 140px;
+    min-width: 140px;
+  }
+}
+
+@media (max-width: 768px) {
+
+  .admissions-dashboard__info-sessions .data-table th:nth-child(1),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(1),
+  .admissions-dashboard__workshops .data-table th:nth-child(1),
+  .admissions-dashboard__workshops .data-table td:nth-child(1) {
+    width: 25%;
+    /* Smaller on mobile */
+  }
+
+  .admissions-dashboard__info-sessions .data-table th:nth-child(2),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(2),
+  .admissions-dashboard__workshops .data-table th:nth-child(2),
+  .admissions-dashboard__workshops .data-table td:nth-child(2) {
+    width: 25%;
+    /* Balanced date/time space */
+  }
+
+  .admissions-dashboard__info-sessions .data-table th:nth-child(3),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(3),
+  .admissions-dashboard__workshops .data-table th:nth-child(3),
+  .admissions-dashboard__workshops .data-table td:nth-child(3) {
+    width: 10%;
+    /* Compact numbers */
+  }
+
+  .admissions-dashboard__info-sessions .data-table th:nth-child(4),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(4),
+  .admissions-dashboard__workshops .data-table th:nth-child(4),
+  .admissions-dashboard__workshops .data-table td:nth-child(4) {
+    width: 10%;
+    /* Compact numbers */
+  }
+
+  /* Info Sessions: Active column (column 5) - mobile */
+  .admissions-dashboard__info-sessions .data-table th:nth-child(5),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(5) {
+    width: 60px;
+    min-width: 60px;
+  }
+
+  /* Info Sessions: Actions column (column 6) - mobile */
+  .admissions-dashboard__info-sessions .data-table th:nth-child(6),
+  .admissions-dashboard__info-sessions .data-table td:nth-child(6) {
+    width: 120px;
+    min-width: 120px;
+  }
+
+  /* Workshops: Laptops Needed (column 5) - mobile */
+  .admissions-dashboard__workshops .data-table th:nth-child(5),
+  .admissions-dashboard__workshops .data-table td:nth-child(5) {
+    width: 8%;
+  }
+
+  /* Workshops: Active column (column 6) - mobile */
+  .admissions-dashboard__workshops .data-table th:nth-child(6),
+  .admissions-dashboard__workshops .data-table td:nth-child(6) {
+    width: 60px;
+    min-width: 60px;
+  }
+
+  /* Workshops: Actions column (column 7) - mobile */
+  .admissions-dashboard__workshops .data-table th:nth-child(7),
+  .admissions-dashboard__workshops .data-table td:nth-child(7) {
+    width: 120px;
+    min-width: 120px;
+  }
+}
+
+/* Lapto
+p indicator styles */
+.laptop-indicator-cell {
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.laptop-needed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #3b82f6;
+  cursor: help;
+  font-size: 0.8rem;
+}
+
+.laptop-own {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #10b981;
+  cursor: help;
+  font-size: 0.8rem;
+}
+
+.laptop-icon {
+  font-size: 1.1rem;
+  margin-bottom: 2px;
+}
+
+.laptop-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-number--laptops {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+/* ===== MANUAL REGISTRATION STYLES ===== */
+
+/* Registrations Header */
+.registrations-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.registrations-header h4 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Add Registration Button */
+.add-registration-btn {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
   font-weight: 500;
-  transition: all 0.2s;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
-.cancel-btn {
-  background-color: white;
-  border: 1px solid var(--color-divider);
-  color: var(--color-carbon-black);
+.add-registration-btn:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
-.submit-btn {
-  background-color: var(--color-pursuit-purple);
-  border: 1px solid var(--color-pursuit-purple);
+/* Remove Registration Button */
+.remove-registration-btn {
+  background: #ef4444;
   color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.delete-btn {
-  background-color: #dc3545;
-  border: 1px solid #dc3545;
-  color: white;
+.remove-registration-btn:hover {
+  background: #dc2626;
 }
 
-.cancel-btn:hover {
-  background-color: var(--color-bg-light);
-  border-color: var(--color-carbon-black);
-}
-
-.submit-btn:hover {
-  background-color: rgba(var(--color-pursuit-purple-rgb, 111, 61, 235), 0.9);
-}
-
-.delete-btn:hover {
-  background-color: #c82333;
-  border-color: #c82333;
-}
-
-.cancel-btn:disabled,
-.submit-btn:disabled,
-.delete-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* Add Registration Modal Styles */
+/* Add Registration Modal */
 .add-registration-modal {
   width: 95%;
   max-width: 900px;
@@ -650,84 +3830,82 @@
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+  /* Important for flex child with overflow */
 }
 
+/* Ensure modal actions stay at bottom */
 .add-registration-modal .modal-actions {
   flex-shrink: 0;
   margin-top: auto;
   padding-top: 1rem;
-  border-top: 1px solid var(--color-divider);
-  background: var(--color-bg-light);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-background-dark);
 }
 
 .search-section {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: 1.5rem;
-  background: white;
+  gap: 1rem;
 }
 
 .search-input {
   width: 100%;
-  padding: 1rem 1rem 1rem 2.5rem;
-  border: 2px solid var(--color-divider);
-  border-radius: 8px;
-  background: white;
-  color: var(--color-carbon-black);
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: var(--color-background-darker);
+  color: var(--color-text-primary);
   font-size: 1rem;
-  transition: all 0.2s ease;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: 0.75rem center;
-  background-size: 20px;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: var(--color-pursuit-purple);
-  box-shadow: 0 0 0 3px rgba(111, 61, 235, 0.1);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236F3DEB' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
-}
-
-.search-input::placeholder {
-  color: var(--color-carbon-black);
-  opacity: 0.5;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
 }
 
 .search-loading {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--color-carbon-black);
-  opacity: 0.7;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
 }
 
 .search-loading .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid var(--color-divider);
-  border-top: 2px solid var(--color-pursuit-purple);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top: 2px solid var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Search Results */
 .search-results {
   max-height: 400px;
   overflow-y: auto;
-  border: 1px solid var(--color-divider);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 6px;
-  background: white;
+  background: rgba(30, 36, 48, 0.8);
 }
 
 .search-results h4 {
   padding: 0.75rem 1rem;
   margin: 0;
-  background: var(--color-bg-light);
-  border-bottom: 1px solid var(--color-divider);
-  color: var(--color-carbon-black);
+  background: rgba(45, 55, 72, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
   font-size: 0.9rem;
   font-weight: 600;
 }
@@ -742,27 +3920,27 @@
   align-items: center;
   padding: 0.75rem;
   margin-bottom: 0.5rem;
-  border: 1px solid var(--color-divider);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: white;
+  background: rgba(37, 47, 63, 0.6);
 }
 
 .applicant-item:hover:not(.already-registered) {
-  border-color: var(--color-pursuit-purple);
-  background: rgba(111, 61, 235, 0.02);
+  border-color: var(--color-primary);
+  background: rgba(16, 185, 129, 0.05);
 }
 
 .applicant-item.selected {
-  border-color: var(--color-pursuit-purple);
-  background: rgba(111, 61, 235, 0.05);
+  border-color: var(--color-primary);
+  background: rgba(16, 185, 129, 0.1);
 }
 
 .applicant-item.already-registered {
   opacity: 0.6;
   cursor: not-allowed;
-  background: var(--color-bg-light);
+  background: rgba(26, 32, 44, 0.7);
 }
 
 .applicant-info {
@@ -771,7 +3949,7 @@
 
 .applicant-name {
   font-weight: 600;
-  color: var(--color-carbon-black);
+  color: var(--color-text-primary);
   margin-bottom: 0.25rem;
   display: flex;
   align-items: center;
@@ -794,41 +3972,31 @@
 }
 
 .applicant-email {
-  color: var(--color-carbon-black);
-  opacity: 0.7;
+  color: var(--color-text-muted);
   font-size: 0.85rem;
 }
 
 .applicant-status {
-  color: var(--color-carbon-black);
-  opacity: 0.7;
+  color: var(--color-text-muted);
   font-size: 0.8rem;
 }
 
 .selection-checkbox input {
   transform: scale(1.2);
-  accent-color: var(--color-pursuit-purple);
-}
-
-.no-results {
-  color: var(--color-carbon-black);
-  opacity: 0.6;
-  text-align: center;
-  font-style: italic;
-  margin: 20px 0;
+  accent-color: var(--color-primary);
 }
 
 /* Selected Applicants */
 .selected-applicants {
-  background: var(--color-bg-light);
-  border: 1px solid var(--color-divider);
+  background: rgba(30, 36, 48, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 6px;
   padding: 1rem;
 }
 
 .selected-applicants h4 {
   margin: 0 0 0.75rem 0;
-  color: var(--color-carbon-black);
+  color: var(--color-text-primary);
   font-size: 0.9rem;
   font-weight: 600;
 }
@@ -842,569 +4010,123 @@
 .selected-applicant {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: var(--color-pursuit-purple);
+  gap: 0.75rem;
+  background: var(--color-primary);
   color: white;
-  padding: 0.4rem 0.8rem;
-  border-radius: 4px;
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
   font-size: 0.85rem;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
-.remove-selected-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+.applicant-name-selected {
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.laptop-toggle-container {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 0.9rem;
-  line-height: 1;
-}
-
-.remove-selected-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/* Active/Inactive Toggle Styles */
-.active-toggle-container {
-  display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
 }
 
-.active-toggle-btn {
+.laptop-toggle-btn {
   position: relative;
-  width: 48px;
-  height: 24px;
-  background: #ccc;
+  width: 42px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.3);
   border: none;
-  border-radius: 12px;
+  border-radius: 11px;
   cursor: pointer;
   transition: all 0.3s ease;
   outline: none;
+  flex-shrink: 0;
 }
 
-.active-toggle-btn--active {
-  background: var(--color-pursuit-purple);
+.laptop-toggle-btn:focus {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
 }
 
-.active-toggle-slider {
+.laptop-toggle-btn--needs {
+  background: #10b981; /* Green for needs laptop */
+}
+
+.laptop-toggle-btn--owns {
+  background: rgba(255, 255, 255, 0.3); /* Light for owns laptop */
+}
+
+.laptop-toggle-slider {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   background: white;
   border-radius: 50%;
   transition: transform 0.3s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.active-toggle-btn--active .active-toggle-slider {
-  transform: translateX(24px);
+.laptop-toggle-btn--needs .laptop-toggle-slider {
+  transform: translateX(20px);
 }
 
-.active-status-label {
+.laptop-toggle-btn--owns .laptop-toggle-slider {
+  transform: translateX(0);
+}
+
+.laptop-status-label {
   font-size: 0.75rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.active-status-label--active {
-  color: var(--color-pursuit-purple);
-}
-
-.active-status-label--inactive {
-  color: #9ca3af;
-}
-
-/* Event filter toggle */
-.event-filter-toggle {
-  display: flex;
-  align-items: center;
-  margin-right: 1rem;
-}
-
-.event-filter-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: var(--color-carbon-black);
-  cursor: pointer;
-  user-select: none;
-}
-
-.event-filter-checkbox {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-  accent-color: var(--color-pursuit-purple);
-}
-
-.event-filter-label:hover {
-  color: var(--color-pursuit-purple);
-}
-
-/* Registration management buttons */
-.add-registration-btn {
-  background: var(--color-pursuit-purple);
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.add-registration-btn:hover {
-  background: rgba(var(--color-pursuit-purple-rgb, 111, 61, 235), 0.9);
-  transform: translateY(-1px);
-}
-
-.remove-registration-btn {
-  background: #ef4444;
+.laptop-status-label--needs {
   color: white;
+}
+
+.laptop-status-label--owns {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.remove-selected-btn {
+  background: rgba(255, 255, 255, 0.2);
   border: none;
-  padding: 0.4rem 0.8rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.remove-registration-btn:hover {
-  background: #dc2626;
-}
-
-/* Edit button */
-.edit-btn {
-  background-color: #3b82f6;
   color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  margin-right: 8px;
-}
-
-.edit-btn:hover {
-  background-color: #2563eb;
-}
-
-/* View registrations button */
-.view-registrations-btn {
-  background: var(--color-pursuit-purple);
-  border: 1px solid var(--color-pursuit-purple);
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.view-registrations-btn:hover {
-  background: rgba(var(--color-pursuit-purple-rgb, 111, 61, 235), 0.9);
-}
-
-/* Attendance status dropdown */
-.attendance-status-dropdown-unified {
-  padding: 0.4rem 1.8rem 0.4rem 0.8rem;
-  border-radius: 6px;
-  border: 2px solid transparent;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-width: 130px;
-  appearance: none;
-  background-repeat: no-repeat;
-  background-position: right 0.6rem center;
-  background-size: 14px;
-  text-transform: capitalize;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-}
-
-.attendance-status-dropdown-unified:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.attendance-status-dropdown-unified.status-registered {
-  background: rgba(59, 130, 246, 0.2);
-  color: #3b82f6 !important;
-  border-color: rgba(59, 130, 246, 0.4);
-}
-
-.attendance-status-dropdown-unified.status-attended {
-  background: rgba(34, 197, 94, 0.2);
-  color: #16a34a !important;
-  border-color: rgba(34, 197, 94, 0.4);
-}
-
-.attendance-status-dropdown-unified.status-attended_late {
-  background: rgba(251, 191, 36, 0.25);
-  color: #d97706 !important;
-  border-color: rgba(251, 191, 36, 0.5);
-}
-
-.attendance-status-dropdown-unified.status-very_late {
-  background: rgba(249, 115, 22, 0.25);
-  color: #fb923c !important;
-  border-color: rgba(249, 115, 22, 0.5);
-}
-
-.attendance-status-dropdown-unified.status-no_show {
-  background: rgba(239, 68, 68, 0.25);
-  color: #dc2626 !important;
-  border-color: rgba(239, 68, 68, 0.5);
-}
-
-/* Event date/time styling */
-.event-datetime {
-  text-align: left;
-}
-
-.date-time-info {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.event-date {
-  font-weight: 500;
-  color: var(--color-carbon-black);
-  font-size: 0.9rem;
-}
-
-.event-time {
-  color: var(--color-carbon-black);
-  opacity: 0.7;
-  font-size: 0.8rem;
-}
-
-.event-status--past {
-  display: inline-block;
-  margin-left: 0.5rem;
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  background: rgba(156, 163, 175, 0.2);
-  color: #9ca3af;
-}
-
-/* Registrations list styling */
-.registrations-row {
-  background: var(--color-bg-light);
-}
-
-.registrations-cell {
-  padding: 1.5rem !important;
-}
-
-.registrations-list {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--color-divider);
-}
-
-.registrations-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.registrations-header h4 {
-  margin: 0;
-  color: var(--color-carbon-black);
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.mini-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.mini-table th,
-.mini-table td {
-  padding: 0.75rem;
-  text-align: left;
-  border-bottom: 1px solid var(--color-divider);
-}
-
-.mini-table th {
-  background: var(--color-bg-light);
-  font-weight: 600;
-  color: var(--color-carbon-black);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.mini-table td {
-  color: var(--color-carbon-black);
-  font-size: 0.9rem;
-  background: white;
-}
-
-.mini-table tbody tr:hover {
-  background: var(--color-bg-light);
-}
-
-/* Data section headers and controls */
-.data-section__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--color-divider);
-}
-
-.data-section__header h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--color-carbon-black);
-  margin: 0;
-}
-
-.data-section__actions {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.create-btn {
-  background: var(--color-pursuit-purple);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.2s ease;
-}
-
-.create-btn:hover {
-  background: rgba(111, 61, 235, 0.9);
-  transform: translateY(-1px);
-}
-
-/* Data tables */
-.data-table-container {
-  background: white;
-  border: 1px solid var(--color-divider);
-  border-radius: 8px;
-  overflow: hidden;
-  width: 100%;
-  overflow-x: auto;
-}
-
-.data-table {
-  width: 100%;
-  min-width: 1200px;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-.data-table th,
-.data-table td {
-  padding: 1rem;
-  text-align: left;
-  border-bottom: 1px solid var(--color-divider);
-}
-
-.data-table th {
-  background: var(--color-bg-light);
-  font-weight: 600;
-  color: var(--color-carbon-black);
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.data-table td {
-  color: var(--color-carbon-black);
-  background: white;
-}
-
-.data-table tbody tr:hover {
-  background: var(--color-bg-light) !important;
-}
-
-.data-table tbody tr:hover td {
-  background: var(--color-bg-light) !important;
-}
-
-.stat-cell {
-  text-align: center;
-}
-
-.stat-number {
-  font-weight: 600;
-  font-size: 1.1rem;
-  color: var(--color-carbon-black);
-}
-
-.stat-number--attended {
-  color: #22c55e;
-}
-
-.stat-number--laptops {
-  color: #3b82f6;
-}
-
-/* Event row styles */
-.event-row {
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.event-name {
-  font-weight: 500;
-  color: var(--color-carbon-black);
-}
-
-.actions-cell {
-  text-align: center;
-}
-
-/* Loading and empty states */
-.table-loading {
-  display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem;
-  color: var(--color-carbon-black);
-  gap: 1rem;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-left: auto;
+  transition: background 0.2s ease;
 }
 
-.table-loading .spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--color-divider);
-  border-top: 3px solid var(--color-pursuit-purple);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+.remove-selected-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.no-data-message {
-  text-align: center;
-  padding: 3rem;
-  color: var(--color-carbon-black);
-  opacity: 0.7;
-}
-
-/* Email automation section */
-.admissions-dashboard__email-automation {
-  padding: 0;
-}
-
-.email-automation-stats {
-  margin-bottom: 2rem;
-  background: white;
-  border-radius: 8px;
-  padding: 1.5rem;
-  border: 1px solid var(--color-divider);
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.stat-card {
-  background: var(--color-bg-light);
-  padding: 1rem;
-  border-radius: 6px;
-  text-align: center;
-  border: 1px solid var(--color-divider);
-  transition: all 0.2s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.stat-value {
-  font-size: 2rem;
-  font-weight: bold;
-  color: var(--color-pursuit-purple);
-  margin-bottom: 0.5rem;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: var(--color-carbon-black);
-  opacity: 0.7;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* Responsive adjustments */
+/* Mobile Responsiveness */
 @media (max-width: 768px) {
-  .filter-toggle-btn {
-    font-size: 0.85rem;
-    padding: 0.4rem 0.8rem;
-  }
-
   .registrations-header {
     flex-direction: column;
     gap: 0.5rem;
     align-items: flex-start;
   }
 
-  .data-section__actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
-  }
-
-  .data-table {
-    min-width: 900px;
-  }
-
-  .stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 0.75rem;
-  }
-
-  .stat-value {
-    font-size: 1.5rem;
+  .add-registration-btn {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
   }
 
   .add-registration-modal {
@@ -1425,5 +4147,132 @@
 
   .selected-list {
     flex-direction: column;
+  }
+}
+
+/* ===== ACTIVE/INACTIVE TOGGLE STYLES ===== */
+.active-status-cell {
+  text-align: center;
+  padding: 0.75rem;
+  vertical-align: middle;
+}
+
+.active-toggle-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.active-toggle-btn {
+  position: relative;
+  width: 48px;
+  height: 24px;
+  background: var(--color-border);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.active-toggle-btn:focus {
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
+.active-toggle-btn--active {
+  background: var(--color-primary);
+}
+
+.active-toggle-btn--inactive {
+  background: #ccc;
+}
+
+.active-toggle-slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.active-toggle-btn--active .active-toggle-slider {
+  transform: translateX(24px);
+}
+
+.active-toggle-btn--inactive .active-toggle-slider {
+  transform: translateX(0);
+}
+
+.active-status-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.active-status-label--active {
+  color: var(--color-primary);
+}
+
+.active-status-label--inactive {
+  color: #666;
+}
+
+/* Hover effects */
+.active-toggle-btn:hover {
+  transform: scale(1.05);
+}
+
+.active-toggle-btn--active:hover {
+  background: var(--color-primary-dark);
+}
+
+.active-toggle-btn--inactive:hover {
+  background: #bbb;
+}
+
+/* ===== EVENT FILTER TOGGLE STYLES ===== */
+.event-filter-toggle {
+  display: flex;
+  align-items: center;
+  margin-right: 1rem;
+}
+
+.event-filter-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.event-filter-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.event-filter-label:hover {
+  color: var(--color-primary);
+}
+
+/* Responsive adjustments for filter toggle */
+@media (max-width: 768px) {
+  .event-filter-toggle {
+    margin-bottom: 0.5rem;
+    margin-right: 0;
+  }
+  
+  .data-section__actions {
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 }

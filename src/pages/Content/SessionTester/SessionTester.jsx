@@ -1133,6 +1133,46 @@ const SessionTester = ({ sharedData, updateSharedData }) => {
                         </button>
                       </div>
                     </div>
+                    
+                    {/* Smart Task Configuration Section */}
+                    <div className="session-data-tester__smart-config">
+                      <h4 className="session-data-tester__smart-config-title">Smart Task Configuration</h4>
+                      <div className="session-data-tester__smart-config-grid">
+                        <div className="session-data-tester__smart-config-item">
+                          <label>Task Mode:</label>
+                          <span className={`session-data-tester__badge session-data-tester__badge--${currentTask.task_mode || 'basic'}`}>
+                            {currentTask.task_mode === 'conversation' ? '💬 Conversation' : '📝 Basic'}
+                          </span>
+                        </div>
+                        
+                        {currentTask.persona && (
+                          <div className="session-data-tester__smart-config-item">
+                            <label>Persona:</label>
+                            <span className="session-data-tester__badge session-data-tester__badge--persona">
+                              {currentTask.persona}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {currentTask.ai_helper_mode && (
+                          <div className="session-data-tester__smart-config-item">
+                            <label>AI Helper Mode:</label>
+                            <span className="session-data-tester__badge session-data-tester__badge--helper">
+                              {currentTask.ai_helper_mode.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {currentTask.feedback_slot && (
+                          <div className="session-data-tester__smart-config-item">
+                            <label>Survey Type:</label>
+                            <span className={`session-data-tester__badge session-data-tester__badge--survey session-data-tester__badge--survey-${currentTask.feedback_slot}`}>
+                              📊 {currentTask.feedback_slot.replace(/_/g, ' ').toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Resources */}
@@ -1657,6 +1697,46 @@ const SessionTester = ({ sharedData, updateSharedData }) => {
                             <FaPlus />
                             Add Question
                           </button>
+                        </div>
+                      </div>
+                      
+                      {/* Smart Task Configuration Section */}
+                      <div className="session-data-tester__smart-config session-data-tester__smart-config--modal">
+                        <h4 className="session-data-tester__smart-config-title">Smart Task Configuration</h4>
+                        <div className="session-data-tester__smart-config-grid">
+                          <div className="session-data-tester__smart-config-item">
+                            <label>Task Mode:</label>
+                            <span className={`session-data-tester__badge session-data-tester__badge--${currentTask.task_mode || 'basic'}`}>
+                              {currentTask.task_mode === 'conversation' ? '💬 Conversation' : '📝 Basic'}
+                            </span>
+                          </div>
+                          
+                          {currentTask.persona && (
+                            <div className="session-data-tester__smart-config-item">
+                              <label>Persona:</label>
+                              <span className="session-data-tester__badge session-data-tester__badge--persona">
+                                {currentTask.persona}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {currentTask.ai_helper_mode && (
+                            <div className="session-data-tester__smart-config-item">
+                              <label>AI Helper Mode:</label>
+                              <span className="session-data-tester__badge session-data-tester__badge--helper">
+                                {currentTask.ai_helper_mode.replace(/_/g, ' ')}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {currentTask.feedback_slot && (
+                            <div className="session-data-tester__smart-config-item">
+                              <label>Survey Type:</label>
+                              <span className={`session-data-tester__badge session-data-tester__badge--survey session-data-tester__badge--survey-${currentTask.feedback_slot}`}>
+                                📊 {currentTask.feedback_slot.replace(/_/g, ' ').toUpperCase()}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

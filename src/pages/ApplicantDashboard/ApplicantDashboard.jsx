@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext';
 import pursuitLogoFull from '../../assets/logo-full.png';
 import databaseService from '../../services/databaseService';
+import Swal from 'sweetalert2';
 import './ApplicantDashboard.css';
 
 const SECTION_CONFIG = [
@@ -72,6 +74,8 @@ const SECTION_CONFIG = [
 
 function ApplicantDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { setAuthState } = useAuth();
   const [user, setUser] = useState(null);
   const [currentApplicantId, setCurrentApplicantId] = useState(null);
   const [statuses, setStatuses] = useState({
@@ -82,8 +86,10 @@ function ApplicantDashboard() {
   });
   const [sessionDetails, setSessionDetails] = useState(null);
   const [workshopDetails, setWorkshopDetails] = useState(null);
+  const [applicantStage, setApplicantStage] = useState(null);
   const [applicationProgress, setApplicationProgress] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Load user data from localStorage on mount
   useEffect(() => {
@@ -126,6 +132,12 @@ function ApplicantDashboard() {
     }
   }, [user]);
 
+  // Trigger refresh when returning to dashboard (e.g., from application form)
+  useEffect(() => {
+    // Increment refresh trigger when location changes
+    setRefreshTrigger(prev => prev + 1);
+  }, [location]);
+
   // Load real data from database when applicant ID is available
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -157,7 +169,7 @@ function ApplicantDashboard() {
     if (currentApplicantId) {
       loadDashboardData();
     }
-  }, [currentApplicantId]);
+  }, [currentApplicantId, refreshTrigger]); // Reload when refreshTrigger changes (i.e., location changes)
 
   const loadInfoSessionStatus = async () => {
     try {
@@ -259,6 +271,18 @@ function ApplicantDashboard() {
       }
       
       console.log('Dashboard: Application found:', application.status, 'ID:', application.application_id);
+      
+      // Fetch applicant stage data (including deferred status)
+      try {
+        const stageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${applicant.applicant_id}/stage`);
+        if (stageResponse.ok) {
+          const stageData = await stageResponse.json();
+          console.log('Dashboard: Applicant stage data:', stageData);
+          setApplicantStage(stageData);
+        }
+      } catch (error) {
+        console.error('Error fetching applicant stage:', error);
+      }
       
       if (application.status === 'ineligible') {
         setStatuses(prev => ({ ...prev, application: 'ineligible' }));
@@ -375,32 +399,25 @@ function ApplicantDashboard() {
       }
       
       const workshops = await response.json();
-      console.log('DEBUG: Workshops received for applicant', currentApplicantId, ':', workshops.map(w => ({
-        title: w.title, 
-        id: w.event_id, 
-        active: w.is_active,
-        registrations: w.registrations.length,
-        userRegistrations: w.registrations.filter(r => r.applicant_id === currentApplicantId)
-      })));
-      let foundRegistration = null;
-      let registeredWorkshop = null;
+      console.log('DEBUG: Workshops received for applicant', currentApplicantId, ':', workshops);
       
-      // Check all workshops for current user's registration (any status)
-      for (const workshop of workshops) {
-        const registrations = workshop.registrations || [];
-        const userRegistration = registrations.find(reg => 
-          reg.applicant_id === currentApplicantId
-        );
+      // New format: workshops are returned as flat objects with registration data already joined
+      // Each workshop object has registration_id, registered_at, attended, etc. if user is registered
+      if (workshops.length > 0 && workshops[0].registration_id) {
+        // User is registered for at least one workshop
+        const registeredWorkshop = workshops[0]; // Take first registered workshop
         
-        if (userRegistration) {
-          foundRegistration = userRegistration;
-          registeredWorkshop = workshop;
-          break;
+        // Check if they attended
+        if (registeredWorkshop.attended) {
+          setStatuses(prev => ({ ...prev, workshop: 'attended' }));
+          console.log('Dashboard: Workshop status set to attended based on registration');
+        } else {
+          setStatuses(prev => ({ ...prev, workshop: 'signed-up' }));
+          console.log('Dashboard: Workshop status set to signed-up');
         }
-      }
-      
-      if (foundRegistration && registeredWorkshop) {
-        // Treat database time as Eastern Time (extract UTC components and use as Eastern)
+        
+        // Set workshop details
+        // Format date/time treating database time as EST
         const dbDate = new Date(registeredWorkshop.start_time);
         const year = dbDate.getUTCFullYear();
         const month = dbDate.getUTCMonth();
@@ -409,59 +426,25 @@ function ApplicantDashboard() {
         const minute = dbDate.getUTCMinutes();
         const easternDate = new Date(year, month, day, hour, minute);
 
-        const workshopEventDetails = {
+        setWorkshopDetails({
+          event_id: registeredWorkshop.event_id,
+          name: registeredWorkshop.name || registeredWorkshop.title,
           date: easternDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
           time: easternDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-          location: registeredWorkshop.location
-        };
-        
-        // Set workshop status based on stage data first, then registration status
-        let workshopStatus = 'signed-up'; // default for 'registered'
-        
-        if (hasAttendedWorkshop) {
-          // Stage data takes priority - already attended
-          workshopStatus = 'attended';
-          console.log('Dashboard: Workshop status set to attended based on stage data');
-        } else if (foundRegistration.status === 'attended' || 
-                   foundRegistration.status === 'attended_late' || 
-                   foundRegistration.status === 'very_late') {
-          workshopStatus = 'attended';
-          console.log('Dashboard: Workshop marked as attended with registration status:', foundRegistration.status);
-        } else if (foundRegistration.status === 'registered') {
-          workshopStatus = 'signed-up';
-          console.log('Dashboard: Workshop registration found, status:', foundRegistration.status);
-        }
-        
-        setStatuses(prev => ({ ...prev, workshop: workshopStatus }));
-        setWorkshopDetails(workshopEventDetails);
-        console.log('Dashboard: Found workshop registration', workshopEventDetails, 'Status:', workshopStatus);
-      } else if (hasAttendedWorkshop) {
-        // Attended based on stage but no registration details found
-        // Try to get details from any workshop for display purposes
-        if (workshops && workshops.length > 0) {
-          // Use the first available workshop as a fallback for display purposes
-          const firstWorkshop = workshops[0];
-          const dbDate = new Date(firstWorkshop.start_time);
-          const year = dbDate.getUTCFullYear();
-          const month = dbDate.getUTCMonth();
-          const day = dbDate.getUTCDate();
-          const hour = dbDate.getUTCHours();
-          const minute = dbDate.getUTCMinutes();
-          const easternDate = new Date(year, month, day, hour, minute);
-
-          const workshopEventDetails = {
-            date: easternDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-            time: easternDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-            location: firstWorkshop.location
-          };
-          
-          setWorkshopDetails(workshopEventDetails);
-        }
+          location: registeredWorkshop.location,
+          registration_id: registeredWorkshop.registration_id,
+          registered_at: registeredWorkshop.registered_at,
+          attended: registeredWorkshop.attended,
+          // Add fields needed for workshop access logic
+          start_time: registeredWorkshop.start_time,
+          allow_early_access: registeredWorkshop.allow_early_access,
+          access_window_days: registeredWorkshop.access_window_days
+        });
       } else {
-        // Invited but not registered yet (and hasn't attended)
+        // User is invited but not yet registered
         setStatuses(prev => ({ ...prev, workshop: 'not signed-up' }));
         setWorkshopDetails(null);
-        console.log('Dashboard: Workshop available for signup');
+        console.log('Dashboard: Workshop status set to not signed-up');
       }
     } catch (error) {
       console.error('Error loading workshop status for dashboard:', error);
@@ -634,6 +617,153 @@ function ApplicantDashboard() {
     navigate('/dashboard');
   };
 
+  // Check if workshop is currently accessible
+  const isWorkshopAccessible = () => {
+    if (!workshopDetails) return false;
+    
+    console.log('Workshop details:', workshopDetails);
+    
+    // If early access is allowed, always accessible
+    if (workshopDetails.allow_early_access) {
+      console.log('Workshop accessible: early access is allowed');
+      return true;
+    }
+    
+    // Get current date in EST (DATE ONLY, no time)
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: 'America/New_York'
+    });
+    
+    const currentParts = formatter.formatToParts(now);
+    const currentYear = currentParts.find(part => part.type === 'year').value;
+    const currentMonth = currentParts.find(part => part.type === 'month').value;
+    const currentDay = currentParts.find(part => part.type === 'day').value;
+    const currentDate = `${currentYear}-${currentMonth}-${currentDay}`;
+    
+    // Get workshop start date in EST (DATE ONLY, no time)
+    const workshopStart = new Date(workshopDetails.start_time);
+    const workshopParts = formatter.formatToParts(workshopStart);
+    const workshopYear = workshopParts.find(part => part.type === 'year').value;
+    const workshopMonth = workshopParts.find(part => part.type === 'month').value;
+    const workshopDay = workshopParts.find(part => part.type === 'day').value;
+    const workshopStartDate = `${workshopYear}-${workshopMonth}-${workshopDay}`;
+    
+    console.log(`Workshop access check - Current date: ${currentDate}, Workshop date: ${workshopStartDate}`);
+    
+    // Workshop is accessible if current date >= workshop date
+    const isAccessible = currentDate >= workshopStartDate;
+    console.log(`Workshop accessible: ${isAccessible}`);
+    return isAccessible;
+  };
+
+  // Format workshop start date for display
+  const formatWorkshopStartDate = () => {
+    if (!workshopDetails?.start_time) return '';
+    
+    const date = new Date(workshopDetails.start_time);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'America/New_York'
+    });
+  };
+
+  // Enter workshop - creates user account and auto-login
+  const handleEnterWorkshop = async () => {
+    try {
+      console.log('=== ENTERING WORKSHOP FROM DASHBOARD ===');
+      console.log('Workshop Event ID:', workshopDetails?.event_id);
+      console.log('User email:', user?.email);
+      
+      if (!user?.email || !workshopDetails?.event_id) {
+        throw new Error('Missing required data to enter workshop');
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshop/enter`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event_id: workshopDetails.event_id,
+          applicant_email: user.email
+        }),
+      });
+
+      console.log('Enter workshop response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Enter workshop error:', errorData);
+        
+        // Show error in SweetAlert
+        await Swal.fire({
+          icon: 'error',
+          title: 'Cannot Access Workshop',
+          text: errorData.error || `Failed to enter workshop (${response.status})`,
+          confirmButtonColor: '#667eea'
+        });
+        return; // Don't throw - just return
+      }
+
+      const data = await response.json();
+      console.log('✅ Workshop entry successful:', data);
+
+      // Prepare user data with userType for AuthContext
+      const userData = {
+        ...data.user,
+        userType: 'builder', // Set as builder so AuthContext recognizes it
+        firstName: data.user.first_name,
+        lastName: data.user.last_name
+      };
+
+      // Store the user token and data in localStorage
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      // Update AuthContext to set authenticated state
+      setAuthState(userData, data.token);
+      console.log('✅ AuthContext updated, user authenticated');
+
+      // Show success message
+      await Swal.fire({
+        icon: 'success',
+        title: 'Entering Workshop',
+        text: `Loading workshop...`,
+        timer: 1500,
+        showConfirmButton: false
+      });
+
+      // Redirect to dashboard
+      navigate('/dashboard');
+
+    } catch (error) {
+      console.error('Error entering workshop:', error);
+      
+      let errorMessage = 'Failed to enter workshop.';
+      
+      if (error.message.includes('not registered')) {
+        errorMessage = 'You must be registered for this workshop to enter it.';
+      } else if (error.message.includes('not currently accessible')) {
+        errorMessage = error.message; // Use the detailed access message from backend
+      } else {
+        errorMessage = `${error.message} Please try again or contact support.`;
+      }
+      
+      await Swal.fire({
+        icon: 'error',
+        title: 'Workshop Entry Failed',
+        text: errorMessage
+      });
+    }
+  };
+
   const handleEditEligibility = async () => {
     try {
       // Get applicant ID from localStorage or user data
@@ -802,6 +932,139 @@ function ApplicantDashboard() {
                     </div>
                   )}
                   
+                  {/* Defer application button for submitted applications */}
+                  {section.key === 'application' && status === 'submitted' && currentApplicantId && !applicantStage?.deferred && (
+                    <div className="session-details__container" style={{ marginTop: '12px' }}>
+                      <button
+                        onClick={async () => {
+                          const result = await Swal.fire({
+                            title: 'Defer Your Application?',
+                            html: `
+                              <p style="font-size: 16px; margin: 20px 0;">
+                                If you defer, your application will be removed from the current cohort and automatically reconsidered for the next one.
+                              </p>
+                              <p style="font-size: 14px; color: #666; margin: 15px 0;">
+                                We'll reach out with details about the next cohort timeline.
+                              </p>
+                            `,
+                            icon: 'question',
+                            showCancelButton: true,
+                            confirmButtonText: 'Yes, Defer My Application',
+                            cancelButtonText: 'Cancel',
+                            confirmButtonColor: '#dc3545',
+                            cancelButtonColor: '#6c757d',
+                            background: 'var(--color-background-dark)',
+                            color: 'var(--color-text-primary)',
+                            customClass: {
+                              popup: 'custom-swal-popup'
+                            }
+                          });
+
+                          if (result.isConfirmed) {
+                            try {
+                              // Call the defer endpoint directly with applicant ID
+                              const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/defer`, {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ applicantId: currentApplicantId })
+                              });
+
+                              if (!response.ok) {
+                                const error = await response.json();
+                                throw new Error(error.error || 'Failed to defer application');
+                              }
+
+                              const deferResult = await response.json();
+                              
+                              await Swal.fire({
+                                icon: 'success',
+                                title: 'Application Deferred',
+                                html: `<p style="font-size: 16px;">${deferResult.message}</p>`,
+                                confirmButtonColor: '#4242ea',
+                                background: 'var(--color-background-dark)',
+                                color: 'var(--color-text-primary)',
+                                confirmButtonText: 'OK'
+                              });
+                              
+                              // Reload the page to reflect the updated status
+                              window.location.reload();
+                            } catch (error) {
+                              await Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: error.message || 'Failed to defer application. Please try again.',
+                                confirmButtonColor: '#dc3545',
+                                background: 'var(--color-background-dark)',
+                                color: 'var(--color-text-primary)',
+                                confirmButtonText: 'OK'
+                              });
+                            }
+                          }
+                        }}
+                        style={{
+                          background: 'rgba(220, 53, 69, 0.1)',
+                          color: '#dc3545',
+                          padding: '10px 16px',
+                          border: '1px solid #dc3545',
+                          borderRadius: '8px',
+                          fontSize: '0.85rem',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          width: '100%',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.background = '#dc3545';
+                          e.target.style.color = 'white';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.background = 'rgba(220, 53, 69, 0.1)';
+                          e.target.style.color = '#dc3545';
+                        }}
+                      >
+                        Change of plans? Defer your application
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Show deferred status message */}
+                  {section.key === 'application' && status === 'submitted' && applicantStage?.deferred && (
+                    <div className="session-details__container" style={{ 
+                      marginTop: '12px', 
+                      background: 'rgba(255, 193, 7, 0.1)',
+                      border: '1px solid #ffc107',
+                      borderRadius: '8px',
+                      padding: '16px'
+                    }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '8px',
+                        marginBottom: '8px'
+                      }}>
+                        <span style={{ fontSize: '20px' }}>📅</span>
+                        <strong style={{ color: '#ffc107' }}>Application Deferred</strong>
+                      </div>
+                      <p style={{ 
+                        margin: 0, 
+                        fontSize: '0.9rem',
+                        color: 'var(--color-text-secondary)'
+                      }}>
+                        Your application will be automatically reconsidered for the next cohort. We'll reach out with details about the timeline.
+                      </p>
+                      {applicantStage.deferred_at && (
+                        <p style={{ 
+                          margin: '8px 0 0 0', 
+                          fontSize: '0.8rem',
+                          color: 'var(--color-text-tertiary)'
+                        }}>
+                          Deferred on {new Date(applicantStage.deferred_at).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {section.key === 'infoSession' && (status === 'signed-up' || status === 'attended') && sessionDetails && (
                     <div className="session-details__container">
@@ -821,6 +1084,49 @@ function ApplicantDashboard() {
                         <div className="session-details__attended-badge">
                           ✅ Attended
                         </div>
+                      )}
+                      {(status === 'signed-up' || status === 'attended') && (
+                        <>
+                          <button
+                            onClick={handleEnterWorkshop}
+                            disabled={!isWorkshopAccessible()}
+                            className="enter-workshop-button"
+                            style={{
+                              marginTop: '12px',
+                              padding: '10px 20px',
+                              background: isWorkshopAccessible() 
+                                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                : '#6c757d',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '8px',
+                              fontWeight: '600',
+                              fontSize: '0.95rem',
+                              cursor: isWorkshopAccessible() ? 'pointer' : 'not-allowed',
+                              transition: 'all 0.2s ease',
+                              boxShadow: isWorkshopAccessible() 
+                                ? '0 2px 8px rgba(102, 126, 234, 0.3)'
+                                : 'none',
+                              width: '100%',
+                              maxWidth: '280px',
+                              opacity: isWorkshopAccessible() ? 1 : 0.6
+                            }}
+                            onMouseOver={(e) => {
+                              if (isWorkshopAccessible()) {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                              }
+                            }}
+                            onMouseOut={(e) => {
+                              if (isWorkshopAccessible()) {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+                              }
+                            }}
+                          >
+                            {isWorkshopAccessible() ? 'Enter Workshop' : 'Workshop Locked'}
+                          </button>
+                        </>
                       )}
                     </div>
                   )}

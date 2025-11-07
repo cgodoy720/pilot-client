@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -32,8 +36,11 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
+    "@tiptap/react": "^3.9.0",
+    "@tiptap/starter-kit": "^3.9.0",
     "animate.css": "^4.1.1",
     "axios": "^1.9.0",
+    "canvas-confetti": "^1.9.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
@@ -48,7 +55,7 @@
     "react-icons": "^5.5.0",
     "react-markdown": "^10.0.0",
     "react-router-dom": "^6.29.0",
-    "sweetalert2": "^11.22.4",
+    "sweetalert2": "^11.26.3",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7"
   },

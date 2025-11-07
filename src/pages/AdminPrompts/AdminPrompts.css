@@ -1,20 +1,8 @@
 .admin-prompts {
   width: 100%;
-  height: 100%;
+  min-height: 100%;
   padding: var(--spacing-md);
-  background-color: var(--color-background-darker);
   color: var(--color-text-primary);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.admin-prompts__content {
-  background: var(--color-background-light);
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  flex: 1;
   display: flex;
   flex-direction: column;
 }
@@ -40,11 +28,8 @@
 
 .admin-prompts__tab-content {
   padding: 2rem;
-  min-height: 600px;
-  background-color: var(--color-background-light);
-  color: var(--color-text-primary);
   flex: 1;
-  overflow-y: auto;
+  color: var(--color-text-primary);
 }
 
 .admin-prompts__loading-overlay {
@@ -645,3 +630,161 @@
 .prompt-tab .MuiTypography-root {
   color: inherit;
 }
+
+/* ============================================================================
+   CONTENT GENERATION PROMPTS TAB - CUSTOM STYLES
+   ============================================================================ */
+
+/* Grid layout for content generation prompt cards */
+.admin-prompts__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+  width: 100%;
+}
+
+/* Individual prompt card styling */
+.admin-prompts__card {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.admin-prompts__card:hover {
+  box-shadow: 0 4px 12px rgba(66, 66, 234, 0.15);
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+}
+
+/* Card content area with prompt preview */
+.admin-prompts__card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: 1rem;
+  width: 100%;
+}
+
+/* Content preview box with left-aligned text */
+.admin-prompts__content-preview {
+  text-align: left !important;
+  direction: ltr;
+}
+
+/* Content Generation specific type badges */
+.admin-prompts__card .MuiChip-colorPrimary {
+  background-color: var(--color-primary) !important;
+  color: white !important;
+}
+
+.admin-prompts__card .MuiChip-colorSecondary {
+  background-color: #7c4dff !important;
+  color: white !important;
+}
+
+.admin-prompts__card .MuiChip-colorWarning {
+  background-color: #ff9800 !important;
+  color: white !important;
+}
+
+.admin-prompts__card .MuiChip-colorDefault {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: var(--color-text-muted) !important;
+}
+
+/* Prompt content preview box scrollbar styling */
+.admin-prompts__content-preview {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary) rgba(0, 0, 0, 0.2);
+}
+
+.admin-prompts__content-preview::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.admin-prompts__content-preview::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.admin-prompts__content-preview::-webkit-scrollbar-thumb {
+  background-color: var(--color-primary);
+  border-radius: 3px;
+}
+
+.admin-prompts__content-preview::-webkit-scrollbar-thumb:hover {
+  background-color: #5a5aff;
+}
+
+/* Icon buttons styling in cards */
+.admin-prompts__card .MuiIconButton-root {
+  color: var(--color-text-muted);
+  transition: all 0.2s ease;
+}
+
+.admin-prompts__card .MuiIconButton-root:hover {
+  color: var(--color-primary);
+  background-color: rgba(66, 66, 234, 0.1);
+}
+
+.admin-prompts__card .MuiIconButton-root:disabled {
+  color: var(--color-text-muted);
+  opacity: 0.5;
+}
+
+/* Star icon for default prompts */
+.admin-prompts__card .MuiIconButton-root .MuiSvgIcon-colorWarning {
+  color: #ff9800;
+}
+
+/* Filter dropdown styling */
+.admin-prompts__tab-content .MuiFormControl-root {
+  background-color: var(--color-background-darker);
+  border-radius: 4px;
+}
+
+.admin-prompts__tab-content .MuiInputLabel-root {
+  color: var(--color-text-muted);
+}
+
+.admin-prompts__tab-content .MuiOutlinedInput-root {
+  color: var(--color-text-primary);
+}
+
+.admin-prompts__tab-content .MuiOutlinedInput-notchedOutline {
+  border-color: var(--color-border);
+}
+
+.admin-prompts__tab-content .MuiSelect-icon {
+  color: var(--color-text-muted);
+}
+
+/* Responsive adjustments for content generation grid */
+@media (max-width: 1200px) {
+  .admin-prompts__grid {
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-prompts__grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .admin-prompts__card {
+    padding: 1rem;
+  }
+}
+
+/* Empty state styling for content generation tab */
+.admin-prompts__grid .empty-state {
+  grid-column: 1 / -1;
+}
+

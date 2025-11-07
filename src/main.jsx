@@ -18,6 +18,7 @@ import ApplicationForm from './pages/ApplicationForm/index.js'
 import InfoSessions from './pages/InfoSessions/index.js'
 import Workshops from './pages/Workshops/index.js'
 import ProgramDetails from './pages/ProgramDetails/index.js'
+import PaymentTerms from './pages/PaymentTerms/index.js'
 import Pledge from './pages/Pledge/index.js'
 import Unsubscribe from './pages/Unsubscribe/Unsubscribe.jsx'
 
@@ -80,6 +81,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/info-sessions" element={<InfoSessions />} />
           <Route path="/workshops" element={<Workshops />} />
           <Route path="/program-details" element={<ProgramDetails />} />
+          <Route path="/payment-terms" element={<PaymentTerms />} />
           <Route path="/pledge" element={<Pledge />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           

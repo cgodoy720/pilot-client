@@ -1,0 +1,1354 @@
+.pathfinder-networking {
+  width: 100%;
+  height: 100%;
+  background-color: #f5f5f5;
+  color: #1a1a1a;
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+}
+
+.pathfinder-networking__container {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.pathfinder-networking__loading {
+  text-align: center;
+  padding: var(--spacing-xl);
+  font-size: 1.2rem;
+}
+
+/* Header */
+.pathfinder-networking__header {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  gap: var(--spacing-md);
+}
+
+/* Type Filter Buttons in Header */
+.pathfinder-networking__type-filter {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+
+.pathfinder-networking__type-filter-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  color: #4b5563;
+}
+
+.pathfinder-networking__type-filter-btn:hover {
+  border-color: #4242ea;
+  background: rgba(66, 66, 234, 0.05);
+  color: #4242ea;
+}
+
+.pathfinder-networking__type-filter-btn--active {
+  background: #4242ea;
+  color: white;
+  border-color: #4242ea;
+}
+
+.pathfinder-networking__type-filter-btn--active:hover {
+  background: #3333d1;
+  border-color: #3333d1;
+}
+
+.pathfinder-networking__title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.pathfinder-networking__add-btn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: #4242ea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(66, 66, 234, 0.2);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.pathfinder-networking__add-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.pathfinder-networking__add-btn:hover::before {
+  left: 100%;
+}
+
+.pathfinder-networking__add-btn::after {
+  content: '✨';
+  position: absolute;
+  right: -30px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+  opacity: 0;
+  transition: all 0.4s ease;
+}
+
+.pathfinder-networking__add-btn:hover::after {
+  right: 12px;
+  opacity: 1;
+  animation: sparkle-float 1.2s ease-in-out infinite;
+}
+
+.pathfinder-networking__add-btn:hover {
+  background-color: #3333d1;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 20px rgba(66, 66, 234, 0.4);
+  padding-right: calc(var(--spacing-lg) + 24px);
+}
+
+.pathfinder-networking__add-btn:active {
+  transform: translateY(0) scale(1);
+  box-shadow: 0 2px 8px rgba(66, 66, 234, 0.2);
+}
+
+@keyframes sparkle-float {
+  0% {
+    transform: translateY(-50%) translateX(0) scale(1);
+    filter: brightness(1);
+  }
+  20% {
+    transform: translateY(-55%) translateX(-3px) scale(1.15);
+    filter: brightness(1.2);
+  }
+  40% {
+    transform: translateY(-50%) translateX(0) scale(1);
+    filter: brightness(1);
+  }
+  60% {
+    transform: translateY(-52%) translateX(-2px) scale(1.08);
+    filter: brightness(1.1);
+  }
+  80% {
+    transform: translateY(-50%) translateX(0) scale(1);
+    filter: brightness(1);
+  }
+  100% {
+    transform: translateY(-50%) translateX(0) scale(1);
+    filter: brightness(1);
+  }
+}
+
+/* Messages */
+.pathfinder-networking__message {
+  padding: var(--spacing-md);
+  border-radius: 6px;
+  margin-bottom: var(--spacing-lg);
+  font-weight: 500;
+}
+
+.pathfinder-networking__message--success {
+  background-color: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.pathfinder-networking__message--error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Statistics Cards */
+.pathfinder-networking__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.pathfinder-networking__stat-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: var(--spacing-lg);
+  border: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.pathfinder-networking__stat-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #8b5cf6;
+  margin-bottom: var(--spacing-sm);
+}
+
+.pathfinder-networking__stat-label {
+  font-size: 0.9rem;
+  color: #666666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Modal */
+.pathfinder-networking__modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--spacing-lg);
+}
+
+.pathfinder-networking__modal {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 0;
+  max-width: 1200px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid #d0d0d0;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+.pathfinder-networking__modal-header {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding: var(--spacing-xl);
+  border-bottom: 2px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  background-color: #ffffff;
+  z-index: 1;
+  gap: var(--spacing-md);
+}
+
+/* Type selector buttons in modal header */
+.pathfinder-networking__modal-type-selector {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+
+.pathfinder-networking__modal-type-btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  color: #4b5563;
+}
+
+.pathfinder-networking__modal-type-btn:hover {
+  border-color: #4242ea;
+  background: rgba(66, 66, 234, 0.05);
+  color: #4242ea;
+}
+
+.pathfinder-networking__modal-type-btn--active {
+  background: #4242ea;
+  color: white !important;
+  border-color: #4242ea;
+}
+
+.pathfinder-networking__modal-type-btn--active:hover {
+  background: #3333d1;
+  border-color: #3333d1;
+  color: white !important;
+}
+
+.pathfinder-networking__modal-type-btn--active svg {
+  color: white !important;
+}
+
+.pathfinder-networking__modal-header h2 {
+  margin: 0;
+  color: #1a1a1a;
+  font-size: 1.5rem;
+}
+
+.pathfinder-networking__modal-close {
+  margin-left: auto;
+}
+
+.pathfinder-networking__modal-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #666666;
+  cursor: pointer;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.pathfinder-networking__modal-close:hover {
+  color: #1a1a1a;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.pathfinder-networking__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  flex: 1;
+}
+
+/* Type Selector Buttons */
+.pathfinder-networking__type-selector {
+  display: flex;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-lg);
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  flex-wrap: wrap;
+}
+
+.pathfinder-networking__type-btn {
+  flex: 1;
+  min-width: 120px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pathfinder-networking__type-btn:hover {
+  border-color: #4242ea;
+  background: rgba(66, 66, 234, 0.05);
+  transform: translateY(-1px);
+}
+
+.pathfinder-networking__type-btn--active {
+  background: #4242ea;
+  color: white;
+  border-color: #4242ea;
+}
+
+.pathfinder-networking__type-btn--active:hover {
+  background: #3333d1;
+  border-color: #3333d1;
+}
+
+/* Direction Toggle for Digital Activities */
+.pathfinder-networking__direction-toggle {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+}
+
+.pathfinder-networking__direction-btn {
+  flex: 1;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.pathfinder-networking__direction-btn:hover {
+  border-color: #4242ea;
+  background: rgba(66, 66, 234, 0.05);
+}
+
+.pathfinder-networking__direction-btn--active {
+  background: #4242ea;
+  color: white;
+  border-color: #4242ea;
+}
+
+.pathfinder-networking__direction-btn--active:hover {
+  background: #3333d1;
+  border-color: #3333d1;
+}
+
+/* Minimized URL Panel for IRL */
+.pathfinder-networking__form-panel--minimized {
+  opacity: 0.7;
+}
+
+.pathfinder-networking__form-panel--minimized .pathfinder-networking__url-section {
+  padding: var(--spacing-sm);
+}
+
+.pathfinder-networking__form-panel--minimized h4 {
+  font-size: 0.875rem;
+  margin-bottom: var(--spacing-xs);
+}
+
+.pathfinder-networking__url-description--small {
+  font-size: 0.75rem;
+  color: #666;
+  font-style: italic;
+  margin: 0;
+}
+
+/* Channel/Event Type Radio Options */
+.pathfinder-networking__channel-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+}
+
+.pathfinder-networking__channel-option {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-xs) 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pathfinder-networking__channel-option:hover .pathfinder-networking__channel-label {
+  color: #4242ea;
+}
+
+.pathfinder-networking__channel-option input[type="radio"] {
+  margin: 0;
+  margin-right: var(--spacing-sm);
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: #4242ea;
+}
+
+.pathfinder-networking__channel-option input[type="radio"]:checked + .pathfinder-networking__channel-label {
+  font-weight: 600;
+  color: #4242ea;
+}
+
+.pathfinder-networking__channel-label {
+  font-size: 0.875rem;
+  color: #4b5563;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+/* Fetch Details Button */
+.pathfinder-networking__fetch-btn {
+  width: 100%;
+  padding: var(--spacing-md) var(--spacing-xl);
+  background-color: #4242ea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: var(--spacing-sm);
+}
+
+.pathfinder-networking__fetch-btn:hover:not(:disabled) {
+  background-color: #3333d1;
+}
+
+.pathfinder-networking__fetch-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Job Search Component */
+.pathfinder-networking__job-search {
+  position: relative;
+  margin-top: var(--spacing-xs);
+}
+
+.pathfinder-networking__job-search-input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  transition: border-color 0.2s ease;
+}
+
+.pathfinder-networking__job-search-input:focus {
+  outline: none;
+  border-color: #4242ea;
+}
+
+.pathfinder-networking__job-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #666;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.pathfinder-networking__job-search-clear:hover {
+  background: #f3f4f6;
+  color: #1a1a1a;
+}
+
+.pathfinder-networking__job-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  margin-top: 4px;
+  max-height: 250px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.pathfinder-networking__job-option {
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  transition: background 0.2s ease;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.pathfinder-networking__job-option:last-child {
+  border-bottom: none;
+}
+
+.pathfinder-networking__job-option:hover {
+  background: #f9fafb;
+}
+
+.pathfinder-networking__job-option--empty {
+  color: #6b7280;
+  font-style: italic;
+  cursor: default;
+  text-align: center;
+}
+
+.pathfinder-networking__job-option--empty:hover {
+  background: white;
+}
+
+.pathfinder-networking__job-title {
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 0.875rem;
+  margin-bottom: 2px;
+  text-align: left;
+}
+
+.pathfinder-networking__job-company {
+  font-size: 0.875rem;
+  color: #6b7280;
+  text-align: left;
+}
+
+.pathfinder-networking__hint {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: var(--spacing-xs);
+  margin-bottom: 0;
+  text-align: left;
+}
+
+.pathfinder-networking__form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  align-items: start;
+  margin-top: var(--spacing-md);
+}
+
+.pathfinder-networking__form-row--three-cols {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.pathfinder-networking__form-row--divider-top {
+  border-top: 1px solid #e5e7eb;
+  padding-top: var(--spacing-lg);
+}
+
+.pathfinder-networking__form-row--divider-bottom {
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: var(--spacing-lg);
+}
+
+.pathfinder-networking__form-row:first-child {
+  margin-top: 0;
+}
+
+.pathfinder-networking__form-row .pathfinder-networking__form-group {
+  margin-top: 0;
+}
+
+.pathfinder-networking__form-row .pathfinder-networking__form-group label {
+  margin-top: 0;
+}
+
+.pathfinder-networking__form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.pathfinder-networking__form-group:first-child {
+  margin-top: 0;
+}
+
+/* Nested form groups inside form-row wrappers should still have top margin */
+.pathfinder-networking__form-row > div > .pathfinder-networking__form-group:not(:first-child) {
+  margin-top: var(--spacing-md);
+}
+
+.pathfinder-networking__form-group label {
+  font-weight: 500;
+  color: #1a1a1a;
+  text-align: left;
+  font-size: 0.875rem;
+  font-family: inherit;
+  margin-top: 0;
+}
+
+.pathfinder-networking__form-group input,
+.pathfinder-networking__form-group select,
+.pathfinder-networking__form-group textarea {
+  padding: var(--spacing-md);
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #1a1a1a;
+  font-size: 0.875rem;
+  font-family: inherit;
+}
+
+.pathfinder-networking__form-group input:focus,
+.pathfinder-networking__form-group select:focus,
+.pathfinder-networking__form-group textarea:focus {
+  outline: none;
+  border-color: #8b5cf6;
+}
+
+.pathfinder-networking__form-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+
+.pathfinder-networking__submit-btn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: #22c55e;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.pathfinder-networking__submit-btn:hover {
+  background-color: #16a34a;
+}
+
+.pathfinder-networking__cancel-btn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: #ffffff;
+  color: #1a1a1a;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pathfinder-networking__cancel-btn:hover {
+  background-color: #f5f5f5;
+}
+
+/* Filters */
+.pathfinder-networking__filters {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #d0d0d0;
+  flex-shrink: 0;
+}
+
+.pathfinder-networking__filters label {
+  font-weight: 500;
+}
+
+.pathfinder-networking__filters select {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #1a1a1a;
+  cursor: pointer;
+}
+
+/* Table Container */
+.pathfinder-networking__table-container {
+  background-color: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pathfinder-networking__table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.pathfinder-networking__table thead {
+  background-color: #f9f9f9;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.pathfinder-networking__table th {
+  padding: 16px 24px;
+  text-align: left;
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.pathfinder-networking__table th:last-child {
+  text-align: right;
+  padding-right: 24px;
+}
+
+.pathfinder-networking__table tbody tr {
+  border-bottom: 1px solid #e0e0e0;
+  transition: background-color 0.2s;
+}
+
+.pathfinder-networking__table tbody tr:hover {
+  background-color: rgba(66, 66, 234, 0.05);
+}
+
+.pathfinder-networking__table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.pathfinder-networking__table td {
+  padding: 16px 24px;
+  color: #1a1a1a;
+  vertical-align: middle;
+  box-sizing: border-box;
+  text-align: left;
+  font-size: 0.8125rem;
+}
+
+.pathfinder-networking__table td:last-child {
+  text-align: right;
+  padding-right: 24px;
+}
+
+/* Type Badge */
+.pathfinder-networking__type-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background-color: #4242ea;
+  color: white;
+  border: 1px solid #4242ea;
+  text-transform: capitalize;
+  letter-spacing: 0;
+}
+
+/* Linked Job Badge */
+.pathfinder-networking__linked-job {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pathfinder-networking__linked-job-company {
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 0.8125rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pathfinder-networking__linked-job-role {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.pathfinder-networking__job-link {
+  font-size: 0.6875rem;
+  color: #4242ea;
+  text-decoration: underline;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+  font-weight: 400;
+}
+
+.pathfinder-networking__job-link:hover {
+  opacity: 1;
+}
+
+.pathfinder-networking__subtype-text {
+  font-size: 0.75rem;
+  color: #666666;
+  text-transform: capitalize;
+}
+
+/* Contact/Company Display */
+.pathfinder-networking__contact-name {
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: inherit;
+}
+
+.pathfinder-networking__company-name {
+  font-size: inherit;
+  color: #1a1a1a;
+  margin-top: 2px;
+}
+
+.pathfinder-networking__empty-cell {
+  color: #999999;
+  opacity: 0.5;
+}
+
+/* Outcome Badge */
+.pathfinder-networking__outcome-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.pathfinder-networking__outcome-badge--pending {
+  background-color: rgba(156, 163, 175, 0.2);
+  color: #9ca3af;
+}
+
+.pathfinder-networking__outcome-badge--no_response {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.pathfinder-networking__outcome-badge--positive_response {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.pathfinder-networking__outcome-badge--led_to_conversation {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.pathfinder-networking__outcome-badge--led_to_referral {
+  background-color: rgba(236, 72, 153, 0.2);
+  color: #ec4899;
+}
+
+.pathfinder-networking__outcome-badge--led_to_interview {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.pathfinder-networking__outcome-badge--not_relevant {
+  background-color: rgba(107, 114, 128, 0.2);
+  color: #6b7280;
+}
+
+/* Follow-up Badge */
+.pathfinder-networking__followup-badge {
+  font-size: 0.75rem;
+  color: #f59e0b;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* Table Actions */
+.pathfinder-networking__table-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+}
+
+.pathfinder-networking__table-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pathfinder-networking__table-btn--edit {
+  background-color: #4242ea;
+  color: white;
+}
+
+.pathfinder-networking__table-btn--edit:hover {
+  background-color: #3333d1;
+}
+
+.pathfinder-networking__table-btn--delete {
+  background-color: #ef4444;
+  color: white;
+}
+
+.pathfinder-networking__table-btn--delete:hover {
+  background-color: #dc2626;
+}
+
+.pathfinder-networking__empty {
+  text-align: center;
+  padding: var(--spacing-xl);
+  background-color: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  color: #666666;
+}
+
+/* Activity Card */
+.pathfinder-networking__card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: var(--spacing-lg);
+  border: 1px solid #e0e0e0;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.pathfinder-networking__card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.pathfinder-networking__card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-md);
+}
+
+.pathfinder-networking__card-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.pathfinder-networking__card-type {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: white;
+}
+
+.pathfinder-networking__card-date {
+  font-size: 0.95rem;
+  color: #666666;
+  font-weight: 500;
+}
+
+.pathfinder-networking__card-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.pathfinder-networking__card-actions button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.pathfinder-networking__card-actions button:first-child {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.pathfinder-networking__card-actions button:last-child {
+  background-color: #ef4444;
+  color: white;
+}
+
+.pathfinder-networking__card-actions button:hover {
+  opacity: 0.8;
+}
+
+.pathfinder-networking__card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.pathfinder-networking__card-company {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.pathfinder-networking__card-contact,
+.pathfinder-networking__card-notes {
+  font-size: 0.9rem;
+  color: #666666;
+  margin-top: var(--spacing-sm);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pathfinder-networking__form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .pathfinder-networking__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .pathfinder-networking__stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .pathfinder-networking__card-header {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .pathfinder-networking__card-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .pathfinder-networking__modal {
+    max-height: 95vh;
+    margin: var(--spacing-sm);
+  }
+
+  .pathfinder-networking__modal-header {
+    padding: var(--spacing-md);
+  }
+
+  .pathfinder-networking__form {
+    padding: var(--spacing-md);
+  }
+}
+
+/* Two-Panel Form Layout */
+.pathfinder-networking__form-panels {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 0;
+  min-height: 500px;
+}
+
+.pathfinder-networking__form-panel--left {
+  background-color: #f9f9f9;
+  border-right: 2px solid #e0e0e0;
+  padding: var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.pathfinder-networking__form-panel--right {
+  padding: var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+}
+
+/* URL Section Styles */
+.pathfinder-networking__url-section h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 var(--spacing-md) 0;
+  text-align: left;
+}
+
+.pathfinder-networking__url-description {
+  font-size: 0.95rem;
+  color: #666666;
+  margin: 0 0 var(--spacing-md) 0;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.pathfinder-networking__url-section textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: var(--spacing-md);
+  background-color: #ffffff;
+  border: 2px solid #d0d0d0;
+  border-radius: 6px;
+  color: #1a1a1a;
+  font-size: 0.95rem;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+
+.pathfinder-networking__url-section textarea:focus {
+  outline: none;
+  border-color: #8b5cf6;
+}
+
+.pathfinder-networking__url-section textarea::placeholder {
+  color: #666666;
+  opacity: 0.6;
+}
+
+.pathfinder-networking__url-hint {
+  display: block;
+  font-size: 0.85rem;
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.pathfinder-networking__url-hint--parsing {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.pathfinder-networking__url-hint--success {
+  background-color: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.pathfinder-networking__url-examples {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm);
+  background-color: rgba(139, 92, 246, 0.05);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #666666;
+  text-align: left;
+}
+
+.pathfinder-networking__url-examples strong {
+  color: #1a1a1a;
+  display: inline;
+  margin-bottom: 2px;
+}
+
+.pathfinder-networking__url-examples ul {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+  color: #666666;
+}
+
+.pathfinder-networking__url-examples li {
+  margin: var(--spacing-xs) 0;
+}
+
+/* Card Sub-type */
+.pathfinder-networking__card-subtype {
+  display: inline-block;
+  padding: 2px 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  margin-left: var(--spacing-xs);
+  text-transform: capitalize;
+}
+
+/* Card Platform */
+.pathfinder-networking__card-platform {
+  margin-top: var(--spacing-sm);
+  font-size: 0.9rem;
+  color: #666666;
+}
+
+/* Card Outcome */
+.pathfinder-networking__card-outcome {
+  margin-top: var(--spacing-sm);
+  font-size: 0.9rem;
+  color: #666666;
+  text-transform: capitalize;
+}
+
+/* Card Follow-up */
+.pathfinder-networking__card-followup {
+  margin-top: var(--spacing-sm);
+  font-size: 0.9rem;
+  color: #f59e0b;
+  font-weight: 500;
+}
+
+/* Card URL Link */
+.pathfinder-networking__card-url {
+  margin-top: var(--spacing-sm);
+}
+
+.pathfinder-networking__card-url a {
+  color: #8b5cf6;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+
+.pathfinder-networking__card-url a:hover {
+  color: #7c3aed;
+  text-decoration: underline;
+}
+
+/* Mobile-specific enhancements */
+@media (max-width: 768px) {
+  .pathfinder-networking__form-row {
+    flex-direction: column;
+  }
+  
+  .pathfinder-networking__form-group {
+    width: 100%;
+  }
+
+  .pathfinder-networking__form-panels {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .pathfinder-networking__form-panel--left {
+    border-right: none;
+    border-bottom: 2px solid #e0e0e0;
+  }
+
+  .pathfinder-networking__form-panel--right {
+    padding: var(--spacing-xl);
+  }
+
+  .pathfinder-networking__url-section {
+    padding: 0;
+  }
+
+  .pathfinder-networking__url-section textarea {
+    min-height: 100px;
+  }
+
+  .pathfinder-networking__card-subtype {
+    display: block;
+    margin-left: 0;
+    margin-top: var(--spacing-xs);
+    width: fit-content;
+  }
+
+  /* Make form inputs and selects larger for mobile */
+  .pathfinder-networking__form input,
+  .pathfinder-networking__form select,
+  .pathfinder-networking__form textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    min-height: 44px; /* Better touch targets */
+  }
+
+  .pathfinder-networking__form select {
+    padding: var(--spacing-sm);
+  }
+
+  /* Table responsiveness */
+  .pathfinder-networking__table-container {
+    overflow-x: auto;
+  }
+
+  .pathfinder-networking__table {
+    min-width: 800px;
+  }
+
+  .pathfinder-networking__table th,
+  .pathfinder-networking__table td {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.85rem;
+  }
+
+  .pathfinder-networking__table-actions {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .pathfinder-networking__table-btn {
+    padding: 4px 12px;
+    font-size: 0.8rem;
+  }
+}
+
