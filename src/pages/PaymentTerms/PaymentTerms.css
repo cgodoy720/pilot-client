@@ -1,0 +1,83 @@
+.payment-terms {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.payment-terms__header {
+  margin-bottom: 24px;
+}
+
+.payment-terms__title {
+  margin: 0 0 8px 0;
+  font-size: 28px;
+}
+
+.payment-terms__subtitle {
+  margin: 0;
+  color: #555;
+}
+
+.payment-terms__section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.payment-terms__section-title {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+}
+
+.payment-terms__text {
+  margin: 0 0 8px 0;
+  line-height: 1.5;
+}
+
+.payment-terms__list {
+  padding-left: 20px;
+  margin: 0;
+}
+
+.payment-terms__list-item {
+  margin-bottom: 6px;
+}
+
+.payment-terms__example {
+  border: 1px dashed #d1d5db;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.payment-terms__example-title {
+  margin: 0 0 6px 0;
+  font-size: 16px;
+}
+
+.payment-terms__faq {
+  margin-bottom: 8px;
+}
+
+.payment-terms__faq-question {
+  cursor: pointer;
+}
+
+.payment-terms__cta {
+  text-align: center;
+  margin-top: 24px;
+}
+
+.payment-terms__link {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.payment-terms__link:hover {
+  text-decoration: underline;
+}
+
+
+

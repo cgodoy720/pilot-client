@@ -16,6 +16,7 @@ import FacilitatorView from './pages/FacilitatorView';
 import AdminPrompts from './pages/AdminPrompts';
 import Stats from './pages/Stats';
 import Account from './pages/Account/Account';
+import Payment from './pages/Payment/Payment';
 import Assessment from './pages/Assessment/Assessment';
 import AssessmentLayout from './pages/Assessment/components/AssessmentLayout/AssessmentLayout';
 import SelfAssessmentPage from './pages/Assessment/components/SelfAssessmentPage/SelfAssessmentPage';
@@ -304,6 +305,11 @@ function App() {
         <Route path="/account" element={
           <Layout>
             <Account />
+          </Layout>
+        } />
+        <Route path="/payment" element={
+          <Layout>
+            <Payment />
           </Layout>
         } />
         
