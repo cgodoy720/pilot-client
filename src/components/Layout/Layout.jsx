@@ -164,10 +164,10 @@ const Layout = ({ children }) => {
             </Link>
           )}
           
-          <Link to="/payment" className={`layout__nav-item ${location.pathname === '/payment' ? 'layout__nav-item--active' : ''}`}>
+          {/* <Link to="/payment" className={`layout__nav-item ${location.pathname === '/payment' ? 'layout__nav-item--active' : ''}`}>
             <PaymentIcon className="layout__nav-icon" />
             {isExpanded && <span className="layout__nav-text">Payment</span>}
-          </Link>
+          </Link> */}
           
           {isAdmin && (
             <>

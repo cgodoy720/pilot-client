@@ -601,7 +601,10 @@ const Payment = () => {
             </div>
             <div className="payment__modal-footer">
               <a
-                href={uploadedFiles?.goodJobAgreement?.url || `${import.meta.env.VITE_API_URL}/uploads/payment-documents/Good_Job_Agreement.pdf`}
+                href={(() => {
+                  const url = uploadedFiles?.goodJobAgreement?.url || '/uploads/payment-documents/Good_Job_Agreement.pdf';
+                  return url.startsWith('http') ? url : `${import.meta.env.VITE_API_URL}${url}`;
+                })()}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="payment__button payment__button--secondary"
@@ -649,7 +652,7 @@ const Payment = () => {
             </div>
             <div className="payment__modal-footer">
               <a
-                href={`${import.meta.env.VITE_API_URL}/uploads/payment-documents/Bill.Com Set Up Instructions.pdf`}
+                href={`${import.meta.env.VITE_API_URL}/uploads/payment-documents/Bill.Com%20Set%20Up%20Instructions.pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="payment__button payment__button--secondary"
@@ -697,7 +700,7 @@ const Payment = () => {
             </div>
             <div className="payment__modal-footer">
               <a
-                href={`${import.meta.env.VITE_API_URL}/uploads/payment-documents/Good Job Agreement FAQs.pdf`}
+                href={`${import.meta.env.VITE_API_URL}/uploads/payment-documents/Good%20Job%20Agreement%20FAQs.pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="payment__button payment__button--secondary"
