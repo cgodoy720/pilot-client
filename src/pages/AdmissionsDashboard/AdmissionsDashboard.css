@@ -81,6 +81,12 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 .admissions-dashboard__overview .admissions-dashboard__stats-grid {
@@ -126,14 +132,60 @@
 }
 
 .admissions-dashboard__stat-card {
-  background: var(--color-background-darker);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 1rem;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.4) 0%, rgba(75, 61, 237, 0.2) 100%);
+  border: 2px solid rgba(75, 61, 237, 0.5);
+  border-radius: 16px;
+  padding: 1.5rem;
   height: 100%;
   /* Fill grid cell height */
   display: flex;
   flex-direction: column;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.admissions-dashboard__stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(75, 61, 237, 0.8), rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 0.8));
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.admissions-dashboard__stat-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(75, 61, 237, 0.7);
+  border-width: 2px;
+  box-shadow: 0 12px 24px rgba(75, 61, 237, 0.25), 0 4px 8px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.5) 0%, rgba(75, 61, 237, 0.3) 100%);
+}
+
+/* Demographic tiles - solid purple */
+.admissions-dashboard__stat-card.demographic-card {
+  background: linear-gradient(135deg, rgba(75, 61, 237, 0.25) 0%, rgba(75, 61, 237, 0.2) 100%);
+  border: 2px solid rgba(75, 61, 237, 0.6);
+}
+
+.admissions-dashboard__stat-card.demographic-card::before {
+  background: linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9));
+}
+
+.admissions-dashboard__stat-card.demographic-card:hover {
+  background: linear-gradient(135deg, rgba(75, 61, 237, 0.35) 0%, rgba(75, 61, 237, 0.3) 100%);
+  border-color: rgba(75, 61, 237, 0.8);
+  border-width: 2px;
+  box-shadow: 0 12px 24px rgba(75, 61, 237, 0.3), 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .admissions-dashboard__stat-card--wide {
@@ -166,10 +218,38 @@
 }
 
 .admissions-dashboard__stat-card-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.95);
   margin: 0;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 1;
+}
+
+/* Overview filter styling */
+.overview-filter {
+  background: linear-gradient(135deg, var(--color-background-darker), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+}
+
+.overview-filter-select {
+  background: var(--color-background-darker);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  padding: 0.6rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.overview-filter-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-transparent);
 }
 
 .admissions-dashboard__stat-card-icon {
@@ -179,11 +259,16 @@
 }
 
 .admissions-dashboard__stat-card-value {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--color-primary);
-  margin-bottom: 0.25rem;
+  font-size: 2.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #4B3DED 0%, #6366f1 50%, #4B3DED 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
   line-height: 1;
+  text-shadow: 0 2px 8px rgba(75, 61, 237, 0.3);
+  letter-spacing: -0.02em;
 }
 
 .admissions-dashboard__stat-card-subtitle {
@@ -2368,11 +2453,14 @@ Assessment Funnel Styles */
 
 /* Improved stat card value styling */
 .admissions-dashboard__stat-card-value {
-  background: linear-gradient(135deg, var(--color-primary), #8b5cf6);
+  background: linear-gradient(135deg, #4B3DED 0%, #6366f1 50%, #4B3DED 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-shadow: 0 2px 8px rgba(75, 61, 237, 0.3);
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 /* Enhanced grid layout with better spacing */
@@ -2410,9 +2498,9 @@ Assessment Funnel Styles */
 
 /* Subtle glow effect for active elements */
 .admissions-dashboard__stat-card:hover {
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.2),
-    0 0 20px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 12px 24px rgba(75, 61, 237, 0.25), 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px);
+  border-color: rgba(75, 61, 237, 0.5);
 }
 
 /* Enhanced loading state */
@@ -2500,11 +2588,9 @@ Assessment Funnel Styles */
 
 /* Enhanced stat card styling with subtle gradients */
 .admissions-dashboard__stat-card {
-  background: linear-gradient(135deg,
-      var(--color-background-dark) 0%,
-      rgba(255, 255, 255, 0.02) 100%);
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.4) 0%, rgba(75, 61, 237, 0.2) 100%);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(75, 61, 237, 0.3);
 }
 
 /* Improved content area with subtle border */
