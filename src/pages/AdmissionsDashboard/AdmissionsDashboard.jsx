@@ -3571,7 +3571,7 @@ const AdmissionsDashboard = () => {
                                             {/* Status breakdown for Total Applicants */}
                                             {activeOverviewStage === 'applied' && appliedStatusBreakdown && (
                                                 <div style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'linear-gradient(135deg, rgba(75, 61, 237, 0.25) 0%, rgba(75, 61, 237, 0.2) 100%)', borderRadius: '12px', border: '2px solid rgba(75, 61, 237, 0.6)', position: 'relative', overflow: 'hidden' }}>
-                                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))', backgroundSize: '200% 100%', animation: 'shimmer 3s ease-in-out infinite' }}></div>
+                                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))' }}></div>
                                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
                                                         {(() => {
                                                             const total = appliedStatusBreakdown.total || 1;
@@ -3600,7 +3600,7 @@ const AdmissionsDashboard = () => {
                                             {/* Registration/Attendance breakdown for Info Session */}
                                             {activeOverviewStage === 'info' && overviewStats && (
                                                 <div style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'linear-gradient(135deg, rgba(75, 61, 237, 0.25) 0%, rgba(75, 61, 237, 0.2) 100%)', borderRadius: '12px', border: '2px solid rgba(75, 61, 237, 0.6)', position: 'relative', overflow: 'hidden' }}>
-                                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))', backgroundSize: '200% 100%', animation: 'shimmer 3s ease-in-out infinite' }}></div>
+                                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))' }}></div>
                                                     <input
                                                         type="checkbox"
                                                         style={{ position: 'absolute', top: '1rem', right: '1rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
@@ -3664,7 +3664,7 @@ const AdmissionsDashboard = () => {
                                             {/* Invitation/Registration/Attendance breakdown for Workshop */}
                                             {activeOverviewStage === 'workshops' && overviewStats && (
                                                 <div style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'linear-gradient(135deg, rgba(75, 61, 237, 0.25) 0%, rgba(75, 61, 237, 0.2) 100%)', borderRadius: '12px', border: '2px solid rgba(75, 61, 237, 0.6)', position: 'relative', overflow: 'hidden' }}>
-                                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))', backgroundSize: '200% 100%', animation: 'shimmer 3s ease-in-out infinite' }}></div>
+                                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))' }}></div>
                                                     <input
                                                         type="checkbox"
                                                         style={{ position: 'absolute', top: '1rem', right: '1rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
@@ -3762,7 +3762,7 @@ const AdmissionsDashboard = () => {
                                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1.5rem' }}>
                                                     {/* Assessment Status Box */}
                                                     <div style={{ padding: '1.5rem', background: 'linear-gradient(135deg, rgba(75, 61, 237, 0.25) 0%, rgba(75, 61, 237, 0.2) 100%)', borderRadius: '12px', border: '2px solid rgba(75, 61, 237, 0.6)', position: 'relative', overflow: 'hidden' }}>
-                                                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))', backgroundSize: '200% 100%', animation: 'shimmer 3s ease-in-out infinite' }}></div>
+                                                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))' }}></div>
                                                         <input
                                                             type="checkbox"
                                                             style={{ position: 'absolute', top: '1rem', right: '1rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
@@ -3807,7 +3807,7 @@ const AdmissionsDashboard = () => {
                                                     
                                                     {/* Assessment Breakdown Box */}
                                                     <div style={{ padding: '1.5rem', background: 'linear-gradient(135deg, rgba(75, 61, 237, 0.25) 0%, rgba(75, 61, 237, 0.2) 100%)', borderRadius: '12px', border: '2px solid rgba(75, 61, 237, 0.6)', position: 'relative', overflow: 'hidden' }}>
-                                                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))', backgroundSize: '200% 100%', animation: 'shimmer 3s ease-in-out infinite' }}></div>
+                                                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))' }}></div>
                                                         <input
                                                             type="checkbox"
                                                             style={{ position: 'absolute', top: '1rem', right: '1rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
@@ -3894,7 +3894,7 @@ const AdmissionsDashboard = () => {
                                             {/* Average Income Block */}
                                             {averageIncome !== null && activeOverviewStage !== 'marketing' && (
                                                 <div style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'linear-gradient(135deg, rgba(75, 61, 237, 0.3) 0%, rgba(75, 61, 237, 0.25) 100%)', borderRadius: '12px', border: '2px solid rgba(75, 61, 237, 0.7)', position: 'relative', overflow: 'hidden' }}>
-                                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))', backgroundSize: '200% 100%', animation: 'shimmer 3s ease-in-out infinite' }}></div>
+                                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))' }}></div>
                                                     <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem', color: 'var(--color-text-primary)' }}>Average Annual Income</h4>
                                                     <input
                                                         type="checkbox"
