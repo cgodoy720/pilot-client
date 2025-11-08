@@ -35,7 +35,9 @@ function PathfinderAdmin() {
   const [builderSortConfig, setBuilderSortConfig] = useState({ key: 'first_name', direction: 'asc' }); // Builder sorting
   const [jobAppSortConfig, setJobAppSortConfig] = useState({ key: 'date_applied', direction: 'desc' }); // Job applications sorting
   const [jobAppViewMode, setJobAppViewMode] = useState('table'); // table or kanban
+  const [projectsViewMode, setProjectsViewMode] = useState('table'); // table or kanban for build projects
   const [collapsedColumns, setCollapsedColumns] = useState({}); // Collapsed Kanban columns
+  const [collapsedProjectColumns, setCollapsedProjectColumns] = useState({}); // Collapsed project Kanban columns
   const [selectedBuilderFilter, setSelectedBuilderFilter] = useState(null); // Filter by specific builder
   const [showBuilderFilterModal, setShowBuilderFilterModal] = useState(false); // Builder filter modal
   const [companiesViewMode, setCompaniesViewMode] = useState('table'); // table or cards
@@ -363,6 +365,13 @@ function PathfinderAdmin() {
   // Toggle column collapse in Kanban view
   const toggleColumnCollapse = (stage) => {
     setCollapsedColumns(prev => ({
+      ...prev,
+      [stage]: !prev[stage]
+    }));
+  };
+
+  const toggleProjectColumnCollapse = (stage) => {
+    setCollapsedProjectColumns(prev => ({
       ...prev,
       [stage]: !prev[stage]
     }));
@@ -2619,30 +2628,58 @@ function PathfinderAdmin() {
             <div className="pathfinder-admin__projects-section">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <h3>All Projects {cohortFilter && `(${cohortFilter})`}</h3>
-                <div className="pathfinder-admin__filter-group" style={{ marginBottom: 0 }}>
-                  <label>Filter by Stage:</label>
-                  <select
-                    value={stageFilter}
-                    onChange={(e) => setStageFilter(e.target.value)}
-                    className="pathfinder-admin__filter-select"
-                    style={{ maxWidth: '200px' }}
-                  >
-                    <option value="">All Stages</option>
-                    <option value="ideation">Ideation</option>
-                    <option value="planning">Planning</option>
-                    <option value="development">Development</option>
-                    <option value="testing">Testing</option>
-                    <option value="launch">Launch</option>
-                  </select>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div className="pathfinder-admin__view-toggle">
+                    <button 
+                      className={`pathfinder-admin__view-btn ${projectsViewMode === 'table' ? 'pathfinder-admin__view-btn--active' : ''}`}
+                      onClick={() => setProjectsViewMode('table')}
+                      title="Table View"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="2" y="3" width="12" height="2" rx="0.5" fill="currentColor"/>
+                        <rect x="2" y="7" width="12" height="2" rx="0.5" fill="currentColor"/>
+                        <rect x="2" y="11" width="12" height="2" rx="0.5" fill="currentColor"/>
+                      </svg>
+                    </button>
+                    <button 
+                      className={`pathfinder-admin__view-btn ${projectsViewMode === 'kanban' ? 'pathfinder-admin__view-btn--active' : ''}`}
+                      onClick={() => setProjectsViewMode('kanban')}
+                      title="Kanban View"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="2" y="2" width="3" height="12" rx="0.5" fill="currentColor"/>
+                        <rect x="6.5" y="2" width="3" height="8" rx="0.5" fill="currentColor"/>
+                        <rect x="11" y="2" width="3" height="10" rx="0.5" fill="currentColor"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="pathfinder-admin__filter-group" style={{ marginBottom: 0 }}>
+                    <label>Filter by Stage:</label>
+                    <select
+                      value={stageFilter}
+                      onChange={(e) => setStageFilter(e.target.value)}
+                      className="pathfinder-admin__filter-select"
+                      style={{ maxWidth: '200px' }}
+                    >
+                      <option value="">All Stages</option>
+                      <option value="ideation">Ideation</option>
+                      <option value="planning">Planning</option>
+                      <option value="development">Development</option>
+                      <option value="testing">Testing</option>
+                      <option value="launch">Launch</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-              <div className="pathfinder-admin__table-container">
-                {getFilteredAndSortedProjects().length === 0 ? (
-                  <div className="pathfinder-admin__empty">
-                    <p>No projects found</p>
-                  </div>
-                ) : (
-                  <table className="pathfinder-admin__table">
+              {/* Table View */}
+              {projectsViewMode === 'table' && (
+                <div className="pathfinder-admin__table-container">
+                  {getFilteredAndSortedProjects().length === 0 ? (
+                    <div className="pathfinder-admin__empty">
+                      <p>No projects found</p>
+                    </div>
+                  ) : (
+                    <table className="pathfinder-admin__table">
                     <thead>
                       <tr>
                         <th 
@@ -2768,6 +2805,155 @@ function PathfinderAdmin() {
                   </table>
                 )}
               </div>
+            )}
+
+            {/* Kanban View */}
+            {projectsViewMode === 'kanban' && (
+              <div className="pathfinder-admin__kanban">
+                {['ideation', 'planning', 'development', 'testing', 'launch'].map(stage => {
+                  const stageProjects = getFilteredAndSortedProjects().filter(proj => proj.stage === stage);
+                  
+                  return (
+                    <div 
+                      key={stage} 
+                      className={`pathfinder-admin__kanban-column ${collapsedProjectColumns[stage] ? 'pathfinder-admin__kanban-column--collapsed' : ''}`}
+                    >
+                      <div className="pathfinder-admin__kanban-header">
+                        <h3>{getStageLabel(stage)}</h3>
+                        <div className="pathfinder-admin__kanban-header-right">
+                          <span className="pathfinder-admin__kanban-count">{stageProjects.length}</span>
+                          <button
+                            className="pathfinder-admin__kanban-collapse-btn"
+                            onClick={() => toggleProjectColumnCollapse(stage)}
+                            title={collapsedProjectColumns[stage] ? "Expand column" : "Collapse column"}
+                          >
+                            {collapsedProjectColumns[stage] ? '→' : '←'}
+                          </button>
+                        </div>
+                      </div>
+                      {!collapsedProjectColumns[stage] && (
+                        <div className="pathfinder-admin__kanban-cards">
+                          {stageProjects.length === 0 ? (
+                            <div className="pathfinder-admin__kanban-empty">
+                              No projects in {getStageLabel(stage)}
+                            </div>
+                          ) : (
+                            stageProjects.map(project => {
+                              const isOverdue = new Date(project.target_date) < new Date() && project.stage !== 'launch';
+                              
+                              return (
+                                <div 
+                                  key={project.project_id} 
+                                  className="pathfinder-admin__kanban-card"
+                                >
+                                  <div className="pathfinder-admin__kanban-card-header">
+                                    <div className="pathfinder-admin__project-initial" style={{
+                                      backgroundColor: 'white',
+                                      border: project.stage === 'launch' ? '2px solid #FFD700' : '1px solid #d0d0d0',
+                                      fontSize: project.stage === 'launch' ? '1.25rem' : '0.875rem',
+                                      width: '32px',
+                                      height: '32px',
+                                      borderRadius: '50%',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontWeight: '600',
+                                      flexShrink: 0
+                                    }}>
+                                      {project.stage === 'launch' ? '🤖' : (project.project_name ? project.project_name.charAt(0).toUpperCase() : '?')}
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '600', color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {project.project_name}
+                                      </h4>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="pathfinder-admin__kanban-card-builder">
+                                    {project.builder_first_name} {project.builder_last_name}
+                                  </div>
+                                  
+                                  <div className="pathfinder-admin__kanban-card-meta">
+                                    <div style={{ fontSize: '0.75rem', color: '#666666' }}>
+                                      <span style={{ fontWeight: '500' }}>Target:</span> {new Date(project.target_date).toLocaleDateString()}
+                                      {isOverdue && (
+                                        <span style={{ marginLeft: '0.5rem', color: '#e74c3c', fontWeight: '600' }}>⚠️ Overdue</span>
+                                      )}
+                                    </div>
+                                    
+                                    {project.prd_link && (
+                                      <div style={{ fontSize: '0.75rem', color: '#666666', marginTop: '0.25rem' }}>
+                                        <span style={{ fontWeight: '500' }}>PRD:</span>{' '}
+                                        {project.prd_approved ? (
+                                          <span style={{ color: '#27ae60' }}>✓ Approved</span>
+                                        ) : project.prd_submitted ? (
+                                          <span style={{ color: '#f39c12' }}>⏳ Pending</span>
+                                        ) : (
+                                          <span>📝 Draft</span>
+                                        )}
+                                      </div>
+                                    )}
+                                    
+                                    {project.linked_job_company && (
+                                      <div style={{ fontSize: '0.75rem', color: '#666666', marginTop: '0.25rem' }}>
+                                        <span style={{ fontWeight: '500' }}>For:</span> {project.linked_job_company}
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                                    {project.prd_link && (
+                                      <a
+                                        href={project.prd_link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          padding: '0.25rem 0.5rem',
+                                          fontSize: '0.75rem',
+                                          backgroundColor: '#f0f0f0',
+                                          borderRadius: '4px',
+                                          textDecoration: 'none',
+                                          color: '#1a1a1a'
+                                        }}
+                                        title="View PRD"
+                                      >
+                                        📄 PRD
+                                      </a>
+                                    )}
+                                    {project.deployment_url && (
+                                      <a
+                                        href={project.deployment_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          padding: '0.25rem 0.5rem',
+                                          fontSize: '0.75rem',
+                                          backgroundColor: '#f0f0f0',
+                                          borderRadius: '4px',
+                                          textDecoration: 'none',
+                                          color: '#1a1a1a'
+                                        }}
+                                        title="View Deployment"
+                                      >
+                                        🚀 Live
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             </div>
           </div>
         )}
