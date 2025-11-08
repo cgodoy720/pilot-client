@@ -2530,20 +2530,6 @@ function PathfinderAdmin() {
                   <h2>Build Projects Tracker</h2>
                   <p>Track builder projects individually and by cohort.</p>
                 </div>
-                <button 
-                  className="pathfinder-admin__export-btn"
-                  onClick={handleProjectsExport}
-                  style={{ marginTop: 0 }}
-                >
-                  Export Projects CSV
-                </button>
-              </div>
-            </div>
-
-            {/* All Projects Table */}
-            <div className="pathfinder-admin__projects-section">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h3>All Projects {cohortFilter && `(${cohortFilter})`}</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <div className="pathfinder-admin__view-toggle">
                     <button 
@@ -2587,6 +2573,10 @@ function PathfinderAdmin() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* All Projects Table */}
+            <div className="pathfinder-admin__projects-section">
               {/* Table View */}
               {projectsViewMode === 'table' && (
                 <div className="pathfinder-admin__table-container">
