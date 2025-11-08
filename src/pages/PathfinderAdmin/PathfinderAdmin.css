@@ -2290,7 +2290,10 @@
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .pathfinder-admin__kanban-card-salary {
@@ -2300,7 +2303,10 @@
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .pathfinder-admin__kanban-card-footer {
