@@ -422,7 +422,7 @@ function Learning() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-light flex flex-col">
+    <div className="h-screen bg-bg-light flex flex-col">
       {/* Activity Header */}
       <ActivityHeader 
         currentDay={currentDay}
@@ -463,22 +463,18 @@ function Learning() {
               <div ref={messagesEndRef} />
             </div>
           </div>
-        </div>
 
-        {/* Chat Input - Fixed at bottom of viewport, constrained to chat interface width */}
-        <div className="fixed bottom-6 left-0 right-0 z-10 pointer-events-none">
-          <div className="flex">
-            <div className="flex-1 px-6 pointer-events-auto">
-              <div className="max-w-3xl mx-auto">
-                <AutoExpandTextarea
-                  value={newMessage}
-                  onChange={setNewMessage}
-                  onSubmit={handleSendMessage}
-                  disabled={isSending || isAiThinking || !isActive}
-                  showAssignmentButton={tasks[currentTaskIndex]?.deliverable_type && tasks[currentTaskIndex]?.deliverable_type !== 'none'}
-                  onAssignmentClick={() => setIsDeliverableSidebarOpen(true)}
-                />
-              </div>
+          {/* Chat Input - Absolute positioned at bottom of chat interface, same container context */}
+          <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
+            <div className="max-w-3xl mx-auto pointer-events-auto">
+              <AutoExpandTextarea
+                value={newMessage}
+                onChange={setNewMessage}
+                onSubmit={handleSendMessage}
+                disabled={isSending || isAiThinking || !isActive}
+                showAssignmentButton={tasks[currentTaskIndex]?.deliverable_type && tasks[currentTaskIndex]?.deliverable_type !== 'none'}
+                onAssignmentClick={() => setIsDeliverableSidebarOpen(true)}
+              />
             </div>
           </div>
         </div>
