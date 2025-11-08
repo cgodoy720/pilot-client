@@ -795,17 +795,33 @@ const AdmissionsDashboard = () => {
                     
                     let totalIncome = 0;
                     let incomeCount = 0;
+                    const processedApplicantIds = new Set(); // Track unique applicants for income calculation
+                    
+                    // Create a Set of eligible applicant IDs (exclude ineligible status)
+                    const eligibleApplicantIds = new Set(
+                        subsetApps
+                            .filter(a => a.status !== 'ineligible')
+                            .map(a => a.applicant_id)
+                            .filter(Boolean)
+                    );
                     
                     detailed.forEach(d => {
                         processedCount++;
                         const dem = d.demographics || {};
                         
-                        // Calculate income for average
-                        const incomeValue = dem.personal_income || dem['Personal Annual Income'];
-                        const parsedIncome = parseIncome(incomeValue);
-                        if (parsedIncome !== null && parsedIncome > 0) {
-                            totalIncome += parsedIncome;
-                            incomeCount++;
+                        // Calculate income for average - only count each applicant once and exclude ineligible
+                        const applicantId = d.applicant_id;
+                        if (applicantId && !processedApplicantIds.has(applicantId) && eligibleApplicantIds.has(applicantId)) {
+                            processedApplicantIds.add(applicantId);
+                            const incomeValue = dem.personal_income || dem['Personal Annual Income'];
+                            const parsedIncome = parseIncome(incomeValue);
+                            // Also filter out unrealistic income values (over $1M is likely data error)
+                            if (parsedIncome !== null && parsedIncome > 0 && parsedIncome <= 1000000) {
+                                totalIncome += parsedIncome;
+                                incomeCount++;
+                            } else if (parsedIncome > 1000000) {
+                                console.warn(`[Income Debug] EXCLUDED Applicant ${applicantId}: income=${incomeValue} (over $1M, likely data error)`);
+                            }
                         }
                         
                         // Race: combine multiple selections into a single category (e.g., "Middle Eastern, White")
@@ -1202,6 +1218,13 @@ const AdmissionsDashboard = () => {
             setFilteredApplicantsLoading(false);
         }
     };
+    
+    // Handler for clicking demographic values to open modal
+    const handleDemographicValueClick = async (demographicType, demographicValue) => {
+        setDemographicApplicantsModalOpen(true);
+        await loadFilteredApplicants(demographicType, demographicValue);
+    };
+    
     // Load applications for KPI tile clicks
     const loadApplicationsForTile = async (filterType, statusFilter = null) => {
         if (!hasAdminAccess || !token) return;
@@ -3673,6 +3696,7 @@ const AdmissionsDashboard = () => {
                                                             const registered = overviewStats.workshops?.totalRegistrations || 0;
                                                             const attended = overviewStats.workshops?.totalAttended || 0;
                                                             const attendanceRate = registered > 0 ? Math.round((attended / registered) * 100) : 0;
+                                                            const total = invited || 1; // Use invited as the total pool
                                                             
                                                             return [
                                                                 { key: 'invited', label: 'Invited', count: invited },
