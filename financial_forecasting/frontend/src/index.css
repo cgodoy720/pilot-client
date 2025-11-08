@@ -1,0 +1,191 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+.recharts-tooltip-wrapper {
+  z-index: 1000 !important;
+}
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Loading animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #1976d2;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+/* Status indicators */
+.status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-indicator.success {
+  background-color: #4caf50;
+}
+
+.status-indicator.warning {
+  background-color: #ff9800;
+}
+
+.status-indicator.error {
+  background-color: #f44336;
+}
+
+.status-indicator.info {
+  background-color: #2196f3;
+}
+
+/* Risk factor chips */
+.risk-factor-chip {
+  display: inline-block;
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  margin: 2px;
+  border: 1px solid #ffcdd2;
+}
+
+/* Probability bars */
+.probability-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.probability-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.probability-bar-fill.low {
+  background-color: #f44336;
+}
+
+.probability-bar-fill.medium {
+  background-color: #ff9800;
+}
+
+.probability-bar-fill.high {
+  background-color: #4caf50;
+}
+
+/* Amount formatting */
+.amount-positive {
+  color: #4caf50;
+  font-weight: 600;
+}
+
+.amount-negative {
+  color: #f44336;
+  font-weight: 600;
+}
+
+.amount-neutral {
+  color: #666;
+  font-weight: 600;
+}
+
+/* Card hover effects */
+.hover-card {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.hover-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Data grid customizations */
+.MuiDataGrid-root {
+  border: none;
+}
+
+.MuiDataGrid-columnHeaders {
+  background-color: #f5f5f5;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.MuiDataGrid-cell {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.MuiDataGrid-row:hover {
+  background-color: #f9f9f9;
+}
+
+/* Chart container */
+.chart-container {
+  width: 100%;
+  height: 300px;
+  margin: 16px 0;
+}
+
+.chart-container.large {
+  height: 400px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .chart-container {
+    height: 250px;
+  }
+  
+  .chart-container.large {
+    height: 300px;
+  }
+}
+
