@@ -1,233 +1,408 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Box, IconButton, Tooltip } from '@mui/material';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import ChatIcon from '@mui/icons-material/Chat';
-import DarkModeIcon from '@mui/icons-material/DarkMode';
-import LogoutIcon from '@mui/icons-material/Logout';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import SchoolIcon from '@mui/icons-material/School';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import BugReportIcon from '@mui/icons-material/BugReport';
-import AssessmentIcon from '@mui/icons-material/Assessment';
-import PersonIcon from '@mui/icons-material/Person';
-import GroupsIcon from '@mui/icons-material/Groups';
-import PaymentIcon from '@mui/icons-material/Payment';
-import PsychologyIcon from '@mui/icons-material/Psychology';
-import QuizIcon from '@mui/icons-material/Quiz';
-import FeedbackIcon from '@mui/icons-material/Feedback';
-import GradeIcon from '@mui/icons-material/Grade';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import WorkspacesIcon from '@mui/icons-material/Workspaces';
-import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import { LogOut, Settings, Award, Users, Bug, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import './Layout.css';
-import logo from '../../assets/logo.png'
-import logoFull from '../../assets/logo-full.png'
+import { cn } from '../../lib/utils';
+import logo from '../../assets/logo.png';
 
 const Layout = ({ children }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isNavbarHovered, setIsNavbarHovered] = useState(false);
+  const [isMobileNavbarOpen, setIsMobileNavbarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Check if user has active status
+  // Check if user has active status (from dev)
   const isActive = user?.active !== false;
-  // Check if user is admin or staff
-  const isAdmin = user?.role === 'admin' || user?.role === 'staff';
-  // Check if user is volunteer
+  // Check if user is volunteer (from dev)
   const isVolunteer = user?.role === 'volunteer';
-  
-  // Check if on Pathfinder pages for light mode styling
+  // Check if on Pathfinder pages for light mode styling (from dev)
   const isPathfinderPage = location.pathname.startsWith('/pathfinder');
-  // Check if user is workshop admin
+  // Check if user is workshop admin (from dev)
   const isWorkshopAdmin = user?.role === 'workshop_admin';
-  // Check if user is a workshop participant (external participants with limited access)
+  // Check if user is a workshop participant (from dev)
   const isWorkshopParticipant = user?.role === 'workshop_participant';
-  // Check if user is an applicant (admissions system)
+  // Check if user is an applicant (from dev)
   const isApplicant = user?.role === 'applicant';
+  
+  // Detect mobile vs desktop
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // Mobile breakpoint
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
   
-  // Handle Learning link click for inactive users
-  const handleLearningClick = (e) => {
-    if (!isActive) {
-      e.preventDefault();
-      // If already on dashboard, no need to navigate
-      if (location.pathname !== '/dashboard') {
-        navigate('/dashboard');
-      }
+  const toggleMobileNavbar = () => {
+    setIsMobileNavbarOpen(!isMobileNavbarOpen);
+  };
+
+  const closeMobileNavbar = () => {
+    setIsMobileNavbarOpen(false);
+  };
+
+  // Get the current page icon for mobile menu button
+  const getCurrentPageIcon = () => {
+    const iconMap = {
+      '/dashboard': logo,
+      '/learning': (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M2 3H8C9.1 3 10 3.9 10 5V19C10 20.1 9.1 21 8 21H2C1.45 21 1 20.55 1 20V4C1 3.45 1.45 3 2 3Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M22 3H16C14.9 3 14 3.9 14 5V19C14 20.1 14.9 21 16 21H22C22.55 21 23 20.55 23 20V4C23 3.45 22.55 3 22 3Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M10 7H14" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M10 11H14" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M10 15H14" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+      '/gpt': (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+      '/calendar': (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <line x1="16" y1="2" x2="16" y2="6" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <line x1="8" y1="2" x2="8" y2="6" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <line x1="3" y1="10" x2="21" y2="10" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+      '/stats': (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+      '/assessment': (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <polyline points="14,2 14,8 20,8" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <line x1="16" y1="13" x2="8" y2="13" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <line x1="16" y1="17" x2="8" y2="17" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <polyline points="10,9 9,9 8,9" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+      '/account': (
+        <svg width="16" height="16" viewBox="0 0 14 18" fill="none">
+          <path d="M7 9C9.20914 9 11 7.20914 11 5C11 2.79086 9.20914 1 7 1C4.79086 1 3 2.79086 3 5C3 7.20914 4.79086 9 7 9Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M1 17V15C1 13.9391 1.42143 12.9217 2.17157 12.1716C2.92172 11.4214 3.93913 11 5 11H9C10.0609 11 11.0783 11.4214 11.8284 12.1716C12.5786 12.9217 13 13.9391 13 15V17" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    };
+
+    // Check for admin routes
+    if (location.pathname === '/admin-dashboard' && (user?.role === 'admin' || user?.role === 'staff')) {
+      return <Settings className="h-4 w-4 text-[#E3E3E3]" />;
     }
+    if (location.pathname === '/admin/assessment-grades' && (user?.role === 'admin' || user?.role === 'staff')) {
+      return <Award className="h-4 w-4 text-[#E3E3E3]" />;
+    }
+    if (location.pathname === '/admissions-dashboard' && (user?.role === 'admin' || user?.role === 'staff')) {
+      return <Users className="h-4 w-4 text-[#E3E3E3]" />;
+    }
+    if ((location.pathname === '/content' || location.pathname.startsWith('/content')) && (user?.role === 'admin' || user?.role === 'staff')) {
+      return <Bug className="h-4 w-4 text-[#E3E3E3]" />;
+    }
+    if (location.pathname === '/admin-prompts' && (user?.role === 'admin' || user?.role === 'staff')) {
+      return <Brain className="h-4 w-4 text-[#E3E3E3]" />;
+    }
+    if ((location.pathname === '/volunteer-feedback' || location.pathname === '/admin-volunteer-feedback') &&
+        (user?.role === 'volunteer' || user?.role === 'admin' || user?.role === 'staff')) {
+      return <MessageCircle className="h-4 w-4 text-[#E3E3E3]" />;
+    }
+    // Pathfinder routes
+    if (location.pathname.startsWith('/pathfinder')) {
+      return <ArrowRight className="h-4 w-4 text-[#E3E3E3]" />;
+    }
+    // Payment routes
+    if (location.pathname.startsWith('/payment')) {
+      return <Briefcase className="h-4 w-4 text-[#E3E3E3]" />;
+    }
+    // Workshop routes
+    if (location.pathname.startsWith('/workshop')) {
+      return <CalendarIcon className="h-4 w-4 text-[#E3E3E3]" />;
+    }
+
+    return iconMap[location.pathname] || logo;
+  };
+
+  // Helper to render nav items (reduces code duplication)
+  const renderNavLink = (to, icon, label, condition = true, isActiveCheck = null) => {
+    if (!condition) return null;
+    
+    const isActiveRoute = isActiveCheck ? isActiveCheck() : location.pathname === to || location.pathname.startsWith(to + '/');
+    
+    if (isMobile && !isMobileNavbarOpen) return null;
+    
+    const linkClass = cn(
+      "relative flex items-center",
+      isMobile ? "h-[53px]" : "h-[44px]",
+      isActiveRoute ? "bg-[#4242EA]" : "hover:bg-white/10"
+    );
+    
+    const iconContainer = cn(
+      "absolute left-0 top-0 flex items-center justify-center",
+      isMobile ? "w-[60px] h-[53px]" : "w-[50px] h-[44px]"
+    );
+    
+    const textContainer = cn(
+      "flex items-center transition-all duration-300 ease-in-out",
+      isMobile 
+        ? "ml-[60px]"
+        : isNavbarHovered 
+          ? "ml-[50px] opacity-100" 
+          : "ml-[50px] opacity-0 w-0 overflow-hidden"
+    );
+    
+    return (
+      <Link
+        to={to}
+        onClick={isMobile ? closeMobileNavbar : undefined}
+        className={linkClass}
+      >
+        <div className={iconContainer}>
+          {icon}
+        </div>
+        <div className={textContainer}>
+          <span className="text-white text-sm font-medium whitespace-nowrap">{label}</span>
+        </div>
+      </Link>
+    );
   };
 
   return (
-    <Box className="layout">
-      <nav className={`layout__sidebar ${isExpanded ? 'layout__sidebar--expanded' : 'layout__sidebar--collapsed'}`}>
-        <div className="layout__sidebar-header">
-          <div className="logo-container">
-            <img src={logo} alt="Logo" className="logo-small" />
-            <img src={logoFull} alt="Full Logo" className="logo-full" />
-          </div>
-          <IconButton 
-            className="layout__toggle-btn"
-            onClick={() => setIsExpanded(!isExpanded)}
-            sx={{ color: 'white' }}
-          >
-            {isExpanded ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-          </IconButton>
-        </div>
-        
-        <div className="layout__nav-links">
-          <Link to="/dashboard" className={`layout__nav-item ${location.pathname === '/dashboard' ? 'layout__nav-item--active' : ''}`}>
-            <DashboardIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Dashboard</span>}
-          </Link>
-          
-          {isActive ? (
-            <Link to="/learning" className={`layout__nav-item ${location.pathname === '/learning' ? 'layout__nav-item--active' : ''}`}>
-              <SchoolIcon className="layout__nav-icon" />
-              {isExpanded && <span className="layout__nav-text">Learning</span>}
-            </Link>
-          ) : (
-            <Tooltip title="You have historical access only" placement="right">
-              <span className="layout__nav-item layout__nav-item--disabled" onClick={handleLearningClick}>
-                <SchoolIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Learning</span>}
-              </span>
-            </Tooltip>
-          )}
-          
-          <Link to="/gpt" className={`layout__nav-item ${location.pathname === '/gpt' ? 'layout__nav-item--active' : ''}`}>
-            <ChatIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">AI Chat</span>}
-          </Link>
-          <Link to="/calendar" className={`layout__nav-item ${location.pathname === '/calendar' ? 'layout__nav-item--active' : ''}`}>
-            <CalendarMonthIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Calendar</span>}
-          </Link>
-          
-          <Link to="/pathfinder/dashboard" className={`layout__nav-item ${location.pathname.startsWith('/pathfinder') ? 'layout__nav-item--active' : ''}`}>
-            <ArrowForwardIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Pathfinder</span>}
-          </Link>
-
-          {(user.role === 'staff' || user.role === 'admin') && (
-            <Link to="/pathfinder/admin" className={`layout__nav-item layout__nav-item--sub ${location.pathname === '/pathfinder/admin' ? 'layout__nav-item--active' : ''}`}>
-              <AdminPanelSettingsIcon className="layout__nav-icon" />
-              {isExpanded && <span className="layout__nav-text">Pathfinder Admin</span>}
-            </Link>
-          )}
-          
-          {/* Hide My Progress for workshop participants, workshop admins, applicants, admin, and staff */}
-          {!isWorkshopParticipant && !isWorkshopAdmin && !isApplicant && !isAdmin && (
-            <Link to="/stats" className={`layout__nav-item ${location.pathname === '/stats' ? 'layout__nav-item--active' : ''}`}>
-              <AssessmentIcon className="layout__nav-icon" />
-              {isExpanded && <span className="layout__nav-text">My Progress</span>}
-            </Link>
-          )}
-          
-          {/* Hide Assessment for workshop participants, workshop admins, applicants, admin, and staff */}
-          {!isWorkshopParticipant && !isWorkshopAdmin && !isApplicant && !isAdmin && (
-            <>
-              {isActive ? (
-                <Link to="/assessment" className={`layout__nav-item ${location.pathname === '/assessment' ? 'layout__nav-item--active' : ''}`}>
-                  <QuizIcon className="layout__nav-icon" />
-                  {isExpanded && <span className="layout__nav-text">Assessment</span>}
-                </Link>
-              ) : (
-                <Tooltip title="You have historical access only" placement="right">
-                  <span className="layout__nav-item layout__nav-item--disabled">
-                    <QuizIcon className="layout__nav-icon" />
-                    {isExpanded && <span className="layout__nav-text">Assessment</span>}
-                  </span>
-                </Tooltip>
+    <div className={cn("flex h-screen w-full", isPathfinderPage ? "bg-white" : "bg-background")}>
+      {/* Sidebar - Responsive behavior */}
+      <nav
+        className={cn(
+          "bg-[#1E1E1E] flex flex-col fixed left-0 top-0 h-full transition-all duration-300 z-[60]",
+          isMobile
+            ? isMobileNavbarOpen
+              ? "w-[386px]" // Mobile expanded width (overlay)
+              : "w-0" // Mobile collapsed: completely hidden
+            : isNavbarHovered
+              ? "w-[250px]" // Desktop expanded width
+              : "w-[50px]" // Desktop collapsed width
+        )}
+        onMouseEnter={() => !isMobile && setIsNavbarHovered(true)}
+        onMouseLeave={() => !isMobile && setIsNavbarHovered(false)}
+      >
+        {/* Mobile Menu Button / Current Page Indicator */}
+        {isMobile && (
+          <div className="relative">
+            <button
+              onClick={toggleMobileNavbar}
+              className={cn(
+                "w-[60px] h-[53px] flex items-center justify-center",
+                isMobileNavbarOpen ? "bg-[#4242EA]" : "bg-[#4242EA] hover:bg-blue-600"
               )}
-            </>
-          )}
-          
-          {isVolunteer && (
-            <Link to="/volunteer-feedback" className={`layout__nav-item ${location.pathname === '/volunteer-feedback' ? 'layout__nav-item--active' : ''}`}>
-              <FeedbackIcon className="layout__nav-icon" />
-              {isExpanded && <span className="layout__nav-text">Volunteer Feedback</span>}
-            </Link>
-          )}
-          
-          {isWorkshopAdmin && (
-            <Link to="/workshop-admin-dashboard" className={`layout__nav-item ${location.pathname === '/workshop-admin-dashboard' ? 'layout__nav-item--active' : ''}`}>
-              <WorkspacesIcon className="layout__nav-icon" />
-              {isExpanded && <span className="layout__nav-text">My Workshops</span>}
-            </Link>
-          )}
-          
-          {/* <Link to="/payment" className={`layout__nav-item ${location.pathname === '/payment' ? 'layout__nav-item--active' : ''}`}>
-            <PaymentIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Payment</span>}
-          </Link> */}
-          
-          {isAdmin && (
-            <>
-              <Link to="/admin" className={`layout__nav-item ${location.pathname === '/admin' ? 'layout__nav-item--active' : ''}`}>
-                <AdminPanelSettingsIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Admin Dashboard</span>}
-              </Link>
-              <Link to="/admin/assessment-grades" className={`layout__nav-item ${location.pathname === '/admin/assessment-grades' ? 'layout__nav-item--active' : ''}`}>
-                <GradeIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Assessment Grades</span>}
-              </Link>
-              <Link to="/attendance-management" className={`layout__nav-item ${location.pathname === '/attendance-management' ? 'layout__nav-item--active' : ''}`}>
-                <EventAvailableIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Attendance</span>}
-              </Link>
-              <Link to="/admissions-dashboard" className={`layout__nav-item ${location.pathname === '/admissions-dashboard' ? 'layout__nav-item--active' : ''}`}>
-                <GroupsIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Admissions</span>}
-              </Link>
-              <Link to="/content" className={`layout__nav-item ${location.pathname.startsWith('/content') ? 'layout__nav-item--active' : ''}`}>
-                <BugReportIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Content Generation</span>}
-              </Link>
-              <Link to="/admin-prompts" className={`layout__nav-item ${location.pathname === '/admin-prompts' ? 'layout__nav-item--active' : ''}`}>
-                <PsychologyIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">AI Prompts</span>}
-              </Link>
-              {/* <Link to="/facilitator-view" className={`layout__nav-item ${location.pathname === '/facilitator-view' ? 'layout__nav-item--active' : ''}`}>
-                <PersonIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Facilitator View</span>}
-              </Link> */}
-              <Link to="/admin-volunteer-feedback" className={`layout__nav-item ${location.pathname === '/admin-volunteer-feedback' ? 'layout__nav-item--active' : ''}`}>
-                <FeedbackIcon className="layout__nav-icon" />
-                {isExpanded && <span className="layout__nav-text">Volunteer Feedback</span>}
-              </Link>
-            </>
-          )}
-        </div>
+            >
+              {location.pathname === '/dashboard' ? (
+                <img src={logo} alt="Logo" className="h-5 w-5 object-contain" />
+              ) : (
+                getCurrentPageIcon()
+              )}
+            </button>
 
-        <div className="layout__bottom-links">
-          {/* <a href="#" className="layout__nav-item">
-            <DarkModeIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Theme</span>}
-          </a> */}
-          {/* <Link to="/account" className={`layout__nav-item ${location.pathname === '/account' ? 'layout__nav-item--active' : ''}`}>
-            <PersonIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Account</span>}
-          </Link> */}
-          <button onClick={handleLogout} className="layout__nav-item layout__logout-btn">
-            <LogoutIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Logout</span>}
+            {/* Mobile Close Button */}
+            {isMobileNavbarOpen && (
+              <button
+                onClick={closeMobileNavbar}
+                className="absolute right-3 top-3 text-white hover:text-gray-300 z-[80]"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Navigation Links */}
+        {renderNavLink('/dashboard', <img src={logo} alt="Logo" className="h-5 w-5 object-contain" />, 'Dashboard')}
+        
+        {renderNavLink('/learning', (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M2 3H8C9.1 3 10 3.9 10 5V19C10 20.1 9.1 21 8 21H2C1.45 21 1 20.55 1 20V4C1 3.45 1.45 3 2 3Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M22 3H16C14.9 3 14 3.9 14 5V19C14 20.1 14.9 21 16 21H22C22.55 21 23 20.55 23 20V4C23 3.45 22.55 3 22 3Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M10 7H14" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M10 11H14" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M10 15H14" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        ), 'Learning', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)}
+        
+        {renderNavLink('/gpt', (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        ), 'AI Chat', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)}
+        
+        {renderNavLink('/calendar', (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <line x1="16" y1="2" x2="16" y2="6" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <line x1="8" y1="2" x2="8" y2="6" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <line x1="3" y1="10" x2="21" y2="10" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        ), 'Calendar', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)}
+        
+        {/* Pathfinder - NEW from dev */}
+        {renderNavLink('/pathfinder/dashboard', <ArrowRight className="h-4 w-4 text-[#E3E3E3]" />, 'Pathfinder', 
+          !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant,
+          () => location.pathname.startsWith('/pathfinder')
+        )}
+        
+        {/* Pathfinder Admin - NEW from dev */}
+        {renderNavLink('/pathfinder/admin', <Settings className="h-4 w-4 text-[#E3E3E3]" />, 'Pathfinder Admin', 
+          (user?.role === 'admin' || user?.role === 'staff')
+        )}
+        
+        {/* Hide My Progress and Assessment for workshop participants, workshop admins, applicants, admin, and staff */}
+        {renderNavLink('/stats', (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        ), 'Progress', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant && user?.role !== 'admin' && user?.role !== 'staff')}
+        
+        {renderNavLink('/assessment', (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <polyline points="14,2 14,8 20,8" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <line x1="16" y1="13" x2="8" y2="13" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <line x1="16" y1="17" x2="8" y2="17" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <polyline points="10,9 9,9 8,9" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        ), 'Assessment', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant && user?.role !== 'admin' && user?.role !== 'staff')}
+        
+        {/* Payment - NEW from dev */}
+        {renderNavLink('/payment', <Briefcase className="h-4 w-4 text-[#E3E3E3]" />, 'Payment', 
+          !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant,
+          () => location.pathname.startsWith('/payment')
+        )}
+        
+        {/* Workshop Admin Dashboard - NEW from dev */}
+        {renderNavLink('/workshop-admin-dashboard', <Wrench className="h-4 w-4 text-[#E3E3E3]" />, 'Workshop Admin', 
+          isWorkshopAdmin
+        )}
+        
+        {/* Admin sections */}
+        {renderNavLink('/admin-dashboard', <Settings className="h-4 w-4 text-[#E3E3E3]" />, 'Admin Dashboard', 
+          user?.role === 'admin' || user?.role === 'staff'
+        )}
+        
+        {renderNavLink('/admin/assessment-grades', <Award className="h-4 w-4 text-[#E3E3E3]" />, 'Assessment Grades', 
+          user?.role === 'admin' || user?.role === 'staff'
+        )}
+        
+        {renderNavLink('/admissions-dashboard', <Users className="h-4 w-4 text-[#E3E3E3]" />, 'Admissions', 
+          user?.role === 'admin' || user?.role === 'staff'
+        )}
+        
+        {renderNavLink('/content', <Bug className="h-4 w-4 text-[#E3E3E3]" />, 'Content Generation', 
+          user?.role === 'admin' || user?.role === 'staff',
+          () => location.pathname === '/content' || location.pathname.startsWith('/content/')
+        )}
+        
+        {renderNavLink('/admin-prompts', <Brain className="h-4 w-4 text-[#E3E3E3]" />, 'AI Prompts', 
+          user?.role === 'admin' || user?.role === 'staff'
+        )}
+        
+        {/* Admin Attendance Dashboard - NEW from dev */}
+        {renderNavLink('/admin-attendance-dashboard', <CalendarIcon className="h-4 w-4 text-[#E3E3E3]" />, 'Attendance Admin', 
+          user?.role === 'admin' || user?.role === 'staff'
+        )}
+        
+        {/* Volunteer Feedback */}
+        {renderNavLink(
+          user?.role === 'volunteer' ? '/volunteer-feedback' : '/admin-volunteer-feedback',
+          <MessageCircle className="h-4 w-4 text-[#E3E3E3]" />,
+          'Volunteer Feedback',
+          user?.role === 'volunteer' || user?.role === 'admin' || user?.role === 'staff',
+          () => location.pathname === '/volunteer-feedback' || location.pathname === '/admin-volunteer-feedback'
+        )}
+
+        {/* Spacer to push profile and logout to bottom */}
+        <div className="flex-1"></div>
+
+        {/* Account */}
+        {renderNavLink('/account', (
+          <svg width="16" height="16" viewBox="0 0 14 18" fill="none">
+            <path d="M7 9C9.20914 9 11 7.20914 11 5C11 2.79086 9.20914 1 7 1C4.79086 1 3 2.79086 3 5C3 7.20914 4.79086 9 7 9Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M1 17V15C1 13.9391 1.42143 12.9217 2.17157 12.1716C2.92172 11.4214 3.93913 11 5 11H9C10.0609 11 11.0783 11.4214 11.8284 12.1716C12.5786 12.9217 13 13.9391 13 15V17" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        ), 'Account')}
+
+        {/* Logout */}
+        {(isMobile && isMobileNavbarOpen) || !isMobile ? (
+          <button
+            onClick={() => {
+              handleLogout();
+              if (isMobile) closeMobileNavbar();
+            }}
+            className={cn(
+              "relative flex items-center hover:bg-white/10 text-[#E3E3E3] w-full",
+              isMobile ? "h-[53px]" : "h-[44px]"
+            )}
+          >
+            <div className={cn(
+              "absolute left-0 top-0 flex items-center justify-center",
+              isMobile ? "w-[60px] h-[53px]" : "w-[50px] h-[44px]"
+            )}>
+              <svg width="16" height="16" viewBox="0 0 16 18" fill="none" transform="rotate(90)">
+                <path d="M6 17L2 13L6 9" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 13H14" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M10 7V5C10 3.93913 9.57857 2.92172 8.82843 2.17157C8.07828 1.42143 7.06087 1 6 1H4" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <div className={cn(
+              "flex items-center transition-all duration-300 ease-in-out",
+              isMobile 
+                ? "ml-[60px]"
+                : isNavbarHovered 
+                  ? "ml-[50px] opacity-100" 
+                  : "ml-[50px] opacity-0 w-0 overflow-hidden"
+            )}>
+              <span className="text-white text-sm font-medium whitespace-nowrap">Logout</span>
+            </div>
           </button>
-        </div>
+        ) : null}
       </nav>
       
-      <main className={`layout__content ${isPathfinderPage ? 'layout__content--light' : ''}`}>
+      {/* Main Content - Desktop: 50px left margin for collapsed navbar, Mobile: no margin */}
+      <main className={cn(
+        "flex-1 overflow-auto",
+        isPathfinderPage ? "bg-white" : "bg-[#EFEFEF]",
+        isMobile ? "ml-0" : "ml-[50px]"
+      )}>
+        {/* Mobile Header Bar - Only show on mobile */}
+        {isMobile && (
+          <div className="sticky top-0 z-50 bg-[#E751E7] h-[53px] flex items-center justify-end px-4">
+            <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-white">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                  <path d="M8 15C8 15 9.5 13 12 13C14.5 13 16 15 16 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <circle cx="9" cy="9" r="1" fill="currentColor"/>
+                  <circle cx="15" cy="9" r="1" fill="currentColor"/>
+                </svg>
+                <span className="text-white font-medium">( 3 ) missed assignments</span>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Page Content */}
         {children}
       </main>
-    </Box>
+    </div>
   );
 };
 
-export default Layout; 
+export default Layout;
