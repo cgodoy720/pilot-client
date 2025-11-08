@@ -28,7 +28,62 @@ const AdmissionsDashboard = () => {
     const [applications, setApplications] = useState([]);
     const [infoSessions, setInfoSessions] = useState([]);
     const [workshops, setWorkshops] = useState([]);
+    // Overview computed stats when filtering by cycle
+    const [computedOverviewStats, setComputedOverviewStats] = useState(null);
+    const [compareEnabled, setCompareEnabled] = useState(false);
+    const [previousOverviewStats, setPreviousOverviewStats] = useState(null);
+    const [demographicFilters, setDemographicFilters] = useState({ race: 'all', gender: 'all', education: 'all', borough: 'all' });
+    const [demographicFilter, setDemographicFilter] = useState('race'); // For "View by" dropdown
+    const [demographicBreakdown, setDemographicBreakdown] = useState({ race: [], gender: [], education: [], borough: [] });
     const [cohorts, setCohorts] = useState([]);
+    // Demographics modal for KPI tiles
+    const [demographicsModalOpen, setDemographicsModalOpen] = useState(false);
+    const [demographicsModalTitle, setDemographicsModalTitle] = useState('');
+    const [demographicsModalView, setDemographicsModalView] = useState('race'); // race | gender | education
+    const [demographicsModalData, setDemographicsModalData] = useState({ race: [], gender: [], education: [] });
+    // Overview stage demographics (replaces funnel)
+    const [activeOverviewStage, setActiveOverviewStage] = useState('applied'); // applied | info | workshops | offers | marketing
+    const [stageDemographics, setStageDemographics] = useState({ race: [], gender: [], education: [], age: [] });
+    const [averageIncome, setAverageIncome] = useState(null); // Average income for the current stage
+    // Application status filter for demographics
+    const [applicantStatusFilter, setApplicantStatusFilter] = useState('all'); // all | accounts_created | in_progress | submitted | ineligible
+    const [appliedStatusBreakdown, setAppliedStatusBreakdown] = useState(null); // { accounts_created, in_progress, submitted, ineligible }
+    const [submittedAssessmentBreakdown, setSubmittedAssessmentBreakdown] = useState(null); // { assessed, pending, strong_recommend, recommend, review_needed, not_recommend }
+    const [genderHover, setGenderHover] = useState(null); // { label, percentage, count }
+    const [overviewDetailsOpen, setOverviewDetailsOpen] = useState(false);
+    // Modal for showing filtered applicants by demographic
+    const [demographicApplicantsModalOpen, setDemographicApplicantsModalOpen] = useState(false);
+    const [demographicApplicantsFilter, setDemographicApplicantsFilter] = useState(null); // { type: 'race'|'gender'|'education'|'age', value: string, stage: string }
+    const [filteredApplicants, setFilteredApplicants] = useState([]);
+    const [filteredApplicantsLoading, setFilteredApplicantsLoading] = useState(false);
+    const [stageDetailedApplicantsCache, setStageDetailedApplicantsCache] = useState({ key: '', rows: [] });
+    
+    const buildStageCacheKey = (stage, quickView, status) => {
+        return `${stage || 'applied'}|${quickView || 'all'}|${status || 'all'}`;
+    };
+    
+    const fetchStageDetailedApplicants = async () => {
+        const cacheKey = buildStageCacheKey(
+            activeOverviewStage,
+            overviewQuickView,
+            activeOverviewStage === 'applied' ? applicantStatusFilter : ''
+        );
+
+        if (stageDetailedApplicantsCache.key === cacheKey && stageDetailedApplicantsCache.rows.length) {
+            return stageDetailedApplicantsCache.rows;
+        }
+
+        return [];
+    };
+    
+    // Modal for showing filtered applications from KPI tiles
+    const [applicationsModalOpen, setApplicationsModalOpen] = useState(false);
+    const [applicationsModalFilter, setApplicationsModalFilter] = useState(null); // { type: 'total'|'accounts_created'|'submitted'|'info'|'workshops'|'offers'|'marketing', status?: string }
+    const [modalApplications, setModalApplications] = useState([]);
+    const [modalApplicationsLoading, setModalApplicationsLoading] = useState(false);
+    
+    // CSV export tracking
+    const [exportSelections, setExportSelections] = useState(new Set()); // Track which tiles are selected for export
 
     // Infinite scroll and filters
     const [applicationFilters, setApplicationFilters] = useState({
@@ -48,6 +103,9 @@ const AdmissionsDashboard = () => {
         column: 'created_at',
         direction: 'desc' // 'asc' or 'desc'
     });
+
+    // Overview quick views state
+    const [overviewQuickView, setOverviewQuickView] = useState(''); // '', 'dec2025', 'sep2025', 'deferred'
 
     // Event registrations management
     const [selectedEvent, setSelectedEvent] = useState(null);
@@ -149,7 +207,6 @@ const AdmissionsDashboard = () => {
 
     // Check if user has admin access
     const hasAdminAccess = user?.role === 'admin' || user?.role === 'staff';
-
     // Fetch all admissions data
     const fetchCohorts = async () => {
         if (!hasAdminAccess || !token) {
@@ -185,6 +242,33 @@ const AdmissionsDashboard = () => {
         } catch (error) {
             console.error('❌ Error fetching cohorts:', error);
         }
+    };
+
+    // Helper: robustly map overview quick view to a cohort_id or 'deferred'
+    const getOverviewCohortParam = () => {
+        if (!overviewQuickView || overviewQuickView === 'all_time') return '';
+        if (overviewQuickView === 'deferred') return 'deferred';
+
+        const norm = (s) => (s || '').toLowerCase();
+        const candidates = cohorts || [];
+
+        if (overviewQuickView === 'dec2025') {
+            const match = candidates.find(c => {
+                const n = norm(c.name);
+                return n.includes('dec') && n.includes('2025');
+            }) || candidates.find(c => norm(c.name).includes('december 2025'));
+            return match?.cohort_id || '';
+        }
+
+        if (overviewQuickView === 'sep2025') {
+            const match = candidates.find(c => {
+                const n = norm(c.name);
+                return (n.includes('sep') || n.includes('september')) && n.includes('2025');
+            }) || candidates.find(c => norm(c.name).includes('september 2025'));
+            return match?.cohort_id || '';
+        }
+
+        return '';
     };
 
     // Fetch workshop-specific cohorts (separate from program cohorts)
@@ -233,14 +317,19 @@ const AdmissionsDashboard = () => {
             setLoading(false);
             return;
         }
-
         try {
             setLoading(true);
             setError(null);
 
+            // Prepare stats URL - only add cohort filter if NOT "all_time"
+            // For "all_time", we want unfiltered stats. For other filters, we'll compute from filtered apps anyway
+            const statsUrl = new URL(`${import.meta.env.VITE_API_URL}/api/admissions/stats`);
+            // Always fetch base stats without cohort filter - computed stats will override for specific cohorts
+            console.log('📊 Fetching base stats from:', statsUrl.toString());
+
             // Fetch all data in parallel
             const [statsResponse, applicationsResponse, infoSessionsResponse, workshopsResponse] = await Promise.all([
-                fetch(`${import.meta.env.VITE_API_URL}/api/admissions/stats`, {
+                fetch(statsUrl, {
                     headers: { Authorization: `Bearer ${token}` }
                 }),
                 fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applications?${new URLSearchParams(applicationFilters)}`, {
@@ -273,6 +362,20 @@ const AdmissionsDashboard = () => {
             setInfoSessions(infoSessionsData);
             setWorkshops(workshopsData.workshops || workshopsData);
 
+            // Fetch email stats for Marketing Insights tile
+            try {
+                const emailResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/stats`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (emailResponse.ok) {
+                    const emailData = await emailResponse.json();
+                    setEmailStats(emailData);
+                }
+            } catch (emailError) {
+                console.error('Error fetching email stats:', emailError);
+                // Don't fail the entire fetch if email stats fail
+            }
+
         } catch (error) {
             console.error('Error fetching admissions data:', error);
             setError('Failed to load admissions data. Please try again.');
@@ -280,7 +383,1257 @@ const AdmissionsDashboard = () => {
             setLoading(false);
         }
     };
+    // Compute Overview stats from filtered applications when overview filter is active
+    const computeOverviewStatsForFilter = async () => {
+        if (!hasAdminAccess || !token) return;
+        const cohortParam = getOverviewCohortParam();
+        if (!cohortParam) {
+            setComputedOverviewStats(null);
+            return;
+        }
+        try {
+            const params = new URLSearchParams();
+            params.append('limit', 10000);
+            params.append('offset', 0);
+            params.append('cohort_id', cohortParam);
+            const resp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applications?${params}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!resp.ok) throw new Error('Failed to fetch applications for overview filter');
+            const data = await resp.json();
+            const apps = Array.isArray(data?.applications) ? data.applications : [];
 
+            // Build computed stats
+            const totalApplicants = data?.total || apps.length;
+            const countBy = (arr, keyGetter) => arr.reduce((acc, item) => {
+                const key = keyGetter(item) || 'unknown';
+                acc[key] = (acc[key] || 0) + 1;
+                return acc;
+            }, {});
+
+            const applicationStatusCounts = countBy(apps, a => a.status);
+            const applicationStats = Object.keys(applicationStatusCounts).map(status => ({ status, count: applicationStatusCounts[status] }));
+
+            const assessKey = a => (a.final_status || a.recommendation || 'pending');
+            const assessmentCounts = countBy(apps, assessKey);
+            const assessmentFunnel = ['strong_recommend', 'recommend', 'review_needed', 'not_recommend', 'pending']
+                .filter(k => assessmentCounts[k])
+                .map(k => ({ status: k, count: assessmentCounts[k] }));
+
+            const finalCounts = countBy(apps, a => a.final_status || 'pending');
+            const finalStatusCounts = Object.keys(finalCounts).map(status => ({ status, count: finalCounts[status] }));
+
+            // Info sessions aggregates from applicant-level statuses
+            const attendedSet = new Set(['attended', 'attended_late', 'very_late']);
+            const infoSessionRegistrations = apps.filter(a => (a.info_session_status && a.info_session_status !== 'not_registered')).length;
+            const infoSessionAttended = apps.filter(a => attendedSet.has(a.info_session_status)).length;
+            
+            // Workshops: Fetch admissions workshops and calculate from their registrations
+            let workshopRegistrations = 0;
+            let workshopAttended = 0;
+            try {
+                const workshopsResp = await fetch(`${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (workshopsResp.ok) {
+                    const workshopsData = await workshopsResp.json();
+                    const workshops = Array.isArray(workshopsData) ? workshopsData : (workshopsData.workshops || []);
+                    // Filter to admissions workshops only
+                    const admissionsWorkshops = workshops.filter(w => w.workshop_type === 'admissions');
+                    
+                    // Get set of applicant IDs from filtered apps
+                    const filteredApplicantIds = new Set(apps.map(a => a.applicant_id).filter(Boolean));
+                    
+                    // Fetch registrations for each admissions workshop
+                    for (const workshop of admissionsWorkshops) {
+                        try {
+                            const regResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/registrations/workshop/${workshop.event_id}`, {
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            if (regResp.ok) {
+                                const registrations = await regResp.json();
+                                registrations.forEach(reg => {
+                                    if (reg.applicant_id && filteredApplicantIds.has(reg.applicant_id)) {
+                                        workshopRegistrations++;
+                                        if (attendedSet.has(reg.status)) {
+                                            workshopAttended++;
+                                        }
+                                    }
+                                });
+                            }
+                        } catch (regErr) {
+                            console.error(`Error fetching registrations for workshop ${workshop.event_id}:`, regErr);
+                        }
+                    }
+                }
+            } catch (workshopErr) {
+                console.error('Error fetching workshops for stats:', workshopErr);
+                // Fallback to applicant-level status (may include external workshops)
+                workshopRegistrations = apps.filter(a => (a.workshop_status && a.workshop_status !== 'pending')).length;
+                workshopAttended = apps.filter(a => attendedSet.has(a.workshop_status)).length;
+            }
+
+            // Workshop pipeline from applicant workshop_status
+            const workshopPipelineCounts = countBy(apps, a => a.workshop_status || 'pending');
+            const workshopInvitations = Object.keys(workshopPipelineCounts).map(status => ({ status, count: workshopPipelineCounts[status] }));
+
+            const computed = {
+                totalApplicants,
+                applicationStats,
+                infoSessions: {
+                    // When filtered by cycle, show registrations-focused totals derived from applicants
+                    totalSessions: infoSessionRegistrations,
+                    totalRegistrations: infoSessionRegistrations,
+                    totalAttended: infoSessionAttended
+                },
+                workshops: {
+                    totalWorkshops: workshopRegistrations,
+                    totalRegistrations: workshopRegistrations,
+                    totalAttended: workshopAttended
+                },
+                assessmentFunnel,
+                finalStatusCounts,
+                workshopInvitations
+            };
+            setComputedOverviewStats(computed);
+            // Derive demographics via export endpoint
+            try {
+                const ids = apps.map(a => a.applicant_id).filter(Boolean);
+                if (ids.length) {
+                    const resp2 = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/export?ids=${ids.join(',')}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (resp2.ok) {
+                        const detailed = await resp2.json();
+                        const aggregates = { race: {}, gender: {}, education: {}, borough: {} };
+                        const add = (obj, key) => { if (!key) return; obj[key] = (obj[key] || 0) + 1; };
+                        detailed.forEach(d => {
+                            const dem = d.demographics || {};
+                            const raceVal = dem.race_ethnicity;
+                            if (Array.isArray(raceVal)) raceVal.forEach(r => add(aggregates.race, r)); else add(aggregates.race, raceVal);
+                            add(aggregates.gender, dem.gender);
+                            add(aggregates.education, dem.education_level);
+                            const addr = (dem.address || '').toLowerCase();
+                            const boroughs = ['manhattan', 'brooklyn', 'queens', 'bronx', 'staten island'];
+                            const matched = boroughs.find(b => addr.includes(b));
+                            add(aggregates.borough, matched || (addr ? 'other' : 'unknown'));
+                        });
+                        const toArray = (o) => Object.keys(o).map(k => ({ label: k || 'unknown', count: o[k] })).sort((a,b)=>b.count-a.count);
+                        setDemographicBreakdown({
+                            race: toArray(aggregates.race),
+                            gender: toArray(aggregates.gender),
+                            education: toArray(aggregates.education),
+                            borough: toArray(aggregates.borough)
+                        });
+                    } else {
+                        setDemographicBreakdown({ race: [], gender: [], education: [], borough: [] });
+                    }
+                } else {
+                    setDemographicBreakdown({ race: [], gender: [], education: [], borough: [] });
+                }
+            } catch (demErr) {
+                console.error('Error computing demographics:', demErr);
+                setDemographicBreakdown({ race: [], gender: [], education: [], borough: [] });
+            }
+        } catch (e) {
+            console.error('Error computing overview stats for filter:', e);
+            setComputedOverviewStats(null);
+        }
+    };
+    // Open demographics modal for a given Overview KPI subset
+    const openDemographicsModal = async (subset) => {
+        try {
+            setDemographicsModalTitle(
+                subset === 'applicants' ? 'Applicants Demographics' :
+                subset === 'info' ? 'Info Session Attendees Demographics' :
+                subset === 'workshops' ? 'Workshop Participants Demographics' :
+                subset === 'assessment' ? 'Assessment Completed Demographics' :
+                'Offers Extended Demographics'
+            );
+
+            const cohortParam = getOverviewCohortParam();
+            const params = new URLSearchParams();
+            params.append('limit', 10000);
+            params.append('offset', 0);
+            if (cohortParam) params.append('cohort_id', cohortParam);
+
+            const appsResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applications?${params}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!appsResp.ok) throw new Error('Failed to load applications for demographics');
+            const appsData = await appsResp.json();
+            const apps = Array.isArray(appsData?.applications) ? appsData.applications : [];
+
+            const attendedSet = new Set(['attended', 'attended_late', 'very_late']);
+            let subsetApps = apps;
+            if (subset === 'info') {
+                subsetApps = apps.filter(a => attendedSet.has(a.info_session_status));
+            } else if (subset === 'workshops') {
+                // For workshops, only include admissions workshop attendees
+                try {
+                    const workshopsResp = await fetch(`${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (workshopsResp.ok) {
+                        const workshopsData = await workshopsResp.json();
+                        const allWorkshops = Array.isArray(workshopsData) ? workshopsData : (workshopsData.workshops || []);
+                        // Filter to admissions workshops only
+                        const admissionsWorkshops = allWorkshops.filter(w => w.workshop_type === 'admissions');
+                        
+                        // Get set of applicant IDs who attended admissions workshops
+                        const admissionsWorkshopAttendeeIds = new Set();
+                        
+                        // Fetch registrations for each admissions workshop
+                        for (const workshop of admissionsWorkshops) {
+                            try {
+                                const regResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/registrations/workshop/${workshop.event_id}`, {
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                });
+                                if (regResp.ok) {
+                                    const registrations = await regResp.json();
+                                    registrations.forEach(reg => {
+                                        if (reg.applicant_id && attendedSet.has(reg.status)) {
+                                            admissionsWorkshopAttendeeIds.add(reg.applicant_id);
+                                        }
+                                    });
+                                }
+                            } catch (regErr) {
+                                console.error(`Error fetching registrations for workshop ${workshop.event_id}:`, regErr);
+                            }
+                        }
+                        
+                        // Filter apps to only those who attended admissions workshops
+                        subsetApps = apps.filter(a => a.applicant_id && admissionsWorkshopAttendeeIds.has(a.applicant_id));
+                    } else {
+                        // Fallback to applicant-level status (may include external workshops)
+                        subsetApps = apps.filter(a => attendedSet.has(a.workshop_status));
+                    }
+                } catch (workshopErr) {
+                    console.error('Error fetching workshops for demographics:', workshopErr);
+                    // Fallback to applicant-level status (may include external workshops)
+                    subsetApps = apps.filter(a => attendedSet.has(a.workshop_status));
+                }
+            }
+            if (subset === 'assessment') subsetApps = apps.filter(a => {
+                const r = a.recommendation;
+                const fs = a.final_status;
+                return ['strong_recommend','recommend','review_needed','not_recommend'].includes(r) || (fs && fs !== 'pending');
+            });
+            if (subset === 'offers') subsetApps = apps.filter(a => a.final_status === 'accepted');
+
+            const ids = subsetApps.map(a => a.applicant_id).filter(Boolean);
+            let race = [], gender = [], education = [], age = [];
+            if (ids.length) {
+                const expResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/export?ids=${ids.join(',')}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (expResp.ok) {
+                    const detailed = await expResp.json();
+                    const agg = { race: {}, gender: {}, education: {}, age: {} };
+                    const add = (obj, key) => { if (!key) return; obj[key] = (obj[key] || 0) + 1; };
+                    detailed.forEach(d => {
+                        const dem = d.demographics || {};
+                        const raceVal = dem.race_ethnicity || dem['WHICH OF THE FOLLOWING BEST REPRESENTS YOUR RACIAL BACKGROUND'];
+                        if (Array.isArray(raceVal)) raceVal.forEach(r => add(agg.race, r)); else add(agg.race, raceVal);
+                        add(agg.gender, dem.gender || dem.GENDER);
+                        add(agg.education, dem.education_level || dem['WHAT IS YOUR CURRENT HIGHEST EDUCATIONAL ATTAINED']);
+                    });
+                    const toArr = (o) => Object.keys(o).map(k => ({ label: k || 'Unknown', count: o[k] })).sort((a,b)=>b.count-a.count);
+                    race = toArr(agg.race); gender = toArr(agg.gender); education = toArr(agg.education);
+                }
+            }
+            setDemographicsModalData({ race, gender, education });
+            setDemographicsModalView('race');
+            setDemographicsModalOpen(true);
+        } catch (err) {
+            console.error('Error opening demographics modal:', err);
+            setDemographicsModalData({ race: [], gender: [], education: [] });
+            setDemographicsModalOpen(true);
+        }
+    };
+    const closeDemographicsModal = () => setDemographicsModalOpen(false);
+    // Load demographics for the selected stage into the Overview section
+    const loadStageDemographics = async (subset) => {
+        try {
+            const cohortParam = getOverviewCohortParam();
+            const params = new URLSearchParams();
+            params.append('limit', 10000);
+            params.append('offset', 0);
+            if (cohortParam) params.append('cohort_id', cohortParam);
+
+            const appsResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applications?${params}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!appsResp.ok) throw new Error('Failed to load applications for stage demographics');
+            const appsData = await appsResp.json();
+            const apps = Array.isArray(appsData?.applications) ? appsData.applications : [];
+
+            // Calculate status breakdown for "applied" stage
+            if (subset === 'applied') {
+                // Use apps.length as the total (what we're actually counting from)
+                // This ensures breakdown matches the actual data we have
+                const total = apps.length;
+                // Note: 'no_application' is stored in DB but displayed as 'Account Created' in Applicants tab
+                // Count statuses exactly as the Applicants tab displays them
+                const accountsCreated = apps.filter(a => a.status === 'no_application').length;
+                const inProgress = apps.filter(a => a.status === 'in_progress').length;
+                const submitted = apps.filter(a => a.status === 'submitted').length;
+                const ineligible = apps.filter(a => a.status === 'ineligible').length;
+                
+                const statusCounts = {
+                    total: total,
+                    accounts_created: accountsCreated,
+                    in_progress: inProgress,
+                    submitted: submitted,
+                    ineligible: ineligible
+                };
+                setAppliedStatusBreakdown(statusCounts);
+            }
+            const attendedSet = new Set(['attended', 'attended_late', 'very_late']);
+            let subsetApps = apps;
+            if (subset === 'applied') {
+                // For applied stage, filter by status if a specific status is selected
+                if (applicantStatusFilter === 'all') {
+                    subsetApps = apps;
+                } else {
+                    // Map 'accounts_created' to 'no_application' (DB stores it as 'no_application')
+                    const statusToFilter = applicantStatusFilter === 'accounts_created' ? 'no_application' : applicantStatusFilter;
+                    subsetApps = apps.filter(a => a.status === statusToFilter);
+                }
+                
+                // Calculate assessment breakdown for submitted applicants
+                if (applicantStatusFilter === 'submitted') {
+                    const submittedApps = subsetApps;
+                    const assessed = submittedApps.filter(a => {
+                        const r = a.recommendation;
+                        const fs = a.final_status;
+                        return ['strong_recommend', 'recommend', 'review_needed', 'not_recommend'].includes(r) || (fs && fs !== 'pending');
+                    }).length;
+                    const pending = submittedApps.length - assessed;
+                    
+                    const strongRecommend = submittedApps.filter(a => a.recommendation === 'strong_recommend').length;
+                    const recommend = submittedApps.filter(a => a.recommendation === 'recommend').length;
+                    const reviewNeeded = submittedApps.filter(a => a.recommendation === 'review_needed').length;
+                    const notRecommend = submittedApps.filter(a => a.recommendation === 'not_recommend').length;
+                    
+                    setSubmittedAssessmentBreakdown({
+                        assessed,
+                        pending,
+                        strong_recommend: strongRecommend,
+                        recommend,
+                        review_needed: reviewNeeded,
+                        not_recommend: notRecommend,
+                        total: submittedApps.length
+                    });
+                } else {
+                    setSubmittedAssessmentBreakdown(null);
+                }
+            } else if (subset === 'info') {
+                subsetApps = apps.filter(a => attendedSet.has(a.info_session_status));
+            } else if (subset === 'workshops') {
+                subsetApps = apps.filter(a => attendedSet.has(a.workshop_status));
+            } else if (subset === 'assessment') {
+                subsetApps = apps.filter(a => {
+                    const r = a.recommendation;
+                    const fs = a.final_status;
+                    return ['strong_recommend','recommend','review_needed','not_recommend'].includes(r) || (fs && fs !== 'pending');
+                });
+            } else if (subset === 'offers') {
+                subsetApps = apps.filter(a => a.final_status === 'accepted');
+            }
+            const cacheKey = buildStageCacheKey(subset, overviewQuickView, subset === 'applied' ? applicantStatusFilter : '');
+            const ids = subsetApps.map(a => a.applicant_id).filter(Boolean);
+            const totalApplicants = subsetApps.length;
+            const applicantsWithoutId = totalApplicants - ids.length; // Count applicants without applicant_id
+            let race = [], gender = [], education = [], age = [];
+            if (ids.length) {
+                const expResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/export?ids=${ids.join(',')}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (expResp.ok) {
+                    const detailed = await expResp.json();
+                    setStageDetailedApplicantsCache({ key: cacheKey, rows: detailed });
+                    const agg = { race: {}, gender: {}, education: {}, age: {} };
+                    let processedCount = 0;
+                    
+                    // Pre-add "Not Listed" entries for applicants without applicant_id
+                    if (applicantsWithoutId > 0) {
+                        agg.race['Not Listed'] = applicantsWithoutId;
+                        agg.gender['Not Listed'] = applicantsWithoutId;
+                        agg.education['Not Listed'] = applicantsWithoutId;
+                        agg.age['Not Listed'] = applicantsWithoutId;
+                    }
+                    
+                    // Normalize labels to prevent duplicate buckets (e.g., 'Not listed' vs 'Not Listed')
+                    const normalize = (category, value) => {
+                        const raw = (value ?? '').toString().trim();
+                        if (!raw) return 'Not Listed';
+                        const v = raw.toLowerCase();
+                        const isNotListed = ['not listed','not_listed','prefer not to say','unknown','unspecified','n/a','na','none','null',''].includes(v);
+                        if (isNotListed) return 'Not Listed';
+                        if (category === 'gender') {
+                            if (['female','woman','f','female-identifying','female identifying'].includes(v)) return 'Female';
+                            if (['male','man','m','male-identifying','male identifying'].includes(v)) return 'Male';
+                        }
+                        // Title-case first letter for consistency
+                        return raw.charAt(0).toUpperCase() + raw.slice(1);
+                    };
+                    
+                    const add = (obj, key) => { 
+                        const label = key || 'Not Listed';
+                        obj[label] = (obj[label] || 0) + 1; 
+                    };
+                    
+                    // Helper function to parse income value
+                    const parseIncome = (incomeStr) => {
+                        if (!incomeStr) return null;
+                        // Remove dollar signs, commas, and whitespace, then parse
+                        const cleaned = incomeStr.toString().replace(/[$,\s]/g, '');
+                        const parsed = parseFloat(cleaned);
+                        return isNaN(parsed) ? null : parsed;
+                    };
+                    
+                    let totalIncome = 0;
+                    let incomeCount = 0;
+                    
+                    detailed.forEach(d => {
+                        processedCount++;
+                        const dem = d.demographics || {};
+                        
+                        // Calculate income for average
+                        const incomeValue = dem.personal_income || dem['Personal Annual Income'];
+                        const parsedIncome = parseIncome(incomeValue);
+                        if (parsedIncome !== null && parsedIncome > 0) {
+                            totalIncome += parsedIncome;
+                            incomeCount++;
+                        }
+                        
+                        // Race: combine multiple selections into a single category (e.g., "Middle Eastern, White")
+                        const raceVal = dem.race_ethnicity || dem['WHICH OF THE FOLLOWING BEST REPRESENTS YOUR RACIAL BACKGROUND'];
+                        let raceLabel = 'Not Listed';
+                        if (Array.isArray(raceVal)) {
+                            if (raceVal.length > 0) {
+                                // Combine all races into a single label, sorted alphabetically for consistency
+                                const normalizedRaces = raceVal.map(r => normalize('race', r)).filter(r => r !== 'Not Listed');
+                                if (normalizedRaces.length > 0) {
+                                    raceLabel = normalizedRaces.sort().join(', ');
+                                } else {
+                                    raceLabel = 'Not Listed';
+                                }
+                            }
+                        } else if (raceVal) {
+                            // Handle string that might be JSON array
+                            try {
+                                const parsed = JSON.parse(raceVal);
+                                if (Array.isArray(parsed) && parsed.length > 0) {
+                                    const normalizedRaces = parsed.map(r => normalize('race', r)).filter(r => r !== 'Not Listed');
+                                    if (normalizedRaces.length > 0) {
+                                        raceLabel = normalizedRaces.sort().join(', ');
+                                    } else {
+                                        raceLabel = 'Not Listed';
+                                    }
+                                } else {
+                                    raceLabel = normalize('race', raceVal);
+                                }
+                            } catch (e) {
+                                // Not JSON, treat as single value
+                                raceLabel = normalize('race', raceVal);
+                            }
+                        }
+                        add(agg.race, raceLabel);
+                        
+                        // Age: calculate from date of birth
+                        const dob = dem.date_of_birth || dem['Date of Birth'] || dem['DATE OF BIRTH'];
+                        if (dob) {
+                            try {
+                                const birthDate = new Date(dob);
+                                if (!isNaN(birthDate.getTime())) {
+                                    const today = new Date();
+                                    let age = today.getFullYear() - birthDate.getFullYear();
+                                    const monthDiff = today.getMonth() - birthDate.getMonth();
+                                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                                        age--;
+                                    }
+                                    // Group into age ranges: 18-24, 25-34, 35-44, 45-55, over 55
+                                    let ageRange;
+                                    if (age < 18) ageRange = 'Under 18';
+                                    else if (age <= 24) ageRange = '18-24';
+                                    else if (age <= 34) ageRange = '25-34';
+                                    else if (age <= 44) ageRange = '35-44';
+                                    else if (age <= 55) ageRange = '45-55';
+                                    else ageRange = 'Over 55';
+                                    add(agg.age, ageRange);
+                                } else {
+                                    add(agg.age, 'Not Listed');
+                                }
+                            } catch (e) {
+                                add(agg.age, 'Not Listed');
+                            }
+                        } else {
+                            add(agg.age, 'Not Listed');
+                        }
+                        
+                        // Gender: count once per person
+                        add(agg.gender, normalize('gender', dem.gender || dem.GENDER));
+                        
+                        // Education: count once per person
+                        add(agg.education, normalize('education', dem.education_level || dem['WHAT IS YOUR CURRENT HIGHEST EDUCATIONAL ATTAINED']));
+                    });
+                    // Calculate average income
+                    const avgIncome = incomeCount > 0 ? Math.round(totalIncome / incomeCount) : null;
+                    setAverageIncome(avgIncome);
+                    
+                    // Handle IDs that were sent but not returned in the export (missing from export table)
+                    // Note: applicantsWithoutId are already accounted for above
+                    const missingFromExport = ids.length - processedCount;
+                    if (missingFromExport > 0) {
+                        // Add these as "Not Listed" for all categories
+                        agg.race['Not Listed'] = (agg.race['Not Listed'] || 0) + missingFromExport;
+                        agg.gender['Not Listed'] = (agg.gender['Not Listed'] || 0) + missingFromExport;
+                        agg.education['Not Listed'] = (agg.education['Not Listed'] || 0) + missingFromExport;
+                        agg.age['Not Listed'] = (agg.age['Not Listed'] || 0) + missingFromExport;
+                    }
+                    
+                    // Double-check totals and ensure they match totalApplicants
+                    // Note: Race totals may exceed totalApplicants if people selected multiple races
+                    const genderTotal = Object.values(agg.gender).reduce((sum, count) => sum + count, 0);
+                    const educationTotal = Object.values(agg.education).reduce((sum, count) => sum + count, 0);
+                    const ageTotal = Object.values(agg.age).reduce((sum, count) => sum + count, 0);
+                    
+                    if (genderTotal < totalApplicants) {
+                        agg.gender['Not Listed'] = (agg.gender['Not Listed'] || 0) + (totalApplicants - genderTotal);
+                    }
+                    if (educationTotal < totalApplicants) {
+                        agg.education['Not Listed'] = (agg.education['Not Listed'] || 0) + (totalApplicants - educationTotal);
+                    }
+                    if (ageTotal < totalApplicants) {
+                        agg.age['Not Listed'] = (agg.age['Not Listed'] || 0) + (totalApplicants - ageTotal);
+                    }
+                    
+                    const toArr = (o) => Object.keys(o).map(k => ({ label: k || 'Not Listed', count: o[k] })).sort((a,b)=>b.count-a.count);
+                    
+                    // Helper function to clean labels consistently (same as display)
+                    const cleanLabelForDedup = (label) => {
+                        if (!label) return 'Unknown';
+                        let cleaned = label.toString().trim();
+                        try {
+                            const parsed = JSON.parse(cleaned);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                cleaned = parsed[0].toString();
+                            }
+                        } catch (e) {
+                            // Not JSON, continue
+                        }
+                        cleaned = cleaned
+                            .replace(/^\[+/g, '')
+                            .replace(/\]+$/g, '')
+                            .replace(/^["']+/g, '')
+                            .replace(/["']+$/g, '')
+                            .trim()
+                            .toLowerCase(); // Normalize case for comparison
+                        return cleaned || 'unknown';
+                    };
+                    
+                    // Deduplicate race entries by cleaning and merging
+                    const raceArr = toArr(agg.race);
+                    const raceDeduped = {};
+                    raceArr.forEach(item => {
+                        const cleanedKey = cleanLabelForDedup(item.label);
+                        if (!raceDeduped[cleanedKey]) {
+                            raceDeduped[cleanedKey] = { label: item.label, count: 0 };
+                        }
+                        // Prefer label without brackets/quotes
+                        const currentHasBrackets = raceDeduped[cleanedKey].label.includes('[') || raceDeduped[cleanedKey].label.includes('"');
+                        const newHasBrackets = item.label.includes('[') || item.label.includes('"');
+                        if (newHasBrackets && !currentHasBrackets) {
+                            // Keep the current label (cleaner one)
+                        } else if (!newHasBrackets && currentHasBrackets) {
+                            // Use the new label (cleaner)
+                            raceDeduped[cleanedKey].label = item.label;
+                        } else {
+                            // Prefer shorter label (likely cleaner)
+                            if (item.label.length < raceDeduped[cleanedKey].label.length) {
+                                raceDeduped[cleanedKey].label = item.label;
+                            }
+                        }
+                        raceDeduped[cleanedKey].count += item.count;
+                    });
+                    // Clean all labels before finalizing
+                    race = Object.values(raceDeduped).map(item => {
+                        const cleaned = cleanLabelForDedup(item.label);
+                        // Capitalize first letter of each word for display
+                        const displayLabel = cleaned.split(' ').map(word => 
+                            word.charAt(0).toUpperCase() + word.slice(1)
+                        ).join(' ');
+                        return { label: displayLabel, count: item.count };
+                    }).sort((a,b)=>b.count-a.count);
+                    
+                    gender = toArr(agg.gender); education = toArr(agg.education);
+                    age = toArr(agg.age);
+                } else {
+                    // If export fails, create "Not Listed" entries for all applicants
+                    race = [{ label: 'Not Listed', count: totalApplicants }];
+                    gender = [{ label: 'Not Listed', count: totalApplicants }];
+                    education = [{ label: 'Not Listed', count: totalApplicants }];
+                    age = [{ label: 'Not Listed', count: totalApplicants }];
+                    setAverageIncome(null);
+                    setStageDetailedApplicantsCache({ key: cacheKey, rows: [] });
+                }
+            } else if (totalApplicants > 0) {
+                // Applicants exist but have no applicant_ids - mark all as "Not Listed"
+                race = [{ label: 'Not Listed', count: totalApplicants }];
+                gender = [{ label: 'Not Listed', count: totalApplicants }];
+                education = [{ label: 'Not Listed', count: totalApplicants }];
+                age = [{ label: 'Not Listed', count: totalApplicants }];
+                setAverageIncome(null);
+                setStageDetailedApplicantsCache({ key: cacheKey, rows: [] });
+            } else {
+                // No applicants, empty arrays
+                race = []; gender = []; education = []; age = [];
+                setAverageIncome(null);
+                setStageDetailedApplicantsCache({ key: cacheKey, rows: [] });
+            }
+            setStageDemographics({ race, gender, education, age });
+        } catch (err) {
+            console.error('Error loading stage demographics:', err);
+            setStageDemographics({ race: [], gender: [], education: [], age: [] });
+            setAverageIncome(null);
+            setAppliedStatusBreakdown(null);
+        }
+    };
+    // Reset status filter to 'all' when switching to applied stage
+    useEffect(() => {
+        if (activeOverviewStage === 'applied') {
+            setApplicantStatusFilter('all');
+        }
+    }, [activeOverviewStage]);
+
+    useEffect(() => {
+        if (!hasAdminAccess || !token) return;
+        loadStageDemographics(activeOverviewStage);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeOverviewStage, overviewQuickView, applicantStatusFilter]);
+
+    // Load applicants filtered by demographic
+    const loadFilteredApplicants = async (demographicType, demographicValue) => {
+        if (!hasAdminAccess || !token) return;
+        
+        setFilteredApplicantsLoading(true);
+        setDemographicApplicantsFilter({ type: demographicType, value: demographicValue, stage: activeOverviewStage });
+        
+        try {
+            const cohortParam = getOverviewCohortParam();
+            const params = new URLSearchParams();
+            params.append('limit', 10000);
+            params.append('offset', 0);
+            if (cohortParam) params.append('cohort_id', cohortParam);
+
+            const appsResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applications?${params}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!appsResp.ok) throw new Error('Failed to load applications');
+            const appsData = await appsResp.json();
+            const apps = Array.isArray(appsData?.applications) ? appsData.applications : [];
+
+            // Filter apps based on stage
+            const attendedSet = new Set(['attended', 'attended_late', 'very_late']);
+            let subsetApps = apps;
+            if (activeOverviewStage === 'applied') {
+                if (applicantStatusFilter === 'all') {
+                    subsetApps = apps;
+                } else {
+                    const statusToFilter = applicantStatusFilter === 'accounts_created' ? 'no_application' : applicantStatusFilter;
+                    subsetApps = apps.filter(a => a.status === statusToFilter);
+                }
+            } else if (activeOverviewStage === 'info') {
+                subsetApps = apps.filter(a => attendedSet.has(a.info_session_status));
+            } else if (activeOverviewStage === 'workshops') {
+                subsetApps = apps.filter(a => attendedSet.has(a.workshop_status));
+            } else if (activeOverviewStage === 'offers') {
+                subsetApps = apps.filter(a => a.final_status === 'accepted');
+            }
+
+            const ids = subsetApps.map(a => a.applicant_id).filter(Boolean);
+            if (ids.length === 0) {
+                setFilteredApplicants([]);
+                setFilteredApplicantsLoading(false);
+                return;
+            }
+
+            // Get detailed demographics
+            const expResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/export?ids=${ids.join(',')}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!expResp.ok) {
+                setFilteredApplicants([]);
+                setFilteredApplicantsLoading(false);
+                return;
+            }
+            const detailed = await expResp.json();
+            if (!Array.isArray(detailed) || detailed.length === 0) {
+                setFilteredApplicants([]);
+                setFilteredApplicantsLoading(false);
+                return;
+            }
+
+            const normalize = (category, value) => {
+                const raw = (value ?? '').toString().trim();
+                if (!raw) return 'Not Listed';
+                const v = raw.toLowerCase();
+                const isNotListed = ['not listed','not_listed','prefer not to say','unknown','unspecified','n/a','na','none','null',''].includes(v);
+                if (isNotListed) return 'Not Listed';
+                if (category === 'gender') {
+                    if (['female','woman','f','female-identifying','female identifying'].includes(v)) return 'Female';
+                    if (['male','man','m','male-identifying','male identifying'].includes(v)) return 'Male';
+                }
+                return raw.charAt(0).toUpperCase() + raw.slice(1);
+            };
+
+            const getRaceLabel = (dem) => {
+                const raceVal = dem.race_ethnicity || dem['WHICH OF THE FOLLOWING BEST REPRESENTS YOUR RACIAL BACKGROUND'];
+                let raceLabel = 'Not Listed';
+                if (Array.isArray(raceVal)) {
+                    if (raceVal.length > 0) {
+                        const normalizedRaces = raceVal.map(r => normalize('race', r)).filter(r => r !== 'Not Listed');
+                        if (normalizedRaces.length > 0) {
+                            raceLabel = normalizedRaces.sort().join(', ');
+                        }
+                    }
+                } else if (raceVal) {
+                    try {
+                        const parsed = JSON.parse(raceVal);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            const normalizedRaces = parsed.map(r => normalize('race', r)).filter(r => r !== 'Not Listed');
+                            if (normalizedRaces.length > 0) {
+                                raceLabel = normalizedRaces.sort().join(', ');
+                            }
+                        } else {
+                            raceLabel = normalize('race', raceVal);
+                        }
+                    } catch (err) {
+                        raceLabel = normalize('race', raceVal);
+                    }
+                }
+                return raceLabel;
+            };
+
+            const getEducationLabel = (dem) => normalize('education', dem.education_level || dem['WHAT IS YOUR CURRENT HIGHEST EDUCATIONAL ATTAINED']);
+
+            const getAgeInfo = (dem) => {
+                const dob = dem.date_of_birth || dem['Date of Birth'] || dem['DATE OF BIRTH'];
+                if (!dob) return { range: 'Not Listed', age: null };
+                try {
+                    const birthDate = new Date(dob);
+                    if (isNaN(birthDate.getTime())) return { range: 'Not Listed', age: null };
+                    const today = new Date();
+                    let age = today.getFullYear() - birthDate.getFullYear();
+                    const monthDiff = today.getMonth() - birthDate.getMonth();
+                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                        age--;
+                    }
+                    let ageRange;
+                    if (age < 18) ageRange = 'Under 18';
+                    else if (age <= 24) ageRange = '18-24';
+                    else if (age <= 34) ageRange = '25-34';
+                    else if (age <= 44) ageRange = '35-44';
+                    else if (age <= 55) ageRange = '45-55';
+                    else ageRange = 'Over 55';
+                    return { range: ageRange, age };
+                } catch (err) {
+                    return { range: 'Not Listed', age: null };
+                }
+            };
+
+            const rows = [];
+            detailed.forEach(d => {
+                const dem = d.demographics || {};
+                let label = 'Not Listed';
+                let ageNumber = null;
+
+                if (demographicType === 'race') {
+                    label = getRaceLabel(dem) || 'Not Listed';
+                } else if (demographicType === 'education') {
+                    label = getEducationLabel(dem) || 'Not Listed';
+                } else if (demographicType === 'age') {
+                    const ageInfo = getAgeInfo(dem);
+                    label = ageInfo.range || 'Not Listed';
+                    ageNumber = ageInfo.age;
+                }
+
+                if (demographicValue && label !== demographicValue) return;
+
+                const row = {
+                    applicant_id: d.applicant_id,
+                    first_name: d.first_name,
+                    last_name: d.last_name,
+                    email: d.email,
+                    status: d.status,
+                    info_session_status: d.info_session_status,
+                    workshop_status: d.workshop_status,
+                    final_status: d.final_status,
+                };
+
+                if (demographicType === 'race') {
+                    row.race = label;
+                } else if (demographicType === 'education') {
+                    row.education_level = label;
+                } else if (demographicType === 'age') {
+                    row.age_range = label;
+                    if (ageNumber !== null) row.age = ageNumber;
+                }
+
+                rows.push(row);
+            });
+
+            if (!rows.length) {
+                setFilteredApplicants([]);
+                setFilteredApplicantsLoading(false);
+                if (checkbox && typeof checkbox.checked !== 'undefined') {
+                    checkbox.checked = false;
+                }
+                return;
+            }
+
+            setFilteredApplicants(rows);
+            setFilteredApplicantsLoading(false);
+        } catch (err) {
+            console.error('Error exporting demographic data:', err);
+            setFilteredApplicants([]);
+            setFilteredApplicantsLoading(false);
+        }
+    };
+    // Load applications for KPI tile clicks
+    const loadApplicationsForTile = async (filterType, statusFilter = null) => {
+        if (!hasAdminAccess || !token) return;
+        
+        setModalApplicationsLoading(true);
+        setApplicationsModalFilter({ type: filterType, status: statusFilter });
+        
+        try {
+            const cohortParam = getOverviewCohortParam();
+            const params = new URLSearchParams();
+            params.append('limit', 10000);
+            params.append('offset', 0);
+            if (cohortParam) params.append('cohort_id', cohortParam);
+
+            const appsResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applications?${params}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!appsResp.ok) throw new Error('Failed to load applications');
+            const appsData = await appsResp.json();
+            let apps = Array.isArray(appsData?.applications) ? appsData.applications : [];
+
+            // Filter based on tile type
+            const attendedSet = new Set(['attended', 'attended_late', 'very_late']);
+            let filteredApps = apps;
+
+            if (filterType === 'total') {
+                // All applicants
+                filteredApps = apps;
+            } else if (filterType === 'accounts_created') {
+                filteredApps = apps.filter(a => a.status === 'no_application');
+            } else if (filterType === 'submitted') {
+                filteredApps = apps.filter(a => a.status === 'submitted');
+                // If statusFilter is a recommendation type, filter by that
+                if (statusFilter && ['assessed', 'pending', 'strong_recommend', 'recommend', 'review_needed', 'not_recommend'].includes(statusFilter)) {
+                    if (statusFilter === 'assessed') {
+                        filteredApps = filteredApps.filter(a => {
+                            const r = a.recommendation;
+                            const fs = a.final_status;
+                            return ['strong_recommend', 'recommend', 'review_needed', 'not_recommend'].includes(r) || (fs && fs !== 'pending');
+                        });
+                    } else if (statusFilter === 'pending') {
+                        filteredApps = filteredApps.filter(a => {
+                            const r = a.recommendation;
+                            const fs = a.final_status;
+                            return !['strong_recommend', 'recommend', 'review_needed', 'not_recommend'].includes(r) && (!fs || fs === 'pending');
+                        });
+                    } else {
+                        filteredApps = filteredApps.filter(a => a.recommendation === statusFilter);
+                    }
+                }
+            } else if (filterType === 'info') {
+                filteredApps = apps.filter(a => attendedSet.has(a.info_session_status));
+            } else if (filterType === 'workshops') {
+                filteredApps = apps.filter(a => attendedSet.has(a.workshop_status));
+            } else if (filterType === 'offers') {
+                filteredApps = apps.filter(a => a.final_status === 'accepted');
+            } else if (filterType === 'marketing') {
+                // For marketing, we'll show all applicants (email stats are separate)
+                filteredApps = apps;
+            }
+
+            // Additional status filter if provided
+            if (statusFilter && filterType !== 'submitted') {
+                if (statusFilter === 'accounts_created') {
+                    filteredApps = filteredApps.filter(a => a.status === 'no_application');
+                } else if (statusFilter === 'registered') {
+                    // For info sessions or workshops, filter by registered status
+                    if (filterType === 'info') {
+                        filteredApps = filteredApps.filter(a => a.info_session_status === 'registered');
+                    } else if (filterType === 'workshops') {
+                        filteredApps = filteredApps.filter(a => a.workshop_status === 'registered');
+                    }
+                } else if (statusFilter === 'attended') {
+                    // For info sessions or workshops, filter by attended status
+                    if (filterType === 'info') {
+                        filteredApps = filteredApps.filter(a => attendedSet.has(a.info_session_status));
+                    } else if (filterType === 'workshops') {
+                        filteredApps = filteredApps.filter(a => attendedSet.has(a.workshop_status));
+                    }
+                } else {
+                    filteredApps = filteredApps.filter(a => a.status === statusFilter);
+                }
+            }
+
+            setModalApplications(filteredApps);
+        } catch (err) {
+            console.error('Error loading applications:', err);
+            setModalApplications([]);
+        } finally {
+            setModalApplicationsLoading(false);
+            setApplicationsModalOpen(true);
+        }
+    };
+    // CSV export function
+    const exportToCSV = (data, filename, headers = null) => {
+        if (!data || data.length === 0) {
+            alert('No data to export');
+            return;
+        }
+
+        // Determine headers
+        let csvHeaders = headers;
+        if (!csvHeaders && data.length > 0) {
+            csvHeaders = Object.keys(data[0]);
+        }
+
+        // Create CSV content
+        const csvContent = [
+            csvHeaders.join(','),
+            ...data.map(row => 
+                csvHeaders.map(header => {
+                    const value = row[header];
+                    if (value === null || value === undefined) return '';
+                    // Escape quotes and wrap in quotes if contains comma, quote, or newline
+                    const stringValue = String(value).replace(/"/g, '""');
+                    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                        return `"${stringValue}"`;
+                    }
+                    return stringValue;
+                }).join(',')
+            )
+        ].join('\n');
+
+        // Create blob and download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `${filename}-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    };
+    // Handle demographic export
+    const handleDemographicExport = async (e, demographicType, demographicValue, filename) => {
+        e.stopPropagation();
+        const checkbox = e.target;
+        
+        try {
+            const detailed = await fetchStageDetailedApplicants();
+            if (!detailed.length) {
+                alert('No applicants to export');
+                if (checkbox && typeof checkbox.checked !== 'undefined') {
+                    checkbox.checked = false;
+                }
+                return;
+            }
+
+            const normalize = (category, value) => {
+                const raw = (value ?? '').toString().trim();
+                if (!raw) return 'Not Listed';
+                const v = raw.toLowerCase();
+                const isNotListed = ['not listed','not_listed','prefer not to say','unknown','unspecified','n/a','na','none','null',''].includes(v);
+                if (isNotListed) return 'Not Listed';
+                if (category === 'gender') {
+                    if (['female','woman','f','female-identifying','female identifying'].includes(v)) return 'Female';
+                    if (['male','man','m','male-identifying','male identifying'].includes(v)) return 'Male';
+                }
+                return raw.charAt(0).toUpperCase() + raw.slice(1);
+            };
+
+            const getRaceLabel = (dem) => {
+                const raceVal = dem.race_ethnicity || dem['WHICH OF THE FOLLOWING BEST REPRESENTS YOUR RACIAL BACKGROUND'];
+                let raceLabel = 'Not Listed';
+                if (Array.isArray(raceVal)) {
+                    if (raceVal.length > 0) {
+                        const normalizedRaces = raceVal.map(r => normalize('race', r)).filter(r => r !== 'Not Listed');
+                        if (normalizedRaces.length > 0) {
+                            raceLabel = normalizedRaces.sort().join(', ');
+                        }
+                    }
+                } else if (raceVal) {
+                    try {
+                        const parsed = JSON.parse(raceVal);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            const normalizedRaces = parsed.map(r => normalize('race', r)).filter(r => r !== 'Not Listed');
+                            if (normalizedRaces.length > 0) {
+                                raceLabel = normalizedRaces.sort().join(', ');
+                            }
+                        } else {
+                            raceLabel = normalize('race', raceVal);
+                        }
+                    } catch (err) {
+                        raceLabel = normalize('race', raceVal);
+                    }
+                }
+                return raceLabel;
+            };
+
+            const getEducationLabel = (dem) => normalize('education', dem.education_level || dem['WHAT IS YOUR CURRENT HIGHEST EDUCATIONAL ATTAINED']);
+
+            const getAgeInfo = (dem) => {
+                const dob = dem.date_of_birth || dem['Date of Birth'] || dem['DATE OF BIRTH'];
+                if (!dob) return { range: 'Not Listed', age: null };
+                try {
+                    const birthDate = new Date(dob);
+                    if (isNaN(birthDate.getTime())) return { range: 'Not Listed', age: null };
+                    const today = new Date();
+                    let age = today.getFullYear() - birthDate.getFullYear();
+                    const monthDiff = today.getMonth() - birthDate.getMonth();
+                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                        age--;
+                    }
+                    let ageRange;
+                    if (age < 18) ageRange = 'Under 18';
+                    else if (age <= 24) ageRange = '18-24';
+                    else if (age <= 34) ageRange = '25-34';
+                    else if (age <= 44) ageRange = '35-44';
+                    else if (age <= 55) ageRange = '45-55';
+                    else ageRange = 'Over 55';
+                    return { range: ageRange, age };
+                } catch (err) {
+                    return { range: 'Not Listed', age: null };
+                }
+            };
+
+            const rows = [];
+            detailed.forEach(d => {
+                const dem = d.demographics || {};
+                let label = 'Not Listed';
+                let ageNumber = null;
+
+                if (demographicType === 'race') {
+                    label = getRaceLabel(dem) || 'Not Listed';
+                } else if (demographicType === 'education') {
+                    label = getEducationLabel(dem) || 'Not Listed';
+                } else if (demographicType === 'age') {
+                    const ageInfo = getAgeInfo(dem);
+                    label = ageInfo.range || 'Not Listed';
+                    ageNumber = ageInfo.age;
+                }
+
+                if (demographicValue && label !== demographicValue) return;
+
+                const row = {
+                    applicant_id: d.applicant_id,
+                    first_name: d.first_name,
+                    last_name: d.last_name,
+                    email: d.email,
+                    status: d.status,
+                    info_session_status: d.info_session_status,
+                    workshop_status: d.workshop_status,
+                    final_status: d.final_status,
+                };
+
+                if (demographicType === 'race') {
+                    row.race = label;
+                } else if (demographicType === 'education') {
+                    row.education_level = label;
+                } else if (demographicType === 'age') {
+                    row.age_range = label;
+                    if (ageNumber !== null) row.age = ageNumber;
+                }
+
+                rows.push(row);
+            });
+
+            if (!rows.length) {
+                alert('No applicants found for this demographic category.');
+                if (checkbox && typeof checkbox.checked !== 'undefined') {
+                    checkbox.checked = false;
+                }
+                return;
+            }
+
+            let headers;
+            if (demographicType === 'race') {
+                headers = ['applicant_id', 'first_name', 'last_name', 'email', 'status', 'info_session_status', 'workshop_status', 'final_status', 'race'];
+            } else if (demographicType === 'education') {
+                headers = ['applicant_id', 'first_name', 'last_name', 'email', 'status', 'info_session_status', 'workshop_status', 'final_status', 'education_level'];
+            } else if (demographicType === 'age') {
+                headers = ['applicant_id', 'first_name', 'last_name', 'email', 'status', 'info_session_status', 'workshop_status', 'final_status', 'age_range', 'age'];
+            } else {
+                headers = ['applicant_id', 'first_name', 'last_name', 'email', 'status'];
+            }
+
+            exportToCSV(rows, filename, headers);
+            if (checkbox && typeof checkbox.checked !== 'undefined') {
+                checkbox.checked = false;
+            }
+        } catch (err) {
+            console.error('Error exporting demographic data:', err);
+            alert('Failed to export data. Please try again.');
+            if (checkbox && typeof checkbox.checked !== 'undefined') {
+                checkbox.checked = false;
+            }
+        }
+    };
+
+    const handleIncomeExport = async (e) => {
+        e.stopPropagation();
+        const checkbox = e.target;
+        
+        try {
+            const detailed = await fetchStageDetailedApplicants();
+            if (!detailed.length) {
+                alert('No applicants to export');
+                if (checkbox && typeof checkbox.checked !== 'undefined') {
+                    checkbox.checked = false;
+                }
+                return;
+            }
+
+            const parseIncome = (incomeStr) => {
+                if (!incomeStr) return null;
+                const cleaned = incomeStr.toString().replace(/[$,\s]/g, '');
+                const parsed = parseFloat(cleaned);
+                return isNaN(parsed) ? null : parsed;
+            };
+
+            const rows = detailed.map(d => {
+                const dem = d.demographics || {};
+                const incomeRaw = dem.personal_income || dem['Personal Annual Income'] || '';
+                const incomeNumeric = parseIncome(incomeRaw);
+                return {
+                    applicant_id: d.applicant_id,
+                    first_name: d.first_name,
+                    last_name: d.last_name,
+                    email: d.email,
+                    status: d.status,
+                    info_session_status: d.info_session_status,
+                    workshop_status: d.workshop_status,
+                    final_status: d.final_status,
+                    personal_income: incomeRaw || 'Not Listed',
+                    personal_income_numeric: incomeNumeric !== null ? incomeNumeric : ''
+                };
+            });
+
+            if (!rows.length) {
+                alert('No applicants to export');
+                return;
+            }
+
+            exportToCSV(rows, `income-${activeOverviewStage || 'all'}`, ['applicant_id', 'first_name', 'last_name', 'email', 'status', 'info_session_status', 'workshop_status', 'final_status', 'personal_income', 'personal_income_numeric']);
+            if (checkbox && typeof checkbox.checked !== 'undefined') {
+                checkbox.checked = false;
+            }
+        } catch (err) {
+            console.error('Error exporting income data:', err);
+            alert('Failed to export data. Please try again.');
+            if (checkbox && typeof checkbox.checked !== 'undefined') {
+                checkbox.checked = false;
+            }
+        }
+    };
+    // Handle export checkbox toggle - loads data and exports
+    const handleExportClick = async (e, filterType, statusFilter, filename, headers) => {
+        e.stopPropagation();
+        
+        try {
+            // Load the data first
+            const cohortParam = getOverviewCohortParam();
+            const params = new URLSearchParams();
+            params.append('limit', 10000);
+            params.append('offset', 0);
+            if (cohortParam) params.append('cohort_id', cohortParam);
+
+            const appsResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applications?${params}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!appsResp.ok) throw new Error('Failed to load applications');
+            const appsData = await appsResp.json();
+            let apps = Array.isArray(appsData?.applications) ? appsData.applications : [];
+
+            // Filter based on tile type
+            const attendedSet = new Set(['attended', 'attended_late', 'very_late']);
+            let filteredApps = apps;
+
+            if (filterType === 'total') {
+                filteredApps = apps;
+            } else if (filterType === 'accounts_created') {
+                filteredApps = apps.filter(a => a.status === 'no_application');
+            } else if (filterType === 'submitted') {
+                filteredApps = apps.filter(a => a.status === 'submitted');
+                // If statusFilter is a recommendation type, filter by that
+                if (statusFilter && ['assessed', 'pending', 'strong_recommend', 'recommend', 'review_needed', 'not_recommend'].includes(statusFilter)) {
+                    if (statusFilter === 'assessed') {
+                        filteredApps = filteredApps.filter(a => {
+                            const r = a.recommendation;
+                            const fs = a.final_status;
+                            return ['strong_recommend', 'recommend', 'review_needed', 'not_recommend'].includes(r) || (fs && fs !== 'pending');
+                        });
+                    } else if (statusFilter === 'pending') {
+                        filteredApps = filteredApps.filter(a => {
+                            const r = a.recommendation;
+                            const fs = a.final_status;
+                            return !['strong_recommend', 'recommend', 'review_needed', 'not_recommend'].includes(r) && (!fs || fs === 'pending');
+                        });
+                    } else {
+                        filteredApps = filteredApps.filter(a => a.recommendation === statusFilter);
+                    }
+                }
+            } else if (filterType === 'info') {
+                filteredApps = apps.filter(a => attendedSet.has(a.info_session_status));
+            } else if (filterType === 'workshops') {
+                filteredApps = apps.filter(a => attendedSet.has(a.workshop_status));
+            } else if (filterType === 'offers') {
+                filteredApps = apps.filter(a => a.final_status === 'accepted');
+            }
+
+            // Additional status filter if provided
+            if (statusFilter && filterType !== 'submitted') {
+                if (statusFilter === 'accounts_created') {
+                    filteredApps = filteredApps.filter(a => a.status === 'no_application');
+                } else if (statusFilter === 'registered') {
+                    // For info sessions or workshops, filter by registered status
+                    if (filterType === 'info') {
+                        filteredApps = filteredApps.filter(a => a.info_session_status === 'registered');
+                    } else if (filterType === 'workshops') {
+                        filteredApps = filteredApps.filter(a => a.workshop_status === 'registered');
+                    }
+                } else if (statusFilter === 'attended') {
+                    // For info sessions or workshops, filter by attended status
+                    if (filterType === 'info') {
+                        filteredApps = filteredApps.filter(a => attendedSet.has(a.info_session_status));
+                    } else if (filterType === 'workshops') {
+                        filteredApps = filteredApps.filter(a => attendedSet.has(a.workshop_status));
+                    }
+                } else {
+                    filteredApps = filteredApps.filter(a => a.status === statusFilter);
+                }
+            }
+
+            // Export the data
+            exportToCSV(filteredApps, filename, headers);
+        } catch (err) {
+            console.error('Error exporting data:', err);
+            alert('Failed to export data. Please try again.');
+        }
+    };
     // Individual fetch functions for refresh buttons
     const fetchApplications = async () => {
         if (!hasAdminAccess || !token) return;
@@ -317,7 +1670,6 @@ const AdmissionsDashboard = () => {
             setLoading(false);
         }
     };
-
     const fetchInfoSessions = async () => {
         if (!hasAdminAccess || !token) return;
 
@@ -340,7 +1692,6 @@ const AdmissionsDashboard = () => {
             setLoading(false);
         }
     };
-
     const fetchWorkshops = async () => {
         if (!hasAdminAccess || !token) return;
 
@@ -349,7 +1700,6 @@ const AdmissionsDashboard = () => {
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
                 }
             });
 
@@ -363,7 +1713,6 @@ const AdmissionsDashboard = () => {
             setLoading(false);
         }
     };
-
     // Debounce name search input
     useEffect(() => {
         const timeoutId = setTimeout(() => {
@@ -420,7 +1769,6 @@ const AdmissionsDashboard = () => {
             console.error('Error fetching queued emails:', error);
         }
     };
-
     const fetchEmailHistory = async () => {
         if (!hasAdminAccess || !token) return;
 
@@ -460,7 +1808,6 @@ const AdmissionsDashboard = () => {
             console.error('Error fetching applicant email status:', error);
         }
     };
-
     const sendTestEmail = async () => {
         if (!testEmailAddress.trim()) {
             Swal.fire({
@@ -555,8 +1902,145 @@ const AdmissionsDashboard = () => {
 
     useEffect(() => {
         fetchAdmissionsData();
-    }, [token, hasAdminAccess, applicationFilters]);
+    }, [token, hasAdminAccess, applicationFilters, overviewQuickView, cohorts]);
 
+    // Recompute overview stats when the overview filter changes
+    useEffect(() => {
+        if (!overviewQuickView) {
+            setComputedOverviewStats(null);
+            return;
+        }
+        computeOverviewStatsForFilter();
+    }, [overviewQuickView, token, hasAdminAccess, cohorts]);
+
+    // Reset compareEnabled when switching away from December 2025
+    useEffect(() => {
+        if (overviewQuickView !== 'dec2025' && compareEnabled) {
+            setCompareEnabled(false);
+        }
+    }, [overviewQuickView, compareEnabled]);
+    // Compute previous cycle stats for comparison (September 2025 when December 2025 is selected)
+    useEffect(() => {
+        const run = async () => {
+            if (!compareEnabled) { 
+                setPreviousOverviewStats(null); 
+                return; 
+            }
+            
+            // Only compare when December 2025 is selected
+            if (overviewQuickView !== 'dec2025') {
+                setPreviousOverviewStats(null);
+                return;
+            }
+            
+            // Get September 2025 cohort ID
+            const norm = (s) => (s || '').toLowerCase();
+            const candidates = cohorts || [];
+            const sepMatch = candidates.find(c => {
+                const n = norm(c.name);
+                return (n.includes('sep') || n.includes('september')) && n.includes('2025');
+            }) || candidates.find(c => norm(c.name).includes('september 2025'));
+            
+            if (!sepMatch?.cohort_id) {
+                setPreviousOverviewStats(null);
+                return;
+            }
+            
+            try {
+                // Fetch September 2025 applications
+                const params = new URLSearchParams();
+                params.append('limit', 10000);
+                params.append('offset', 0);
+                params.append('cohort_id', sepMatch.cohort_id);
+                const resp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applications?${params}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!resp.ok) {
+                    setPreviousOverviewStats(null);
+                    return;
+                }
+                const data = await resp.json();
+                const apps = Array.isArray(data?.applications) ? data.applications : [];
+                const attendedSet = new Set(['attended', 'attended_late', 'very_late']);
+                
+                // Info sessions aggregates
+                const infoSessionRegistrations = apps.filter(a => (a.info_session_status && a.info_session_status !== 'not_registered')).length;
+                const infoSessionAttended = apps.filter(a => attendedSet.has(a.info_session_status)).length;
+                
+                // Workshops: Fetch admissions workshops and calculate from their registrations
+                let workshopRegistrations = 0;
+                let workshopAttended = 0;
+                try {
+                    const workshopsResp = await fetch(`${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (workshopsResp.ok) {
+                        const workshopsData = await workshopsResp.json();
+                        const workshops = Array.isArray(workshopsData) ? workshopsData : (workshopsData.workshops || []);
+                        // Filter to admissions workshops only
+                        const admissionsWorkshops = workshops.filter(w => w.workshop_type === 'admissions');
+                        
+                        // Get set of applicant IDs from September apps
+                        const sepApplicantIds = new Set(apps.map(a => a.applicant_id).filter(Boolean));
+                        
+                        // Fetch registrations for each admissions workshop
+                        for (const workshop of admissionsWorkshops) {
+                            try {
+                                const regResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/registrations/workshop/${workshop.event_id}`, {
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                });
+                                if (regResp.ok) {
+                                    const registrations = await regResp.json();
+                                    registrations.forEach(reg => {
+                                        if (reg.applicant_id && sepApplicantIds.has(reg.applicant_id)) {
+                                            workshopRegistrations++;
+                                            if (attendedSet.has(reg.status)) {
+                                                workshopAttended++;
+                                            }
+                                        }
+                                    });
+                                }
+                            } catch (regErr) {
+                                console.error(`Error fetching registrations for workshop ${workshop.event_id}:`, regErr);
+                            }
+                        }
+                    }
+                } catch (workshopErr) {
+                    console.error('Error fetching workshops for previous stats:', workshopErr);
+                    // Fallback to applicant-level status
+                    workshopRegistrations = apps.filter(a => (a.workshop_status && a.workshop_status !== 'pending')).length;
+                    workshopAttended = apps.filter(a => attendedSet.has(a.workshop_status)).length;
+                }
+                
+                // Calculate offers (accepted status)
+                const finalCounts = apps.reduce((acc, a) => {
+                    const status = a.final_status || 'pending';
+                    acc[status] = (acc[status] || 0) + 1;
+                    return acc;
+                }, {});
+                const offersExtended = finalCounts['accepted'] || 0;
+                
+                setPreviousOverviewStats({
+                    totalApplicants: data?.total || apps.length,
+                    infoSessions: {
+                        totalSessions: infoSessionRegistrations,
+                        totalRegistrations: infoSessionRegistrations,
+                        totalAttended: infoSessionAttended
+                    },
+                    workshops: {
+                        totalWorkshops: workshopRegistrations,
+                        totalRegistrations: workshopRegistrations,
+                        totalAttended: workshopAttended
+                    },
+                    offersExtended: offersExtended
+                });
+            } catch (err) {
+                console.error('Error computing previous stats:', err);
+                setPreviousOverviewStats(null);
+            }
+        };
+        run();
+    }, [compareEnabled, overviewQuickView, cohorts, token]);
     // Load email automation data when tab changes
     useEffect(() => {
         if (activeTab === 'emails') {
@@ -633,7 +2117,6 @@ const AdmissionsDashboard = () => {
             setError('Failed to update status. Please try again.');
         }
     };
-
     // Handle bulk actions
     const handleBulkAction = async (action, customSubject = '', customBody = '') => {
         if (selectedApplicants.length === 0) return;
@@ -712,7 +2195,6 @@ const AdmissionsDashboard = () => {
             direction: prev.column === column && prev.direction === 'asc' ? 'desc' : 'asc'
         }));
     };
-
     // Sort applications (name filtering is now handled server-side)
     const sortAndFilterApplications = (apps) => {
         if (!apps || !Array.isArray(apps)) return apps;
@@ -780,7 +2262,6 @@ const AdmissionsDashboard = () => {
         }
         return infoSessions.filter(session => session.is_active);
     };
-
     const getFilteredWorkshops = () => {
         if (showInactiveWorkshops) {
             return workshops;
@@ -826,7 +2307,6 @@ const AdmissionsDashboard = () => {
             return timeString; // Fallback to original
         }
     };
-
     // Format phone number to (000) 000-0000 format
     const formatPhoneNumber = (phoneNumber) => {
         if (!phoneNumber) return 'N/A';
@@ -888,7 +2368,6 @@ const AdmissionsDashboard = () => {
         const emailList = emails.join(', ');
         copyToClipboard(emailList, `${emails.length} emails`);
     };
-
     // Copy all phone numbers for current event registrations
     const copyAllPhoneNumbers = () => {
         const phoneNumbers = eventRegistrations
@@ -904,7 +2383,6 @@ const AdmissionsDashboard = () => {
         const phoneList = phoneNumbers.join(', ');
         copyToClipboard(phoneList, `${phoneNumbers.length} phone numbers`);
     };
-    
     // Handle CSV export for selected applicants
     const handleExportCSV = async () => {
         if (selectedApplicants.length === 0) return;
@@ -936,7 +2414,7 @@ const AdmissionsDashboard = () => {
             // Debug: Log the data we're getting from the API
             console.log('Detailed applicant data:', detailedApplicantData);
             
-            // Check if we have demographic data
+            // Check if we have demographics data
             const hasDemographics = detailedApplicantData.some(app => 
                 app.demographics && Object.keys(app.demographics).some(key => app.demographics[key])
             );
@@ -1048,7 +2526,6 @@ const AdmissionsDashboard = () => {
         setEditingInfoSession(null);
         setInfoSessionModalOpen(true);
     };
-
     const openEditInfoSessionModal = (session) => {
         // Format date and time for datetime-local input
         const startTime = new Date(session.start_time);
@@ -1086,7 +2563,6 @@ const AdmissionsDashboard = () => {
             [name]: type === 'checkbox' ? checked : value
         }));
     };
-
     const handleInfoSessionSubmit = async (e) => {
         e.preventDefault();
         setInfoSessionSubmitting(true);
@@ -1201,7 +2677,6 @@ const AdmissionsDashboard = () => {
             cancelButton: 'dark-swal-cancel-btn'
         }
     };
-
     // Delete handlers with dark mode SweetAlert2 confirmation
     const handleDeleteInfoSession = async (sessionId) => {
         try {
@@ -1256,7 +2731,6 @@ const AdmissionsDashboard = () => {
             });
         }
     };
-
     const handleDeleteWorkshop = async (workshopId) => {
         try {
             const result = await Swal.fire({
@@ -1393,7 +2867,6 @@ const AdmissionsDashboard = () => {
             setWorkshopSubmitting(false);
         }
     };
-
     // Handle viewing registrations for an event
     const handleViewRegistrations = async (eventType, eventId) => {
         if (selectedEvent === eventId) {
@@ -1529,7 +3002,6 @@ const AdmissionsDashboard = () => {
             setError('Failed to mark attendance. Please try again.');
         }
     };
-
     // Handle toggling event active status
     const handleToggleEventActive = async (eventId) => {
         try {
@@ -1585,7 +3057,6 @@ const AdmissionsDashboard = () => {
         setSearchResults([]);
         setSelectedApplicantsForRegistration([]);
     };
-
     // Close add registration modal
     const closeAddRegistrationModal = () => {
         setAddRegistrationModalOpen(false);
@@ -1596,7 +3067,6 @@ const AdmissionsDashboard = () => {
         setSelectedApplicantsForRegistration([]);
         setLaptopNeeds({}); // Reset laptop needs tracking
     };
-
     // Search for applicants
     const searchApplicants = async (searchTerm) => {
         console.log('🔍 searchApplicants called with:', { searchTerm, length: searchTerm?.length, trimmed: searchTerm?.trim() });
@@ -1707,7 +3177,6 @@ const AdmissionsDashboard = () => {
             setRegistrationLoading(false);
         }
     };
-
     // Remove/cancel a registration
     const handleRemoveRegistration = async (eventType, eventId, registrationId, applicantName) => {
         try {
@@ -1837,7 +3306,9 @@ const AdmissionsDashboard = () => {
             </div>
         );
     }
-
+    // Decide which stats to show in Overview
+    // For "all_time", always use base stats. For other filters, use computed stats if available, otherwise fall back to stats
+    const overviewStats = (overviewQuickView === 'all_time' || !computedOverviewStats) ? stats : computedOverviewStats;
     return (
         <div className="admissions-dashboard">
             {/* Tab Navigation */}
@@ -1891,6 +3362,35 @@ const AdmissionsDashboard = () => {
             <div className="admissions-dashboard__content">
                 {activeTab === 'overview' && (
                     <div className="admissions-dashboard__overview">
+                        {/* Overview Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', padding: '1rem 0' }}>
+                            <h2 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em' }}>AI Native Recruitment Dashboard</h2>
+                            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+                                <select
+                                    id="overview-cohort-filter"
+                                    value={overviewQuickView}
+                                    onChange={(e) => setOverviewQuickView(e.target.value)}
+                                    className="filter-select overview-filter-select"
+                                    style={{ minWidth: '180px', padding: '0.5rem' }}
+                                >
+                                    <option value="all_time">Cohort: All Time</option>
+                                    <option value="dec2025">December 2025</option>
+                                    <option value="sep2025">September 2025</option>
+                                    <option value="deferred">Deferred Applicants</option>
+                                </select>
+                                {overviewQuickView === 'dec2025' && (
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={compareEnabled} 
+                                        onChange={(e) => setCompareEnabled(e.target.checked)}
+                                        style={{ cursor: 'pointer' }}
+                                    />
+                                    <span>Compare to Last Cycle</span>
+                                </label>
+                                )}
+                            </div>
+                        </div>
                         {loading ? (
                             <div className="admissions-dashboard__loading">
                                 <div className="admissions-dashboard__loading-spinner"></div>
@@ -1902,102 +3402,655 @@ const AdmissionsDashboard = () => {
                                 <p>{error}</p>
                                 <button onClick={fetchAdmissionsData} className="admissions-dashboard__retry-btn">Retry</button>
                             </div>
-                        ) : stats ? (
-                            <div className="admissions-dashboard__stats-grid">
-                                {/* Overall Applicants */}
-                                <div className="admissions-dashboard__stat-card">
-                                    <div className="admissions-dashboard__stat-card-header">
+                        ) : overviewStats ? (
+                            <>
+                                {/* KPI Cards in Horizontal Row - 4 or 5 columns depending on Marketing Insights visibility */}
+                                <div style={{ display: 'grid', gridTemplateColumns: (overviewQuickView === 'all_time' || overviewQuickView === 'dec2025') ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+                                    {/* Total Applicants */}
+                                    <div className="admissions-dashboard__stat-card" onClick={() => loadApplicationsForTile('total')} style={{ cursor: 'pointer', zIndex: 1, position: 'relative' }}>
+                                    <div className="admissions-dashboard__stat-card-header" style={{ position: 'relative' }}>
                                         <h3 className="admissions-dashboard__stat-card-title">Total Applicants</h3>
-                                        <div className="admissions-dashboard__stat-card-icon">👥</div>
                                     </div>
-                                    <div className="admissions-dashboard__stat-card-value">{stats.totalApplicants || 0}</div>
-                                    <div className="admissions-dashboard__stat-card-subtitle">All registered applicants</div>
+                                        <div className="admissions-dashboard__stat-card-value" style={{ marginTop: '0.5rem' }}>{(appliedStatusBreakdown?.total ?? overviewStats.totalApplicants) || 0}</div>
+                                        {compareEnabled && previousOverviewStats && (() => {
+                                            const current = (appliedStatusBreakdown?.total ?? overviewStats.totalApplicants) || 0;
+                                            const previous = previousOverviewStats.totalApplicants || 0;
+                                            const change = previous > 0 ? ((current - previous) / previous) * 100 : 0;
+                                            const isPositive = change >= 0;
+                                            return (
+                                                <div style={{ fontSize: '0.9rem', color: isPositive ? '#10b981' : '#ef4444', fontWeight: 500 }}>
+                                                    {isPositive ? '+' : ''}{change.toFixed(0)}%
+                                                </div>
+                                            );
+                                        })()}
                                 </div>
 
-                                {/* Applications by Status */}
-                                <div className="admissions-dashboard__stat-card admissions-dashboard__stat-card--wide">
-                                    <div className="admissions-dashboard__stat-card-header">
-                                        <h3 className="admissions-dashboard__stat-card-title">Applicants</h3>
-                                        <div className="admissions-dashboard__stat-card-icon">📝</div>
+                                    {/* Info Session Attendees */}
+                                    <div className="admissions-dashboard__stat-card" onClick={() => loadApplicationsForTile('info')} style={{ cursor: 'pointer', zIndex: 1, position: 'relative' }}>
+                                    <div className="admissions-dashboard__stat-card-header" style={{ position: 'relative' }}>
+                                            <h3 className="admissions-dashboard__stat-card-title">Info Session Attendees</h3>
                                     </div>
-                                    <div className="admissions-dashboard__applications-breakdown">
-                                        {stats.applicationStats?.map((statusGroup) => (
-                                            <div key={statusGroup.status} className="admissions-dashboard__application-status-item">
-                                                <span className={`admissions-dashboard__status-indicator admissions-dashboard__status-indicator--${statusGroup.status}`}></span>
-                                                <span className="admissions-dashboard__status-label">{statusGroup.status}</span>
-                                                <span className="admissions-dashboard__status-count">{statusGroup.count}</span>
+                                        <div className="admissions-dashboard__stat-card-value" style={{ marginTop: '0.5rem' }}>{overviewStats.infoSessions?.totalAttended || 0}</div>
+                                        {compareEnabled && previousOverviewStats && (() => {
+                                            const current = overviewStats.infoSessions?.totalAttended || 0;
+                                            const previous = previousOverviewStats.infoSessions?.totalAttended || 0;
+                                            const change = previous > 0 ? ((current - previous) / previous) * 100 : 0;
+                                            const isPositive = change >= 0;
+                                            return (
+                                                <div style={{ fontSize: '0.9rem', color: isPositive ? '#10b981' : '#ef4444', fontWeight: 500 }}>
+                                                    {isPositive ? '+' : ''}{change.toFixed(0)}%
                                             </div>
-                                        ))}
-                                    </div>
+                                            );
+                                        })()}
                                 </div>
 
-                                {/* Info Sessions */}
-                                <div className="admissions-dashboard__stat-card">
-                                    <div className="admissions-dashboard__stat-card-header">
-                                        <h3 className="admissions-dashboard__stat-card-title">Info Sessions</h3>
-                                        <div className="admissions-dashboard__stat-card-icon">ℹ️</div>
+                                    {/* Workshop Participants */}
+                                    <div className="admissions-dashboard__stat-card" onClick={() => loadApplicationsForTile('workshops')} style={{ cursor: 'pointer', zIndex: 1, position: 'relative' }}>
+                                    <div className="admissions-dashboard__stat-card-header" style={{ position: 'relative' }}>
+                                            <h3 className="admissions-dashboard__stat-card-title">Workshop Participants</h3>
                                     </div>
-                                    <div className="admissions-dashboard__stat-card-value">{stats.infoSessions?.totalSessions || 0}</div>
-                                    <div className="admissions-dashboard__stat-card-subtitle">
-                                        {stats.infoSessions?.totalRegistrations || 0} registrations, {stats.infoSessions?.totalAttended || 0} attended
+                                        <div className="admissions-dashboard__stat-card-value" style={{ marginTop: '0.5rem' }}>{overviewStats.workshops?.totalAttended || 0}</div>
+                                        {compareEnabled && previousOverviewStats && (() => {
+                                            const current = overviewStats.workshops?.totalAttended || 0;
+                                            const previous = previousOverviewStats.workshops?.totalAttended || 0;
+                                            const change = previous > 0 ? ((current - previous) / previous) * 100 : 0;
+                                            const isPositive = change >= 0;
+                                            return (
+                                                <div style={{ fontSize: '0.9rem', color: isPositive ? '#10b981' : '#ef4444', fontWeight: 500 }}>
+                                                    {isPositive ? '+' : ''}{change.toFixed(0)}%
                                     </div>
+                                            );
+                                        })()}
                                 </div>
 
-                                {/* Workshops */}
-                                <div className="admissions-dashboard__stat-card">
-                                    <div className="admissions-dashboard__stat-card-header">
-                                        <h3 className="admissions-dashboard__stat-card-title">Workshops</h3>
-                                        <div className="admissions-dashboard__stat-card-icon">🛠️</div>
+                                    {/* Offers Extended */}
+                                    <div className="admissions-dashboard__stat-card" onClick={() => loadApplicationsForTile('offers')} style={{ cursor: 'pointer', zIndex: 1, position: 'relative' }}>
+                                    <div className="admissions-dashboard__stat-card-header" style={{ position: 'relative' }}>
+                                            <h3 className="admissions-dashboard__stat-card-title">Offers Extended</h3>
                                     </div>
-                                    <div className="admissions-dashboard__stat-card-value">{stats.workshops?.totalWorkshops || 0}</div>
-                                    <div className="admissions-dashboard__stat-card-subtitle">
-                                        {stats.workshops?.totalRegistrations || 0} registrations, {stats.workshops?.totalAttended || 0} attended
+                                        <div className="admissions-dashboard__stat-card-value" style={{ marginTop: '0.5rem' }}>
+                                            {(overviewStats.finalStatusCounts || []).find(f => f.status === 'accepted')?.count || 0}
                                     </div>
+                                        {compareEnabled && previousOverviewStats ? (() => {
+                                            const currentOffers = (overviewStats.finalStatusCounts || []).find(f => f.status === 'accepted')?.count || 0;
+                                            const previousOffers = previousOverviewStats.offersExtended || 0;
+                                            const change = previousOffers > 0 ? ((currentOffers - previousOffers) / previousOffers) * 100 : 0;
+                                            const isPositive = change >= 0;
+                                            return (
+                                                <div style={{ fontSize: '0.9rem', color: isPositive ? '#10b981' : '#ef4444', fontWeight: 500 }}>
+                                                    {isPositive ? '+' : ''}{change.toFixed(0)}%
+                                                </div>
+                                            );
+                                        })() : (() => {
+                                            const total = overviewStats.totalApplicants || 1;
+                                            const offers = (overviewStats.finalStatusCounts || []).find(f => f.status === 'accepted')?.count || 0;
+                                            return <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                                                {Math.round((offers / total) * 100)}%
+                                            </div>;
+                                        })()}
                                 </div>
 
-                                {/* Assessment Funnel */}
-                                <div className="admissions-dashboard__stat-card admissions-dashboard__stat-card--wide">
-                                    <div className="admissions-dashboard__stat-card-header">
-                                        <h3 className="admissions-dashboard__stat-card-title">Assessment Funnel</h3>
-                                        <div className="admissions-dashboard__stat-card-icon">🎯</div>
+                                    {/* Marketing Insights - Only show for All Time and December 2025 */}
+                                    {(overviewQuickView === 'all_time' || overviewQuickView === 'dec2025') && (
+                                        <div className="admissions-dashboard__stat-card" onClick={() => loadApplicationsForTile('marketing')} style={{ cursor: 'pointer', zIndex: 1, position: 'relative' }}>
+                                    <div className="admissions-dashboard__stat-card-header" style={{ position: 'relative' }}>
+                                                <h3 className="admissions-dashboard__stat-card-title">Marketing Insights</h3>
                                     </div>
-                                    <div className="admissions-dashboard__assessment-funnel">
-                                        {stats.assessmentFunnel?.map((assessment) => (
-                                            <div key={assessment.status} className="admissions-dashboard__assessment-funnel-item">
-                                                <span className={`admissions-dashboard__assessment-funnel-indicator admissions-dashboard__assessment-funnel-indicator--${assessment.status.replace('_', '-')}`}></span>
-                                                <span className="admissions-dashboard__assessment-funnel-label">
-                                                    {assessment.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                                </span>
-                                                <span className="admissions-dashboard__assessment-funnel-count">{assessment.count}</span>
-                                                {stats.finalStatusCounts?.find(f => f.status === assessment.status)?.count !== assessment.count && (
-                                                    <span className="admissions-dashboard__assessment-funnel-override" title="Human override detected">
-                                                        🔀 {stats.finalStatusCounts?.find(f => f.status === assessment.status)?.count || 0}
-                                                    </span>
+                                            <div className="admissions-dashboard__stat-card-value" style={{ marginTop: '0.5rem' }}>{emailStats?.total_emails_sent || 0}</div>
+                                            <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                                                Campaigns Sent
+                                            </div>
+                                        </div>
                                                 )}
                                             </div>
+
+                                {/* Collapsible: Stage selector and demographics grid */}
+                                <div style={{ border: '2px solid rgba(75, 61, 237, 0.5)', borderRadius: '12px', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', marginTop: '0.5rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <div style={{ fontWeight: 900, opacity: 1, fontSize: '1.1rem', letterSpacing: '-0.01em' }}>Details</div>
+                                        <button
+                                            onClick={() => setOverviewDetailsOpen(!overviewDetailsOpen)}
+                                            style={{
+                                                background: 'transparent',
+                                                border: '2px solid rgba(255,255,255,0.3)',
+                                                color: 'var(--color-text-primary)',
+                                                padding: '6px 10px',
+                                                borderRadius: '8px',
+                                                cursor: 'pointer',
+                                                fontWeight: 700
+                                            }}
+                                        >
+                                            {overviewDetailsOpen ? '▼ Hide' : '▲ Show'}
+                                        </button>
+                                    </div>
+
+                                    {overviewDetailsOpen && (
+                                        <div style={{ marginTop: '1rem', padding: '1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.15)' }}>
+                                            <div style={{ display: 'flex', gap: '1.25rem', margin: '0 0 1rem 0', flexWrap: 'wrap' }}>
+                                                {[
+                                                    { key: 'applied', label: 'Total Applicants' },
+                                                    { key: 'info', label: 'Info Session' },
+                                                    { key: 'workshops', label: 'Workshop' },
+                                                    { key: 'offers', label: 'Offer' },
+                                                    { key: 'marketing', label: 'Marketing Insights' }
+                                                ].map(s => (
+                                                    <button
+                                                        key={s.key}
+                                                        onClick={() => setActiveOverviewStage(s.key)}
+                                                        className={`admissions-dashboard__tab ${activeOverviewStage === s.key ? 'admissions-dashboard__tab--active' : ''}`}
+                                                        style={{ padding: '8px 12px' }}
+                                                    >
+                                                        {s.label}
+                                                    </button>
                                         ))}
+                                    </div>
+
+                                            {/* Status breakdown for Total Applicants */}
+                                            {activeOverviewStage === 'applied' && appliedStatusBreakdown && (
+                                                <div style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'linear-gradient(135deg, rgba(75, 61, 237, 0.25) 0%, rgba(75, 61, 237, 0.2) 100%)', borderRadius: '12px', border: '2px solid rgba(75, 61, 237, 0.6)', position: 'relative', overflow: 'hidden' }}>
+                                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))', backgroundSize: '200% 100%', animation: 'shimmer 3s ease-in-out infinite' }}></div>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+                                                        {(() => {
+                                                            const total = appliedStatusBreakdown.total || 1;
+                                                            const items = [
+                                                                { key: 'accounts_created', label: 'Accounts Created', count: appliedStatusBreakdown.accounts_created },
+                                                                { key: 'in_progress', label: 'In Progress', count: appliedStatusBreakdown.in_progress },
+                                                                { key: 'submitted', label: 'Submitted', count: appliedStatusBreakdown.submitted },
+                                                                { key: 'ineligible', label: 'Ineligible', count: appliedStatusBreakdown.ineligible }
+                                                            ];
+                                                            return items.map(s => (
+                                                                <div 
+                                                                    key={s.key} 
+                                                                    style={{ textAlign: 'center', padding: '0.75rem', background: 'rgba(75, 61, 237, 0.1)', borderRadius: '8px', border: '2px solid rgba(75, 61, 237, 0.4)', position: 'relative', cursor: 'pointer' }}
+                                                                    onClick={() => loadApplicationsForTile('total', s.key === 'accounts_created' ? 'accounts_created' : s.key)}
+                                                                >
+                                                                    <div style={{ fontSize: '1.75rem', fontWeight: 900, marginBottom: '0.25rem', background: 'linear-gradient(135deg, #4B3DED 0%, #6366f1 50%, #4B3DED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', letterSpacing: '-0.02em' }}>{s.count}</div>
+                                                                    <div style={{ fontSize: '0.9rem', color: 'var(--color-text-primary)', marginBottom: '0.25rem', fontWeight: 800, letterSpacing: '-0.01em' }}>{s.label}</div>
+                                                                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', fontWeight: 700 }}>{total > 0 ? Math.round((s.count / total) * 100) : 0}%</div>
+                                </div>
+                                                            ));
+                                                        })()}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Registration/Attendance breakdown for Info Session */}
+                                            {activeOverviewStage === 'info' && overviewStats && (
+                                                <div style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'linear-gradient(135deg, rgba(75, 61, 237, 0.25) 0%, rgba(75, 61, 237, 0.2) 100%)', borderRadius: '12px', border: '2px solid rgba(75, 61, 237, 0.6)', position: 'relative', overflow: 'hidden' }}>
+                                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))', backgroundSize: '200% 100%', animation: 'shimmer 3s ease-in-out infinite' }}></div>
+                                                    <input
+                                                        type="checkbox"
+                                                        style={{ position: 'absolute', top: '1rem', right: '1rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const registered = overviewStats.infoSessions?.totalRegistrations || 0;
+                                                            const attended = overviewStats.infoSessions?.totalAttended || 0;
+                                                            const attendanceRate = registered > 0 ? Math.round((attended / registered) * 100) : 0;
+                                                            exportToCSV([
+                                                                { label: 'Registered', count: registered },
+                                                                { label: 'Attended', count: attended },
+                                                                { label: 'Attendance Rate', count: attendanceRate }
+                                                            ], 'info-session-breakdown', ['label', 'count']);
+                                                        }}
+                                                    />
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                                                        {(() => {
+                                                            const registered = overviewStats.infoSessions?.totalRegistrations || 0;
+                                                            const attended = overviewStats.infoSessions?.totalAttended || 0;
+                                                            const attendanceRate = registered > 0 ? Math.round((attended / registered) * 100) : 0;
+                                                            
+                                                            return [
+                                                                { key: 'registered', label: 'Registered', count: registered },
+                                                                { key: 'attended', label: 'Attended', count: attended },
+                                                                { key: 'attendance_rate', label: 'Attendance Rate', count: attendanceRate, isPercentage: true }
+                                                            ].map(s => (
+                                                                <div 
+                                                                    key={s.key} 
+                                                                    style={{ textAlign: 'center', padding: '0.75rem', background: 'rgba(75, 61, 237, 0.1)', borderRadius: '8px', border: '2px solid rgba(75, 61, 237, 0.4)', position: 'relative', cursor: 'pointer' }}
+                                                                    onClick={() => {
+                                                                        if (s.key === 'registered') {
+                                                                            loadApplicationsForTile('info', 'registered');
+                                                                        } else if (s.key === 'attended') {
+                                                                            loadApplicationsForTile('info', 'attended');
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', width: '16px', height: '16px', cursor: 'pointer', zIndex: 10 }}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            if (s.key === 'registered') {
+                                                                                handleExportClick(e, 'info', 'registered', 'info-session-registered', ['applicant_id', 'first_name', 'last_name', 'email', 'info_session_status']);
+                                                                            } else if (s.key === 'attended') {
+                                                                                handleExportClick(e, 'info', 'attended', 'info-session-attended', ['applicant_id', 'first_name', 'last_name', 'email', 'info_session_status']);
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    <div style={{ fontSize: '1.75rem', fontWeight: 900, marginBottom: '0.25rem', background: 'linear-gradient(135deg, #4B3DED 0%, #6366f1 50%, #4B3DED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', letterSpacing: '-0.02em' }}>
+                                                                        {s.isPercentage ? `${s.count}%` : s.count}
+                                    </div>
+                                                                    <div style={{ fontSize: '0.9rem', color: 'var(--color-text-primary)', fontWeight: 800, letterSpacing: '-0.01em' }}>{s.label}</div>
+                                                                </div>
+                                                            ));
+                                                        })()}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Invitation/Registration/Attendance breakdown for Workshop */}
+                                            {activeOverviewStage === 'workshops' && overviewStats && (
+                                                <div style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'linear-gradient(135deg, rgba(75, 61, 237, 0.25) 0%, rgba(75, 61, 237, 0.2) 100%)', borderRadius: '12px', border: '2px solid rgba(75, 61, 237, 0.6)', position: 'relative', overflow: 'hidden' }}>
+                                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))', backgroundSize: '200% 100%', animation: 'shimmer 3s ease-in-out infinite' }}></div>
+                                                    <input
+                                                        type="checkbox"
+                                                        style={{ position: 'absolute', top: '1rem', right: '1rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const workshopInvitations = overviewStats.workshopInvitations || [];
+                                                            const invited = workshopInvitations
+                                                                .filter(w => w.status && w.status !== 'pending')
+                                                                .reduce((sum, w) => sum + (w.count || 0), 0);
+                                                            const registered = overviewStats.workshops?.totalRegistrations || 0;
+                                                            const attended = overviewStats.workshops?.totalAttended || 0;
+                                                            const attendanceRate = registered > 0 ? Math.round((attended / registered) * 100) : 0;
+                                                            exportToCSV([
+                                                                { label: 'Invited', count: invited },
+                                                                { label: 'Registered', count: registered },
+                                                                { label: 'Attended', count: attended },
+                                                                { label: 'Attendance Rate', count: attendanceRate }
+                                                            ], 'workshop-breakdown', ['label', 'count']);
+                                                        }}
+                                                    />
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+                                                        {(() => {
+                                                            // Calculate invited (all non-pending workshop statuses)
+                                                            const workshopInvitations = overviewStats.workshopInvitations || [];
+                                                            const invited = workshopInvitations
+                                                                .filter(w => w.status && w.status !== 'pending')
+                                                                .reduce((sum, w) => sum + (w.count || 0), 0);
+                                                            
+                                                            const registered = overviewStats.workshops?.totalRegistrations || 0;
+                                                            const attended = overviewStats.workshops?.totalAttended || 0;
+                                                            const attendanceRate = registered > 0 ? Math.round((attended / registered) * 100) : 0;
+                                                            
+                                                            return [
+                                                                { key: 'invited', label: 'Invited', count: invited },
+                                                                { key: 'registered', label: 'Registered', count: registered },
+                                                                { key: 'attended', label: 'Attended', count: attended },
+                                                                { key: 'attendance_rate', label: 'Attendance Rate', count: attendanceRate, isPercentage: true }
+                                                            ].map(s => (
+                                                                <div 
+                                                                    key={s.key} 
+                                                                    style={{ textAlign: 'center', padding: '0.75rem', background: 'rgba(75, 61, 237, 0.1)', borderRadius: '8px', border: '2px solid rgba(75, 61, 237, 0.4)', position: 'relative', cursor: 'pointer' }}
+                                                                    onClick={() => {
+                                                                        if (s.key === 'registered') {
+                                                                            loadApplicationsForTile('workshops', 'registered');
+                                                                        } else if (s.key === 'attended') {
+                                                                            loadApplicationsForTile('workshops', 'attended');
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', width: '16px', height: '16px', cursor: 'pointer', zIndex: 10 }}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            if (s.key === 'registered') {
+                                                                                handleExportClick(e, 'workshops', 'registered', 'workshop-registered', ['applicant_id', 'first_name', 'last_name', 'email', 'workshop_status']);
+                                                                            } else if (s.key === 'attended') {
+                                                                                handleExportClick(e, 'workshops', 'attended', 'workshop-attended', ['applicant_id', 'first_name', 'last_name', 'email', 'workshop_status']);
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    <div style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.25rem', background: 'linear-gradient(135deg, #4B3DED 0%, #6366f1 50%, #4B3DED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', letterSpacing: '-0.02em' }}>
+                                                                        {s.isPercentage ? `${s.count}%` : s.count}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '0.9rem', color: 'var(--color-text-primary)', marginBottom: '0.25rem', fontWeight: 700, letterSpacing: '-0.01em' }}>{s.label}</div>
+                                                                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>{total > 0 ? Math.round((s.count / total) * 100) : 0}%</div>
+                                                                </div>
+                                                            ));
+                                                        })()}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Status filter for Total Applicants */}
+                                            {activeOverviewStage === 'applied' && (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
+                                                    <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Filter:</span>
+                                                    <select
+                                                        className="filter-select"
+                                                        value={applicantStatusFilter}
+                                                        onChange={(e) => setApplicantStatusFilter(e.target.value)}
+                                                        style={{ minWidth: '180px', padding: '0.5rem' }}
+                                                    >
+                                                        <option value="all">All Applicants</option>
+                                                        <option value="accounts_created">Accounts Created</option>
+                                                        <option value="in_progress">In Progress</option>
+                                                        <option value="submitted">Submitted</option>
+                                                        <option value="ineligible">Ineligible</option>
+                                                    </select>
+                                                </div>
+                                            )}
+                                            {/* Assessment breakdown for Submitted applicants */}
+                                            {activeOverviewStage === 'applied' && applicantStatusFilter === 'submitted' && submittedAssessmentBreakdown && (
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                                                    {/* Assessment Status Box */}
+                                                    <div style={{ padding: '1.5rem', background: 'linear-gradient(135deg, rgba(75, 61, 237, 0.25) 0%, rgba(75, 61, 237, 0.2) 100%)', borderRadius: '12px', border: '2px solid rgba(75, 61, 237, 0.6)', position: 'relative', overflow: 'hidden' }}>
+                                                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))', backgroundSize: '200% 100%', animation: 'shimmer 3s ease-in-out infinite' }}></div>
+                                                        <input
+                                                            type="checkbox"
+                                                            style={{ position: 'absolute', top: '1rem', right: '1rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const total = submittedAssessmentBreakdown.total || 1;
+                                                                exportToCSV([
+                                                                    { label: 'Assessed', count: submittedAssessmentBreakdown.assessed, percentage: total > 0 ? Math.round((submittedAssessmentBreakdown.assessed / total) * 100) : 0 },
+                                                                    { label: 'Pending', count: submittedAssessmentBreakdown.pending, percentage: total > 0 ? Math.round((submittedAssessmentBreakdown.pending / total) * 100) : 0 }
+                                                                ], 'assessment-status', ['label', 'count', 'percentage']);
+                                                            }}
+                                                        />
+                                                        <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '0.75rem', color: 'var(--color-text-primary)', letterSpacing: '-0.01em' }}>Assessment Status</h4>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                                                            {(() => {
+                                                                const total = submittedAssessmentBreakdown.total || 1;
+                                                                return [
+                                                                    { key: 'assessed', label: 'Assessed', count: submittedAssessmentBreakdown.assessed },
+                                                                    { key: 'pending', label: 'Pending', count: submittedAssessmentBreakdown.pending }
+                                                                ].map(s => (
+                                                                    <div 
+                                                                        key={s.key} 
+                                                                        style={{ textAlign: 'center', padding: '0.75rem', background: 'rgba(75, 61, 237, 0.1)', borderRadius: '8px', border: '2px solid rgba(75, 61, 237, 0.4)', position: 'relative', cursor: 'pointer' }}
+                                                                        onClick={() => loadApplicationsForTile('submitted', s.key)}
+                                                                    >
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', width: '16px', height: '16px', cursor: 'pointer', zIndex: 10 }}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleExportClick(e, 'submitted', s.key, `assessment-${s.key}`, ['applicant_id', 'first_name', 'last_name', 'email', 'status', 'recommendation', 'final_status']);
+                                                                            }}
+                                                                        />
+                                                                        <div style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.25rem', background: 'linear-gradient(135deg, #4B3DED 0%, #6366f1 50%, #4B3DED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', letterSpacing: '-0.02em' }}>{s.count}</div>
+                                                                        <div style={{ fontSize: '0.9rem', color: 'var(--color-text-primary)', marginBottom: '0.25rem', fontWeight: 700, letterSpacing: '-0.01em' }}>{s.label}</div>
+                                                                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>{total > 0 ? Math.round((s.count / total) * 100) : 0}%</div>
+                                                                    </div>
+                                                                ));
+                                                            })()}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {/* Assessment Breakdown Box */}
+                                                    <div style={{ padding: '1.5rem', background: 'linear-gradient(135deg, rgba(75, 61, 237, 0.25) 0%, rgba(75, 61, 237, 0.2) 100%)', borderRadius: '12px', border: '2px solid rgba(75, 61, 237, 0.6)', position: 'relative', overflow: 'hidden' }}>
+                                                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))', backgroundSize: '200% 100%', animation: 'shimmer 3s ease-in-out infinite' }}></div>
+                                                        <input
+                                                            type="checkbox"
+                                                            style={{ position: 'absolute', top: '1rem', right: '1rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const total = submittedAssessmentBreakdown.total || 1;
+                                                                exportToCSV([
+                                                                    { label: 'Strongly Recommended', count: submittedAssessmentBreakdown.strong_recommend, percentage: total > 0 ? Math.round((submittedAssessmentBreakdown.strong_recommend / total) * 100) : 0 },
+                                                                    { label: 'Recommended', count: submittedAssessmentBreakdown.recommend, percentage: total > 0 ? Math.round((submittedAssessmentBreakdown.recommend / total) * 100) : 0 },
+                                                                    { label: 'Review Needed', count: submittedAssessmentBreakdown.review_needed, percentage: total > 0 ? Math.round((submittedAssessmentBreakdown.review_needed / total) * 100) : 0 },
+                                                                    { label: 'Not Recommended', count: submittedAssessmentBreakdown.not_recommend, percentage: total > 0 ? Math.round((submittedAssessmentBreakdown.not_recommend / total) * 100) : 0 }
+                                                                ], 'assessment-breakdown', ['label', 'count', 'percentage']);
+                                                            }}
+                                                        />
+                                                        <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '0.75rem', color: 'var(--color-text-primary)', letterSpacing: '-0.01em' }}>Assessment Breakdown</h4>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+                                                            {(() => {
+                                                                const total = submittedAssessmentBreakdown.total || 1;
+                                                                return [
+                                                                    { key: 'strong_recommend', label: 'Strongly Recommended', count: submittedAssessmentBreakdown.strong_recommend },
+                                                                    { key: 'recommend', label: 'Recommended', count: submittedAssessmentBreakdown.recommend },
+                                                                    { key: 'review_needed', label: 'Review Needed', count: submittedAssessmentBreakdown.review_needed },
+                                                                    { key: 'not_recommend', label: 'Not Recommended', count: submittedAssessmentBreakdown.not_recommend }
+                                                                ].map(s => (
+                                                                    <div 
+                                                                        key={s.key} 
+                                                                        style={{ textAlign: 'center', padding: '0.75rem', background: 'rgba(75, 61, 237, 0.1)', borderRadius: '8px', border: '2px solid rgba(75, 61, 237, 0.4)', position: 'relative', cursor: 'pointer' }}
+                                                                        onClick={() => loadApplicationsForTile('submitted', s.key)}
+                                                                    >
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', width: '16px', height: '16px', cursor: 'pointer', zIndex: 10 }}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleExportClick(e, 'submitted', s.key, `assessment-${s.key}`, ['applicant_id', 'first_name', 'last_name', 'email', 'status', 'recommendation', 'final_status']);
+                                                                            }}
+                                                                        />
+                                                                        <div style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.25rem', background: 'linear-gradient(135deg, #4B3DED 0%, #6366f1 50%, #4B3DED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', letterSpacing: '-0.02em' }}>{s.count}</div>
+                                                                        <div style={{ fontSize: '0.9rem', color: 'var(--color-text-primary)', marginBottom: '0.25rem', fontWeight: 700, letterSpacing: '-0.01em' }}>{s.label}</div>
+                                                                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>{total > 0 ? Math.round((s.count / total) * 100) : 0}%</div>
+                                                                    </div>
+                                                                ));
+                                                            })()}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Email Type Breakdown for Marketing Insights */}
+                                            {activeOverviewStage === 'marketing' && emailStats?.typeBreakdown && emailStats.typeBreakdown.length > 0 && (
+                                                <div style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'rgba(75, 61, 237, 0.08)', borderRadius: '12px', border: '2px solid rgba(75, 61, 237, 0.4)' }}>
+                                                    <h4 style={{ fontSize: '1.1rem', fontWeight: 900, marginBottom: '1rem', color: 'var(--color-text-primary)', letterSpacing: '-0.01em' }}>Email Type Breakdown</h4>
+                                                    <div style={{ overflowX: 'auto' }}>
+                                                        <table style={{ width: '100%', fontSize: '0.9rem', borderCollapse: 'collapse', minWidth: '600px' }}>
+                                                            <thead>
+                                                                <tr>
+                                                                    <th style={{ textAlign: 'left', padding: '0.75rem 1rem', borderBottom: '3px solid rgba(75, 61, 237, 0.5)', color: 'var(--color-text-primary)', fontWeight: 800, whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>Email Type</th>
+                                                                    <th style={{ textAlign: 'right', padding: '0.75rem 1rem', borderBottom: '3px solid rgba(75, 61, 237, 0.5)', color: 'var(--color-text-primary)', fontWeight: 800, whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>Sent</th>
+                                                                    <th style={{ textAlign: 'right', padding: '0.75rem 1rem', borderBottom: '3px solid rgba(75, 61, 237, 0.5)', color: 'var(--color-text-primary)', fontWeight: 800, whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>Queued</th>
+                                                                    <th style={{ textAlign: 'right', padding: '0.75rem 1rem', borderBottom: '3px solid rgba(75, 61, 237, 0.5)', color: 'var(--color-text-primary)', fontWeight: 800, whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>Avg Sends per Applicant</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {emailStats.typeBreakdown.map((type, idx) => (
+                                                                    <tr key={type.email_type} style={{ borderBottom: idx < emailStats.typeBreakdown.length - 1 ? '1px solid rgba(255,255,255,0.08)' : 'none' }}>
+                                                                        <td style={{ padding: '0.875rem 1rem', color: 'var(--color-text-primary)', wordBreak: 'break-word', maxWidth: '300px', fontWeight: 600 }}>
+                                                                            <span style={{ display: 'inline-block', lineHeight: '1.4', letterSpacing: '-0.01em' }}>
+                                                                                {type.email_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td style={{ textAlign: 'right', padding: '0.875rem 1rem', color: 'var(--color-text-primary)', fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>{type.sent_count || 0}</td>
+                                                                        <td style={{ textAlign: 'right', padding: '0.875rem 1rem', color: 'var(--color-text-primary)', fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>{type.queued_count || 0}</td>
+                                                                        <td style={{ textAlign: 'right', padding: '0.875rem 1rem', color: 'var(--color-text-primary)', fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>
+                                                                            {parseFloat(type.avg_sends_per_applicant || 0).toFixed(1)}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Average Income Block */}
+                                            {averageIncome !== null && activeOverviewStage !== 'marketing' && (
+                                                <div style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'linear-gradient(135deg, rgba(75, 61, 237, 0.3) 0%, rgba(75, 61, 237, 0.25) 100%)', borderRadius: '12px', border: '2px solid rgba(75, 61, 237, 0.7)', position: 'relative', overflow: 'hidden' }}>
+                                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, rgba(75, 61, 237, 0.9), rgba(75, 61, 237, 1), rgba(75, 61, 237, 0.9))', backgroundSize: '200% 100%', animation: 'shimmer 3s ease-in-out infinite' }}></div>
+                                                    <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem', color: 'var(--color-text-primary)' }}>Average Annual Income</h4>
+                                                    <input
+                                                        type="checkbox"
+                                                        style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
+                                                        onClick={handleIncomeExport}
+                                                    />
+                                                    <div style={{ textAlign: 'center' }}>
+                                                        <div style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.5rem', background: 'linear-gradient(135deg, #4B3DED 0%, #6366f1 50%, #4B3DED 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', letterSpacing: '-0.02em' }}>
+                                                            ${averageIncome.toLocaleString()}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                                                            Average annual income for {activeOverviewStage === 'applied' ? 'Total Applicants' : activeOverviewStage === 'info' ? 'Info Session Attendees' : activeOverviewStage === 'workshops' ? 'Workshop Participants' : activeOverviewStage === 'offers' ? 'Offers Extended' : 'Applicants'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Demographics Grid */}
+                                            {activeOverviewStage !== 'marketing' && (
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                                                {/* Race, Gender, Education blocks are rendered below as before */}
+                                                {/* Race */}
+                                <div className="admissions-dashboard__stat-card demographic-card" style={{ position: 'relative' }}>
+                                    <div className="admissions-dashboard__stat-card-header" style={{ position: 'relative' }}>
+                                                        <h3 
+                                                            className="admissions-dashboard__stat-card-title" 
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                            onClick={() => handleDemographicTitleClick('race')}
+                                                        >
+                                                            {activeOverviewStage === 'info' ? 'Info Session Attendees by Race' : activeOverviewStage === 'workshops' ? 'Workshop Participants by Race' : activeOverviewStage === 'assessment' ? 'Assessment Completed by Race' : activeOverviewStage === 'offers' ? 'Offers by Race' : 'Applicants by Race'}
+                                                        </h3>
+                                                        <input
+                                                            type="checkbox"
+                                                            style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
+                                                            onClick={(e) => handleDemographicExport(e, 'race', null, `race-${activeOverviewStage || 'all'}`)}
+                                                        />
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                        {(() => {
+                                                            const data = stageDemographics.race || [];
+                                                            const total = data.reduce((s, d) => s + (d.count || 0), 0) || 1;
+                                                            const cleanLabel = (label) => {
+                                                                if (!label) return 'Unknown';
+                                                                let cleaned = label.toString().trim();
+                                                                // Try to parse as JSON array first (e.g., '["Hispanic or Latino"]')
+                                                                try {
+                                                                    const parsed = JSON.parse(cleaned);
+                                                                    if (Array.isArray(parsed) && parsed.length > 0) {
+                                                                        cleaned = parsed[0].toString();
+                                                                    }
+                                                                } catch (e) {
+                                                                    // Not JSON, continue with string cleaning
+                                                                }
+                                                                // Remove brackets, quotes, and extra whitespace
+                                                                cleaned = cleaned
+                                                                    .replace(/^\[+/g, '') // Remove leading brackets
+                                                                    .replace(/\]+$/g, '') // Remove trailing brackets
+                                                                    .replace(/^["']+/g, '') // Remove leading quotes
+                                                                    .replace(/["']+$/g, '') // Remove trailing quotes
+                                                                    .trim();
+                                                                return cleaned || 'Unknown';
+                                                            };
+                                                            return data.slice(0, 8).map((d, idx) => {
+                                                                const cleanedLabel = cleanLabel(d.label);
+                                                                return (
+                                                                <div 
+                                                                    key={`race-${idx}`} 
+                                                                    style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '0.875rem', background: 'rgba(75, 61, 237, 0.05)', borderRadius: '8px', border: '1px solid rgba(75, 61, 237, 0.15)', minWidth: 0, cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative' }}
+                                                                    onClick={() => handleDemographicValueClick('race', cleanedLabel)}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(75, 61, 237, 0.15)'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(75, 61, 237, 0.05)'}
+                                                                >
+                                                                    <div style={{ height: '8px', width: '90px', flexShrink: 0, background: 'rgba(255,255,255,0.08)', borderRadius: '4px', position: 'relative', overflow: 'hidden', marginTop: '4px' }}>
+                                                                        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.round((d.count/total)*100)}%`, background: 'linear-gradient(90deg, #10b981, #34d399)', borderRadius: '4px' }} />
+                                                                    </div>
+                                                                    <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                                                                        <span style={{ fontWeight: 800, fontSize: '0.85rem', letterSpacing: '-0.01em', color: 'var(--color-text-primary)', wordBreak: 'break-word', lineHeight: '1.4' }}>{cleanedLabel}</span>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                                                            <span style={{ fontSize: '0.95rem', fontWeight: 900, letterSpacing: '-0.01em', color: 'var(--color-text-primary)' }}>{Math.round((d.count/total)*100)}%</span>
+                                                                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '-0.01em' }}>{d.count}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                );
+                                                            });
+                                                        })()}
                                     </div>
                                 </div>
 
-                                {/* Workshop Invitations */}
-                                <div className="admissions-dashboard__stat-card">
-                                    <div className="admissions-dashboard__stat-card-header">
-                                        <h3 className="admissions-dashboard__stat-card-title">Workshop Pipeline</h3>
-                                        <div className="admissions-dashboard__stat-card-icon">📊</div>
-                                    </div>
-                                    <div className="admissions-dashboard__workshop-pipeline">
-                                        {stats.workshopInvitations?.map((workshop) => (
-                                            <div key={workshop.status} className="admissions-dashboard__workshop-pipeline-item">
-                                                <span className={`admissions-dashboard__workshop-pipeline-indicator admissions-dashboard__workshop-pipeline-indicator--${workshop.status}`}></span>
-                                                <span className="admissions-dashboard__workshop-pipeline-label">
-                                                    {workshop.status.charAt(0).toUpperCase() + workshop.status.slice(1)}
-                                                </span>
-                                                <span className="admissions-dashboard__workshop-pipeline-count">{workshop.count}</span>
+                                                {/* Education */}
+                                <div className="admissions-dashboard__stat-card demographic-card" style={{ position: 'relative' }}>
+                                    <div className="admissions-dashboard__stat-card-header" style={{ position: 'relative' }}>
+                                                        <h3 
+                                                            className="admissions-dashboard__stat-card-title" 
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                            onClick={() => handleDemographicTitleClick('education')}
+                                                        >
+                                                            {activeOverviewStage === 'info' ? 'Info Session Attendees by Education' : activeOverviewStage === 'workshops' ? 'Workshop Participants by Education' : activeOverviewStage === 'assessment' ? 'Assessment Completed by Education' : activeOverviewStage === 'offers' ? 'Offers by Education' : 'Applicants by Education'}
+                                                        </h3>
+                                                        <input
+                                                            type="checkbox"
+                                                            style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
+                                                            onClick={(e) => handleDemographicExport(e, 'education', null, `education-${activeOverviewStage || 'all'}`)}
+                                                        />
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                                                        {(() => {
+                                                            const data = stageDemographics.education || [];
+                                                            const total = data.reduce((s, d) => s + (d.count || 0), 0) || 1;
+                                                            return data.slice(0, 8).map((d, idx) => (
+                                                                <div 
+                                                                    key={`edu-${idx}`} 
+                                                                    style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: '12px', padding: '0.75rem', background: 'rgba(75, 61, 237, 0.05)', borderRadius: '8px', border: '1px solid rgba(75, 61, 237, 0.15)', cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative' }}
+                                                                    onClick={() => handleDemographicValueClick('education', d.label)}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(75, 61, 237, 0.15)'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(75, 61, 237, 0.05)'}
+                                                                >
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                        <div style={{ height: '6px', width: '100px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', position: 'relative' }}>
+                                                                            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.round((d.count/total)*100)}%`, background: 'linear-gradient(90deg, #f59e0b, #f97316)', borderRadius: '4px' }} />
                                             </div>
-                                        ))}
+                                                                        <span style={{ fontWeight: 600, fontSize: '0.9rem', letterSpacing: '-0.01em' }}>{d.label || 'Unknown'}</span>
                                     </div>
+                                                                    <span style={{ textAlign: 'right', fontSize: '0.9rem', fontWeight: 700, letterSpacing: '-0.01em' }}>{Math.round((d.count/total)*100)}% ({d.count})</span>
                                 </div>
+                                                            ));
+                                                        })()}
                             </div>
+                                                </div>
+
+                                                {/* Age */}
+                                <div className="admissions-dashboard__stat-card demographic-card" style={{ position: 'relative' }}>
+                                    <div className="admissions-dashboard__stat-card-header" style={{ position: 'relative' }}>
+                                                        <h3 
+                                                            className="admissions-dashboard__stat-card-title" 
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                            onClick={() => handleDemographicTitleClick('age')}
+                                                        >
+                                                            {activeOverviewStage === 'info' ? 'Info Session Attendees by Age' : activeOverviewStage === 'workshops' ? 'Workshop Participants by Age' : activeOverviewStage === 'assessment' ? 'Assessment Completed by Age' : activeOverviewStage === 'offers' ? 'Offers by Age' : 'Applicants by Age'}
+                                                        </h3>
+                                                        <input
+                                                            type="checkbox"
+                                                            style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
+                                                            onClick={(e) => handleDemographicExport(e, 'age', null, `age-${activeOverviewStage || 'all'}`)}
+                                                        />
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                        {(() => {
+                                                            const data = stageDemographics.age || [];
+                                                            const total = data.reduce((s, d) => s + (d.count || 0), 0) || 1;
+                                                            return data.map((d, idx) => (
+                                                                <div 
+                                                                    key={`age-${idx}`} 
+                                                                    style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '0.875rem', background: 'rgba(75, 61, 237, 0.05)', borderRadius: '8px', border: '1px solid rgba(75, 61, 237, 0.15)', minWidth: 0, cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative' }}
+                                                                    onClick={() => handleDemographicValueClick('age', d.label)}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(75, 61, 237, 0.15)'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(75, 61, 237, 0.05)'}
+                                                                >
+                                                                    <div style={{ height: '8px', width: '90px', flexShrink: 0, background: 'rgba(255,255,255,0.08)', borderRadius: '4px', position: 'relative', overflow: 'hidden', marginTop: '4px' }}>
+                                                                        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.round((d.count/total)*100)}%`, background: 'linear-gradient(90deg, #8b5cf6, #a78bfa)', borderRadius: '4px' }} />
+                                                                    </div>
+                                                                    <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                                                                        <span style={{ fontWeight: 800, fontSize: '0.85rem', letterSpacing: '-0.01em', color: 'var(--color-text-primary)', wordBreak: 'break-word', lineHeight: '1.4' }}>{d.label || 'Unknown'}</span>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                                                            <span style={{ fontSize: '0.95rem', fontWeight: 900, letterSpacing: '-0.01em', color: 'var(--color-text-primary)' }}>{Math.round((d.count/total)*100)}%</span>
+                                                                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '-0.01em' }}>{d.count}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ));
+                                                        })()}
+                                    </div>
+                                                </div>
+
+                                            </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </>
                         ) : (
                             <div className="admissions-dashboard__no-data">
                                 <p>No statistics available</p>
@@ -2005,7 +4058,6 @@ const AdmissionsDashboard = () => {
                         )}
                     </div>
                 )}
-
                 {activeTab === 'applications' && (
                     <div className="admissions-dashboard__applications">
                         <div className="data-section__header">
@@ -2590,23 +4642,11 @@ const AdmissionsDashboard = () => {
                         )}
                     </div>
                 )}
-
                 {activeTab === 'info-sessions' && (
                     <div className="admissions-dashboard__info-sessions">
                         <div className="data-section__header">
                             <h2>Info Sessions Management</h2>
                             <div className="data-section__actions">
-                                <div className="event-filter-toggle">
-                                    <label className="event-filter-label">
-                                        <input
-                                            type="checkbox"
-                                            checked={showInactiveInfoSessions}
-                                            onChange={(e) => setShowInactiveInfoSessions(e.target.checked)}
-                                            className="event-filter-checkbox"
-                                        />
-                                        Show inactive events
-                                    </label>
-                                </div>
                                 <button
                                     onClick={openCreateInfoSessionModal}
                                     className="create-btn"
@@ -2698,7 +4738,6 @@ const AdmissionsDashboard = () => {
                                                         </button>
                                                     </td>
                                                 </tr>
-
                                                 {selectedEvent === session.event_id && (
                                                     <tr className="registrations-row">
                                                         <td colSpan="6" className="registrations-cell">
@@ -2815,7 +4854,6 @@ const AdmissionsDashboard = () => {
                         )}
                     </div>
                 )}
-
                 {activeTab === 'workshops' && (
                     <div className="admissions-dashboard__workshops">
                         <div className="data-section__header">
@@ -3128,7 +5166,6 @@ const AdmissionsDashboard = () => {
                         )}
                     </div>
                 )}
-
                 {activeTab === 'emails' && (
                     <div className="admissions-dashboard__email-automation">
                         <div className="data-section__header">
@@ -3218,7 +5255,6 @@ const AdmissionsDashboard = () => {
                                                         </div>
                                                     `;
                                                 }
-                                                
                                                 // Use SweetAlert2 for better formatting
                                                 Swal.fire({
                                                     title: '🧪 Test Run Results',
@@ -3305,7 +5341,6 @@ const AdmissionsDashboard = () => {
                                         {testEmailLoading ? 'Sending...' : '📧 Send Test Email'}
                                     </button>
                                 </div>
-                                
                                 <button
                                     onClick={async () => {
                                         // Use SweetAlert2 for confirmation
@@ -3330,7 +5365,6 @@ const AdmissionsDashboard = () => {
                                         if (!confirmResult.isConfirmed) {
                                             return;
                                         }
-                                        
                                         setEmailAutomationLoading(true);
                                         try {
                                             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/run`, {
@@ -3616,7 +5650,6 @@ const AdmissionsDashboard = () => {
                     </div>
                 )}
             </div>
-
             {/* Info Session Modal */}
             {infoSessionModalOpen && (
                 <div className="modal-overlay">
@@ -3676,7 +5709,6 @@ const AdmissionsDashboard = () => {
                                     />
                                 </div>
                             </div>
-
                             <div className="form-group">
                                 <label htmlFor="capacity">Capacity</label>
                                 <input
@@ -3770,7 +5802,6 @@ const AdmissionsDashboard = () => {
                     </div>
                 </div>
             )}
-
             {/* Workshop Modal */}
             {workshopModalOpen && (
                 <div className="modal-overlay">
@@ -3943,7 +5974,6 @@ const AdmissionsDashboard = () => {
                                     {editingWorkshop ? 'Workshop type is locked after creation' : 'Choose the type of workshop to create'}
                                 </small>
                             </div>
-
                             {/* Access Code - Only for External Workshops */}
                             {workshopForm.workshop_type === 'external' && (
                                 <div className="form-group">
@@ -3999,7 +6029,6 @@ const AdmissionsDashboard = () => {
                                     </small>
                                 </div>
                             )}
-
                             <div className="form-group">
                                 <label htmlFor="workshop-cohort_name">
                                     Workshop Cohort
@@ -4110,7 +6139,6 @@ const AdmissionsDashboard = () => {
                                     </small>
                                 </div>
                             </div>
-
                             {/* Workshop Admin Assignment - Only for External Workshops */}
                             {workshopForm.workshop_type === 'external' && (
                                 <>
@@ -4237,7 +6265,6 @@ const AdmissionsDashboard = () => {
                     isLoading={bulkActionInProgress}
                 />
             )}
-
             {/* Add Registration Modal */}
             {addRegistrationModalOpen && (
                 <div className="modal-overlay">
@@ -4340,7 +6367,6 @@ const AdmissionsDashboard = () => {
                                         </p>
                                     )}
                                 </div>
-                                
                                 {selectedApplicantsForRegistration.length > 0 && (
                                     <div className="selected-applicants">
                                         <h4>Selected for Registration ({selectedApplicantsForRegistration.length})</h4>
@@ -4410,6 +6436,83 @@ const AdmissionsDashboard = () => {
                 applicantName={selectedApplicant?.name || `${selectedApplicant?.first_name} ${selectedApplicant?.last_name}`}
                 onClose={closeNotesModal}
             />
+            {/* Applications Modal for KPI Tiles */}
+            {applicationsModalOpen && (
+                <div className="modal-overlay" onClick={() => setApplicationsModalOpen(false)}>
+                    <div className="modal-content" style={{ maxWidth: '1000px', maxHeight: '90vh', overflow: 'auto', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid rgba(75, 61, 237, 0.3)' }}>
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.01em' }}>
+                                {applicationsModalFilter?.type === 'total' ? 'Total Applicants' :
+                                 applicationsModalFilter?.type === 'accounts_created' ? 'Accounts Created' :
+                                 applicationsModalFilter?.type === 'submitted' ? 'Submitted Applications' :
+                                 applicationsModalFilter?.type === 'info' ? 'Info Session Attendees' :
+                                 applicationsModalFilter?.type === 'workshops' ? 'Workshop Participants' :
+                                 applicationsModalFilter?.type === 'offers' ? 'Offers Extended' :
+                                 applicationsModalFilter?.type === 'marketing' ? 'Marketing Insights' : 'Applications'}
+                            </h2>
+                            <button className="close-btn" onClick={() => setApplicationsModalOpen(false)} style={{ fontSize: '2rem', fontWeight: 300, background: 'transparent', border: 'none', color: 'var(--color-text-primary)', cursor: 'pointer', padding: '0', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                        </div>
+                        
+                        <div style={{ flex: 1, overflowY: 'auto', paddingRight: '8px' }}>
+                            {modalApplicationsLoading ? (
+                                <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-primary)' }}>
+                                    <div>Loading applications...</div>
+                                </div>
+                            ) : modalApplications.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-primary)' }}>
+                                    <div>No applications found.</div>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    <div style={{ marginBottom: '1rem', padding: '1rem', background: 'rgba(75, 61, 237, 0.1)', borderRadius: '8px', border: '1px solid rgba(75, 61, 237, 0.3)' }}>
+                                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: '0.5rem' }}>
+                                            {modalApplications.length} {modalApplications.length === 1 ? 'Application' : 'Applications'}
+                                        </div>
+                                    </div>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '2px solid rgba(75, 61, 237, 0.3)' }}>
+                                                <th style={{ textAlign: 'left', padding: '0.75rem', fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.01em' }}>Name</th>
+                                                <th style={{ textAlign: 'left', padding: '0.75rem', fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.01em' }}>Email</th>
+                                                <th style={{ textAlign: 'left', padding: '0.75rem', fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.01em' }}>Status</th>
+                                                <th style={{ textAlign: 'left', padding: '0.75rem', fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.01em' }}>Created</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {modalApplications.map((app, idx) => (
+                                                <tr key={app.applicant_id || app.application_id || idx} style={{ borderBottom: idx < modalApplications.length - 1 ? '1px solid rgba(255,255,255,0.08)' : 'none' }}>
+                                                    <td style={{ padding: '0.875rem 0.75rem', color: 'var(--color-text-primary)', fontWeight: 600 }}>
+                                                        {app.first_name} {app.last_name}
+                                                    </td>
+                                                    <td style={{ padding: '0.875rem 0.75rem', color: 'var(--color-text-primary)' }}>
+                                                        {app.email || 'N/A'}
+                                                    </td>
+                                                    <td style={{ padding: '0.875rem 0.75rem', color: 'var(--color-text-primary)' }}>
+                                                        {app.status || 'N/A'}
+                                                    </td>
+                                                    <td style={{ padding: '0.875rem 0.75rem', color: 'var(--color-text-secondary)' }}>
+                                                        {app.created_at ? new Date(app.created_at).toLocaleDateString() : 'N/A'}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                        <div className="modal-actions" style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '2px solid rgba(75, 61, 237, 0.3)', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                                type="button"
+                                className="cancel-btn"
+                                onClick={() => setDemographicApplicantsModalOpen(false)}
+                                style={{ padding: '0.75rem 1.5rem', fontSize: '0.95rem', fontWeight: 700 }}
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
