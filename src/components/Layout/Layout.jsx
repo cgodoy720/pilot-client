@@ -21,6 +21,7 @@ import GradeIcon from '@mui/icons-material/Grade';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import WorkspacesIcon from '@mui/icons-material/Workspaces';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import ExploreIcon from '@mui/icons-material/Explore';
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 import logo from '../../assets/logo.png'
@@ -117,7 +118,7 @@ const Layout = ({ children }) => {
 
           {(user.role === 'staff' || user.role === 'admin') && (
             <Link to="/pathfinder/admin" className={`layout__nav-item layout__nav-item--sub ${location.pathname === '/pathfinder/admin' ? 'layout__nav-item--active' : ''}`}>
-              <AdminPanelSettingsIcon className="layout__nav-icon" />
+              <ExploreIcon className="layout__nav-icon" />
               {isExpanded && <span className="layout__nav-text">Pathfinder Admin</span>}
             </Link>
           )}
