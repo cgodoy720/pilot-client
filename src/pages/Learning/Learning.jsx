@@ -10,7 +10,6 @@ import DailyOverview from '../../components/DailyOverview';
 import ActivityHeader from '../../components/ActivityHeader';
 import AutoExpandTextarea from '../../components/AutoExpandTextarea';
 import { ScrollArea } from '../../components/ui/scroll-area';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../../components/ui/sheet';
 import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
 
@@ -78,20 +77,58 @@ function Learning() {
         setIsPageLoading(true);
         
         let endpoint;
+        let data;
+        
         if (dayId) {
-          endpoint = `${import.meta.env.VITE_API_URL}/api/curriculum/day/${dayId}`;
+          // Fetch day details
+          endpoint = `${import.meta.env.VITE_API_URL}/api/curriculum/days/${dayId}/full-details`;
+          const response = await fetch(endpoint, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          
+          if (!response.ok) {
+            console.error('Failed to load day data, response:', response.status);
+            setError('Failed to load day data');
+            return;
+          }
+          
+          data = await response.json();
+          
+          // Also fetch user's task progress for this day
+          const progressEndpoint = `${import.meta.env.VITE_API_URL}/api/progress/days/${dayId}/tasks`;
+          const progressResponse = await fetch(progressEndpoint, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          
+          if (progressResponse.ok) {
+            const progressData = await progressResponse.json();
+            data.taskProgress = progressData || [];
+          } else {
+            data.taskProgress = [];
+          }
         } else {
+          // Use current day endpoint which already includes progress
           endpoint = `${import.meta.env.VITE_API_URL}/api/progress/current-day`;
+          const response = await fetch(endpoint, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          
+          if (!response.ok) {
+            console.error('Failed to load day data, response:', response.status);
+            setError('Failed to load day data');
+            return;
+          }
+          
+          data = await response.json();
         }
         
-        const response = await fetch(endpoint, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
+        if (data) {
           console.log('Learning page data loaded:', data);
           console.log('Current day data:', data.day);
           console.log('Daily goal:', data.day?.daily_goal);
@@ -144,9 +181,6 @@ function Learning() {
               }
             }
           }
-        } else {
-          console.error('Failed to load day data, response:', response.status);
-          setError('Failed to load day data');
         }
       } catch (error) {
         console.error('Error loading day data:', error);
@@ -480,22 +514,14 @@ function Learning() {
         </div>
 
         {/* Deliverable Sidebar */}
-        <Sheet open={isDeliverableSidebarOpen} onOpenChange={setIsDeliverableSidebarOpen}>
-          <SheetContent side="right" className="w-[400px] sm:w-[540px]">
-            <SheetHeader>
-              <SheetTitle>Deliverable</SheetTitle>
-            </SheetHeader>
-            <div className="mt-6">
-              {tasks[currentTaskIndex] && (
-                <DeliverablePanel
-                  task={tasks[currentTaskIndex]}
-                  onSubmit={handleDeliverableSubmit}
-                  onClose={() => setIsDeliverableSidebarOpen(false)}
-                />
-              )}
-            </div>
-          </SheetContent>
-        </Sheet>
+        {tasks[currentTaskIndex] && (
+          <DeliverablePanel
+            task={tasks[currentTaskIndex]}
+            isOpen={isDeliverableSidebarOpen}
+            onClose={() => setIsDeliverableSidebarOpen(false)}
+            onSubmit={handleDeliverableSubmit}
+          />
+        )}
       </div>
 
       {/* Workshop Lock Banner */}

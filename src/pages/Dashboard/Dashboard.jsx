@@ -373,6 +373,43 @@ function Dashboard() {
     navigate(`/calendar?day=${dayId}&task=${taskId}`);
   };
 
+  // Handle navigation to Learning page for a specific day
+  const handleNavigateToDayLearning = (dayId) => {
+    if (!isActive) {
+      setError('You have historical access only and cannot access new learning sessions.');
+      return;
+    }
+    
+    // Build query params
+    const params = new URLSearchParams();
+    params.append('dayId', dayId);
+    
+    // Add cohort for staff/admin
+    if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
+      params.append('cohort', cohortFilter);
+    }
+    
+    navigate(`/learning?${params.toString()}`);
+  };
+
+  // Handle navigation to Learning page for a specific task
+  const handleNavigateToTask = (dayId, taskId) => {
+    if (!isActive) {
+      setError('You have historical access only and cannot access new learning sessions.');
+      return;
+    }
+    
+    const params = new URLSearchParams();
+    params.append('dayId', dayId);
+    params.append('taskId', taskId);
+    
+    if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
+      params.append('cohort', cohortFilter);
+    }
+    
+    navigate(`/learning?${params.toString()}`);
+  };
+
   // Render skeleton loading cards
   const renderSkeletonCards = () => {
     return Array(5).fill(0).map((_, index) => (
@@ -663,17 +700,17 @@ function Dashboard() {
                                 <div className="dashboard__day-activity-content">
                                   <span className="dashboard__task-title">{task.task_title}</span>
                                   
-                                  {/* Deliverable Submit Button */}
-                                  {isDeliverable && (
-                                    <button 
-                                      className={`dashboard__deliverable-link ${
-                                        hasSubmission ? 'dashboard__deliverable-link--submitted' : 'dashboard__deliverable-link--pending'
-                                      }`}
-                                      onClick={() => navigate(`/learning?date=${day.day_date}&taskId=${task.id}`)}
-                                    >
-                                      Submit {task.deliverable_type}
-                                    </button>
-                                  )}
+                  {/* Deliverable Submit Button */}
+                  {isDeliverable && (
+                    <button 
+                      className={`dashboard__deliverable-link ${
+                        hasSubmission ? 'dashboard__deliverable-link--submitted' : 'dashboard__deliverable-link--pending'
+                      }`}
+                      onClick={() => handleNavigateToTask(day.id, task.id)}
+                    >
+                      Submit {task.deliverable_type}
+                    </button>
+                  )}
                                 </div>
                               </div>
                               {taskIndex < day.tasks.length - 1 && (
@@ -690,7 +727,7 @@ function Dashboard() {
                   {dayIsToday && (
                     <button 
                       className="dashboard__go-btn dashboard__go-btn--today"
-                      onClick={handleContinueSession}
+                      onClick={() => handleNavigateToDayLearning(day.id)}
                     >
                       Go
                     </button>
@@ -698,7 +735,7 @@ function Dashboard() {
                   {!dayIsToday && showCheckbox && (
                     <button 
                       className="dashboard__go-btn"
-                      onClick={handleContinueSession}
+                      onClick={() => handleNavigateToDayLearning(day.id)}
                     >
                       Go
                     </button>
@@ -811,7 +848,7 @@ function Dashboard() {
                     )}
           <button 
                       className="dashboard__mobile-go-btn"
-            onClick={handleContinueSession}
+            onClick={() => handleNavigateToDayLearning(day.id)}
           >
                       Go
           </button>

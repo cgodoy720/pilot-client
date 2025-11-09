@@ -8,27 +8,30 @@ const CarouselHero = () => {
   const slides = [
     {
       id: 1,
-      image: '/api/placeholder/600/800', // Placeholder for hero image
+      image: '/photos/larry.jpg',
       title: "We're building the future of AI jobs.",
       person: "Larry Lamouth",
       role: "Cyber Security Analyst",
-      company: "Blackstone"
+      company: "Blackstone",
+      objectPosition: 'center top'
     },
     {
       id: 2,
-      image: '/api/placeholder/600/800', // Placeholder for hero image  
+      image: '/photos/chantal.jpg',
       title: "Innovation starts with the right training.",
-      person: "Sarah Chen",
+      person: "Chantal Rodriguez",
       role: "AI Engineer",
-      company: "Microsoft"
+      company: "Microsoft",
+      objectPosition: 'center center'
     },
     {
       id: 3,
-      image: '/api/placeholder/600/800', // Placeholder for hero image
+      image: '/photos/ted-talk.jpg',
       title: "Your career transformation begins here.",
       person: "Marcus Johnson",
       role: "Data Scientist", 
-      company: "Google"
+      company: "Google",
+      objectPosition: 'center center'
     }
   ];
 
@@ -64,38 +67,56 @@ const CarouselHero = () => {
   return (
     <div className="relative h-full bg-carbon-black flex flex-col">
       {/* Hero Image Container */}
-      <div className="flex-1 relative overflow-hidden p-[60px]">
+      <div className="relative overflow-hidden p-[60px] pb-0" style={{ height: 'calc(100% - 150px)' }}>
         {/* Background Image with Overlay */}
         <div className="relative w-full h-full rounded-[30px] overflow-hidden shadow-[4px_4px_20px_rgba(0,0,0,0.25)]">
-          <img
-            src={slides[currentSlide].image}
-            alt="Hero"
-            className="w-full h-full object-cover"
-            style={{ filter: 'brightness(0.8)' }}
-          />
+          {/* Render all images, only show current one */}
+          {slides.map((slide, index) => (
+            <div 
+              key={slide.id}
+              className="absolute inset-0 transition-opacity duration-500"
+              style={{ opacity: index === currentSlide ? 1 : 0 }}
+            >
+              <img
+                src={slide.image}
+                alt="Hero"
+                className="w-full h-full object-cover"
+                style={{ 
+                  filter: 'brightness(0.8)',
+                  objectPosition: slide.objectPosition || 'center center'
+                }}
+              />
+            </div>
+          ))}
           
           {/* Dark Overlay */}
           <div className="absolute inset-0 bg-carbon-black/20" />
-          
-          {/* Content Overlay */}
-          <div className="absolute inset-0 flex flex-col justify-end p-10">
-            {/* Main Headline */}
-            <h1 className="text-white font-bold font-proxima text-3xl md:text-4xl lg:text-5xl leading-tight mb-6 max-w-[500px]">
-              {slides[currentSlide].title}
-            </h1>
-            
-            {/* Person Info */}
-            <div className="text-white">
-              <p className="font-bold font-proxima text-base leading-tight max-w-[250px]">
-                {slides[currentSlide].person} {slides[currentSlide].role} {slides[currentSlide].company}
-              </p>
-            </div>
-          </div>
+        </div>
+      </div>
+
+      {/* Text Content Overlay - Outside image container */}
+      <div className="absolute bottom-[100px] left-[40px] z-10">
+        {/* Main Headline */}
+        <h1 className="text-white font-bold font-proxima text-3xl md:text-4xl lg:text-5xl leading-[70px] mb-4 max-w-[598px]">
+          {slides[currentSlide].title}
+        </h1>
+        
+        {/* Person Info - Stacked vertically */}
+        <div className="text-white space-y-0">
+          <p className="font-bold font-proxima text-base leading-5">
+            {slides[currentSlide].person}
+          </p>
+          <p className="font-bold font-proxima text-base leading-5">
+            {slides[currentSlide].role}
+          </p>
+          <p className="font-bold font-proxima text-base leading-5">
+            {slides[currentSlide].company}
+          </p>
         </div>
       </div>
 
       {/* Bottom Section with Progress Indicators and Logo */}
-      <div className="flex justify-between items-end p-10">
+      <div className="absolute bottom-0 left-0 right-0 flex justify-between items-end px-[40px] py-[30px]">
         {/* Progress Bar Breadcrumbs */}
         <div className="flex gap-2">
           {slides.map((_, index) => (

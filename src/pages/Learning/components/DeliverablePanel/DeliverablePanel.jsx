@@ -1,26 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { FaTimes, FaCheckCircle } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { CheckCircle, TrendingUp } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+} from '../../../../components/ui/sheet';
 import StructuredSubmission from './StructuredSubmission';
 import FlexibleSubmission from './FlexibleSubmission';
-import './DeliverablePanel.css';
 
 function DeliverablePanel({
   task,
   currentSubmission,
+  isOpen,
   onClose,
   onSubmit,
   isLocked = false
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
-
-  const handleClose = () => {
-    setIsClosing(true);
-    // Wait for animation to complete before actually closing
-    setTimeout(() => {
-      onClose();
-    }, 300); // Match the animation duration
-  };
 
   const handleSubmit = async (submissionData) => {
     setIsSubmitting(true);
@@ -55,45 +50,45 @@ function DeliverablePanel({
   };
 
   return (
-    <div className="deliverable-panel">
-      <div className="deliverable-panel__overlay" onClick={handleClose} />
-      
-      <div className={`deliverable-panel__content ${isClosing ? 'deliverable-panel__content--closing' : ''}`}>
-        {/* Header */}
-        <div className="deliverable-panel__header">
-          <div className="deliverable-panel__title-wrapper">
-            <h2 className="deliverable-panel__title">{task.title}</h2>
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent side="right" className="w-[400px] sm:w-[500px] flex flex-col p-0 gap-0">
+        {/* Purple Header with Icon */}
+        <div className="bg-pursuit-purple px-6 py-4 flex items-center gap-3">
+          <TrendingUp className="w-6 h-6 text-white" />
+          <h2 className="text-white font-proxima font-semibold text-lg">
+            Deliverable
+          </h2>
+        </div>
+
+        {/* Task Title Section */}
+        <div className="px-6 py-4 border-b border-divider">
+          <div className="flex items-center gap-2">
+            <h3 className="text-carbon-black font-proxima font-semibold text-base flex-1">
+              {task.title || task.task_title}
+            </h3>
             {currentSubmission && currentSubmission.task_id === task.id && (
-              <div className="deliverable-panel__submitted-badge" title="Submitted">
-                <FaCheckCircle />
+              <div className="flex items-center gap-1 text-success-green" title="Submitted">
+                <CheckCircle className="w-5 h-5" />
               </div>
             )}
           </div>
-          <button 
-            onClick={handleClose}
-            className="deliverable-panel__close-btn"
-            disabled={isSubmitting}
-            aria-label="Close"
-          >
-            <FaTimes />
-          </button>
         </div>
 
-        {/* Deliverable label - Only show for structured submissions (workshops) */}
-        {task.deliverable_schema && (
-          <div className="deliverable-panel__label">
-            <span className="deliverable-panel__label-text">
-              {task.deliverable || 'Submit your work'}
-            </span>
+        {/* Description Section - Only show for structured submissions (workshops) */}
+        {task.deliverable_schema && task.deliverable && (
+          <div className="px-6 py-4 bg-bg-light border-b border-divider">
+            <p className="text-sm font-proxima text-carbon-black/80 leading-relaxed">
+              {task.deliverable}
+            </p>
           </div>
         )}
 
         {/* Body - Dynamic submission form */}
-        <div className="deliverable-panel__body">
+        <div className="flex-1 overflow-y-auto">
           {getSubmissionComponent()}
         </div>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
