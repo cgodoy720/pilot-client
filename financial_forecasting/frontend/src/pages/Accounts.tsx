@@ -19,6 +19,7 @@ import {
   Business as BusinessIcon,
   TrendingUp as TrendingUpIcon,
   Payment as PaymentIcon,
+  Chat as ChatIcon,
 } from '@mui/icons-material';
 import { 
   DataGrid, 
@@ -50,6 +51,16 @@ interface Opportunity {
   AccountId: string;
 }
 
+interface SlackMessage {
+  text: string;
+  user: string;
+  channel: string;
+  timestamp: string;
+  permalink: string;
+  date: string | null;
+  match_type?: 'mention' | 'channel';
+}
+
 const Accounts: React.FC = () => {
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -70,6 +81,28 @@ const Accounts: React.FC = () => {
     async () => {
       const response = await apiService.getOpportunities({ limit: 10000 });
       return response.data;
+    }
+  );
+
+  // Fetch Slack activity for selected account
+  const { data: slackActivity, isLoading: slackLoading } = useQuery(
+    ['slack-activity', selectedAccount?.Name],
+    async () => {
+      if (!selectedAccount?.Name) return null;
+      try {
+        const response = await apiService.getAccountSlackActivity(selectedAccount.Name, 30);
+        return response.data;
+      } catch (error: any) {
+        // If Slack is not configured, return empty data
+        if (error.response?.status === 503) {
+          return { messages: [], total: 0, configured: false };
+        }
+        throw error;
+      }
+    },
+    {
+      enabled: !!selectedAccount?.Name && dialogOpen,
+      retry: false,
     }
   );
 
@@ -508,39 +541,119 @@ const Accounts: React.FC = () => {
               <Tab label={`All Opportunities (${accountOpportunities.length})`} />
               <Tab label={`Open Pipeline (${openOpps.length})`} />
               <Tab label={`Won/Collecting (${wonOpps.length})`} />
+              <Tab label={`Slack Activity (${slackActivity?.total || 0})`} icon={<ChatIcon />} iconPosition="start" />
             </Tabs>
           </Box>
 
           {/* Opportunities List */}
-          <Box sx={{ height: 400 }}>
-            <DataGrid
-              rows={
-                activeTab === 0
-                  ? accountOpportunities
-                  : activeTab === 1
-                  ? openOpps
-                  : wonOpps
-              }
-              columns={opportunityColumns}
-              getRowId={(row) => row.Id}
-              hideFooter={accountOpportunities.length <= 10}
-              pageSizeOptions={[10, 25, 50]}
-              initialState={{
-                pagination: {
-                  paginationModel: { pageSize: 10, page: 0 },
-                },
-                sorting: {
-                  sortModel: [{ field: 'CloseDate', sort: 'desc' }],
-                },
-              }}
-              sortingMode="client"
-              paginationMode="client"
-              filterMode="client"
-              disableRowSelectionOnClick
-              disableColumnFilter={false}
-              disableColumnMenu={false}
-            />
-          </Box>
+          {activeTab < 3 && (
+            <Box sx={{ height: 400 }}>
+              <DataGrid
+                rows={
+                  activeTab === 0
+                    ? accountOpportunities
+                    : activeTab === 1
+                    ? openOpps
+                    : wonOpps
+                }
+                columns={opportunityColumns}
+                getRowId={(row) => row.Id}
+                hideFooter={accountOpportunities.length <= 10}
+                pageSizeOptions={[10, 25, 50]}
+                initialState={{
+                  pagination: {
+                    paginationModel: { pageSize: 10, page: 0 },
+                  },
+                  sorting: {
+                    sortModel: [{ field: 'CloseDate', sort: 'desc' }],
+                  },
+                }}
+                sortingMode="client"
+                paginationMode="client"
+                filterMode="client"
+                disableRowSelectionOnClick
+                disableColumnFilter={false}
+                disableColumnMenu={false}
+              />
+            </Box>
+          )}
+
+          {/* Slack Activity */}
+          {activeTab === 3 && (
+            <Box sx={{ height: 400, overflow: 'auto' }}>
+              {slackActivity?.configured === false ? (
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  <strong>Slack Not Configured</strong>
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    To see Slack activity, set the SLACK_BOT_TOKEN environment variable and restart the backend server.
+                  </Typography>
+                </Alert>
+              ) : slackLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                  <Typography>Loading Slack messages...</Typography>
+                </Box>
+              ) : !slackActivity || slackActivity.messages.length === 0 ? (
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  No Slack messages found mentioning "{selectedAccount?.Name}"
+                </Alert>
+              ) : (
+                <Box>
+                  <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                    {slackActivity.total} message{slackActivity.total !== 1 ? 's' : ''} found mentioning this account
+                  </Typography>
+                  {slackActivity.messages.map((msg: SlackMessage, index: number) => (
+                    <Card key={index} sx={{ mb: 2 }}>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <Chip label={`#${msg.channel}`} size="small" color="primary" variant="outlined" />
+                            {msg.match_type === 'channel' && (
+                              <Chip 
+                                label="Dedicated Channel" 
+                                size="small" 
+                                color="success" 
+                                variant="filled"
+                              />
+                            )}
+                            {msg.match_type === 'mention' && (
+                              <Chip 
+                                label="Mentioned" 
+                                size="small" 
+                                color="info" 
+                                variant="outlined"
+                              />
+                            )}
+                            <Typography variant="caption" color="textSecondary">
+                              by {msg.user}
+                            </Typography>
+                          </Box>
+                          {msg.date && (
+                            <Typography variant="caption" color="textSecondary">
+                              {format(new Date(msg.date), 'MMM dd, yyyy h:mm a')}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: 1 }}>
+                          {msg.text}
+                        </Typography>
+                        {msg.permalink && (
+                          <Button
+                            size="small"
+                            href={msg.permalink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            startIcon={<ChatIcon />}
+                          >
+                            View in Slack
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Box>
+              )}
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Close</Button>

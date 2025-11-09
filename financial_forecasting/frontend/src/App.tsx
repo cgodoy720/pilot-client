@@ -8,6 +8,7 @@ import { Toaster } from 'react-hot-toast';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Opportunities from './pages/Opportunities';
+import NewOpportunity from './pages/NewOpportunity';
 import Accounts from './pages/Accounts';
 import Invoices from './pages/Invoices';
 import CashFlow from './pages/CashFlow';
@@ -88,6 +89,7 @@ function App() {
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/opportunities" element={<Opportunities />} />
+                <Route path="/opportunities/new" element={<NewOpportunity />} />
                 <Route path="/accounts" element={<Accounts />} />
                 <Route path="/invoices" element={<Invoices />} />
                 <Route path="/cash-flow" element={<CashFlow />} />

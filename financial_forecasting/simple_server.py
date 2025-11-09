@@ -11,8 +11,11 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 import uvicorn
+import os
 
 from simple_salesforce import Salesforce, SalesforceLogin
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
 
 # Import config
 from config import SALESFORCE_CONFIG
@@ -32,8 +35,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global Salesforce connection
+# Global connections
 sf_client: Optional[Salesforce] = None
+slack_client: Optional[WebClient] = None
 
 def get_salesforce():
     """Get or create Salesforce connection."""
@@ -46,6 +50,16 @@ def get_salesforce():
         )
         sf_client = Salesforce(instance=instance, session_id=session_id)
     return sf_client
+
+def get_slack():
+    """Get or create Slack client."""
+    global slack_client
+    if slack_client is None:
+        slack_token = os.getenv('SLACK_BOT_TOKEN')
+        if not slack_token:
+            raise HTTPException(status_code=503, detail="Slack not configured. Set SLACK_BOT_TOKEN environment variable.")
+        slack_client = WebClient(token=slack_token)
+    return slack_client
 
 # Request/Response Models
 class OpportunityUpdate(BaseModel):
@@ -109,6 +123,32 @@ async def get_opportunities(stage: Optional[str] = None, limit: int = 10000):
         
         return result.get("records", [])
         
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Salesforce - Create Opportunity
+@app.post("/api/salesforce/opportunities")
+async def create_opportunity(opportunity_data: Dict[str, Any]):
+    """Create a new Salesforce opportunity."""
+    try:
+        sf = get_salesforce()
+        
+        # Create the opportunity
+        result = sf.Opportunity.create(opportunity_data)
+        
+        if result.get('success'):
+            return {
+                "success": True,
+                "id": result.get('id'),
+                "opportunity": opportunity_data
+            }
+        else:
+            errors = result.get('errors', [])
+            error_msg = '; '.join([str(e) for e in errors]) if errors else "Failed to create opportunity"
+            raise HTTPException(status_code=400, detail=error_msg)
+            
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -333,6 +373,156 @@ async def trigger_sync(sync_type: str = "all"):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# Slack Integration
+@app.get("/api/slack/account-activity/{account_name}")
+async def get_account_slack_activity(account_name: str, limit: int = 50):
+    """Get Slack activity related to an account by searching channel history."""
+    try:
+        slack = get_slack()
+        
+        # Get list of public channels the bot is in
+        channels_response = slack.conversations_list(
+            types="public_channel",
+            exclude_archived=True,
+            limit=200
+        )
+        
+        if not channels_response["ok"]:
+            raise HTTPException(status_code=500, detail="Failed to list channels")
+        
+        all_messages = []
+        account_name_lower = account_name.lower()
+        # Create search terms from account name (e.g., "Ford Foundation" -> ["ford", "foundation"])
+        account_terms = [term.lower() for term in account_name.split() if len(term) > 3]
+        
+        # Search through channels for mentions of the account
+        for channel in channels_response.get("channels", []):
+            channel_id = channel["id"]
+            channel_name = channel["name"]
+            channel_name_lower = channel_name.lower()
+            
+            # Only search channels the bot is a member of
+            if not channel.get("is_member", False):
+                continue
+            
+            # Check if channel name is related to the account
+            # Match if any significant term from account name is in channel name
+            channel_matches_account = any(
+                term in channel_name_lower.replace('-', ' ').replace('_', ' ')
+                for term in account_terms
+            )
+            
+            try:
+                # Get messages from this channel (with pagination for more history)
+                all_channel_messages = []
+                cursor = None
+                
+                # Fetch up to 500 messages per channel (5 pages x 100 messages)
+                for _ in range(5):
+                    history = slack.conversations_history(
+                        channel=channel_id,
+                        limit=100,
+                        cursor=cursor
+                    )
+                    
+                    if not history["ok"]:
+                        break
+                    
+                    all_channel_messages.extend(history.get("messages", []))
+                    
+                    # Check if there are more messages
+                    cursor = history.get("response_metadata", {}).get("next_cursor")
+                    if not cursor:
+                        break
+                
+                # Process all fetched messages
+                for message in all_channel_messages:
+                    text = message.get("text", "")
+                    
+                    # Include message if:
+                    # 1. Account name is mentioned in the message, OR
+                    # 2. Channel name matches the account (e.g., #ford-foundation channel for "Ford Foundation")
+                    text_matches = account_name_lower in text.lower()
+                    
+                    if text_matches or channel_matches_account:
+                        # Get user info
+                        user_id = message.get("user", "Unknown")
+                        user_name = user_id
+                        
+                        if user_id != "Unknown":
+                            try:
+                                user_info = slack.users_info(user=user_id)
+                                if user_info["ok"]:
+                                    user_name = user_info["user"].get("real_name", user_info["user"].get("name", user_id))
+                            except:
+                                pass
+                        
+                        # Build permalink
+                        ts = message.get("ts", "")
+                        permalink = f"https://slack.com/archives/{channel_id}/p{ts.replace('.', '')}" if ts else ""
+                        
+                        # Determine match type
+                        match_type = "mention" if text_matches else "channel"
+                        
+                        all_messages.append({
+                            "text": text,
+                            "user": user_name,
+                            "channel": channel_name,
+                            "timestamp": ts,
+                            "permalink": permalink,
+                            "date": datetime.fromtimestamp(float(ts)).isoformat() if ts else None,
+                            "match_type": match_type,  # "mention" or "channel"
+                        })
+            except SlackApiError as e:
+                # Skip channels we can't access
+                if e.response["error"] in ["channel_not_found", "not_in_channel"]:
+                    continue
+                # Continue on other errors too
+                continue
+        
+        # Sort by timestamp descending and limit
+        all_messages.sort(key=lambda x: x["timestamp"], reverse=True)
+        all_messages = all_messages[:limit]
+        
+        return {
+            "account_name": account_name,
+            "messages": all_messages,
+            "total": len(all_messages),
+        }
+        
+    except HTTPException:
+        raise
+    except SlackApiError as e:
+        if e.response["error"] == "ratelimited":
+            raise HTTPException(status_code=429, detail="Slack rate limit exceeded. Try again later.")
+        raise HTTPException(status_code=500, detail=f"Slack API error: {e.response['error']}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/slack/health")
+async def slack_health_check():
+    """Check if Slack integration is configured and working."""
+    try:
+        slack_token = os.getenv('SLACK_BOT_TOKEN')
+        if not slack_token:
+            return {"configured": False, "message": "SLACK_BOT_TOKEN not set"}
+        
+        slack = get_slack()
+        response = slack.auth_test()
+        
+        if response["ok"]:
+            return {
+                "configured": True,
+                "connected": True,
+                "team": response.get("team"),
+                "user": response.get("user"),
+            }
+        else:
+            return {"configured": True, "connected": False, "error": "Authentication failed"}
+            
+    except Exception as e:
+        return {"configured": True, "connected": False, "error": str(e)}
 
 if __name__ == "__main__":
     print("🚀 Starting Financial Forecasting API...")

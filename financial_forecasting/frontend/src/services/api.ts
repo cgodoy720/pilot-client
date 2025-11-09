@@ -56,6 +56,9 @@ export const apiService = {
   getOpportunities: (params?: { stage?: string; limit?: number }) =>
     api.get('/api/salesforce/opportunities', { params }),
   
+  createOpportunity: (data: any) =>
+    api.post('/api/salesforce/opportunities', data),
+  
   updateOpportunity: (opportunityId: string, updates: any) =>
     api.put(`/api/salesforce/opportunities/${opportunityId}`, {
       opportunity_id: opportunityId,
@@ -108,6 +111,13 @@ export const apiService = {
   // Data Sync
   triggerSync: (syncType: 'all' | 'salesforce' | 'intacct' = 'all') =>
     api.post(`/api/sync/trigger?sync_type=${syncType}`),
+
+  // Slack Integration
+  getAccountSlackActivity: (accountName: string, limit: number = 50) =>
+    api.get(`/api/slack/account-activity/${encodeURIComponent(accountName)}`, { params: { limit } }),
+  
+  slackHealthCheck: () =>
+    api.get('/api/slack/health'),
 };
 
 // Export axios instance for custom requests

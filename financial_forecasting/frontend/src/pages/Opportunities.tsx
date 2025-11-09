@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -710,12 +711,27 @@ const Opportunities: React.FC = () => {
   const totalExpected = paymentOpps.reduce((sum: number, opp: Opportunity) => 
     sum + (opp.Amount || 0), 0) || 0;
 
+  const navigate = useNavigate();
+
   return (
     <>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h4">Grant Management</Typography>
+        <Box>
+          <Typography variant="h4">Grant Management</Typography>
+          <Typography variant="body2" color="textSecondary">
+            Manage your pipeline and track closed grants
+          </Typography>
+        </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/opportunities/new')}
+            variant="contained"
+            color="primary"
+          >
+            New Opportunity
+          </Button>
           <Button
             startIcon={<RefreshIcon />}
             onClick={() => queryClient.invalidateQueries('opportunities')}
