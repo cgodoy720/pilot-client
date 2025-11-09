@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle, TrendingUp } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -51,37 +51,25 @@ function DeliverablePanel({
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent side="right" className="w-[400px] sm:w-[500px] flex flex-col p-0 gap-0">
-        {/* Purple Header with Icon */}
-        <div className="bg-pursuit-purple px-6 py-4 flex items-center gap-3">
-          <TrendingUp className="w-6 h-6 text-white" />
-          <h2 className="text-white font-proxima font-semibold text-lg">
+      <SheetContent side="right" className="w-[400px] sm:w-[460px] flex flex-col p-0 gap-0 bg-[#F1F1F1]">
+        {/* Header with title and close button (close button is in SheetContent) */}
+        <div className="px-[25px] py-[20px] flex flex-col gap-[6px]">
+          {/* Deliverable title */}
+          <h2 className="text-[18px] leading-[20px] font-proxima font-bold text-carbon-black">
             Deliverable
           </h2>
-        </div>
-
-        {/* Task Title Section */}
-        <div className="px-6 py-4 border-b border-divider">
-          <div className="flex items-center gap-2">
-            <h3 className="text-carbon-black font-proxima font-semibold text-base flex-1">
-              {task.title || task.task_title}
-            </h3>
+          
+          {/* Separator */}
+          <div className="w-full h-0 border border-carbon-black"></div>
+          
+          {/* Task title */}
+          <h3 className="text-[18px] leading-[20px] font-proxima font-normal text-carbon-black flex items-center gap-2">
+            {task.title || task.task_title}
             {currentSubmission && currentSubmission.task_id === task.id && (
-              <div className="flex items-center gap-1 text-success-green" title="Submitted">
-                <CheckCircle className="w-5 h-5" />
-              </div>
+              <CheckCircle className="w-5 h-5 text-success-green" title="Submitted" />
             )}
-          </div>
+          </h3>
         </div>
-
-        {/* Description Section - Only show for structured submissions (workshops) */}
-        {task.deliverable_schema && task.deliverable && (
-          <div className="px-6 py-4 bg-bg-light border-b border-divider">
-            <p className="text-sm font-proxima text-carbon-black/80 leading-relaxed">
-              {task.deliverable}
-            </p>
-          </div>
-        )}
 
         {/* Body - Dynamic submission form */}
         <div className="flex-1 overflow-y-auto">
@@ -93,4 +81,5 @@ function DeliverablePanel({
 }
 
 export default DeliverablePanel;
+
 

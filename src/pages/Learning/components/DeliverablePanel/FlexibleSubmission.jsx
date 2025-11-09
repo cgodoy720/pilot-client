@@ -3,6 +3,7 @@ import { Button } from '../../../../components/ui/button';
 import { Textarea } from '../../../../components/ui/textarea';
 import { Input } from '../../../../components/ui/input';
 import { Loader2, ExternalLink, AlertCircle } from 'lucide-react';
+import { cn } from '../../../../lib/utils';
 
 function FlexibleSubmission({ task, currentSubmission, isSubmitting, isLocked, onSubmit }) {
   const [submissionType, setSubmissionType] = useState('link');
@@ -123,109 +124,70 @@ function FlexibleSubmission({ task, currentSubmission, isSubmitting, isLocked, o
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-        {/* Type Selector - Styled like Figma */}
-        <div className="space-y-3">
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleTypeChange('link')}
-              disabled={isLocked}
-              className={`flex-1 px-4 py-2 rounded-md font-proxima text-sm font-medium transition-colors ${
-                submissionType === 'link'
-                  ? 'bg-pursuit-purple text-white'
-                  : 'bg-gray-100 text-carbon-black hover:bg-gray-200'
-              } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              Link
-            </button>
-            <button
-              onClick={() => handleTypeChange('text')}
-              disabled={isLocked}
-              className={`flex-1 px-4 py-2 rounded-md font-proxima text-sm font-medium transition-colors ${
-                submissionType === 'text'
-                  ? 'bg-pursuit-purple text-white'
-                  : 'bg-gray-100 text-carbon-black hover:bg-gray-200'
-              } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              Upload
-            </button>
-          </div>
-        </div>
+    <div className="flex flex-col h-full bg-[#F1F1F1]">
+      {/* Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto px-[25px] py-[20px]">
+        <div className="flex flex-col gap-[25px] w-full">
+          
+          {/* Deliverable explanation */}
+          <div className="flex flex-col gap-[40px]">
+            <div className="text-[18px] leading-[26px] font-proxima font-normal text-carbon-black">
+              {task.deliverable || 'Deliverable explanation and instructions go here. Lorem ipsum dolor sit amet, consectetur adipiscing elit.'}
+            </div>
 
-        {/* Content Input Area */}
-        <div className="space-y-3">
-          {submissionType === 'text' ? (
-            <div className="space-y-2">
-              <Textarea
-                value={content}
-                onChange={(e) => handleContentChange(e.target.value)}
-                placeholder="Enter your text submission here..."
-                rows={8}
-                disabled={isLocked || isSubmitting}
-                className="resize-none font-proxima text-sm"
-              />
-            </div>
-          ) : submissionType === 'video' ? (
-            <div className="space-y-3">
-              <Input
-                type="url"
-                value={content}
-                onChange={(e) => handleContentChange(e.target.value)}
-                placeholder="Paste your Loom video URL here (e.g., https://loom.com/share/...)"
-                disabled={isLocked || isSubmitting}
-                className="font-proxima text-sm"
-              />
-              
-              {content && !isValidUrl(content) && (
-                <div className="flex items-start gap-2 text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-3">
-                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs font-proxima">Please enter a valid URL</p>
-                </div>
-              )}
-              
-              {content && isValidUrl(content) && !isLoomUrl(content) && (
-                <div className="flex items-start gap-2 text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-3">
-                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs font-proxima">Please enter a Loom video URL (loom.com)</p>
-                </div>
-              )}
-              
-              {content && isValidUrl(content) && isLoomUrl(content) && (
-                <div className="space-y-3">
-                  <div className="aspect-video bg-carbon-black/5 rounded-lg overflow-hidden">
-                    <iframe 
-                      src={content.includes('/share/') ? content.replace('/share/', '/embed/') : content} 
-                      frameBorder="0" 
-                      allowFullScreen
-                      className="w-full h-full"
-                      title="Loom video preview"
-                    ></iframe>
-                  </div>
-                  <a 
-                    href={content} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="inline-flex items-center gap-2 text-xs text-pursuit-purple hover:text-pursuit-purple/80 font-proxima"
-                  >
-                    View Loom video in new tab
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <Input
-                type="url"
-                value={content}
-                onChange={(e) => handleContentChange(e.target.value)}
-                placeholder="Copy and paste your link here..."
-                disabled={isLocked || isSubmitting}
-                className="font-proxima text-sm"
-              />
-              
-              {content && !isValidUrl(content) && (
+            {/* Upload Unit */}
+            <div className="flex flex-col gap-[15px]">
+              {/* Toggle Button Group */}
+              <div className="flex items-center w-[140px] h-[28px] bg-[#E3E3E3] rounded-[100px] shadow-[inset_0px_2px_4px_rgba(0,0,0,0.15)]">
+                <button
+                  onClick={() => handleTypeChange('link')}
+                  disabled={isLocked}
+                  className={`flex items-center justify-center px-[15px] py-[10px] h-[28px] rounded-[100px] transition-colors font-proxima text-[16px] leading-[18px] ${
+                    submissionType === 'link'
+                      ? 'bg-pursuit-purple text-[#F1F1F1]'
+                      : 'bg-transparent text-carbon-black'
+                  } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  Link
+                </button>
+                <button
+                  onClick={() => handleTypeChange('text')}
+                  disabled={isLocked}
+                  className={`flex items-center justify-center px-[15px] py-[10px] h-[28px] rounded-[100px] transition-colors font-proxima text-[16px] leading-[18px] ${
+                    submissionType === 'text'
+                      ? 'bg-pursuit-purple text-[#F1F1F1]'
+                      : 'bg-transparent text-carbon-black'
+                  } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  Upload
+                </button>
+              </div>
+
+              {/* Input Field */}
+              <div className="relative w-full">
+                {submissionType === 'text' ? (
+                  <Textarea
+                    value={content}
+                    onChange={(e) => handleContentChange(e.target.value)}
+                    placeholder="Enter your text submission here..."
+                    rows={5}
+                    disabled={isLocked || isSubmitting}
+                    className="w-full px-[11px] py-[4px] bg-white rounded-[10px] text-[18px] leading-[26px] font-proxima font-normal text-carbon-black placeholder:text-divider border-0 focus:outline-none focus:ring-2 focus:ring-pursuit-purple/20 resize-none"
+                  />
+                ) : (
+                  <Input
+                    type="url"
+                    value={content}
+                    onChange={(e) => handleContentChange(e.target.value)}
+                    placeholder="Copy and paste your link here..."
+                    disabled={isLocked || isSubmitting}
+                    className="w-full h-[35px] px-[11px] py-[4px] bg-white rounded-[10px] text-[18px] leading-[26px] font-proxima font-normal text-carbon-black placeholder:text-divider border-0 focus:outline-none focus:ring-2 focus:ring-pursuit-purple/20"
+                  />
+                )}
+              </div>
+
+              {/* Validation messages */}
+              {content && !isValidUrl(content) && (submissionType === 'link' || submissionType === 'video') && (
                 <div className="flex items-start gap-2 text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-3">
                   <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <p className="text-xs font-proxima">Please enter a valid URL</p>
@@ -244,68 +206,50 @@ function FlexibleSubmission({ task, currentSubmission, isSubmitting, isLocked, o
                 </a>
               )}
             </div>
+
+            {/* Submission with Check Mark */}
+            <div className="flex flex-col gap-[10px]">
+              {/* Check Mark with Question */}
+              <div className="flex items-center gap-[7px]">
+                <div className="flex items-center justify-center w-[16px] h-[16px] bg-white border border-white rounded-[10px]">
+                  {/* Checkbox visual */}
+                </div>
+                <p className="text-[18px] leading-[20px] font-proxima font-normal text-carbon-black">
+                  Did you give us permission?
+                </p>
+              </div>
+
+              {/* Button - Styled like Submit button from Figma */}
+              <Button
+                onClick={handleSubmit}
+                disabled={!isFormComplete() || isSubmitting || isLocked}
+                className={cn(
+                  "flex items-center justify-center px-[20px] py-[5px] h-[32px] bg-white rounded-[100px]",
+                  "text-[16px] leading-[18px] font-proxima font-normal text-[#F1F1F1]",
+                  "hover:bg-white/90 transition-colors"
+                )}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit'
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Validation Error */}
+          {validationError && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-3">
+              <p className="text-xs text-red-600 font-proxima">
+                {validationError}
+              </p>
+            </div>
           )}
         </div>
-
-        {/* Permission Question - Like in Figma */}
-        <div className="space-y-3 pt-2">
-          <p className="text-sm font-proxima text-carbon-black font-medium">
-            Did you give us permission?
-          </p>
-          <div className="flex gap-3">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="permission"
-                value="yes"
-                checked={hasPermission === 'yes'}
-                onChange={(e) => setHasPermission(e.target.value)}
-                disabled={isLocked || isSubmitting}
-                className="w-4 h-4 text-pursuit-purple focus:ring-pursuit-purple"
-              />
-              <span className="text-sm font-proxima text-carbon-black">Yes</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="permission"
-                value="no"
-                checked={hasPermission === 'no'}
-                onChange={(e) => setHasPermission(e.target.value)}
-                disabled={isLocked || isSubmitting}
-                className="w-4 h-4 text-pursuit-purple focus:ring-pursuit-purple"
-              />
-              <span className="text-sm font-proxima text-carbon-black">No</span>
-            </label>
-          </div>
-        </div>
-
-        {/* Validation Error */}
-        {validationError && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-3">
-            <p className="text-xs text-red-600 font-proxima">
-              {validationError}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Submit Button - Fixed at bottom */}
-      <div className="border-t border-divider px-6 py-4">
-        <Button
-          onClick={handleSubmit}
-          disabled={!isFormComplete() || isSubmitting || isLocked}
-          className="w-full bg-pursuit-purple hover:bg-pursuit-purple/90 text-white font-proxima text-sm"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Submitting...
-            </>
-          ) : (
-            `Submit ${task.deliverable || 'Deliverable'}`
-          )}
-        </Button>
       </div>
     </div>
   );
