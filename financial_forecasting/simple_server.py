@@ -4,20 +4,25 @@ Simplified FastAPI server for Financial Forecasting POC.
 Uses direct Salesforce connection without MCP layer for simplicity.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
 from typing import Any, Dict, List, Optional
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 import uvicorn
 import os
+import secrets
+from jose import jwt, JWTError
 
 from simple_salesforce import Salesforce, SalesforceLogin
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 import requests
-from urllib.parse import urlencode
+from urllib.parse import urlencode, parse_qs
+from authlib.integrations.starlette_client import OAuth
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
@@ -41,6 +46,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Session middleware (required for OAuth)
+SESSION_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SESSION_SECRET_KEY,
+    session_cookie="session",
+    max_age=3600 * 24,  # 24 hours
+    same_site="lax",
+    https_only=False  # Set to True in production with HTTPS
+)
+
 # Global connections
 sf_client: Optional[Salesforce] = None
 slack_client: Optional[WebClient] = None
@@ -49,6 +65,51 @@ slack_client: Optional[WebClient] = None
 # Loaded from .env file
 FIREFLIES_API_KEY = os.getenv('FIREFLIES_API_KEY')
 FIREFLIES_API_URL = "https://api.fireflies.ai/graphql"
+
+# Fireflies cache to avoid hitting rate limits
+# Cache all transcripts for 4 hours (saves to file for persistence)
+FIREFLIES_CACHE_FILE = '/tmp/fireflies_cache.json'
+fireflies_cache = {
+    'transcripts': None,
+    'fetched_at': None,
+    'expires_at': None
+}
+CACHE_DURATION_HOURS = 4  # Increased to reduce API calls
+
+def load_fireflies_cache():
+    """Load cached Fireflies data from disk if available."""
+    global fireflies_cache
+    try:
+        if os.path.exists(FIREFLIES_CACHE_FILE):
+            with open(FIREFLIES_CACHE_FILE, 'r') as f:
+                data = json.load(f)
+                # Convert ISO strings back to datetime
+                if data.get('fetched_at'):
+                    data['fetched_at'] = datetime.fromisoformat(data['fetched_at'])
+                if data.get('expires_at'):
+                    data['expires_at'] = datetime.fromisoformat(data['expires_at'])
+                fireflies_cache.update(data)
+                print(f"Loaded {len(data.get('transcripts', []))} cached Fireflies meetings from disk (expires: {data.get('expires_at')})")
+    except Exception as e:
+        print(f"Error loading Fireflies cache: {e}")
+
+def save_fireflies_cache():
+    """Save Fireflies cache to disk for persistence across restarts."""
+    try:
+        data = fireflies_cache.copy()
+        # Convert datetime to ISO strings for JSON serialization
+        if data.get('fetched_at'):
+            data['fetched_at'] = data['fetched_at'].isoformat()
+        if data.get('expires_at'):
+            data['expires_at'] = data['expires_at'].isoformat()
+        with open(FIREFLIES_CACHE_FILE, 'w') as f:
+            json.dump(data, f)
+        print(f"Saved {len(fireflies_cache.get('transcripts', []))} Fireflies meetings to disk cache")
+    except Exception as e:
+        print(f"Error saving Fireflies cache: {e}")
+
+# Load cache on startup
+load_fireflies_cache()
 
 def get_salesforce():
     """Get or create Salesforce connection."""
@@ -72,6 +133,46 @@ def get_slack():
         slack_client = WebClient(token=slack_token)
     return slack_client
 
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:8000/auth/google/callback')
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION_HOURS = 24
+
+oauth = OAuth()
+oauth.register(
+    name='google',
+    client_id=GOOGLE_CLIENT_ID,
+    client_secret=GOOGLE_CLIENT_SECRET,
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid email profile'}
+)
+
+def create_access_token(data: dict) -> str:
+    """Create JWT access token."""
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    return encoded_jwt
+
+def verify_token(token: str) -> Optional[Dict]:
+    """Verify JWT token and return payload."""
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        return payload
+    except JWTError:
+        return None
+
+async def get_current_user(request: Request) -> Optional[Dict]:
+    """Get current authenticated user from cookie."""
+    token = request.cookies.get("access_token")
+    if not token:
+        return None
+    return verify_token(token)
+
 # Request/Response Models
 class OpportunityUpdate(BaseModel):
     updates: Dict[str, Any]
@@ -82,6 +183,66 @@ class OpportunityUpdate(BaseModel):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow()}
+
+# ============================================================================
+# AUTHENTICATION ENDPOINTS
+# ============================================================================
+
+@app.get("/auth/google")
+async def auth_google(request: Request):
+    """Initiate Google OAuth flow."""
+    redirect_uri = GOOGLE_REDIRECT_URI
+    return await oauth.google.authorize_redirect(request, redirect_uri)
+
+@app.get("/auth/google/callback")
+async def auth_google_callback(request: Request, response: Response):
+    """Handle Google OAuth callback."""
+    try:
+        # Get access token from Google
+        token = await oauth.google.authorize_access_token(request)
+        
+        # Get user info from Google
+        user_info = token.get('userinfo')
+        if not user_info:
+            raise HTTPException(status_code=400, detail="Failed to get user info from Google")
+        
+        # Create JWT token with user data
+        access_token = create_access_token({
+            "email": user_info['email'],
+            "name": user_info.get('name', ''),
+            "picture": user_info.get('picture', ''),
+            "sub": user_info['sub']
+        })
+        
+        # Set cookie with token
+        response = RedirectResponse(url="http://localhost:3000/dashboard")
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            max_age=JWT_EXPIRATION_HOURS * 3600,
+            samesite="lax"
+        )
+        
+        return response
+        
+    except Exception as e:
+        print(f"OAuth callback error: {e}")
+        return RedirectResponse(url="http://localhost:3000/login?error=auth_failed")
+
+@app.get("/auth/me")
+async def get_me(request: Request):
+    """Get current authenticated user."""
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
+@app.post("/auth/logout")
+async def logout(response: Response):
+    """Logout user by clearing the auth cookie."""
+    response.delete_cookie("access_token")
+    return {"message": "Logged out successfully"}
 
 @app.get("/health/services")
 async def services_health():
@@ -119,7 +280,8 @@ async def get_opportunities(stage: Optional[str] = None):
                Description, OwnerId, Owner.Name, CreatedDate, LastModifiedDate,
                npe01__Payments_Made__c, Outstanding_Payments__c, 
                Number_of_Payments_Received__c, Most_Recent_Payment_Date__c,
-               Last_Actual_Payment__c, npe01__Number_of_Payments__c
+               Last_Actual_Payment__c, npe01__Number_of_Payments__c,
+               PaymentDate__c, Earliest_Scheduled_Payment__c
         FROM Opportunity
         """
         
@@ -685,38 +847,80 @@ async def get_account_fireflies_meetings(account_name: str, limit: int = 20):
                     if contact.get('Name'):
                         contact_names.append(contact['Name'].lower())
         
-        # Query Fireflies for transcripts
-        # Get recent transcripts (Fireflies max limit is 50)
-        query = f"""
-        query {{
-          transcripts(limit: 50) {{
-            id
-            title
-            date
-            duration
-            meeting_attendees {{
-              displayName
-              email
-            }}
-            sentences {{
-              text
-            }}
-            summary {{
-              keywords
-              action_items
-              overview
-            }}
-          }}
-        }}
-        """
+        # Query Fireflies for ALL transcripts using pagination with caching
+        # Check if we have cached transcripts that are still valid
+        global fireflies_cache
+        now = datetime.now()
         
-        # Fetch more than needed so we can filter
-        result = query_fireflies(query)
-        
-        if "errors" in result:
-            raise HTTPException(status_code=500, detail=f"Fireflies API error: {result['errors']}")
-        
-        transcripts = result.get("data", {}).get("transcripts", [])
+        if (fireflies_cache['transcripts'] is not None and 
+            fireflies_cache['expires_at'] is not None and 
+            now < fireflies_cache['expires_at']):
+            print(f"Using cached Fireflies transcripts ({len(fireflies_cache['transcripts'])} meetings)")
+            transcripts = fireflies_cache['transcripts']
+        else:
+            # Cache expired or doesn't exist - fetch all transcripts
+            all_transcripts = []
+            skip = 0
+            limit = 50
+            max_requests = 100  # Safety limit to prevent infinite loops (5000 meetings max)
+            
+            print(f"Fetching all Fireflies transcripts for {account_name}...")
+            
+            for request_num in range(max_requests):
+                query = f"""
+                query {{
+                  transcripts(limit: {limit}, skip: {skip}) {{
+                    id
+                    title
+                    date
+                    duration
+                    meeting_attendees {{
+                      displayName
+                      email
+                    }}
+                    sentences {{
+                      text
+                    }}
+                    summary {{
+                      keywords
+                      action_items
+                      overview
+                    }}
+                  }}
+                }}
+                """
+                
+                result = query_fireflies(query)
+                
+                if "errors" in result:
+                    raise HTTPException(status_code=500, detail=f"Fireflies API error: {result['errors']}")
+                
+                batch_transcripts = result.get("data", {}).get("transcripts", [])
+                
+                if not batch_transcripts or len(batch_transcripts) == 0:
+                    # No more transcripts to fetch
+                    print(f"No more transcripts. Fetched {len(all_transcripts)} total meetings.")
+                    break
+                
+                all_transcripts.extend(batch_transcripts)
+                print(f"Fetched batch {request_num + 1}: {len(batch_transcripts)} meetings (total: {len(all_transcripts)})")
+                
+                if len(batch_transcripts) < limit:
+                    # Last page - fewer results than limit means we're done
+                    print(f"Last page reached. Total meetings: {len(all_transcripts)}")
+                    break
+                
+                skip += limit
+            
+            transcripts = all_transcripts
+            print(f"Total transcripts fetched: {len(transcripts)}")
+            
+            # Update cache in memory and save to disk
+            fireflies_cache['transcripts'] = transcripts
+            fireflies_cache['fetched_at'] = now
+            fireflies_cache['expires_at'] = now + timedelta(hours=CACHE_DURATION_HOURS)
+            print(f"Cached transcripts until {fireflies_cache['expires_at']}")
+            save_fireflies_cache()  # Persist to disk
         
         # Match transcripts to account
         matched_meetings = []
@@ -844,13 +1048,38 @@ async def get_account_fireflies_meetings(account_name: str, limit: int = 20):
         return {
             'account_name': account_name,
             'meetings': matched_meetings,
-            'total': len(matched_meetings)
+            'total': len(matched_meetings),
+            'cache_info': {
+                'using_cache': fireflies_cache.get('transcripts') is not None,
+                'total_cached': len(fireflies_cache.get('transcripts', [])),
+                'expires_at': fireflies_cache.get('expires_at').isoformat() if fireflies_cache.get('expires_at') else None
+            }
         }
         
     except HTTPException:
         raise
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Fireflies API request failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/fireflies/refresh-cache")
+async def refresh_fireflies_cache():
+    """Manually refresh the Fireflies cache (force re-fetch from API)."""
+    global fireflies_cache
+    try:
+        # Clear cache to force refresh
+        fireflies_cache['transcripts'] = None
+        fireflies_cache['fetched_at'] = None
+        fireflies_cache['expires_at'] = None
+        
+        print("Manual cache refresh requested - cache cleared")
+        
+        return {
+            'success': True,
+            'message': 'Cache cleared. Next account request will fetch fresh data from Fireflies.',
+            'note': 'This may take 10-15 seconds for the first request after refresh.'
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -887,7 +1116,13 @@ async def fireflies_health_check():
             "connected": True,
             "message": "Fireflies API is working",
             "sample_meeting": result.get("data", {}).get("transcripts", [{}])[0] if result.get("data", {}).get("transcripts") else None,
-            "api_key_preview": f"{FIREFLIES_API_KEY[:10]}...{FIREFLIES_API_KEY[-4:]}"
+            "api_key_preview": f"{FIREFLIES_API_KEY[:10]}...{FIREFLIES_API_KEY[-4:]}",
+            "cache_info": {
+                "cached": fireflies_cache.get('transcripts') is not None,
+                "total_cached_meetings": len(fireflies_cache.get('transcripts', [])),
+                "expires_at": fireflies_cache.get('expires_at').isoformat() if fireflies_cache.get('expires_at') else None,
+                "cache_duration_hours": CACHE_DURATION_HOURS
+            }
         }
             
     except requests.exceptions.HTTPError as e:

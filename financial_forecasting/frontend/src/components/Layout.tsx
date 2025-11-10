@@ -39,6 +39,7 @@ import { useQuery } from 'react-query';
 import toast from 'react-hot-toast';
 
 import { apiService } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const drawerWidth = 240;
 
@@ -62,6 +63,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -243,9 +245,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             color="inherit"
             onClick={handleProfileMenuOpen}
           >
-            <Avatar sx={{ width: 32, height: 32, bgcolor: theme.palette.primary.main }}>
-              <AccountCircleIcon />
-            </Avatar>
+            {user?.picture ? (
+              <Avatar src={user.picture} sx={{ width: 32, height: 32 }} />
+            ) : (
+              <Avatar sx={{ width: 32, height: 32, bgcolor: theme.palette.primary.main }}>
+                {user?.name?.charAt(0) || <AccountCircleIcon />}
+              </Avatar>
+            )}
           </IconButton>
           <Menu
             anchorEl={anchorEl}
@@ -260,14 +266,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               horizontal: 'right',
             }}
           >
-            <MenuItem onClick={handleProfileMenuClose}>
-              <Typography variant="body2" color="text.secondary">
-                Demo User
+            <Box sx={{ px: 2, py: 1.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                {user?.name || 'User'}
               </Typography>
-            </MenuItem>
+              <Typography variant="body2" color="text.secondary">
+                {user?.email || 'No email'}
+              </Typography>
+            </Box>
             <Divider />
-            <MenuItem onClick={() => navigate('/settings')}>Settings</MenuItem>
-            <MenuItem onClick={handleProfileMenuClose}>Logout</MenuItem>
+            <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/settings'); }}>
+              Settings
+            </MenuItem>
+            <MenuItem onClick={() => { handleProfileMenuClose(); logout(); }}>
+              Logout
+            </MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>

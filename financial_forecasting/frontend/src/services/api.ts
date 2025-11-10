@@ -11,6 +11,7 @@ const api: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Include cookies in requests
 });
 
 // Request interceptor for adding auth token
@@ -146,6 +147,13 @@ export const apiService = {
   
   firefliesHealthCheck: () =>
     api.get('/api/fireflies/health'),
+
+  // Authentication
+  getCurrentUser: () =>
+    api.get('/auth/me'),
+  
+  logout: () =>
+    api.post('/auth/logout'),
 };
 
 // Export axios instance for custom requests
