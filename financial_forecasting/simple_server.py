@@ -150,6 +150,7 @@ def get_slack():
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:8000/auth/google/callback')
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')  # Frontend URL for redirects
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
@@ -228,7 +229,7 @@ async def auth_google_callback(request: Request, response: Response):
         })
         
         # Set cookie with token
-        response = RedirectResponse(url="http://localhost:3000/dashboard")
+        response = RedirectResponse(url=f"{FRONTEND_URL}/dashboard")
         response.set_cookie(
             key="access_token",
             value=access_token,
@@ -241,7 +242,7 @@ async def auth_google_callback(request: Request, response: Response):
         
     except Exception as e:
         print(f"OAuth callback error: {e}")
-        return RedirectResponse(url="http://localhost:3000/login?error=auth_failed")
+        return RedirectResponse(url=f"{FRONTEND_URL}/login?error=auth_failed")
 
 @app.get("/auth/me")
 async def get_me(request: Request):
