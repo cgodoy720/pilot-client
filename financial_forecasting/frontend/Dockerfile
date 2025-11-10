@@ -15,12 +15,30 @@ RUN npm install --legacy-peer-deps
 # Copy source code
 COPY . .
 
-# Accept build argument for API URL
+# Debug: Show if .env.production exists
+RUN echo "=== Checking for .env.production ===" && \
+    if [ -f .env.production ]; then \
+        echo "✅ .env.production EXISTS:" && cat .env.production; \
+    else \
+        echo "❌ .env.production NOT FOUND"; \
+    fi
+
+# Set NODE_ENV to production so React uses .env.production
+ENV NODE_ENV=production
+
+# Accept build argument for API URL (fallback if .env.production doesn't work)
 ARG REACT_APP_API_URL=http://localhost:8000
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
+# Debug: Show what REACT_APP_API_URL is set to
+RUN echo "=== REACT_APP_API_URL is set to: $REACT_APP_API_URL ==="
+
 # Build the React app for production
 RUN npm run build
+
+# Debug: Check what's in the built files
+RUN echo "=== Checking built files for localhost ===" && \
+    grep -r "localhost:8000\|localhost:3000" build/static/js/*.js | head -5 || echo "No localhost found in JS files"
 
 # Stage 2: Serve with nginx
 FROM nginx:alpine
