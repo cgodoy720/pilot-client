@@ -150,7 +150,9 @@ def get_slack():
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:8000/auth/google/callback')
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')  # Frontend URL for redirects
+# FRONTEND_URL already defined above (line 48) - don't redefine it here
+if not FRONTEND_URL:  # If not set for CORS, set default for OAuth
+    FRONTEND_URL = 'http://localhost:3000'
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
