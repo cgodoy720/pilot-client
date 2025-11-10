@@ -818,13 +818,6 @@ const Opportunities: React.FC = () => {
     },
   ];
 
-  // Calculate summary metrics from FILTERED pipeline opportunities (not all opportunities)
-  const totalPipeline = pipelineOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + (opp.Amount || 0), 0) || 0;
-  
-  const weightedPipeline = pipelineOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + ((opp.Amount || 0) * (opp.Probability || 0) / 100), 0) || 0;
-
   // Split opportunities into Pipeline (open) and Payments (closed/won)
   // Payment Tracking: Won/Completed/Collection stages (any stage with payment activity)
   const paymentOpps = opportunities?.filter((opp: Opportunity) => {
@@ -888,6 +881,13 @@ const Opportunities: React.FC = () => {
   
   const totalExpected = paymentOpps.reduce((sum: number, opp: Opportunity) => 
     sum + (opp.Amount || 0), 0) || 0;
+
+  // Calculate summary metrics from FILTERED pipeline opportunities (not all opportunities)
+  const totalPipeline = pipelineOpps.reduce((sum: number, opp: Opportunity) => 
+    sum + (opp.Amount || 0), 0) || 0;
+  
+  const weightedPipeline = pipelineOpps.reduce((sum: number, opp: Opportunity) => 
+    sum + ((opp.Amount || 0) * (opp.Probability || 0) / 100), 0) || 0;
 
   return (
     <>
