@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { formatDollarMillions } from '../utils/formatters';
 import {
   Box,
@@ -42,7 +42,7 @@ import {
 } from '@mui/x-data-grid';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
-import { format, addDays } from 'date-fns';
+import { format, addDays, parseISO, differenceInDays } from 'date-fns';
 
 import { apiService } from '../services/api';
 
@@ -182,6 +182,9 @@ function OwnerEditCell(props: GridRenderEditCellParams) {
 }
 
 const Opportunities: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
   const [editForm, setEditForm] = useState<any>({});
@@ -190,6 +193,7 @@ const Opportunities: React.FC = () => {
   const recentlyChangedRef = useRef<Set<string>>(new Set());
   const [filteredPipelineRows, setFilteredPipelineRows] = useState<Opportunity[]>([]);
   const [filteredPaymentRows, setFilteredPaymentRows] = useState<Opportunity[]>([]);
+  const [initialFilter, setInitialFilter] = useState<'atRisk' | 'stale' | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -228,6 +232,20 @@ const Opportunities: React.FC = () => {
       staleTime: 300000, // Cache for 5 minutes
     }
   );
+
+  // Handle incoming filter from Dashboard
+  useEffect(() => {
+    const state = location.state as { filterAtRisk?: boolean; filterStale?: boolean } | null;
+    if (state) {
+      if (state.filterAtRisk) {
+        setInitialFilter('atRisk');
+      } else if (state.filterStale) {
+        setInitialFilter('stale');
+      }
+      // Clear the state so it doesn't persist on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state]);
 
   // Update opportunity mutation
   const updateMutation = useMutation(
@@ -380,7 +398,11 @@ const Opportunities: React.FC = () => {
       flex: 1,
       minWidth: 150,
       editable: true,
-      valueGetter: (params: GridValueGetterParams) => params.row.OwnerId,
+      valueGetter: (params: GridValueGetterParams) => {
+        // Return the owner's name for filtering to work correctly
+        const user = users?.find((u: any) => u.Id === params.row.OwnerId);
+        return user?.Name || params.row.Owner?.Name || 'Unassigned';
+      },
       renderCell: (params: GridRenderCellParams) => {
         const user = users?.find((u: any) => u.Id === params.row.OwnerId);
         return user?.Name || params.row.Owner?.Name || 'Unassigned';
@@ -592,7 +614,11 @@ const Opportunities: React.FC = () => {
       headerName: 'Funder',
       flex: 1.3,
       minWidth: 180,
-      valueGetter: (params: GridValueGetterParams) => params.row.AccountId,
+      valueGetter: (params: GridValueGetterParams) => {
+        // Return the account name for filtering to work correctly
+        const account = accounts?.find((acc: any) => acc.Id === params.row.AccountId);
+        return account?.Name || params.row.Account?.Name || 'Unknown';
+      },
       renderCell: (params: GridRenderCellParams) => {
         const account = accounts?.find((acc: any) => acc.Id === params.row.AccountId);
         return account?.Name || params.row.Account?.Name || 'Unknown';
@@ -792,11 +818,11 @@ const Opportunities: React.FC = () => {
     },
   ];
 
-  // Calculate summary metrics
-  const totalPipeline = opportunities?.reduce((sum: number, opp: Opportunity) => 
+  // Calculate summary metrics from FILTERED pipeline opportunities (not all opportunities)
+  const totalPipeline = pipelineOpps.reduce((sum: number, opp: Opportunity) => 
     sum + (opp.Amount || 0), 0) || 0;
   
-  const weightedPipeline = opportunities?.reduce((sum: number, opp: Opportunity) => 
+  const weightedPipeline = pipelineOpps.reduce((sum: number, opp: Opportunity) => 
     sum + ((opp.Amount || 0) * (opp.Probability || 0) / 100), 0) || 0;
 
   // Split opportunities into Pipeline (open) and Payments (closed/won)
@@ -812,7 +838,7 @@ const Opportunities: React.FC = () => {
 
   // Pipeline: Only include stages actively being pursued
   // Also keep recently changed opportunities visible for 5 seconds
-  const pipelineOpps = opportunities?.filter((opp: Opportunity) => {
+  let pipelineOpps = opportunities?.filter((opp: Opportunity) => {
     const isOpen = OPEN_STAGES.includes(opp.StageName);
     const inRecentSet = recentlyChangedIds.has(opp.Id);
     const inRecentRef = recentlyChangedRef.current.has(opp.Id);
@@ -826,6 +852,34 @@ const Opportunities: React.FC = () => {
     return shouldInclude;
   }) || [];
 
+  // Apply additional filters from Dashboard navigation
+  if (initialFilter === 'atRisk') {
+    const now = new Date();
+    const currentQuarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+    const currentQuarterEnd = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 0);
+    
+    pipelineOpps = pipelineOpps.filter((opp: Opportunity) => {
+      if (!opp.CloseDate) return false;
+      const closeDate = parseISO(opp.CloseDate);
+      const inCurrentQuarter = closeDate >= currentQuarterStart && closeDate <= currentQuarterEnd;
+      const atRisk = (opp.Probability || 0) < 50 || ['Lead Gen', 'New Lead', 'Qualifying'].includes(opp.StageName || '');
+      return inCurrentQuarter && atRisk;
+    });
+  } else if (initialFilter === 'stale') {
+    const now = new Date();
+    pipelineOpps = pipelineOpps.filter((opp: Opportunity) => {
+      if (!opp.CloseDate) return false;
+      const closeDate = parseISO(opp.CloseDate);
+      const isPastDue = closeDate < now;
+      
+      const lastModified = opp.LastModifiedDate ? parseISO(opp.LastModifiedDate) : parseISO(opp.CreatedDate);
+      const daysSinceUpdate = differenceInDays(now, lastModified);
+      const notUpdated = daysSinceUpdate > 30;
+      
+      return isPastDue || notUpdated;
+    });
+  }
+
   const totalPaymentsReceived = paymentOpps.reduce((sum: number, opp: Opportunity) => 
     sum + (opp.npe01__Payments_Made__c || 0), 0) || 0;
 
@@ -834,8 +888,6 @@ const Opportunities: React.FC = () => {
   
   const totalExpected = paymentOpps.reduce((sum: number, opp: Opportunity) => 
     sum + (opp.Amount || 0), 0) || 0;
-
-  const navigate = useNavigate();
 
   return (
     <>
@@ -889,6 +941,26 @@ const Opportunities: React.FC = () => {
           />
         </Tabs>
       </Box>
+
+      {/* Filter Alert */}
+      {initialFilter && (
+        <Alert 
+          severity="warning" 
+          sx={{ mb: 3 }}
+          onClose={() => setInitialFilter(null)}
+        >
+          {initialFilter === 'atRisk' && (
+            <>
+              <strong>Showing At-Risk Deals Only:</strong> Current quarter opportunities with low probability (&lt;50%) or early stage.
+            </>
+          )}
+          {initialFilter === 'stale' && (
+            <>
+              <strong>Showing Stale Opportunities Only:</strong> Opportunities that are past due or haven't been updated in 30+ days.
+            </>
+          )}
+        </Alert>
+      )}
 
       {/* Inline Editing Hint */}
       {activeTab === 0 && (
