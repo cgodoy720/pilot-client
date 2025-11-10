@@ -95,6 +95,15 @@
     }
   }
 
+  @keyframes curtain-reveal {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+
   @keyframes fade-out {
     from {
       opacity: 1;
@@ -110,6 +119,10 @@
 
   .animate-out {
     animation: fade-out 0.3s ease-in;
+  }
+
+  .animate-curtain-reveal {
+    animation: curtain-reveal 0.6s ease-out;
   }
 
   .animate-slide-in-right {

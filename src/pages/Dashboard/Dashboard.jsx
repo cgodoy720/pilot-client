@@ -908,14 +908,19 @@ function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-foreground">Loading dashboard data...</div>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <img 
+          src="/preloader.gif" 
+          alt="Loading..." 
+          className="w-32 h-32"
+        />
       </div>
     );
   }
 
   return (
-    <>
+    <div className="animate-curtain-reveal">
+      <>
       {error && (
         <div className="p-4 mx-6 mt-6 bg-destructive/10 border border-destructive/20 rounded-lg">
           <p className="text-destructive text-sm">{error}</p>
@@ -934,6 +939,7 @@ function Dashboard() {
         onNavigateToDay={handleNavigateToDay}
       />
     </>
+    </div>
   );
 }
 
