@@ -13,7 +13,7 @@ const CarouselHero = () => {
       person: "Larry Lamouth",
       role: "Cyber Security Analyst",
       company: "Blackstone",
-      objectPosition: 'center top'
+      objectPosition: 'center 30%'
     },
     {
       id: 2,
@@ -22,16 +22,16 @@ const CarouselHero = () => {
       person: "Chantal Rodriguez",
       role: "AI Engineer",
       company: "Microsoft",
-      objectPosition: 'center center'
+      objectPosition: 'center 40%'
     },
     {
       id: 3,
-      image: '/photos/ted-talk.jpg',
+      image: '/photos/pilot-class.jpg',
       title: "Your career transformation begins here.",
-      person: "Marcus Johnson",
-      role: "Data Scientist", 
-      company: "Google",
-      objectPosition: 'center center'
+      person: "Pilot Cohort",
+      role: "Builders", 
+      company: "Pursuit AI-Native Program",
+      objectPosition: 'center 40%'
     }
   ];
 
@@ -67,9 +67,9 @@ const CarouselHero = () => {
   return (
     <div className="relative h-full bg-carbon-black flex flex-col">
       {/* Hero Image Container */}
-      <div className="relative overflow-hidden p-[60px] pb-0" style={{ height: 'calc(100% - 150px)' }}>
+      <div className="relative overflow-hidden px-[60px] pt-[40px] pb-0 flex justify-center" style={{ height: 'calc(100% - 100px)' }}>
         {/* Background Image with Overlay */}
-        <div className="relative w-full h-full rounded-[30px] overflow-hidden shadow-[4px_4px_20px_rgba(0,0,0,0.25)]">
+        <div className="relative h-full w-[85%] rounded-[30px] overflow-hidden">
           {/* Render all images, only show current one */}
           {slides.map((slide, index) => (
             <div 
@@ -94,55 +94,58 @@ const CarouselHero = () => {
         </div>
       </div>
 
-      {/* Text Content Overlay - Outside image container */}
-      <div className="absolute bottom-[100px] left-[40px] z-10">
+      {/* Text Content Overlay - Below carousel */}
+      <div className="absolute bottom-[30px] left-[40px] z-10">
         {/* Main Headline */}
-        <h1 className="text-white font-bold font-proxima text-3xl md:text-4xl lg:text-5xl leading-[70px] mb-4 max-w-[598px]">
+        <h1 className="text-white font-proxima-bold text-[3.5rem] leading-none mb-[70px] max-w-[525px]">
           {slides[currentSlide].title}
         </h1>
         
         {/* Person Info - Stacked vertically */}
         <div className="text-white space-y-0">
-          <p className="font-bold font-proxima text-base leading-5">
+          <p className="font-proxima-bold text-base leading-5">
             {slides[currentSlide].person}
           </p>
-          <p className="font-bold font-proxima text-base leading-5">
+          <p className="font-proxima text-base leading-5">
             {slides[currentSlide].role}
           </p>
-          <p className="font-bold font-proxima text-base leading-5">
+          <p className="font-proxima text-base leading-5">
             {slides[currentSlide].company}
           </p>
         </div>
       </div>
 
-      {/* Bottom Section with Progress Indicators and Logo */}
-      <div className="absolute bottom-0 left-0 right-0 flex justify-between items-end px-[40px] py-[30px]">
+      {/* Bottom Section with Progress Indicators - Right Corner */}
+      <div className="absolute bottom-0 right-0 flex justify-end items-end px-[40px] py-[30px]">
         {/* Progress Bar Breadcrumbs */}
-        <div className="flex gap-2">
-          {slides.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => goToSlide(index)}
-              className="relative h-2 w-16 bg-white/30 rounded-full overflow-hidden cursor-pointer hover:bg-white/40 transition-colors"
-            >
-              {/* Progress Fill */}
-              <div 
-                className="absolute left-0 top-0 h-full bg-white rounded-full transition-all duration-100 ease-linear"
+        <div className="flex gap-2 items-center">
+          {slides.map((_, index) => {
+            const isActive = index === currentSlide;
+            const isPast = index < currentSlide;
+            
+            return (
+              <button
+                key={index}
+                onClick={() => goToSlide(index)}
+                className={`relative rounded-full overflow-hidden cursor-pointer transition-all duration-300 ${
+                  isActive ? 'w-16 h-2' : 'w-2 h-2'
+                }`}
                 style={{
-                  width: index === currentSlide ? `${progress}%` : index < currentSlide ? '100%' : '0%'
+                  backgroundColor: isPast ? '#4242EA' : '#FFFFFF'
                 }}
-              />
-            </button>
-          ))}
-        </div>
-
-        {/* Pursuit Logo */}
-        <div className="flex-shrink-0">
-          <img 
-            src={logoFull} 
-            alt="Pursuit Logo" 
-            className="h-[71.93px] w-[280px] object-contain"
-          />
+              >
+                {/* Progress Fill for active slide */}
+                {isActive && (
+                  <div 
+                    className="absolute left-0 top-0 h-full bg-pursuit-purple rounded-full transition-all duration-100 ease-linear"
+                    style={{
+                      width: `${progress}%`
+                    }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

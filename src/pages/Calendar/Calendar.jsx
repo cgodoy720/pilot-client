@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import './Calendar.css';
 import { useAuth } from '../../context/AuthContext';
+import CalendarHeader from './components/CalendarHeader';
+import WeekView from './components/WeekView';
+import { ScrollArea } from '../../components/ui/scroll-area';
 
 function Calendar() {
-  const [events, setEvents] = useState([]);
+  const [weeksData, setWeeksData] = useState([]);
+  const [userProgress, setUserProgress] = useState({});
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [currentDayId, setCurrentDayId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const { token, user } = useAuth();
   const navigate = useNavigate();
   const [cohortFilter, setCohortFilter] = useState(null);
 
+  // Fetch all curriculum days and group by week
   useEffect(() => {
-    const fetchCurriculumDays = async () => {
+    const fetchCalendarData = async () => {
       try {
         setIsLoading(true);
         setError(null);
@@ -36,150 +41,303 @@ function Calendar() {
           throw new Error('Failed to fetch curriculum days');
         }
         
-        const data = await response.json();
+        const allDays = await response.json();
         
-        // Convert curriculum days to FullCalendar events
-        const calendarEvents = data.map(day => {
-          console.log('Day data from API:', day); // Log the individual day data
-
-          // Create a date string without time portion to avoid timezone issues
-          // This ensures the date is displayed exactly as stored in the database
-          const dayDate = day.day_date.split('T')[0]; // Extract just the YYYY-MM-DD part
-          
-          return {
-            id: day.id, // Use id which matches the database column name
-            title: `Day ${day.day_number}: ${day.daily_goal}`,
-            date: dayDate, // Use just the date portion without time
-            allDay: true,
-            extendedProps: {
-              dayNumber: day.day_number,
-              dayType: day.day_type,
-              resource: day // Store the full day object
-            }
-          };
+        // Group days by week number
+        const weekMap = {};
+        allDays.forEach(day => {
+          if (!weekMap[day.week]) {
+            weekMap[day.week] = {
+              weekNumber: day.week,
+              weeklyGoal: day.weekly_goal,
+              days: []
+            };
+          }
+          weekMap[day.week].days.push(day);
         });
         
-        console.log('Calendar events data:', calendarEvents);
+        // Convert to array and sort by week number
+        const weeks = Object.values(weekMap).sort((a, b) => a.weekNumber - b.weekNumber);
         
-        setEvents(calendarEvents);
+        // For each week, fetch tasks for each day
+        const weeksWithTasks = await Promise.all(
+          weeks.map(async (week) => {
+            const daysWithTasks = await Promise.all(
+              week.days.map(async (day) => {
+                try {
+                  const tasksResponse = await fetch(
+                    `${import.meta.env.VITE_API_URL}/api/curriculum/weeks/${week.weekNumber}`,
+                    {
+                      headers: {
+                        'Authorization': `Bearer ${token}`
+                      }
+                    }
+                  );
+                  
+                  if (tasksResponse.ok) {
+                    const weekData = await tasksResponse.json();
+                    const dayData = weekData.find(d => d.id === day.id);
+                    return {
+                      ...day,
+                      tasks: dayData?.tasks || []
+                    };
+                  }
+                  
+                  return { ...day, tasks: [] };
+                } catch (err) {
+                  console.error(`Error fetching tasks for day ${day.id}:`, err);
+                  return { ...day, tasks: [] };
+                }
+              })
+            );
+            
+            return {
+              ...week,
+              days: daysWithTasks
+            };
+          })
+        );
+        
+        setWeeksData(weeksWithTasks);
+        
+        // Determine current day
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayDay = allDays.find(day => {
+          const dayDate = new Date(day.day_date);
+          dayDate.setHours(0, 0, 0, 0);
+          return dayDate.getTime() === today.getTime();
+        });
+        
+        if (todayDay) {
+          setCurrentDayId(todayDay.id);
+        }
+        
       } catch (error) {
-        console.error('Error fetching curriculum days:', error);
-        setError('Failed to load curriculum days. Please try again later.');
+        console.error('Error fetching calendar data:', error);
+        setError('Failed to load calendar data. Please try again later.');
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchCurriculumDays();
-  }, [token, cohortFilter]);
+    if (token) {
+      fetchCalendarData();
+    }
+  }, [token, cohortFilter, user.role]);
 
-  const handleEventClick = (clickInfo) => {
-    console.log('Event clicked:', clickInfo.event);
-    console.log('Event ID:', clickInfo.event.id);
-    console.log('Event extendedProps:', clickInfo.event.extendedProps);
+  // Fetch user progress for past days
+  useEffect(() => {
+    const fetchUserProgress = async () => {
+      try {
+        // Get all past day IDs
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const pastDays = weeksData
+          .flatMap(week => week.days)
+          .filter(day => {
+            const dayDate = new Date(day.day_date);
+            dayDate.setHours(0, 0, 0, 0);
+            return dayDate < today;
+          });
+        
+        // Fetch progress for each past day
+        const progressMap = {};
+        await Promise.all(
+          pastDays.map(async (day) => {
+            try {
+              const progressResponse = await fetch(
+                `${import.meta.env.VITE_API_URL}/api/progress/days/${day.id}/tasks`,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${token}`
+                  }
+                }
+              );
+              
+              if (progressResponse.ok) {
+                const progress = await progressResponse.json();
+                progressMap[day.id] = progress;
+              }
+            } catch (err) {
+              console.error(`Error fetching progress for day ${day.id}:`, err);
+            }
+          })
+        );
+        
+        setUserProgress(progressMap);
+      } catch (error) {
+        console.error('Error fetching user progress:', error);
+      }
+    };
     
-    const dayNumber = clickInfo.event.extendedProps.dayNumber;
-    const dayResource = clickInfo.event.extendedProps.resource;
-    
-    // Fix: Create date strings using local timezone instead of UTC
-    const today = new Date();
-    // Format using YYYY-MM-DD with local timezone
-    const todayString = today.getFullYear() + '-' + 
-                       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                       String(today.getDate()).padStart(2, '0');
-    
-    const clickedDateString = clickInfo.event.startStr; // Already in YYYY-MM-DD format
-    
-    console.log('Today (local):', todayString, 'Clicked:', clickedDateString);
-    
-    // For staff/admin users, pass the selected cohort
-    let url;
-    if (clickedDateString === todayString) {
-      // Today - navigate to Learning page
-      url = `/learning?dayNumber=${dayNumber}`;
+    if (weeksData.length > 0 && token) {
+      fetchUserProgress();
+    }
+  }, [weeksData, token]);
+
+  const handlePrevMonth = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear(currentYear - 1);
     } else {
-      // Past or future day - navigate to PastSession page
-      url = `/past-session?dayNumber=${dayNumber}`;
+      setCurrentMonth(currentMonth - 1);
     }
+  };
 
-    // Add cohort parameter for workshop participants or staff/admin
-    const dayHasCohort = dayResource && dayResource.cohort;
-    if (dayHasCohort) {
-      url += `&cohort=${encodeURIComponent(dayResource.cohort)}`;
-    } else if (cohortFilter && (user.role === 'staff' || user.role === 'admin')) {
-      // If staff/admin user has selected a cohort, add it to the URL
-      url += `&cohort=${encodeURIComponent(cohortFilter)}`;
+  const handleNextMonth = () => {
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear(currentYear + 1);
+    } else {
+      setCurrentMonth(currentMonth + 1);
+    }
+  };
+
+  const handleMonthChange = (newMonth) => {
+    setCurrentMonth(newMonth);
+  };
+
+  const handleDayClick = (dayId) => {
+    navigate(`/learning?dayId=${dayId}`);
+  };
+
+  // Generate full calendar grid for the month
+  const generateCalendarGrid = () => {
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+    
+    // Get day of week for first day (0=Sunday, 6=Saturday)
+    // We want Saturday (6) to be first, so adjust
+    const firstDayOfWeek = firstDayOfMonth.getDay();
+    
+    // Calculate days to show from previous month
+    // If month starts on Saturday (6), no padding needed
+    // If month starts on Sunday (0), need 1 day padding
+    // If month starts on Monday (1), need 2 days padding, etc.
+    const daysFromPrevMonth = firstDayOfWeek === 6 ? 0 : (firstDayOfWeek + 1) % 7;
+    
+    // Start date is first day minus the padding
+    const startDate = new Date(firstDayOfMonth);
+    startDate.setDate(startDate.getDate() - daysFromPrevMonth);
+    
+    // Calculate total days to show (should be multiple of 7)
+    const daysInMonth = lastDayOfMonth.getDate();
+    const totalDaysNeeded = daysFromPrevMonth + daysInMonth;
+    const weeksNeeded = Math.ceil(totalDaysNeeded / 7);
+    const totalDays = weeksNeeded * 7;
+    
+    // Generate array of all dates
+    const calendarDates = [];
+    const currentDate = new Date(startDate);
+    
+    for (let i = 0; i < totalDays; i++) {
+      const dateObj = new Date(currentDate);
+      const dayOfMonth = dateObj.getDate();
+      const monthOfDate = dateObj.getMonth();
+      const yearOfDate = dateObj.getFullYear();
+      
+      // Find matching curriculum day if exists
+      const curriculumDay = weeksData
+        .flatMap(week => week.days)
+        .find(day => {
+          const dayDate = new Date(day.day_date);
+          return dayDate.getFullYear() === yearOfDate &&
+                 dayDate.getMonth() === monthOfDate &&
+                 dayDate.getDate() === dayOfMonth;
+        });
+      
+      calendarDates.push({
+        date: new Date(dateObj),
+        dayOfMonth: dayOfMonth,
+        dayOfWeek: dateObj.getDay(),
+        isCurrentMonth: monthOfDate === currentMonth && yearOfDate === currentYear,
+        isPreviousMonth: (yearOfDate < currentYear) || (yearOfDate === currentYear && monthOfDate < currentMonth),
+        isNextMonth: (yearOfDate > currentYear) || (yearOfDate === currentYear && monthOfDate > currentMonth),
+        curriculumDay: curriculumDay || null,
+        hasClass: !!curriculumDay,
+        tasks: curriculumDay?.tasks || [],
+        weekNumber: curriculumDay?.week || null
+      });
+      
+      currentDate.setDate(currentDate.getDate() + 1);
     }
     
-    console.log('Navigating to URL:', url);
-    navigate(url);
+    // Group by weeks (7 days each)
+    const weeks = [];
+    for (let i = 0; i < calendarDates.length; i += 7) {
+      const weekDays = calendarDates.slice(i, i + 7);
+      
+      // Determine week number (use the first curriculum day's week number in this week)
+      const weekNumber = weekDays.find(d => d.weekNumber)?.weekNumber || null;
+      
+      // Get weekly goal if this week has curriculum days
+      const weeklyGoal = weekNumber ? 
+        weeksData.find(w => w.weekNumber === weekNumber)?.weeklyGoal : null;
+      
+      weeks.push({
+        weekNumber,
+        weeklyGoal,
+        days: weekDays
+      });
+    }
+    
+    return weeks;
   };
+
+  const calendarWeeks = generateCalendarGrid();
 
   if (isLoading) {
     return (
-      <div className="calendar">
-        <div className="calendar__content">
-          <div className="loading-message">Loading calendar data...</div>
-        </div>
+      <div className="w-full h-full bg-bg-light flex items-center justify-center">
+        <div className="text-carbon-black font-proxima">Loading calendar data...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="calendar">
-        <div className="calendar__content">
-          <div className="error-message">{error}</div>
-        </div>
+      <div className="w-full h-full bg-bg-light flex items-center justify-center">
+        <div className="text-red-500 font-proxima">{error}</div>
       </div>
     );
   }
 
   return (
-    <div className="calendar">
-      <div className="calendar__content">
-        <div className="calendar-container">
-          <div className="calendar-view">
-            <div className="calendar__toolbar">
-              <FullCalendar
-                plugins={[dayGridPlugin]}
-                initialView="dayGridMonth"
-                headerToolbar={{
-                  left: 'prev,next today',
-                  center: 'title',
-                  right: ''
-                }}
-                events={events}
-                eventClick={handleEventClick}
-                eventDidMount={(info) => {
-                  // Add tooltip
-                  info.el.title = `${info.event.title}\nClick to view tasks`;
-                }}
-                height="calc(100vh - 120px)"
-              />
-              
-              {/* Render cohort selector in the toolbar space for staff/admin */}
-              {(user.role === 'staff' || user.role === 'admin') && (
-                <div className="calendar__cohort-filter">
-                  <label>Cohort:</label>
-                  <select 
-                    value={cohortFilter || ''} 
-                    onChange={(e) => setCohortFilter(e.target.value || null)}
-                  >
-                    <option value="">My Cohort</option>
-                    <option value="March 2025">March 2025</option>
-                    <option value="June 2025">June 2025</option>
-                    <option value="September 2025">September 2025</option>
-                    {/* Add more cohorts as needed */}
-                  </select>
-                </div>
-              )}
-            </div>
-          </div>
+    <div className="w-full h-full bg-bg-light flex flex-col">
+      {/* Calendar Header */}
+      <CalendarHeader
+        currentMonth={currentMonth}
+        currentYear={currentYear}
+        onPrevMonth={handlePrevMonth}
+        onNextMonth={handleNextMonth}
+        onMonthChange={handleMonthChange}
+        cohortFilter={cohortFilter}
+        onCohortChange={setCohortFilter}
+        userRole={user?.role}
+      />
+      
+      {/* Weeks List */}
+      <ScrollArea className="flex-1 px-[85px] py-[20px]">
+        <div className="flex flex-col gap-[34px]">
+          {calendarWeeks.map((week, idx) => (
+            <WeekView
+              key={idx}
+              weekNumber={week.weekNumber}
+              weeklyGoal={week.weeklyGoal}
+              days={week.days}
+              onDayClick={handleDayClick}
+              currentDayId={currentDayId}
+              userProgress={userProgress}
+              currentMonth={currentMonth}
+              currentYear={currentYear}
+            />
+          ))}
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 }
 
-export default Calendar; 
+export default Calendar;

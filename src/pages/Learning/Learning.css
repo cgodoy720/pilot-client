@@ -8,6 +8,26 @@
   flex-direction: column;
 }
 
+/* Hide scrollbar but keep functionality - prevents layout shift */
+.learning ::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
+
+.learning ::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+/* For Firefox */
+.learning * {
+  scrollbar-width: none;
+}
+
+/* For IE and Edge */
+.learning * {
+  -ms-overflow-style: none;
+}
+
 /* Workshop Lock Banner */
 .learning__workshop-banner {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

@@ -169,7 +169,7 @@ function App() {
             <Dashboard />
           </Layout>
         } />
-        <Route path="/gpt" element={
+        <Route path="/ai-chat" element={
           <Layout>
             <GPT />
           </Layout>

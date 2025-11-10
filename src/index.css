@@ -34,6 +34,7 @@
   --color-divider: #C8C8C8;
   --color-mastery-pink: #FF33FF;
   --font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
+  --font-family-bold: 'Proxima Nova Bold', 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
 }
 
 @tailwind base;
@@ -235,6 +236,14 @@
   .animate-fade-in {
     animation: fade-in 0.8s ease-out forwards;
     opacity: 0;
+  }
+
+  .font-proxima-bold {
+    font-family: var(--font-family-bold);
+  }
+
+  .font-proxima {
+    font-family: var(--font-family);
   }
 }
 

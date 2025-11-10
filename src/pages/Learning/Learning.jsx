@@ -456,7 +456,7 @@ function Learning() {
   }
 
   return (
-    <div className="h-screen bg-bg-light flex flex-col">
+    <div className="learning h-screen bg-bg-light flex flex-col">
       {/* Activity Header */}
       <ActivityHeader 
         currentDay={currentDay}

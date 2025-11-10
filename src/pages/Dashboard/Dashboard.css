@@ -179,10 +179,10 @@
   color: var(--color-pursuit-purple);
   cursor: pointer;
   animation: breathe 3s ease-in-out infinite;
+  transition: color 0.3s;
 }
 
 .dashboard__start-btn:hover {
-  background: var(--color-pursuit-purple);
   color: var(--color-white);
   animation: none;
 }
@@ -610,6 +610,7 @@
   line-height: 16px;
   color: var(--color-pursuit-purple);
   cursor: pointer;
+  transition: color 0.3s;
 }
 
 .dashboard__go-btn--today {
@@ -619,7 +620,6 @@
 }
 
 .dashboard__go-btn:hover {
-  background: var(--color-pursuit-purple);
   color: var(--color-white);
 }
 
@@ -850,6 +850,11 @@
   line-height: 34px;
   color: var(--color-pursuit-purple);
   cursor: pointer;
+  transition: color 0.3s;
+}
+
+.dashboard__mobile-start-btn:hover {
+  color: var(--color-white);
 }
 
 .dashboard__mobile-week-title {
@@ -1009,6 +1014,11 @@
   line-height: 18px;
   color: var(--color-background);
   cursor: pointer;
+  transition: color 0.3s;
+}
+
+.dashboard__mobile-go-btn:hover {
+  color: var(--color-white);
 }
 
 .dashboard__mobile-upcoming {

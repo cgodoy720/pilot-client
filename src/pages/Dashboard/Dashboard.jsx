@@ -528,7 +528,10 @@ function Dashboard() {
               <p className="dashboard__goal-text">
                 {currentDay?.daily_goal || 'No goal set for today'}
               </p>
-              <button className="dashboard__start-btn" onClick={handleContinueSession}>Start</button>
+              <button className="dashboard__start-btn group relative overflow-hidden" onClick={handleContinueSession}>
+                <span className="relative z-10">Start</span>
+                <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+              </button>
             </div>
 
             {/* Vertical Divider */}
@@ -726,18 +729,20 @@ function Dashboard() {
                   {/* Go Button */}
                   {dayIsToday && (
                     <button 
-                      className="dashboard__go-btn dashboard__go-btn--today"
+                      className="dashboard__go-btn dashboard__go-btn--today group relative overflow-hidden"
                       onClick={() => handleNavigateToDayLearning(day.id)}
                     >
-                      Go
+                      <span className="relative z-10">Go</span>
+                      <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
                     </button>
                   )}
                   {!dayIsToday && showCheckbox && (
                     <button 
-                      className="dashboard__go-btn"
+                      className="dashboard__go-btn group relative overflow-hidden"
                       onClick={() => handleNavigateToDayLearning(day.id)}
                     >
-                      Go
+                      <span className="relative z-10">Go</span>
+                      <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
                     </button>
                   )}
                 </div>
@@ -763,7 +768,10 @@ function Dashboard() {
           </div>
 
           {/* Start Button */}
-          <button className="dashboard__mobile-start-btn" onClick={handleContinueSession}>Start</button>
+          <button className="dashboard__mobile-start-btn group relative overflow-hidden" onClick={handleContinueSession}>
+            <span className="relative z-10">Start</span>
+            <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+          </button>
 
           {/* L1 Week 5 Title */}
           <div className="dashboard__mobile-week-title">
@@ -847,10 +855,11 @@ function Dashboard() {
                       </div>
                     )}
           <button 
-                      className="dashboard__mobile-go-btn"
+                      className="dashboard__mobile-go-btn group relative overflow-hidden"
             onClick={() => handleNavigateToDayLearning(day.id)}
           >
-                      Go
+            <span className="relative z-10">Go</span>
+            <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
           </button>
                   </div>
                 );
