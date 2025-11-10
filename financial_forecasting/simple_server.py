@@ -832,11 +832,13 @@ async def get_account_fireflies_meetings(account_name: str, limit: int = 20):
     try:
         # Get account details from Salesforce for better matching
         sf = get_salesforce()
+        # Escape single quotes for SOQL query
+        escaped_account_name = account_name.replace("'", "\\'")
         account_query = f"""
         SELECT Id, Name, Website, 
                (SELECT Id, Name, Email FROM Contacts)
         FROM Account
-        WHERE Name = '{account_name.replace("'", "\\'")}'
+        WHERE Name = '{escaped_account_name}'
         LIMIT 1
         """
         account_result = sf.query(account_query)
@@ -1236,11 +1238,13 @@ async def debug_account_matching(account_name: str):
         sf = get_salesforce()
         
         # Get account details
+        # Escape single quotes for SOQL query
+        escaped_account_name = account_name.replace("'", "\\'")
         account_query = f"""
         SELECT Id, Name, Website, 
                (SELECT Id, Name, Email FROM Contacts)
         FROM Account
-        WHERE Name = '{account_name.replace("'", "\\'")}'
+        WHERE Name = '{escaped_account_name}'
         LIMIT 1
         """
         account_result = sf.query(account_query)
