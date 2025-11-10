@@ -23,14 +23,20 @@ RUN echo "=== Checking for .env.production ===" && \
         echo "❌ .env.production NOT FOUND"; \
     fi
 
-# Set NODE_ENV to production so React uses .env.production
+# Set NODE_ENV to production
 ENV NODE_ENV=production
 
-# Debug: React will read REACT_APP_API_URL from .env.production during build
-RUN echo "=== React will read REACT_APP_API_URL from .env.production during npm run build ==="
+# Explicitly set REACT_APP_API_URL from .env.production
+# React requires env vars to be set at build time, not read from files
+RUN if [ -f .env.production ]; then \
+        REACT_APP_API_URL=$(grep REACT_APP_API_URL .env.production | cut -d '=' -f2) && \
+        echo "export REACT_APP_API_URL=$REACT_APP_API_URL" > /tmp/env.sh; \
+    fi
 
-# Build the React app for production
-RUN npm run build
+# Source the env and build
+RUN . /tmp/env.sh && \
+    echo "=== Building with REACT_APP_API_URL=$REACT_APP_API_URL ===" && \
+    npm run build
 
 # Debug: Check what's in the built files
 RUN echo "=== Checking built files for localhost ===" && \
