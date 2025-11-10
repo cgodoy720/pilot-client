@@ -57,7 +57,6 @@ gcloud run deploy $BACKEND_SERVICE \
     --memory 1Gi \
     --cpu 1 \
     --timeout 300 \
-    --set-env-vars "PORT=8080" \
     --max-instances 10 \
     --min-instances 0
 
