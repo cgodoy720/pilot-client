@@ -10,10 +10,12 @@ import Dashboard from './pages/Dashboard';
 import Opportunities from './pages/Opportunities';
 import NewOpportunity from './pages/NewOpportunity';
 import Accounts from './pages/Accounts';
+import Contacts from './pages/Contacts';
 import Invoices from './pages/Invoices';
 import CashFlow from './pages/CashFlow';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import FirefliesDebug from './pages/FirefliesDebug';
 
 // Create Material-UI theme
 const theme = createTheme({
@@ -91,10 +93,12 @@ function App() {
                 <Route path="/opportunities" element={<Opportunities />} />
                 <Route path="/opportunities/new" element={<NewOpportunity />} />
                 <Route path="/accounts" element={<Accounts />} />
+                <Route path="/contacts" element={<Contacts />} />
                 <Route path="/invoices" element={<Invoices />} />
                 <Route path="/cash-flow" element={<CashFlow />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/fireflies-debug" element={<FirefliesDebug />} />
               </Routes>
             </Layout>
           </Box>

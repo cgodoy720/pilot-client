@@ -122,27 +122,28 @@ Automatic context aggregation from across Pursuit's systems (Slack notifications
 - [x] **[P0]** User can create a new opportunity with required fields:
   - [x] Opportunity name
   - [x] Account (funder)
-  - [ ] Primary contact
+  - [x] Primary contact
   - [x] Amount
   - [x] Close date
   - [x] Stage
   - [x] Probability (auto-assigned based on stage, with manual override capability)
   - [x] Opportunity owner
 - [x] **[P0]** User can search for and select existing accounts when creating an opportunity
-- [ ] **[P0]** User can create a new account if it doesn't exist, with fields:
-  - [ ] Account name
-  - [ ] Type (Foundation/Corporate/Government dropdown)
-  - [ ] Website
-  - [ ] Primary contact
-- [ ] **[P0]** User can search for and select existing contacts when creating an opportunity
-- [ ] **[P0]** User can create a new contact if it doesn't exist, with fields:
-  - [ ] Name
-  - [ ] Account
-  - [ ] Primary affiliation
-  - [ ] Title
-  - [ ] Email
-  - [ ] Phone
-- [ ] **[P0]** User can view all contacts associated with an account
+- [x] **[P0]** User can create a new account if it doesn't exist, with fields:
+  - [x] Account name
+  - [x] Type (Foundation/Corporate/Government dropdown)
+  - [x] Website
+  - [x] Phone (added)
+- [x] **[P0]** User can search for and select existing contacts when creating an opportunity
+- [x] **[P0]** User can create a new contact if it doesn't exist, with fields:
+  - [x] First Name
+  - [x] Last Name
+  - [x] Account
+  - [x] Primary affiliation
+  - [x] Title
+  - [x] Email
+  - [x] Phone
+- [x] **[P0]** User can view all contacts associated with an account
 - [x] **[P0]** System validates that all required fields are completed before saving an opportunity
 
 ### Entering Payment Schedules
@@ -161,17 +162,20 @@ Automatic context aggregation from across Pursuit's systems (Slack notifications
 
 - [x] **[P0]** User can update any opportunity field at any time
 - [x] **[P0]** User can change opportunity stage via dropdown with these options:
-  - [x] Lead Gen
-  - [x] New Lead
-  - [x] Qualifying
-  - [x] Design / Proposal Creation
-  - [x] Proposal Negotiation
-  - [x] Contract Creation
-  - [x] Negotiating Contract
-  - [x] Collecting / In Effect
-  - [x] Closed / Did not Fulfill
-  - [x] Closed / Completed
-  - [x] Closed Lost
+  - **Open Pipeline Stages (actively pursuing):**
+    - [x] Lead Gen
+    - [x] New Lead
+    - [x] Qualifying
+    - [x] Design / Proposal Creation
+    - [x] Proposal Negotiation
+    - [x] Contract Creation
+    - [x] Negotiating Contract
+  - **Closed Won / Collection Stages:**
+    - [x] Collecting / In Effect
+    - [x] Closed / Completed
+  - **Closed Lost Stages:**
+    - [x] Closed / Did not Fulfill
+    - [x] Closed Lost
 - [x] **[P0]** When user changes stage, probability auto-updates based on stage mapping (with ability to manually override)
 - [x] **[P0]** System timestamps all updates for audit trail
 - [x] **[P0]** All updates sync to Salesforce in real-time
@@ -216,7 +220,7 @@ Automatic context aggregation from across Pursuit's systems (Slack notifications
 ### Account History View
 
 - [x] **[P0]** User can view all opportunities associated with a specific account (current and historical)
-- [ ] **[P0]** User can view all contacts associated with a specific account
+- [x] **[P0]** User can view all contacts associated with a specific account
 - [x] **[P0]** User can see account details (name, type, website, primary contact)
 - [x] **[P0]** Account view displays timeline of all opportunities with that funder, sorted by create date
 
@@ -243,6 +247,8 @@ Automatic context aggregation from across Pursuit's systems (Slack notifications
 
 ### Executive Dashboard - High-Level Metrics
 
+**Note:** "Open pipeline" refers only to opportunities in active pursuit stages: Lead Gen, New Lead, Qualifying, Design / Proposal Creation, Proposal Negotiation, Contract Creation, and Negotiating Contract. Closed won, collecting, and closed lost opportunities are excluded from pipeline calculations.
+
 - [x] **[P0]** CEO can view total pipeline value (sum of all open opportunities)
 - [x] **[P0]** CEO can view weighted pipeline value (sum of all open opportunities × their probability)
 - [x] **[P0]** CEO can view pipeline breakdown by stage with:
@@ -257,9 +263,9 @@ Automatic context aggregation from across Pursuit's systems (Slack notifications
 - [x] **[P0]** CEO can view current quarter metrics:
   - [x] Total $ expected to close this quarter
   - [x] Number of deals expected to close
-  - [ ] Deals at risk of slipping (close date in current quarter but in early stages)
-- [ ] **[P0]** CEO can view win rate metric:
-  - [ ] % of opportunities that reached Closed/Completed vs Closed Lost (trailing 12 months)
+  - [x] Deals at risk of slipping (close date in current quarter but in early stages)
+- [x] **[P0]** CEO can view win rate metric:
+  - [x] % of opportunities that reached Closed/Completed vs Closed Lost (trailing 12 months)
 - [x] **[P0]** CEO can view average deal size (across all open opportunities)
 - [x] **[P0]** Dashboard updates in real-time as opportunities are updated
 - [ ] **[P1]** CEO can view year-over-year comparison metrics
@@ -345,6 +351,14 @@ Automatic context aggregation from across Pursuit's systems (Slack notifications
 - [x] Account detail view with opportunity history
 - [x] Tabs for All Opportunities, Open Pipeline, and Won/Collecting
 - [x] Metrics: Total Opps, Open, Won, Total Value, Received, Outstanding
+- [x] Create new accounts with Name, Type, Website, Phone
+- [x] View contacts associated with each account (Contacts tab)
+
+**Contacts Management:**
+- [x] View contacts for each account
+- [x] Create new contacts with Name, Title, Email, Phone, Primary Affiliation
+- [x] Associate contacts with accounts
+- [x] Search and select contacts when creating opportunities
 
 **Executive Dashboard:**
 - [x] Total pipeline value and weighted pipeline
@@ -370,11 +384,11 @@ None currently
 ### 📋 Next Up (P0 - MVP)
 
 **Creating & Managing:**
-- [ ] Create new opportunity flow
-- [ ] Create new account flow
-- [ ] Create new contact flow
-- [ ] Contact management (view contacts per account)
-- [ ] Primary contact field on opportunities
+- [x] Create new opportunity flow
+- [x] Create new account flow
+- [x] Create new contact flow
+- [x] Contact management (view contacts per account)
+- [x] Primary contact field on opportunities
 - [ ] Document linking (Google Docs, proposals, reports)
 
 **Payment Schedules:**
@@ -384,10 +398,10 @@ None currently
 - [ ] Payment schedule validation by stage
 
 **Stale Opportunity Detection:**
-- [ ] Flag opportunities with passed close dates
-- [ ] Flag opportunities in same stage for 30+ days
+- [x] Flag opportunities with passed close dates
+- [x] Flag opportunities in same stage for 30+ days
 - [ ] Visual indicators on opportunity cards
-- [ ] "Needs Attention" dashboard view
+- [x] "Needs Attention" dashboard view
 
 **Notifications:**
 - [ ] Slack notifications 7 days before close date
@@ -395,8 +409,8 @@ None currently
 - [ ] Notification content (name, account, amount, stage)
 
 **Dashboard Enhancements:**
-- [ ] Win rate metric (12-month trailing)
-- [ ] Deals at risk indicator
+- [x] Win rate metric (12-month trailing)
+- [x] Deals at risk indicator
 - [ ] Linked documents display in opportunity detail
 
 ### 📅 Future (P1 - Post-MVP)
@@ -435,4 +449,5 @@ None currently
 **Change Log:**
 - 2025-11-09: Initial PRD created
 - 2025-11-09: Updated with current implementation status and completed features
+- 2025-11-09: Added account and contact creation features - users can now create new accounts and contacts inline when creating opportunities, and view all contacts associated with an account
 

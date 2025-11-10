@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { formatDollarMillions } from '../utils/formatters';
 import {
   Box,
   Card,
@@ -45,22 +46,32 @@ import { format, addDays } from 'date-fns';
 
 import { apiService } from '../services/api';
 
-// Opportunity stages
+// Opportunity stages - matching Salesforce picklist
 const OPPORTUNITY_STAGES = [
-  'Prospecting',
-  'Qualification',
-  'Qualifying',
-  'New Lead',
+  '--None--',
   'Lead Gen',
-  'Needs Analysis',
-  'Value Proposition',
+  'New Lead',
+  'Qualifying',
   'Design / Proposal Creation',
-  'Proposal Submitted',
-  'Negotiation/Review',
-  'Closed Won',
+  'Proposal Negotiation',
+  'Contract Creation',
+  'Negotiating Contract',
+  'Collecting / In Effect',
+  'Closed / Did not Fulfill',
   'Closed / Completed',
   'Closed Lost',
   'Withdrawn',
+];
+
+// Open pipeline stages - anything actively being pursued
+const OPEN_STAGES = [
+  'Lead Gen',
+  'New Lead',
+  'Qualifying',
+  'Design / Proposal Creation',
+  'Proposal Negotiation',
+  'Contract Creation',
+  'Negotiating Contract'
 ];
 
 interface Opportunity {
@@ -94,7 +105,7 @@ function AccountEditCell(props: GridRenderEditCellParams) {
     // Fetch accounts from query cache
     const fetchAccounts = async () => {
       try {
-        const response = await apiService.getAccounts({ limit: 1000 });
+        const response = await apiService.getAccounts();
         setOptions(response.data || []);
       } catch (error) {
         console.error('Failed to fetch accounts:', error);
@@ -173,6 +184,10 @@ const Opportunities: React.FC = () => {
   const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [activeTab, setActiveTab] = useState<number>(0);
+  const [recentlyChangedIds, setRecentlyChangedIds] = useState<Set<string>>(new Set());
+  const recentlyChangedRef = useRef<Set<string>>(new Set());
+  const [filteredPipelineRows, setFilteredPipelineRows] = useState<Opportunity[]>([]);
+  const [filteredPaymentRows, setFilteredPaymentRows] = useState<Opportunity[]>([]);
 
   const queryClient = useQueryClient();
 
@@ -180,7 +195,7 @@ const Opportunities: React.FC = () => {
   const { data: opportunities, isLoading, error } = useQuery(
     'opportunities',
     async () => {
-      const response = await apiService.getOpportunities({ limit: 10000 });
+      const response = await apiService.getOpportunities();
       return response.data;
     },
     {
@@ -204,7 +219,7 @@ const Opportunities: React.FC = () => {
   const { data: accounts } = useQuery(
     'accounts',
     async () => {
-      const response = await apiService.getAccounts({ limit: 1000 });
+      const response = await apiService.getAccounts();
       return response.data;
     },
     {
@@ -261,14 +276,7 @@ const Opportunities: React.FC = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount || 0);
-  };
+  // Using formatDollarMillions from utils instead
 
   const getStageColor = (stage: string) => {
     if (stage.includes('Closed Won') || stage.includes('Completed')) return 'success';
@@ -336,8 +344,8 @@ const Opportunities: React.FC = () => {
         return oldRow; // Revert the change
       }
     }
-    
-    return oldRow;
+
+    return newRow; // No changes
   };
 
   // Pipeline columns (for Sales team - focus on closing deals)
@@ -383,16 +391,100 @@ const Opportunities: React.FC = () => {
       headerName: 'Stage',
       flex: 1.2,
       minWidth: 160,
-      editable: true,
-      type: 'singleSelect',
-      valueOptions: OPPORTUNITY_STAGES,
+      editable: false, // We'll handle editing with custom dropdown
       filterable: true,
       renderCell: (params: GridRenderCellParams) => (
-        <Chip
-          label={params.value}
-          color={getStageColor(params.value as string)}
+        <Select
+          value={params.value || ''}
+          onChange={async (e) => {
+            const newStage = e.target.value;
+            if (newStage === params.value) return;
+            
+            const loadingToast = toast.loading('Updating stage...');
+            
+            // Keep item visible for 5 seconds if moving to closed stage
+            const closedStages = ['Withdrawn', 'Closed Lost', 'Closed / Did not Fulfill', 'Closed / Completed'];
+            const isMovingToClosed = closedStages.includes(newStage);
+            
+            if (isMovingToClosed) {
+              // Use both ref (immediate) and state (triggers re-render)
+              console.log('🔴 Moving to closed stage:', newStage, 'ID:', params.row.Id);
+              recentlyChangedRef.current.add(params.row.Id);
+              setRecentlyChangedIds(prev => {
+                const next = new Set(prev).add(params.row.Id);
+                console.log('🟡 Updated recentlyChangedIds:', Array.from(next));
+                return next;
+              });
+              
+              setTimeout(() => {
+                console.log('⏰ 5 seconds passed, removing ID:', params.row.Id);
+                recentlyChangedRef.current.delete(params.row.Id);
+                setRecentlyChangedIds(prev => {
+                  const next = new Set(prev);
+                  next.delete(params.row.Id);
+                  return next;
+                });
+              }, 5000); // Keep visible for 5 seconds
+            }
+            
+            // Optimistically update the UI immediately
+            const oldData = queryClient.getQueryData('opportunities');
+            queryClient.setQueryData('opportunities', (old: any) => {
+              if (!old) return old;
+              return old.map((opp: any) => 
+                opp.Id === params.row.Id 
+                  ? { ...opp, StageName: newStage }
+                  : opp
+              );
+            });
+            
+            try {
+              // Only send the StageName field to update
+              await apiService.updateOpportunity(params.row.Id, {
+                StageName: newStage
+              });
+              toast.success('Stage updated!', { 
+                id: loadingToast
+              });
+              // Refresh in background to get any server-side changes
+              queryClient.invalidateQueries('opportunities');
+            } catch (error: any) {
+              // Revert on error
+              queryClient.setQueryData('opportunities', oldData);
+              setRecentlyChangedIds(prev => {
+                const next = new Set(prev);
+                next.delete(params.row.Id);
+                return next;
+              });
+              toast.error(`Failed: ${error.response?.data?.detail || error.message}`, { id: loadingToast });
+            }
+          }}
           size="small"
-        />
+          variant="standard"
+          sx={{
+            width: '100%',
+            '& .MuiSelect-select': {
+              padding: '4px 8px',
+              fontSize: '0.875rem',
+            },
+            '&:before': { borderBottom: 'none' },
+            '&:hover:not(.Mui-disabled):before': { borderBottom: 'none' },
+            '&:after': { borderBottom: 'none' },
+          }}
+          renderValue={(value) => (
+            <Chip
+              label={value}
+              color={getStageColor(value as string)}
+              size="small"
+            />
+          )}
+        >
+          {OPPORTUNITY_STAGES.map((stage) => (
+            <MenuItem key={stage} value={stage}>
+              {stage}
+            </MenuItem>
+          ))}
+        </Select>
       ),
     },
     {
@@ -403,7 +495,7 @@ const Opportunities: React.FC = () => {
       type: 'number',
       editable: true,
       filterable: true,
-      valueFormatter: (params) => formatCurrency(params.value as number),
+      valueFormatter: (params) => formatDollarMillions(params.value as number),
     },
     {
       field: 'Probability',
@@ -439,6 +531,21 @@ const Opportunities: React.FC = () => {
       },
     },
     {
+      field: 'LastModifiedDate',
+      headerName: 'Last Modified',
+      flex: 0.9,
+      minWidth: 120,
+      type: 'dateTime',
+      filterable: true,
+      valueGetter: (params: GridValueGetterParams) => {
+        return params.value ? new Date(params.value) : null;
+      },
+      valueFormatter: (params) => {
+        if (!params.value) return 'N/A';
+        return format(new Date(params.value as string), 'MMM dd, yyyy');
+      },
+    },
+    {
       field: 'expectedValue',
       headerName: 'Expected Value',
       flex: 0.9,
@@ -449,7 +556,7 @@ const Opportunities: React.FC = () => {
         const probability = params.row.Probability || 0;
         return (amount * probability) / 100;
       },
-      valueFormatter: (params) => formatCurrency(params.value as number),
+      valueFormatter: (params) => formatDollarMillions(params.value as number),
     },
   ];
 
@@ -496,10 +603,10 @@ const Opportunities: React.FC = () => {
       minWidth: 130,
       type: 'number',
       filterable: true,
-      valueFormatter: (params) => formatCurrency(params.value as number),
+      valueFormatter: (params) => formatDollarMillions(params.value as number),
       renderCell: (params: GridRenderCellParams) => (
         <Box sx={{ fontWeight: 600 }}>
-          {formatCurrency(params.value as number)}
+          {formatDollarMillions(params.value as number)}
         </Box>
       ),
     },
@@ -511,10 +618,10 @@ const Opportunities: React.FC = () => {
       type: 'number',
       filterable: true,
       valueGetter: (params: GridValueGetterParams) => params.row.npe01__Payments_Made__c || 0,
-      valueFormatter: (params) => formatCurrency((params.value as number) || 0),
+      valueFormatter: (params) => formatDollarMillions((params.value as number) || 0),
       renderCell: (params: GridRenderCellParams) => (
         <Box sx={{ color: 'success.main', fontWeight: 600 }}>
-          {formatCurrency((params.value as number) || 0)}
+          {formatDollarMillions((params.value as number) || 0)}
         </Box>
       ),
     },
@@ -530,7 +637,7 @@ const Opportunities: React.FC = () => {
         const received = params.row.npe01__Payments_Made__c || 0;
         return total - received;
       },
-      valueFormatter: (params) => formatCurrency(params.value as number),
+      valueFormatter: (params) => formatDollarMillions(params.value as number),
       renderCell: (params: GridRenderCellParams) => {
         const remaining = params.value as number;
         return (
@@ -538,7 +645,7 @@ const Opportunities: React.FC = () => {
             color: remaining > 0 ? 'warning.main' : 'success.main',
             fontWeight: 600 
           }}>
-            {formatCurrency(remaining)}
+            {formatDollarMillions(remaining)}
           </Box>
         );
       },
@@ -685,21 +792,20 @@ const Opportunities: React.FC = () => {
            stage.includes('In Effect');
   }) || [];
 
-  // Pipeline: Everything else that's not closed/won/collecting and not withdrawn/lost
+  // Pipeline: Only include stages actively being pursued
+  // Also keep recently changed opportunities visible for 5 seconds
   const pipelineOpps = opportunities?.filter((opp: Opportunity) => {
-    const stage = opp.StageName || '';
-    // Exclude if it's in payment tracking
-    const isPaymentTracking = stage.includes('Closed Won') || 
-                              stage.includes('Closed / Completed') ||
-                              stage.includes('Collecting') ||
-                              stage.includes('In Collection') ||
-                              stage.includes('In Effect');
-    // Exclude if it's closed lost or withdrawn
-    const isClosedLost = stage.includes('Closed Lost') || 
-                         stage.includes('Withdrawn') ||
-                         stage.includes('Did not Fulfill');
+    const isOpen = OPEN_STAGES.includes(opp.StageName);
+    const inRecentSet = recentlyChangedIds.has(opp.Id);
+    const inRecentRef = recentlyChangedRef.current.has(opp.Id);
+    const shouldInclude = isOpen || inRecentSet || inRecentRef;
     
-    return !isPaymentTracking && !isClosedLost;
+    if (inRecentSet || inRecentRef) {
+      console.log('🟢 Keeping opp visible:', opp.Id, opp.Name, 'Stage:', opp.StageName, 
+                  'inRecentSet:', inRecentSet, 'inRecentRef:', inRecentRef);
+    }
+    
+    return shouldInclude;
   }) || [];
 
   const totalPaymentsReceived = paymentOpps.reduce((sum: number, opp: Opportunity) => 
@@ -803,7 +909,7 @@ const Opportunities: React.FC = () => {
                 <Typography color="textSecondary" gutterBottom variant="body2">
                   Total Pipeline Value
                 </Typography>
-                <Typography variant="h4">{formatCurrency(totalPipeline)}</Typography>
+                <Typography variant="h4">{formatDollarMillions(totalPipeline)}</Typography>
                 <Typography variant="body2" color="textSecondary">
                   Potential revenue
                 </Typography>
@@ -817,7 +923,7 @@ const Opportunities: React.FC = () => {
                   Weighted Pipeline
                 </Typography>
                 <Typography variant="h4" color="primary.main">
-                  {formatCurrency(weightedPipeline)}
+                  {formatDollarMillions(weightedPipeline)}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Expected value
@@ -832,7 +938,7 @@ const Opportunities: React.FC = () => {
                   Avg Deal Size
                 </Typography>
                 <Typography variant="h4">
-                  {formatCurrency(totalPipeline / (pipelineOpps.length || 1))}
+                  {formatDollarMillions(totalPipeline / (pipelineOpps.length || 1))}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Per opportunity
@@ -865,7 +971,7 @@ const Opportunities: React.FC = () => {
                 <Typography color="textSecondary" gutterBottom variant="body2">
                   Total Expected
                 </Typography>
-                <Typography variant="h4">{formatCurrency(totalExpected)}</Typography>
+                <Typography variant="h4">{formatDollarMillions(totalExpected)}</Typography>
                 <Typography variant="body2" color="textSecondary">
                   Awarded amount
                 </Typography>
@@ -879,7 +985,7 @@ const Opportunities: React.FC = () => {
                   Payments Received
                 </Typography>
                 <Typography variant="h4" color="success.main">
-                  {formatCurrency(totalPaymentsReceived)}
+                  {formatDollarMillions(totalPaymentsReceived)}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   {totalExpected > 0 ? Math.round((totalPaymentsReceived / totalExpected) * 100) : 0}% received
@@ -894,7 +1000,7 @@ const Opportunities: React.FC = () => {
                   Outstanding
                 </Typography>
                 <Typography variant="h4" color="warning.main">
-                  {formatCurrency(totalOutstanding)}
+                  {formatDollarMillions(totalOutstanding)}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   {totalExpected > 0 ? Math.round((totalOutstanding / totalExpected) * 100) : 0}% remaining
@@ -916,11 +1022,44 @@ const Opportunities: React.FC = () => {
       {activeTab === 0 && (
         <Card>
           <CardContent>
+            {/* Filtered Totals Bar */}
+            {filteredPipelineRows.length > 0 && (
+              <Box sx={{ 
+                p: 2, 
+                mb: 2, 
+                bgcolor: 'background.paper', 
+                borderRadius: 1,
+                display: 'flex',
+                gap: 3,
+                flexWrap: 'wrap',
+                border: '1px solid',
+                borderColor: 'divider'
+              }}>
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  Showing: {filteredPipelineRows.length} opportunities
+                </Typography>
+                <Typography variant="body2">
+                  Total Value: {formatDollarMillions(filteredPipelineRows.reduce((sum: number, opp: Opportunity) => sum + (opp.Amount || 0), 0))}
+                </Typography>
+                <Typography variant="body2">
+                  Weighted Value: {formatDollarMillions(filteredPipelineRows.reduce((sum: number, opp: Opportunity) => sum + ((opp.Amount || 0) * (opp.Probability || 0) / 100), 0))}
+                </Typography>
+                <Typography variant="body2">
+                  Avg Probability: {filteredPipelineRows.length > 0 ? Math.round(filteredPipelineRows.reduce((sum: number, opp: Opportunity) => sum + (opp.Probability || 0), 0) / filteredPipelineRows.length) : 0}%
+                </Typography>
+              </Box>
+            )}
             <Box sx={{ height: 'calc(100vh - 500px)', minHeight: 600, width: '100%' }}>
               <DataGrid
                 rows={pipelineOpps || []}
                 columns={pipelineColumns}
                 loading={isLoading}
+                onStateChange={(state) => {
+                  // Update filtered rows based on current filter/sort state
+                  const visibleRows = state.filter.filteredRowsLookup;
+                  const filtered = pipelineOpps.filter((opp: Opportunity) => visibleRows[opp.Id] !== false);
+                  setFilteredPipelineRows(filtered);
+                }}
                 getRowId={(row) => row.Id}
                 pagination
                 pageSizeOptions={[25, 50, 100, 250, 500]}
@@ -949,8 +1088,8 @@ const Opportunities: React.FC = () => {
                 disableColumnFilter={false}
                 disableColumnMenu={false}
                 isCellEditable={(params) => {
-                  // Editable fields for pipeline view
-                  return ['Name', 'AccountId', 'OwnerId', 'StageName', 'Amount', 'Probability', 'CloseDate'].includes(params.field);
+                  // Editable fields for pipeline view (StageName handled by custom dropdown)
+                  return ['Name', 'AccountId', 'OwnerId', 'Amount', 'Probability', 'CloseDate'].includes(params.field);
                 }}
                 sx={{
                   '& .MuiDataGrid-cell:focus': {
@@ -982,11 +1121,44 @@ const Opportunities: React.FC = () => {
       {activeTab === 1 && (
         <Card>
           <CardContent>
+            {/* Filtered Totals Bar */}
+            {filteredPaymentRows.length > 0 && (
+              <Box sx={{ 
+                p: 2, 
+                mb: 2, 
+                bgcolor: 'background.paper', 
+                borderRadius: 1,
+                display: 'flex',
+                gap: 3,
+                flexWrap: 'wrap',
+                border: '1px solid',
+                borderColor: 'divider'
+              }}>
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  Showing: {filteredPaymentRows.length} opportunities
+                </Typography>
+                <Typography variant="body2">
+                  Total Amount: {formatDollarMillions(filteredPaymentRows.reduce((sum: number, opp: Opportunity) => sum + (opp.Amount || 0), 0))}
+                </Typography>
+                <Typography variant="body2">
+                  Received: {formatDollarMillions(filteredPaymentRows.reduce((sum: number, opp: Opportunity) => sum + (opp.npe01__Payments_Made__c || 0), 0))}
+                </Typography>
+                <Typography variant="body2">
+                  Outstanding: {formatDollarMillions(filteredPaymentRows.reduce((sum: number, opp: Opportunity) => sum + ((opp.Amount || 0) - (opp.npe01__Payments_Made__c || 0)), 0))}
+                </Typography>
+              </Box>
+            )}
             <Box sx={{ height: 'calc(100vh - 500px)', minHeight: 600, width: '100%' }}>
               <DataGrid
                 rows={paymentOpps || []}
                 columns={paymentColumns}
                 loading={isLoading}
+                onStateChange={(state) => {
+                  // Update filtered rows based on current filter/sort state
+                  const visibleRows = state.filter.filteredRowsLookup;
+                  const filtered = paymentOpps.filter((opp: Opportunity) => visibleRows[opp.Id] !== false);
+                  setFilteredPaymentRows(filtered);
+                }}
                 getRowId={(row) => row.Id}
                 pagination
                 pageSizeOptions={[25, 50, 100, 250, 500]}
@@ -1096,6 +1268,7 @@ const Opportunities: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
     </>
   );
 };

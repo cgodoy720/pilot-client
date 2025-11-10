@@ -16,12 +16,18 @@ import {
   StepLabel,
   InputAdornment,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CircularProgress,
 } from '@mui/material';
 import {
   Save as SaveIcon,
   Cancel as CancelIcon,
   Business as BusinessIcon,
   Person as PersonIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { apiService } from '../services/api';
@@ -36,6 +42,21 @@ interface Account {
 interface User {
   Id: string;
   Name: string;
+}
+
+interface Contact {
+  Id: string;
+  Name: string;
+  FirstName?: string;
+  LastName: string;
+  AccountId: string;
+  npsp__Primary_Affiliation__r?: {
+    Name: string;
+    attributes?: any;
+  };
+  Title?: string;
+  Email?: string;
+  Phone?: string;
 }
 
 const STAGES = [
@@ -88,6 +109,7 @@ const NewOpportunity: React.FC = () => {
     name: '',
     recordTypeId: '0121U0000002h3SQAQ', // Default to Philanthropy
     accountId: '',
+    contactId: '',
     amount: '',
     closeDate: '',
     stageName: 'Lead Gen',
@@ -98,11 +120,31 @@ const NewOpportunity: React.FC = () => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [customProbability, setCustomProbability] = useState(false);
 
+  // Account creation dialog state
+  const [accountDialogOpen, setAccountDialogOpen] = useState(false);
+  const [newAccountData, setNewAccountData] = useState({
+    Name: '',
+    Type: '',
+    Website: '',
+    Phone: '',
+  });
+
+  // Contact creation dialog state
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const [newContactData, setNewContactData] = useState({
+    FirstName: '',
+    LastName: '',
+    AccountId: '',
+    Title: '',
+    Email: '',
+    Phone: '',
+  });
+
   // Fetch accounts
   const { data: accounts, isLoading: accountsLoading } = useQuery(
     'accounts',
     async () => {
-      const response = await apiService.getAccounts({ limit: 10000 });
+      const response = await apiService.getAccounts();
       return response.data;
     }
   );
@@ -113,6 +155,21 @@ const NewOpportunity: React.FC = () => {
     async () => {
       const response = await apiService.getUsers({ limit: 1000 });
       return response.data;
+    }
+  );
+
+  // Fetch contacts (filtered by selected account if available)
+  const { data: contacts, isLoading: contactsLoading } = useQuery(
+    ['contacts', formData.accountId],
+    async () => {
+      const response = await apiService.getContacts({ 
+        account_id: formData.accountId || undefined,
+        limit: 1000 
+      });
+      return response.data;
+    },
+    {
+      enabled: !!formData.accountId, // Only fetch when account is selected
     }
   );
 
@@ -130,6 +187,62 @@ const NewOpportunity: React.FC = () => {
       },
       onError: (error: any) => {
         toast.error(error.response?.data?.detail || 'Failed to create opportunity');
+      },
+    }
+  );
+
+  // Create account mutation
+  const createAccountMutation = useMutation(
+    async (data: any) => {
+      const response = await apiService.createAccount(data);
+      return response.data;
+    },
+    {
+      onSuccess: (data) => {
+        queryClient.invalidateQueries('accounts');
+        toast.success('Account created successfully!');
+        setAccountDialogOpen(false);
+        // Set the newly created account as selected
+        handleFieldChange('accountId', data.id);
+        // Reset form
+        setNewAccountData({
+          Name: '',
+          Type: '',
+          Website: '',
+          Phone: '',
+        });
+      },
+      onError: (error: any) => {
+        toast.error(error.response?.data?.detail || 'Failed to create account');
+      },
+    }
+  );
+
+  // Create contact mutation
+  const createContactMutation = useMutation(
+    async (data: any) => {
+      const response = await apiService.createContact(data);
+      return response.data;
+    },
+    {
+      onSuccess: (data) => {
+        queryClient.invalidateQueries(['contacts', formData.accountId]);
+        toast.success('Contact created successfully!');
+        setContactDialogOpen(false);
+        // Set the newly created contact as selected
+        handleFieldChange('contactId', data.id);
+        // Reset form
+        setNewContactData({
+          FirstName: '',
+          LastName: '',
+          AccountId: '',
+          Title: '',
+          Email: '',
+          Phone: '',
+        });
+      },
+      onError: (error: any) => {
+        toast.error(error.response?.data?.detail || 'Failed to create contact');
       },
     }
   );
@@ -222,8 +335,42 @@ const NewOpportunity: React.FC = () => {
     navigate('/opportunities');
   };
 
+  const handleCreateAccount = () => {
+    if (!newAccountData.Name.trim()) {
+      toast.error('Account name is required');
+      return;
+    }
+    createAccountMutation.mutate(newAccountData);
+  };
+
+  const handleCreateContact = () => {
+    if (!newContactData.LastName.trim()) {
+      toast.error('Last name is required');
+      return;
+    }
+    if (!newContactData.AccountId) {
+      toast.error('Account is required for contact');
+      return;
+    }
+    createContactMutation.mutate(newContactData);
+  };
+
+  const handleOpenAccountDialog = () => {
+    setAccountDialogOpen(true);
+  };
+
+  const handleOpenContactDialog = () => {
+    if (!formData.accountId) {
+      toast.error('Please select an account first before creating a contact');
+      return;
+    }
+    setNewContactData((prev) => ({ ...prev, AccountId: formData.accountId }));
+    setContactDialogOpen(true);
+  };
+
   const selectedAccount = accounts?.find((acc: Account) => acc.Id === formData.accountId);
   const selectedOwner = users?.find((user: User) => user.Id === formData.ownerId);
+  const selectedContact = contacts?.find((contact: Contact) => contact.Id === formData.contactId);
   const selectedRecordType = RECORD_TYPES.find((rt) => rt.id === formData.recordTypeId);
 
   return (
@@ -302,59 +449,119 @@ const NewOpportunity: React.FC = () => {
                 </Grid>
 
                 <Grid item xs={12}>
-                  <Autocomplete
-                    options={accounts || []}
-                    getOptionLabel={(option: Account) => option.Name}
-                    loading={accountsLoading}
-                    value={selectedAccount || null}
-                    onChange={(_, newValue) => {
-                      handleFieldChange('accountId', newValue?.Id || '');
-                    }}
-                    isOptionEqualToValue={(option, value) => option.Id === value.Id}
-                    filterOptions={(options, state) => {
-                      const inputValue = state.inputValue.toLowerCase();
-                      if (!inputValue) return options.slice(0, 100); // Show first 100 when empty
-                      
-                      return options
-                        .filter((option) =>
-                          option.Name.toLowerCase().includes(inputValue)
-                        )
-                        .slice(0, 50); // Limit to 50 results
-                    }}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Funder (Account)"
-                        placeholder="Type to search funders..."
-                        error={!!errors.accountId}
-                        helperText={errors.accountId || 'Start typing to search - e.g., "Ford", "Gates"'}
-                        required
-                      />
-                    )}
-                    renderOption={(props, option: Account) => (
-                      <li {...props}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <BusinessIcon fontSize="small" color="action" />
-                          <Box>
-                            <Typography variant="body2">{option.Name}</Typography>
-                            {option.Type && (
-                              <Typography variant="caption" color="textSecondary">
-                                {option.Type}
-                              </Typography>
-                            )}
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                    <Autocomplete
+                      sx={{ flex: 1 }}
+                      options={accounts || []}
+                      getOptionLabel={(option: Account) => option.Name}
+                      loading={accountsLoading}
+                      value={selectedAccount || null}
+                      onChange={(_, newValue) => {
+                        handleFieldChange('accountId', newValue?.Id || '');
+                        // Clear contact when account changes
+                        handleFieldChange('contactId', '');
+                      }}
+                      isOptionEqualToValue={(option, value) => option.Id === value.Id}
+                      filterOptions={(options, state) => {
+                        const inputValue = state.inputValue.toLowerCase();
+                        if (!inputValue) return options.slice(0, 100); // Show first 100 when empty
+                        
+                        return options
+                          .filter((option) =>
+                            option.Name.toLowerCase().includes(inputValue)
+                          )
+                          .slice(0, 50); // Limit to 50 results
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Funder (Account)"
+                          placeholder="Type to search funders..."
+                          error={!!errors.accountId}
+                          helperText={errors.accountId || 'Start typing to search - e.g., "Ford", "Gates"'}
+                          required
+                        />
+                      )}
+                      renderOption={(props, option: Account) => (
+                        <li {...props}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <BusinessIcon fontSize="small" color="action" />
+                            <Box>
+                              <Typography variant="body2">{option.Name}</Typography>
+                              {option.Type && (
+                                <Typography variant="caption" color="textSecondary">
+                                  {option.Type}
+                                </Typography>
+                              )}
+                            </Box>
                           </Box>
-                        </Box>
-                      </li>
-                    )}
-                    noOptionsText="No funders found - try a different search"
-                  />
+                        </li>
+                      )}
+                      noOptionsText="No funders found - try a different search"
+                    />
+                    <Button
+                      variant="outlined"
+                      startIcon={<AddIcon />}
+                      onClick={handleOpenAccountDialog}
+                      sx={{ mt: 1, minWidth: '150px' }}
+                    >
+                      New Account
+                    </Button>
+                  </Box>
                 </Grid>
 
                 <Grid item xs={12}>
-                  <Alert severity="info">
-                    <strong>Don't see the funder?</strong> You can create new accounts from the
-                    Accounts page first, or we'll add that capability here soon.
-                  </Alert>
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                    <Autocomplete
+                      sx={{ flex: 1 }}
+                      options={contacts || []}
+                      getOptionLabel={(option: Contact) => option.Name || `${option.FirstName || ''} ${option.LastName}`.trim()}
+                      loading={contactsLoading}
+                      value={selectedContact || null}
+                      onChange={(_, newValue) => {
+                        handleFieldChange('contactId', newValue?.Id || '');
+                      }}
+                      isOptionEqualToValue={(option, value) => option.Id === value.Id}
+                      disabled={!formData.accountId}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Primary Contact (Optional)"
+                          placeholder={formData.accountId ? "Type to search contacts..." : "Select an account first"}
+                          helperText={
+                            formData.accountId 
+                              ? 'Choose a contact at this funder' 
+                              : 'Select an account to see available contacts'
+                          }
+                        />
+                      )}
+                      renderOption={(props, option: Contact) => (
+                        <li {...props}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <PersonIcon fontSize="small" color="action" />
+                            <Box>
+                              <Typography variant="body2">{option.Name}</Typography>
+                              {option.Title && (
+                                <Typography variant="caption" color="textSecondary">
+                                  {option.Title}
+                                </Typography>
+                              )}
+                            </Box>
+                          </Box>
+                        </li>
+                      )}
+                      noOptionsText="No contacts found for this account"
+                    />
+                    <Button
+                      variant="outlined"
+                      startIcon={<AddIcon />}
+                      onClick={handleOpenContactDialog}
+                      disabled={!formData.accountId}
+                      sx={{ mt: 1, minWidth: '150px' }}
+                    >
+                      New Contact
+                    </Button>
+                  </Box>
                 </Grid>
               </Grid>
             </Box>
@@ -594,6 +801,141 @@ const NewOpportunity: React.FC = () => {
           </Box>
         </CardContent>
       </Card>
+
+      {/* Create Account Dialog */}
+      <Dialog open={accountDialogOpen} onClose={() => setAccountDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Create New Account</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              label="Account Name"
+              fullWidth
+              required
+              value={newAccountData.Name}
+              onChange={(e) => setNewAccountData({ ...newAccountData, Name: e.target.value })}
+              placeholder="e.g., Ford Foundation"
+            />
+            
+            <TextField
+              label="Type"
+              fullWidth
+              select
+              value={newAccountData.Type}
+              onChange={(e) => setNewAccountData({ ...newAccountData, Type: e.target.value })}
+              helperText="What type of organization is this?"
+            >
+              <MenuItem value="">None</MenuItem>
+              <MenuItem value="Foundation">Foundation</MenuItem>
+              <MenuItem value="Corporate">Corporate</MenuItem>
+              <MenuItem value="Government">Government</MenuItem>
+              <MenuItem value="Individual">Individual</MenuItem>
+              <MenuItem value="Other">Other</MenuItem>
+            </TextField>
+
+            <TextField
+              label="Website"
+              fullWidth
+              value={newAccountData.Website}
+              onChange={(e) => setNewAccountData({ ...newAccountData, Website: e.target.value })}
+              placeholder="https://example.org"
+            />
+
+            <TextField
+              label="Phone"
+              fullWidth
+              value={newAccountData.Phone}
+              onChange={(e) => setNewAccountData({ ...newAccountData, Phone: e.target.value })}
+              placeholder="(555) 123-4567"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAccountDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleCreateAccount}
+            variant="contained"
+            disabled={createAccountMutation.isLoading}
+            startIcon={createAccountMutation.isLoading ? <CircularProgress size={20} /> : <SaveIcon />}
+          >
+            {createAccountMutation.isLoading ? 'Creating...' : 'Create Account'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create Contact Dialog */}
+      <Dialog open={contactDialogOpen} onClose={() => setContactDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Create New Contact</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <TextField
+                  label="First Name"
+                  fullWidth
+                  value={newContactData.FirstName}
+                  onChange={(e) => setNewContactData({ ...newContactData, FirstName: e.target.value })}
+                  placeholder="John"
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  label="Last Name"
+                  fullWidth
+                  required
+                  value={newContactData.LastName}
+                  onChange={(e) => setNewContactData({ ...newContactData, LastName: e.target.value })}
+                  placeholder="Doe"
+                />
+              </Grid>
+            </Grid>
+
+            <TextField
+              label="Account"
+              fullWidth
+              value={selectedAccount?.Name || ''}
+              disabled
+              helperText="Contact will be associated with this account"
+            />
+
+            <TextField
+              label="Title"
+              fullWidth
+              value={newContactData.Title}
+              onChange={(e) => setNewContactData({ ...newContactData, Title: e.target.value })}
+              placeholder="e.g., Program Officer"
+            />
+
+
+            <TextField
+              label="Email"
+              fullWidth
+              type="email"
+              value={newContactData.Email}
+              onChange={(e) => setNewContactData({ ...newContactData, Email: e.target.value })}
+              placeholder="john.doe@example.org"
+            />
+
+            <TextField
+              label="Phone"
+              fullWidth
+              value={newContactData.Phone}
+              onChange={(e) => setNewContactData({ ...newContactData, Phone: e.target.value })}
+              placeholder="(555) 123-4567"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setContactDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleCreateContact}
+            variant="contained"
+            disabled={createContactMutation.isLoading}
+            startIcon={createContactMutation.isLoading ? <CircularProgress size={20} /> : <SaveIcon />}
+          >
+            {createContactMutation.isLoading ? 'Creating...' : 'Create Contact'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

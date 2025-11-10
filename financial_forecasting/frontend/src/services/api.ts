@@ -70,6 +70,27 @@ export const apiService = {
   // Salesforce - Accounts
   getAccounts: (params?: { limit?: number }) =>
     api.get('/api/salesforce/accounts', { params }),
+  
+  createAccount: (data: {
+    Name: string;
+    Type?: string;
+    Website?: string;
+    Phone?: string;
+  }) => api.post('/api/salesforce/accounts', data),
+
+  // Salesforce - Contacts
+  getContacts: (params?: { account_id?: string; limit?: number }) =>
+    api.get('/api/salesforce/contacts', { params }),
+  
+  createContact: (data: {
+    FirstName?: string;
+    LastName: string;
+    AccountId: string;
+    Title?: string;
+    Email?: string;
+    Phone?: string;
+    Primary_Affiliation__c?: string;
+  }) => api.post('/api/salesforce/contacts', data),
 
   // Salesforce - Users
   getUsers: (params?: { limit?: number }) =>
@@ -118,6 +139,13 @@ export const apiService = {
   
   slackHealthCheck: () =>
     api.get('/api/slack/health'),
+
+  // Fireflies Integration
+  getAccountFirefliesMeetings: (accountName: string, limit: number = 20) =>
+    api.get(`/api/fireflies/account-meetings/${encodeURIComponent(accountName)}`, { params: { limit } }),
+  
+  firefliesHealthCheck: () =>
+    api.get('/api/fireflies/health'),
 };
 
 // Export axios instance for custom requests

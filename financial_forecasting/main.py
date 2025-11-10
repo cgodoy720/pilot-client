@@ -18,14 +18,14 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from mcp_client import UnifiedMCPClient
-from .models import (
+from models import (
     SalesforceOpportunity, SalesforceAccount, IntacctInvoice, IntacctPayment,
     PaymentForecast, CashFlowProjection, ForecastingMetrics, ForecastingReport,
     OpportunityUpdateRequest, InvoiceCreationRequest, ForecastingDashboardData,
     OpportunityStage, PaymentTerms, InvoiceStatus
 )
-from .forecasting_engine import ForecastingEngine
-from .data_sync import DataSyncService
+from forecasting_engine import ForecastingEngine
+from data_sync import DataSyncService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -284,6 +284,128 @@ async def get_accounts(
         
     except Exception as e:
         logger.error(f"Error fetching accounts: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/salesforce/accounts")
+async def create_account(
+    account_data: Dict[str, Any],
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user = Depends(get_current_user)
+):
+    """Create a new Salesforce account."""
+    try:
+        salesforce = client.services["salesforce"]
+        
+        # Create the account
+        result = await salesforce.create_record("Account", account_data)
+        
+        if result and result.get("id"):
+            logger.info(f"Account created with ID: {result['id']} by {user['user_id']}")
+            return {
+                "success": True,
+                "id": result["id"],
+                "message": "Account created successfully"
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Failed to create account")
+            
+    except Exception as e:
+        logger.error(f"Error creating account: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/salesforce/contacts")
+async def get_contacts(
+    account_id: Optional[str] = None,
+    limit: int = Query(100, le=1000),
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user = Depends(get_current_user)
+):
+    """Get Salesforce contacts, optionally filtered by account."""
+    try:
+        salesforce = client.services["salesforce"]
+        
+        query = f"""
+        SELECT Id, FirstName, LastName, Name, AccountId, Title, Email, Phone,
+               Primary_Affiliation__c, CreatedDate, LastModifiedDate
+        FROM Contact
+        """
+        
+        if account_id:
+            query += f" WHERE AccountId = '{account_id}'"
+        
+        query += f" ORDER BY LastName ASC LIMIT {limit}"
+        
+        result = await salesforce.query(query)
+        
+        contacts = []
+        for record in result.get("records", []):
+            contacts.append(record)
+        
+        return contacts
+        
+    except Exception as e:
+        logger.error(f"Error fetching contacts: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/salesforce/contacts")
+async def create_contact(
+    contact_data: Dict[str, Any],
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user = Depends(get_current_user)
+):
+    """Create a new Salesforce contact."""
+    try:
+        salesforce = client.services["salesforce"]
+        
+        # Create the contact
+        result = await salesforce.create_record("Contact", contact_data)
+        
+        if result and result.get("id"):
+            logger.info(f"Contact created with ID: {result['id']} by {user['user_id']}")
+            return {
+                "success": True,
+                "id": result["id"],
+                "message": "Contact created successfully"
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Failed to create contact")
+            
+    except Exception as e:
+        logger.error(f"Error creating contact: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/salesforce/users")
+async def get_users(
+    limit: int = Query(100, le=1000),
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user = Depends(get_current_user)
+):
+    """Get Salesforce users."""
+    try:
+        salesforce = client.services["salesforce"]
+        
+        query = f"""
+        SELECT Id, Name, Email, IsActive
+        FROM User
+        WHERE IsActive = true
+        ORDER BY Name ASC
+        LIMIT {limit}
+        """
+        
+        result = await salesforce.query(query)
+        
+        users = []
+        for record in result.get("records", []):
+            users.append(record)
+        
+        return users
+        
+    except Exception as e:
+        logger.error(f"Error fetching users: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

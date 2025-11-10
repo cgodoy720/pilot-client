@@ -9,7 +9,7 @@ from collections import defaultdict
 import statistics
 import logging
 
-from .models import (
+from models import (
     SalesforceOpportunity, SalesforceAccount, IntacctInvoice, IntacctPayment,
     PaymentForecast, CashFlowProjection, ForecastingMetrics, ForecastingReport,
     ForecastScenario, ForecastingDashboardData, OpportunityStage, PaymentTerms

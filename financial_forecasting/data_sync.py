@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Set
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 
-from .models import (
+from models import (
     SalesforceOpportunity, SalesforceAccount, IntacctCustomer, IntacctInvoice,
     OpportunityInvoiceMapping, OpportunityStage
 )

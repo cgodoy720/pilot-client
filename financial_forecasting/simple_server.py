@@ -16,6 +16,12 @@ import os
 from simple_salesforce import Salesforce, SalesforceLogin
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
+import requests
+from urllib.parse import urlencode
+
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
 
 # Import config
 from config import SALESFORCE_CONFIG
@@ -38,6 +44,11 @@ app.add_middleware(
 # Global connections
 sf_client: Optional[Salesforce] = None
 slack_client: Optional[WebClient] = None
+
+# Fireflies API configuration
+# Loaded from .env file
+FIREFLIES_API_KEY = os.getenv('FIREFLIES_API_KEY')
+FIREFLIES_API_URL = "https://api.fireflies.ai/graphql"
 
 def get_salesforce():
     """Get or create Salesforce connection."""
@@ -63,7 +74,6 @@ def get_slack():
 
 # Request/Response Models
 class OpportunityUpdate(BaseModel):
-    opportunity_id: str
     updates: Dict[str, Any]
     user_id: str = "demo_user"
     reason: Optional[str] = None
@@ -97,7 +107,7 @@ async def services_health():
 
 # Salesforce - Opportunities
 @app.get("/api/salesforce/opportunities")
-async def get_opportunities(stage: Optional[str] = None, limit: int = 10000):
+async def get_opportunities(stage: Optional[str] = None):
     """Get ALL Salesforce opportunities (no artificial limit)."""
     try:
         sf = get_salesforce()
@@ -158,9 +168,13 @@ async def update_opportunity(opportunity_id: str, update_request: OpportunityUpd
     try:
         sf = get_salesforce()
         
+        # Only send the updates to Salesforce (user_id and reason are just for logging)
+        # Don't send them to Salesforce as they're not real fields
+        updates_to_send = update_request.updates
+        
         # Update the opportunity
         sobject = sf.Opportunity
-        result = sobject.update(opportunity_id, update_request.updates)
+        result = sobject.update(opportunity_id, updates_to_send)
         
         if result == 204:  # Success code
             return {
@@ -176,7 +190,7 @@ async def update_opportunity(opportunity_id: str, update_request: OpportunityUpd
 
 # Salesforce - Accounts
 @app.get("/api/salesforce/accounts")
-async def get_accounts(limit: int = 50000):
+async def get_accounts():
     """Get ALL Salesforce accounts."""
     try:
         sf = get_salesforce()
@@ -215,6 +229,96 @@ async def get_users(limit: int = 1000):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Salesforce - Contacts
+@app.get("/api/salesforce/contacts")
+async def get_contacts(account_id: Optional[str] = None):
+    """Get ALL Salesforce contacts, optionally filtered by account.
+    When account_id is provided, returns contacts where the account is either:
+    - Their household account (AccountId), OR
+    - Their primary affiliation (npsp__Primary_Affiliation__c)
+    """
+    try:
+        sf = get_salesforce()
+        
+        # Query with Primary Affiliation (the organization/company where they work)
+        query = """
+        SELECT Id, FirstName, LastName, Name, AccountId, Account.Name, Title, Email, Phone,
+               npsp__Primary_Affiliation__c, npsp__Primary_Affiliation__r.Name,
+               CreatedDate, LastModifiedDate
+        FROM Contact
+        """
+        if account_id:
+            # Include contacts where account is either household OR primary affiliation
+            query += f" WHERE (AccountId = '{account_id}' OR npsp__Primary_Affiliation__c = '{account_id}')"
+        query += " ORDER BY LastName ASC"
+        
+        # Use query_all to get ALL records (handles Salesforce's 2000 record pagination automatically)
+        result = sf.query_all(query)
+        return result.get("records", [])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/salesforce/contact-fields")
+async def get_contact_fields():
+    """Get all available fields for the Contact object."""
+    try:
+        sf = get_salesforce()
+        contact_metadata = sf.Contact.describe()
+        fields = []
+        for field in contact_metadata['fields']:
+            if 'affiliation' in field['label'].lower() or 'organization' in field['label'].lower():
+                fields.append({
+                    'name': field['name'],
+                    'label': field['label'],
+                    'type': field['type'],
+                    'referenceTo': field.get('referenceTo', [])
+                })
+        return {
+            'affiliation_related_fields': fields,
+            'all_field_count': len(contact_metadata['fields'])
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/salesforce/accounts")
+async def create_account(account_data: Dict[str, Any]):
+    """Create a new Salesforce account."""
+    try:
+        sf = get_salesforce()
+        result = sf.Account.create(account_data)
+        if result.get('success'):
+            return {
+                "success": True,
+                "id": result['id'],
+                "message": "Account created successfully"
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Failed to create account")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/salesforce/contacts")
+async def create_contact(contact_data: Dict[str, Any]):
+    """Create a new Salesforce contact."""
+    try:
+        sf = get_salesforce()
+        result = sf.Contact.create(contact_data)
+        if result.get('success'):
+            return {
+                "success": True,
+                "id": result['id'],
+                "message": "Contact created successfully"
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Failed to create contact")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Forecasting - Dashboard
 @app.get("/api/forecasting/dashboard")
@@ -523,6 +627,498 @@ async def slack_health_check():
             
     except Exception as e:
         return {"configured": True, "connected": False, "error": str(e)}
+
+# Fireflies Integration
+def query_fireflies(query: str, variables: dict = None):
+    """Execute a GraphQL query against Fireflies API."""
+    headers = {
+        "Authorization": f"Bearer {FIREFLIES_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {"query": query}
+    if variables:
+        payload["variables"] = variables
+    
+    print(f"Fireflies request payload: {payload}")
+    
+    response = requests.post(FIREFLIES_API_URL, json=payload, headers=headers)
+    
+    print(f"Fireflies response status: {response.status_code}")
+    print(f"Fireflies response text: {response.text[:500]}")
+    
+    response.raise_for_status()
+    return response.json()
+
+@app.get("/api/fireflies/account-meetings/{account_name}")
+async def get_account_fireflies_meetings(account_name: str, limit: int = 20):
+    """Get Fireflies meeting transcripts related to an account."""
+    try:
+        # Get account details from Salesforce for better matching
+        sf = get_salesforce()
+        account_query = f"""
+        SELECT Id, Name, Website, 
+               (SELECT Id, Name, Email FROM Contacts)
+        FROM Account
+        WHERE Name = '{account_name.replace("'", "\\'")}'
+        LIMIT 1
+        """
+        account_result = sf.query(account_query)
+        
+        account_website = None
+        contact_emails = []
+        contact_names = []
+        
+        if account_result['totalSize'] > 0:
+            account = account_result['records'][0]
+            account_website = account.get('Website', '')
+            
+            # Extract domain from website (e.g., https://fordfoundation.org -> fordfoundation.org)
+            if account_website:
+                account_website = account_website.replace('http://', '').replace('https://', '').replace('www.', '').split('/')[0]
+            
+            # Get contact emails and names
+            if account.get('Contacts'):
+                for contact in account['Contacts']['records']:
+                    if contact.get('Email'):
+                        contact_emails.append(contact['Email'].lower())
+                    if contact.get('Name'):
+                        contact_names.append(contact['Name'].lower())
+        
+        # Query Fireflies for transcripts
+        # Get recent transcripts (Fireflies max limit is 50)
+        query = f"""
+        query {{
+          transcripts(limit: 50) {{
+            id
+            title
+            date
+            duration
+            meeting_attendees {{
+              displayName
+              email
+            }}
+            sentences {{
+              text
+            }}
+            summary {{
+              keywords
+              action_items
+              overview
+            }}
+          }}
+        }}
+        """
+        
+        # Fetch more than needed so we can filter
+        result = query_fireflies(query)
+        
+        if "errors" in result:
+            raise HTTPException(status_code=500, detail=f"Fireflies API error: {result['errors']}")
+        
+        transcripts = result.get("data", {}).get("transcripts", [])
+        
+        # Match transcripts to account
+        matched_meetings = []
+        account_name_lower = account_name.lower()
+        account_terms = [term.lower() for term in account_name.split() if len(term) > 3]
+        
+        for transcript in transcripts:
+            if not transcript:
+                continue
+                
+            match_score = 0
+            match_reasons = []
+            
+            title = (transcript.get('title') or '').lower()
+            
+            # 1. Check if account name is in title (exact match only for high confidence)
+            if account_name_lower in title:
+                match_score += 15
+                match_reasons.append('title_exact')
+            
+            # 2. Check participant emails for domain match
+            attendees = transcript.get('meeting_attendees', []) or []
+            found_domain_match = False
+            found_contact_match = False
+            
+            for attendee in attendees:
+                if not attendee:
+                    continue
+                email = (attendee.get('email') or '').lower()
+                name = (attendee.get('displayName') or '').lower()
+                
+                # SMART MATCH: Extract company from email domain and compare to account name
+                # e.g., someone@microsoft.com matches "Microsoft" account
+                # This is the STRONGEST signal and most reliable
+                if email and '@' in email:
+                    email_domain = email.split('@')[1]
+                    # Remove common TLDs and get company name
+                    company_from_email = email_domain.split('.')[0]  # microsoft.com -> microsoft
+                    
+                    # Check if company name from email matches account name
+                    if company_from_email in account_name_lower or account_name_lower in company_from_email:
+                        if not found_domain_match:
+                            match_score += 25  # Increased score for domain match
+                            match_reasons.append(f'smart_domain_match:{email}')
+                            found_domain_match = True
+                        continue
+                    
+                    # Also check against individual account terms
+                    if any(term == company_from_email for term in account_terms):
+                        if not found_domain_match:
+                            match_score += 25
+                            match_reasons.append(f'smart_domain_match:{email}')
+                            found_domain_match = True
+                        continue
+                
+                # Match by email domain from Website field
+                if account_website and email.endswith(account_website):
+                    if not found_domain_match:
+                        match_score += 20
+                        match_reasons.append('email_domain')
+                        found_domain_match = True
+                    continue
+                
+                # Match by exact contact email (person is a known contact in Salesforce)
+                if email in contact_emails:
+                    if not found_contact_match:
+                        match_score += 15
+                        match_reasons.append('contact_email')
+                        found_contact_match = True
+                    continue
+            
+            # 3. Check transcript content for account mentions (only exact account name)
+            # Check first 50 sentences to avoid processing entire transcript
+            sentences = (transcript.get('sentences') or [])[:50]
+            transcript_text = ' '.join([s.get('text', '') for s in sentences if s and s.get('text')]).lower()
+            
+            if account_name_lower in transcript_text:
+                match_score += 10
+                match_reasons.append('content_mention')
+            
+            # 4. Check keywords/overview (only exact account name)
+            summary = transcript.get('summary') or {}
+            keywords = ' '.join(summary.get('keywords', []) or []).lower()
+            overview = (summary.get('overview') or '').lower()
+            
+            if account_name_lower in keywords or account_name_lower in overview:
+                match_score += 10
+                match_reasons.append('summary_mention')
+            
+            # Include if match score is high enough
+            # Threshold: 15+ ensures we only show meetings with strong signals
+            # (domain match OR title + content, OR contact email, etc.)
+            if match_score >= 15:
+                # Get a preview of the transcript
+                preview_sentences = sentences[:5]
+                preview_text = ' '.join([s.get('text', '') for s in preview_sentences if s and s.get('text')])
+                if len(preview_text) > 300:
+                    preview_text = preview_text[:300] + '...'
+                
+                matched_meetings.append({
+                    'id': transcript.get('id'),
+                    'title': transcript.get('title'),
+                    'date': transcript.get('date'),
+                    'duration': transcript.get('duration'),
+                    'attendees': [
+                        {
+                            'name': a.get('displayName'),
+                            'email': a.get('email')
+                        }
+                        for a in attendees if a and (a.get('displayName') or a.get('email'))
+                    ],
+                    'preview': preview_text,
+                    'keywords': summary.get('keywords', []) or [],
+                    'action_items': summary.get('action_items', []) or [],
+                    'overview': summary.get('overview'),
+                    'match_score': match_score,
+                    'match_reasons': match_reasons,
+                    'fireflies_url': f"https://app.fireflies.ai/view/{transcript.get('id')}" if transcript.get('id') else None
+                })
+        
+        # Sort by match score (highest first) and date (newest first)
+        matched_meetings.sort(key=lambda x: (x['match_score'], x.get('date') or ''), reverse=True)
+        matched_meetings = matched_meetings[:limit]
+        
+        return {
+            'account_name': account_name,
+            'meetings': matched_meetings,
+            'total': len(matched_meetings)
+        }
+        
+    except HTTPException:
+        raise
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Fireflies API request failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/fireflies/health")
+async def fireflies_health_check():
+    """Check if Fireflies integration is configured and working."""
+    try:
+        if not FIREFLIES_API_KEY:
+            return {"configured": False, "message": "FIREFLIES_API_KEY not set"}
+        
+        print(f"Testing Fireflies API with key: {FIREFLIES_API_KEY[:10]}...")
+        
+        # Test API with a simple query
+        query = """
+        query {
+          transcripts(limit: 1) {
+            id
+            title
+          }
+        }
+        """
+        
+        print(f"Sending test query to Fireflies...")
+        result = query_fireflies(query)
+        print(f"Fireflies health check response: {result}")
+        
+        if "errors" in result:
+            error_msg = result["errors"]
+            print(f"Fireflies returned errors: {error_msg}")
+            return {"configured": True, "connected": False, "error": error_msg}
+        
+        return {
+            "configured": True,
+            "connected": True,
+            "message": "Fireflies API is working",
+            "sample_meeting": result.get("data", {}).get("transcripts", [{}])[0] if result.get("data", {}).get("transcripts") else None,
+            "api_key_preview": f"{FIREFLIES_API_KEY[:10]}...{FIREFLIES_API_KEY[-4:]}"
+        }
+            
+    except requests.exceptions.HTTPError as e:
+        error_details = f"HTTP {e.response.status_code}: {e.response.text}"
+        print(f"HTTP Error: {error_details}")
+        return {"configured": True, "connected": False, "error": error_details}
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Error in health check: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return {"configured": True, "connected": False, "error": error_msg}
+
+@app.get("/api/fireflies/recent-meetings")
+async def get_recent_fireflies_meetings(limit: int = 10):
+    """Get recent Fireflies meetings to help identify test accounts."""
+    try:
+        if not FIREFLIES_API_KEY:
+            raise HTTPException(status_code=503, detail="FIREFLIES_API_KEY not set")
+        
+        print(f"Querying Fireflies API for {limit} transcripts...")
+        
+        # Use inline limit instead of variable
+        query = f"""
+        query {{
+          transcripts(limit: {limit}) {{
+            id
+            title
+            date
+            meeting_attendees {{
+              displayName
+              email
+            }}
+          }}
+        }}
+        """
+        
+        print(f"GraphQL query: {query}")
+        result = query_fireflies(query)
+        
+        print(f"Fireflies API response: {result}")
+        
+        if "errors" in result:
+            error_details = result['errors']
+            print(f"Fireflies API returned errors: {error_details}")
+            raise HTTPException(status_code=500, detail=f"Fireflies API error: {error_details}")
+        
+        transcripts = result.get("data", {}).get("transcripts", [])
+        
+        if transcripts is None:
+            transcripts = []
+        
+        print(f"Found {len(transcripts)} transcripts")
+        
+        # Extract unique organizations/companies from email domains
+        domains = set()
+        for transcript in transcripts:
+            if not transcript:
+                continue
+            attendees = transcript.get('meeting_attendees', [])
+            if attendees is None:
+                continue
+            for attendee in attendees:
+                if not attendee:
+                    continue
+                email = attendee.get('email', '')
+                if email and '@' in email:
+                    try:
+                        domain = email.split('@')[1]
+                        if domain not in ['gmail.com', 'outlook.com', 'yahoo.com', 'hotmail.com']:
+                            domains.add(domain)
+                    except IndexError:
+                        continue
+        
+        return {
+            "meetings": transcripts,
+            "total": len(transcripts),
+            "unique_domains": sorted(list(domains)),
+            "suggestion": "Look for account names in your Salesforce that match these domains or meeting titles"
+        }
+            
+    except HTTPException:
+        raise
+    except requests.exceptions.RequestException as e:
+        print(f"Request error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Fireflies API request failed: {str(e)}")
+    except Exception as e:
+        print(f"Unexpected error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@app.get("/api/fireflies/debug-account/{account_name}")
+async def debug_account_matching(account_name: str):
+    """Debug endpoint to see ALL meetings and their match scores for an account."""
+    try:
+        sf = get_salesforce()
+        
+        # Get account details
+        account_query = f"""
+        SELECT Id, Name, Website, 
+               (SELECT Id, Name, Email FROM Contacts)
+        FROM Account
+        WHERE Name = '{account_name.replace("'", "\\'")}'
+        LIMIT 1
+        """
+        account_result = sf.query(account_query)
+        
+        if account_result['totalSize'] == 0:
+            return {"error": f"Account '{account_name}' not found in Salesforce"}
+        
+        account = account_result['records'][0]
+        account_website = account.get('Website', '')
+        
+        # Extract domain from website
+        if account_website:
+            account_website = account_website.replace('http://', '').replace('https://', '').replace('www.', '').split('/')[0]
+        
+        contact_emails = []
+        contact_names = []
+        if account.get('Contacts'):
+            for contact in account['Contacts']['records']:
+                if contact.get('Email'):
+                    contact_emails.append(contact['Email'].lower())
+                if contact.get('Name'):
+                    contact_names.append(contact['Name'].lower())
+        
+        # Query Fireflies
+        query = f"""
+        query {{
+          transcripts(limit: 50) {{
+            id
+            title
+            date
+            meeting_attendees {{
+              displayName
+              email
+            }}
+          }}
+        }}
+        """
+        
+        result = query_fireflies(query)
+        transcripts = result.get("data", {}).get("transcripts", [])
+        
+        # Score ALL meetings (no filtering)
+        all_meetings = []
+        account_name_lower = account_name.lower()
+        account_terms = [term.lower() for term in account_name.split() if len(term) > 3]
+        
+        for transcript in transcripts:
+            match_score = 0
+            match_reasons = []
+            
+            title = (transcript.get('title') or '').lower()
+            
+            # Check title
+            if account_name_lower in title:
+                match_score += 10
+                match_reasons.append('title_exact')
+            elif any(term in title for term in account_terms):
+                match_score += 5
+                match_reasons.append('title_partial')
+            
+            # Check attendees
+            attendee_details = []
+            for attendee in transcript.get('meeting_attendees', []):
+                email = (attendee.get('email') or '').lower()
+                name = (attendee.get('displayName') or '').lower()
+                
+                attendee_info = {'name': name, 'email': email, 'matches': []}
+                
+                if account_website and email.endswith(account_website):
+                    match_score += 15
+                    match_reasons.append(f'email_domain:{email}')
+                    attendee_info['matches'].append('domain_match')
+                
+                # SMART MATCH: Extract company from email domain
+                if email and '@' in email:
+                    email_domain = email.split('@')[1]
+                    company_from_email = email_domain.split('.')[0]
+                    
+                    if company_from_email in account_name_lower or account_name_lower in company_from_email:
+                        match_score += 18
+                        match_reasons.append(f'smart_domain:{email}')
+                        attendee_info['matches'].append(f'smart_domain_match({company_from_email})')
+                    elif any(term == company_from_email for term in account_terms):
+                        match_score += 18
+                        match_reasons.append(f'smart_domain:{email}')
+                        attendee_info['matches'].append(f'smart_domain_match({company_from_email})')
+                
+                if email in contact_emails:
+                    match_score += 20
+                    match_reasons.append(f'contact_email:{email}')
+                    attendee_info['matches'].append('contact_match')
+                
+                if any(contact_name in name or name in contact_name for contact_name in contact_names if contact_name):
+                    match_score += 10
+                    match_reasons.append(f'contact_name:{name}')
+                    attendee_info['matches'].append('name_match')
+                
+                attendee_details.append(attendee_info)
+            
+            all_meetings.append({
+                'id': transcript.get('id'),
+                'title': transcript.get('title'),
+                'date': transcript.get('date'),
+                'match_score': match_score,
+                'match_reasons': match_reasons,
+                'attendees': attendee_details,
+                'would_show': match_score >= 15
+            })
+        
+        # Sort by score
+        all_meetings.sort(key=lambda x: x['match_score'], reverse=True)
+        
+        return {
+            'account_name': account_name,
+            'account_website': account_website,
+            'contact_emails': contact_emails,
+            'contact_names': contact_names,
+            'account_terms': account_terms,
+            'total_meetings_checked': len(all_meetings),
+            'meetings_that_would_show': len([m for m in all_meetings if m['would_show']]),
+            'all_meetings': all_meetings[:20],  # Show top 20
+            'threshold': 15,
+            'explanation': 'Only meetings with score >= 15 are shown. Domain match = 25pts, Contact email = 15pts, Title exact = 15pts, Content/Summary mention = 10pts each'
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     print("🚀 Starting Financial Forecasting API...")
