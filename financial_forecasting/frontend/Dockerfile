@@ -26,12 +26,8 @@ RUN echo "=== Checking for .env.production ===" && \
 # Set NODE_ENV to production so React uses .env.production
 ENV NODE_ENV=production
 
-# Accept build argument for API URL (fallback if .env.production doesn't work)
-ARG REACT_APP_API_URL=http://localhost:8000
-ENV REACT_APP_API_URL=$REACT_APP_API_URL
-
-# Debug: Show what REACT_APP_API_URL is set to
-RUN echo "=== REACT_APP_API_URL is set to: $REACT_APP_API_URL ==="
+# Debug: React will read REACT_APP_API_URL from .env.production during build
+RUN echo "=== React will read REACT_APP_API_URL from .env.production during npm run build ==="
 
 # Build the React app for production
 RUN npm run build
