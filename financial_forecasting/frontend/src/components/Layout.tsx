@@ -48,7 +48,7 @@ interface LayoutProps {
 }
 
 const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+  { text: 'Overview', icon: <DashboardIcon />, path: '/dashboard' },
   { text: 'Opportunities', icon: <TrendingUpIcon />, path: '/opportunities' },
   { text: 'Accounts', icon: <BusinessIcon />, path: '/accounts' },
   { text: 'Contacts', icon: <PersonIcon />, path: '/contacts' },
@@ -142,7 +142,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div>
       <Toolbar>
         <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600 }}>
-          Financial Forecast
+          Revenue Hub
         </Typography>
       </Toolbar>
       <Divider />
@@ -200,7 +200,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </IconButton>
           
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {menuItems.find(item => item.path === location.pathname)?.text || 'Dashboard'}
+            {menuItems.find(item => item.path === location.pathname)?.text || 'Overview'}
           </Typography>
 
           {/* Sync Menu */}

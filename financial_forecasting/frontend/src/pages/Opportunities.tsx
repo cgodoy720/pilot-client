@@ -831,7 +831,7 @@ const Opportunities: React.FC = () => {
 
   // Pipeline: Only include stages actively being pursued
   // Also keep recently changed opportunities visible for 5 seconds
-  let pipelineOpps = opportunities?.filter((opp: Opportunity) => {
+  const allPipelineOpps = opportunities?.filter((opp: Opportunity) => {
     const isOpen = OPEN_STAGES.includes(opp.StageName);
     const inRecentSet = recentlyChangedIds.has(opp.Id);
     const inRecentRef = recentlyChangedRef.current.has(opp.Id);
@@ -845,7 +845,15 @@ const Opportunities: React.FC = () => {
     return shouldInclude;
   }) || [];
 
-  // Apply additional filters from Dashboard navigation
+  // Calculate summary metrics from FULL pipeline (before filtering) to match Overview
+  const totalPipeline = allPipelineOpps.reduce((sum: number, opp: Opportunity) => 
+    sum + (opp.Amount || 0), 0) || 0;
+  
+  const weightedPipeline = allPipelineOpps.reduce((sum: number, opp: Opportunity) => 
+    sum + ((opp.Amount || 0) * (opp.Probability || 0) / 100), 0) || 0;
+
+  // Apply additional filters from Dashboard navigation (for display only, not metrics)
+  let pipelineOpps = allPipelineOpps;
   if (initialFilter === 'atRisk') {
     const now = new Date();
     const currentQuarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
@@ -881,13 +889,6 @@ const Opportunities: React.FC = () => {
   
   const totalExpected = paymentOpps.reduce((sum: number, opp: Opportunity) => 
     sum + (opp.Amount || 0), 0) || 0;
-
-  // Calculate summary metrics from FILTERED pipeline opportunities (not all opportunities)
-  const totalPipeline = pipelineOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + (opp.Amount || 0), 0) || 0;
-  
-  const weightedPipeline = pipelineOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + ((opp.Amount || 0) * (opp.Probability || 0) / 100), 0) || 0;
 
   return (
     <>

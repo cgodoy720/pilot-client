@@ -344,7 +344,7 @@ const Dashboard: React.FC = () => {
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" gutterBottom>
-          Executive Dashboard
+          Overview
         </Typography>
         <Typography variant="body2" color="textSecondary">
           Real-time financial pipeline visibility • Updated: {format(new Date(), 'PPpp')}
@@ -353,7 +353,7 @@ const Dashboard: React.FC = () => {
 
       {/* Hero Metrics */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -372,7 +372,7 @@ const Dashboard: React.FC = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -391,26 +391,7 @@ const Dashboard: React.FC = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <CheckCircleIcon color="success" sx={{ mr: 1 }} />
-                <Typography variant="caption" color="textSecondary">
-                  Win Rate (12mo)
-                </Typography>
-              </Box>
-              <Typography variant="h4">
-                {formatPercent(metrics.winRate)}
-              </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                {metrics.wonCount} won / {metrics.wonCount + metrics.lostCount} closed
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -479,7 +460,7 @@ const Dashboard: React.FC = () => {
                   <Button
                     size="small"
                     color="warning"
-                    onClick={() => navigate('/opportunities')}
+                    onClick={() => navigate('/opportunities', { state: { filterAtRisk: true } })}
                     sx={{ mt: 1 }}
                   >
                     View Details
@@ -501,7 +482,7 @@ const Dashboard: React.FC = () => {
             <Button 
               color="inherit" 
               size="small"
-              onClick={() => navigate('/opportunities')}
+              onClick={() => navigate('/opportunities', { state: { filterStale: true } })}
             >
               Review
             </Button>
@@ -516,10 +497,10 @@ const Dashboard: React.FC = () => {
         </Alert>
       )}
 
-      {/* Charts Row 1 - Pipeline by Stage & Win Rate */}
+      {/* Charts Row 1 - Pipeline by Stage */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {/* Pipeline by Stage - Horizontal Bars */}
-        <Grid item xs={12} lg={8}>
+        <Grid item xs={12}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -568,44 +549,6 @@ const Dashboard: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-
-        {/* Win Rate */}
-        <Grid item xs={12} lg={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Win/Loss (12mo)
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={winLossData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={(entry) => `${entry.name}: ${entry.value}`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {winLossData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <Box sx={{ textAlign: 'center', mt: 2 }}>
-                <Typography variant="h4" color="success.main">
-                  {formatPercent(metrics.winRate)}
-                </Typography>
-                <Typography variant="caption" color="textSecondary">
-                  Win Rate
-                </Typography>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
       </Grid>
 
       {/* Cash Flow Projection */}
@@ -640,35 +583,6 @@ const Dashboard: React.FC = () => {
           </Typography>
         </CardContent>
       </Card>
-
-      {/* Quick Actions */}
-      <Grid container spacing={2}>
-        <Grid item>
-          <Button
-            variant="contained"
-            onClick={() => navigate('/opportunities')}
-            startIcon={<TrendingUpIcon />}
-          >
-            View All Opportunities
-          </Button>
-        </Grid>
-        <Grid item>
-          <Button
-            variant="outlined"
-            onClick={() => navigate('/opportunities/new')}
-          >
-            Create New Opportunity
-          </Button>
-        </Grid>
-        <Grid item>
-          <Button
-            variant="outlined"
-            onClick={() => navigate('/accounts')}
-          >
-            View Funders
-          </Button>
-        </Grid>
-      </Grid>
     </Box>
   );
 };
