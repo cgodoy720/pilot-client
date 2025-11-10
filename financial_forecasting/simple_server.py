@@ -66,8 +66,8 @@ app.add_middleware(
     secret_key=SESSION_SECRET_KEY,
     session_cookie="session",
     max_age=3600 * 24,  # 24 hours
-    same_site="lax",
-    https_only=False  # Set to True in production with HTTPS
+    same_site="none",    # Allow cross-origin
+    https_only=True      # Require HTTPS for security
 )
 
 # Global connections
@@ -247,7 +247,8 @@ async def auth_google_callback(request: Request, response: Response):
             value=access_token,
             httponly=True,
             max_age=JWT_EXPIRATION_HOURS * 3600,
-            samesite="lax"
+            samesite="none",  # Required for cross-origin cookies
+            secure=True       # Required for HTTPS (samesite=none requires secure=True)
         )
         
         return response
@@ -267,7 +268,11 @@ async def get_me(request: Request):
 @app.post("/auth/logout")
 async def logout(response: Response):
     """Logout user by clearing the auth cookie."""
-    response.delete_cookie("access_token")
+    response.delete_cookie(
+        "access_token",
+        samesite="none",
+        secure=True
+    )
     return {"message": "Logged out successfully"}
 
 @app.get("/health/services")
