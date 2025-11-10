@@ -93,6 +93,8 @@ interface Opportunity {
   Most_Recent_Payment_Date__c?: string;
   Last_Actual_Payment__c?: string;
   npe01__Number_of_Payments__c?: number;
+  PaymentDate__c?: string;
+  Earliest_Scheduled_Payment__c?: string;
 }
 
 // Custom Autocomplete Edit Component for Account
@@ -531,6 +533,22 @@ const Opportunities: React.FC = () => {
       },
     },
     {
+      field: 'PaymentDate__c',
+      headerName: '1st Payment Date',
+      flex: 0.9,
+      minWidth: 130,
+      type: 'date',
+      editable: true,
+      filterable: true,
+      valueGetter: (params: GridValueGetterParams) => {
+        return params.value ? new Date(params.value) : null;
+      },
+      valueFormatter: (params) => {
+        if (!params.value) return '-';
+        return format(new Date(params.value as string), 'MMM dd, yyyy');
+      },
+    },
+    {
       field: 'LastModifiedDate',
       headerName: 'Last Modified',
       flex: 0.9,
@@ -854,7 +872,7 @@ const Opportunities: React.FC = () => {
           <Tab 
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <span>Sales Pipeline</span>
+                <span>Open Pipeline</span>
                 <Chip label={pipelineOpps.length} size="small" color="primary" />
               </Box>
             } 
@@ -875,8 +893,8 @@ const Opportunities: React.FC = () => {
       {/* Inline Editing Hint */}
       {activeTab === 0 && (
         <Alert severity="info" sx={{ mb: 3 }}>
-          <strong>Sales Pipeline:</strong> Track and manage open opportunities. 
-          Edit fields inline to update Salesforce instantly: Name, Account, Owner, Stage, Amount, Probability, Close Date.
+          <strong>Open Pipeline:</strong> Track and manage open opportunities. 
+          Edit fields inline to update Salesforce instantly: Name, Account, Owner, Stage, Amount, Probability, Close Date, 1st Payment Date.
         </Alert>
       )}
       
@@ -1089,7 +1107,7 @@ const Opportunities: React.FC = () => {
                 disableColumnMenu={false}
                 isCellEditable={(params) => {
                   // Editable fields for pipeline view (StageName handled by custom dropdown)
-                  return ['Name', 'AccountId', 'OwnerId', 'Amount', 'Probability', 'CloseDate'].includes(params.field);
+                  return ['Name', 'AccountId', 'OwnerId', 'Amount', 'Probability', 'CloseDate', 'PaymentDate__c'].includes(params.field);
                 }}
                 sx={{
                   '& .MuiDataGrid-cell:focus': {

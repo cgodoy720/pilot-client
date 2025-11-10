@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8080"
+    env_file:
+      - .env
+    environment:
+      - PORT=8080
+      - GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
+    volumes:
+      - ./:/app
+      - /tmp:/tmp
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+networks:
+  default:
+    name: financial-forecasting-network
+
