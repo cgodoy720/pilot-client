@@ -13,7 +13,7 @@ const CarouselHero = () => {
       person: "Larry Lamouth",
       role: "Cyber Security Analyst",
       company: "Blackstone",
-      objectPosition: 'center 30%'
+      objectPosition: 'center 90%'
     },
     {
       id: 2,
@@ -22,7 +22,7 @@ const CarouselHero = () => {
       person: "Chantal Rodriguez",
       role: "AI Engineer",
       company: "Microsoft",
-      objectPosition: 'center 40%'
+      objectPosition: 'center 60%'
     },
     {
       id: 3,
@@ -31,11 +31,11 @@ const CarouselHero = () => {
       person: "Pilot Cohort",
       role: "Builders", 
       company: "Pursuit AI-Native Program",
-      objectPosition: 'center 40%'
+      objectPosition: 'center 50%'
     }
   ];
 
-  const SLIDE_DURATION = 8000; // 8 seconds per slide
+  const SLIDE_DURATION = 7500; // 8 seconds per slide
 
   useEffect(() => {
     const progressInterval = setInterval(() => {
