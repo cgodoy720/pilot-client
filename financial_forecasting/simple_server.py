@@ -200,6 +200,16 @@ class OpportunityUpdate(BaseModel):
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow()}
 
+@app.get("/debug/config")
+async def debug_config():
+    """Debug endpoint to check configuration values"""
+    return {
+        "FRONTEND_URL": FRONTEND_URL,
+        "GOOGLE_CLIENT_ID": GOOGLE_CLIENT_ID[:20] + "..." if GOOGLE_CLIENT_ID else None,
+        "GOOGLE_REDIRECT_URI": GOOGLE_REDIRECT_URI,
+        "env_FRONTEND_URL": os.getenv('FRONTEND_URL'),
+    }
+
 # ============================================================================
 # AUTHENTICATION ENDPOINTS
 # ============================================================================
