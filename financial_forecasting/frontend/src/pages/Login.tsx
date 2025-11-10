@@ -5,7 +5,8 @@ import GoogleIcon from '@mui/icons-material/Google';
 const Login: React.FC = () => {
   const handleGoogleLogin = () => {
     // Redirect to backend Google OAuth endpoint
-    window.location.href = 'http://localhost:8000/auth/google';
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+    window.location.href = `${apiUrl}/auth/google`;
   };
 
   return (
