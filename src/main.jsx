@@ -22,6 +22,9 @@ import PaymentTerms from './pages/PaymentTerms/index.js'
 import Pledge from './pages/Pledge/index.js'
 import Unsubscribe from './pages/Unsubscribe/Unsubscribe.jsx'
 
+// Public form pages
+import PublicFormContainer from './pages/PublicForm/PublicFormContainer.jsx'
+
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { isAuthenticated } from './utils/attendanceAuth'
 import './utils/globalErrorHandler.js' // Install global auth error handler
@@ -83,6 +86,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/payment-terms" element={<PaymentTerms />} />
           <Route path="/pledge" element={<Pledge />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
+          
+          {/* Public form routes (no auth required) */}
+          <Route path="/form/:slug" element={<PublicFormContainer />} />
           
           {/* Protected builder routes */}
           <Route 

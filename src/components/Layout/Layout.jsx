@@ -22,6 +22,7 @@ import GradeIcon from '@mui/icons-material/Grade';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import WorkspacesIcon from '@mui/icons-material/Workspaces';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import DynamicFormIcon from '@mui/icons-material/DynamicForm';
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 import logo from '../../assets/logo.png'
@@ -42,6 +43,8 @@ const Layout = ({ children }) => {
   
   // Check if on Pathfinder pages for light mode styling
   const isPathfinderPage = location.pathname.startsWith('/pathfinder');
+  // Check if on Form Builder pages for light mode styling
+  const isFormBuilderPage = location.pathname.startsWith('/dashboard/forms');
   // Check if user is workshop admin
   const isWorkshopAdmin = user?.role === 'workshop_admin';
   // Check if user is a workshop participant (external participants with limited access)
@@ -195,6 +198,10 @@ const Layout = ({ children }) => {
                 <PsychologyIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">AI Prompts</span>}
               </Link>
+              <Link to="/dashboard/forms" className={`layout__nav-item ${location.pathname.startsWith('/dashboard/forms') ? 'layout__nav-item--active' : ''}`}>
+                <DynamicFormIcon className="layout__nav-icon" />
+                {isExpanded && <span className="layout__nav-text">Form Builder</span>}
+              </Link>
               {/* <Link to="/facilitator-view" className={`layout__nav-item ${location.pathname === '/facilitator-view' ? 'layout__nav-item--active' : ''}`}>
                 <PersonIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">Facilitator View</span>}
@@ -223,7 +230,7 @@ const Layout = ({ children }) => {
         </div>
       </nav>
       
-      <main className={`layout__content ${isPathfinderPage ? 'layout__content--light' : ''}`}>
+      <main className={`layout__content ${isPathfinderPage || isFormBuilderPage ? 'layout__content--light' : ''}`}>
         {children}
       </main>
     </Box>
