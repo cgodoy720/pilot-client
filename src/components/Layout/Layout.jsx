@@ -199,10 +199,10 @@ const Layout = ({ children }) => {
                 <PsychologyIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">AI Prompts</span>}
               </Link>
-              <Link to="/dashboard/forms" className={`layout__nav-item ${location.pathname.startsWith('/dashboard/forms') ? 'layout__nav-item--active' : ''}`}>
+              {/* <Link to="/dashboard/forms" className={`layout__nav-item ${location.pathname.startsWith('/dashboard/forms') ? 'layout__nav-item--active' : ''}`}>
                 <DynamicFormIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">Form Builder</span>}
-              </Link>
+              </Link> */}
               {/* <Link to="/facilitator-view" className={`layout__nav-item ${location.pathname === '/facilitator-view' ? 'layout__nav-item--active' : ''}`}>
                 <PersonIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">Facilitator View</span>}
