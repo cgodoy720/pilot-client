@@ -53,7 +53,6 @@ const CohortPerformanceDashboard = () => {
     builder: '',
     cohort: '',
     attendanceRate: '',
-    status: '',
     recommendation: ''
   });
   const [filteredRiskData, setFilteredRiskData] = useState([]);
@@ -87,6 +86,13 @@ const CohortPerformanceDashboard = () => {
       const response = await cachedAdminApi.getCachedCohortPerformance(token, { 
         forceRefresh, 
         period: selectedPeriod 
+      });
+      
+      console.log('📊 Cohort Performance Response:', {
+        cohorts: response.data?.cohorts?.length,
+        riskAssessment: response.data?.riskAssessment?.length,
+        summary: response.data?.summary,
+        sampleRiskBuilder: response.data?.riskAssessment?.[0]
       });
       
       setData(response.data);
@@ -155,7 +161,6 @@ const CohortPerformanceDashboard = () => {
       builder: '',
       cohort: '',
       attendanceRate: '',
-      status: '',
       recommendation: ''
     });
   };
@@ -164,34 +169,46 @@ const CohortPerformanceDashboard = () => {
   const applyFilters = (riskData) => {
     if (!riskData) return [];
     
-    return riskData.filter(builder => {
+    console.log('🔍 Filtering risk data:', {
+      totalBuilders: riskData.length,
+      filters: filters,
+      sampleBuilder: riskData[0]
+    });
+    
+    const filtered = riskData.filter(builder => {
       const matchesBuilder = !filters.builder || 
         `${builder.firstName} ${builder.lastName}`.toLowerCase().includes(filters.builder.toLowerCase()) ||
         builder.email.toLowerCase().includes(filters.builder.toLowerCase());
       
-      const matchesCohort = !filters.cohort || builder.cohort === filters.cohort;
+      const matchesCohort = !filters.cohort || builder.cohort.includes(filters.cohort);
       
       const matchesRate = !filters.attendanceRate || 
         builder.attendanceRate.toString().includes(filters.attendanceRate);
       
-      const requirement = getRequirementForCohort(builder.cohort);
-      const isAtRisk = builder.attendanceRate < requirement;
-      const matchesStatus = !filters.status || 
-        (filters.status === 'At Risk' && isAtRisk) ||
-        (filters.status === 'Safe' && !isAtRisk);
-      
       const matchesRecommendation = !filters.recommendation || 
         (builder.recommendation || 'Monitor').includes(filters.recommendation);
       
-      return matchesBuilder && matchesCohort && matchesRate && matchesStatus && matchesRecommendation;
+      return matchesBuilder && matchesCohort && matchesRate && matchesRecommendation;
     });
+    
+    console.log('✅ Filtered results:', {
+      originalCount: riskData.length,
+      filteredCount: filtered.length
+    });
+    
+    return filtered;
   };
 
   const getRequirementForCohort = (cohort) => {
-    // June 2025 L2: 85%, March 2025 L3: 85%, L1 Cohorts: 80%
-    if (cohort.includes('June 2025') && cohort.includes('L2')) return 85;
-    if (cohort.includes('March 2025') && cohort.includes('L3')) return 85;
-    if (cohort.includes('L1')) return 80;
+    // Cohort attendance requirements based on program level
+    // L1 (Fellowship Program): 80% requirement
+    // L2 (Advanced Track): 85% requirement  
+    // L3 (Senior Track): 85% requirement
+    
+    if (cohort.includes('June 2025')) return 85; // L2
+    if (cohort.includes('March 2025')) return 85; // L3
+    if (cohort.includes('September 2025')) return 80; // L1
+    if (cohort.includes('L1') || cohort.includes('December')) return 80; // L1 cohorts
     return 85; // Default requirement
   };
 
@@ -352,102 +369,192 @@ const CohortPerformanceDashboard = () => {
           const isMeetingRequirement = cohort.attendanceRate >= requirement;
           
           return (
-            <Grid item xs={12} md={6} lg={4} key={cohort.cohort}>
-              <Card className="cohort-performance-dashboard__cohort-card">
-                <CardContent>
-                  <Box className="cohort-performance-dashboard__cohort-header">
-                    <Typography variant="h6" component="h3">
+            <Grid item xs={12} sm={6} lg={4} key={cohort.cohort}>
+              <Card 
+                className="cohort-performance-dashboard__cohort-card"
+                sx={{
+                  background: isMeetingRequirement 
+                    ? 'linear-gradient(135deg, rgba(17, 153, 142, 0.1) 0%, rgba(56, 239, 125, 0.15) 100%)'
+                    : 'linear-gradient(135deg, rgba(235, 51, 73, 0.1) 0%, rgba(244, 92, 67, 0.15) 100%)',
+                  backdropFilter: 'blur(20px)',
+                  border: `2px solid ${isMeetingRequirement ? 'rgba(17, 153, 142, 0.3)' : 'rgba(235, 51, 73, 0.3)'}`,
+                }}
+              >
+                <CardContent sx={{ p: 2.5 }}>
+                  {/* Header with Cohort Name */}
+                  <Box sx={{ textAlign: 'center', mb: 2 }}>
+                    <Typography 
+                      variant="h6" 
+                      sx={{ 
+                        fontWeight: 800,
+                        background: isMeetingRequirement
+                          ? 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)'
+                          : 'linear-gradient(135deg, #eb3349 0%, #f45c43 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        mb: 1.5
+                      }}
+                    >
                       {cohort.cohort}
                     </Typography>
-                    <Chip
-                      icon={getPerformanceIcon(cohort.attendanceRate, requirement)}
-                      label={`${cohort.attendanceRate.toFixed(1)}%`}
-                      color={performanceColor}
-                      variant="outlined"
-                    />
+                    
+                    {/* Percentage Display - COMPACT */}
+                    <Tooltip 
+                      title={`Builders have attended ≥${requirement}% sessions`}
+                      arrow
+                      placement="top"
+                    >
+                      <Box sx={{ 
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 2,
+                        p: 1.5,
+                        borderRadius: '12px',
+                        background: isMeetingRequirement
+                          ? 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)'
+                          : 'linear-gradient(135deg, #eb3349 0%, #f45c43 100%)',
+                        boxShadow: isMeetingRequirement
+                          ? '0 4px 20px rgba(17, 153, 142, 0.3)'
+                          : '0 4px 20px rgba(235, 51, 73, 0.3)',
+                        cursor: 'help',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          transform: 'scale(1.05)',
+                          boxShadow: isMeetingRequirement
+                            ? '0 6px 25px rgba(17, 153, 142, 0.4)'
+                            : '0 6px 25px rgba(235, 51, 73, 0.4)',
+                        }
+                      }}>
+                        <Typography variant="h3" sx={{ color: '#fff', fontWeight: 900, lineHeight: 1 }}>
+                          {cohort.attendanceRate.toFixed(0)}%
+                        </Typography>
+                        <Chip
+                          icon={isMeetingRequirement ? <CheckCircleIcon /> : <WarningIcon />}
+                          label={`Target: ${requirement}%`}
+                          size="small"
+                          sx={{ 
+                            background: 'rgba(255,255,255,0.2)',
+                            color: '#fff',
+                            fontWeight: 700,
+                            fontSize: '0.7rem',
+                            borderColor: 'rgba(255,255,255,0.3)'
+                          }}
+                          variant="outlined"
+                        />
+                      </Box>
+                    </Tooltip>
                   </Box>
 
-                  <Box className="cohort-performance-dashboard__requirement-info">
-                    <Typography variant="body2" color="text.secondary">
-                      Requirement: {requirement}%
-                    </Typography>
-                    <Chip
-                      label={isMeetingRequirement ? 'Meeting Requirement' : 'Below Requirement'}
-                      color={isMeetingRequirement ? 'success' : 'error'}
-                      size="small"
-                      variant="filled"
-                    />
-                  </Box>
-
-                  <Box className="cohort-performance-dashboard__progress-section">
-                    <Box className="cohort-performance-dashboard__progress-header">
-                      <Typography variant="body2" color="text.secondary">
-                        Progress to Requirement
+                  {/* Progress Bar */}
+                  <Box sx={{ mb: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 600, color: '#666', fontSize: '0.7rem' }}>
+                        Cohort Target: 75%+
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {cohort.attendanceRate.toFixed(1)}% / {requirement}%
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: '#333', fontSize: '0.7rem' }}>
+                        {cohort.attendanceRate.toFixed(0)}%
                       </Typography>
                     </Box>
                     <LinearProgress
                       variant="determinate"
-                      value={Math.min((cohort.attendanceRate / requirement) * 100, 100)}
-                      color={performanceColor}
-                      sx={{ height: 8, borderRadius: 4 }}
+                      value={cohort.attendanceRate}
+                      sx={{ 
+                        height: 8, 
+                        borderRadius: 4,
+                        background: 'rgba(0,0,0,0.1)',
+                        '& .MuiLinearProgress-bar': {
+                          borderRadius: 4,
+                          background: isMeetingRequirement
+                            ? 'linear-gradient(90deg, #11998e 0%, #38ef7d 100%)'
+                            : 'linear-gradient(90deg, #eb3349 0%, #f45c43 100%)',
+                        }
+                      }}
                     />
                   </Box>
 
-                  <Box className="cohort-performance-dashboard__cohort-stats">
-                    <Box className="cohort-performance-dashboard__stat-row">
-                      <Typography variant="body2" color="text.secondary">
-                        Total Builders:
-                      </Typography>
-                      <Typography variant="body2" color="text.primary">
+                  {/* Stats Grid - Compact 2x2 */}
+                  <Box sx={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(2, 1fr)', 
+                    gap: 1.5
+                  }}>
+                    <Box sx={{ 
+                      p: 1.5, 
+                      borderRadius: '10px', 
+                      background: 'rgba(255,255,255,0.7)',
+                      textAlign: 'center',
+                      border: '1px solid rgba(0,0,0,0.08)',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                      }
+                    }}>
+                      <Typography variant="h5" sx={{ fontWeight: 800, color: '#333', lineHeight: 1, mb: 0.5 }}>
                         {cohort.totalBuilders}
                       </Typography>
-                    </Box>
-                    <Box className="cohort-performance-dashboard__stat-row">
-                      <Typography variant="body2" color="text.secondary">
-                        Present Today:
+                      <Typography variant="caption" sx={{ color: '#666', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase' }}>
+                        Total Builders
                       </Typography>
-                      <Typography variant="body2" color="text.primary">
+                    </Box>
+                    <Box sx={{ 
+                      p: 1.5, 
+                      borderRadius: '10px', 
+                      background: 'rgba(255,255,255,0.7)',
+                      textAlign: 'center',
+                      border: '1px solid rgba(0,0,0,0.08)',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(17, 153, 142, 0.2)'
+                      }
+                    }}>
+                      <Typography variant="h5" sx={{ fontWeight: 800, color: '#11998e', lineHeight: 1, mb: 0.5 }}>
                         {cohort.presentToday}
                       </Typography>
-                    </Box>
-                    <Box className="cohort-performance-dashboard__stat-row">
-                      <Typography variant="body2" color="text.secondary">
-                        Absent Today:
+                      <Typography variant="caption" sx={{ color: '#666', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase' }}>
+                        Present Today
                       </Typography>
-                      <Typography variant="body2" color="text.primary">
+                    </Box>
+                    <Box sx={{ 
+                      p: 1.5, 
+                      borderRadius: '10px', 
+                      background: 'rgba(255,255,255,0.7)',
+                      textAlign: 'center',
+                      border: '1px solid rgba(0,0,0,0.08)',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(235, 51, 73, 0.2)'
+                      }
+                    }}>
+                      <Typography variant="h5" sx={{ fontWeight: 800, color: '#eb3349', lineHeight: 1, mb: 0.5 }}>
                         {cohort.absentToday}
                       </Typography>
-                    </Box>
-                    <Box className="cohort-performance-dashboard__stat-row">
-                      <Typography variant="body2" color="text.secondary">
-                        Excused Today:
+                      <Typography variant="caption" sx={{ color: '#666', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase' }}>
+                        Absent Today
                       </Typography>
-                      <Typography variant="body2" color="text.primary">
+                    </Box>
+                    <Box sx={{ 
+                      p: 1.5, 
+                      borderRadius: '10px', 
+                      background: 'rgba(255,255,255,0.7)',
+                      textAlign: 'center',
+                      border: '1px solid rgba(0,0,0,0.08)',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(242, 153, 74, 0.2)'
+                      }
+                    }}>
+                      <Typography variant="h5" sx={{ fontWeight: 800, color: '#f2994a', lineHeight: 1, mb: 0.5 }}>
                         {cohort.excusedToday || 0}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#666', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase' }}>
+                        Excused Today
                       </Typography>
                     </Box>
                   </Box>
-
-                  {/* Trend Information */}
-                  {cohort.trend && (
-                    <Box className="cohort-performance-dashboard__trend-section">
-                      <Box className="cohort-performance-dashboard__trend-header">
-                        <Typography variant="body2" color="text.secondary">
-                          Weekly Trend
-                        </Typography>
-                        <Chip
-                          icon={getTrendIcon(cohort.trend)}
-                          label={`${cohort.trend > 0 ? '+' : ''}${cohort.trend.toFixed(1)}%`}
-                          color={getTrendColor(cohort.trend)}
-                          size="small"
-                          variant="outlined"
-                        />
-                      </Box>
-                    </Box>
-                  )}
                 </CardContent>
               </Card>
             </Grid>
@@ -455,50 +562,107 @@ const CohortPerformanceDashboard = () => {
         })}
       </Grid>
 
-      {/* Summary Statistics - Row 2: Moved from third row */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={4}>
-          <Card className="cohort-performance-dashboard__summary-card">
-            <CardContent>
-              <Typography variant="h6" color="text.primary" gutterBottom>
+      {/* Summary Statistics - Row 2: MODERNIZED */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card 
+            className="cohort-performance-dashboard__summary-card"
+            sx={{
+              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.2) 100%)',
+              backdropFilter: 'blur(20px)',
+              border: '2px solid rgba(102, 126, 234, 0.3)',
+              borderRadius: '20px',
+              boxShadow: '0 10px 40px rgba(102, 126, 234, 0.2)',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-8px)',
+                boxShadow: '0 20px 60px rgba(102, 126, 234, 0.3)'
+              }
+            }}
+          >
+            <CardContent sx={{ textAlign: 'center', p: 3 }}>
+              <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600, mb: 2, textTransform: 'uppercase', letterSpacing: 1 }}>
                 Overall Performance
               </Typography>
-              <Typography variant="h4" color="primary">
+              <Typography variant="h2" sx={{ 
+                color: '#fff', 
+                fontWeight: 900,
+                textShadow: '0 4px 20px rgba(0,0,0,0.2)',
+                mb: 1
+              }}>
                 {data.summary?.overallAttendanceRate?.toFixed(1) || 0}%
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
                 Average across all cohorts
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         
-        <Grid item xs={12} md={4}>
-          <Card className="cohort-performance-dashboard__summary-card">
-            <CardContent>
-              <Typography variant="h6" color="text.primary" gutterBottom>
-                Cohorts Meeting Requirements
+        <Grid item xs={12} sm={6} md={4}>
+          <Card 
+            className="cohort-performance-dashboard__summary-card"
+            sx={{
+              background: 'linear-gradient(135deg, rgba(17, 153, 142, 0.15) 0%, rgba(56, 239, 125, 0.2) 100%)',
+              backdropFilter: 'blur(20px)',
+              border: '2px solid rgba(17, 153, 142, 0.3)',
+              borderRadius: '20px',
+              boxShadow: '0 10px 40px rgba(17, 153, 142, 0.2)',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-8px)',
+                boxShadow: '0 20px 60px rgba(17, 153, 142, 0.3)'
+              }
+            }}
+          >
+            <CardContent sx={{ textAlign: 'center', p: 3 }}>
+              <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600, mb: 2, textTransform: 'uppercase', letterSpacing: 1 }}>
+                Cohorts Meeting Target
               </Typography>
-              <Typography variant="h4" color="success.main">
+              <Typography variant="h2" sx={{ 
+                color: '#fff', 
+                fontWeight: 900,
+                textShadow: '0 4px 20px rgba(0,0,0,0.2)',
+                mb: 1
+              }}>
                 {data.summary?.cohortsMeetingRequirement || 0} / {data.summary?.totalCohorts || 0}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
                 Cohorts above threshold
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         
-        <Grid item xs={12} md={4}>
-          <Card className="cohort-performance-dashboard__summary-card">
-            <CardContent>
-              <Typography variant="h6" color="text.primary" gutterBottom>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card 
+            className="cohort-performance-dashboard__summary-card"
+            sx={{
+              background: 'linear-gradient(135deg, rgba(235, 51, 73, 0.15) 0%, rgba(244, 92, 67, 0.2) 100%)',
+              backdropFilter: 'blur(20px)',
+              border: '2px solid rgba(235, 51, 73, 0.3)',
+              borderRadius: '20px',
+              boxShadow: '0 10px 40px rgba(235, 51, 73, 0.2)',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-8px)',
+                boxShadow: '0 20px 60px rgba(235, 51, 73, 0.3)'
+              }
+            }}
+          >
+            <CardContent sx={{ textAlign: 'center', p: 3 }}>
+              <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600, mb: 2, textTransform: 'uppercase', letterSpacing: 1 }}>
                 Builders at Risk
               </Typography>
-              <Typography variant="h4" color="error.main">
+              <Typography variant="h2" sx={{ 
+                color: '#fff', 
+                fontWeight: 900,
+                textShadow: '0 4px 20px rgba(0,0,0,0.2)',
+                mb: 1
+              }}>
                 {data.summary?.buildersAtRisk || 0}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
                 Requiring attention
               </Typography>
             </CardContent>
@@ -583,9 +747,9 @@ const CohortPerformanceDashboard = () => {
                         }}
                       >
                         <MenuItem value="" style={{ color: '#1a1a1a' }}>All Cohorts</MenuItem>
-                        <MenuItem value="March 2025" style={{ color: '#1a1a1a' }}>March 2025</MenuItem>
-                        <MenuItem value="September 2025" style={{ color: '#1a1a1a' }}>September 2025</MenuItem>
-                        <MenuItem value="June 2025" style={{ color: '#1a1a1a' }}>June 2025</MenuItem>
+                        <MenuItem value="September 2025" style={{ color: '#1a1a1a' }}>September 2025 (L1)</MenuItem>
+                        <MenuItem value="June 2025" style={{ color: '#1a1a1a' }}>June 2025 (L2)</MenuItem>
+                        <MenuItem value="March 2025" style={{ color: '#1a1a1a' }}>March 2025 (L3)</MenuItem>
                       </Select>
                     </TableCell>
                     <TableCell align="right">
@@ -619,29 +783,7 @@ const CohortPerformanceDashboard = () => {
                       {/* No filter for Requirement */}
                     </TableCell>
                     <TableCell align="center">
-                      <Select
-                        size="small"
-                        displayEmpty
-                        value={filters.status}
-                        onChange={(e) => handleFilterChange('status', e.target.value)}
-                        style={{ 
-                          backgroundColor: '#fff', 
-                          color: '#1a1a1a',
-                          minWidth: '100px',
-                          fontSize: '0.75rem'
-                        }}
-                        MenuProps={{
-                          PaperProps: {
-                            style: {
-                              backgroundColor: '#fff'
-                            }
-                          }
-                        }}
-                      >
-                        <MenuItem value="" style={{ color: '#1a1a1a' }}>All Status</MenuItem>
-                        <MenuItem value="At Risk" style={{ color: '#1a1a1a' }}>At Risk</MenuItem>
-                        <MenuItem value="Safe" style={{ color: '#1a1a1a' }}>Safe</MenuItem>
-                      </Select>
+                      {/* Status filter removed - this table only shows at-risk builders */}
                     </TableCell>
                     <TableCell align="center">
                       <Select
@@ -725,7 +867,7 @@ const CohortPerformanceDashboard = () => {
             </TableContainer>
             
             {/* Clear Filters Button */}
-            {(filters.builder || filters.cohort || filters.attendanceRate || filters.status || filters.recommendation) && (
+            {(filters.builder || filters.cohort || filters.attendanceRate || filters.recommendation) && (
               <Box sx={{ mt: 2, textAlign: 'center' }}>
                 <Chip
                   label="Clear All Filters"
