@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import Swal from 'sweetalert2';
 import './PathfinderAdmin.css';
+import { formatSalary } from '../../utils/salaryFormatter';
 
 function PathfinderAdmin() {
   const { user, token } = useAuth();
@@ -13,8 +14,10 @@ function PathfinderAdmin() {
   const [projects, setProjects] = useState([]);
   const [projectsOverview, setProjectsOverview] = useState(null);
   const [cohortStats, setCohortStats] = useState([]);
+  const [jobApplications, setJobApplications] = useState([]);
   const [selectedBuilder, setSelectedBuilder] = useState(null);
   const [builderDetails, setBuilderDetails] = useState(null);
+  const [selectedJobApplication, setSelectedJobApplication] = useState(null);
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [companyBuilders, setCompanyBuilders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,9 +27,22 @@ function PathfinderAdmin() {
   const [cohortFilter, setCohortFilter] = useState('');
   const [availableCohorts, setAvailableCohorts] = useState([]);
   const [weekOffset, setWeekOffset] = useState(0); // 0 = this week, -1 = last week, etc.
-  const [view, setView] = useState('overview'); // overview, builders, companies, prds, build-projects, ceremonies
+  const [view, setView] = useState('overview'); // overview, builders, companies, prds, build-projects, job-applications, ceremonies
   const [prdSubView, setPrdSubView] = useState('pending'); // pending, approved
   const [stageFilter, setStageFilter] = useState(''); // For build projects filtering
+  const [prdStageFilter, setPrdStageFilter] = useState(''); // For PRD stage filtering
+  const [prdViewMode, setPrdViewMode] = useState('table'); // table or kanban for PRD section
+  const [prdFilter, setPrdFilter] = useState('submitted'); // submitted or all (for PRDs with links)
+  const [prdSortConfig, setPrdSortConfig] = useState({ key: 'prd_submitted_at', direction: 'desc' }); // PRD sorting
+  const [builderSortConfig, setBuilderSortConfig] = useState({ key: 'first_name', direction: 'asc' }); // Builder sorting
+  const [jobAppSortConfig, setJobAppSortConfig] = useState({ key: 'date_applied', direction: 'desc' }); // Job applications sorting
+  const [jobAppViewMode, setJobAppViewMode] = useState('table'); // table or kanban
+  const [projectsViewMode, setProjectsViewMode] = useState('table'); // table or kanban for build projects
+  const [collapsedColumns, setCollapsedColumns] = useState({}); // Collapsed Kanban columns
+  const [collapsedProjectColumns, setCollapsedProjectColumns] = useState({}); // Collapsed project Kanban columns
+  const [collapsedPrdColumns, setCollapsedPrdColumns] = useState({}); // Collapsed PRD Kanban columns
+  const [selectedBuilderFilter, setSelectedBuilderFilter] = useState(null); // Filter by specific builder
+  const [showBuilderFilterModal, setShowBuilderFilterModal] = useState(false); // Builder filter modal
   const [companiesViewMode, setCompaniesViewMode] = useState('table'); // table or cards
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [dateFilter, setDateFilter] = useState({ startDate: '', endDate: '' }); // Date range filter
@@ -47,6 +63,250 @@ function PathfinderAdmin() {
     cohort: ''
   });
   const [editingGoalId, setEditingGoalId] = useState(null);
+
+  // Helper function to get stage labels matching kanban board
+  const getStageLabel = (stage) => {
+    const labels = {
+      ideation: 'Ideation',
+      planning: 'Planning & Design',
+      development: 'Development',
+      testing: 'Testing',
+      launch: 'Launch',
+      prospect: 'Prospect',
+      applied: 'Applied',
+      screen: 'Phone Screen',
+      oa: 'Online Assessment',
+      interview: 'Interview',
+      offer: 'Offer',
+      accepted: 'Accepted',
+      rejected: 'Rejected',
+      withdrawn: 'Withdrawn'
+    };
+    return labels[stage] || stage;
+  };
+
+  // Render stage history timeline for job applications
+  const renderStageTimeline = (stageHistory) => {
+    if (!stageHistory || stageHistory.length === 0) return null;
+    
+    // Show all stages, but skip "prospect" if the job has moved beyond it
+    const stagesToShow = stageHistory.filter((entry, index) => {
+      // Keep prospect only if it's the only stage, otherwise skip it
+      if (entry.stage === 'prospect' && stageHistory.length > 1) {
+        return false;
+      }
+      return true;
+    });
+    
+    return (
+      <div className="pathfinder-admin__stage-timeline">
+        {stagesToShow.map((entry, index) => (
+          <React.Fragment key={index}>
+            <span className="pathfinder-admin__timeline-item">
+              <span className="pathfinder-admin__timeline-stage">
+                {entry.stage === 'prospect' ? 'Added' : getStageLabel(entry.stage)}
+                <br />
+                <span className="pathfinder-admin__timeline-date">
+                  {new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              </span>
+            </span>
+            {index < stagesToShow.length - 1 && (
+              <span className="pathfinder-admin__timeline-arrow"> → </span>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  };
+
+  // PRD Sorting handler
+  const handlePrdSort = (key) => {
+    let direction = 'asc';
+    if (prdSortConfig.key === key && prdSortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setPrdSortConfig({ key, direction });
+  };
+
+  // Builder Sorting handler
+  const handleBuilderSort = (key) => {
+    let direction = 'asc';
+    if (builderSortConfig.key === key && builderSortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setBuilderSortConfig({ key, direction });
+  };
+
+  // Job Applications Sorting handler
+  const handleJobAppSort = (key) => {
+    let direction = 'asc';
+    if (jobAppSortConfig.key === key && jobAppSortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setJobAppSortConfig({ key, direction });
+  };
+
+  // Get sorted builders
+  const getSortedBuilders = () => {
+    if (!builderSortConfig.key) return builders;
+
+    return [...builders].sort((a, b) => {
+      let aVal = a[builderSortConfig.key];
+      let bVal = b[builderSortConfig.key];
+
+      // Handle name sorting (combine first and last name)
+      if (builderSortConfig.key === 'name') {
+        aVal = `${a.first_name} ${a.last_name}`.toLowerCase();
+        bVal = `${b.first_name} ${b.last_name}`.toLowerCase();
+      }
+      // Handle numeric columns
+      else if (['application_count', 'interview_count', 'offer_count', 'networking_count', 'total_projects'].includes(builderSortConfig.key)) {
+        aVal = Number(aVal) || 0;
+        bVal = Number(bVal) || 0;
+      }
+      // Handle string comparisons
+      else if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = bVal ? bVal.toLowerCase() : '';
+      }
+
+      // Handle null/undefined values for strings
+      if (builderSortConfig.key !== 'application_count' && builderSortConfig.key !== 'interview_count' && 
+          builderSortConfig.key !== 'offer_count' && builderSortConfig.key !== 'networking_count' && builderSortConfig.key !== 'total_projects') {
+        if (aVal === null || aVal === undefined) aVal = '';
+        if (bVal === null || bVal === undefined) bVal = '';
+      }
+
+      if (aVal < bVal) return builderSortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return builderSortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  // Get sorted job applications
+  const getSortedJobApplications = () => {
+    // First filter by builder if selected
+    let filteredApps = jobApplications;
+    if (selectedBuilderFilter) {
+      filteredApps = jobApplications.filter(app => app.builder_id === selectedBuilderFilter.builder_id);
+    }
+
+    if (!jobAppSortConfig.key) return filteredApps;
+
+    return [...filteredApps].sort((a, b) => {
+      let aVal = a[jobAppSortConfig.key];
+      let bVal = b[jobAppSortConfig.key];
+
+      // Handle builder name sorting (combine first and last name)
+      if (jobAppSortConfig.key === 'builder_name') {
+        aVal = `${a.builder_first_name} ${a.builder_last_name}`.toLowerCase();
+        bVal = `${b.builder_first_name} ${b.builder_last_name}`.toLowerCase();
+      }
+      // Handle date sorting
+      else if (jobAppSortConfig.key === 'date_applied') {
+        aVal = new Date(aVal);
+        bVal = new Date(bVal);
+      }
+      // Handle numeric columns
+      else if (jobAppSortConfig.key === 'interview_count') {
+        aVal = Number(aVal) || 0;
+        bVal = Number(bVal) || 0;
+      }
+      // Handle string comparisons
+      else if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = bVal ? bVal.toLowerCase() : '';
+      }
+
+      // Handle null/undefined values for strings
+      if (jobAppSortConfig.key !== 'interview_count' && jobAppSortConfig.key !== 'date_applied') {
+        if (aVal === null || aVal === undefined) aVal = '';
+        if (bVal === null || bVal === undefined) bVal = '';
+      }
+
+      if (aVal < bVal) return jobAppSortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return jobAppSortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  // Get unique builders from job applications
+  const getUniqueBuilders = () => {
+    const buildersMap = new Map();
+    jobApplications.forEach(app => {
+      if (!buildersMap.has(app.builder_id)) {
+        buildersMap.set(app.builder_id, {
+          builder_id: app.builder_id,
+          first_name: app.builder_first_name,
+          last_name: app.builder_last_name,
+          full_name: `${app.builder_first_name} ${app.builder_last_name}`
+        });
+      }
+    });
+    return Array.from(buildersMap.values()).sort((a, b) => 
+      a.full_name.localeCompare(b.full_name)
+    );
+  };
+
+  // Filter and sort PRDs
+  const getFilteredAndSortedPRDs = (prds) => {
+    let filtered = [...prds];
+
+    // Filter by stage
+    if (prdStageFilter) {
+      filtered = filtered.filter(p => p.stage === prdStageFilter);
+    }
+
+    // Filter by PRD submission status (only applies in Kanban view)
+    if (prdViewMode === 'kanban' && prdFilter) {
+      if (prdFilter === 'submitted') {
+        // Only show projects with PRDs submitted for approval (pending or approved)
+        filtered = filtered.filter(p => p.prd_submitted === true || p.prd_approved === true);
+      } else if (prdFilter === 'all') {
+        // Show all projects that have a PRD link
+        filtered = filtered.filter(p => p.prd_link);
+      }
+    }
+
+    // Sort
+    if (prdSortConfig.key) {
+      filtered.sort((a, b) => {
+        let aVal = a[prdSortConfig.key];
+        let bVal = b[prdSortConfig.key];
+
+        // Handle builder name sorting
+        if (prdSortConfig.key === 'builder_name') {
+          aVal = `${a.builder_first_name} ${a.builder_last_name}`.toLowerCase();
+          bVal = `${b.builder_first_name} ${b.builder_last_name}`.toLowerCase();
+        }
+
+        // Handle date sorting
+        if (prdSortConfig.key === 'target_date' || prdSortConfig.key === 'prd_submitted_at' || prdSortConfig.key === 'prd_approved_at') {
+          aVal = new Date(aVal);
+          bVal = new Date(bVal);
+        }
+
+        // Handle string sorting
+        if (typeof aVal === 'string') {
+          aVal = aVal.toLowerCase();
+          bVal = bVal.toLowerCase();
+        }
+
+        if (aVal < bVal) return prdSortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return prdSortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  };
+
+  // Get all PRDs for Kanban view (combines all projects with various PRD statuses)
+  const getAllPRDsForKanban = () => {
+    // Combine all projects (from the projects state which has all build projects)
+    return projects;
+  };
 
   // Extract unique cohorts from builders data
   useEffect(() => {
@@ -105,6 +365,9 @@ function PathfinderAdmin() {
           if (view === 'weekly-goals') {
             corePromises.push(fetchWeeklyGoals());
           }
+          if (view === 'job-applications') {
+            corePromises.push(fetchJobApplications());
+          }
           
           // Execute all fetches in parallel
           await Promise.all(corePromises);
@@ -118,6 +381,21 @@ function PathfinderAdmin() {
       fetchAllData();
     }
   }, [token, cohortFilter, weekOffset, view]);
+  
+  // Toggle column collapse in Kanban view
+  const toggleColumnCollapse = (stage) => {
+    setCollapsedColumns(prev => ({
+      ...prev,
+      [stage]: !prev[stage]
+    }));
+  };
+
+  const toggleProjectColumnCollapse = (stage) => {
+    setCollapsedProjectColumns(prev => ({
+      ...prev,
+      [stage]: !prev[stage]
+    }));
+  };
 
   const fetchOverview = async () => {
     try {
@@ -279,10 +557,22 @@ function PathfinderAdmin() {
           text: `${item.first_name} ${item.last_name} received their first offer!`,
           type: 'highlight'
         };
-      case 'no_activity':
+      case 'no_hustles':
         return {
           icon: '⚠️',
-          text: `${item.first_name} ${item.last_name} has no activity at all`,
+          text: `${item.first_name} ${item.last_name} has no hustles`,
+          type: 'flag'
+        };
+      case 'no_builds':
+        return {
+          icon: '⚠️',
+          text: `${item.first_name} ${item.last_name} has no builds`,
+          type: 'flag'
+        };
+      case 'no_jobs':
+        return {
+          icon: '⚠️',
+          text: `${item.first_name} ${item.last_name} has no job applications`,
           type: 'flag'
         };
       case 'inactive':
@@ -958,6 +1248,30 @@ function PathfinderAdmin() {
     }
   };
 
+  const fetchJobApplications = async () => {
+    try {
+      const url = cohortFilter
+        ? `${import.meta.env.VITE_API_URL}/api/pathfinder/admin/job-applications?cohort=${encodeURIComponent(cohortFilter)}`
+        : `${import.meta.env.VITE_API_URL}/api/pathfinder/admin/job-applications`;
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setJobApplications(data);
+      } else {
+        console.error('Failed to fetch job applications');
+      }
+    } catch (err) {
+      console.error('Error fetching job applications:', err);
+    }
+  };
+
+
   const handleApprovePRD = async (projectId, projectName) => {
     const { value: notes } = await Swal.fire({
       title: `Approve PRD for ${projectName}?`,
@@ -1064,7 +1378,25 @@ function PathfinderAdmin() {
     <div className="pathfinder-admin">
       <div className="pathfinder-admin__container">
         <div className="pathfinder-admin__header">
-          <h1 className="pathfinder-admin__title">Pathfinder Admin Dashboard</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            <h1 className="pathfinder-admin__title">Pathfinder Admin Dashboard</h1>
+            
+            {/* Cohort Filter */}
+            <div className="pathfinder-admin__filter-group" style={{ marginBottom: 0 }}>
+              <label>Filter by Cohort:</label>
+              <select
+                value={cohortFilter}
+                onChange={(e) => setCohortFilter(e.target.value)}
+                className="pathfinder-admin__filter-select"
+              >
+                <option value="">All Cohorts</option>
+                {availableCohorts.map(cohort => (
+                  <option key={cohort} value={cohort}>{cohort}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
           <button 
             className="pathfinder-admin__export-btn"
             onClick={handleExport}
@@ -1079,7 +1411,7 @@ function PathfinderAdmin() {
           </div>
         )}
 
-        {/* Tabs and Filter Row */}
+        {/* Tabs Row */}
         <div className="pathfinder-admin__tabs-row">
           {/* View Tabs */}
           <div className="pathfinder-admin__tabs">
@@ -1108,6 +1440,12 @@ function PathfinderAdmin() {
               Build Projects
             </button>
             <button
+              className={`pathfinder-admin__tab ${view === 'job-applications' ? 'pathfinder-admin__tab--active' : ''}`}
+              onClick={() => setView('job-applications')}
+            >
+              Job Applications
+            </button>
+            <button
               className={`pathfinder-admin__tab ${view === 'ceremonies' ? 'pathfinder-admin__tab--active' : ''}`}
               onClick={() => setView('ceremonies')}
             >
@@ -1129,21 +1467,6 @@ function PathfinderAdmin() {
               Weekly Goals
             </button>
           </div>
-
-          {/* Filter */}
-          <div className="pathfinder-admin__filter-group">
-            <label>Filter by Cohort:</label>
-            <select
-              value={cohortFilter}
-              onChange={(e) => setCohortFilter(e.target.value)}
-              className="pathfinder-admin__filter-select"
-            >
-              <option value="">All Cohorts</option>
-              {availableCohorts.map(cohort => (
-                <option key={cohort} value={cohort}>{cohort}</option>
-              ))}
-            </select>
-          </div>
         </div>
 
         {/* Overview View */}
@@ -1151,7 +1474,7 @@ function PathfinderAdmin() {
           <div className="pathfinder-admin__overview">
             {/* This Week Stats */}
             <div className="pathfinder-admin__section-header" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h2>{weekOffset === 0 ? 'This Week' : `Week of ${getWeekDateRange(weekOffset)}`}</h2>
+              <h2>{weekOffset === 0 ? `This Week (${getWeekDateRange(weekOffset)})` : `Week of ${getWeekDateRange(weekOffset)}`}</h2>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button
                   onClick={() => setWeekOffset(weekOffset - 1)}
@@ -1225,18 +1548,18 @@ function PathfinderAdmin() {
                             {leaderboardLabels[leaderboardType]}
                           </div>
                           <ol className="pathfinder-admin__leaderboard-items">
-                            {itemsOfType.map((item, index) => {
+                            {itemsOfType.slice(0, 5).map((item, index) => {
                               let metric = 0;
                               let metricLabel = '';
                               if (leaderboardType === 'top_weekly_applications') {
                                 metric = item.weekly_applications;
-                                metricLabel = 'applications';
+                                metricLabel = item.weekly_applications === 1 ? 'application' : 'applications';
                               } else if (leaderboardType === 'top_weekly_interviews') {
                                 metric = item.weekly_interviews;
-                                metricLabel = 'interviews';
+                                metricLabel = item.weekly_interviews === 1 ? 'interview' : 'interviews';
                               } else if (leaderboardType === 'top_weekly_networking') {
                                 metric = item.weekly_networking;
-                                metricLabel = 'hustles';
+                                metricLabel = item.weekly_networking === 1 ? 'hustle' : 'hustles';
                               }
                               return (
                                 <li key={`${leaderboardType}-${index}`} className="pathfinder-admin__leaderboard-item">
@@ -1287,7 +1610,9 @@ function PathfinderAdmin() {
                       'first_application',
                       'first_hustle',
                       'inactive', 
-                      'no_activity'
+                      'no_hustles',
+                      'no_builds',
+                      'no_jobs'
                     ].map(type => {
                       const itemsOfType = highlights.filter(item => {
                         const info = getMilestoneInfo(item);
@@ -1297,10 +1622,8 @@ function PathfinderAdmin() {
                           (type === 'interviews' && info.type === 'highlight' && item.weekly_interviews >= 3) ||
                           (type === 'applications' && info.type === 'highlight' && item.weekly_applications >= 10) ||
                           (type === 'networking' && info.type === 'highlight' && item.weekly_networking >= 15) ||
-                          // Major Milestones
-                          (item.milestone_type === type) ||
-                          (type === 'inactive' && item.milestone_type === 'inactive') ||
-                          (type === 'no_activity' && item.milestone_type === 'no_activity')
+                          // Major Milestones and flags
+                          (item.milestone_type === type)
                         );
                       });
 
@@ -1328,7 +1651,9 @@ function PathfinderAdmin() {
                         milestone_10_interviews: '🌟 10 Interviews',
                         first_offer: '🎊 First Offers',
                         inactive: '🔴 Inactive This Week',
-                        no_activity: '⚠️ No Activity Ever'
+                        no_hustles: '⚠️ No Hustles',
+                        no_builds: '⚠️ No Builds',
+                        no_jobs: '⚠️ No Jobs'
                       };
 
                       return (
@@ -1457,7 +1782,7 @@ function PathfinderAdmin() {
                             {leaderboardLabels[leaderboardType]}
                           </div>
                           <ol className="pathfinder-admin__leaderboard-items">
-                            {itemsOfType.map((item, index) => {
+                            {itemsOfType.slice(0, 5).map((item, index) => {
                               let metric = 0;
                               let metricLabel = '';
                               if (leaderboardType === 'top_total_applications') {
@@ -1654,26 +1979,67 @@ function PathfinderAdmin() {
                 <table className="pathfinder-admin__table">
                   <thead>
                     <tr>
-                      <th>Name</th>
-                      <th>Email</th>
-                      <th>Cohort</th>
-                      <th>Applications</th>
-                      <th>Interviews</th>
-                      <th>Offers</th>
-                      <th>Networking</th>
+                      <th 
+                        onClick={() => handleBuilderSort('name')}
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        Name {builderSortConfig.key === 'name' && (builderSortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        onClick={() => handleBuilderSort('networking_count')}
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        Hustles {builderSortConfig.key === 'networking_count' && (builderSortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        onClick={() => handleBuilderSort('total_projects')}
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        Build Projects {builderSortConfig.key === 'total_projects' && (builderSortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        onClick={() => handleBuilderSort('application_count')}
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        Applications {builderSortConfig.key === 'application_count' && (builderSortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        onClick={() => handleBuilderSort('interview_count')}
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        Interviews {builderSortConfig.key === 'interview_count' && (builderSortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        onClick={() => handleBuilderSort('offer_count')}
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        Offers {builderSortConfig.key === 'offer_count' && (builderSortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {builders.map(builder => (
+                    {getSortedBuilders().map(builder => (
                       <tr key={builder.builder_id}>
                         <td>{builder.first_name} {builder.last_name}</td>
-                        <td>{builder.email}</td>
-                        <td>{builder.cohort || '—'}</td>
+                        <td>{builder.networking_count || 0}</td>
+                        <td>
+                          {builder.total_projects > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.85rem' }}>
+                              <div style={{ fontWeight: '600' }}>Total: {builder.total_projects}</div>
+                              {builder.projects_ideation > 0 && <div>Ideation: {builder.projects_ideation}</div>}
+                              {builder.projects_planning > 0 && <div>Planning: {builder.projects_planning}</div>}
+                              {builder.projects_development > 0 && <div>Development: {builder.projects_development}</div>}
+                              {builder.projects_testing > 0 && <div>Testing: {builder.projects_testing}</div>}
+                              {builder.projects_launched > 0 && <div>Launched: {builder.projects_launched}</div>}
+                            </div>
+                          ) : (
+                            <span style={{ color: '#999' }}>—</span>
+                          )}
+                        </td>
                         <td>{builder.application_count || 0}</td>
                         <td>{builder.interview_count || 0}</td>
                         <td>{builder.offer_count || 0}</td>
-                        <td>{builder.networking_count || 0}</td>
                         <td>
                           <button
                             className="pathfinder-admin__view-btn"
@@ -1878,7 +2244,7 @@ function PathfinderAdmin() {
                         {builder.applications && builder.applications.length > 0 && (
                           <div className="pathfinder-admin__modal-builder-applications">
                             <strong>Positions:</strong>
-                            {builder.applications.slice(0, 3).map((app, idx) => (
+                            {builder.applications.map((app, idx) => (
                               <div key={idx} className="pathfinder-admin__modal-application-item">
                                 <span>{app.role_title}</span>
                                 <span className={`pathfinder-admin__modal-stage pathfinder-admin__modal-stage--${app.stage}`}>
@@ -1886,11 +2252,6 @@ function PathfinderAdmin() {
                                 </span>
                               </div>
                             ))}
-                            {builder.applications.length > 3 && (
-                              <div className="pathfinder-admin__modal-application-more">
-                                +{builder.applications.length - 3} more
-                              </div>
-                            )}
                           </div>
                         )}
                       </div>
@@ -1923,6 +2284,83 @@ function PathfinderAdmin() {
                 >
                   Approved Archive
                 </button>
+                <button
+                  className={`pathfinder-admin__prd-subtab ${prdSubView === 'all' ? 'pathfinder-admin__prd-subtab--active' : ''}`}
+                  onClick={() => setPrdSubView('all')}
+                >
+                  All PRDs
+                </button>
+
+                {/* Right side controls */}
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  {/* View Mode Toggle (only for All PRDs) */}
+                  {prdSubView === 'all' && (
+                    <>
+                      <div className="pathfinder-admin__view-toggle">
+                        <button 
+                          className={`pathfinder-admin__view-btn ${prdViewMode === 'table' ? 'pathfinder-admin__view-btn--active' : ''}`}
+                          onClick={() => setPrdViewMode('table')}
+                          title="Table View"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="2" y="3" width="12" height="2" rx="0.5" fill="currentColor"/>
+                            <rect x="2" y="7" width="12" height="2" rx="0.5" fill="currentColor"/>
+                            <rect x="2" y="11" width="12" height="2" rx="0.5" fill="currentColor"/>
+                          </svg>
+                        </button>
+                        <button 
+                          className={`pathfinder-admin__view-btn ${prdViewMode === 'kanban' ? 'pathfinder-admin__view-btn--active' : ''}`}
+                          onClick={() => setPrdViewMode('kanban')}
+                          title="Kanban View"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="2" y="2" width="3" height="12" rx="0.5" fill="currentColor"/>
+                            <rect x="6.5" y="2" width="3" height="8" rx="0.5" fill="currentColor"/>
+                            <rect x="11" y="2" width="3" height="10" rx="0.5" fill="currentColor"/>
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="pathfinder-admin__filter-group" style={{ marginBottom: 0 }}>
+                        <label>Show:</label>
+                        <select
+                          value={prdFilter}
+                          onChange={(e) => setPrdFilter(e.target.value)}
+                          className="pathfinder-admin__filter-select"
+                        >
+                          <option value="submitted">Submitted for Approval</option>
+                          <option value="all">All with PRD Link</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Stage Filter (for table views) */}
+                  {prdSubView !== 'all' && (
+                    <>
+                      <select 
+                        value={prdStageFilter} 
+                        onChange={(e) => setPrdStageFilter(e.target.value)}
+                        className="pathfinder-admin__filter-select"
+                      >
+                        <option value="">All Stages</option>
+                        <option value="ideation">Ideation</option>
+                        <option value="planning">Planning & Design</option>
+                        <option value="development">Development</option>
+                        <option value="testing">Testing</option>
+                        <option value="launch">Launch</option>
+                      </select>
+
+                      {prdStageFilter && (
+                        <button 
+                          onClick={() => setPrdStageFilter('')}
+                          className="pathfinder-admin__clear-filters-btn"
+                        >
+                          Clear Filter
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1932,37 +2370,63 @@ function PathfinderAdmin() {
                 <div className="pathfinder-admin__section-description">
                   <p>Review and approve builder project PRDs before they can move to development.</p>
                 </div>
+
                 <div className="pathfinder-admin__table-container">
-                  {pendingApprovals.length === 0 ? (
+                  {getFilteredAndSortedPRDs(pendingApprovals).length === 0 ? (
                     <div className="pathfinder-admin__empty">
-                      <p>🎉 No pending PRD approvals!</p>
+                      <p>🎉 No pending PRD approvals{prdStageFilter ? ' matching filter' : ''}!</p>
                     </div>
                   ) : (
                     <table className="pathfinder-admin__table">
                       <thead>
                         <tr>
-                          <th>Builder</th>
-                          <th>Project Name</th>
-                          <th>Stage</th>
-                          <th>Target Date</th>
-                          <th>Submitted</th>
+                          <th 
+                            onClick={() => handlePrdSort('builder_name')}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            Builder {prdSortConfig.key === 'builder_name' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                          </th>
+                          <th 
+                            onClick={() => handlePrdSort('project_name')}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            Project Name {prdSortConfig.key === 'project_name' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                          </th>
+                          <th 
+                            onClick={() => handlePrdSort('stage')}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            Stage {prdSortConfig.key === 'stage' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                          </th>
+                          <th 
+                            onClick={() => handlePrdSort('target_date')}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            Target Date {prdSortConfig.key === 'target_date' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                          </th>
+                          <th 
+                            onClick={() => handlePrdSort('prd_submitted_at')}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            Submitted {prdSortConfig.key === 'prd_submitted_at' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                          </th>
                           <th>PRD Link</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {pendingApprovals.map((project) => (
+                        {getFilteredAndSortedPRDs(pendingApprovals).map((project) => (
                           <tr key={project.project_id}>
                             <td>
                               <div className="pathfinder-admin__builder-info">
-                                <strong>{project.first_name} {project.last_name}</strong>
-                                <span className="pathfinder-admin__builder-email">{project.email}</span>
+                                <strong>{project.builder_first_name} {project.builder_last_name}</strong>
+                                <span className="pathfinder-admin__builder-email">{project.builder_email}</span>
                               </div>
                             </td>
-                            <td><strong>{project.project_name}</strong></td>
+                            <td>{project.project_name}</td>
                             <td>
                               <span className={`pathfinder-admin__stage-badge pathfinder-admin__stage-badge--${project.stage}`}>
-                                {project.stage}
+                                {getStageLabel(project.stage)}
                               </span>
                             </td>
                             <td>{new Date(project.target_date).toLocaleDateString()}</td>
@@ -2004,27 +2468,53 @@ function PathfinderAdmin() {
                 <div className="pathfinder-admin__section-description">
                   <p>View all previously approved project PRDs.</p>
                 </div>
+
                 <div className="pathfinder-admin__table-container">
-                  {approvedPRDs.length === 0 ? (
+                  {getFilteredAndSortedPRDs(approvedPRDs).length === 0 ? (
                     <div className="pathfinder-admin__empty">
-                      <p>No approved PRDs yet.</p>
+                      <p>No approved PRDs{prdStageFilter ? ' matching filter' : ''} yet.</p>
                     </div>
                   ) : (
                     <table className="pathfinder-admin__table">
                       <thead>
                         <tr>
-                          <th>Builder</th>
-                          <th>Project Name</th>
-                          <th>Stage</th>
-                          <th>Target Date</th>
+                          <th 
+                            onClick={() => handlePrdSort('builder_name')}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            Builder {prdSortConfig.key === 'builder_name' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                          </th>
+                          <th 
+                            onClick={() => handlePrdSort('project_name')}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            Project Name {prdSortConfig.key === 'project_name' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                          </th>
+                          <th 
+                            onClick={() => handlePrdSort('stage')}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            Stage {prdSortConfig.key === 'stage' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                          </th>
+                          <th 
+                            onClick={() => handlePrdSort('target_date')}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            Target Date {prdSortConfig.key === 'target_date' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                          </th>
                           <th>Approved By</th>
-                          <th>Approved On</th>
+                          <th 
+                            onClick={() => handlePrdSort('prd_approved_at')}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            Approved On {prdSortConfig.key === 'prd_approved_at' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                          </th>
                           <th>PRD Link</th>
                           <th>Notes</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {approvedPRDs.map((project) => (
+                        {getFilteredAndSortedPRDs(approvedPRDs).map((project) => (
                           <tr key={project.project_id}>
                             <td>
                               <div className="pathfinder-admin__builder-info">
@@ -2032,10 +2522,10 @@ function PathfinderAdmin() {
                                 <span className="pathfinder-admin__builder-email">{project.builder_email}</span>
                               </div>
                             </td>
-                            <td><strong>{project.project_name}</strong></td>
+                            <td>{project.project_name}</td>
                             <td>
                               <span className={`pathfinder-admin__stage-badge pathfinder-admin__stage-badge--${project.stage}`}>
-                                {project.stage}
+                                {getStageLabel(project.stage)}
                               </span>
                             </td>
                             <td>{new Date(project.target_date).toLocaleDateString()}</td>
@@ -2096,6 +2586,245 @@ function PathfinderAdmin() {
                 </div>
               </>
             )}
+
+            {/* All PRDs Content (with Table/Kanban toggle) */}
+            {prdSubView === 'all' && (
+              <>
+                <div className="pathfinder-admin__section-description">
+                  <p>View all project PRDs {prdViewMode === 'kanban' ? 'organized by stage' : 'in a detailed table'}. {prdFilter === 'submitted' ? 'Showing only projects submitted for approval.' : 'Showing all projects with a PRD link.'}</p>
+                </div>
+
+                {/* Table View */}
+                {prdViewMode === 'table' && (
+                  <div className="pathfinder-admin__table-container">
+                    {getFilteredAndSortedPRDs(getAllPRDsForKanban()).length === 0 ? (
+                      <div className="pathfinder-admin__empty">
+                        <p>No PRDs found{prdFilter === 'submitted' ? ' submitted for approval' : ' with PRD links'}.</p>
+                      </div>
+                    ) : (
+                      <table className="pathfinder-admin__table">
+                        <thead>
+                          <tr>
+                            <th 
+                              onClick={() => handlePrdSort('builder_name')}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              Builder {prdSortConfig.key === 'builder_name' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th 
+                              onClick={() => handlePrdSort('project_name')}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              Project Name {prdSortConfig.key === 'project_name' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th 
+                              onClick={() => handlePrdSort('stage')}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              Stage {prdSortConfig.key === 'stage' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th>PRD Status</th>
+                            <th 
+                              onClick={() => handlePrdSort('target_date')}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              Target Date {prdSortConfig.key === 'target_date' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th>PRD Link</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {getFilteredAndSortedPRDs(getAllPRDsForKanban()).map((project) => (
+                            <tr key={project.project_id}>
+                              <td>
+                                <div className="pathfinder-admin__builder-info">
+                                  <strong>{project.builder_first_name} {project.builder_last_name}</strong>
+                                  <span className="pathfinder-admin__builder-email">{project.builder_email}</span>
+                                </div>
+                              </td>
+                              <td>{project.project_name}</td>
+                              <td>
+                                <span className={`pathfinder-admin__stage-badge pathfinder-admin__stage-badge--${project.stage}`}>
+                                  {getStageLabel(project.stage)}
+                                </span>
+                              </td>
+                              <td>
+                                {project.prd_approved ? (
+                                  <span className="pathfinder-admin__prd-status pathfinder-admin__prd-status--approved">
+                                    ✓ Approved
+                                  </span>
+                                ) : project.prd_submitted ? (
+                                  <span className="pathfinder-admin__prd-status pathfinder-admin__prd-status--pending">
+                                    ⏳ Pending
+                                  </span>
+                                ) : project.prd_link ? (
+                                  <span className="pathfinder-admin__prd-status pathfinder-admin__prd-status--draft">
+                                    📝 Draft
+                                  </span>
+                                ) : (
+                                  '—'
+                                )}
+                              </td>
+                              <td>{new Date(project.target_date).toLocaleDateString()}</td>
+                              <td>
+                                {project.prd_link ? (
+                                  <a
+                                    href={project.prd_link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="pathfinder-admin__prd-link"
+                                  >
+                                    📄 View PRD
+                                  </a>
+                                ) : (
+                                  '—'
+                                )}
+                              </td>
+                              <td>
+                                {!project.prd_approved && project.prd_submitted && (
+                                  <button
+                                    className="pathfinder-admin__approve-btn"
+                                    onClick={() => handleApprovePRD(project.project_id, project.project_name)}
+                                  >
+                                    ✓ Approve
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
+
+                {/* Kanban View */}
+                {prdViewMode === 'kanban' && (
+                  <div className="pathfinder-admin__kanban">
+                    {['ideation', 'planning', 'development', 'testing', 'launch'].map(stage => {
+                      const stagePRDs = getFilteredAndSortedPRDs(getAllPRDsForKanban()).filter(proj => proj.stage === stage);
+                      
+                      return (
+                        <div 
+                          key={stage} 
+                          className={`pathfinder-admin__kanban-column ${collapsedPrdColumns[stage] ? 'pathfinder-admin__kanban-column--collapsed' : ''}`}
+                        >
+                          <div className="pathfinder-admin__kanban-header">
+                            <h3>{getStageLabel(stage)}</h3>
+                            <div className="pathfinder-admin__kanban-header-right">
+                              <span className="pathfinder-admin__kanban-count">{stagePRDs.length}</span>
+                              <button
+                                className="pathfinder-admin__kanban-collapse-btn"
+                                onClick={() => setCollapsedPrdColumns(prev => ({ ...prev, [stage]: !prev[stage] }))}
+                                title={collapsedPrdColumns[stage] ? "Expand" : "Collapse"}
+                              >
+                                {collapsedPrdColumns[stage] ? '→' : '←'}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="pathfinder-admin__kanban-body">
+                            {stagePRDs.length === 0 ? (
+                              <div className="pathfinder-admin__kanban-empty">
+                                No PRDs in this stage
+                              </div>
+                            ) : (
+                              stagePRDs.map(project => (
+                                <div key={project.project_id} className="pathfinder-admin__kanban-card">
+                                  <div className="pathfinder-admin__kanban-card-header">
+                                    <h4>{project.project_name}</h4>
+                                    {project.prd_approved && (
+                                      <span className="pathfinder-admin__prd-status pathfinder-admin__prd-status--approved" title="PRD Approved">
+                                        ✓
+                                      </span>
+                                    )}
+                                    {!project.prd_approved && project.prd_submitted && (
+                                      <span className="pathfinder-admin__prd-status pathfinder-admin__prd-status--pending" title="PRD Pending Approval">
+                                        ⏳
+                                      </span>
+                                    )}
+                                    {!project.prd_approved && !project.prd_submitted && project.prd_link && (
+                                      <span className="pathfinder-admin__prd-status pathfinder-admin__prd-status--draft" title="PRD Draft">
+                                        📝
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="pathfinder-admin__kanban-card-body">
+                                    <div className="pathfinder-admin__kanban-card-info">
+                                      <strong>{project.builder_first_name} {project.builder_last_name}</strong>
+                                      {project.builder_cohort && (
+                                        <span className="pathfinder-admin__cohort-badge">{project.builder_cohort}</span>
+                                      )}
+                                    </div>
+                                    <div className="pathfinder-admin__kanban-card-meta">
+                                      <div>
+                                        <span className="pathfinder-admin__meta-label">Target:</span>{' '}
+                                        {new Date(project.target_date).toLocaleDateString()}
+                                      </div>
+                                      {project.prd_submitted_at && (
+                                        <div>
+                                          <span className="pathfinder-admin__meta-label">Submitted:</span>{' '}
+                                          {new Date(project.prd_submitted_at).toLocaleDateString()}
+                                        </div>
+                                      )}
+                                      {project.prd_approved_at && (
+                                        <div>
+                                          <span className="pathfinder-admin__meta-label">Approved:</span>{' '}
+                                          {new Date(project.prd_approved_at).toLocaleDateString()}
+                                        </div>
+                                      )}
+                                    </div>
+                                    {project.linked_job_company && (
+                                      <div className="pathfinder-admin__kanban-card-job">
+                                        <span className="pathfinder-admin__meta-label">Linked Job:</span>{' '}
+                                        {project.linked_job_company} - {project.linked_job_role}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="pathfinder-admin__kanban-card-actions">
+                                    {project.prd_link && (
+                                      <a
+                                        href={project.prd_link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="pathfinder-admin__kanban-card-link"
+                                        title="View PRD"
+                                      >
+                                        📄 PRD
+                                      </a>
+                                    )}
+                                    {project.deployment_url && (
+                                      <a
+                                        href={project.deployment_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="pathfinder-admin__kanban-card-link"
+                                        title="View Deployment"
+                                      >
+                                        🚀 Live
+                                      </a>
+                                    )}
+                                    {!project.prd_approved && project.prd_submitted && (
+                                      <button
+                                        className="pathfinder-admin__kanban-card-approve-btn"
+                                        onClick={() => handleApprovePRD(project.project_id, project.project_name)}
+                                        title="Approve PRD"
+                                      >
+                                        ✓ Approve
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
@@ -2108,128 +2837,62 @@ function PathfinderAdmin() {
                   <h2>Build Projects Tracker</h2>
                   <p>Track builder projects individually and by cohort.</p>
                 </div>
-                <button 
-                  className="pathfinder-admin__export-btn"
-                  onClick={handleProjectsExport}
-                  style={{ marginTop: 0 }}
-                >
-                  Export Projects CSV
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div className="pathfinder-admin__view-toggle">
+                    <button 
+                      className={`pathfinder-admin__view-btn ${projectsViewMode === 'table' ? 'pathfinder-admin__view-btn--active' : ''}`}
+                      onClick={() => setProjectsViewMode('table')}
+                      title="Table View"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="2" y="3" width="12" height="2" rx="0.5" fill="currentColor"/>
+                        <rect x="2" y="7" width="12" height="2" rx="0.5" fill="currentColor"/>
+                        <rect x="2" y="11" width="12" height="2" rx="0.5" fill="currentColor"/>
+                      </svg>
+                    </button>
+                    <button 
+                      className={`pathfinder-admin__view-btn ${projectsViewMode === 'kanban' ? 'pathfinder-admin__view-btn--active' : ''}`}
+                      onClick={() => setProjectsViewMode('kanban')}
+                      title="Kanban View"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="2" y="2" width="3" height="12" rx="0.5" fill="currentColor"/>
+                        <rect x="6.5" y="2" width="3" height="8" rx="0.5" fill="currentColor"/>
+                        <rect x="11" y="2" width="3" height="10" rx="0.5" fill="currentColor"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="pathfinder-admin__filter-group" style={{ marginBottom: 0 }}>
+                    <label>Filter by Stage:</label>
+                    <select
+                      value={stageFilter}
+                      onChange={(e) => setStageFilter(e.target.value)}
+                      className="pathfinder-admin__filter-select"
+                      style={{ maxWidth: '200px' }}
+                    >
+                      <option value="">All Stages</option>
+                      <option value="ideation">Ideation</option>
+                      <option value="planning">Planning</option>
+                      <option value="development">Development</option>
+                      <option value="testing">Testing</option>
+                      <option value="launch">Launch</option>
+                    </select>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Projects Overview Stats */}
-            {projectsOverview && (
-              <div className="pathfinder-admin__stats-grid pathfinder-admin__stats-grid--compact">
-                <div className="pathfinder-admin__stat-card">
-                  <div className="pathfinder-admin__stat-value">{projectsOverview.total_projects || 0}</div>
-                  <div className="pathfinder-admin__stat-label">Total Projects</div>
-                </div>
-                <div className="pathfinder-admin__stat-card">
-                  <div className="pathfinder-admin__stat-value">{projectsOverview.builders_with_projects || 0}</div>
-                  <div className="pathfinder-admin__stat-label">Builders with Projects</div>
-                </div>
-                <div className="pathfinder-admin__stat-card">
-                  <div className="pathfinder-admin__stat-value">{projectsOverview.ideation_count || 0}</div>
-                  <div className="pathfinder-admin__stat-label">Ideation</div>
-                </div>
-                <div className="pathfinder-admin__stat-card">
-                  <div className="pathfinder-admin__stat-value">{projectsOverview.planning_count || 0}</div>
-                  <div className="pathfinder-admin__stat-label">Planning</div>
-                </div>
-                <div className="pathfinder-admin__stat-card">
-                  <div className="pathfinder-admin__stat-value">{projectsOverview.development_count || 0}</div>
-                  <div className="pathfinder-admin__stat-label">Development</div>
-                </div>
-                <div className="pathfinder-admin__stat-card">
-                  <div className="pathfinder-admin__stat-value">{projectsOverview.testing_count || 0}</div>
-                  <div className="pathfinder-admin__stat-label">Testing</div>
-                </div>
-                <div className="pathfinder-admin__stat-card">
-                  <div className="pathfinder-admin__stat-value">{projectsOverview.launch_count || 0}</div>
-                  <div className="pathfinder-admin__stat-label">Launched</div>
-                </div>
-                <div className="pathfinder-admin__stat-card pathfinder-admin__stat-card--warning">
-                  <div className="pathfinder-admin__stat-value">{projectsOverview.overdue_count || 0}</div>
-                  <div className="pathfinder-admin__stat-label">Overdue</div>
-                </div>
-              </div>
-            )}
-
-            {/* Cohort Statistics */}
-            {!cohortFilter && cohortStats.length > 0 && (
-              <div className="pathfinder-admin__cohort-section">
-                <h3>Projects by Cohort</h3>
-                <div className="pathfinder-admin__table-container">
-                  <table className="pathfinder-admin__table">
-                    <thead>
-                      <tr>
-                        <th>Cohort</th>
-                        <th>Total Projects</th>
-                        <th>Builders</th>
-                        <th>Ideation</th>
-                        <th>Planning</th>
-                        <th>Development</th>
-                        <th>Testing</th>
-                        <th>Launched</th>
-                        <th>Approved PRDs</th>
-                        <th>Avg Days to Launch</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {cohortStats.map((cohort, index) => (
-                        <tr key={index}>
-                          <td><strong>{cohort.cohort}</strong></td>
-                          <td>{cohort.total_projects || 0}</td>
-                          <td>{cohort.builders_with_projects || 0}</td>
-                          <td>{cohort.ideation_count || 0}</td>
-                          <td>{cohort.planning_count || 0}</td>
-                          <td>{cohort.development_count || 0}</td>
-                          <td>{cohort.testing_count || 0}</td>
-                          <td>{cohort.launch_count || 0}</td>
-                          <td>{cohort.approved_count || 0}</td>
-                          <td>
-                            {cohort.avg_days_to_launch 
-                              ? Math.round(cohort.avg_days_to_launch) + ' days'
-                              : '—'
-                            }
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
             {/* All Projects Table */}
             <div className="pathfinder-admin__projects-section">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h3>All Projects {cohortFilter && `(${cohortFilter})`}</h3>
-                <div className="pathfinder-admin__filter-group" style={{ marginBottom: 0 }}>
-                  <label>Filter by Stage:</label>
-                  <select
-                    value={stageFilter}
-                    onChange={(e) => setStageFilter(e.target.value)}
-                    className="pathfinder-admin__filter-select"
-                    style={{ maxWidth: '200px' }}
-                  >
-                    <option value="">All Stages</option>
-                    <option value="ideation">Ideation</option>
-                    <option value="planning">Planning</option>
-                    <option value="development">Development</option>
-                    <option value="testing">Testing</option>
-                    <option value="launch">Launch</option>
-                  </select>
-                </div>
-              </div>
-              <div className="pathfinder-admin__table-container">
-                {getFilteredAndSortedProjects().length === 0 ? (
-                  <div className="pathfinder-admin__empty">
-                    <p>No projects found</p>
-                  </div>
-                ) : (
-                  <table className="pathfinder-admin__table">
+              {/* Table View */}
+              {projectsViewMode === 'table' && (
+                <div className="pathfinder-admin__table-container">
+                  {getFilteredAndSortedProjects().length === 0 ? (
+                    <div className="pathfinder-admin__empty">
+                      <p>No projects found</p>
+                    </div>
+                  ) : (
+                    <table className="pathfinder-admin__table">
                     <thead>
                       <tr>
                         <th 
@@ -2283,10 +2946,10 @@ function PathfinderAdmin() {
                             </div>
                           </td>
                           <td>{project.builder_cohort || '—'}</td>
-                          <td><strong>{project.project_name}</strong></td>
+                          <td>{project.project_name}</td>
                           <td>
                             <span className={`pathfinder-admin__stage-badge pathfinder-admin__stage-badge--${project.stage}`}>
-                              {project.stage}
+                              {getStageLabel(project.stage)}
                             </span>
                           </td>
                           <td>
@@ -2355,6 +3018,155 @@ function PathfinderAdmin() {
                   </table>
                 )}
               </div>
+            )}
+
+            {/* Kanban View */}
+            {projectsViewMode === 'kanban' && (
+              <div className="pathfinder-admin__kanban">
+                {['ideation', 'planning', 'development', 'testing', 'launch'].map(stage => {
+                  const stageProjects = getFilteredAndSortedProjects().filter(proj => proj.stage === stage);
+                  
+                  return (
+                    <div 
+                      key={stage} 
+                      className={`pathfinder-admin__kanban-column ${collapsedProjectColumns[stage] ? 'pathfinder-admin__kanban-column--collapsed' : ''}`}
+                    >
+                      <div className="pathfinder-admin__kanban-header">
+                        <h3>{getStageLabel(stage)}</h3>
+                        <div className="pathfinder-admin__kanban-header-right">
+                          <span className="pathfinder-admin__kanban-count">{stageProjects.length}</span>
+                          <button
+                            className="pathfinder-admin__kanban-collapse-btn"
+                            onClick={() => toggleProjectColumnCollapse(stage)}
+                            title={collapsedProjectColumns[stage] ? "Expand column" : "Collapse column"}
+                          >
+                            {collapsedProjectColumns[stage] ? '→' : '←'}
+                          </button>
+                        </div>
+                      </div>
+                      {!collapsedProjectColumns[stage] && (
+                        <div className="pathfinder-admin__kanban-cards">
+                          {stageProjects.length === 0 ? (
+                            <div className="pathfinder-admin__kanban-empty">
+                              No projects in {getStageLabel(stage)}
+                            </div>
+                          ) : (
+                            stageProjects.map(project => {
+                              const isOverdue = new Date(project.target_date) < new Date() && project.stage !== 'launch';
+                              
+                              return (
+                                <div 
+                                  key={project.project_id} 
+                                  className="pathfinder-admin__kanban-card"
+                                >
+                                  <div className="pathfinder-admin__kanban-card-header">
+                                    <div className="pathfinder-admin__project-initial" style={{
+                                      backgroundColor: 'white',
+                                      border: project.stage === 'launch' ? '2px solid #FFD700' : '1px solid #d0d0d0',
+                                      fontSize: project.stage === 'launch' ? '1.25rem' : '0.875rem',
+                                      width: '32px',
+                                      height: '32px',
+                                      borderRadius: '50%',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontWeight: '600',
+                                      flexShrink: 0
+                                    }}>
+                                      {project.stage === 'launch' ? '🤖' : (project.project_name ? project.project_name.charAt(0).toUpperCase() : '?')}
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '600', color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {project.project_name}
+                                      </h4>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="pathfinder-admin__kanban-card-builder">
+                                    {project.builder_first_name} {project.builder_last_name}
+                                  </div>
+                                  
+                                  <div className="pathfinder-admin__kanban-card-meta">
+                                    <div style={{ fontSize: '0.75rem', color: '#666666' }}>
+                                      <span style={{ fontWeight: '500' }}>Target:</span> {new Date(project.target_date).toLocaleDateString()}
+                                      {isOverdue && (
+                                        <span style={{ marginLeft: '0.5rem', color: '#e74c3c', fontWeight: '600' }}>⚠️ Overdue</span>
+                                      )}
+                                    </div>
+                                    
+                                    {project.prd_link && (
+                                      <div style={{ fontSize: '0.75rem', color: '#666666', marginTop: '0.25rem' }}>
+                                        <span style={{ fontWeight: '500' }}>PRD:</span>{' '}
+                                        {project.prd_approved ? (
+                                          <span style={{ color: '#27ae60' }}>✓ Approved</span>
+                                        ) : project.prd_submitted ? (
+                                          <span style={{ color: '#f39c12' }}>⏳ Pending</span>
+                                        ) : (
+                                          <span>📝 Draft</span>
+                                        )}
+                                      </div>
+                                    )}
+                                    
+                                    {project.linked_job_company && (
+                                      <div style={{ fontSize: '0.75rem', color: '#666666', marginTop: '0.25rem' }}>
+                                        <span style={{ fontWeight: '500' }}>For:</span> {project.linked_job_company}
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                                    {project.prd_link && (
+                                      <a
+                                        href={project.prd_link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          padding: '0.25rem 0.5rem',
+                                          fontSize: '0.75rem',
+                                          backgroundColor: '#f0f0f0',
+                                          borderRadius: '4px',
+                                          textDecoration: 'none',
+                                          color: '#1a1a1a'
+                                        }}
+                                        title="View PRD"
+                                      >
+                                        📄 PRD
+                                      </a>
+                                    )}
+                                    {project.deployment_url && (
+                                      <a
+                                        href={project.deployment_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          padding: '0.25rem 0.5rem',
+                                          fontSize: '0.75rem',
+                                          backgroundColor: '#f0f0f0',
+                                          borderRadius: '4px',
+                                          textDecoration: 'none',
+                                          color: '#1a1a1a'
+                                        }}
+                                        title="View Deployment"
+                                      >
+                                        🚀 Live
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             </div>
           </div>
         )}
@@ -2362,7 +3174,7 @@ function PathfinderAdmin() {
         {/* Builder Details Modal */}
         {selectedBuilder && builderDetails && (
           <div className="pathfinder-admin__modal-overlay" onClick={() => setSelectedBuilder(null)}>
-            <div className="pathfinder-admin__modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pathfinder-admin__modal pathfinder-admin__modal--wide" onClick={(e) => e.stopPropagation()}>
               <div className="pathfinder-admin__modal-header">
                 <h2>{selectedBuilder.first_name} {selectedBuilder.last_name}'s Activity</h2>
                 <button 
@@ -2436,59 +3248,119 @@ function PathfinderAdmin() {
                   )}
                 </div>
 
-                <div className="pathfinder-admin__modal-stats">
-                  <div className="pathfinder-admin__modal-stat">
-                    <strong>Applications:</strong> {builderDetails.applications?.length || 0}
+                {/* Three Column Layout */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem', textAlign: 'left' }}>
+                  
+                  {/* Hustles Panel */}
+                  <div className="pathfinder-admin__activity-panel">
+                    <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem', fontWeight: '600', borderBottom: '2px solid #4242ea', paddingBottom: '0.5rem' }}>
+                      Hustles ({builderDetails.networking?.length || 0})
+                    </h3>
+                    {builderDetails.networking && builderDetails.networking.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {builderDetails.networking.slice(0, 10).map(activity => (
+                          <div key={activity.networking_activity_id} style={{ padding: '0.75rem', backgroundColor: '#f9f9f9', borderRadius: '6px', borderLeft: '3px solid #4242ea' }}>
+                            <div style={{ fontWeight: '600', marginBottom: '0.25rem', fontSize: '0.9rem' }}>
+                              {activity.type.replace(/_/g, ' ')}
+                              {activity.sub_type && <span style={{ fontWeight: '400', color: '#666' }}> - {activity.sub_type}</span>}
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: '#666', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                              {activity.company && <div><strong>Company:</strong> {activity.company}</div>}
+                              {activity.contact_name && <div><strong>Contact:</strong> {activity.contact_name}</div>}
+                              {activity.contact_email && <div style={{ fontSize: '0.8rem' }}>{activity.contact_email}</div>}
+                              {activity.platform && <div><strong>Platform:</strong> {activity.platform}</div>}
+                              {activity.event_name && <div><strong>Event:</strong> {activity.event_name}</div>}
+                              {activity.outcome && <div><strong>Outcome:</strong> {activity.outcome}</div>}
+                              {activity.connection_strength && (
+                                <div>
+                                  <strong>Connection:</strong>{' '}
+                                  <span className={`pathfinder-admin__connection-badge pathfinder-admin__connection-badge--${activity.connection_strength}`}>
+                                    {activity.connection_strength}
+                                  </span>
+                                </div>
+                              )}
+                              {activity.follow_up_date && <div><strong>Follow-up:</strong> {new Date(activity.follow_up_date).toLocaleDateString()}</div>}
+                              <div><strong>Date:</strong> {new Date(activity.date).toLocaleDateString()}</div>
+                              {activity.notes && <div style={{ marginTop: '0.25rem', fontStyle: 'italic', color: '#888' }}>{activity.notes}</div>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '2rem', color: '#999' }}>
+                        No hustles recorded
+                      </div>
+                    )}
                   </div>
-                  <div className="pathfinder-admin__modal-stat">
-                    <strong>Networking:</strong> {builderDetails.networking?.length || 0}
+
+                  {/* Build Projects Panel */}
+                  <div className="pathfinder-admin__activity-panel">
+                    <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem', fontWeight: '600', borderBottom: '2px solid #10b981', paddingBottom: '0.5rem' }}>
+                      Build Projects ({builderDetails.projects?.length || 0})
+                    </h3>
+                    {builderDetails.projects && builderDetails.projects.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {builderDetails.projects.map(project => (
+                          <div key={project.project_id} style={{ padding: '0.75rem', backgroundColor: '#f9f9f9', borderRadius: '6px', borderLeft: '3px solid #10b981' }}>
+                            <div style={{ fontWeight: '600', marginBottom: '0.25rem', fontSize: '0.9rem' }}>
+                              {project.project_name}
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: '#666' }}>
+                              <div>
+                                <span className={`pathfinder-admin__stage-badge pathfinder-admin__stage-badge--${project.stage}`}>
+                                  {project.stage}
+                                </span>
+                              </div>
+                              {project.target_date && <div>Target: {new Date(project.target_date).toLocaleDateString()}</div>}
+                              {project.prd_approved && <div style={{ color: '#10b981', fontWeight: '600' }}>✓ PRD Approved</div>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '2rem', color: '#999' }}>
+                        No build projects
+                      </div>
+                    )}
                   </div>
+
+                  {/* Job Applications Panel */}
+                  <div className="pathfinder-admin__activity-panel">
+                    <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem', fontWeight: '600', borderBottom: '2px solid #f59e0b', paddingBottom: '0.5rem' }}>
+                      Job Applications ({builderDetails.applications?.length || 0})
+                    </h3>
+                    {builderDetails.applications && builderDetails.applications.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {getFilteredApplications(builderDetails.applications).slice(0, 10).map(app => (
+                          <div key={app.application_id} style={{ padding: '0.75rem', backgroundColor: '#f9f9f9', borderRadius: '6px', borderLeft: '3px solid #f59e0b' }}>
+                            <div style={{ fontWeight: '600', marginBottom: '0.25rem', fontSize: '0.9rem' }}>
+                              {app.company_name}
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: '#666' }}>
+                              <div>{app.role_title}</div>
+                              <div>
+                                <span className={`pathfinder-admin__modal-badge pathfinder-admin__modal-badge--${app.stage}`}>
+                                  {app.stage}
+                                </span>
+                              </div>
+                              <div>{new Date(app.date_applied).toLocaleDateString()}</div>
+                            </div>
+                          </div>
+                        ))}
+                        {getFilteredApplications(builderDetails.applications).length === 0 && (
+                          <div style={{ textAlign: 'center', padding: '2rem', color: '#999' }}>
+                            No applications for selected dates
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '2rem', color: '#999' }}>
+                        No job applications
+                      </div>
+                    )}
+                  </div>
+
                 </div>
-
-                {builderDetails.applications && builderDetails.applications.length > 0 && (
-                  <div className="pathfinder-admin__modal-section">
-                    <h3>Recent Applications</h3>
-                    <div className="pathfinder-admin__modal-list">
-                      {getFilteredApplications(builderDetails.applications).slice(0, 10).map(app => (
-                        <div key={app.application_id} className="pathfinder-admin__modal-item">
-                          <div className="pathfinder-admin__modal-item-title">
-                            {app.company_name} - {app.role_title}
-                          </div>
-                          <div className="pathfinder-admin__modal-item-meta">
-                            <span className={`pathfinder-admin__modal-badge pathfinder-admin__modal-badge--${app.stage}`}>
-                              {app.stage}
-                            </span>
-                            <span>{new Date(app.date_applied).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                      ))}
-                      {getFilteredApplications(builderDetails.applications).length === 0 && (
-                        <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
-                          No applications found for selected date range
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {builderDetails.networking && builderDetails.networking.length > 0 && (
-                  <div className="pathfinder-admin__modal-section">
-                    <h3>Recent Networking</h3>
-                    <div className="pathfinder-admin__modal-list">
-                      {builderDetails.networking.slice(0, 10).map(activity => (
-                        <div key={activity.networking_activity_id} className="pathfinder-admin__modal-item">
-                          <div className="pathfinder-admin__modal-item-title">
-                            {activity.type.replace(/_/g, ' ')}
-                          </div>
-                          <div className="pathfinder-admin__modal-item-meta">
-                            <span>{activity.company || 'No company'}</span>
-                            <span>{new Date(activity.date).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -2715,6 +3587,355 @@ function PathfinderAdmin() {
         </div>
       )}
 
+      {/* Job Applications View */}
+      {view === 'job-applications' && (
+        <div className="pathfinder-admin__job-applications">
+          <div className="pathfinder-admin__section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div>
+                <h2>Job Applications</h2>
+                <p>View all job applications submitted by builders</p>
+              </div>
+              
+              {/* Filter Icon */}
+              <button
+                className="pathfinder-admin__filter-btn"
+                onClick={() => setShowBuilderFilterModal(true)}
+                title="Filter by Builder"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M2 4h16M5 10h10M8 16h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
+              
+              {/* Clear Filter Button - Only show if a builder is selected */}
+              {selectedBuilderFilter && (
+                <button
+                  className="pathfinder-admin__clear-builder-filter-btn"
+                  onClick={() => setSelectedBuilderFilter(null)}
+                >
+                  Clear Filter
+                </button>
+              )}
+            </div>
+            
+            {/* View Toggle - Moved to the right */}
+            <div className="pathfinder-admin__view-toggle">
+              <button
+                className={`pathfinder-admin__view-btn ${jobAppViewMode === 'kanban' ? 'pathfinder-admin__view-btn--active' : ''}`}
+                onClick={() => setJobAppViewMode('kanban')}
+                title="Kanban View"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="2" y="2" width="3" height="12" fill="currentColor"/>
+                  <rect x="6.5" y="2" width="3" height="8" fill="currentColor"/>
+                  <rect x="11" y="2" width="3" height="10" fill="currentColor"/>
+                </svg>
+              </button>
+              <button
+                className={`pathfinder-admin__view-btn ${jobAppViewMode === 'table' ? 'pathfinder-admin__view-btn--active' : ''}`}
+                onClick={() => setJobAppViewMode('table')}
+                title="Table View"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="2" y="3" width="12" height="2" fill="currentColor"/>
+                  <rect x="2" y="7" width="12" height="2" fill="currentColor"/>
+                  <rect x="2" y="11" width="12" height="2" fill="currentColor"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {jobApplications.length === 0 ? (
+            <div className="pathfinder-admin__empty">
+              <p>No job applications found</p>
+            </div>
+          ) : jobAppViewMode === 'table' ? (
+            // Table View
+            <div className="pathfinder-admin__table-container">
+              <table className="pathfinder-admin__table">
+                <thead>
+                  <tr>
+                    <th 
+                      onClick={() => handleJobAppSort('builder_name')} 
+                      className="pathfinder-admin__sortable-header"
+                    >
+                      Builder {jobAppSortConfig.key === 'builder_name' && (
+                        <span className="pathfinder-admin__sort-indicator">
+                          {jobAppSortConfig.direction === 'asc' ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th 
+                      onClick={() => handleJobAppSort('company_name')} 
+                      className="pathfinder-admin__sortable-header"
+                    >
+                      Company {jobAppSortConfig.key === 'company_name' && (
+                        <span className="pathfinder-admin__sort-indicator">
+                          {jobAppSortConfig.direction === 'asc' ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th 
+                      onClick={() => handleJobAppSort('role_title')} 
+                      className="pathfinder-admin__sortable-header"
+                    >
+                      Role {jobAppSortConfig.key === 'role_title' && (
+                        <span className="pathfinder-admin__sort-indicator">
+                          {jobAppSortConfig.direction === 'asc' ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th 
+                      onClick={() => handleJobAppSort('stage')} 
+                      className="pathfinder-admin__sortable-header"
+                    >
+                      Stage {jobAppSortConfig.key === 'stage' && (
+                        <span className="pathfinder-admin__sort-indicator">
+                          {jobAppSortConfig.direction === 'asc' ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th 
+                      onClick={() => handleJobAppSort('location')} 
+                      className="pathfinder-admin__sortable-header"
+                    >
+                      Location {jobAppSortConfig.key === 'location' && (
+                        <span className="pathfinder-admin__sort-indicator">
+                          {jobAppSortConfig.direction === 'asc' ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th 
+                      onClick={() => handleJobAppSort('salary_range')} 
+                      className="pathfinder-admin__sortable-header"
+                    >
+                      Salary {jobAppSortConfig.key === 'salary_range' && (
+                        <span className="pathfinder-admin__sort-indicator">
+                          {jobAppSortConfig.direction === 'asc' ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th 
+                      onClick={() => handleJobAppSort('date_applied')} 
+                      className="pathfinder-admin__sortable-header"
+                    >
+                      Date Applied {jobAppSortConfig.key === 'date_applied' && (
+                        <span className="pathfinder-admin__sort-indicator">
+                          {jobAppSortConfig.direction === 'asc' ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th 
+                      onClick={() => handleJobAppSort('source_type')} 
+                      className="pathfinder-admin__sortable-header"
+                    >
+                      Source {jobAppSortConfig.key === 'source_type' && (
+                        <span className="pathfinder-admin__sort-indicator">
+                          {jobAppSortConfig.direction === 'asc' ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th 
+                      onClick={() => handleJobAppSort('internal_referral')} 
+                      className="pathfinder-admin__sortable-header"
+                    >
+                      Referral {jobAppSortConfig.key === 'internal_referral' && (
+                        <span className="pathfinder-admin__sort-indicator">
+                          {jobAppSortConfig.direction === 'asc' ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th 
+                      onClick={() => handleJobAppSort('interview_count')} 
+                      className="pathfinder-admin__sortable-header"
+                    >
+                      Interviews {jobAppSortConfig.key === 'interview_count' && (
+                        <span className="pathfinder-admin__sort-indicator">
+                          {jobAppSortConfig.direction === 'asc' ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getSortedJobApplications().map((application) => (
+                    <tr 
+                      key={application.job_application_id}
+                      onClick={() => setSelectedJobApplication(application)}
+                      style={{ cursor: 'pointer' }}
+                      className="pathfinder-admin__clickable-row"
+                    >
+                      <td>
+                        <div className="pathfinder-admin__builder-info">
+                          <strong>{application.builder_first_name} {application.builder_last_name}</strong>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {application.company_logo && (
+                            <img 
+                              src={application.company_logo} 
+                              alt={application.company_name}
+                              style={{ width: '24px', height: '24px', borderRadius: '4px', objectFit: 'contain' }}
+                            />
+                          )}
+                          <strong>{application.company_name}</strong>
+                        </div>
+                      </td>
+                      <td>{application.role_title}</td>
+                      <td>
+                        <span className={`pathfinder-admin__stage-badge pathfinder-admin__stage-badge--${application.stage}`}>
+                          {application.stage}
+                        </span>
+                      </td>
+                      <td>{application.location || '—'}</td>
+                      <td>{formatSalary(application) || '—'}</td>
+                      <td>{new Date(application.date_applied).toLocaleDateString()}</td>
+                      <td>{application.source_type || '—'}</td>
+                      <td>
+                        {application.internal_referral ? (
+                          <span className="pathfinder-admin__referral-badge">✓ Yes</span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td>
+                        {application.interview_count > 0 ? (
+                          <span className="pathfinder-admin__interview-count">{application.interview_count}</span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            // Kanban View
+            <div className="pathfinder-admin__kanban">
+              {['prospect', 'applied', 'screen', 'oa', 'interview', 'offer', 'accepted', 'rejected', 'withdrawn'].map(stage => {
+                const stageApps = getSortedJobApplications().filter(app => app.stage === stage);
+                const stageLabels = {
+                  prospect: 'Prospect',
+                  applied: 'Applied',
+                  screen: 'Phone Screen',
+                  oa: 'Online Assessment',
+                  interview: 'Interview',
+                  offer: 'Offer',
+                  accepted: 'Accepted',
+                  rejected: 'Rejected',
+                  withdrawn: 'Withdrawn'
+                };
+                
+                return (
+                  <div 
+                    key={stage} 
+                    className={`pathfinder-admin__kanban-column ${collapsedColumns[stage] ? 'pathfinder-admin__kanban-column--collapsed' : ''}`}
+                  >
+                    <div className="pathfinder-admin__kanban-header">
+                      <span className={`pathfinder-admin__stage-badge pathfinder-admin__stage-badge--${stage}`}>
+                        {stageLabels[stage]}
+                      </span>
+                      <div className="pathfinder-admin__kanban-header-right">
+                        <span className="pathfinder-admin__kanban-count">{stageApps.length}</span>
+                        <button
+                          className="pathfinder-admin__kanban-collapse-btn"
+                          onClick={() => toggleColumnCollapse(stage)}
+                          title={collapsedColumns[stage] ? "Expand column" : "Collapse column"}
+                        >
+                          {collapsedColumns[stage] ? '→' : '←'}
+                        </button>
+                      </div>
+                    </div>
+                    {!collapsedColumns[stage] && (
+                      <div className="pathfinder-admin__kanban-cards">
+                      {stageApps.map(app => (
+                        <div 
+                          key={app.job_application_id}
+                          className="pathfinder-admin__kanban-card"
+                          onClick={() => setSelectedJobApplication(app)}
+                        >
+                          <div className="pathfinder-admin__kanban-card-builder">
+                            {app.builder_first_name} {app.builder_last_name}
+                          </div>
+                          <div className="pathfinder-admin__kanban-card-header">
+                            {app.company_logo && (
+                              <img 
+                                src={app.company_logo} 
+                                alt={app.company_name}
+                                className="pathfinder-admin__kanban-card-logo"
+                              />
+                            )}
+                            <div className="pathfinder-admin__kanban-card-company">
+                              {app.company_name}
+                            </div>
+                          </div>
+                          <div className="pathfinder-admin__kanban-card-role">
+                            {app.role_title}
+                          </div>
+                          <div className="pathfinder-admin__kanban-card-meta">
+                            {app.location && (
+                              <div className="pathfinder-admin__kanban-card-location">
+                                📍 {app.location}
+                              </div>
+                            )}
+                            {formatSalary(app) && (
+                              <div className="pathfinder-admin__kanban-card-salary">
+                                💰 {formatSalary(app)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="pathfinder-admin__kanban-card-footer">
+                            {app.interview_count > 0 && (
+                              <div className="pathfinder-admin__kanban-card-interviews">
+                                💬 {app.interview_count}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Badges for Hustles and Builds */}
+                          <div className="pathfinder-admin__kanban-card-badges">
+                            {app.hustle_count > 0 ? (
+                              <span className="pathfinder-admin__activity-badge">
+                                ⚡ {app.hustle_count} {app.hustle_count === 1 ? 'Hustle' : 'Hustles'}
+                              </span>
+                            ) : (
+                              <span className="pathfinder-admin__no-activity-badge">
+                                No Hustles
+                              </span>
+                            )}
+                            {app.build_count > 0 ? (
+                              <span className="pathfinder-admin__build-badge">
+                                🔧 {app.build_count} {app.build_count === 1 ? 'Build' : 'Builds'}
+                              </span>
+                            ) : (
+                              <span className="pathfinder-admin__no-activity-badge">
+                                No Builds
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Stage Timeline */}
+                          {renderStageTimeline(app.stage_history)}
+                        </div>
+                      ))}
+                      {stageApps.length === 0 && (
+                        <div className="pathfinder-admin__kanban-empty">
+                          No applications
+                        </div>
+                      )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Weekly Goals View */}
       {view === 'weekly-goals' && (
         <div className="pathfinder-admin__weekly-goals">
@@ -2892,6 +4113,294 @@ function PathfinderAdmin() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Job Application Detail Modal */}
+      {selectedJobApplication && (
+        <div className="pathfinder-admin__modal-overlay" onClick={() => setSelectedJobApplication(null)}>
+          <div className="pathfinder-admin__modal pathfinder-admin__modal--wide" onClick={(e) => e.stopPropagation()}>
+            <div className="pathfinder-admin__modal-header">
+              <h2>{selectedJobApplication.company_name} - {selectedJobApplication.role_title}</h2>
+              <button 
+                className="pathfinder-admin__modal-close"
+                onClick={() => setSelectedJobApplication(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="pathfinder-admin__modal-content" style={{ textAlign: 'left' }}>
+              {/* Builder Info */}
+              <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '6px' }}>
+                <h3 style={{ marginBottom: '0.5rem', fontSize: '1rem', fontWeight: '600' }}>Builder</h3>
+                <div style={{ fontSize: '0.95rem' }}>
+                  <strong>{selectedJobApplication.builder_first_name} {selectedJobApplication.builder_last_name}</strong>
+                  <div style={{ color: '#666', fontSize: '0.9rem' }}>{selectedJobApplication.builder_email}</div>
+                </div>
+              </div>
+
+              {/* Two Column Layout */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                
+                {/* Left Column - Job Info */}
+                <div>
+                  <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem', fontWeight: '600', borderBottom: '2px solid #4242ea', paddingBottom: '0.5rem' }}>
+                    Job Information
+                  </h3>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div>
+                      <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Company</div>
+                      <div style={{ fontWeight: '600' }}>{selectedJobApplication.company_name}</div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Role</div>
+                      <div style={{ fontWeight: '600' }}>{selectedJobApplication.role_title}</div>
+                    </div>
+
+                    {selectedJobApplication.location && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Location</div>
+                        <div>{selectedJobApplication.location}</div>
+                      </div>
+                    )}
+
+                    {selectedJobApplication.job_url && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Job URL</div>
+                        <a href={selectedJobApplication.job_url} target="_blank" rel="noopener noreferrer" style={{ color: '#4242ea', textDecoration: 'underline' }}>
+                          View Job Posting
+                        </a>
+                      </div>
+                    )}
+
+                    {formatSalary(selectedJobApplication) && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Salary Range</div>
+                        <div>{formatSalary(selectedJobApplication)}</div>
+                      </div>
+                    )}
+
+                    {selectedJobApplication.job_type && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Job Type</div>
+                        <div style={{ textTransform: 'capitalize' }}>{selectedJobApplication.job_type.replace(/-/g, ' ')}</div>
+                      </div>
+                    )}
+
+                    <div>
+                      <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Stage</div>
+                      <span className={`pathfinder-admin__stage-badge pathfinder-admin__stage-badge--${selectedJobApplication.stage}`}>
+                        {selectedJobApplication.stage}
+                      </span>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Date Applied</div>
+                      <div>{new Date(selectedJobApplication.date_applied).toLocaleDateString()}</div>
+                    </div>
+
+                    {selectedJobApplication.source_type && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Source</div>
+                        <div>{selectedJobApplication.source_type}</div>
+                      </div>
+                    )}
+
+                    {selectedJobApplication.internal_referral && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Referral</div>
+                        <span className="pathfinder-admin__referral-badge">✓ Internal Referral</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column - Contact & Additional Info */}
+                <div>
+                  <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem', fontWeight: '600', borderBottom: '2px solid #10b981', paddingBottom: '0.5rem' }}>
+                    Contact & Details
+                  </h3>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {selectedJobApplication.contact_name && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Contact Name</div>
+                        <div>{selectedJobApplication.contact_name}</div>
+                      </div>
+                    )}
+
+                    {selectedJobApplication.contact_title && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Contact Title</div>
+                        <div>{selectedJobApplication.contact_title}</div>
+                      </div>
+                    )}
+
+                    {selectedJobApplication.contact_email && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Contact Email</div>
+                        <a href={`mailto:${selectedJobApplication.contact_email}`} style={{ color: '#4242ea' }}>
+                          {selectedJobApplication.contact_email}
+                        </a>
+                      </div>
+                    )}
+
+                    {selectedJobApplication.contact_phone && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Contact Phone</div>
+                        <div>{selectedJobApplication.contact_phone}</div>
+                      </div>
+                    )}
+
+                    {selectedJobApplication.response_received && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Response Received</div>
+                        <div style={{ color: '#10b981', fontWeight: '600' }}>✓ Yes</div>
+                        {selectedJobApplication.response_date && (
+                          <div style={{ fontSize: '0.85rem', color: '#666' }}>
+                            on {new Date(selectedJobApplication.response_date).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {selectedJobApplication.interview_count > 0 && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Interviews</div>
+                        <div className="pathfinder-admin__interview-count">{selectedJobApplication.interview_count}</div>
+                      </div>
+                    )}
+
+                    {(selectedJobApplication.stage === 'accepted' || selectedJobApplication.stage === 'offer') && selectedJobApplication.final_salary && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Final Salary</div>
+                        <div style={{ fontWeight: '600', color: '#10b981' }}>{selectedJobApplication.final_salary}</div>
+                      </div>
+                    )}
+
+                    {selectedJobApplication.start_date && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Start Date</div>
+                        <div>{new Date(selectedJobApplication.start_date).toLocaleDateString()}</div>
+                      </div>
+                    )}
+
+                    {selectedJobApplication.stage === 'withdrawn' && selectedJobApplication.withdrawal_reason && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Withdrawal Reason</div>
+                        <div style={{ color: '#dc2626' }}>{selectedJobApplication.withdrawal_reason}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Job Description */}
+              {selectedJobApplication.job_description && (
+                <div style={{ marginTop: '2rem' }}>
+                  <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem', fontWeight: '600', borderBottom: '2px solid #f59e0b', paddingBottom: '0.5rem' }}>
+                    Job Description
+                  </h3>
+                  <div 
+                    style={{ 
+                      padding: '1rem', 
+                      backgroundColor: '#f9f9f9', 
+                      borderRadius: '6px',
+                      maxHeight: '300px',
+                      overflowY: 'auto',
+                      fontSize: '0.9rem',
+                      lineHeight: '1.6'
+                    }}
+                    dangerouslySetInnerHTML={{ __html: selectedJobApplication.job_description }}
+                  />
+                </div>
+              )}
+
+              {/* Notes */}
+              {selectedJobApplication.notes && (
+                <div style={{ marginTop: '2rem' }}>
+                  <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem', fontWeight: '600', borderBottom: '2px solid #8b5cf6', paddingBottom: '0.5rem' }}>
+                    Notes
+                  </h3>
+                  <div 
+                    style={{ 
+                      padding: '1rem', 
+                      backgroundColor: '#faf5ff', 
+                      borderRadius: '6px',
+                      fontSize: '0.9rem',
+                      lineHeight: '1.6',
+                      fontStyle: 'italic'
+                    }}
+                  >
+                    {selectedJobApplication.notes}
+                  </div>
+                </div>
+              )}
+
+              {/* Acceptance Notes */}
+              {selectedJobApplication.acceptance_notes && (
+                <div style={{ marginTop: '2rem' }}>
+                  <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem', fontWeight: '600', borderBottom: '2px solid #10b981', paddingBottom: '0.5rem' }}>
+                    Acceptance Notes
+                  </h3>
+                  <div 
+                    style={{ 
+                      padding: '1rem', 
+                      backgroundColor: '#f0fdf4', 
+                      borderRadius: '6px',
+                      fontSize: '0.9rem',
+                      lineHeight: '1.6'
+                    }}
+                  >
+                    {selectedJobApplication.acceptance_notes}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Builder Filter Modal */}
+      {showBuilderFilterModal && (
+        <div className="pathfinder-admin__modal-overlay" onClick={() => setShowBuilderFilterModal(false)}>
+          <div className="pathfinder-admin__modal pathfinder-admin__builder-filter-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pathfinder-admin__modal-header">
+              <h3>Filter by Builder</h3>
+              <button 
+                className="pathfinder-admin__modal-close"
+                onClick={() => setShowBuilderFilterModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="pathfinder-admin__modal-body">
+              <div className="pathfinder-admin__builder-filter-list">
+                {getUniqueBuilders().map(builder => (
+                  <label 
+                    key={builder.builder_id}
+                    className="pathfinder-admin__builder-filter-item"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedBuilderFilter?.builder_id === builder.builder_id}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedBuilderFilter(builder);
+                          setShowBuilderFilterModal(false);
+                        } else {
+                          setSelectedBuilderFilter(null);
+                        }
+                      }}
+                    />
+                    <span>{builder.full_name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
