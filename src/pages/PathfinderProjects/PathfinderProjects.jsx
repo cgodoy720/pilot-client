@@ -420,6 +420,24 @@ function PathfinderProjects() {
       return;
     }
 
+    // Define stage order for validation
+    const stageOrder = ['ideation', 'planning', 'development', 'testing', 'launch'];
+    const currentStageIndex = stageOrder.indexOf(draggedProject.stage);
+    const newStageIndex = stageOrder.indexOf(newStage);
+
+    // Prevent skipping stages forward (allow moving backwards)
+    if (newStageIndex > currentStageIndex + 1) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Cannot Skip Stages',
+        text: `You must move through stages in order. Please move to ${getStageLabel(stageOrder[currentStageIndex + 1])} first before advancing to ${getStageLabel(newStage)}.`,
+        confirmButtonColor: '#4242ea'
+      });
+      setDraggedProject(null);
+      setIsDragging(false);
+      return;
+    }
+
     // Check if trying to move to development without PRD approval
     if (newStage === 'development') {
       // Require that a PRD exists and is approved
@@ -482,7 +500,14 @@ function PathfinderProjects() {
         fetchProjects();
       } else {
         const errorData = await response.json();
-        if (errorData.requiresApproval) {
+        if (errorData.stageProgression) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Cannot Skip Stages',
+            text: errorData.error,
+            confirmButtonColor: '#4242ea'
+          });
+        } else if (errorData.requiresApproval) {
           Swal.fire({
             icon: 'warning',
             title: 'PRD Approval Required',

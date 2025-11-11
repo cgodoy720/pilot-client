@@ -37,6 +37,11 @@ import PathfinderAdmin from './pages/PathfinderAdmin';
 
 import WorkshopAdminDashboard from './pages/WorkshopAdminDashboard/WorkshopAdminDashboard';
 
+// Form Builder pages
+import FormBuilderDashboard from './pages/FormBuilder/FormBuilderDashboard';
+import FormEditor from './pages/FormBuilder/FormEditor';
+import FormSubmissions from './pages/FormBuilder/FormSubmissions';
+import FormAnalytics from './pages/FormBuilder/FormAnalytics';
 
 import { useAuth } from './context/AuthContext';
 import { resetAuthModalState } from './utils/globalErrorHandler';
@@ -346,6 +351,44 @@ function App() {
         <Route path="/volunteer-feedback" element={
           <VolunteerFeedback />
         } />
+
+        {/* Form Builder routes (Admin/Staff only) */}
+        <Route path="/dashboard/forms" element={
+          <Layout>
+            <AdminRoute>
+              <FormBuilderDashboard />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/dashboard/forms/new" element={
+          <Layout>
+            <AdminRoute>
+              <FormEditor />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/dashboard/forms/:formId/edit" element={
+          <Layout>
+            <AdminRoute>
+              <FormEditor />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/dashboard/forms/:formId/submissions" element={
+          <Layout>
+            <AdminRoute>
+              <FormSubmissions />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/dashboard/forms/:formId/analytics" element={
+          <Layout>
+            <AdminRoute>
+              <FormAnalytics />
+            </AdminRoute>
+          </Layout>
+        } />
+
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
       
