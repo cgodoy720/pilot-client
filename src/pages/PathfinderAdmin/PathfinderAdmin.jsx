@@ -31,6 +31,8 @@ function PathfinderAdmin() {
   const [prdSubView, setPrdSubView] = useState('pending'); // pending, approved
   const [stageFilter, setStageFilter] = useState(''); // For build projects filtering
   const [prdStageFilter, setPrdStageFilter] = useState(''); // For PRD stage filtering
+  const [prdViewMode, setPrdViewMode] = useState('table'); // table or kanban for PRD section
+  const [prdFilter, setPrdFilter] = useState('submitted'); // submitted or all (for PRDs with links)
   const [prdSortConfig, setPrdSortConfig] = useState({ key: 'prd_submitted_at', direction: 'desc' }); // PRD sorting
   const [builderSortConfig, setBuilderSortConfig] = useState({ key: 'first_name', direction: 'asc' }); // Builder sorting
   const [jobAppSortConfig, setJobAppSortConfig] = useState({ key: 'date_applied', direction: 'desc' }); // Job applications sorting
@@ -38,6 +40,7 @@ function PathfinderAdmin() {
   const [projectsViewMode, setProjectsViewMode] = useState('table'); // table or kanban for build projects
   const [collapsedColumns, setCollapsedColumns] = useState({}); // Collapsed Kanban columns
   const [collapsedProjectColumns, setCollapsedProjectColumns] = useState({}); // Collapsed project Kanban columns
+  const [collapsedPrdColumns, setCollapsedPrdColumns] = useState({}); // Collapsed PRD Kanban columns
   const [selectedBuilderFilter, setSelectedBuilderFilter] = useState(null); // Filter by specific builder
   const [showBuilderFilterModal, setShowBuilderFilterModal] = useState(false); // Builder filter modal
   const [companiesViewMode, setCompaniesViewMode] = useState('table'); // table or cards
@@ -255,6 +258,17 @@ function PathfinderAdmin() {
       filtered = filtered.filter(p => p.stage === prdStageFilter);
     }
 
+    // Filter by PRD submission status (only applies in Kanban view)
+    if (prdViewMode === 'kanban' && prdFilter) {
+      if (prdFilter === 'submitted') {
+        // Only show projects with PRDs submitted for approval (pending or approved)
+        filtered = filtered.filter(p => p.prd_submitted === true || p.prd_approved === true);
+      } else if (prdFilter === 'all') {
+        // Show all projects that have a PRD link
+        filtered = filtered.filter(p => p.prd_link);
+      }
+    }
+
     // Sort
     if (prdSortConfig.key) {
       filtered.sort((a, b) => {
@@ -286,6 +300,12 @@ function PathfinderAdmin() {
     }
 
     return filtered;
+  };
+
+  // Get all PRDs for Kanban view (combines all projects with various PRD statuses)
+  const getAllPRDsForKanban = () => {
+    // Combine all projects (from the projects state which has all build projects)
+    return projects;
   };
 
   // Extract unique cohorts from builders data
@@ -2224,7 +2244,7 @@ function PathfinderAdmin() {
                         {builder.applications && builder.applications.length > 0 && (
                           <div className="pathfinder-admin__modal-builder-applications">
                             <strong>Positions:</strong>
-                            {builder.applications.slice(0, 3).map((app, idx) => (
+                            {builder.applications.map((app, idx) => (
                               <div key={idx} className="pathfinder-admin__modal-application-item">
                                 <span>{app.role_title}</span>
                                 <span className={`pathfinder-admin__modal-stage pathfinder-admin__modal-stage--${app.stage}`}>
@@ -2232,11 +2252,6 @@ function PathfinderAdmin() {
                                 </span>
                               </div>
                             ))}
-                            {builder.applications.length > 3 && (
-                              <div className="pathfinder-admin__modal-application-more">
-                                +{builder.applications.length - 3} more
-                              </div>
-                            )}
                           </div>
                         )}
                       </div>
@@ -2269,30 +2284,83 @@ function PathfinderAdmin() {
                 >
                   Approved Archive
                 </button>
-
-                {/* Stage Filter */}
-                <select 
-                  value={prdStageFilter} 
-                  onChange={(e) => setPrdStageFilter(e.target.value)}
-                  className="pathfinder-admin__filter-select"
-                  style={{ marginLeft: 'auto' }}
+                <button
+                  className={`pathfinder-admin__prd-subtab ${prdSubView === 'all' ? 'pathfinder-admin__prd-subtab--active' : ''}`}
+                  onClick={() => setPrdSubView('all')}
                 >
-                  <option value="">All Stages</option>
-                  <option value="ideation">Ideation</option>
-                  <option value="planning">Planning & Design</option>
-                  <option value="development">Development</option>
-                  <option value="testing">Testing</option>
-                  <option value="launch">Launch</option>
-                </select>
+                  All PRDs
+                </button>
 
-                {prdStageFilter && (
-                  <button 
-                    onClick={() => setPrdStageFilter('')}
-                    className="pathfinder-admin__clear-filters-btn"
-                  >
-                    Clear Filter
-                  </button>
-                )}
+                {/* Right side controls */}
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  {/* View Mode Toggle (only for All PRDs) */}
+                  {prdSubView === 'all' && (
+                    <>
+                      <div className="pathfinder-admin__view-toggle">
+                        <button 
+                          className={`pathfinder-admin__view-btn ${prdViewMode === 'table' ? 'pathfinder-admin__view-btn--active' : ''}`}
+                          onClick={() => setPrdViewMode('table')}
+                          title="Table View"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="2" y="3" width="12" height="2" rx="0.5" fill="currentColor"/>
+                            <rect x="2" y="7" width="12" height="2" rx="0.5" fill="currentColor"/>
+                            <rect x="2" y="11" width="12" height="2" rx="0.5" fill="currentColor"/>
+                          </svg>
+                        </button>
+                        <button 
+                          className={`pathfinder-admin__view-btn ${prdViewMode === 'kanban' ? 'pathfinder-admin__view-btn--active' : ''}`}
+                          onClick={() => setPrdViewMode('kanban')}
+                          title="Kanban View"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="2" y="2" width="3" height="12" rx="0.5" fill="currentColor"/>
+                            <rect x="6.5" y="2" width="3" height="8" rx="0.5" fill="currentColor"/>
+                            <rect x="11" y="2" width="3" height="10" rx="0.5" fill="currentColor"/>
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="pathfinder-admin__filter-group" style={{ marginBottom: 0 }}>
+                        <label>Show:</label>
+                        <select
+                          value={prdFilter}
+                          onChange={(e) => setPrdFilter(e.target.value)}
+                          className="pathfinder-admin__filter-select"
+                        >
+                          <option value="submitted">Submitted for Approval</option>
+                          <option value="all">All with PRD Link</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Stage Filter (for table views) */}
+                  {prdSubView !== 'all' && (
+                    <>
+                      <select 
+                        value={prdStageFilter} 
+                        onChange={(e) => setPrdStageFilter(e.target.value)}
+                        className="pathfinder-admin__filter-select"
+                      >
+                        <option value="">All Stages</option>
+                        <option value="ideation">Ideation</option>
+                        <option value="planning">Planning & Design</option>
+                        <option value="development">Development</option>
+                        <option value="testing">Testing</option>
+                        <option value="launch">Launch</option>
+                      </select>
+
+                      {prdStageFilter && (
+                        <button 
+                          onClick={() => setPrdStageFilter('')}
+                          className="pathfinder-admin__clear-filters-btn"
+                        >
+                          Clear Filter
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -2516,6 +2584,245 @@ function PathfinderAdmin() {
                     </table>
                   )}
                 </div>
+              </>
+            )}
+
+            {/* All PRDs Content (with Table/Kanban toggle) */}
+            {prdSubView === 'all' && (
+              <>
+                <div className="pathfinder-admin__section-description">
+                  <p>View all project PRDs {prdViewMode === 'kanban' ? 'organized by stage' : 'in a detailed table'}. {prdFilter === 'submitted' ? 'Showing only projects submitted for approval.' : 'Showing all projects with a PRD link.'}</p>
+                </div>
+
+                {/* Table View */}
+                {prdViewMode === 'table' && (
+                  <div className="pathfinder-admin__table-container">
+                    {getFilteredAndSortedPRDs(getAllPRDsForKanban()).length === 0 ? (
+                      <div className="pathfinder-admin__empty">
+                        <p>No PRDs found{prdFilter === 'submitted' ? ' submitted for approval' : ' with PRD links'}.</p>
+                      </div>
+                    ) : (
+                      <table className="pathfinder-admin__table">
+                        <thead>
+                          <tr>
+                            <th 
+                              onClick={() => handlePrdSort('builder_name')}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              Builder {prdSortConfig.key === 'builder_name' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th 
+                              onClick={() => handlePrdSort('project_name')}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              Project Name {prdSortConfig.key === 'project_name' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th 
+                              onClick={() => handlePrdSort('stage')}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              Stage {prdSortConfig.key === 'stage' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th>PRD Status</th>
+                            <th 
+                              onClick={() => handlePrdSort('target_date')}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              Target Date {prdSortConfig.key === 'target_date' && (prdSortConfig.direction === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th>PRD Link</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {getFilteredAndSortedPRDs(getAllPRDsForKanban()).map((project) => (
+                            <tr key={project.project_id}>
+                              <td>
+                                <div className="pathfinder-admin__builder-info">
+                                  <strong>{project.builder_first_name} {project.builder_last_name}</strong>
+                                  <span className="pathfinder-admin__builder-email">{project.builder_email}</span>
+                                </div>
+                              </td>
+                              <td>{project.project_name}</td>
+                              <td>
+                                <span className={`pathfinder-admin__stage-badge pathfinder-admin__stage-badge--${project.stage}`}>
+                                  {getStageLabel(project.stage)}
+                                </span>
+                              </td>
+                              <td>
+                                {project.prd_approved ? (
+                                  <span className="pathfinder-admin__prd-status pathfinder-admin__prd-status--approved">
+                                    ✓ Approved
+                                  </span>
+                                ) : project.prd_submitted ? (
+                                  <span className="pathfinder-admin__prd-status pathfinder-admin__prd-status--pending">
+                                    ⏳ Pending
+                                  </span>
+                                ) : project.prd_link ? (
+                                  <span className="pathfinder-admin__prd-status pathfinder-admin__prd-status--draft">
+                                    📝 Draft
+                                  </span>
+                                ) : (
+                                  '—'
+                                )}
+                              </td>
+                              <td>{new Date(project.target_date).toLocaleDateString()}</td>
+                              <td>
+                                {project.prd_link ? (
+                                  <a
+                                    href={project.prd_link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="pathfinder-admin__prd-link"
+                                  >
+                                    📄 View PRD
+                                  </a>
+                                ) : (
+                                  '—'
+                                )}
+                              </td>
+                              <td>
+                                {!project.prd_approved && project.prd_submitted && (
+                                  <button
+                                    className="pathfinder-admin__approve-btn"
+                                    onClick={() => handleApprovePRD(project.project_id, project.project_name)}
+                                  >
+                                    ✓ Approve
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
+
+                {/* Kanban View */}
+                {prdViewMode === 'kanban' && (
+                  <div className="pathfinder-admin__kanban">
+                    {['ideation', 'planning', 'development', 'testing', 'launch'].map(stage => {
+                      const stagePRDs = getFilteredAndSortedPRDs(getAllPRDsForKanban()).filter(proj => proj.stage === stage);
+                      
+                      return (
+                        <div 
+                          key={stage} 
+                          className={`pathfinder-admin__kanban-column ${collapsedPrdColumns[stage] ? 'pathfinder-admin__kanban-column--collapsed' : ''}`}
+                        >
+                          <div className="pathfinder-admin__kanban-header">
+                            <h3>{getStageLabel(stage)}</h3>
+                            <div className="pathfinder-admin__kanban-header-right">
+                              <span className="pathfinder-admin__kanban-count">{stagePRDs.length}</span>
+                              <button
+                                className="pathfinder-admin__kanban-collapse-btn"
+                                onClick={() => setCollapsedPrdColumns(prev => ({ ...prev, [stage]: !prev[stage] }))}
+                                title={collapsedPrdColumns[stage] ? "Expand" : "Collapse"}
+                              >
+                                {collapsedPrdColumns[stage] ? '→' : '←'}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="pathfinder-admin__kanban-body">
+                            {stagePRDs.length === 0 ? (
+                              <div className="pathfinder-admin__kanban-empty">
+                                No PRDs in this stage
+                              </div>
+                            ) : (
+                              stagePRDs.map(project => (
+                                <div key={project.project_id} className="pathfinder-admin__kanban-card">
+                                  <div className="pathfinder-admin__kanban-card-header">
+                                    <h4>{project.project_name}</h4>
+                                    {project.prd_approved && (
+                                      <span className="pathfinder-admin__prd-status pathfinder-admin__prd-status--approved" title="PRD Approved">
+                                        ✓
+                                      </span>
+                                    )}
+                                    {!project.prd_approved && project.prd_submitted && (
+                                      <span className="pathfinder-admin__prd-status pathfinder-admin__prd-status--pending" title="PRD Pending Approval">
+                                        ⏳
+                                      </span>
+                                    )}
+                                    {!project.prd_approved && !project.prd_submitted && project.prd_link && (
+                                      <span className="pathfinder-admin__prd-status pathfinder-admin__prd-status--draft" title="PRD Draft">
+                                        📝
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="pathfinder-admin__kanban-card-body">
+                                    <div className="pathfinder-admin__kanban-card-info">
+                                      <strong>{project.builder_first_name} {project.builder_last_name}</strong>
+                                      {project.builder_cohort && (
+                                        <span className="pathfinder-admin__cohort-badge">{project.builder_cohort}</span>
+                                      )}
+                                    </div>
+                                    <div className="pathfinder-admin__kanban-card-meta">
+                                      <div>
+                                        <span className="pathfinder-admin__meta-label">Target:</span>{' '}
+                                        {new Date(project.target_date).toLocaleDateString()}
+                                      </div>
+                                      {project.prd_submitted_at && (
+                                        <div>
+                                          <span className="pathfinder-admin__meta-label">Submitted:</span>{' '}
+                                          {new Date(project.prd_submitted_at).toLocaleDateString()}
+                                        </div>
+                                      )}
+                                      {project.prd_approved_at && (
+                                        <div>
+                                          <span className="pathfinder-admin__meta-label">Approved:</span>{' '}
+                                          {new Date(project.prd_approved_at).toLocaleDateString()}
+                                        </div>
+                                      )}
+                                    </div>
+                                    {project.linked_job_company && (
+                                      <div className="pathfinder-admin__kanban-card-job">
+                                        <span className="pathfinder-admin__meta-label">Linked Job:</span>{' '}
+                                        {project.linked_job_company} - {project.linked_job_role}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="pathfinder-admin__kanban-card-actions">
+                                    {project.prd_link && (
+                                      <a
+                                        href={project.prd_link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="pathfinder-admin__kanban-card-link"
+                                        title="View PRD"
+                                      >
+                                        📄 PRD
+                                      </a>
+                                    )}
+                                    {project.deployment_url && (
+                                      <a
+                                        href={project.deployment_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="pathfinder-admin__kanban-card-link"
+                                        title="View Deployment"
+                                      >
+                                        🚀 Live
+                                      </a>
+                                    )}
+                                    {!project.prd_approved && project.prd_submitted && (
+                                      <button
+                                        className="pathfinder-admin__kanban-card-approve-btn"
+                                        onClick={() => handleApprovePRD(project.project_id, project.project_name)}
+                                        title="Approve PRD"
+                                      >
+                                        ✓ Approve
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </>
             )}
           </div>

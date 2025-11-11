@@ -1631,11 +1631,16 @@
   max-width: 900px;
 }
 
+.pathfinder-admin__modal--company h3 {
+  text-align: left;
+}
+
 .pathfinder-admin__modal-builders-list {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
   margin-top: var(--spacing-md);
+  text-align: left;
 }
 
 .pathfinder-admin__modal-builder-card {
@@ -1643,6 +1648,7 @@
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   padding: var(--spacing-md);
+  text-align: left;
 }
 
 .pathfinder-admin__modal-builder-header {
@@ -1679,6 +1685,7 @@
   margin-top: var(--spacing-sm);
   padding-top: var(--spacing-sm);
   border-top: 1px solid #e0e0e0;
+  text-align: left;
 }
 
 .pathfinder-admin__modal-builder-applications strong {
@@ -1686,6 +1693,7 @@
   margin-bottom: var(--spacing-xs);
   color: #1a1a1a;
   font-size: 0.9rem;
+  text-align: left;
 }
 
 .pathfinder-admin__modal-application-item {
@@ -1694,6 +1702,7 @@
   align-items: center;
   padding: 6px 0;
   font-size: 0.9rem;
+  text-align: left;
 }
 
 .pathfinder-admin__modal-stage {
@@ -2199,7 +2208,7 @@
   padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
+  gap: 1rem;
   flex: 1;
   overflow-y: auto;
 }
@@ -2207,8 +2216,8 @@
 .pathfinder-admin__kanban-card {
   background: linear-gradient(135deg, rgba(66, 66, 234, 0.08) 0%, rgba(107, 92, 246, 0.05) 100%);
   border: 1px solid rgba(66, 66, 234, 0.15);
-  border-radius: 6px;
-  padding: 1rem;
+  border-radius: 8px;
+  padding: 1.25rem;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
@@ -2226,6 +2235,7 @@
   align-items: center;
   gap: 0.625rem;
   margin-bottom: 0.625rem;
+  text-align: left;
 }
 
 .pathfinder-admin__kanban-card-logo {
@@ -2273,6 +2283,7 @@
   font-weight: 600;
   padding-bottom: 0.625rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  text-align: left;
 }
 
 .pathfinder-admin__kanban-card-meta {
@@ -2281,6 +2292,7 @@
   gap: 0.75rem;
   margin-bottom: 0.625rem;
   flex-wrap: wrap;
+  text-align: left;
 }
 
 .pathfinder-admin__kanban-card-location {
@@ -2294,6 +2306,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
+  text-align: left;
 }
 
 .pathfinder-admin__kanban-card-salary {
@@ -2307,6 +2320,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
+  text-align: left;
 }
 
 .pathfinder-admin__kanban-card-footer {
@@ -2318,6 +2332,7 @@
   border-top: none;
   font-size: 0.75rem;
   color: #999999;
+  text-align: left;
 }
 
 .pathfinder-admin__kanban-card-date {
@@ -2325,6 +2340,7 @@
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  text-align: left;
 }
 
 .pathfinder-admin__kanban-card-interviews {
@@ -2337,6 +2353,7 @@
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  text-align: center;
 }
 
 /* Badges for Hustles and Builds */
@@ -2345,6 +2362,7 @@
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
+  text-align: left;
 }
 
 .pathfinder-admin__activity-badge {
@@ -2357,6 +2375,7 @@
   color: #ffffff;
   border: 1px solid #1a1a1a;
   white-space: nowrap;
+  text-align: center;
 }
 
 .pathfinder-admin__build-badge {
@@ -2369,6 +2388,7 @@
   color: #ffffff;
   border: 1px solid #4242ea;
   white-space: nowrap;
+  text-align: center;
 }
 
 .pathfinder-admin__no-activity-badge {
@@ -2381,6 +2401,7 @@
   color: #6b7280;
   border: 1px solid #d1d5db;
   white-space: nowrap;
+  text-align: center;
 }
 
 .pathfinder-admin__kanban-empty {
@@ -2389,6 +2410,155 @@
   color: #999999;
   font-size: 0.875rem;
   font-style: italic;
+}
+
+/* Kanban Card Additional Styles for PRD Board */
+.pathfinder-admin__kanban-card-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem;
+  margin-bottom: 0.875rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  text-align: left;
+}
+
+.pathfinder-admin__kanban-card-info strong {
+  font-size: 0.875rem;
+  color: #1a1a1a;
+  font-weight: 600;
+  text-align: left;
+}
+
+.pathfinder-admin__cohort-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background-color: rgba(66, 66, 234, 0.1);
+  color: #4242ea;
+  border-radius: 10px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pathfinder-admin__kanban-card-header {
+  margin-bottom: 0.875rem;
+  text-align: left;
+}
+
+.pathfinder-admin__kanban-card-header h4 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.pathfinder-admin__kanban-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.pathfinder-admin__kanban-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: #666666;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.pathfinder-admin__kanban-card-meta > div {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  text-align: left;
+}
+
+.pathfinder-admin__meta-label {
+  font-weight: 600;
+  color: #1a1a1a;
+  min-width: 70px;
+  text-align: left;
+}
+
+.pathfinder-admin__kanban-card-job {
+  font-size: 0.8125rem;
+  color: #666666;
+  padding: 0.625rem 0.75rem;
+  background-color: rgba(66, 66, 234, 0.05);
+  border-radius: 6px;
+  margin-top: 0.25rem;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.pathfinder-admin__kanban-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  flex-wrap: wrap;
+  text-align: left;
+}
+
+.pathfinder-admin__kanban-card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  color: #4242ea;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  line-height: 1;
+  text-align: center;
+}
+
+.pathfinder-admin__kanban-card-link:hover {
+  background-color: #f8f8ff;
+  border-color: #4242ea;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(66, 66, 234, 0.1);
+}
+
+.pathfinder-admin__kanban-card-approve-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  background-color: #10b981;
+  border: none;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  line-height: 1;
+  text-align: center;
+}
+
+.pathfinder-admin__kanban-card-approve-btn:hover {
+  background-color: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
 }
 
 /* Builder Filter Button */
