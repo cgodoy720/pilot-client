@@ -216,341 +216,355 @@ const TodaysAttendanceOverview = () => {
         </Box>
       </Box>
 
-      {/* Summary Cards - Modern Grid with Better Spacing */}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+      {/* Summary Cards - Compact Modern Design */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={6} sm={3}>
           <Card 
             className="todays-attendance-overview__summary-card"
             sx={{
-              height: '100%',
-              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.05) 100%)',
+              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.2) 100%)',
+              backdropFilter: 'blur(20px)',
               border: '2px solid rgba(102, 126, 234, 0.3)',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 20px rgba(102, 126, 234, 0.3)',
-                border: '2px solid rgba(102, 126, 234, 0.5)'
-              }
             }}
           >
-            <CardContent sx={{ textAlign: 'center', py: 3 }}>
-              <PeopleIcon sx={{ fontSize: '3rem', color: '#667eea', mb: 1.5 }} />
-              <Typography variant="h3" component="div" sx={{ color: '#1a1a1a', fontWeight: 700, mb: 0.5 }}>
+            <CardContent sx={{ textAlign: 'center', p: 2 }}>
+              <PeopleIcon sx={{ fontSize: '2rem', color: '#667eea', mb: 1 }} />
+              <Typography variant="h4" sx={{ color: '#fff', fontWeight: 800, mb: 0.5 }}>
                 {(data.summary?.present || 0) + (data.summary?.late || 0) + (data.summary?.excused || 0)}
               </Typography>
-              <Typography variant="body1" sx={{ color: '#4b5563', fontWeight: 600 }}>
-                Total Check-ins
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                Check-ins
               </Typography>
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={6} sm={3}>
           <Card 
             className="todays-attendance-overview__summary-card"
             sx={{
-              height: '100%',
-              background: 'linear-gradient(135deg, rgba(251, 146, 60, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%)',
-              border: '2px solid rgba(251, 146, 60, 0.3)',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 20px rgba(251, 146, 60, 0.3)',
-                border: '2px solid rgba(251, 146, 60, 0.5)'
-              }
+              background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.2) 100%)',
+              backdropFilter: 'blur(20px)',
+              border: '2px solid rgba(34, 197, 94, 0.3)',
             }}
           >
-            <CardContent sx={{ textAlign: 'center', py: 3 }}>
-              <ScheduleIcon sx={{ fontSize: '3rem', color: '#fb923c', mb: 1.5 }} />
-              <Typography variant="h3" component="div" sx={{ color: '#1a1a1a', fontWeight: 700, mb: 0.5 }}>
+            <CardContent sx={{ textAlign: 'center', p: 2 }}>
+              <CheckCircleIcon sx={{ fontSize: '2rem', color: '#22c55e', mb: 1 }} />
+              <Typography variant="h4" sx={{ color: '#fff', fontWeight: 800, mb: 0.5 }}>
+                {data.summary?.present || 0}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                Present
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={6} sm={3}>
+          <Card 
+            className="todays-attendance-overview__summary-card"
+            sx={{
+              background: 'linear-gradient(135deg, rgba(251, 146, 60, 0.15) 0%, rgba(249, 115, 22, 0.2) 100%)',
+              backdropFilter: 'blur(20px)',
+              border: '2px solid rgba(251, 146, 60, 0.3)',
+            }}
+          >
+            <CardContent sx={{ textAlign: 'center', p: 2 }}>
+              <ScheduleIcon sx={{ fontSize: '2rem', color: '#fb923c', mb: 1 }} />
+              <Typography variant="h4" sx={{ color: '#fff', fontWeight: 800, mb: 0.5 }}>
                 {data.summary?.late || 0}
               </Typography>
-              <Typography variant="body1" sx={{ color: '#4b5563', fontWeight: 600 }}>
-                Late Arrivals
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                Late
               </Typography>
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={6} sm={3}>
           <Card 
             className="todays-attendance-overview__summary-card"
             sx={{
-              height: '100%',
-              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
+              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.2) 100%)',
+              backdropFilter: 'blur(20px)',
               border: '2px solid rgba(239, 68, 68, 0.3)',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 20px rgba(239, 68, 68, 0.3)',
-                border: '2px solid rgba(239, 68, 68, 0.5)'
-              }
             }}
           >
-            <CardContent sx={{ textAlign: 'center', py: 3 }}>
-              <WarningIcon sx={{ fontSize: '3rem', color: '#ef4444', mb: 1.5 }} />
-              <Typography variant="h3" component="div" sx={{ color: '#1a1a1a', fontWeight: 700, mb: 0.5 }}>
+            <CardContent sx={{ textAlign: 'center', p: 2 }}>
+              <WarningIcon sx={{ fontSize: '2rem', color: '#ef4444', mb: 1 }} />
+              <Typography variant="h4" sx={{ color: '#fff', fontWeight: 800, mb: 0.5 }}>
                 {data.summary?.absent || 0}
               </Typography>
-              <Typography variant="body1" sx={{ color: '#4b5563', fontWeight: 600 }}>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
                 Absent
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card 
-            className="todays-attendance-overview__summary-card"
-            sx={{
-              height: '100%',
-              background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(22, 163, 74, 0.05) 100%)',
-              border: '2px solid rgba(34, 197, 94, 0.3)',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 20px rgba(34, 197, 94, 0.3)',
-                border: '2px solid rgba(34, 197, 94, 0.5)'
-              }
-            }}
-          >
-            <CardContent sx={{ textAlign: 'center', py: 3 }}>
-              <CheckCircleIcon sx={{ fontSize: '3rem', color: '#22c55e', mb: 1.5 }} />
-              <Typography variant="h3" component="div" sx={{ color: '#1a1a1a', fontWeight: 700, mb: 0.5 }}>
-                {data.summary?.totalBuilders || 0}
-              </Typography>
-              <Typography variant="body1" sx={{ color: '#4b5563', fontWeight: 600 }}>
-                Total Builders
               </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      {/* Cohort Performance - Modern Cards with Better Contrast */}
-      <Typography variant="h6" sx={{ color: '#FFFFFF', mb: 2, fontWeight: 600 }}>
+      {/* Cohort Breakdown - Modern Wide Cards */}
+      <Typography variant="h6" sx={{ color: '#FFFFFF', mb: 3, fontWeight: 700, textAlign: 'center' }}>
         Cohort Breakdown
       </Typography>
       <Box className="todays-attendance-overview__cohorts-grid">
-        {data.cohorts?.map((cohort) => (
-          <Card 
-            key={cohort.cohort} 
-            className="todays-attendance-overview__cohort-card"
-            sx={{
-              background: '#FFFFFF',
-              border: '2px solid rgba(102, 126, 234, 0.2)',
-              borderRadius: '12px',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 20px rgba(102, 126, 234, 0.3)',
-                border: '2px solid rgba(102, 126, 234, 0.5)'
-              }
-            }}
-          >
-            <CardContent sx={{ p: 3 }}>
-              <Box className="todays-attendance-overview__cohort-header">
-                <Typography variant="h6" component="h3" sx={{ color: '#1a1a1a', fontWeight: 700 }}>
-                  {cohort.cohort}
-                </Typography>
-                <Chip
-                  icon={getAttendanceRateIcon(cohort.attendanceRate)}
-                  label={`${cohort.attendanceRate.toFixed(1)}%`}
-                  sx={{
-                    background: cohort.attendanceRate >= 85 ? 'rgba(34, 197, 94, 0.15)' :
-                               cohort.attendanceRate >= 70 ? 'rgba(251, 146, 60, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                    color: cohort.attendanceRate >= 85 ? '#16a34a' :
-                           cohort.attendanceRate >= 70 ? '#ea580c' : '#dc2626',
-                    border: `2px solid ${cohort.attendanceRate >= 85 ? '#22c55e' :
-                                         cohort.attendanceRate >= 70 ? '#fb923c' : '#ef4444'}`,
-                    fontWeight: 700,
-                    fontSize: '0.95rem'
-                  }}
-                />
-              </Box>
-
-              <Box className="todays-attendance-overview__cohort-stats">
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                  <Grid item xs={6} sm={3}>
-                    <Box sx={{ 
-                      textAlign: 'center', 
-                      p: 1.5, 
-                      background: 'rgba(34, 197, 94, 0.1)', 
-                      borderRadius: '8px',
-                      border: '1px solid rgba(34, 197, 94, 0.2)'
-                    }}>
-                      <Typography variant="h5" sx={{ color: '#16a34a', fontWeight: 700 }}>
-                        {cohort.present}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#1a1a1a', fontWeight: 600 }}>
-                        Present
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Box sx={{ 
-                      textAlign: 'center', 
-                      p: 1.5, 
-                      background: 'rgba(251, 146, 60, 0.1)', 
-                      borderRadius: '8px',
-                      border: '1px solid rgba(251, 146, 60, 0.2)'
-                    }}>
-                      <Typography variant="h5" sx={{ color: '#ea580c', fontWeight: 700 }}>
-                        {cohort.late}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#1a1a1a', fontWeight: 600 }}>
-                        Late
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Box sx={{ 
-                      textAlign: 'center', 
-                      p: 1.5, 
-                      background: 'rgba(59, 130, 246, 0.1)', 
-                      borderRadius: '8px',
-                      border: '1px solid rgba(59, 130, 246, 0.2)'
-                    }}>
-                      <Typography variant="h5" sx={{ color: '#2563eb', fontWeight: 700 }}>
-                        {cohort.excused}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#1a1a1a', fontWeight: 600 }}>
-                        Excused
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Box sx={{ 
-                      textAlign: 'center', 
-                      p: 1.5, 
-                      background: 'rgba(239, 68, 68, 0.1)', 
-                      borderRadius: '8px',
-                      border: '1px solid rgba(239, 68, 68, 0.2)'
-                    }}>
-                      <Typography variant="h5" sx={{ color: '#dc2626', fontWeight: 700 }}>
-                        {cohort.absent}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#1a1a1a', fontWeight: 600 }}>
-                        Absent
-                      </Typography>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </Box>
-
-              {/* Recent Check-ins */}
-              {cohort.recentCheckIns && cohort.recentCheckIns.length > 0 && (
-                <Box sx={{ mt: 3, pt: 2, borderTop: '2px solid rgba(0, 0, 0, 0.08)' }}>
-                  <Typography variant="subtitle2" sx={{ mb: 1.5, color: '#1a1a1a', fontWeight: 700 }}>
-                    Recent Check-ins
+        {data.cohorts?.map((cohort) => {
+          const attendanceRate = cohort.attendanceRate || 0;
+          const isMeetingTarget = attendanceRate >= 80;
+          
+          return (
+            <Card 
+              key={cohort.cohort} 
+              className="todays-attendance-overview__cohort-card"
+              sx={{
+                background: isMeetingTarget
+                  ? 'linear-gradient(135deg, rgba(17, 153, 142, 0.1) 0%, rgba(56, 239, 125, 0.15) 100%)'
+                  : 'linear-gradient(135deg, rgba(235, 51, 73, 0.1) 0%, rgba(244, 92, 67, 0.15) 100%)',
+                backdropFilter: 'blur(20px)',
+                border: `2px solid ${isMeetingTarget ? 'rgba(17, 153, 142, 0.3)' : 'rgba(235, 51, 73, 0.3)'}`,
+              }}
+            >
+              <CardContent sx={{ p: 2.5 }}>
+                {/* Header */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 800,
+                    background: isMeetingTarget
+                      ? 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)'
+                      : 'linear-gradient(135deg, #eb3349 0%, #f45c43 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                  }}>
+                    {cohort.cohort}
                   </Typography>
-                  <Box className="todays-attendance-overview__checkin-list">
-                    {cohort.recentCheckIns.slice(0, 3).map((checkin, index) => (
-                      <Box 
-                        key={index} 
-                        sx={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          p: 1.5,
-                          background: 'rgba(0, 0, 0, 0.02)',
-                          borderRadius: '8px',
-                          border: '1px solid rgba(0, 0, 0, 0.08)',
-                          mb: 1,
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            background: 'rgba(102, 126, 234, 0.05)',
-                            border: '1px solid rgba(102, 126, 234, 0.2)'
-                          }
-                        }}
-                      >
-                        <Typography variant="body2" sx={{ color: '#1a1a1a', fontWeight: 600 }}>
-                          {checkin.firstName} {checkin.lastName}
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="caption" sx={{ color: '#4b5563', fontWeight: 600 }}>
-                            {formatTime(checkin.checkInTime)}
-                          </Typography>
-                          {checkin.lateArrivalMinutes > 0 && (
-                            <Chip
-                              label={`+${checkin.lateArrivalMinutes}m`}
-                              size="small"
-                              sx={{
-                                background: checkin.lateArrivalMinutes <= 15 ? 'rgba(251, 146, 60, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                                color: checkin.lateArrivalMinutes <= 15 ? '#ea580c' : '#dc2626',
-                                border: `2px solid ${checkin.lateArrivalMinutes <= 15 ? '#fb923c' : '#ef4444'}`,
-                                height: '24px',
-                                fontSize: '0.75rem',
-                                fontWeight: 700
-                              }}
-                            />
-                          )}
-                        </Box>
-                      </Box>
-                    ))}
+                  <Box sx={{ 
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    p: 1,
+                    borderRadius: '10px',
+                    background: isMeetingTarget
+                      ? 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)'
+                      : 'linear-gradient(135deg, #eb3349 0%, #f45c43 100%)',
+                    boxShadow: isMeetingTarget
+                      ? '0 4px 15px rgba(17, 153, 142, 0.3)'
+                      : '0 4px 15px rgba(235, 51, 73, 0.3)',
+                  }}>
+                    <Typography variant="h5" sx={{ color: '#fff', fontWeight: 900, lineHeight: 1 }}>
+                      {attendanceRate.toFixed(0)}%
+                    </Typography>
                   </Box>
                 </Box>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+
+                {/* Stats - Horizontal 4-column */}
+                <Box sx={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(4, 1fr)', 
+                  gap: 1.5,
+                  mb: 2
+                }}>
+                  <Box sx={{ 
+                    p: 1.5, 
+                    borderRadius: '10px', 
+                    background: 'rgba(255,255,255,0.7)',
+                    textAlign: 'center',
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 12px rgba(34, 197, 94, 0.2)'
+                    }
+                  }}>
+                    <Typography variant="h5" sx={{ fontWeight: 800, color: '#22c55e', lineHeight: 1, mb: 0.5 }}>
+                      {cohort.present}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#666', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase' }}>
+                      Present
+                    </Typography>
+                  </Box>
+                  <Box sx={{ 
+                    p: 1.5, 
+                    borderRadius: '10px', 
+                    background: 'rgba(255,255,255,0.7)',
+                    textAlign: 'center',
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 12px rgba(251, 146, 60, 0.2)'
+                    }
+                  }}>
+                    <Typography variant="h5" sx={{ fontWeight: 800, color: '#fb923c', lineHeight: 1, mb: 0.5 }}>
+                      {cohort.late}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#666', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase' }}>
+                      Late
+                    </Typography>
+                  </Box>
+                  <Box sx={{ 
+                    p: 1.5, 
+                    borderRadius: '10px', 
+                    background: 'rgba(255,255,255,0.7)',
+                    textAlign: 'center',
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)'
+                    }
+                  }}>
+                    <Typography variant="h5" sx={{ fontWeight: 800, color: '#3b82f6', lineHeight: 1, mb: 0.5 }}>
+                      {cohort.excused}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#666', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase' }}>
+                      Excused
+                    </Typography>
+                  </Box>
+                  <Box sx={{ 
+                    p: 1.5, 
+                    borderRadius: '10px', 
+                    background: 'rgba(255,255,255,0.7)',
+                    textAlign: 'center',
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)'
+                    }
+                  }}>
+                    <Typography variant="h5" sx={{ fontWeight: 800, color: '#ef4444', lineHeight: 1, mb: 0.5 }}>
+                      {cohort.absent}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#666', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase' }}>
+                      Absent
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Recent Check-ins */}
+                {cohort.recentCheckIns && cohort.recentCheckIns.length > 0 && (
+                  <Box sx={{ mt: 2, pt: 2, borderTop: '2px solid rgba(0, 0, 0, 0.08)' }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1.5, color: '#1a1a1a', fontWeight: 700, fontSize: '0.85rem' }}>
+                      Recent Check-ins
+                    </Typography>
+                    <Box className="todays-attendance-overview__checkin-list">
+                      {cohort.recentCheckIns.slice(0, 3).map((checkin, index) => (
+                        <Box 
+                          key={index} 
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            p: 1.5,
+                            background: 'rgba(255, 255, 255, 0.5)',
+                            borderRadius: '10px',
+                            border: '1px solid rgba(0, 0, 0, 0.08)',
+                            mb: 1,
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              background: 'rgba(102, 126, 234, 0.1)',
+                              border: '1px solid rgba(102, 126, 234, 0.3)',
+                              transform: 'translateX(4px)'
+                            }
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ color: '#1a1a1a', fontWeight: 600 }}>
+                            {checkin.firstName} {checkin.lastName}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="caption" sx={{ color: '#666', fontWeight: 600 }}>
+                              {formatTime(checkin.checkInTime)}
+                            </Typography>
+                            {checkin.lateArrivalMinutes > 0 && (
+                              <Chip
+                                label={`+${checkin.lateArrivalMinutes}m`}
+                                size="small"
+                                sx={{
+                                  background: checkin.lateArrivalMinutes <= 15 ? 'rgba(251, 146, 60, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                  color: checkin.lateArrivalMinutes <= 15 ? '#ea580c' : '#dc2626',
+                                  border: `2px solid ${checkin.lateArrivalMinutes <= 15 ? '#fb923c' : '#ef4444'}`,
+                                  height: '22px',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700
+                                }}
+                              />
+                            )}
+                          </Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </Box>
 
-      {/* Quick Actions */}
+      {/* Quick Actions - Modern Design */}
       <Box className="todays-attendance-overview__quick-actions">
-        <Typography variant="h6" sx={{ mb: 2 }}>
+        <Typography variant="h6" sx={{ mb: 3, color: '#fff', fontWeight: 700 }}>
           Quick Actions
         </Typography>
-        <Grid container spacing={2} className="todays-attendance-overview__quick-actions-buttons">
-          <Grid item>
-            <Chip
-              label="View Full Roster"
-              onClick={() => {/* Navigate to full roster */}}
-              variant="outlined"
-              sx={{
-                backgroundColor: '#FFFFFF',
-                color: '#000000',
-                '&:hover': {
-                  backgroundColor: '#F5F5F5',
-                  color: '#000000'
-                },
-                border: '1px solid #E0E0E0'
-              }}
-            />
-          </Grid>
-          <Grid item>
-            <Chip
-              label="Export Today's Data"
-              onClick={() => {/* Export functionality */}}
-              variant="outlined"
-              sx={{
-                backgroundColor: '#FFFFFF',
-                color: '#000000',
-                '&:hover': {
-                  backgroundColor: '#F5F5F5',
-                  color: '#000000'
-                },
-                border: '1px solid #E0E0E0'
-              }}
-            />
-          </Grid>
-          <Grid item>
-            <Chip
-              label="Manage Excuses"
-              onClick={() => {/* Navigate to excuse management */}}
-              variant="outlined"
-              sx={{
-                backgroundColor: '#FFFFFF',
-                color: '#000000',
-                '&:hover': {
-                  backgroundColor: '#F5F5F5',
-                  color: '#000000'
-                },
-                border: '1px solid #E0E0E0'
-              }}
-            />
-          </Grid>
-        </Grid>
+        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Chip
+            label="View Full Roster"
+            onClick={() => {/* Navigate to full roster */}}
+            sx={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: '#1a1a1a',
+              border: '2px solid rgba(102, 126, 234, 0.3)',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              padding: '24px 20px',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                background: 'rgba(102, 126, 234, 0.1)',
+                borderColor: '#667eea',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+              }
+            }}
+          />
+          <Chip
+            label="Export Today's Data"
+            onClick={() => {/* Export functionality */}}
+            sx={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: '#1a1a1a',
+              border: '2px solid rgba(102, 126, 234, 0.3)',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              padding: '24px 20px',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                background: 'rgba(102, 126, 234, 0.1)',
+                borderColor: '#667eea',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+              }
+            }}
+          />
+          <Chip
+            label="Manage Excuses"
+            onClick={() => {/* Navigate to excuse management */}}
+            sx={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: '#1a1a1a',
+              border: '2px solid rgba(102, 126, 234, 0.3)',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              padding: '24px 20px',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                background: 'rgba(102, 126, 234, 0.1)',
+                borderColor: '#667eea',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+              }
+            }}
+          />
+        </Box>
       </Box>
     </Box>
   );
