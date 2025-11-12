@@ -164,29 +164,6 @@
   }
 }
 
-.dashboard__start-btn {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  padding: 10px 30px;
-  width: fit-content;
-  background: var(--color-background);
-  border: 1px solid var(--color-pursuit-purple);
-  border-radius: 100px;
-  font-weight: 400;
-  font-size: 24px;
-  line-height: 20px;
-  color: var(--color-pursuit-purple);
-  cursor: pointer;
-  animation: breathe 3s ease-in-out infinite;
-  transition: color 0.3s;
-}
-
-.dashboard__start-btn:hover {
-  color: var(--color-white);
-  animation: none;
-}
-
 /* Upcoming Section */
 .dashboard__upcoming {
   display: flex;

@@ -1,6 +1,5 @@
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
-import { Button } from '../../../components/ui/button';
+import ArrowButton from '../../../components/ArrowButton/ArrowButton';
 import { cn } from '../../../lib/utils';
 
 const DayCell = ({ dateObj, isToday, isPast, isFuture, hasDeliverables, isComplete, onClick }) => {
@@ -47,16 +46,6 @@ const DayCell = ({ dateObj, isToday, isPast, isFuture, hasDeliverables, isComple
       return isComplete ? 'bg-pursuit-purple' : 'bg-mastery-pink'; // Has deliverables
     }
     return 'bg-white';
-  };
-  
-  const getArrowBorderColor = () => {
-    if (isToday) return 'border-white';
-    return 'border-pursuit-purple';
-  };
-  
-  const getArrowIconColor = () => {
-    if (isToday) return 'text-white';
-    return 'text-pursuit-purple';
   };
   
   const getTaskTextColor = () => {
@@ -123,16 +112,26 @@ const DayCell = ({ dateObj, isToday, isPast, isFuture, hasDeliverables, isComple
             </div>
             
             {/* Bottom: Arrow button */}
-            <Button
-              onClick={onClick}
-              variant="outline"
-              className={cn(
-                "w-[17px] h-[16px] p-[3px] border rounded-[5px] flex items-center justify-center bg-transparent hover:bg-transparent",
-                getArrowBorderColor()
+            <div className="w-[17px] h-[16px]">
+              {isFuture ? (
+                // Disabled arrow for future days
+                <div className="w-[20px] h-[20px] rounded-[0.4rem] border border-divider bg-divider flex items-center justify-center opacity-50 cursor-not-allowed">
+                  <div className="w-4 h-4 text-divider">→</div>
+                </div>
+              ) : (
+                // Active arrow for today and past days
+                <ArrowButton
+                  onClick={onClick}
+                  borderColor={isToday ? '#FFFFFF' : '#4242EA'}
+                  backgroundColor={isToday ? '#FFFFFF' : '#4242EA'}
+                  arrowColor={isToday ? '#4242EA' : '#FFFFFF'}
+                  hoverBackgroundColor={isToday ? '#4242EA' : '#E3E3E3'}
+                  hoverArrowColor={isToday ? '#FFFFFF' : '#4242EA'}
+                  size="md"
+                  className="!w-[20px] !h-[20px] !rounded-[0.4rem]"
+                />
               )}
-            >
-              <ChevronRight className={cn("w-[8px] h-[8px] -rotate-90", getArrowIconColor())} />
-            </Button>
+            </div>
           </div>
           
           {/* Right column: Task list */}

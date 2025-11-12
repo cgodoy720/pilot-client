@@ -1,0 +1,65 @@
+import React from 'react';
+import { ArrowRight } from 'lucide-react';
+import { cn } from '../../lib/utils';
+
+const ArrowButton = ({ 
+  onClick, 
+  borderColor = 'white',
+  arrowColor = 'white',
+  backgroundColor = 'transparent',
+  hoverBackgroundColor = 'white',
+  hoverArrowColor = '#4242EA',
+  size = 'md',
+  rotation = 0,
+  className = ''
+}) => {
+  const sizeClasses = {
+    sm: 'w-4 h-4',
+    md: 'w-5 h-5',
+    lg: 'w-6 h-6'
+  };
+
+  const iconSizes = {
+    sm: 'w-3.5 h-3.5',
+    md: 'w-4 h-4',
+    lg: 'w-[18px] h-[18px]'
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'group relative flex items-center justify-center rounded-[0.4rem] overflow-hidden transition-all duration-300 active:scale-95',
+        sizeClasses[size],
+        className
+      )}
+      style={{
+        border: `1px solid ${borderColor}`,
+        backgroundColor: backgroundColor
+      }}
+    >
+      <ArrowRight 
+        className={cn(
+          'relative z-10 transition-colors duration-300',
+          iconSizes[size]
+        )}
+        style={{ 
+          color: arrowColor,
+          '--hover-arrow-color': hoverArrowColor,
+          transform: rotation ? `rotate(${rotation}deg)` : undefined
+        }}
+      />
+      <div 
+        className="absolute inset-0 -translate-x-full group-hover:translate-x-0 transition-transform duration-300"
+        style={{ backgroundColor: hoverBackgroundColor }}
+      />
+      <style>{`
+        button:hover svg {
+          color: var(--hover-arrow-color) !important;
+        }
+      `}</style>
+    </button>
+  );
+};
+
+export default ArrowButton;

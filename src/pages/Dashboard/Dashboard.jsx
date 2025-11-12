@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Calendar, BookOpen, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { RippleButton } from '../../components/animate-ui/components/buttons/ripple';
+import Layout from '../../components/Layout/Layout';
+import ArrowButton from '../../components/ArrowButton/ArrowButton';
 import MissedAssignmentsSidebar from '../../components/MissedAssignmentsSidebar/MissedAssignmentsSidebar';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -528,9 +529,9 @@ function Dashboard() {
               <p className="dashboard__goal-text">
                 {currentDay?.daily_goal || 'No goal set for today'}
               </p>
-              <button className="dashboard__start-btn group relative overflow-hidden" onClick={handleContinueSession}>
-                <span className="relative z-10">Start</span>
-                <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+              <button className="group relative overflow-hidden inline-flex justify-center items-center px-[30px] py-2.5 w-fit bg-pursuit-purple border border-pursuit-purple rounded-full font-normal text-2xl leading-5 text-white cursor-pointer transition-colors duration-300 animate-breathe hover:animate-none" onClick={handleContinueSession}>
+                <span className="relative z-10 transition-colors duration-300 group-hover:text-pursuit-purple">Start</span>
+                <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
               </button>
             </div>
 
@@ -581,37 +582,35 @@ function Dashboard() {
             </div>
 
             <div className="dashboard__date-picker">
-              <RippleButton
-                variant="outline"
-                size="icon"
-                className={`dashboard__date-btn ${currentWeek > 1 ? 'dashboard__date-btn--active' : ''} ${currentWeek <= 1 ? '!opacity-100' : ''}`}
-                style={{ 
-                  backgroundColor: 'var(--color-background)',
-                  borderColor: currentWeek > 1 ? 'var(--color-pursuit-purple)' : 'var(--color-divider)', 
-                  color: currentWeek > 1 ? 'var(--color-pursuit-purple)' : 'var(--color-divider)',
-                  '--ripple-button-ripple-color': currentWeek > 1 ? 'var(--color-pursuit-purple)' : 'var(--color-divider)'
-                }}
+              <button
+                className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 rounded-md transition-all duration-300 ${
+                  currentWeek > 1 
+                    ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer' 
+                    : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
+                }`}
                 onClick={() => navigateToWeek('prev')}
                 disabled={currentWeek <= 1 || isLoadingWeek || slideDirection !== null}
               >
-                <ChevronLeft className="w-4 h-4" />
-              </RippleButton>
+                <ChevronLeft className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-pursuit-purple' : ''}`} />
+                {currentWeek > 1 && (
+                  <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+                )}
+              </button>
               <span className="dashboard__date-label">Week {currentWeek}</span>
-              <RippleButton
-                variant="outline"
-                size="icon"
-                className={`dashboard__date-btn ${currentDay?.week && currentWeek < currentDay.week ? 'dashboard__date-btn--active' : ''} ${(!currentDay?.week || currentWeek >= currentDay.week) ? '!opacity-100' : ''}`}
-                style={{ 
-                  backgroundColor: 'var(--color-background)',
-                  borderColor: (currentDay?.week && currentWeek < currentDay.week) ? 'var(--color-pursuit-purple)' : 'var(--color-divider)', 
-                  color: (currentDay?.week && currentWeek < currentDay.week) ? 'var(--color-pursuit-purple)' : 'var(--color-divider)',
-                  '--ripple-button-ripple-color': (currentDay?.week && currentWeek < currentDay.week) ? 'var(--color-pursuit-purple)' : 'var(--color-divider)'
-                }}
+              <button
+                className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 rounded-md transition-all duration-300 ${
+                  currentDay?.week && currentWeek < currentDay.week
+                    ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer' 
+                    : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
+                }`}
                 onClick={() => navigateToWeek('next')}
                 disabled={!currentDay?.week || currentWeek >= currentDay.week || isLoadingWeek || slideDirection !== null}
               >
-                <ChevronRight className="w-4 h-4" />
-              </RippleButton>
+                <ChevronRight className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-pursuit-purple' : ''}`} />
+                {currentDay?.week && currentWeek < currentDay.week && (
+                  <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+                )}
+              </button>
             </div>
           </div>
 
@@ -726,24 +725,32 @@ function Dashboard() {
               </div>
             )}
 
-                  {/* Go Button */}
+                  {/* Arrow Button in top-right corner */}
                   {dayIsToday && (
-                    <button 
-                      className="dashboard__go-btn dashboard__go-btn--today group relative overflow-hidden"
-                      onClick={() => handleNavigateToDayLearning(day.id)}
-                    >
-                      <span className="relative z-10">Go</span>
-                      <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
-                    </button>
+                    <div className="absolute top-2 right-3 z-10">
+                      <ArrowButton
+                        onClick={() => handleNavigateToDayLearning(day.id)}
+                        borderColor="#FFFFFF"
+                        backgroundColor="#FFFFFF"
+                        arrowColor="#4242EA"
+                        hoverBackgroundColor="#4242EA"
+                        hoverArrowColor="#FFFFFF"
+                        size="md"
+                      />
+                    </div>
                   )}
                   {!dayIsToday && showCheckbox && (
-                    <button 
-                      className="dashboard__go-btn group relative overflow-hidden"
-                      onClick={() => handleNavigateToDayLearning(day.id)}
-                    >
-                      <span className="relative z-10">Go</span>
-                      <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
-                    </button>
+                    <div className="absolute top-2 right-3 z-10">
+                      <ArrowButton
+                        onClick={() => handleNavigateToDayLearning(day.id)}
+                        borderColor="#4242EA"
+                        backgroundColor="#4242EA"
+                        arrowColor="#E3E3E3"
+                        hoverBackgroundColor="#E3E3E3"
+                        hoverArrowColor="#4242EA"
+                        size="md"
+                      />
+                    </div>
                   )}
                 </div>
               );
@@ -784,37 +791,35 @@ function Dashboard() {
 
           {/* Date Picker */}
           <div className="dashboard__mobile-date-picker">
-            <RippleButton
-              variant="outline"
-              size="icon"
-              className={`dashboard__mobile-date-btn ${currentWeek > 1 ? 'dashboard__mobile-date-btn--active' : ''} ${currentWeek <= 1 ? '!opacity-100' : ''}`}
-              style={{ 
-                backgroundColor: 'var(--color-background)',
-                borderColor: currentWeek > 1 ? 'var(--color-pursuit-purple)' : 'var(--color-divider)', 
-                color: currentWeek > 1 ? 'var(--color-pursuit-purple)' : 'var(--color-divider)',
-                '--ripple-button-ripple-color': currentWeek > 1 ? 'var(--color-pursuit-purple)' : 'var(--color-divider)'
-              }}
+            <button
+              className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 rounded-md transition-all duration-300 ${
+                currentWeek > 1 
+                  ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer' 
+                  : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
+              }`}
               onClick={() => navigateToWeek('prev')}
               disabled={currentWeek <= 1 || isLoadingWeek || slideDirection !== null}
             >
-              <ChevronLeft className="w-4 h-4" />
-            </RippleButton>
+              <ChevronLeft className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-pursuit-purple' : ''}`} />
+              {currentWeek > 1 && (
+                <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+              )}
+            </button>
             <span className="dashboard__mobile-date-label">Week {currentWeek}</span>
-            <RippleButton
-              variant="outline"
-              size="icon"
-              className={`dashboard__mobile-date-btn ${currentDay?.week && currentWeek < currentDay.week ? 'dashboard__mobile-date-btn--active' : ''} ${(!currentDay?.week || currentWeek >= currentDay.week) ? '!opacity-100' : ''}`}
-              style={{ 
-                backgroundColor: 'var(--color-background)',
-                borderColor: (currentDay?.week && currentWeek < currentDay.week) ? 'var(--color-pursuit-purple)' : 'var(--color-divider)', 
-                color: (currentDay?.week && currentWeek < currentDay.week) ? 'var(--color-pursuit-purple)' : 'var(--color-divider)',
-                '--ripple-button-ripple-color': (currentDay?.week && currentWeek < currentDay.week) ? 'var(--color-pursuit-purple)' : 'var(--color-divider)'
-              }}
+            <button
+              className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 rounded-md transition-all duration-300 ${
+                currentDay?.week && currentWeek < currentDay.week
+                  ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer' 
+                  : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
+              }`}
               onClick={() => navigateToWeek('next')}
               disabled={!currentDay?.week || currentWeek >= currentDay.week || isLoadingWeek || slideDirection !== null}
             >
-              <ChevronRight className="w-4 h-4" />
-            </RippleButton>
+              <ChevronRight className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-pursuit-purple' : ''}`} />
+              {currentDay?.week && currentWeek < currentDay.week && (
+                <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+              )}
+            </button>
           </div>
 
           {/* Weekly Agenda - Mobile */}
@@ -854,13 +859,17 @@ function Dashboard() {
                         </div>
                       </div>
                     )}
-          <button 
-                      className="dashboard__mobile-go-btn group relative overflow-hidden"
-            onClick={() => handleNavigateToDayLearning(day.id)}
-          >
-            <span className="relative z-10">Go</span>
-            <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
-          </button>
+          <div className="absolute top-2 right-3 z-10">
+                      <ArrowButton
+              onClick={() => handleNavigateToDayLearning(day.id)}
+              borderColor="#FFFFFF"
+              backgroundColor="#FFFFFF"
+              arrowColor="#4242EA"
+              hoverBackgroundColor="#4242EA"
+              hoverArrowColor="#FFFFFF"
+              size="md"
+            />
+          </div>
                   </div>
                 );
               } else {
@@ -906,21 +915,8 @@ function Dashboard() {
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <img 
-          src="/preloader.gif" 
-          alt="Loading..." 
-          className="w-32 h-32"
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="animate-curtain-reveal">
-      <>
+    <Layout isLoading={isLoading}>
       {error && (
         <div className="p-4 mx-6 mt-6 bg-destructive/10 border border-destructive/20 rounded-lg">
           <p className="text-destructive text-sm">{error}</p>
@@ -938,8 +934,7 @@ function Dashboard() {
         onClose={handleCloseSidebar}
         onNavigateToDay={handleNavigateToDay}
       />
-    </>
-    </div>
+    </Layout>
   );
 }
 

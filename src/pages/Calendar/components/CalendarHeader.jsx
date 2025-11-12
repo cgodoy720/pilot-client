@@ -1,6 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '../../../components/ui/button';
+import ArrowButton from '../../../components/ArrowButton/ArrowButton';
 import {
   Select,
   SelectContent,
@@ -16,7 +15,7 @@ const CalendarHeader = ({ currentMonth, currentYear, onPrevMonth, onNextMonth, o
   return (
     <div className="flex flex-col">
       {/* Top Bar */}
-      <div className="h-[52px] bg-bg-light border-b border-divider flex items-center justify-between px-[25px]">
+      <div className="h-[45px] bg-bg-light border-b border-divider flex items-center justify-between px-[25px]">
         {/* Left: Month/Year Title */}
         <h1 className="text-[28px] leading-[30px] font-proxima font-normal bg-gradient-to-r from-carbon-black to-pursuit-purple bg-clip-text text-transparent">
           {monthNames[currentMonth]} {currentYear}
@@ -24,24 +23,18 @@ const CalendarHeader = ({ currentMonth, currentYear, onPrevMonth, onNextMonth, o
         
         {/* Right: Navigation Controls */}
         <div className="flex items-center gap-[5px]">
-          {/* Left Chevron */}
-          <Button
+          {/* Left Arrow - Previous Month */}
+          <ArrowButton
             onClick={onPrevMonth}
-            variant="outline"
-            className="w-[32px] h-[32px] p-[7px] border border-pursuit-purple rounded-[8px] flex items-center justify-center bg-transparent hover:bg-pursuit-purple/10"
-          >
-            <ChevronLeft className="w-[18px] h-[18px] text-white" style={{background: '#4242EA', borderRadius: '2px'}} />
-          </Button>
-          
-          {/* Level Dropdown (L1) - Hidden for now as requested */}
-          {/* <Select value="L1" disabled>
-            <SelectTrigger className="w-[73px] h-[32px] bg-white rounded-[5px] px-[10px] border-0">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="L1">L1</SelectItem>
-            </SelectContent>
-          </Select> */}
+            borderColor="#4242EA"
+            backgroundColor="#4242EA"
+            arrowColor="#FFFFFF"
+            hoverBackgroundColor="#EFEFEF"
+            hoverArrowColor="#4242EA"
+            size="md"
+            rotation={180}
+            className="!w-[32px] !h-[32px] !rounded-[8px]"
+          />
           
           {/* Month Dropdown */}
           <Select value={String(currentMonth)} onValueChange={(val) => onMonthChange(parseInt(val))}>
@@ -57,14 +50,17 @@ const CalendarHeader = ({ currentMonth, currentYear, onPrevMonth, onNextMonth, o
             </SelectContent>
           </Select>
           
-          {/* Right Chevron */}
-          <Button
+          {/* Right Arrow - Next Month */}
+          <ArrowButton
             onClick={onNextMonth}
-            variant="outline"
-            className="w-[32px] h-[32px] p-[7px] border border-pursuit-purple rounded-[8px] flex items-center justify-center bg-transparent hover:bg-pursuit-purple/10"
-          >
-            <ChevronRight className="w-[18px] h-[18px] text-white" style={{background: '#4242EA', borderRadius: '2px'}} />
-          </Button>
+            borderColor="#4242EA"
+            backgroundColor="#4242EA"
+            arrowColor="#FFFFFF"
+            hoverBackgroundColor="#EFEFEF"
+            hoverArrowColor="#4242EA"
+            size="md"
+            className="!w-[32px] !h-[32px] !rounded-[8px]"
+          />
         </div>
       </div>
       

@@ -34,6 +34,10 @@ function GPT() {
   // Model selection state
   const [selectedModel, setSelectedModel] = useState('anthropic/claude-sonnet-4.5');
   
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showThreadDropdown, setShowThreadDropdown] = useState(false);
+  
   // Enhanced content management state
   const [contentSources, setContentSources] = useState({});
   const [isProcessingUpload, setIsProcessingUpload] = useState(false);
@@ -230,13 +234,90 @@ function GPT() {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !activeThread || isSending) return;
+    if (!newMessage.trim() || isSending) return;
 
     if (isInactiveUser) {
       setError('You are in historical access mode and cannot send new messages.');
       return;
     }
 
+    // If no active thread, create one first
+    if (!activeThread) {
+      try {
+        setIsLoading(true);
+        const data = await createThread(null, token);
+        const newThread = data.thread || data.data || data;
+        
+        if (newThread) {
+          const threadIdField = newThread.thread_id ? 'thread_id' : 'id';
+          const newThreadId = newThread[threadIdField];
+          setThreads(prev => [newThread, ...prev]);
+          setActiveThread(newThreadId);
+          setMessages([]);
+          
+          // Now send the message to the new thread
+          await sendMessageToNewThread(newThreadId);
+        }
+        setError('');
+      } catch (err) {
+        console.error('Error creating thread:', err);
+        setError('Failed to create new conversation. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Send to existing thread
+    await sendMessageToExistingThread();
+  };
+
+  const sendMessageToNewThread = async (threadId) => {
+    const messageToSend = newMessage;
+    const tempUserMessageId = Date.now();
+    const tempUserMessage = {
+      message_id: tempUserMessageId,
+      content: messageToSend,
+      message_role: 'user',
+      created_at: new Date().toISOString()
+    };
+    
+    setMessages(prevMessages => [...prevMessages, tempUserMessage]);
+    setNewMessage('');
+    setIsSending(true);
+    setIsAiThinking(true);
+
+    try {
+      const response = await sendMessageToGPT(messageToSend, threadId, token, selectedModel);
+      
+      setTimeout(() => {
+        fetchThreads();
+      }, 1000);
+      
+      if (response && response.reply) {
+        setMessages(prevMessages => [
+          ...prevMessages.filter(msg => msg.message_id !== tempUserMessageId),
+          tempUserMessage,
+          response.reply
+        ]);
+      } else {
+        await fetchMessages(threadId);
+      }
+      
+      setError('');
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setError('Failed to send message. Please try again.');
+      setMessages(prevMessages => 
+        prevMessages.filter(msg => msg.message_id !== tempUserMessageId)
+      );
+    } finally {
+      setIsSending(false);
+      setIsAiThinking(false);
+    }
+  };
+
+  const sendMessageToExistingThread = async () => {
     const messageToSend = newMessage;
     const tempUserMessageId = Date.now();
     const tempUserMessage = {
@@ -546,6 +627,13 @@ function GPT() {
     setModalSummaryData(null);
   };
 
+  // Filter threads based on search query
+  const filteredThreads = threads.filter(thread => {
+    const title = getThreadTitle(thread).toLowerCase();
+    const query = searchQuery.toLowerCase();
+    return title.includes(query);
+  });
+
   return (
     <div className="h-screen bg-bg-light flex flex-col">
       {/* Historical Access Banner */}
@@ -555,40 +643,107 @@ function GPT() {
         </div>
       )}
 
-      {/* Top Bar */}
-      <GPTTopBar
-        threads={threads}
-        activeThread={activeThread}
-        onThreadSelect={handleThreadSelect}
-        onNewThread={handleCreateThread}
-      />
+      {/* Top Bar with Search */}
+      <div className="h-[52px] bg-bg-light border-b border-divider flex items-center px-[25px]">
+        <div className="relative">
+          <div className="flex items-center justify-center bg-white rounded-lg h-[32px] w-[664px] px-[10px] py-1">
+            <div className="flex items-center justify-between w-full px-[7px]">
+              <input
+                type="text"
+                placeholder="Browse chat history or search by keyword"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setShowThreadDropdown(true)}
+                className="flex-1 text-[18px] leading-[26px] font-proxima font-normal text-carbon-black bg-transparent border-none outline-none placeholder:text-divider"
+              />
+              <button
+                onClick={handleCreateThread}
+                disabled={isInactiveUser || isLoading}
+                className="ml-2 text-pursuit-purple hover:text-pursuit-purple/80 disabled:opacity-50"
+                title="New conversation"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 4v16m8-8H4" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+              <svg className="w-6 h-6 text-carbon-black ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8" strokeWidth="1" />
+                <path d="M21 21l-4.35-4.35" strokeWidth="1" strokeLinecap="round" />
+              </svg>
+            </div>
+          </div>
+          
+          {/* Thread Dropdown */}
+          {showThreadDropdown && (searchQuery || threads.length > 0) && (
+            <>
+              <div 
+                className="fixed inset-0 z-30" 
+                onClick={() => {
+                  setShowThreadDropdown(false);
+                  setSearchQuery('');
+                }}
+              />
+              <div className="absolute top-full left-0 mt-1 w-[664px] max-h-[400px] bg-white rounded-lg shadow-lg overflow-y-auto z-40">
+                {searchQuery && (
+                  <div className="px-4 py-2 text-sm text-gray-500 border-b border-divider">
+                    {filteredThreads.length === 0 ? 'No results found' : 
+                     filteredThreads.length === 1 ? '1 result' : 
+                     `${filteredThreads.length} results`}
+                  </div>
+                )}
+                {!searchQuery && (
+                  <div className="px-4 py-2 text-sm font-semibold text-gray-700 border-b border-divider">
+                    All Chats
+                  </div>
+                )}
+                {(searchQuery ? filteredThreads : threads).map((thread) => {
+                  const threadId = getThreadId(thread);
+                  const isActive = activeThread === threadId;
+                  return (
+                    <button
+                      key={threadId}
+                      onClick={() => {
+                        handleThreadSelect(threadId);
+                        setShowThreadDropdown(false);
+                        setSearchQuery('');
+                      }}
+                      className={`w-full px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
+                        isActive ? 'bg-pursuit-purple text-white hover:bg-pursuit-purple' : 'text-carbon-black'
+                      }`}
+                    >
+                      <div className="font-proxima text-base truncate">
+                        {getThreadTitle(thread)}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
 
-      {/* Main Content Area - Takes remaining height */}
+      {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* Chat Interface */}
         <div className="flex-1 flex flex-col relative overflow-hidden">
-          {/* Empty State or Messages Area - Scrollable with proper spacing */}
+          {/* Empty State or Messages Area */}
           <div className="flex-1 overflow-y-auto py-8 px-6" style={{ paddingBottom: '180px' }}>
             {!activeThread ? (
-              <div className="flex flex-col items-center justify-center min-h-full">
+              <div className="flex flex-col items-center justify-start min-h-full pt-[50px]">
                 <div className="max-w-[660px] text-center">
-                  <h2 className="text-[18px] font-proxima font-normal text-carbon-black mb-6">
+                  <h2 className="text-[18px] leading-[26px] font-proxima font-normal text-black mb-6">
                     What can we build together?
                   </h2>
-                  <img src="/logo-icon.png" alt="Pursuit" className="w-16 h-16 mx-auto mb-8 opacity-80" />
-                  {!isInactiveUser && (
-                    <button
-                      onClick={handleCreateThread}
-                      disabled={isLoading}
-                      className="px-6 py-3 bg-pursuit-purple hover:bg-pursuit-purple/90 text-white rounded-lg font-proxima text-base transition-colors disabled:opacity-50"
-                    >
-                      {isLoading ? 'Creating...' : 'Start New Conversation'}
-                    </button>
-                  )}
+                  <img 
+                    src="/preloader-still.gif" 
+                    alt="Pursuit" 
+                    className="w-[60px] h-[60px] mx-auto"
+                  />
                 </div>
               </div>
             ) : (
-              <div className="max-w-3xl mx-auto">
+              <div className="max-w-[664px] mx-auto">
                 {isLoading && messages.length === 0 ? (
                   <div className="text-center text-gray-500 font-proxima">Loading messages...</div>
                 ) : messages.length === 0 ? (
@@ -630,24 +785,88 @@ function GPT() {
 
           {/* Chat Input - Absolute positioned at bottom of chat interface */}
           <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
-            {activeThread && (
-              <div className="pointer-events-auto">
-                <ChatTray
-                  newMessage={newMessage}
-                  setNewMessage={setNewMessage}
-                  onSend={handleSendMessage}
-                  onFileUpload={() => fileInputRef.current?.click()}
-                  onUrlInput={() => setShowUrlInput(true)}
-                  selectedModel={selectedModel}
-                  setSelectedModel={setSelectedModel}
-                  isSending={isSending}
-                  isLoading={isLoading}
-                  isProcessingUpload={isProcessingUpload}
-                  disabled={isInactiveUser}
-                  fileInputRef={fileInputRef}
-                />
+            <div className="pointer-events-auto max-w-[664px] mx-auto">
+              {/* Chat Tray */}
+              <div className="bg-stardust rounded-[20px] p-[10px_15px] shadow-[4px_4px_10px_rgba(0,0,0,0.15)] flex flex-col gap-[10px]">
+                {/* Input Area */}
+                <div className="flex flex-col gap-2">
+                  {/* Text Input */}
+                  <div className="bg-white rounded-lg px-[11px] py-1 flex items-center">
+                    <input
+                      type="text"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(e);
+                        }
+                      }}
+                      placeholder="Ask me anything..."
+                      disabled={isInactiveUser || isSending || isLoading}
+                      className="flex-1 text-[18px] leading-[26px] font-proxima font-normal text-black bg-transparent border-none outline-none placeholder:text-black disabled:opacity-50"
+                    />
+                  </div>
+                  
+                  {/* Controls Row */}
+                  <div className="flex items-center justify-between">
+                    {/* Left side - Hidden buttons */}
+                    <div className="w-[82px]" />
+                    
+                    {/* Right side - LLM dropdown, Upload, Send */}
+                    <div className="flex items-center gap-[6px]">
+                      {/* LLM Dropdown */}
+                      <div className="relative">
+                        <select
+                          value={selectedModel}
+                          onChange={(e) => setSelectedModel(e.target.value)}
+                          disabled={isInactiveUser}
+                          className="appearance-none bg-bg-light rounded-lg px-[7px] py-[5px] pr-[20px] text-[12px] leading-[14px] font-proxima font-normal text-carbon-black cursor-pointer disabled:opacity-50 border-none outline-none h-[30px]"
+                        >
+                          <option value="anthropic/claude-sonnet-4.5">Auto</option>
+                          <option value="openai/gpt-4o">GPT 4o</option>
+                          <option value="anthropic/claude-sonnet-3.5">Claude 3.5</option>
+                        </select>
+                        {/* Chevron Icon */}
+                        <div className="absolute right-[7px] top-1/2 -translate-y-1/2 pointer-events-none">
+                          <svg className="w-[9px] h-[4.5px] text-carbon-black rotate-90" fill="none" stroke="currentColor" viewBox="0 0 9 4.5">
+                            <path d="M1 0.75L4.5 4.25L8 0.75" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                      </div>
+                      
+                      {/* Upload Button */}
+                      <button
+                        onClick={() => {
+                          if (!activeThread) {
+                            handleCreateThread();
+                          } else {
+                            fileInputRef.current?.click();
+                          }
+                        }}
+                        disabled={isInactiveUser || isProcessingUpload}
+                        className="w-[30px] h-[30px] bg-bg-light rounded-lg flex items-center justify-center disabled:opacity-50"
+                      >
+                        <svg className="w-[14px] h-[14px] text-carbon-black" fill="none" stroke="currentColor" viewBox="0 0 14 14">
+                          <path d="M7 11V3M7 3L4 6M7 3L10 6M1 13H13" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                      
+                      {/* Send Button */}
+                      <button
+                        onClick={handleSendMessage}
+                        disabled={!newMessage.trim() || isInactiveUser || isSending || isLoading}
+                        className="w-[30px] h-[30px] bg-pursuit-purple rounded-lg flex items-center justify-center disabled:opacity-50 transition-opacity"
+                      >
+                        <svg className="w-[14px] h-[14px] text-bg-light" fill="none" stroke="currentColor" viewBox="0 0 14 14">
+                          <path d="M7 4L10 7L7 10M3 7H10" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

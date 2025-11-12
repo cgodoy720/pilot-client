@@ -170,9 +170,9 @@ function App() {
       <Routes>
         {/* Builder routes (with layout) */}
         <Route path="/dashboard" element={
-          <Layout>
+          <ProtectedRoute>
             <Dashboard />
-          </Layout>
+          </ProtectedRoute>
         } />
         <Route path="/ai-chat" element={
           <Layout>

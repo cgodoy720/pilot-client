@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, Settings, Award, Users, Bug, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import LoadingCurtain from '../LoadingCurtain/LoadingCurtain';
 import { cn } from '../../lib/utils';
 import logo from '../../assets/logo.png';
 
-const Layout = ({ children }) => {
+const Layout = ({ children, isLoading = false }) => {
   const [isNavbarHovered, setIsNavbarHovered] = useState(false);
   const [isMobileNavbarOpen, setIsMobileNavbarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -402,6 +403,9 @@ const Layout = ({ children }) => {
         {/* Page Content */}
         {children}
       </main>
+      
+      {/* Loading Curtain Overlay */}
+      <LoadingCurtain isLoading={isLoading} />
     </div>
   );
 };
