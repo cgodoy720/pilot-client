@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
+import ArrowButton from './ArrowButton/ArrowButton';
 import logoFull from '../assets/logo-full.png';
 
 const MultiStepForm = ({ userType, onSubmit, onBack }) => {
@@ -16,10 +16,19 @@ const MultiStepForm = ({ userType, onSubmit, onBack }) => {
     confirmPassword: '',
     accessCode: '', // For workshop participants
   });
+  const [validationError, setValidationError] = useState('');
 
   // Define steps based on user type
   const getSteps = () => {
     if (userType === 'applicant') {
+      return [
+        { id: 'firstName', label: 'What is your first name?', type: 'text', placeholder: 'Type your answer here...' },
+        { id: 'lastName', label: 'What is your last name?', type: 'text', placeholder: 'Type your answer here...' },
+        { id: 'email', label: 'What is your email address?', type: 'email', placeholder: 'Type your answer here...' },
+        { id: 'password', label: 'Create a password', type: 'password', placeholder: 'Type your answer here...' },
+        { id: 'confirmPassword', label: 'Confirm your password', type: 'password', placeholder: 'Type your answer here...' },
+      ];
+    } else if (userType === 'builder') {
       return [
         { id: 'firstName', label: 'What is your first name?', type: 'text', placeholder: 'Type your answer here...' },
         { id: 'lastName', label: 'What is your last name?', type: 'text', placeholder: 'Type your answer here...' },
@@ -37,7 +46,6 @@ const MultiStepForm = ({ userType, onSubmit, onBack }) => {
         { id: 'confirmPassword', label: 'Confirm your password', type: 'password', placeholder: 'Type your answer here...' },
       ];
     }
-    // Builder would use the existing form
     return [];
   };
 
@@ -45,7 +53,96 @@ const MultiStepForm = ({ userType, onSubmit, onBack }) => {
   const currentQuestion = steps[currentStep];
   const totalSteps = steps.length;
 
+  // Validation functions
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePassword = (password) => {
+    // At least 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character
+    const minLength = password.length >= 8;
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    
+    return {
+      isValid: minLength && hasUppercase && hasLowercase && hasNumber && hasSpecial,
+      errors: {
+        minLength,
+        hasUppercase,
+        hasLowercase,
+        hasNumber,
+        hasSpecial
+      }
+    };
+  };
+
+  const validateCurrentStep = () => {
+    const value = formData[currentQuestion.id]?.trim();
+    
+    // Check if field is empty
+    if (!value || value.length === 0) {
+      setValidationError('This field is required');
+      return false;
+    }
+
+    // Email validation
+    if (currentQuestion.id === 'email') {
+      if (!validateEmail(value)) {
+        setValidationError('Please enter a valid email address (e.g., name@example.com)');
+        return false;
+      }
+    }
+
+    // Name validation (no numbers or special characters)
+    if (currentQuestion.id === 'firstName' || currentQuestion.id === 'lastName') {
+      if (!/^[a-zA-Z\s'-]+$/.test(value)) {
+        setValidationError('Name should only contain letters, spaces, hyphens, and apostrophes');
+        return false;
+      }
+      if (value.length < 2) {
+        setValidationError('Name must be at least 2 characters long');
+        return false;
+      }
+    }
+
+    // Password validation
+    if (currentQuestion.id === 'password') {
+      const passwordCheck = validatePassword(value);
+      if (!passwordCheck.isValid) {
+        setValidationError('Password does not meet all requirements (see below)');
+        return false;
+      }
+    }
+
+    // Confirm password validation
+    if (currentQuestion.id === 'confirmPassword') {
+      if (value !== formData.password) {
+        setValidationError('Passwords do not match');
+        return false;
+      }
+    }
+
+    // Access code validation (for workshop)
+    if (currentQuestion.id === 'accessCode') {
+      if (value.length < 3) {
+        setValidationError('Access code must be at least 3 characters long');
+        return false;
+      }
+    }
+
+    setValidationError('');
+    return true;
+  };
+
   const handleNext = () => {
+    // Validate current step before moving forward
+    if (!validateCurrentStep()) {
+      return;
+    }
+
     if (currentStep < totalSteps - 1) {
       setDirection('forward');
       setTimeout(() => setCurrentStep(currentStep + 1), 50);
@@ -56,6 +153,7 @@ const MultiStepForm = ({ userType, onSubmit, onBack }) => {
   };
 
   const handlePrevious = () => {
+    setValidationError(''); // Clear validation error when going back
     if (currentStep > 0) {
       setDirection('backward');
       setTimeout(() => setCurrentStep(currentStep - 1), 50);
@@ -69,6 +167,10 @@ const MultiStepForm = ({ userType, onSubmit, onBack }) => {
       ...formData,
       [currentQuestion.id]: value,
     });
+    // Clear validation error when user starts typing
+    if (validationError) {
+      setValidationError('');
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -78,6 +180,16 @@ const MultiStepForm = ({ userType, onSubmit, onBack }) => {
   };
 
   const isCurrentStepValid = formData[currentQuestion.id]?.trim().length > 0;
+
+  // Get password validation status for display
+  const getPasswordValidation = () => {
+    if (currentQuestion.id === 'password' && formData.password) {
+      return validatePassword(formData.password);
+    }
+    return null;
+  };
+
+  const passwordValidation = getPasswordValidation();
 
   return (
     <div className="min-h-screen bg-pursuit-purple relative flex flex-col">
@@ -93,11 +205,15 @@ const MultiStepForm = ({ userType, onSubmit, onBack }) => {
         <span className="text-white text-sm font-proxima">
           Already have an account? Login
         </span>
-        <Link 
-          to="/login"
-          className="w-4 h-4 p-0.5 border-white border rounded bg-transparent hover:bg-white/10 inline-flex items-center justify-center"
-        >
-          <ArrowRight className="w-2.5 h-2.5 text-white" />
+        <Link to="/login">
+          <ArrowButton 
+            size="sm"
+            borderColor="white"
+            arrowColor="white"
+            backgroundColor="transparent"
+            hoverBackgroundColor="white"
+            hoverArrowColor="#4242EA"
+          />
         </Link>
       </div>
 
@@ -142,23 +258,82 @@ const MultiStepForm = ({ userType, onSubmit, onBack }) => {
                   onChange={(e) => handleInputChange(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder={currentQuestion.placeholder}
-                  className="bg-transparent border-0 border-b-2 border-white/60 rounded-none text-white placeholder:text-white/40 focus:border-white focus:ring-0 px-0 pb-3 text-lg w-full focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className={`bg-transparent border-0 border-b-2 rounded-none text-white placeholder:text-white/40 focus:border-white focus:ring-0 px-0 pb-3 text-lg w-full focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 ${
+                    validationError ? 'border-red-400' : 'border-white/60'
+                  }`}
                   autoFocus
                 />
+                
+                {/* Validation Error Message */}
+                {validationError && (
+                  <p className="text-red-300 text-sm mt-2 flex items-start gap-2">
+                    <span className="text-red-300">✗</span>
+                    <span>{validationError}</span>
+                  </p>
+                )}
+
+                {/* Password Requirements Display */}
+                {currentQuestion.id === 'password' && formData.password && (
+                  <div className="mt-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4">
+                    <h4 className="text-white font-semibold text-sm mb-3">Password must include:</h4>
+                    <ul className="space-y-2 text-sm">
+                      <li className={`flex items-center gap-2 ${passwordValidation?.errors.minLength ? 'text-green-300' : 'text-red-300'}`}>
+                        <span className="text-xs">{passwordValidation?.errors.minLength ? '✓' : '✗'}</span>
+                        At least 8 characters
+                      </li>
+                      <li className={`flex items-center gap-2 ${passwordValidation?.errors.hasUppercase ? 'text-green-300' : 'text-red-300'}`}>
+                        <span className="text-xs">{passwordValidation?.errors.hasUppercase ? '✓' : '✗'}</span>
+                        One uppercase letter
+                      </li>
+                      <li className={`flex items-center gap-2 ${passwordValidation?.errors.hasLowercase ? 'text-green-300' : 'text-red-300'}`}>
+                        <span className="text-xs">{passwordValidation?.errors.hasLowercase ? '✓' : '✗'}</span>
+                        One lowercase letter
+                      </li>
+                      <li className={`flex items-center gap-2 ${passwordValidation?.errors.hasNumber ? 'text-green-300' : 'text-red-300'}`}>
+                        <span className="text-xs">{passwordValidation?.errors.hasNumber ? '✓' : '✗'}</span>
+                        One number
+                      </li>
+                      <li className={`flex items-center gap-2 ${passwordValidation?.errors.hasSpecial ? 'text-green-300' : 'text-red-300'}`}>
+                        <span className="text-xs">{passwordValidation?.errors.hasSpecial ? '✓' : '✗'}</span>
+                        One special character (!@#$%^&*(),.?":{}|&lt;&gt;)
+                      </li>
+                    </ul>
+                  </div>
+                )}
+
+                {/* Confirm Password Match Display */}
+                {currentQuestion.id === 'confirmPassword' && formData.confirmPassword && (
+                  <div className={`mt-3 p-3 rounded text-sm flex items-center gap-2 ${
+                    formData.confirmPassword === formData.password 
+                      ? 'bg-green-500/20 text-green-300' 
+                      : 'bg-red-500/20 text-red-300'
+                  }`}>
+                    <span className="text-xs">
+                      {formData.confirmPassword === formData.password ? '✓' : '✗'}
+                    </span>
+                    <span>
+                      {formData.confirmPassword === formData.password 
+                        ? 'Passwords match' 
+                        : 'Passwords do not match'}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           {/* Navigation Arrows or Submit Button */}
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
+            <ArrowButton
+              size="lg"
               onClick={handlePrevious}
-              className="w-8 h-8 border-white text-white hover:bg-white/10 rounded-lg bg-transparent p-0"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
+              borderColor="white"
+              arrowColor="white"
+              backgroundColor="transparent"
+              hoverBackgroundColor="white"
+              hoverArrowColor="#4242EA"
+              rotation={180}
+            />
             
             {currentStep === totalSteps - 1 ? (
               // Last step - show Create Account button
@@ -171,14 +346,17 @@ const MultiStepForm = ({ userType, onSubmit, onBack }) => {
               </Button>
             ) : (
               // Regular next arrow button
-              <Button
-                size="sm"
+              <ArrowButton
+                size="lg"
                 onClick={handleNext}
                 disabled={!isCurrentStepValid}
-                className="w-8 h-8 bg-white text-pursuit-purple hover:bg-gray-100 rounded-lg border border-white p-0 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
+                borderColor="white"
+                arrowColor="#4242EA"
+                backgroundColor="white"
+                hoverBackgroundColor="#4242EA"
+                hoverArrowColor="white"
+                className={!isCurrentStepValid ? 'opacity-50 cursor-not-allowed' : ''}
+              />
             )}
           </div>
         </div>
