@@ -30,10 +30,16 @@ const WeekView = ({ weekNumber, weeklyGoal, days = [], onDayClick, currentDayId,
     return compareDate > today;
   };
   
-  // Check if day has deliverable tasks
+  // Check if day has ACTUAL deliverable tasks (not just text/none)
+  // Deliverables that need submission: 'video', 'link', 'document', 'structured'
+  // NOT deliverables (auto-complete): 'text', 'none'
   const hasDeliverables = (dateObj) => {
     if (!dateObj.hasClass || !dateObj.tasks) return false;
-    return dateObj.tasks.some(t => t.deliverable_type === 'text');
+    return dateObj.tasks.some(t => 
+      t.deliverable_type && 
+      t.deliverable_type !== 'text' && 
+      t.deliverable_type !== 'none'
+    );
   };
   
   // Check if day is complete (all deliverable tasks submitted)
@@ -46,10 +52,14 @@ const WeekView = ({ weekNumber, weeklyGoal, days = [], onDayClick, currentDayId,
     const curriculumDay = dateObj.curriculumDay;
     if (!curriculumDay) return false;
     
-    // Check deliverables FIRST (before checking progress)
-    const deliverableTasks = dateObj.tasks?.filter(t => t.deliverable_type === 'text') || [];
+    // Check for ACTUAL deliverables FIRST (video, link, document, structured)
+    const deliverableTasks = dateObj.tasks?.filter(t => 
+      t.deliverable_type && 
+      t.deliverable_type !== 'text' && 
+      t.deliverable_type !== 'none'
+    ) || [];
     
-    // If no deliverable tasks, automatically complete (nothing to submit)
+    // If no ACTUAL deliverable tasks, automatically complete (nothing to submit)
     if (deliverableTasks.length === 0) return true;
     
     // Has deliverables - need to check progress

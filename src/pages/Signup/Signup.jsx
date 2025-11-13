@@ -314,8 +314,7 @@ const Signup = () => {
               hoverBackgroundColor="rgba(255, 255, 255, 0.2)"
               hoverArrowColor="rgba(255, 255, 255, 0.2)"
               rotation={180}
-              className="cursor-not-allowed"
-              onClick={(e) => e.preventDefault()}
+              disabled={true}
             />
             <ArrowButton
               size="lg"

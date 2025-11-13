@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 import logoFull from '../../assets/logo-full.png';
-import './ForgotPassword.css';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -42,53 +43,73 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="forgot-password-container">
-      <div className="forgot-password-form-container">
-        <div className="forgot-password-logo-container">
-          <img src={logoFull} alt="Pursuit Logo" className="forgot-password-logo" />
+    <div className="min-h-screen bg-pursuit-purple flex flex-col items-center justify-start px-6 py-8 pt-[10vh]">
+      <div className="w-full max-w-md flex flex-col items-center">
+        <div className="mb-8">
+          <img src={logoFull} alt="Pursuit Logo" className="h-10 w-auto" />
         </div>
         
-        <div className="forgot-password-headline">
-          <h1>FORGOT YOUR<br />PASSWORD?</h1>
+        <div className="text-center mb-8">
+          <h1 className="text-white text-2xl md:text-3xl font-bold font-proxima leading-tight">
+            FORGOT YOUR<br />PASSWORD?
+          </h1>
         </div>
         
         {isSuccess ? (
-          <div className="forgot-password-success">
-            <p>{message}</p>
-            <Link to="/login" className="forgot-password-button">Back to Login</Link>
+          <div className="flex flex-col items-center gap-6 text-center w-full">
+            <p className="text-white text-base leading-relaxed">{message}</p>
+            <Button 
+              asChild
+              className="bg-white text-pursuit-purple hover:bg-gray-100 rounded-full px-6 py-3 text-base font-proxima font-medium"
+            >
+              <Link to="/login">Back to Login</Link>
+            </Button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="forgot-password-form">
-            {error && <div className="forgot-password-error">{error}</div>}
-            {message && <div className="forgot-password-message">{message}</div>}
+          <form onSubmit={handleSubmit} className="w-full flex flex-col gap-6">
+            {error && (
+              <div className="bg-red-500/20 border border-red-500/30 text-red-300 p-3 rounded text-center text-sm">
+                {error}
+              </div>
+            )}
+            {message && (
+              <div className="bg-green-500/20 border border-green-500/30 text-green-300 p-3 rounded text-center text-sm">
+                {message}
+              </div>
+            )}
             
-            <p className="forgot-password-instructions">
+            <p className="text-white/80 text-sm mb-2">
               Enter your email address and we'll send you a link to reset your password.
             </p>
             
-            <div className="forgot-password-input-group">
-              <input
+            <div className="relative w-full">
+              <Input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
                 required
-                className="forgot-password-input"
                 disabled={isSubmitting}
+                className="bg-transparent border-0 border-b border-white/30 rounded-none text-white placeholder:text-white/60 focus:border-white focus:ring-0 px-0 pb-2"
               />
             </div>
             
-            <div className="forgot-password-links">
-              <Link to="/login" className="forgot-password-link">Back to Login</Link>
+            <div className="flex justify-start mt-2">
+              <Link 
+                to="/login" 
+                className="text-white/80 text-xs hover:text-white underline transition-colors"
+              >
+                Back to Login
+              </Link>
             </div>
             
-            <button 
+            <Button 
               type="submit" 
-              className="forgot-password-button"
               disabled={isSubmitting}
+              className="w-full bg-white text-pursuit-purple hover:bg-gray-100 rounded-full px-6 py-3 text-base font-proxima font-medium mt-4"
             >
               {isSubmitting ? 'Sending...' : 'Send Reset Link'}
-            </button>
+            </Button>
           </form>
         )}
       </div>

@@ -11,6 +11,7 @@ const ArrowButton = ({
   hoverArrowColor = '#4242EA',
   size = 'md',
   rotation = 0,
+  disabled = false,
   className = ''
 }) => {
   const sizeClasses = {
@@ -27,9 +28,12 @@ const ArrowButton = ({
 
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       className={cn(
-        'group relative flex items-center justify-center rounded-[0.4rem] overflow-hidden transition-all duration-300 active:scale-95',
+        'relative flex items-center justify-center rounded-[0.4rem] overflow-hidden transition-all duration-300',
+        !disabled && 'group active:scale-95',
+        disabled && 'cursor-not-allowed',
         sizeClasses[size],
         className
       )}
@@ -45,19 +49,22 @@ const ArrowButton = ({
         )}
         style={{ 
           color: arrowColor,
-          '--hover-arrow-color': hoverArrowColor,
           transform: rotation ? `rotate(${rotation}deg)` : undefined
         }}
       />
-      <div 
-        className="absolute inset-0 -translate-x-full group-hover:translate-x-0 transition-transform duration-300"
-        style={{ backgroundColor: hoverBackgroundColor }}
-      />
-      <style>{`
-        button:hover svg {
-          color: var(--hover-arrow-color) !important;
-        }
-      `}</style>
+      {!disabled && (
+        <>
+          <div 
+            className="absolute inset-0 -translate-x-full group-hover:translate-x-0 transition-transform duration-300"
+            style={{ backgroundColor: hoverBackgroundColor }}
+          />
+          <style jsx>{`
+            button:not(:disabled):hover svg {
+              color: ${hoverArrowColor} !important;
+            }
+          `}</style>
+        </>
+      )}
     </button>
   );
 };
