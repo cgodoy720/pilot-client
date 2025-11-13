@@ -126,6 +126,7 @@ const AdmissionsDashboard = () => {
 
     // Overview quick views state
     const [overviewQuickView, setOverviewQuickView] = useState(''); // '', 'dec2025', 'sep2025', 'deferred'
+    const [overviewDeliberationFilter, setOverviewDeliberationFilter] = useState(''); // '', 'yes', 'maybe', 'no'
 
     // Event registrations management
     const [selectedEvent, setSelectedEvent] = useState(null);
@@ -684,6 +685,7 @@ const AdmissionsDashboard = () => {
             params.append('limit', 10000);
             params.append('offset', 0);
             if (cohortParam) params.append('cohort_id', cohortParam);
+            if (overviewDeliberationFilter) params.append('deliberation', overviewDeliberationFilter);
 
             const appsResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applications?${params}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -1052,7 +1054,7 @@ const AdmissionsDashboard = () => {
         if (!hasAdminAccess || !token) return;
         loadStageDemographics(activeOverviewStage);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeOverviewStage, overviewQuickView, applicantStatusFilter]);
+    }, [activeOverviewStage, overviewQuickView, applicantStatusFilter, overviewDeliberationFilter]);
 
     // Load applicants filtered by demographic
     const loadFilteredApplicants = async (demographicType, demographicValue) => {
@@ -3469,6 +3471,18 @@ const AdmissionsDashboard = () => {
                                     <option value="sep2025">September 2025</option>
                                     <option value="deferred">Deferred Applicants</option>
                                 </select>
+                                <select
+                                    id="overview-deliberation-filter"
+                                    value={overviewDeliberationFilter}
+                                    onChange={(e) => setOverviewDeliberationFilter(e.target.value)}
+                                    className="filter-select overview-filter-select"
+                                    style={{ minWidth: '180px', padding: '0.5rem' }}
+                                >
+                                    <option value="">Deliberation: All</option>
+                                    <option value="yes">✓ Yes - Planning to Accept</option>
+                                    <option value="maybe">? Maybe - Under Review</option>
+                                    <option value="no">✗ No - Decline</option>
+                                </select>
                                 {overviewQuickView === 'dec2025' && (
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                                     <input 
@@ -4050,6 +4064,50 @@ const AdmissionsDashboard = () => {
                                                             });
                                                         })()}
                                     </div>
+                                </div>
+
+                                                {/* Gender */}
+                                <div className="admissions-dashboard__stat-card demographic-card" style={{ position: 'relative' }}>
+                                    <div className="admissions-dashboard__stat-card-header" style={{ position: 'relative' }}>
+                                                        <h3 
+                                                            className="admissions-dashboard__stat-card-title" 
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                            onClick={() => handleDemographicTitleClick('gender')}
+                                                        >
+                                                            {activeOverviewStage === 'info' ? 'Info Session Attendees by Gender' : activeOverviewStage === 'workshops' ? 'Workshop Participants by Gender' : activeOverviewStage === 'assessment' ? 'Assessment Completed by Gender' : activeOverviewStage === 'offers' ? 'Offers by Gender' : 'Applicants by Gender'}
+                                                        </h3>
+                                                        <input
+                                                            type="checkbox"
+                                                            style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
+                                                            onClick={(e) => handleDemographicExport(e, 'gender', null, `gender-${activeOverviewStage || 'all'}`)}
+                                                        />
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                        {(() => {
+                                                            const data = stageDemographics.gender || [];
+                                                            const total = data.reduce((s, d) => s + (d.count || 0), 0) || 1;
+                                                            return data.slice(0, 8).map((d, idx) => (
+                                                                <div 
+                                                                    key={`gender-${idx}`} 
+                                                                    style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '0.875rem', background: 'rgba(75, 61, 237, 0.05)', borderRadius: '8px', border: '1px solid rgba(75, 61, 237, 0.15)', minWidth: 0, cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative' }}
+                                                                    onClick={() => handleDemographicValueClick('gender', d.label)}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(75, 61, 237, 0.15)'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(75, 61, 237, 0.05)'}
+                                                                >
+                                                                    <div style={{ height: '8px', width: '90px', flexShrink: 0, background: 'rgba(255,255,255,0.08)', borderRadius: '4px', position: 'relative', overflow: 'hidden', marginTop: '4px' }}>
+                                                                        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.round((d.count/total)*100)}%`, background: 'linear-gradient(90deg, #8b5cf6, #a78bfa)', borderRadius: '4px' }} />
+                                                                    </div>
+                                                                    <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                                                                        <span style={{ fontWeight: 800, fontSize: '0.85rem', letterSpacing: '-0.01em', color: 'var(--color-text-primary)', wordBreak: 'break-word', lineHeight: '1.4' }}>{d.label || 'Unknown'}</span>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                                                            <span style={{ fontSize: '0.95rem', fontWeight: 900, letterSpacing: '-0.01em', color: 'var(--color-text-primary)' }}>{Math.round((d.count/total)*100)}%</span>
+                                                                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '-0.01em' }}>{d.count}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ));
+                                                        })()}
+                                                    </div>
                                 </div>
 
                                                 {/* Education */}
