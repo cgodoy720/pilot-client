@@ -114,6 +114,7 @@ const AdmissionsDashboard = () => {
         assessment: true,
         info_session: true,
         workshop: true,
+        structured_task_grade: true, // Show by default so users can see grades
         admission: true,
         notes: true,
         deliberation: true,
@@ -123,6 +124,13 @@ const AdmissionsDashboard = () => {
         education: false,
         referral: false
     });
+
+    // Column label mapping for display
+    const columnLabels = {
+        structured_task_grade: 'Workshop Grade',
+        info_session: 'Info Session',
+        // Add other custom labels as needed
+    };
 
     // Overview quick views state
     const [overviewQuickView, setOverviewQuickView] = useState(''); // '', 'dec2025', 'sep2025', 'deferred'
@@ -384,6 +392,20 @@ const AdmissionsDashboard = () => {
             // Update state
             setStats(statsData);
             setApplications(applicationsData);
+            
+            // Debug: Check if structured_task_grade is in the response
+            if (applicationsData?.applications) {
+                const withGrades = applicationsData.applications.filter(a => a.structured_task_grade);
+                console.log(`📊 Applications loaded: ${applicationsData.applications.length} total, ${withGrades.length} with structured_task_grade`);
+                if (withGrades.length > 0) {
+                    console.log('Sample applicants with grades:', withGrades.slice(0, 3).map(a => ({
+                        name: a.full_name,
+                        id: a.applicant_id,
+                        grade: a.structured_task_grade
+                    })));
+                }
+            }
+            
             setInfoSessions(infoSessionsData);
             setWorkshops(workshopsData.workshops || workshopsData);
 
@@ -647,14 +669,14 @@ const AdmissionsDashboard = () => {
             if (subset === 'offers') subsetApps = apps.filter(a => a.final_status === 'accepted');
 
             const ids = subsetApps.map(a => a.applicant_id).filter(Boolean);
-            let race = [], gender = [], education = [], age = [];
+            let race = [], gender = [], education = [], age = [], referral = [];
             if (ids.length) {
                 const expResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/export?ids=${ids.join(',')}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (expResp.ok) {
                     const detailed = await expResp.json();
-                    const agg = { race: {}, gender: {}, education: {}, age: {} };
+                    const agg = { race: {}, gender: {}, education: {}, age: {}, referral: {} };
                     const add = (obj, key) => { if (!key) return; obj[key] = (obj[key] || 0) + 1; };
                     detailed.forEach(d => {
                         const dem = d.demographics || {};
@@ -662,9 +684,10 @@ const AdmissionsDashboard = () => {
                         if (Array.isArray(raceVal)) raceVal.forEach(r => add(agg.race, r)); else add(agg.race, raceVal);
                         add(agg.gender, dem.gender || dem.GENDER);
                         add(agg.education, dem.education_level || dem['WHAT IS YOUR CURRENT HIGHEST EDUCATIONAL ATTAINED']);
+                        add(agg.referral, dem.referral_source);
                     });
                     const toArr = (o) => Object.keys(o).map(k => ({ label: k || 'Unknown', count: o[k] })).sort((a,b)=>b.count-a.count);
-                    race = toArr(agg.race); gender = toArr(agg.gender); education = toArr(agg.education);
+                    race = toArr(agg.race); gender = toArr(agg.gender); education = toArr(agg.education); referral = toArr(agg.referral);
                 }
             }
             setDemographicsModalData({ race, gender, education });
@@ -781,7 +804,7 @@ const AdmissionsDashboard = () => {
             const ids = subsetApps.map(a => a.applicant_id).filter(Boolean);
             const totalApplicants = subsetApps.length;
             const applicantsWithoutId = totalApplicants - ids.length; // Count applicants without applicant_id
-            let race = [], gender = [], education = [], age = [];
+            let race = [], gender = [], education = [], age = [], referral = [];
             if (ids.length) {
                 const expResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/export?ids=${ids.join(',')}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
@@ -1030,7 +1053,7 @@ const AdmissionsDashboard = () => {
                     }).sort((a,b)=>b.count-a.count);
                     
                     gender = toArr(agg.gender); education = toArr(agg.education);
-                    age = toArr(agg.age); const referral = toArr(agg.referral);
+                    age = toArr(agg.age); referral = toArr(agg.referral);
                 } else {
                     // If export fails, create "Not Listed" entries for all applicants
                     race = [{ label: 'Not Listed', count: totalApplicants }];
@@ -4368,7 +4391,7 @@ const AdmissionsDashboard = () => {
                                                             });
                                                         }}
                                                     />
-                                                    <span>{column.charAt(0).toUpperCase() + column.slice(1).replace('_', ' ')}</span>
+                                                    <span>{columnLabels[column] || (column.charAt(0).toUpperCase() + column.slice(1).replace('_', ' '))}</span>
                                                 </label>
                                             ))}
                                         </div>
@@ -4708,6 +4731,11 @@ const AdmissionsDashboard = () => {
                                                 )}
                                             </th>
                                             )}
+                                            {visibleColumns.structured_task_grade && (
+                                                <th>
+                                                    <span>Workshop Grade</span>
+                                                </th>
+                                            )}
                                             {visibleColumns.admission && (
                                                 <th style={{ position: 'relative' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -4959,6 +4987,40 @@ const AdmissionsDashboard = () => {
                                                         <span className={`workshop-badge workshop-badge--${app.workshop_status || 'pending'}`}>
                                                             {(app.workshop_status || 'pending').replace('_', ' ')}
                                                         </span>
+                                                    </td>
+                                                )}
+                                                {visibleColumns.structured_task_grade && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default', textAlign: 'center' }}
+                                                    >
+                                                        {app.structured_task_grade ? (
+                                                            <span 
+                                                                style={{
+                                                                    display: 'inline-block',
+                                                                    width: '20px',
+                                                                    height: '20px',
+                                                                    borderRadius: '50%',
+                                                                    backgroundColor: 
+                                                                        app.structured_task_grade === 'green' ? '#10b981' :
+                                                                        app.structured_task_grade === 'yellow' ? '#fbbf24' :
+                                                                        app.structured_task_grade === 'red' ? '#ef4444' :
+                                                                        '#6b7280',
+                                                                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                                                                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                                                                    cursor: 'help'
+                                                                }}
+                                                                title={
+                                                                    app.structured_task_grade === 'green' ? 'Top 25% - Strong performance' :
+                                                                    app.structured_task_grade === 'yellow' ? 'Middle 50% - Average performance' :
+                                                                    app.structured_task_grade === 'red' ? 'Bottom 25% - Needs improvement' :
+                                                                    'No grade available'
+                                                                }
+                                                            />
+                                                        ) : (
+                                                            <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>—</span>
+                                                        )}
                                                     </td>
                                                 )}
                                                 {visibleColumns.admission && (
