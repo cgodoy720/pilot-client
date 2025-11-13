@@ -94,6 +94,7 @@ const AdmissionsDashboard = () => {
         ready_for_workshop_invitation: false,
         name_search: '',
         cohort_id: '',
+        deliberation: '',
         limit: 10000, // High limit to get all records
         offset: 0
     });
@@ -102,6 +103,25 @@ const AdmissionsDashboard = () => {
     const [columnSort, setColumnSort] = useState({
         column: 'created_at',
         direction: 'desc' // 'asc' or 'desc'
+    });
+
+    // Column visibility state
+    const [visibleColumns, setVisibleColumns] = useState({
+        name: true,
+        email: true,
+        phone: true,
+        status: true,
+        assessment: true,
+        info_session: true,
+        workshop: true,
+        admission: true,
+        notes: true,
+        deliberation: true,
+        age: false,
+        gender: false,
+        race: false,
+        education: false,
+        referral: false
     });
 
     // Overview quick views state
@@ -166,8 +186,12 @@ const AdmissionsDashboard = () => {
     // Close filter dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
-            // Check if click is outside any filter dropdown
-            if (openFilterColumn && !event.target.closest('th')) {
+            // Check if click is outside any filter dropdown or column toggle button
+            const isTableHeader = event.target.closest('th');
+            const isColumnToggle = event.target.closest('.admissions-dashboard__column-toggle-btn') || 
+                                    event.target.closest('[data-column-toggle]');
+            
+            if (openFilterColumn && !isTableHeader && !isColumnToggle) {
                 setOpenFilterColumn(null);
             }
         };
@@ -2211,6 +2235,50 @@ const AdmissionsDashboard = () => {
         setSelectedApplicant(null);
     };
 
+    // Handle deliberation update
+    const handleDeliberationChange = async (applicantId, newValue) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${applicantId}/deliberation`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ deliberation: newValue })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update deliberation');
+            }
+
+            // Update local state
+            setApplications(prev => ({
+                ...prev,
+                applications: prev.applications.map(app =>
+                    app.applicant_id === applicantId
+                        ? { ...app, deliberation: newValue }
+                        : app
+                )
+            }));
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Updated!',
+                text: 'Deliberation status has been updated',
+                timer: 1500,
+                showConfirmButton: false
+            });
+
+        } catch (error) {
+            console.error('Error updating deliberation:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to update deliberation status'
+            });
+        }
+    };
+
     // Handle column sorting
     const handleColumnSort = (column) => {
         setColumnSort(prev => ({
@@ -4107,6 +4175,71 @@ const AdmissionsDashboard = () => {
                                     ))}
                                     <option value="deferred">Deferred Applications</option>
                                 </select>
+                                <div style={{ position: 'relative' }} data-column-toggle>
+                                    <button
+                                        className="admissions-dashboard__column-toggle-btn"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenFilterColumn(openFilterColumn === 'columns' ? null : 'columns');
+                                        }}
+                                        style={{
+                                            padding: '8px 16px',
+                                            backgroundColor: 'var(--color-primary)',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.875rem'
+                                        }}
+                                    >
+                                        ⚙️ Columns
+                                    </button>
+                                    {openFilterColumn === 'columns' && (
+                                        <div 
+                                            data-column-toggle
+                                            style={{
+                                                position: 'absolute',
+                                                top: '100%',
+                                                right: 0,
+                                                marginTop: '8px',
+                                                backgroundColor: 'var(--color-background-dark)',
+                                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                borderRadius: '4px',
+                                                padding: '12px',
+                                                zIndex: 1000,
+                                                minWidth: '200px',
+                                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                                            }}
+                                        >
+                                            <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '0.9rem' }}>Toggle Columns</div>
+                                            {Object.keys(visibleColumns).map(column => (
+                                                <label 
+                                                    key={column}
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '8px',
+                                                        padding: '6px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '0.875rem'
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={visibleColumns[column]}
+                                                        onChange={(e) => {
+                                                            setVisibleColumns({
+                                                                ...visibleColumns,
+                                                                [column]: e.target.checked
+                                                            });
+                                                        }}
+                                                    />
+                                                    <span>{column.charAt(0).toUpperCase() + column.slice(1).replace('_', ' ')}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                                 <button
                                     className="admissions-dashboard__bulk-actions-btn"
                                     disabled={selectedApplicants.length === 0}
@@ -4488,6 +4621,70 @@ const AdmissionsDashboard = () => {
                                                     </div>
                                                 )}
                                             </th>
+                                            {visibleColumns.deliberation && (
+                                                <th style={{ position: 'relative' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span>Deliberation</span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setOpenFilterColumn(openFilterColumn === 'deliberation' ? null : 'deliberation');
+                                                            }}
+                                                            style={{
+                                                                background: 'none',
+                                                                border: 'none',
+                                                                cursor: 'pointer',
+                                                                padding: '2px',
+                                                                fontSize: '0.9rem',
+                                                                opacity: applicationFilters.deliberation ? 1 : 0.5,
+                                                                color: applicationFilters.deliberation ? '#4242ea' : 'inherit'
+                                                            }}
+                                                        >
+                                                            ☰
+                                                        </button>
+                                                    </div>
+                                                    {openFilterColumn === 'deliberation' && (
+                                                        <div style={{
+                                                            position: 'absolute',
+                                                            top: '100%',
+                                                            left: 0,
+                                                            backgroundColor: 'var(--color-background-dark)',
+                                                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                            borderRadius: '4px',
+                                                            padding: '8px',
+                                                            zIndex: 1000,
+                                                            minWidth: '150px',
+                                                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                                                        }}>
+                                                            {['', 'yes', 'maybe', 'no', 'null'].map(value => (
+                                                                <div
+                                                                    key={value}
+                                                                    onClick={() => {
+                                                                        setApplicationFilters({ ...applicationFilters, deliberation: value });
+                                                                        setOpenFilterColumn(null);
+                                                                    }}
+                                                                    style={{
+                                                                        padding: '8px 12px',
+                                                                        cursor: 'pointer',
+                                                                        backgroundColor: applicationFilters.deliberation === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent',
+                                                                        borderRadius: '4px',
+                                                                        fontSize: '0.9rem'
+                                                                    }}
+                                                                    onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
+                                                                    onMouseLeave={(e) => e.target.style.backgroundColor = applicationFilters.deliberation === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent'}
+                                                                >
+                                                                    {value === '' ? 'All' : value === 'null' ? 'Not Set' : value.charAt(0).toUpperCase() + value.slice(1)}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </th>
+                                            )}
+                                            {visibleColumns.age && <th>Age</th>}
+                                            {visibleColumns.gender && <th>Gender</th>}
+                                            {visibleColumns.race && <th>Race</th>}
+                                            {visibleColumns.education && <th>Education</th>}
+                                            {visibleColumns.referral && <th>Referral</th>}
                                             <th>Notes</th>
                                         </tr>
                                     </thead>
@@ -4613,6 +4810,77 @@ const AdmissionsDashboard = () => {
                                                         {(app.program_admission_status || 'pending').replace('_', ' ')}
                                                     </span>
                                                 </td>
+                                                {visibleColumns.deliberation && (
+                                                    <td onClick={(e) => e.stopPropagation()}>
+                                                        <select
+                                                            value={app.deliberation || ''}
+                                                            onChange={(e) => handleDeliberationChange(app.applicant_id, e.target.value || null)}
+                                                            style={{
+                                                                padding: '6px 12px',
+                                                                borderRadius: '4px',
+                                                                border: '1px solid rgba(255, 255, 255, 0.2)',
+                                                                backgroundColor: 
+                                                                    app.deliberation === 'yes' ? 'rgba(16, 185, 129, 0.2)' :
+                                                                    app.deliberation === 'maybe' ? 'rgba(251, 191, 36, 0.2)' :
+                                                                    app.deliberation === 'no' ? 'rgba(239, 68, 68, 0.2)' :
+                                                                    'rgba(107, 114, 128, 0.2)',
+                                                                color: 'var(--color-text-primary)',
+                                                                cursor: 'pointer',
+                                                                fontSize: '0.875rem'
+                                                            }}
+                                                        >
+                                                            <option value="">Not Set</option>
+                                                            <option value="yes">Yes</option>
+                                                            <option value="maybe">Maybe</option>
+                                                            <option value="no">No</option>
+                                                        </select>
+                                                    </td>
+                                                )}
+                                                {visibleColumns.age && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                    >
+                                                        {app.date_of_birth ? new Date().getFullYear() - new Date(app.date_of_birth).getFullYear() : 'N/A'}
+                                                    </td>
+                                                )}
+                                                {visibleColumns.gender && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                    >
+                                                        {app.gender || 'N/A'}
+                                                    </td>
+                                                )}
+                                                {visibleColumns.race && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                    >
+                                                        {app.race_ethnicity || 'N/A'}
+                                                    </td>
+                                                )}
+                                                {visibleColumns.education && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                    >
+                                                        {app.education_level || 'N/A'}
+                                                    </td>
+                                                )}
+                                                {visibleColumns.referral && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                    >
+                                                        {app.referral_source || 'N/A'}
+                                                    </td>
+                                                )}
                                                 <td>
                                                     <button
                                                         className="notes-btn"
