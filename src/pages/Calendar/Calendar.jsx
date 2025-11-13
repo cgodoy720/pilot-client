@@ -242,7 +242,7 @@ function Calendar() {
       const curriculumDay = weeksData
         .flatMap(week => week.days)
         .find(day => {
-          const dayDate = new Date(day.day_date);
+      const dayDate = new Date(day.day_date);
           return dayDate.getFullYear() === yearOfDate &&
                  dayDate.getMonth() === monthOfDate &&
                  dayDate.getDate() === dayOfMonth;

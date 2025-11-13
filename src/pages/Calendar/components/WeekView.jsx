@@ -81,11 +81,11 @@ const WeekView = ({ weekNumber, weeklyGoal, days = [], onDayClick, currentDayId,
     <div className="flex flex-col gap-[7px]">
       {/* Week Header - Only show if this week has a week number */}
       {weekNumber && (
-        <div className="flex items-center gap-[10px]">
-          <h3 className="text-[16px] leading-[18px] font-proxima font-bold text-pursuit-purple">
+      <div className="flex items-center gap-[10px]">
+        <h3 className="text-[16px] leading-[18px] font-proxima font-bold text-pursuit-purple">
             Week {weekNumber} {weeklyGoal || ''}
-          </h3>
-        </div>
+        </h3>
+      </div>
       )}
       
       {/* Day Cells Row - Full week grid */}

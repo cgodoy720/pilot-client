@@ -28,7 +28,6 @@ function Learning() {
   const location = useLocation();
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [error, setError] = useState('');
@@ -158,8 +157,13 @@ function Learning() {
                     thread_id: task.thread_id,
                     intro: task.intro,
                     questions: task.questions,
+                    conclusion: task.conclusion,
+                    task_mode: task.task_mode,
+                    conversation_model: task.conversation_model,
+                    persona: task.persona,
                     start_time: block.start_time,
-                    end_time: block.end_time
+                    end_time: block.end_time,
+                    category: block.block_category // Use block_category from backend
                   });
                 });
               }
@@ -259,6 +263,7 @@ function Learning() {
             taskId: task.id,
             dayNumber: currentDay?.day_number,
             cohort: currentDay?.cohort,
+            conversationModel: selectedModel,
           }),
         }
       );
@@ -347,11 +352,10 @@ function Learning() {
     await loadTaskConversation(newTask);
   };
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || isSending || isAiThinking) return;
+  const handleSendMessage = async (messageContent, selectedModel) => {
+    if (!messageContent || !messageContent.trim() || isSending || isAiThinking) return;
     
-    const messageContent = newMessage.trim();
-    setNewMessage('');
+    const trimmedMessage = messageContent.trim();
     setIsSending(true);
     setIsAiThinking(true);
     setError('');
@@ -360,7 +364,7 @@ function Learning() {
       // Add user message to chat
       const userMessage = {
         id: Date.now(),
-        content: messageContent,
+        content: trimmedMessage,
         sender: 'user',
         timestamp: new Date().toISOString(),
       };
@@ -374,10 +378,11 @@ function Learning() {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          content: messageContent,
+          content: trimmedMessage,
           taskId: tasks[currentTaskIndex]?.id,
           dayNumber: currentDay?.day_number,
           cohort: currentDay?.cohort,
+          conversationModel: selectedModel,
         }),
       });
 
@@ -436,9 +441,17 @@ function Learning() {
           <h2 className="text-2xl font-bold text-carbon-black mb-4">No Activities Available</h2>
           <p className="text-gray-600 mb-2">There are no activities scheduled for today.</p>
           <p className="text-gray-600 mb-6">Check back tomorrow for your next scheduled activities.</p>
-          <Button onClick={() => navigate('/dashboard')} className="bg-pursuit-purple hover:bg-pursuit-purple/90">
-            Back to Dashboard
-          </Button>
+          <button
+            onClick={() => navigate('/calendar')}
+            className="relative px-8 py-3 rounded-lg bg-pursuit-purple text-white font-proxima font-semibold overflow-hidden group active:scale-95 transition-all duration-300 hover:shadow-[0_0_0_1px_#4242EA]"
+          >
+            <span className="relative z-10 group-hover:text-pursuit-purple transition-colors duration-300">
+              View Calendar
+            </span>
+            <div 
+              className="absolute inset-0 -translate-x-full group-hover:translate-x-0 transition-transform duration-300 bg-bg-light"
+            />
+          </button>
         </div>
       </div>
     );
@@ -471,25 +484,42 @@ function Learning() {
         <div className="flex-1 flex flex-col relative overflow-hidden">
           {/* Messages Area - Scrollable with proper spacing */}
           <div className="flex-1 overflow-y-auto py-8 px-6" style={{ paddingBottom: '180px' }}>
-            <div className="max-w-3xl mx-auto">
+            <div className="max-w-2xl mx-auto">
               {messages.map((message, index) => (
                 <div key={message.id || index} className="mb-6">
+                  {message.sender === 'user' ? (
+                    // User message with avatar inside
+                    <div className="bg-stardust rounded-lg px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+                          <span className="text-pursuit-purple text-sm font-proxima font-semibold">
+                            {user?.first_name ? user.first_name.charAt(0).toUpperCase() : 'Y'}
+                          </span>
+                        </div>
+                        <div className="flex-1 text-carbon-black leading-relaxed text-base font-proxima">
+                          {message.content}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    // AI/System message (no avatar)
                   <div className="text-carbon-black leading-relaxed text-base">
                     <ReactMarkdown>
                       {message.content}
                     </ReactMarkdown>
                   </div>
+                  )}
                 </div>
               ))}
               
               {/* Loading indicator */}
               {isAiThinking && (
                 <div className="mb-6">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
+                  <img 
+                    src="/preloader.gif" 
+                    alt="Loading..." 
+                    className="w-8 h-8"
+                  />
                 </div>
               )}
               
@@ -500,14 +530,13 @@ function Learning() {
 
           {/* Chat Input - Absolute positioned at bottom of chat interface, same container context */}
           <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
-            <div className="max-w-3xl mx-auto pointer-events-auto">
+            <div className="max-w-2xl mx-auto pointer-events-auto">
               <AutoExpandTextarea
-                value={newMessage}
-                onChange={setNewMessage}
                 onSubmit={handleSendMessage}
                 disabled={isSending || isAiThinking || !isActive}
-                showAssignmentButton={tasks[currentTaskIndex]?.deliverable_type && tasks[currentTaskIndex]?.deliverable_type !== 'none'}
+                showAssignmentButton={['video', 'document', 'link', 'structured'].includes(tasks[currentTaskIndex]?.deliverable_type)}
                 onAssignmentClick={() => setIsDeliverableSidebarOpen(true)}
+                showLlmDropdown={tasks[currentTaskIndex]?.task_mode === 'conversation'}
               />
             </div>
           </div>

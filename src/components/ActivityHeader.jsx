@@ -1,5 +1,11 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from './ui/button';
+import ArrowButton from './ArrowButton/ArrowButton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 
 const ActivityHeader = ({ currentDay, tasks, currentTaskIndex, onTaskChange }) => {
   if (!currentDay || !tasks) return null;
@@ -29,9 +35,13 @@ const ActivityHeader = ({ currentDay, tasks, currentTaskIndex, onTaskChange }) =
     }
   };
 
+  // Format activity number with leading zero
+  const formatActivityNumber = (index) => {
+    return String(index + 1).padStart(2, '0');
+  };
+
   return (
-    <div className="sticky top-0 bg-bg-light border-b border-divider shadow-lg relative z-20">
-      <div className="flex items-center justify-between px-6 h-[44px]">
+    <div className="h-[45px] bg-bg-light border-b border-divider shadow-lg flex items-center justify-between px-6 relative z-20">
         {/* Date with gradient text */}
         <h1 
           className="text-xl font-proxima font-normal"
@@ -45,60 +55,63 @@ const ActivityHeader = ({ currentDay, tasks, currentTaskIndex, onTaskChange }) =
           {formatDate(currentDay.day_date)}
         </h1>
 
-        {/* Breadcrumb Navigation */}
-        <div className="flex items-center gap-3">
-          {/* Previous Button */}
-          <Button
-            variant="ghost"
-            size="sm"
+      {/* Navigation Bar - Centered */}
+      <div className="flex items-center gap-3 h-[32px] rounded-lg px-4">
+        {/* Previous Arrow */}
+        <ArrowButton
             onClick={handlePrevious}
+          borderColor={hasPrevious ? "#4242EA" : "#CCCCCC"}
+          backgroundColor="transparent"
+          arrowColor={hasPrevious ? "#4242EA" : "#CCCCCC"}
+          hoverBackgroundColor={hasPrevious ? "#4242EA" : "transparent"}
+          hoverArrowColor="#FFFFFF"
+          size="md"
+          rotation={180}
             disabled={!hasPrevious}
-            className="h-7 w-7 p-0 text-carbon-black hover:text-pursuit-purple disabled:opacity-30"
+          className="!w-[24px] !h-[24px] !rounded-[6px]"
+        />
+
+        {/* Activity Dropdown */}
+        <Select 
+          value={String(currentTaskIndex)} 
+          onValueChange={(val) => onTaskChange(parseInt(val))}
           >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
+          <SelectTrigger className="w-auto min-w-[300px] h-[28px] bg-white border-0 rounded-[5px] px-3 text-base font-proxima font-normal text-carbon-black">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {tasks.map((task, index) => (
+              <SelectItem key={task.id} value={String(index)}>
+                <div className="flex items-center gap-2">
+                  <span className="font-normal">{formatActivityNumber(index)}</span>
+                  <span>{task.task_title}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          {/* Current Activity with Counter */}
-          <div className="flex items-center gap-2 min-w-[280px] justify-center">
-            {/* Task Title and Counter */}
-            <span className="text-sm font-proxima text-carbon-black">
-              {currentTask?.task_title}
+        {/* Activity Counter Fraction */}
+        <span className="text-base font-proxima font-normal text-carbon-black">
+          / {formatActivityNumber(tasks.length - 1)}
             </span>
             
-            <span className="text-xs font-proxima text-gray-500">
-              ({currentTaskIndex + 1}/{tasks.length})
-            </span>
-            
-            {/* Progress Dots */}
-            <div className="flex gap-1 ml-2">
-              {tasks.map((_, index) => (
-                <div
-                  key={index}
-                  className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                    index === currentTaskIndex
-                      ? 'bg-pursuit-purple'
-                      : 'bg-divider'
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Next Button */}
-          <Button
-            variant="ghost"
-            size="sm"
+        {/* Next Arrow */}
+        <ArrowButton
             onClick={handleNext}
+          borderColor={hasNext ? "#4242EA" : "#CCCCCC"}
+          backgroundColor="transparent"
+          arrowColor={hasNext ? "#4242EA" : "#CCCCCC"}
+          hoverBackgroundColor={hasNext ? "#4242EA" : "transparent"}
+          hoverArrowColor="#FFFFFF"
+          size="md"
             disabled={!hasNext}
-            className="h-7 w-7 p-0 text-carbon-black hover:text-pursuit-purple disabled:opacity-30"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
+          className="!w-[24px] !h-[24px] !rounded-[6px]"
+        />
         </div>
 
         {/* Right side - placeholder for balance */}
         <div className="w-24" />
-      </div>
     </div>
   );
 };

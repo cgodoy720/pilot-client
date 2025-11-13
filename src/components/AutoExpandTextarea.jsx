@@ -1,21 +1,31 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
 import { Send, Paperclip } from 'lucide-react';
 
+// Available LLM models
+const LLM_MODELS = [
+  { value: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', description: 'Balanced speed & intelligence' },
+  { value: 'anthropic/claude-haiku-4.5', label: 'Claude Haiku 4.5', description: 'Fast & efficient' },
+  { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini', description: 'Quick responses' },
+  { value: 'google/gemini-2.0-flash-thinking-exp', label: 'Gemini Flash 2.0', description: 'Reasoning optimized' },
+  { value: 'deepseek/deepseek-chat', label: 'DeepSeek Chat', description: 'Code specialist' },
+  { value: 'anthropic/claude-3.7-sonnet', label: 'Claude Sonnet 3.7', description: 'Advanced reasoning' }
+];
+
 const AutoExpandTextarea = ({ 
-  value, 
-  onChange, 
   onSubmit, 
   placeholder = "Reply to coach...", 
   disabled = false,
   showAssignmentButton = false,
-  onAssignmentClick
+  onAssignmentClick,
+  showLlmDropdown = false
 }) => {
   const textareaRef = useRef(null);
+  const [localModel, setLocalModel] = useState(LLM_MODELS[0].value);
 
-  // Auto-resize textarea
-  useEffect(() => {
+  // Auto-resize textarea based on content
+  const handleResize = () => {
     const textarea = textareaRef.current;
     if (textarea) {
       // Reset height to auto to get the correct scrollHeight
@@ -29,20 +39,36 @@ const AutoExpandTextarea = ({
       const newHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
       textarea.style.height = `${newHeight}px`;
     }
-  }, [value]);
+  };
+
+  // Handle input changes for auto-resize
+  const handleInput = () => {
+    handleResize();
+  };
+
+  // Initial resize on mount
+  useEffect(() => {
+    handleResize();
+  }, []);
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (value.trim() && onSubmit) {
-        onSubmit();
+      const message = textareaRef.current?.value || '';
+      if (message.trim() && onSubmit) {
+        onSubmit(message, localModel);
+        textareaRef.current.value = '';
+        handleResize(); // Reset height after clearing
       }
     }
   };
 
   const handleSubmit = () => {
-    if (value.trim() && onSubmit) {
-      onSubmit();
+    const message = textareaRef.current?.value || '';
+    if (message.trim() && onSubmit) {
+      onSubmit(message, localModel);
+      textareaRef.current.value = '';
+      handleResize(); // Reset height after clearing
     }
   };
 
@@ -53,8 +79,7 @@ const AutoExpandTextarea = ({
         <div className="bg-white rounded-md p-3 mb-2">
           <Textarea
             ref={textareaRef}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onInput={handleInput}
             onKeyPress={handleKeyPress}
             placeholder={placeholder}
             disabled={disabled}
@@ -80,19 +105,29 @@ const AutoExpandTextarea = ({
 
           {/* Right side - LLM dropdown and send button */}
           <div className="flex items-center gap-2">
-            {/* LLM Selector */}
-            <div className="bg-bg-light rounded-md px-3 py-1.5 text-xs">
-              <select className="bg-transparent border-0 text-carbon-black font-proxima text-xs focus:outline-none">
-                <option>LLM Item</option>
-                <option>Claude</option>
-                <option>GPT-4</option>
-              </select>
-            </div>
+            {/* LLM Selector - Only show for conversation mode */}
+            {showLlmDropdown && (
+              <div className="bg-bg-light rounded-md px-3 py-1.5 text-xs">
+                <select 
+                  className="bg-transparent border-0 text-carbon-black font-proxima text-xs focus:outline-none cursor-pointer"
+                  value={localModel}
+                  onChange={(e) => {
+                    setLocalModel(e.target.value);
+                  }}
+                >
+                  {LLM_MODELS.map(model => (
+                    <option key={model.value} value={model.value}>
+                      {model.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Send button */}
             <Button
               onClick={handleSubmit}
-              disabled={!value.trim() || disabled}
+              disabled={disabled}
               size="sm"
               className="bg-pursuit-purple hover:bg-pursuit-purple/90 text-white p-2 h-8 w-8 rounded-md"
             >
