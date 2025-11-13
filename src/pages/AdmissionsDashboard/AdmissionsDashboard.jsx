@@ -685,14 +685,24 @@ const AdmissionsDashboard = () => {
             params.append('limit', 10000);
             params.append('offset', 0);
             if (cohortParam) params.append('cohort_id', cohortParam);
-            if (overviewDeliberationFilter) params.append('deliberation', overviewDeliberationFilter);
 
             const appsResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applications?${params}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!appsResp.ok) throw new Error('Failed to load applications for stage demographics');
             const appsData = await appsResp.json();
-            const apps = Array.isArray(appsData?.applications) ? appsData.applications : [];
+            let apps = Array.isArray(appsData?.applications) ? appsData.applications : [];
+
+            // Filter by deliberation status if selected
+            if (overviewDeliberationFilter) {
+                if (overviewDeliberationFilter === 'null') {
+                    // Filter for null/empty deliberation
+                    apps = apps.filter(a => !a.deliberation);
+                } else {
+                    // Filter for specific deliberation value
+                    apps = apps.filter(a => a.deliberation === overviewDeliberationFilter);
+                }
+            }
 
             // Calculate status breakdown for "applied" stage
             if (subset === 'applied') {
@@ -3471,18 +3481,6 @@ const AdmissionsDashboard = () => {
                                     <option value="sep2025">September 2025</option>
                                     <option value="deferred">Deferred Applicants</option>
                                 </select>
-                                <select
-                                    id="overview-deliberation-filter"
-                                    value={overviewDeliberationFilter}
-                                    onChange={(e) => setOverviewDeliberationFilter(e.target.value)}
-                                    className="filter-select overview-filter-select"
-                                    style={{ minWidth: '180px', padding: '0.5rem' }}
-                                >
-                                    <option value="">Deliberation: All</option>
-                                    <option value="yes">✓ Yes - Planning to Accept</option>
-                                    <option value="maybe">? Maybe - Under Review</option>
-                                    <option value="no">✗ No - Decline</option>
-                                </select>
                                 {overviewQuickView === 'dec2025' && (
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                                     <input 
@@ -3631,7 +3629,7 @@ const AdmissionsDashboard = () => {
 
                                     {overviewDetailsOpen && (
                                         <div style={{ marginTop: '1rem', padding: '1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.15)' }}>
-                                            <div style={{ display: 'flex', gap: '1.25rem', margin: '0 0 1rem 0', flexWrap: 'wrap' }}>
+                                            <div style={{ display: 'flex', gap: '1.25rem', margin: '0 0 1rem 0', flexWrap: 'wrap', alignItems: 'center' }}>
                                                 {[
                                                     { key: 'applied', label: 'Total Applicants' },
                                                     { key: 'info', label: 'Info Session' },
@@ -3648,6 +3646,29 @@ const AdmissionsDashboard = () => {
                                                         {s.label}
                                                     </button>
                                         ))}
+                                        
+                                        {/* Deliberation Filter */}
+                                        <select
+                                            value={overviewDeliberationFilter}
+                                            onChange={(e) => setOverviewDeliberationFilter(e.target.value)}
+                                            className="filter-select"
+                                            style={{ 
+                                                marginLeft: 'auto',
+                                                minWidth: '200px', 
+                                                padding: '8px 12px',
+                                                backgroundColor: 'rgba(75, 61, 237, 0.1)',
+                                                border: '1px solid rgba(75, 61, 237, 0.3)',
+                                                borderRadius: '6px',
+                                                color: 'var(--color-text-primary)',
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            <option value="">Deliberation: All</option>
+                                            <option value="yes">✓ Yes - Accept</option>
+                                            <option value="maybe">? Maybe - Review</option>
+                                            <option value="no">✗ No - Decline</option>
+                                            <option value="null">Not Set</option>
+                                        </select>
                                     </div>
 
                                             {/* Status breakdown for Total Applicants */}
