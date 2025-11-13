@@ -4282,24 +4282,27 @@ const AdmissionsDashboard = () => {
                                                     }}
                                                 />
                                             </th>
-                                            <th className="sortable-header" onClick={() => handleColumnSort('name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span>Name</span>
-                                                    <span style={{ fontSize: '1rem', opacity: 0.6 }}>
-                                                        {columnSort.column === 'name' ? (columnSort.direction === 'asc' ? '▲' : '▼') : '⇅'}
-                                                    </span>
-                                                </div>
-                                            </th>
-                                            <th>Email</th>
-                                            <th>Phone</th>
-                                            <th style={{ position: 'relative' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span 
-                                                        onClick={() => handleColumnSort('status')} 
-                                                        style={{ cursor: 'pointer', userSelect: 'none' }}
-                                                    >
-                                                        Status
-                                                    </span>
+                                            {visibleColumns.name && (
+                                                <th className="sortable-header" onClick={() => handleColumnSort('name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span>Name</span>
+                                                        <span style={{ fontSize: '1rem', opacity: 0.6 }}>
+                                                            {columnSort.column === 'name' ? (columnSort.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                                                        </span>
+                                                    </div>
+                                                </th>
+                                            )}
+                                            {visibleColumns.email && <th>Email</th>}
+                                            {visibleColumns.phone && <th>Phone</th>}
+                                            {visibleColumns.status && (
+                                                <th style={{ position: 'relative' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span 
+                                                            onClick={() => handleColumnSort('status')} 
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                        >
+                                                            Status
+                                                        </span>
                                                     <span 
                                                         onClick={() => handleColumnSort('status')}
                                                         style={{ fontSize: '1rem', opacity: 0.6, cursor: 'pointer' }}
@@ -4360,14 +4363,16 @@ const AdmissionsDashboard = () => {
                                                     </div>
                                                 )}
                                             </th>
-                                            <th style={{ position: 'relative' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span 
-                                                        onClick={() => handleColumnSort('assessment')} 
-                                                        style={{ cursor: 'pointer', userSelect: 'none' }}
-                                                    >
-                                                        Assessment
-                                                    </span>
+                                            )}
+                                            {visibleColumns.assessment && (
+                                                <th style={{ position: 'relative' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span 
+                                                            onClick={() => handleColumnSort('assessment')} 
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                        >
+                                                            Assessment
+                                                        </span>
                                                     <span 
                                                         onClick={() => handleColumnSort('assessment')}
                                                         style={{ fontSize: '1rem', opacity: 0.6, cursor: 'pointer' }}
@@ -4428,14 +4433,16 @@ const AdmissionsDashboard = () => {
                                                     </div>
                                                 )}
                                             </th>
-                                            <th style={{ position: 'relative' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span 
-                                                        onClick={() => handleColumnSort('info_session')} 
-                                                        style={{ cursor: 'pointer', userSelect: 'none' }}
-                                                    >
-                                                        Info Session
-                                                    </span>
+                                            )}
+                                            {visibleColumns.info_session && (
+                                                <th style={{ position: 'relative' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span 
+                                                            onClick={() => handleColumnSort('info_session')} 
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                        >
+                                                            Info Session
+                                                        </span>
                                                     <span 
                                                         onClick={() => handleColumnSort('info_session')}
                                                         style={{ fontSize: '1rem', opacity: 0.6, cursor: 'pointer' }}
@@ -4496,14 +4503,16 @@ const AdmissionsDashboard = () => {
                                                     </div>
                                                 )}
                                             </th>
-                                            <th style={{ position: 'relative' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span 
-                                                        onClick={() => handleColumnSort('workshop')} 
-                                                        style={{ cursor: 'pointer', userSelect: 'none' }}
-                                                    >
-                                                        Workshop
-                                                    </span>
+                                            )}
+                                            {visibleColumns.workshop && (
+                                                <th style={{ position: 'relative' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span 
+                                                            onClick={() => handleColumnSort('workshop')} 
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                        >
+                                                            Workshop
+                                                        </span>
                                                     <span 
                                                         onClick={() => handleColumnSort('workshop')}
                                                         style={{ fontSize: '1rem', opacity: 0.6, cursor: 'pointer' }}
@@ -4564,14 +4573,16 @@ const AdmissionsDashboard = () => {
                                                     </div>
                                                 )}
                                             </th>
-                                            <th style={{ position: 'relative' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span>Admission</span>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setOpenFilterColumn(openFilterColumn === 'admission' ? null : 'admission');
-                                                        }}
+                                            )}
+                                            {visibleColumns.admission && (
+                                                <th style={{ position: 'relative' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span>Admission</span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setOpenFilterColumn(openFilterColumn === 'admission' ? null : 'admission');
+                                                            }}
                                                         style={{
                                                             background: 'none',
                                                             border: 'none',
@@ -4621,6 +4632,7 @@ const AdmissionsDashboard = () => {
                                                     </div>
                                                 )}
                                             </th>
+                                            )}
                                             {visibleColumns.deliberation && (
                                                 <th style={{ position: 'relative' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -4685,7 +4697,7 @@ const AdmissionsDashboard = () => {
                                             {visibleColumns.race && <th>Race</th>}
                                             {visibleColumns.education && <th>Education</th>}
                                             {visibleColumns.referral && <th>Referral</th>}
-                                            <th>Notes</th>
+                                            {visibleColumns.notes && <th>Notes</th>}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -4709,48 +4721,55 @@ const AdmissionsDashboard = () => {
                                                         }}
                                                     />
                                                 </td>
-                                                <td
-                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className={app.application_id ? "clickable-cell" : ""}
-                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
-                                                >
-                                                    <div className="applicant-name">
-                                                        {app.full_name || `${app.first_name} ${app.last_name}`}
-                                                        {app.has_masters_degree && (
-                                                            <span className="admissions-dashboard__masters-flag" title="Has Masters Degree">🎓</span>
-                                                        )}
-                                                        {app.missing_count > 0 && (
-                                                            <span className="admissions-dashboard__missing-flag" title={`${app.missing_count} key questions incomplete`}>
-                                                                ⚠️ {app.missing_count}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="clickable-cell">
-                                                    <span
-                                                        className="copyable-email"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleEmailClick(app.email);
-                                                        }}
-                                                        title="Click to copy email"
+                                                {visibleColumns.name && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
                                                     >
-                                                        {app.email}
-                                                    </span>
-                                                </td>
-                                                <td className="clickable-cell">
-                                                    <span
-                                                        className="copyable-phone"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handlePhoneClick(app.phone_number);
-                                                        }}
-                                                        title="Click to copy phone number"
-                                                    >
-                                                        {formatPhoneNumber(app.phone_number)}
-                                                    </span>
-                                                </td>
-                                                <td
+                                                        <div className="applicant-name">
+                                                            {app.full_name || `${app.first_name} ${app.last_name}`}
+                                                            {app.has_masters_degree && (
+                                                                <span className="admissions-dashboard__masters-flag" title="Has Masters Degree">🎓</span>
+                                                            )}
+                                                            {app.missing_count > 0 && (
+                                                                <span className="admissions-dashboard__missing-flag" title={`${app.missing_count} key questions incomplete`}>
+                                                                    ⚠️ {app.missing_count}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                )}
+                                                {visibleColumns.email && (
+                                                    <td className="clickable-cell">
+                                                        <span
+                                                            className="copyable-email"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleEmailClick(app.email);
+                                                            }}
+                                                            title="Click to copy email"
+                                                        >
+                                                            {app.email}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                {visibleColumns.phone && (
+                                                    <td className="clickable-cell">
+                                                        <span
+                                                            className="copyable-phone"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handlePhoneClick(app.phone_number);
+                                                            }}
+                                                            title="Click to copy phone number"
+                                                        >
+                                                            {formatPhoneNumber(app.phone_number)}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                {visibleColumns.status && (
+                                                    <td
                                                     onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className={app.application_id ? "clickable-cell" : ""}
                                                     style={{ cursor: app.application_id ? 'pointer' : 'default' }}
@@ -4759,7 +4778,9 @@ const AdmissionsDashboard = () => {
                                                         {app.status === 'no_application' ? 'Account Created' : app.status === 'in_progress' ? 'In Progress' : app.status}
                                                     </span>
                                                 </td>
-                                                <td className="admissions-dashboard__assessment-cell">
+                                                )}
+                                                {visibleColumns.assessment && (
+                                                    <td className="admissions-dashboard__assessment-cell">
                                                     <div className="admissions-dashboard__assessment-container">
                                                         {app.final_status || app.recommendation ? (
                                                             <select
@@ -4783,33 +4804,40 @@ const AdmissionsDashboard = () => {
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td
-                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className={app.application_id ? "clickable-cell" : ""}
-                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
-                                                >
-                                                    <span className={`info-session-badge info-session-badge--${app.info_session_status || 'not_registered'}`}>
-                                                        {(app.info_session_status || 'not_registered').replace('_', ' ')}
-                                                    </span>
-                                                </td>
-                                                <td
-                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className={app.application_id ? "clickable-cell" : ""}
-                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
-                                                >
-                                                    <span className={`workshop-badge workshop-badge--${app.workshop_status || 'pending'}`}>
-                                                        {(app.workshop_status || 'pending').replace('_', ' ')}
-                                                    </span>
-                                                </td>
-                                                <td
-                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className={app.application_id ? "clickable-cell" : ""}
-                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
-                                                >
-                                                    <span className={`admission-badge admission-badge--${app.program_admission_status || 'pending'}`}>
-                                                        {(app.program_admission_status || 'pending').replace('_', ' ')}
-                                                    </span>
-                                                </td>
+                                                )}
+                                                {visibleColumns.info_session && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                    >
+                                                        <span className={`info-session-badge info-session-badge--${app.info_session_status || 'not_registered'}`}>
+                                                            {(app.info_session_status || 'not_registered').replace('_', ' ')}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                {visibleColumns.workshop && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                    >
+                                                        <span className={`workshop-badge workshop-badge--${app.workshop_status || 'pending'}`}>
+                                                            {(app.workshop_status || 'pending').replace('_', ' ')}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                {visibleColumns.admission && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                    >
+                                                        <span className={`admission-badge admission-badge--${app.program_admission_status || 'pending'}`}>
+                                                            {(app.program_admission_status || 'pending').replace('_', ' ')}
+                                                        </span>
+                                                    </td>
+                                                )}
                                                 {visibleColumns.deliberation && (
                                                     <td onClick={(e) => e.stopPropagation()}>
                                                         <select
@@ -4881,20 +4909,22 @@ const AdmissionsDashboard = () => {
                                                         {app.referral_source || 'N/A'}
                                                     </td>
                                                 )}
-                                                <td>
-                                                    <button
-                                                        className="notes-btn"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            openNotesModal({
-                                                                applicant_id: app.applicant_id,
-                                                                name: app.full_name || `${app.first_name} ${app.last_name}`
-                                                            });
-                                                        }}
-                                                    >
-                                                        Notes
-                                                    </button>
-                                                </td>
+                                                {visibleColumns.notes && (
+                                                    <td>
+                                                        <button
+                                                            className="notes-btn"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                openNotesModal({
+                                                                    applicant_id: app.applicant_id,
+                                                                    name: app.full_name || `${app.first_name} ${app.last_name}`
+                                                                });
+                                                            }}
+                                                        >
+                                                            Notes
+                                                        </button>
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>
