@@ -43,7 +43,7 @@ const AdmissionsDashboard = () => {
     const [demographicsModalData, setDemographicsModalData] = useState({ race: [], gender: [], education: [] });
     // Overview stage demographics (replaces funnel)
     const [activeOverviewStage, setActiveOverviewStage] = useState('applied'); // applied | info | workshops | offers | marketing
-    const [stageDemographics, setStageDemographics] = useState({ race: [], gender: [], education: [], age: [] });
+    const [stageDemographics, setStageDemographics] = useState({ race: [], gender: [], education: [], age: [], referral: [] });
     const [averageIncome, setAverageIncome] = useState(null); // Average income for the current stage
     // Application status filter for demographics
     const [applicantStatusFilter, setApplicantStatusFilter] = useState('all'); // all | accounts_created | in_progress | submitted | ineligible
@@ -789,7 +789,7 @@ const AdmissionsDashboard = () => {
                 if (expResp.ok) {
                     const detailed = await expResp.json();
                     setStageDetailedApplicantsCache({ key: cacheKey, rows: detailed });
-                    const agg = { race: {}, gender: {}, education: {}, age: {} };
+                    const agg = { race: {}, gender: {}, education: {}, age: {}, referral: {} };
                     let processedCount = 0;
                     
                     // Pre-add "Not Listed" entries for applicants without applicant_id
@@ -798,6 +798,7 @@ const AdmissionsDashboard = () => {
                         agg.gender['Not Listed'] = applicantsWithoutId;
                         agg.education['Not Listed'] = applicantsWithoutId;
                         agg.age['Not Listed'] = applicantsWithoutId;
+                        agg.referral['Not Listed'] = applicantsWithoutId;
                     }
                     
                     // Normalize labels to prevent duplicate buckets (e.g., 'Not listed' vs 'Not Listed')
@@ -930,6 +931,9 @@ const AdmissionsDashboard = () => {
                         
                         // Education: count once per person
                         add(agg.education, normalize('education', dem.education_level || dem['WHAT IS YOUR CURRENT HIGHEST EDUCATIONAL ATTAINED']));
+                        
+                        // Referral Source: count once per person
+                        add(agg.referral, normalize('referral', dem.referral_source));
                     });
                     // Calculate average income
                     const avgIncome = incomeCount > 0 ? Math.round(totalIncome / incomeCount) : null;
@@ -944,6 +948,7 @@ const AdmissionsDashboard = () => {
                         agg.gender['Not Listed'] = (agg.gender['Not Listed'] || 0) + missingFromExport;
                         agg.education['Not Listed'] = (agg.education['Not Listed'] || 0) + missingFromExport;
                         agg.age['Not Listed'] = (agg.age['Not Listed'] || 0) + missingFromExport;
+                        agg.referral['Not Listed'] = (agg.referral['Not Listed'] || 0) + missingFromExport;
                     }
                     
                     // Double-check totals and ensure they match totalApplicants
@@ -951,6 +956,7 @@ const AdmissionsDashboard = () => {
                     const genderTotal = Object.values(agg.gender).reduce((sum, count) => sum + count, 0);
                     const educationTotal = Object.values(agg.education).reduce((sum, count) => sum + count, 0);
                     const ageTotal = Object.values(agg.age).reduce((sum, count) => sum + count, 0);
+                    const referralTotal = Object.values(agg.referral).reduce((sum, count) => sum + count, 0);
                     
                     if (genderTotal < totalApplicants) {
                         agg.gender['Not Listed'] = (agg.gender['Not Listed'] || 0) + (totalApplicants - genderTotal);
@@ -960,6 +966,9 @@ const AdmissionsDashboard = () => {
                     }
                     if (ageTotal < totalApplicants) {
                         agg.age['Not Listed'] = (agg.age['Not Listed'] || 0) + (totalApplicants - ageTotal);
+                    }
+                    if (referralTotal < totalApplicants) {
+                        agg.referral['Not Listed'] = (agg.referral['Not Listed'] || 0) + (totalApplicants - referralTotal);
                     }
                     
                     const toArr = (o) => Object.keys(o).map(k => ({ label: k || 'Not Listed', count: o[k] })).sort((a,b)=>b.count-a.count);
@@ -1021,13 +1030,14 @@ const AdmissionsDashboard = () => {
                     }).sort((a,b)=>b.count-a.count);
                     
                     gender = toArr(agg.gender); education = toArr(agg.education);
-                    age = toArr(agg.age);
+                    age = toArr(agg.age); const referral = toArr(agg.referral);
                 } else {
                     // If export fails, create "Not Listed" entries for all applicants
                     race = [{ label: 'Not Listed', count: totalApplicants }];
                     gender = [{ label: 'Not Listed', count: totalApplicants }];
                     education = [{ label: 'Not Listed', count: totalApplicants }];
                     age = [{ label: 'Not Listed', count: totalApplicants }];
+                    referral = [{ label: 'Not Listed', count: totalApplicants }];
                     setAverageIncome(null);
                     setStageDetailedApplicantsCache({ key: cacheKey, rows: [] });
                 }
@@ -1037,18 +1047,19 @@ const AdmissionsDashboard = () => {
                 gender = [{ label: 'Not Listed', count: totalApplicants }];
                 education = [{ label: 'Not Listed', count: totalApplicants }];
                 age = [{ label: 'Not Listed', count: totalApplicants }];
+                referral = [{ label: 'Not Listed', count: totalApplicants }];
                 setAverageIncome(null);
                 setStageDetailedApplicantsCache({ key: cacheKey, rows: [] });
             } else {
                 // No applicants, empty arrays
-                race = []; gender = []; education = []; age = [];
+                race = []; gender = []; education = []; age = []; referral = [];
                 setAverageIncome(null);
                 setStageDetailedApplicantsCache({ key: cacheKey, rows: [] });
             }
-            setStageDemographics({ race, gender, education, age });
+            setStageDemographics({ race, gender, education, age, referral });
         } catch (err) {
             console.error('Error loading stage demographics:', err);
-            setStageDemographics({ race: [], gender: [], education: [], age: [] });
+            setStageDemographics({ race: [], gender: [], education: [], age: [], referral: [] });
             setAverageIncome(null);
             setAppliedStatusBreakdown(null);
         }
@@ -4215,6 +4226,50 @@ const AdmissionsDashboard = () => {
                                                         })()}
                                     </div>
                                                 </div>
+
+                                                {/* Referral Source */}
+                                <div className="admissions-dashboard__stat-card demographic-card" style={{ position: 'relative' }}>
+                                    <div className="admissions-dashboard__stat-card-header" style={{ position: 'relative' }}>
+                                                        <h3 
+                                                            className="admissions-dashboard__stat-card-title" 
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                            onClick={() => handleDemographicTitleClick('referral')}
+                                                        >
+                                                            {activeOverviewStage === 'info' ? 'Info Session Attendees by Referral Source' : activeOverviewStage === 'workshops' ? 'Workshop Participants by Referral Source' : activeOverviewStage === 'assessment' ? 'Assessment Completed by Referral Source' : activeOverviewStage === 'offers' ? 'Offers by Referral Source' : 'Applicants by Referral Source'}
+                                                        </h3>
+                                                        <input
+                                                            type="checkbox"
+                                                            style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
+                                                            onClick={(e) => handleDemographicExport(e, 'referral', null, `referral-${activeOverviewStage || 'all'}`)}
+                                                        />
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                        {(() => {
+                                                            const data = stageDemographics.referral || [];
+                                                            const total = data.reduce((s, d) => s + (d.count || 0), 0) || 1;
+                                                            return data.slice(0, 8).map((d, idx) => (
+                                                                <div 
+                                                                    key={`referral-${idx}`} 
+                                                                    style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '0.875rem', background: 'rgba(75, 61, 237, 0.05)', borderRadius: '8px', border: '1px solid rgba(75, 61, 237, 0.15)', minWidth: 0, cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative' }}
+                                                                    onClick={() => handleDemographicValueClick('referral', d.label)}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(75, 61, 237, 0.15)'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(75, 61, 237, 0.05)'}
+                                                                >
+                                                                    <div style={{ height: '8px', width: '90px', flexShrink: 0, background: 'rgba(255,255,255,0.08)', borderRadius: '4px', position: 'relative', overflow: 'hidden', marginTop: '4px' }}>
+                                                                        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.round((d.count/total)*100)}%`, background: 'linear-gradient(90deg, #ec4899, #f472b6)', borderRadius: '4px' }} />
+                                                                    </div>
+                                                                    <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                                                                        <span style={{ fontWeight: 800, fontSize: '0.85rem', letterSpacing: '-0.01em', color: 'var(--color-text-primary)', wordBreak: 'break-word', lineHeight: '1.4' }}>{d.label || 'Unknown'}</span>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                                                            <span style={{ fontSize: '0.95rem', fontWeight: 900, letterSpacing: '-0.01em', color: 'var(--color-text-primary)' }}>{Math.round((d.count/total)*100)}%</span>
+                                                                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '-0.01em' }}>{d.count}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ));
+                                                        })()}
+                                                    </div>
+                                </div>
 
                                             </div>
                                             )}
