@@ -63,7 +63,7 @@ const Contacts: React.FC = () => {
   const [newContactData, setNewContactData] = useState({
     FirstName: '',
     LastName: '',
-    AccountId: '',
+    npsp__Primary_Affiliation__c: '', // Organization where they work
     Title: '',
     Email: '',
     Phone: '',
@@ -110,7 +110,7 @@ const Contacts: React.FC = () => {
         setNewContactData({
           FirstName: '',
           LastName: '',
-          AccountId: '',
+          npsp__Primary_Affiliation__c: '',
           Title: '',
           Email: '',
           Phone: '',
@@ -127,14 +127,14 @@ const Contacts: React.FC = () => {
       toast.error('Last name is required');
       return;
     }
-    if (!newContactData.AccountId) {
-      toast.error('Account is required');
+    if (!newContactData.npsp__Primary_Affiliation__c) {
+      toast.error('Primary Affiliation is required');
       return;
     }
     createContactMutation.mutate(newContactData);
   };
 
-  const selectedAccount = accounts?.find((acc: Account) => acc.Id === newContactData.AccountId);
+  const selectedAccount = accounts?.find((acc: Account) => acc.Id === newContactData.npsp__Primary_Affiliation__c);
 
   // Contact columns
   const contactColumns: GridColDef[] = [
@@ -342,7 +342,7 @@ const Contacts: React.FC = () => {
               loading={accountsLoading}
               value={selectedAccount || null}
               onChange={(_, newValue) => {
-                setNewContactData({ ...newContactData, AccountId: newValue?.Id || '' });
+                setNewContactData({ ...newContactData, npsp__Primary_Affiliation__c: newValue?.Id || '' });
               }}
               isOptionEqualToValue={(option, value) => option.Id === value.Id}
               filterOptions={(options, state) => {
@@ -355,10 +355,10 @@ const Contacts: React.FC = () => {
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Account"
-                  placeholder="Type to search accounts..."
+                  label="Primary Affiliation (Company/Organization)"
+                  placeholder="Type to search for their employer..."
                   required
-                  helperText="Select the funder this contact works for"
+                  helperText="Select the organization where this person works (e.g., foundation, company). Leave Account blank - a household account will be auto-created."
                 />
               )}
               renderOption={(props, option: Account) => (

@@ -14,7 +14,9 @@ import Opportunities from './pages/Opportunities';
 import NewOpportunity from './pages/NewOpportunity';
 import Accounts from './pages/Accounts';
 import Contacts from './pages/Contacts';
+import PaymentProcessing from './pages/PaymentProcessing';
 import Invoices from './pages/Invoices';
+import InvoiceMatching from './pages/InvoiceMatching';
 import CashFlow from './pages/CashFlow';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
@@ -155,11 +157,31 @@ function App() {
                 }
               />
               <Route
+                path="/payment-processing"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <PaymentProcessing />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/invoices"
                 element={
                   <ProtectedRoute>
                     <Layout>
                       <Invoices />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/invoice-matching"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <InvoiceMatching />
                     </Layout>
                   </ProtectedRoute>
                 }

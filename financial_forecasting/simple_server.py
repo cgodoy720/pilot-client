@@ -1390,6 +1390,229 @@ async def debug_account_matching(account_name: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ============================================================================
+# Invoice Matching Endpoints
+# ============================================================================
+
+class InvoiceMatchRequest(BaseModel):
+    """Request model for matching an invoice to an opportunity."""
+    invoice_id: str
+    opportunity_id: str
+    confidence: str = "Confirmed"
+    notes: Optional[str] = None
+    customer_name: Optional[str] = None
+    invoice_amount: Optional[float] = None
+    invoice_date: Optional[str] = None
+
+
+@app.get("/api/matching/grant-invoices")
+async def get_grant_invoices():
+    """Get nonprofit grant invoices for matching."""
+    try:
+        import os
+        from datetime import datetime
+        
+        # Use absolute path
+        csv_path = '/Users/jacquelinereverand/pursuit-mcp-client/nonprofit_grant_invoices.csv'
+        
+        if not os.path.exists(csv_path):
+            raise HTTPException(status_code=404, detail=f"Grant invoices CSV not found at {csv_path}")
+        
+        # Read CSV manually to avoid pandas dependency
+        import csv
+        invoices = []
+        seen_ids = set()
+        
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # Remove duplicates based on invoice_id
+                invoice_id = row['invoice_id']
+                if invoice_id not in seen_ids:
+                    seen_ids.add(invoice_id)
+                    invoices.append(row)
+        
+        # Sort by invoice date (most recent first)
+        def parse_date(date_str):
+            try:
+                return datetime.strptime(date_str, '%m/%d/%Y')
+            except:
+                return datetime.min
+        
+        invoices.sort(key=lambda x: parse_date(x.get('invoice_date', '')), reverse=True)
+        
+        return {
+            "success": True,
+            "count": len(invoices),
+            "invoices": invoices
+        }
+        
+    except Exception as e:
+        import traceback
+        error_detail = {
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+        raise HTTPException(status_code=500, detail=error_detail)
+
+
+@app.get("/api/matching/search-opportunities")
+async def search_opportunities(q: str = "", limit: int = 20):
+    """Search Salesforce opportunities by name or account."""
+    try:
+        sf = get_salesforce()
+        
+        # Build search query
+        if q:
+            query = f"""
+            SELECT Id, Name, AccountId, Account.Name, Amount, StageName, 
+                   CloseDate, Description, Type
+            FROM Opportunity
+            WHERE (Name LIKE '%{q}%' OR Account.Name LIKE '%{q}%')
+            ORDER BY CloseDate DESC
+            LIMIT {limit}
+            """
+        else:
+            query = f"""
+            SELECT Id, Name, AccountId, Account.Name, Amount, StageName, 
+                   CloseDate, Description, Type
+            FROM Opportunity
+            ORDER BY CloseDate DESC
+            LIMIT {limit}
+            """
+        
+        result = sf.query(query)
+        
+        opportunities = []
+        for record in result.get('records', []):
+            opportunities.append({
+                'Id': record.get('Id'),
+                'Name': record.get('Name'),
+                'AccountName': record.get('Account', {}).get('Name') if record.get('Account') else '',
+                'Amount': record.get('Amount'),
+                'StageName': record.get('StageName'),
+                'CloseDate': record.get('CloseDate'),
+                'Description': record.get('Description'),
+                'Type': record.get('Type')
+            })
+        
+        return {
+            "success": True,
+            "count": len(opportunities),
+            "opportunities": opportunities
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/matching/matches")
+async def get_invoice_matches():
+    """Get saved invoice-opportunity matches."""
+    try:
+        import json
+        import os
+        
+        matches_path = '/Users/jacquelinereverand/pursuit-mcp-client/invoice_opportunity_matches.json'
+        
+        if os.path.exists(matches_path):
+            with open(matches_path, 'r') as f:
+                matches = json.load(f)
+        else:
+            matches = {}
+        
+        return {
+            "success": True,
+            "count": len(matches),
+            "matches": matches
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/matching/save-match")
+async def save_invoice_match(match_request: InvoiceMatchRequest):
+    """Save an invoice-opportunity match."""
+    try:
+        import json
+        import os
+        from datetime import datetime
+        
+        matches_path = os.path.join(os.path.dirname(__file__), '..', 'invoice_opportunity_matches.json')
+        
+        # Load existing matches
+        if os.path.exists(matches_path):
+            with open(matches_path, 'r') as f:
+                matches = json.load(f)
+        else:
+            matches = {}
+        
+        # Add/update match
+        matches[match_request.invoice_id] = {
+            'opportunity_id': match_request.opportunity_id,
+            'confidence': match_request.confidence,
+            'notes': match_request.notes or '',
+            'matched_at': datetime.now().isoformat(),
+            'matched_by': 'web_user',
+            'invoice_data': {
+                'customer_name': match_request.customer_name or '',
+                'invoice_amount': match_request.invoice_amount or 0,
+                'invoice_date': match_request.invoice_date or ''
+            }
+        }
+        
+        # Save matches
+        with open(matches_path, 'w') as f:
+            json.dump(matches, f, indent=2)
+        
+        return {
+            "success": True,
+            "message": "Match saved successfully",
+            "invoice_id": match_request.invoice_id,
+            "opportunity_id": match_request.opportunity_id
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/matching/delete-match/{invoice_id}")
+async def delete_invoice_match(invoice_id: str):
+    """Delete an invoice-opportunity match."""
+    try:
+        import json
+        import os
+        
+        matches_path = os.path.join(os.path.dirname(__file__), '..', 'invoice_opportunity_matches.json')
+        
+        if not os.path.exists(matches_path):
+            raise HTTPException(status_code=404, detail="No matches found")
+        
+        # Load matches
+        with open(matches_path, 'r') as f:
+            matches = json.load(f)
+        
+        # Delete match
+        if invoice_id in matches:
+            del matches[invoice_id]
+            
+            # Save matches
+            with open(matches_path, 'w') as f:
+                json.dump(matches, f, indent=2)
+            
+            return {
+                "success": True,
+                "message": "Match deleted successfully"
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Match not found")
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     print("🚀 Starting Financial Forecasting API...")
     print("📊 Connected to Salesforce:", SALESFORCE_CONFIG['USERNAME'])

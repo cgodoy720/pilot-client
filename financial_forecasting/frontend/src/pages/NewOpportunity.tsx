@@ -134,7 +134,7 @@ const NewOpportunity: React.FC = () => {
   const [newContactData, setNewContactData] = useState({
     FirstName: '',
     LastName: '',
-    AccountId: '',
+    npsp__Primary_Affiliation__c: '', // Organization where they work
     Title: '',
     Email: '',
     Phone: '',
@@ -235,7 +235,7 @@ const NewOpportunity: React.FC = () => {
         setNewContactData({
           FirstName: '',
           LastName: '',
-          AccountId: '',
+          npsp__Primary_Affiliation__c: '',
           Title: '',
           Email: '',
           Phone: '',
@@ -348,8 +348,8 @@ const NewOpportunity: React.FC = () => {
       toast.error('Last name is required');
       return;
     }
-    if (!newContactData.AccountId) {
-      toast.error('Account is required for contact');
+    if (!newContactData.npsp__Primary_Affiliation__c) {
+      toast.error('Primary Affiliation is required for contact');
       return;
     }
     createContactMutation.mutate(newContactData);
@@ -364,7 +364,7 @@ const NewOpportunity: React.FC = () => {
       toast.error('Please select an account first before creating a contact');
       return;
     }
-    setNewContactData((prev) => ({ ...prev, AccountId: formData.accountId }));
+    setNewContactData((prev) => ({ ...prev, npsp__Primary_Affiliation__c: formData.accountId }));
     setContactDialogOpen(true);
   };
 
@@ -890,11 +890,11 @@ const NewOpportunity: React.FC = () => {
             </Grid>
 
             <TextField
-              label="Account"
+              label="Primary Affiliation (Company/Organization)"
               fullWidth
               value={selectedAccount?.Name || ''}
               disabled
-              helperText="Contact will be associated with this account"
+              helperText="The organization where this person works. A household account will be auto-created."
             />
 
             <TextField

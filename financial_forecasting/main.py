@@ -654,6 +654,170 @@ async def trigger_data_sync(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Invoice Matching endpoints
+
+class InvoiceMatchRequest(BaseModel):
+    """Request model for matching an invoice to an opportunity."""
+    invoice_id: str
+    opportunity_id: str
+    confidence: str = "Confirmed"
+    notes: Optional[str] = None
+    customer_name: Optional[str] = None
+    invoice_amount: Optional[float] = None
+    invoice_date: Optional[str] = None
+
+
+@app.get("/api/matching/grant-invoices")
+async def get_grant_invoices(
+    user = Depends(get_current_user)
+):
+    """Get nonprofit grant invoices for matching."""
+    try:
+        import pandas as pd
+        import os
+        
+        csv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'nonprofit_grant_invoices.csv')
+        
+        if not os.path.exists(csv_path):
+            raise HTTPException(status_code=404, detail="Grant invoices CSV not found")
+        
+        df = pd.read_csv(csv_path)
+        
+        # Convert to list of dicts
+        invoices = df.to_dict('records')
+        
+        return {
+            "success": True,
+            "count": len(invoices),
+            "invoices": invoices
+        }
+        
+    except Exception as e:
+        logger.error(f"Error loading grant invoices: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/matching/matches")
+async def get_invoice_matches(
+    user = Depends(get_current_user)
+):
+    """Get saved invoice-opportunity matches."""
+    try:
+        import json
+        import os
+        
+        matches_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'invoice_opportunity_matches.json')
+        
+        if os.path.exists(matches_path):
+            with open(matches_path, 'r') as f:
+                matches = json.load(f)
+        else:
+            matches = {}
+        
+        return {
+            "success": True,
+            "count": len(matches),
+            "matches": matches
+        }
+        
+    except Exception as e:
+        logger.error(f"Error loading matches: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/matching/save-match")
+async def save_invoice_match(
+    match_request: InvoiceMatchRequest,
+    user = Depends(get_current_user)
+):
+    """Save an invoice-opportunity match."""
+    try:
+        import json
+        import os
+        from datetime import datetime
+        
+        matches_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'invoice_opportunity_matches.json')
+        
+        # Load existing matches
+        if os.path.exists(matches_path):
+            with open(matches_path, 'r') as f:
+                matches = json.load(f)
+        else:
+            matches = {}
+        
+        # Add/update match
+        matches[match_request.invoice_id] = {
+            'opportunity_id': match_request.opportunity_id,
+            'confidence': match_request.confidence,
+            'notes': match_request.notes or '',
+            'matched_at': datetime.now().isoformat(),
+            'matched_by': user['user_id'],
+            'invoice_data': {
+                'customer_name': match_request.customer_name or '',
+                'invoice_amount': match_request.invoice_amount or 0,
+                'invoice_date': match_request.invoice_date or ''
+            }
+        }
+        
+        # Save matches
+        with open(matches_path, 'w') as f:
+            json.dump(matches, f, indent=2)
+        
+        logger.info(f"Saved match: Invoice {match_request.invoice_id} -> Opportunity {match_request.opportunity_id}")
+        
+        return {
+            "success": True,
+            "message": "Match saved successfully",
+            "invoice_id": match_request.invoice_id,
+            "opportunity_id": match_request.opportunity_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Error saving match: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/matching/delete-match/{invoice_id}")
+async def delete_invoice_match(
+    invoice_id: str,
+    user = Depends(get_current_user)
+):
+    """Delete an invoice-opportunity match."""
+    try:
+        import json
+        import os
+        
+        matches_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'invoice_opportunity_matches.json')
+        
+        if not os.path.exists(matches_path):
+            raise HTTPException(status_code=404, detail="No matches found")
+        
+        # Load matches
+        with open(matches_path, 'r') as f:
+            matches = json.load(f)
+        
+        # Delete match
+        if invoice_id in matches:
+            del matches[invoice_id]
+            
+            # Save matches
+            with open(matches_path, 'w') as f:
+                json.dump(matches, f, indent=2)
+            
+            logger.info(f"Deleted match for invoice {invoice_id}")
+            
+            return {
+                "success": True,
+                "message": "Match deleted successfully"
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Match not found")
+        
+    except Exception as e:
+        logger.error(f"Error deleting match: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Background task functions
 
 async def update_opportunity_invoice_mapping(opportunity_id: str, invoice_id: str, user_id: str):

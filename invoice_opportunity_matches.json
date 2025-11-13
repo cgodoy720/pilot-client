@@ -1,0 +1,146 @@
+{
+  "30302": {
+    "opportunity_id": "006Pa00000HKL9lIAH",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-12T15:48:09.668200",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "Mizuho USA Foundation",
+      "invoice_amount": 450000.0,
+      "invoice_date": "11/07/2025"
+    }
+  },
+  "29841": {
+    "opportunity_id": "0061U00000OcpRMQAZ",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-12T15:48:20.970004",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "Hearst Foundation",
+      "invoice_amount": 125000.0,
+      "invoice_date": "09/30/2025"
+    }
+  },
+  "28203": {
+    "opportunity_id": "006Pa00000QplKTIAZ",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-12T15:49:06.157603",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "Capital One",
+      "invoice_amount": 75000.0,
+      "invoice_date": "06/10/2025"
+    }
+  },
+  "28710": {
+    "opportunity_id": "006Pa00000GeL6AIAV",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-12T15:49:21.453687",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "Wachtell Lipton Rosen & Katz Foundation",
+      "invoice_amount": 50000.0,
+      "invoice_date": "04/15/2025"
+    }
+  },
+  "28215": {
+    "opportunity_id": "006Pa00000DAu33IAD",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-12T15:50:12.608915",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "LSEG Foundation",
+      "invoice_amount": 19764.0,
+      "invoice_date": "07/01/2025"
+    }
+  },
+  "19785": {
+    "opportunity_id": "006Pa000005VqPFIA0",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-12T15:51:59.012499",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "Robin Hood Foundation",
+      "invoice_amount": 280000.0,
+      "invoice_date": "05/13/2024"
+    }
+  },
+  "13275": {
+    "opportunity_id": "0068Z00001dVjm2QAC",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-12T15:54:05.385381",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "Thomas and Jeanne Elmezzi Foundation",
+      "invoice_amount": 100000.0,
+      "invoice_date": "06/15/2023"
+    }
+  },
+  "9830": {
+    "opportunity_id": "0061U00000OcbPJQAZ",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-12T15:54:29.814482",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "Breyer Family Foundation",
+      "invoice_amount": 50000.0,
+      "invoice_date": "11/21/2022"
+    }
+  },
+  "7877": {
+    "opportunity_id": "0061U00000OelaiQAB",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-12T15:54:44.980656",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "Truist Foundation",
+      "invoice_amount": 50000.0,
+      "invoice_date": "07/19/2022"
+    }
+  },
+  "5352": {
+    "opportunity_id": "0061U00000JqkyoQAB",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-12T15:56:04.658969",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "Salesforce.com Foundation",
+      "invoice_amount": -200000.0,
+      "invoice_date": "05/11/2021"
+    }
+  },
+  "23507": {
+    "opportunity_id": "006Pa000009wvbpIAA",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-12T15:58:03.085573",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "iCapital",
+      "invoice_amount": 20000.0,
+      "invoice_date": "03/17/2025"
+    }
+  },
+  "23964": {
+    "opportunity_id": "0068Z00001gerAIQAY",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-13T08:48:15.468576",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "Edward & Ellen Roche Relief Foundation",
+      "invoice_amount": -25000.0,
+      "invoice_date": "11/21/2024"
+    }
+  }
+}

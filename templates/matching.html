@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice → Opportunity Matching</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card .label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .stat-card.matched .value {
+            color: #10b981;
+        }
+        
+        .stat-card.unmatched .value {
+            color: #f59e0b;
+        }
+        
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .search-box {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        thead {
+            background: #f9fafb;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        th {
+            padding: 15px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        tr:hover {
+            background: #f9fafb;
+        }
+        
+        tr.matched {
+            background: #f0fdf4;
+        }
+        
+        tr.matched:hover {
+            background: #dcfce7;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status-badge.matched {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-badge.unmatched {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .match-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .match-input input {
+            padding: 8px 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 4px;
+            font-size: 13px;
+            min-width: 200px;
+        }
+        
+        .match-input input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .match-input select {
+            padding: 8px 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .customer-type {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #e0e7ff;
+            color: #4338ca;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .amount {
+            font-weight: 600;
+            color: #059669;
+        }
+        
+        .export-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔗 Invoice → Opportunity Matching</h1>
+        <p>Match Sage Intacct grant invoices to Salesforce opportunities</p>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-card">
+            <div class="label">Total Invoices</div>
+            <div class="value">{{ stats.total }}</div>
+        </div>
+        <div class="stat-card matched">
+            <div class="label">Matched</div>
+            <div class="value">{{ stats.matched }}</div>
+        </div>
+        <div class="stat-card unmatched">
+            <div class="label">Unmatched</div>
+            <div class="value">{{ stats.unmatched }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Total Amount</div>
+            <div class="value">${{ "%.2f" | format(stats.total_amount) }}</div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="🔍 Search by customer name, invoice number, or ID..." onkeyup="filterTable()">
+        </div>
+        <div class="filter-buttons">
+            <button class="btn btn-primary" onclick="filterStatus('all')">All</button>
+            <button class="btn btn-secondary" onclick="filterStatus('matched')">Matched Only</button>
+            <button class="btn btn-secondary" onclick="filterStatus('unmatched')">Unmatched Only</button>
+        </div>
+        <button class="btn btn-success" onclick="syncToSalesforce()">🚀 Sync to Salesforce</button>
+    </div>
+    
+    <div class="table-container">
+        <table id="invoiceTable">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Invoice ID</th>
+                    <th>Invoice #</th>
+                    <th>Customer Name</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th>Salesforce Opportunity ID</th>
+                    <th>Confidence</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for invoice in invoices %}
+                <tr class="invoice-row {% if invoice.matched %}matched{% else %}unmatched{% endif %}" 
+                    data-status="{% if invoice.matched %}matched{% else %}unmatched{% endif %}">
+                    <td>
+                        {% if invoice.matched %}
+                        <span class="status-badge matched">✓ Matched</span>
+                        {% else %}
+                        <span class="status-badge unmatched">⚠ Unmatched</span>
+                        {% endif %}
+                    </td>
+                    <td><small>{{ invoice.invoice_id }}</small></td>
+                    <td><strong>{{ invoice.invoice_number }}</strong></td>
+                    <td>{{ invoice.customer_name }}</td>
+                    <td><span class="customer-type">{{ invoice.customer_type }}</span></td>
+                    <td class="amount">${{ "%.2f" | format(invoice.amount | float) }}</td>
+                    <td>{{ invoice.invoice_date }}</td>
+                    <td>
+                        <div class="match-input">
+                            <input type="text" 
+                                   id="opp_{{ invoice.invoice_id }}" 
+                                   value="{{ invoice.opportunity_id }}" 
+                                   placeholder="Enter Opportunity ID">
+                        </div>
+                    </td>
+                    <td>
+                        <select id="conf_{{ invoice.invoice_id }}">
+                            <option value="Confirmed" {% if invoice.match_confidence == 'Confirmed' %}selected{% endif %}>Confirmed</option>
+                            <option value="High" {% if invoice.match_confidence == 'High' %}selected{% endif %}>High</option>
+                            <option value="Medium" {% if invoice.match_confidence == 'Medium' %}selected{% endif %}>Medium</option>
+                            <option value="Low" {% if invoice.match_confidence == 'Low' %}selected{% endif %}>Low</option>
+                        </select>
+                    </td>
+                    <td>
+                        <button class="btn btn-primary btn-small" onclick="saveMatch('{{ invoice.invoice_id }}', '{{ invoice.customer_name }}', {{ invoice.amount }}, '{{ invoice.invoice_date }}')">
+                            Save
+                        </button>
+                        {% if invoice.matched %}
+                        <button class="btn btn-secondary btn-small" onclick="deleteMatch('{{ invoice.invoice_id }}')">
+                            Delete
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="export-section">
+        <h3>Export & Sync</h3>
+        <p>Once you've matched invoices to opportunities, click "Sync to Salesforce" above to create Grant_Invoice__c records.</p>
+        <button class="btn btn-primary" onclick="exportMatches()">📥 Export Matches to CSV</button>
+    </div>
+    
+    <script>
+        function filterTable() {
+            const searchValue = document.getElementById('searchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('.invoice-row');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                if (text.includes(searchValue)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        function filterStatus(status) {
+            const rows = document.querySelectorAll('.invoice-row');
+            
+            rows.forEach(row => {
+                if (status === 'all') {
+                    row.style.display = '';
+                } else {
+                    const rowStatus = row.dataset.status;
+                    if (rowStatus === status) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            });
+        }
+        
+        async function saveMatch(invoiceId, customerName, amount, invoiceDate) {
+            const oppId = document.getElementById(`opp_${invoiceId}`).value.trim();
+            const confidence = document.getElementById(`conf_${invoiceId}`).value;
+            
+            if (!oppId) {
+                alert('Please enter an Opportunity ID');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/save_match', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        invoice_record_no: invoiceId,
+                        opportunity_id: oppId,
+                        confidence: confidence,
+                        customer_name: customerName,
+                        invoice_amount: amount,
+                        invoice_date: invoiceDate
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('✓ Match saved successfully!');
+                    location.reload();
+                } else {
+                    alert('Error saving match: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function deleteMatch(invoiceId) {
+            if (!confirm('Delete this match?')) return;
+            
+            try {
+                const response = await fetch('/api/delete_match', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({invoice_record_no: invoiceId})
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('✓ Match deleted');
+                    location.reload();
+                } else {
+                    alert('Error deleting match: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function exportMatches() {
+            try {
+                const response = await fetch('/api/export_matches');
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✓ Exported ${result.count} matches to ${result.filename}`);
+                } else {
+                    alert('Error exporting matches');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        function syncToSalesforce() {
+            alert('To sync to Salesforce:\n\n1. Save this page\n2. Open terminal\n3. Run: python3 sync_to_salesforce.py\n\nThis will create Grant_Invoice__c records in Salesforce for all matched invoices.');
+        }
+    </script>
+</body>
+</html>

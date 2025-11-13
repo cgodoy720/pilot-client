@@ -528,18 +528,14 @@ const Dashboard: React.FC = () => {
                   />
                   <Tooltip
                     formatter={(value: number, name: string, props: any) => {
-                      if (name === 'Weighted Value') {
-                        return [
-                          `${formatDollarMillions(value)} (${props.payload.count} opps, ${formatDollarMillions(props.payload.total)} total)`,
-                          'Weighted Value'
-                        ];
-                      }
-                      return [formatDollarMillions(value), name];
+                      return [
+                        `${formatDollarMillions(value)} (${props.payload.count} opps, ${formatDollarMillions(props.payload.total)} total)`,
+                        props.payload.name
+                      ];
                     }}
                     labelStyle={{ color: '#000' }}
                   />
-                  <Legend />
-                  <Bar dataKey="value" name="Weighted Value" fill="#00C49F">
+                  <Bar dataKey="value" name="Weighted Value">
                     {funnelData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}

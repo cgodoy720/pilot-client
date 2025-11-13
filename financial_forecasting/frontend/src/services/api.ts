@@ -134,6 +134,29 @@ export const apiService = {
   triggerSync: (syncType: 'all' | 'salesforce' | 'intacct' = 'all') =>
     api.post(`/api/sync/trigger?sync_type=${syncType}`),
 
+  // Invoice Matching
+  getGrantInvoices: () =>
+    api.get('/api/matching/grant-invoices'),
+  
+  getInvoiceMatches: () =>
+    api.get('/api/matching/matches'),
+  
+  searchOpportunities: (searchTerm: string, limit?: number) =>
+    api.get('/api/matching/search-opportunities', { params: { q: searchTerm, limit: limit || 20 } }),
+  
+  saveInvoiceMatch: (matchData: {
+    invoice_id: string;
+    opportunity_id: string;
+    confidence?: string;
+    notes?: string;
+    customer_name?: string;
+    invoice_amount?: number;
+    invoice_date?: string;
+  }) => api.post('/api/matching/save-match', matchData),
+  
+  deleteInvoiceMatch: (invoiceId: string) =>
+    api.delete(`/api/matching/delete-match/${invoiceId}`),
+
   // Slack Integration
   getAccountSlackActivity: (accountName: string, limit: number = 50) =>
     api.get(`/api/slack/account-activity/${encodeURIComponent(accountName)}`, { params: { limit } }),
