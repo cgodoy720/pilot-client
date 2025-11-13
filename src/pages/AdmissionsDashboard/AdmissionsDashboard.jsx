@@ -4888,7 +4888,19 @@ const AdmissionsDashboard = () => {
                                                         className={app.application_id ? "clickable-cell" : ""}
                                                         style={{ cursor: app.application_id ? 'pointer' : 'default' }}
                                                     >
-                                                        {app.race_ethnicity || 'N/A'}
+                                                        {(() => {
+                                                            if (!app.race_ethnicity) return 'N/A';
+                                                            try {
+                                                                const parsed = JSON.parse(app.race_ethnicity);
+                                                                if (Array.isArray(parsed)) {
+                                                                    return parsed.join(', ');
+                                                                }
+                                                                return parsed;
+                                                            } catch (e) {
+                                                                // Not JSON, return as-is
+                                                                return app.race_ethnicity;
+                                                            }
+                                                        })()}
                                                     </td>
                                                 )}
                                                 {visibleColumns.education && (
