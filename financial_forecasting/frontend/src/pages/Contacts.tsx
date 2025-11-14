@@ -342,7 +342,7 @@ const Contacts: React.FC = () => {
 
             <Autocomplete
               options={accounts || []}
-              getOptionLabel={(option: Account) => option.Name}
+              getOptionLabel={(option: Account) => option.Name || ''}
               loading={accountsLoading}
               value={selectedAccount || null}
               onChange={(_, newValue) => {
@@ -353,7 +353,7 @@ const Contacts: React.FC = () => {
                 const inputValue = state.inputValue.toLowerCase();
                 if (!inputValue) return options.slice(0, 100);
                 return options.filter((option) =>
-                  option.Name.toLowerCase().includes(inputValue)
+                  option.Name?.toLowerCase().includes(inputValue)
                 ).slice(0, 50);
               }}
               renderInput={(params) => (

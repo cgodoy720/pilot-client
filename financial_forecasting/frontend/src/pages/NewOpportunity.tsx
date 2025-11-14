@@ -458,7 +458,7 @@ const NewOpportunity: React.FC = () => {
                     <Autocomplete
                       sx={{ flex: 1 }}
                       options={accounts || []}
-                      getOptionLabel={(option: Account) => option.Name}
+                      getOptionLabel={(option: Account) => option.Name || ''}
                       loading={accountsLoading}
                       value={selectedAccount || null}
                       onChange={(_, newValue) => {
@@ -473,7 +473,7 @@ const NewOpportunity: React.FC = () => {
                         
                         return options
                           .filter((option) =>
-                            option.Name.toLowerCase().includes(inputValue)
+                            option.Name?.toLowerCase().includes(inputValue)
                           )
                           .slice(0, 50); // Limit to 50 results
                       }}
@@ -652,7 +652,7 @@ const NewOpportunity: React.FC = () => {
                 <Grid item xs={12}>
                   <Autocomplete
                     options={users || []}
-                    getOptionLabel={(option: User) => option.Name}
+                    getOptionLabel={(option: User) => option.Name || ''}
                     loading={usersLoading}
                     value={selectedOwner || null}
                     onChange={(_, newValue) => {
@@ -664,7 +664,7 @@ const NewOpportunity: React.FC = () => {
                       if (!inputValue) return options;
                       
                       return options.filter((option) =>
-                        option.Name.toLowerCase().includes(inputValue)
+                        option.Name?.toLowerCase().includes(inputValue)
                       );
                     }}
                     renderInput={(params) => (

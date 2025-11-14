@@ -406,13 +406,13 @@ async def get_accounts():
         result = sf.query_all(query)
         accounts = result.get("records", [])
         
-        # Format for frontend
+        # Format for frontend - keep Salesforce field names (uppercase)
         formatted_accounts = [
             {
-                "id": acc.get("Id"),
-                "name": acc.get("Name"),
-                "type": acc.get("Type"),
-                "industry": acc.get("Industry")
+                "Id": acc.get("Id"),
+                "Name": acc.get("Name"),
+                "Type": acc.get("Type"),
+                "Industry": acc.get("Industry")
             }
             for acc in accounts
         ]
