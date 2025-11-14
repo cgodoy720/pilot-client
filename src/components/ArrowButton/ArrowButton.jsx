@@ -45,25 +45,20 @@ const ArrowButton = ({
       <ArrowRight 
         className={cn(
           'relative z-10 transition-colors duration-300',
+          !disabled && 'group-hover:!text-[var(--hover-arrow)]',
           iconSizes[size]
         )}
         style={{ 
           color: arrowColor,
+          '--hover-arrow': hoverArrowColor,
           transform: rotation ? `rotate(${rotation}deg)` : undefined
         }}
       />
       {!disabled && (
-        <>
-          <div 
-            className="absolute inset-0 -translate-x-full group-hover:translate-x-0 transition-transform duration-300"
-            style={{ backgroundColor: hoverBackgroundColor }}
-          />
-          <style jsx>{`
-            button:not(:disabled):hover svg {
-              color: ${hoverArrowColor} !important;
-            }
-          `}</style>
-        </>
+        <div 
+          className="absolute inset-0 -translate-x-full group-hover:translate-x-0 transition-transform duration-300"
+          style={{ backgroundColor: hoverBackgroundColor }}
+        />
       )}
     </button>
   );

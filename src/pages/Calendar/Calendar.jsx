@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import CalendarHeader from './components/CalendarHeader';
@@ -17,14 +17,14 @@ function Calendar() {
   const navigate = useNavigate();
   const [cohortFilter, setCohortFilter] = useState(null);
 
-  // Fetch all curriculum days and group by week
+  // Fetch all curriculum data (weeks, days, tasks) in ONE optimized call
   useEffect(() => {
     const fetchCalendarData = async () => {
       try {
         setIsLoading(true);
         setError(null);
         
-        let url = `${import.meta.env.VITE_API_URL}/api/curriculum/days`;
+        let url = `${import.meta.env.VITE_API_URL}/api/curriculum/calendar`;
         if (user.role === 'staff' || user.role === 'admin') {
           if (cohortFilter) {
             url += `?cohort=${cohortFilter}`;
@@ -38,71 +38,16 @@ function Calendar() {
         });
         
         if (!response.ok) {
-          throw new Error('Failed to fetch curriculum days');
+          throw new Error('Failed to fetch calendar data');
         }
         
-        const allDays = await response.json();
-        
-        // Group days by week number
-        const weekMap = {};
-        allDays.forEach(day => {
-          if (!weekMap[day.week]) {
-            weekMap[day.week] = {
-              weekNumber: day.week,
-              weeklyGoal: day.weekly_goal,
-              days: []
-            };
-          }
-          weekMap[day.week].days.push(day);
-        });
-        
-        // Convert to array and sort by week number
-        const weeks = Object.values(weekMap).sort((a, b) => a.weekNumber - b.weekNumber);
-        
-        // For each week, fetch tasks for each day
-        const weeksWithTasks = await Promise.all(
-          weeks.map(async (week) => {
-            const daysWithTasks = await Promise.all(
-              week.days.map(async (day) => {
-                try {
-                  const tasksResponse = await fetch(
-                    `${import.meta.env.VITE_API_URL}/api/curriculum/weeks/${week.weekNumber}`,
-                    {
-                      headers: {
-                        'Authorization': `Bearer ${token}`
-                      }
-                    }
-                  );
-                  
-                  if (tasksResponse.ok) {
-                    const weekData = await tasksResponse.json();
-                    const dayData = weekData.find(d => d.id === day.id);
-                    return {
-                      ...day,
-                      tasks: dayData?.tasks || []
-                    };
-                  }
-                  
-                  return { ...day, tasks: [] };
-                } catch (err) {
-                  console.error(`Error fetching tasks for day ${day.id}:`, err);
-                  return { ...day, tasks: [] };
-                }
-              })
-            );
-            
-            return {
-              ...week,
-              days: daysWithTasks
-            };
-          })
-        );
-        
+        const weeksWithTasks = await response.json();
         setWeeksData(weeksWithTasks);
         
         // Determine current day
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        const allDays = weeksWithTasks.flatMap(week => week.days);
         const todayDay = allDays.find(day => {
           const dayDate = new Date(day.day_date);
           dayDate.setHours(0, 0, 0, 0);
@@ -126,7 +71,7 @@ function Calendar() {
     }
   }, [token, cohortFilter, user.role]);
 
-  // Fetch user progress for past days
+  // Fetch user progress in ONE batch call
   useEffect(() => {
     const fetchUserProgress = async () => {
       try {
@@ -142,31 +87,29 @@ function Calendar() {
             return dayDate < today;
           });
         
-        // Fetch progress for each past day
-        const progressMap = {};
-        await Promise.all(
-          pastDays.map(async (day) => {
-            try {
-              const progressResponse = await fetch(
-                `${import.meta.env.VITE_API_URL}/api/progress/days/${day.id}/tasks`,
-                {
-                  headers: {
-                    'Authorization': `Bearer ${token}`
-                  }
-                }
-              );
-              
-              if (progressResponse.ok) {
-                const progress = await progressResponse.json();
-                progressMap[day.id] = progress;
-              }
-            } catch (err) {
-              console.error(`Error fetching progress for day ${day.id}:`, err);
-            }
-          })
+        if (pastDays.length === 0) {
+          return;
+        }
+        
+        const dayIds = pastDays.map(d => d.id);
+        
+        // Batch fetch progress for all past days in ONE call
+        const progressResponse = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/progress/days/batch`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ dayIds })
+          }
         );
         
-        setUserProgress(progressMap);
+        if (progressResponse.ok) {
+          const progressMap = await progressResponse.json();
+          setUserProgress(progressMap);
+        }
       } catch (error) {
         console.error('Error fetching user progress:', error);
       }
@@ -177,45 +120,41 @@ function Calendar() {
     }
   }, [weeksData, token]);
 
-  const handlePrevMonth = () => {
+  const handlePrevMonth = useCallback(() => {
     if (currentMonth === 0) {
       setCurrentMonth(11);
       setCurrentYear(currentYear - 1);
     } else {
       setCurrentMonth(currentMonth - 1);
     }
-  };
+  }, [currentMonth, currentYear]);
 
-  const handleNextMonth = () => {
+  const handleNextMonth = useCallback(() => {
     if (currentMonth === 11) {
       setCurrentMonth(0);
       setCurrentYear(currentYear + 1);
     } else {
       setCurrentMonth(currentMonth + 1);
     }
-  };
+  }, [currentMonth, currentYear]);
 
-  const handleMonthChange = (newMonth) => {
+  const handleMonthChange = useCallback((newMonth) => {
     setCurrentMonth(newMonth);
-  };
+  }, []);
 
-  const handleDayClick = (dayId) => {
+  const handleDayClick = useCallback((dayId) => {
     navigate(`/learning?dayId=${dayId}`);
-  };
+  }, [navigate]);
 
-  // Generate full calendar grid for the month
-  const generateCalendarGrid = () => {
+  // Memoize calendar grid generation - only recalculate when dependencies change
+  const calendarWeeks = useMemo(() => {
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
     const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
     
     // Get day of week for first day (0=Sunday, 6=Saturday)
-    // We want Saturday (6) to be first, so adjust
     const firstDayOfWeek = firstDayOfMonth.getDay();
     
     // Calculate days to show from previous month
-    // If month starts on Saturday (6), no padding needed
-    // If month starts on Sunday (0), need 1 day padding
-    // If month starts on Monday (1), need 2 days padding, etc.
     const daysFromPrevMonth = firstDayOfWeek === 6 ? 0 : (firstDayOfWeek + 1) % 7;
     
     // Start date is first day minus the padding
@@ -242,7 +181,7 @@ function Calendar() {
       const curriculumDay = weeksData
         .flatMap(week => week.days)
         .find(day => {
-      const dayDate = new Date(day.day_date);
+          const dayDate = new Date(day.day_date);
           return dayDate.getFullYear() === yearOfDate &&
                  dayDate.getMonth() === monthOfDate &&
                  dayDate.getDate() === dayOfMonth;
@@ -284,9 +223,7 @@ function Calendar() {
     }
     
     return weeks;
-  };
-
-  const calendarWeeks = generateCalendarGrid();
+  }, [weeksData, currentMonth, currentYear]);
 
   if (isLoading) {
     return (

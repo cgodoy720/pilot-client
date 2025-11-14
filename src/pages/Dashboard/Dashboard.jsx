@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Calendar, BookOpen, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -25,14 +25,12 @@ function Dashboard() {
   const [objectives, setObjectives] = useState([]);
   const [cohortFilter, setCohortFilter] = useState(null);
   const [missedAssignmentsCount, setMissedAssignmentsCount] = useState(0);
-  const [weekData, setWeekData] = useState([]);
+  const [allWeeksData, setAllWeeksData] = useState([]); // Store all weeks from API
   const [currentWeek, setCurrentWeek] = useState(null);
   const [currentLevel, setCurrentLevel] = useState(null);
   const [weeklyGoal, setWeeklyGoal] = useState('');
-  const [isLoadingWeek, setIsLoadingWeek] = useState(false);
   const [slideDirection, setSlideDirection] = useState(null); // 'left' or 'right'
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [weekCache, setWeekCache] = useState({}); // Cache all weeks data
 
   useEffect(() => {
     // Only fetch dashboard data if user is active
@@ -49,7 +47,8 @@ function Dashboard() {
       setIsLoading(true);
       setError(null);
       
-      let url = `${import.meta.env.VITE_API_URL}/api/progress/current-day`;
+      // NEW: Single optimized API call for ALL dashboard data
+      let url = `${import.meta.env.VITE_API_URL}/api/progress/dashboard-full`;
       
       // Add cohort parameter for staff/admin if selected
       if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
@@ -113,20 +112,14 @@ function Dashboard() {
       // Set missed assignments count
       setMissedAssignmentsCount(data.missedAssignmentsCount || 0);
       
+      // Set all weeks data (already includes tasks and submission status)
+      setAllWeeksData(data.weeks || []);
+      
       // Set level, week, and weekly goal
       if (data.day) {
         setCurrentLevel(data.day.level || 1);
         setCurrentWeek(data.day.week);
         setWeeklyGoal(data.day.weekly_goal || '');
-        
-        // Preload all weeks and fetch current week data
-        if (data.day.week) {
-          // Preload all weeks in parallel (don't await)
-          preloadAllWeeks(data.day.week);
-          
-          // Fetch current week data
-          await fetchWeekData(data.day.week);
-        }
       }
       
     } catch (error) {
@@ -137,93 +130,16 @@ function Dashboard() {
     }
   };
 
-  // Preload all weeks data on initial load
-  const preloadAllWeeks = async (currentWeekNum) => {
-    try {
-      const cohortParam = (user?.role === 'staff' || user?.role === 'admin') && cohortFilter
-        ? `?cohort=${encodeURIComponent(cohortFilter)}`
-        : '';
-      
-      // Fetch weeks 1 through current week
-      const weekPromises = [];
-      for (let week = 1; week <= currentWeekNum; week++) {
-        weekPromises.push(
-          fetch(
-            `${import.meta.env.VITE_API_URL}/api/curriculum/weeks/${week}${cohortParam}`,
-            {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            }
-          ).then(res => res.ok ? res.json() : null)
-        );
-      }
-      
-      const allWeeksData = await Promise.all(weekPromises);
-      
-      // Build cache object
-      const cache = {};
-      allWeeksData.forEach((days, index) => {
-        if (days) {
-          cache[index + 1] = days; // week number is index + 1
-        }
-      });
-      
-      setWeekCache(cache);
-    } catch (error) {
-      console.error('Error preloading weeks:', error);
-    }
-  };
+  // Memoized week data for current week - only recalculates when currentWeek or allWeeksData changes
+  const weekData = useMemo(() => {
+    if (!currentWeek || !allWeeksData.length) return [];
+    const week = allWeeksData.find(w => w.weekNumber === currentWeek);
+    return week?.days || [];
+  }, [currentWeek, allWeeksData]);
 
-  const fetchWeekData = async (weekNumber) => {
-    try {
-      // Check cache first
-      if (weekCache[weekNumber]) {
-        const days = weekCache[weekNumber];
-        setWeekData(days);
-        
-        // Update weekly goal from the first day of the week
-        if (days && days.length > 0 && days[0].weekly_goal) {
-          setWeeklyGoal(days[0].weekly_goal);
-        }
-        return;
-      }
-      
-      // If not in cache, fetch it
-      const cohortParam = (user?.role === 'staff' || user?.role === 'admin') && cohortFilter
-        ? `?cohort=${encodeURIComponent(cohortFilter)}`
-        : '';
-      
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/curriculum/weeks/${weekNumber}${cohortParam}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch week data');
-      }
-      
-      const days = await response.json();
-      setWeekData(days);
-      
-      // Add to cache
-      setWeekCache(prev => ({ ...prev, [weekNumber]: days }));
-      
-      // Update weekly goal from the first day of the week
-      if (days && days.length > 0 && days[0].weekly_goal) {
-        setWeeklyGoal(days[0].weekly_goal);
-      }
-    } catch (error) {
-      console.error('Error fetching week data:', error);
-    }
-  };
-
-  const navigateToWeek = async (direction) => {
-    if (!currentWeek || isLoadingWeek) return;
+  // Memoized navigation handlers
+  const navigateToWeek = useCallback(async (direction) => {
+    if (!currentWeek) return;
     
     const newWeek = direction === 'prev' ? currentWeek - 1 : currentWeek + 1;
     
@@ -235,35 +151,34 @@ function Dashboard() {
       return;
     }
     
-    console.log('🎬 Navigate to week:', direction, 'New week:', newWeek);
-    
     // Phase 1: Slide out old cards
     const slideOutDirection = direction === 'prev' ? 'out-left' : 'out-right';
     setSlideDirection(slideOutDirection);
-    console.log('📤 Slide OUT direction:', slideOutDirection);
     
-    // Wait for slide-out animation (0.6s animation + 0.4s for 5 card stagger)
+    // Wait for slide-out animation
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Phase 2: Fetch new data while cards are off-screen
+    // Phase 2: Update week
     setCurrentWeek(newWeek);
-    await fetchWeekData(newWeek);
+    
+    // Update weekly goal
+    const newWeekData = allWeeksData.find(w => w.weekNumber === newWeek);
+    if (newWeekData) {
+      setWeeklyGoal(newWeekData.weeklyGoal || '');
+    }
     
     // Phase 3: Slide in new cards from opposite direction
     const slideInDirection = direction === 'prev' ? 'in-from-right' : 'in-from-left';
-    console.log('📥 Slide IN direction:', slideInDirection);
     setSlideDirection(slideInDirection);
-    setIsLoadingWeek(false);
     
-    // Reset after slide-in completes (0.6s animation + 0.4s stagger)
+    // Reset after slide-in completes
     setTimeout(() => {
-      console.log('✅ Animation complete, resetting');
       setSlideDirection(null);
     }, 1000);
-  };
+  }, [currentWeek, currentDay?.week, allWeeksData]);
 
   // Handle continue session button click
-  const handleContinueSession = () => {
+  const handleContinueSession = useCallback(() => {
     if (!isActive) {
       setError('You have historical access only and cannot access new learning sessions.');
       return;
@@ -274,10 +189,10 @@ function Dashboard() {
       : '';
     
     navigate(`/learning${cohortParam}`);
-  };
+  }, [isActive, user?.role, cohortFilter, navigate]);
 
   // Navigate to the specific task in the Learning page
-  const navigateToTask = (taskId) => {
+  const navigateToTask = useCallback((taskId) => {
     if (!isActive) {
       setError('You have historical access only and cannot access new learning sessions.');
       return;
@@ -288,12 +203,12 @@ function Dashboard() {
       : '';
     
     navigate(`/learning?taskId=${taskId}${cohortParam}`);
-  };
+  }, [isActive, user?.role, cohortFilter, navigate]);
 
   // Navigate to calendar for historical viewing
-  const navigateToCalendar = () => {
+  const navigateToCalendar = useCallback(() => {
     navigate('/calendar');
-  };
+  }, [navigate]);
 
   // Add a helper function to format time from 24-hour to 12-hour format
   const formatTime = (timeString) => {
@@ -354,28 +269,28 @@ function Dashboard() {
   };
 
   // Navigate to volunteer feedback
-  const navigateToVolunteerFeedback = () => {
+  const navigateToVolunteerFeedback = useCallback(() => {
     navigate('/volunteer-feedback');
-  };
+  }, [navigate]);
 
   // Handle opening missed assignments sidebar
-  const handleMissedAssignmentsClick = () => {
+  const handleMissedAssignmentsClick = useCallback(() => {
     setIsSidebarOpen(true);
-  };
+  }, []);
 
   // Handle closing sidebar
-  const handleCloseSidebar = () => {
+  const handleCloseSidebar = useCallback(() => {
     setIsSidebarOpen(false);
-  };
+  }, []);
 
   // Handle navigation from sidebar to specific day/task
-  const handleNavigateToDay = (dayId, taskId) => {
+  const handleNavigateToDay = useCallback((dayId, taskId) => {
     // Navigate to the day view with the task highlighted
     navigate(`/calendar?day=${dayId}&task=${taskId}`);
-  };
+  }, [navigate]);
 
   // Handle navigation to Learning page for a specific day
-  const handleNavigateToDayLearning = (dayId) => {
+  const handleNavigateToDayLearning = useCallback((dayId) => {
     if (!isActive) {
       setError('You have historical access only and cannot access new learning sessions.');
       return;
@@ -391,10 +306,10 @@ function Dashboard() {
     }
     
     navigate(`/learning?${params.toString()}`);
-  };
+  }, [isActive, user?.role, cohortFilter, navigate]);
 
   // Handle navigation to Learning page for a specific task
-  const handleNavigateToTask = (dayId, taskId) => {
+  const handleNavigateToTask = useCallback((dayId, taskId) => {
     if (!isActive) {
       setError('You have historical access only and cannot access new learning sessions.');
       return;
@@ -409,7 +324,7 @@ function Dashboard() {
     }
     
     navigate(`/learning?${params.toString()}`);
-  };
+  }, [isActive, user?.role, cohortFilter, navigate]);
 
   // Render skeleton loading cards
   const renderSkeletonCards = () => {
@@ -589,7 +504,7 @@ function Dashboard() {
                     : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
                 }`}
                 onClick={() => navigateToWeek('prev')}
-                disabled={currentWeek <= 1 || isLoadingWeek || slideDirection !== null}
+                disabled={currentWeek <= 1 || slideDirection !== null}
               >
                 <ChevronLeft className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-pursuit-purple' : ''}`} />
                 {currentWeek > 1 && (
@@ -604,7 +519,7 @@ function Dashboard() {
                     : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
                 }`}
                 onClick={() => navigateToWeek('next')}
-                disabled={!currentDay?.week || currentWeek >= currentDay.week || isLoadingWeek || slideDirection !== null}
+                disabled={!currentDay?.week || currentWeek >= currentDay.week || slideDirection !== null}
               >
                 <ChevronRight className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-pursuit-purple' : ''}`} />
                 {currentDay?.week && currentWeek < currentDay.week && (
@@ -616,7 +531,7 @@ function Dashboard() {
 
           {/* Weekly Agenda Cards */}
           <div className="dashboard__weekly-grid">
-            {isLoadingWeek ? renderSkeletonCards() : weekData.map((day, index) => {
+            {weekData.map((day, index) => {
               const dayIsToday = isDateToday(day.day_date);
               const dayIsPast = isDatePast(day.day_date);
               const showCheckbox = dayIsPast && !dayIsToday;
@@ -798,7 +713,7 @@ function Dashboard() {
                   : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
               }`}
               onClick={() => navigateToWeek('prev')}
-              disabled={currentWeek <= 1 || isLoadingWeek || slideDirection !== null}
+              disabled={currentWeek <= 1 || slideDirection !== null}
             >
               <ChevronLeft className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-pursuit-purple' : ''}`} />
               {currentWeek > 1 && (
@@ -813,7 +728,7 @@ function Dashboard() {
                   : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
               }`}
               onClick={() => navigateToWeek('next')}
-              disabled={!currentDay?.week || currentWeek >= currentDay.week || isLoadingWeek || slideDirection !== null}
+              disabled={!currentDay?.week || currentWeek >= currentDay.week || slideDirection !== null}
             >
               <ChevronRight className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-pursuit-purple' : ''}`} />
               {currentDay?.week && currentWeek < currentDay.week && (

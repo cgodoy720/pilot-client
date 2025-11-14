@@ -1,30 +1,30 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import DayCell from './DayCell';
 
 const WeekView = ({ weekNumber, weeklyGoal, days = [], onDayClick, currentDayId, userProgress = {}, currentMonth, currentYear }) => {
   // Days are already in order from Calendar.jsx (Sat-Fri)
   // Each day object has the enhanced structure with date, curriculumDay, hasClass, etc.
   
-  // Determine if date is today
+  // Memoize date comparison functions
+  const today = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t.getTime();
+  }, []);
+  
   const isToday = (dateObj) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const compareDate = new Date(dateObj.date);
     compareDate.setHours(0, 0, 0, 0);
-    return compareDate.getTime() === today.getTime();
+    return compareDate.getTime() === today;
   };
   
   const isPast = (dateObj) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const compareDate = new Date(dateObj.date);
     compareDate.setHours(0, 0, 0, 0);
     return compareDate < today;
   };
   
   const isFuture = (dateObj) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const compareDate = new Date(dateObj.date);
     compareDate.setHours(0, 0, 0, 0);
     return compareDate > today;
@@ -107,5 +107,5 @@ const WeekView = ({ weekNumber, weeklyGoal, days = [], onDayClick, currentDayId,
   );
 };
 
-export default WeekView;
+export default React.memo(WeekView);
 

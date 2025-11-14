@@ -155,5 +155,5 @@ const DayCell = ({ dateObj, isToday, isPast, isFuture, hasDeliverables, isComple
   );
 };
 
-export default DayCell;
+export default React.memo(DayCell);
 

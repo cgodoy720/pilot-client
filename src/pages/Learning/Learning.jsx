@@ -35,6 +35,9 @@ function Learning() {
   const [isMessagesLoading, setIsMessagesLoading] = useState(false);
   const [hasInitialMessage, setHasInitialMessage] = useState(false);
   
+  // Model selection state - matches AutoExpandTextarea default
+  const [selectedModel, setSelectedModel] = useState('anthropic/claude-sonnet-4.5');
+  
   // Check if user has active status
   const isActive = user?.active !== false;
   
@@ -61,6 +64,8 @@ function Learning() {
   
   const messagesEndRef = useRef(null);
   const scrollAreaRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const sendMessageAbortControllerRef = useRef(null);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -68,6 +73,18 @@ function Learning() {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
+  
+  // Cleanup: abort any pending requests when component unmounts
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (sendMessageAbortControllerRef.current) {
+        sendMessageAbortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Load day and task data
   useEffect(() => {
@@ -201,6 +218,22 @@ function Learning() {
 
   // Helper function to load conversation for a task
   const loadTaskConversation = async (task) => {
+    // Abort any pending conversation load request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Abort any pending message send request
+    if (sendMessageAbortControllerRef.current) {
+      sendMessageAbortControllerRef.current.abort();
+    }
+    
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
+    // Clear messages immediately to prevent showing stale content
+    setMessages([]);
     setIsAiThinking(true);
     
     try {
@@ -211,8 +244,14 @@ function Learning() {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
+          signal: abortController.signal,
         }
       );
+      
+      // Check if this request was aborted
+      if (abortController.signal.aborted) {
+        return;
+      }
       
       if (response.ok) {
         const data = await response.json();
@@ -227,29 +266,44 @@ function Learning() {
             timestamp: msg.timestamp,
           }));
           console.log(`✅ Formatted ${formattedMessages.length} messages:`, formattedMessages);
-          setMessages(formattedMessages);
-          setHasInitialMessage(true);
+          
+          // Only set messages if this request wasn't aborted
+          if (!abortController.signal.aborted) {
+            setMessages(formattedMessages);
+            setHasInitialMessage(true);
+          }
         } else {
           // No conversation yet - start it by calling /messages/start
           console.log('📝 No existing messages, starting new conversation');
-          await startTaskConversation(task);
+          await startTaskConversation(task, abortController);
         }
       } else {
         console.error('❌ Failed to load task messages, status:', response.status);
         // Fallback to starting conversation
-        await startTaskConversation(task);
+        await startTaskConversation(task, abortController);
       }
     } catch (error) {
+      // Ignore abort errors - they're expected when switching tasks
+      if (error.name === 'AbortError') {
+        console.log('🚫 Request aborted - user switched tasks');
+        return;
+      }
+      
       console.error('❌ Error loading task conversation:', error);
-      // Fallback to starting conversation
-      await startTaskConversation(task);
+      // Fallback to starting conversation only if not aborted
+      if (!abortController.signal.aborted) {
+        await startTaskConversation(task, abortController);
+      }
     } finally {
-      setIsAiThinking(false);
+      // Only clear loading state if this request wasn't aborted
+      if (!abortController.signal.aborted) {
+        setIsAiThinking(false);
+      }
     }
   };
 
   // Start a new conversation by calling the backend
-  const startTaskConversation = async (task) => {
+  const startTaskConversation = async (task, abortController) => {
     try {
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/learning/messages/start`,
@@ -265,31 +319,50 @@ function Learning() {
             cohort: currentDay?.cohort,
             conversationModel: selectedModel,
           }),
+          signal: abortController.signal,
         }
       );
+      
+      // Check if this request was aborted
+      if (abortController.signal.aborted) {
+        return;
+      }
 
       if (response.ok) {
         const data = await response.json();
         console.log('🚀 Started conversation:', data);
         
-        // Add the first message from the assistant
-        const firstMessage = {
-          id: data.message_id,
-          content: data.content,
-          sender: 'ai',
-          timestamp: data.timestamp,
-        };
-        setMessages([firstMessage]);
-        setHasInitialMessage(true);
+        // Only set messages if this request wasn't aborted
+        if (!abortController.signal.aborted) {
+          // Add the first message from the assistant
+          const firstMessage = {
+            id: data.message_id,
+            content: data.content,
+            sender: 'ai',
+            timestamp: data.timestamp,
+          };
+          setMessages([firstMessage]);
+          setHasInitialMessage(true);
+        }
       } else {
         console.error('Failed to start conversation');
         // Fallback to loading intro locally (old behavior)
-        await loadTaskIntro(task);
+        if (!abortController.signal.aborted) {
+          await loadTaskIntro(task);
+        }
       }
     } catch (error) {
+      // Ignore abort errors - they're expected when switching tasks
+      if (error.name === 'AbortError') {
+        console.log('🚫 Start conversation request aborted');
+        return;
+      }
+      
       console.error('Error starting conversation:', error);
       // Fallback to loading intro locally (old behavior)
-      await loadTaskIntro(task);
+      if (!abortController.signal.aborted) {
+        await loadTaskIntro(task);
+      }
     }
   };
 
@@ -344,7 +417,6 @@ function Learning() {
     if (newTaskIndex === currentTaskIndex) return;
     
     setCurrentTaskIndex(newTaskIndex);
-    setNewMessage('');
     
     const newTask = tasks[newTaskIndex];
     
@@ -352,13 +424,36 @@ function Learning() {
     await loadTaskConversation(newTask);
   };
 
-  const handleSendMessage = async (messageContent, selectedModel) => {
+  const handleSendMessage = async (messageContent, modelFromTextarea) => {
     if (!messageContent || !messageContent.trim() || isSending || isAiThinking) return;
     
     const trimmedMessage = messageContent.trim();
+    
+    // Capture the current task ID at the time of sending
+    // This ensures we validate against the correct task even if user switches
+    const messageTaskId = tasks[currentTaskIndex]?.id;
+    if (!messageTaskId) {
+      console.error('No task ID available for message');
+      return;
+    }
+    
     setIsSending(true);
     setIsAiThinking(true);
     setError('');
+    
+    // Update the selected model if it changed
+    if (modelFromTextarea && modelFromTextarea !== selectedModel) {
+      setSelectedModel(modelFromTextarea);
+    }
+    
+    // Abort any previous message send request
+    if (sendMessageAbortControllerRef.current) {
+      sendMessageAbortControllerRef.current.abort();
+    }
+    
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    sendMessageAbortControllerRef.current = abortController;
 
     try {
       // Add user message to chat
@@ -379,12 +474,25 @@ function Learning() {
         },
         body: JSON.stringify({
           content: trimmedMessage,
-          taskId: tasks[currentTaskIndex]?.id,
+          taskId: messageTaskId,
           dayNumber: currentDay?.day_number,
           cohort: currentDay?.cohort,
-          conversationModel: selectedModel,
+          conversationModel: modelFromTextarea || selectedModel,
         }),
+        signal: abortController.signal,
       });
+      
+      // Check if this request was aborted
+      if (abortController.signal.aborted) {
+        console.log('🚫 Message send aborted - user switched tasks');
+        return;
+      }
+      
+      // Verify we're still on the same task before adding the response
+      if (tasks[currentTaskIndex]?.id !== messageTaskId) {
+        console.log('⚠️ Task changed during message send - ignoring response');
+        return;
+      }
 
       if (response.ok) {
         const data = await response.json();
@@ -394,17 +502,32 @@ function Learning() {
           sender: 'ai',
           timestamp: new Date().toISOString(),
         };
-        setMessages(prev => [...prev, aiMessage]);
+        
+        // Double-check we're still on the same task before adding AI response
+        if (tasks[currentTaskIndex]?.id === messageTaskId && !abortController.signal.aborted) {
+          setMessages(prev => [...prev, aiMessage]);
+        } else {
+          console.log('⚠️ Task changed before AI response - ignoring message');
+        }
       } else {
         const errorData = await response.json();
         setError(errorData.error || 'Failed to send message. Please try again.');
       }
     } catch (error) {
+      // Ignore abort errors - they're expected when switching tasks
+      if (error.name === 'AbortError') {
+        console.log('🚫 Message send request aborted');
+        return;
+      }
+      
       console.error('Error sending message:', error);
       setError('An error occurred. Please try again.');
     } finally {
-      setIsSending(false);
-      setIsAiThinking(false);
+      // Only clear loading state if this request wasn't aborted
+      if (!abortController.signal.aborted) {
+        setIsSending(false);
+        setIsAiThinking(false);
+      }
     }
   };
 

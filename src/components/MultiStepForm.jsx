@@ -336,14 +336,19 @@ const MultiStepForm = ({ userType, onSubmit, onBack }) => {
             />
             
             {currentStep === totalSteps - 1 ? (
-              // Last step - show Create Account button
-              <Button
+              // Last step - show Create Account button with hover animation
+              <button
                 onClick={handleNext}
                 disabled={!isCurrentStepValid}
-                className="bg-white text-pursuit-purple hover:bg-gray-100 rounded-full px-6 py-2 text-sm font-proxima h-auto disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                className="relative bg-white text-pursuit-purple rounded-full px-6 py-2 text-sm font-proxima h-auto disabled:opacity-50 disabled:cursor-not-allowed font-medium overflow-hidden group transition-colors duration-300 border border-white"
               >
+                <span className="relative z-10 transition-colors duration-300 group-hover:text-white">
                 Create Account
-              </Button>
+                </span>
+                <div 
+                  className="absolute inset-0 -translate-x-full group-hover:translate-x-0 transition-transform duration-300 bg-pursuit-purple"
+                />
+              </button>
             ) : (
               // Regular next arrow button
               <ArrowButton
