@@ -488,7 +488,7 @@ const NewOpportunity: React.FC = () => {
                         />
                       )}
                       renderOption={(props, option: Account) => (
-                        <li {...props}>
+                        <li {...props} key={option.Id}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <BusinessIcon fontSize="small" color="action" />
                             <Box>
