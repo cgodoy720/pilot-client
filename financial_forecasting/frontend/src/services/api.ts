@@ -144,9 +144,6 @@ export const apiService = {
     api.get('/api/cashflow/summary'),
 
   // Forecasting
-  getDashboard: (params?: { date_range_days?: number; scenario?: string }) =>
-    api.get('/api/forecasting/dashboard', { params }),
-  
   getPaymentForecast: (params?: { days_ahead?: number; min_probability?: number }) =>
     api.get('/api/forecasting/payment-forecast', { params }),
   

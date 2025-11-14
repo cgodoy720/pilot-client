@@ -248,7 +248,7 @@ async def auth_google_callback(request: Request, response: Response):
         })
         
         # Set cookie with token
-        response = RedirectResponse(url=f"{FRONTEND_URL}/dashboard")
+        response = RedirectResponse(url=f"{FRONTEND_URL}/overview")
         response.set_cookie(
             key="access_token",
             value=access_token,
@@ -537,10 +537,10 @@ async def create_contact(contact_data: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Forecasting - Dashboard
+# Forecasting - Dashboard (DEPRECATED - Overview page uses direct queries instead)
 @app.get("/api/forecasting/dashboard")
 async def get_dashboard(date_range_days: int = 90, scenario: str = "realistic"):
-    """Get dashboard data with forecasts."""
+    """Get dashboard data with forecasts. DEPRECATED - not used by frontend."""
     try:
         sf = get_salesforce()
         
