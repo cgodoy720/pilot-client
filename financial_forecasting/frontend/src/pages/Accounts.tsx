@@ -354,11 +354,12 @@ const Accounts: React.FC = () => {
   // Account columns
   const accountColumns: GridColDef[] = [
     {
-      field: 'name',
+      field: 'Name',
       headerName: 'Account Name',
       flex: 2,
       minWidth: 250,
       filterable: true,
+      valueGetter: (params) => params.row.Name || params.row.name,
       renderCell: (params: GridRenderCellParams) => (
         <Box
           sx={{
@@ -374,18 +375,20 @@ const Accounts: React.FC = () => {
       ),
     },
     {
-      field: 'type',
+      field: 'Type',
       headerName: 'Type',
       flex: 0.8,
       minWidth: 120,
       filterable: true,
+      valueGetter: (params) => params.row.Type || params.row.type,
     },
     {
-      field: 'industry',
+      field: 'Industry',
       headerName: 'Industry',
       flex: 1,
       minWidth: 150,
       filterable: true,
+      valueGetter: (params) => params.row.Industry || params.row.industry,
     },
     {
       field: 'totalOpportunities',
