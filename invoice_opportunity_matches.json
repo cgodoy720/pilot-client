@@ -142,5 +142,53 @@
       "invoice_amount": -25000.0,
       "invoice_date": "11/21/2024"
     }
+  },
+  "29991": {
+    "opportunity_id": "006Pa00000QmuLtIAJ",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-13T09:02:28.462456",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "Soros Fund Managemen",
+      "invoice_amount": 5000.0,
+      "invoice_date": "10/28/2025"
+    }
+  },
+  "30047": {
+    "opportunity_id": "006Pa00000Rd1CnIAJ",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-13T09:06:59.484188",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "Maureen McCarthy",
+      "invoice_amount": 1000.0,
+      "invoice_date": "10/30/2025"
+    }
+  },
+  "29849": {
+    "opportunity_id": "006Pa00000FtkKLIAZ",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-13T09:34:15.829340",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "Wells Fargo",
+      "invoice_amount": 300000.0,
+      "invoice_date": "10/23/2025"
+    }
+  },
+  "29850": {
+    "opportunity_id": "006Pa00000FcCynIAF",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-13T10:32:55.829248",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "Goldman Sachs",
+      "invoice_amount": 150000.0,
+      "invoice_date": "10/21/2025"
+    }
   }
 }

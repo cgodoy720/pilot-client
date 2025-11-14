@@ -43,10 +43,14 @@ import toast from 'react-hot-toast';
 import { apiService } from '../services/api';
 
 interface Account {
-  Id: string;
-  Name: string;
+  Id?: string;  // Uppercase for Salesforce format
+  id?: string;  // Lowercase for backend API format
+  Name?: string;  // Uppercase for Salesforce format
+  name?: string;  // Lowercase for backend API format
   Type?: string;
+  type?: string;
   Industry?: string;
+  industry?: string;
 }
 
 interface Opportunity {
@@ -147,7 +151,7 @@ const Accounts: React.FC = () => {
   const queryClient = useQueryClient();
 
   // Fetch all accounts
-  const { data: accounts, isLoading: accountsLoading } = useQuery(
+  const { data: accountsData, isLoading: accountsLoading } = useQuery(
     'accounts',
     async () => {
       const response = await apiService.getAccounts();
@@ -156,7 +160,7 @@ const Accounts: React.FC = () => {
   );
 
   // Fetch all opportunities
-  const { data: opportunities, isLoading: oppsLoading } = useQuery(
+  const { data: opportunitiesData, isLoading: oppsLoading } = useQuery(
     'opportunities-for-accounts',
     async () => {
       const response = await apiService.getOpportunities();
@@ -164,13 +168,17 @@ const Accounts: React.FC = () => {
     }
   );
 
+  // Ensure accounts and opportunities are always arrays
+  const accounts = Array.isArray(accountsData) ? accountsData : (accountsData?.accounts || []);
+  const opportunities = Array.isArray(opportunitiesData) ? opportunitiesData : (opportunitiesData?.opportunities || []);
+
   // Fetch Slack activity for selected account
   const { data: slackActivity, isLoading: slackLoading } = useQuery(
-    ['slack-activity', selectedAccount?.Name],
+    ['slack-activity', selectedAccount?.name || selectedAccount?.Name],
     async () => {
-      if (!selectedAccount?.Name) return null;
+      if (!selectedAccount?.name && !selectedAccount?.Name) return null;
       try {
-        const response = await apiService.getAccountSlackActivity(selectedAccount.Name, 30);
+        const response = await apiService.getAccountSlackActivity((selectedAccount.name || selectedAccount.Name)!, 30);
         return response.data;
       } catch (error: any) {
         // If Slack is not configured, return empty data
@@ -181,18 +189,18 @@ const Accounts: React.FC = () => {
       }
     },
     {
-      enabled: !!selectedAccount?.Name && dialogOpen,
+      enabled: !!(selectedAccount?.name || selectedAccount?.Name) && dialogOpen,
       retry: false,
     }
   );
 
   // Fetch Fireflies meeting transcripts for selected account
   const { data: firefliesActivity, isLoading: firefliesLoading } = useQuery(
-    ['fireflies-activity', selectedAccount?.Name],
+    ['fireflies-activity', selectedAccount?.name || selectedAccount?.Name],
     async () => {
-      if (!selectedAccount?.Name) return null;
+      if (!selectedAccount?.name && !selectedAccount?.Name) return null;
       try {
-        const response = await apiService.getAccountFirefliesMeetings(selectedAccount.Name, 20);
+        const response = await apiService.getAccountFirefliesMeetings((selectedAccount.name || selectedAccount.Name)!, 20);
         return response.data;
       } catch (error: any) {
         // If Fireflies is not configured, return empty data
@@ -203,21 +211,21 @@ const Accounts: React.FC = () => {
       }
     },
     {
-      enabled: !!selectedAccount?.Name && dialogOpen,
+      enabled: !!(selectedAccount?.name || selectedAccount?.Name) && dialogOpen,
       retry: false,
     }
   );
 
   // Fetch contacts for selected account
   const { data: accountContacts, isLoading: contactsLoading } = useQuery(
-    ['account-contacts', selectedAccount?.Id],
+    ['account-contacts', selectedAccount?.id || selectedAccount?.Id],
     async () => {
-      if (!selectedAccount?.Id) return null;
-      const response = await apiService.getContacts({ account_id: selectedAccount.Id });
+      if (!selectedAccount?.id && !selectedAccount?.Id) return null;
+      const response = await apiService.getContacts({ account_id: selectedAccount.id || selectedAccount.Id });
       return response.data;
     },
     {
-      enabled: !!selectedAccount?.Id && dialogOpen,
+      enabled: !!(selectedAccount?.id || selectedAccount?.Id) && dialogOpen,
     }
   );
 
@@ -271,7 +279,9 @@ const Accounts: React.FC = () => {
 
     // Initialize all accounts
     accounts.forEach((account: Account) => {
-      map.set(account.Id, {
+      const accountId = account.id || account.Id;
+      if (!accountId) return;
+      map.set(accountId, {
         totalOpportunities: 0,
         openOpportunities: 0,
         wonOpportunities: 0,
@@ -344,7 +354,7 @@ const Accounts: React.FC = () => {
   // Account columns
   const accountColumns: GridColDef[] = [
     {
-      field: 'Name',
+      field: 'name',
       headerName: 'Account Name',
       flex: 2,
       minWidth: 250,
@@ -364,14 +374,14 @@ const Accounts: React.FC = () => {
       ),
     },
     {
-      field: 'Type',
+      field: 'type',
       headerName: 'Type',
       flex: 0.8,
       minWidth: 120,
       filterable: true,
     },
     {
-      field: 'Industry',
+      field: 'industry',
       headerName: 'Industry',
       flex: 1,
       minWidth: 150,
@@ -385,7 +395,7 @@ const Accounts: React.FC = () => {
       type: 'number',
       filterable: true,
       valueGetter: (params) => {
-        return getAccountMetrics(params.row.Id).totalOpportunities;
+        return getAccountMetrics(params.row.id || params.row.Id).totalOpportunities;
       },
     },
     {
@@ -396,7 +406,7 @@ const Accounts: React.FC = () => {
       type: 'number',
       filterable: true,
       valueGetter: (params) => {
-        return getAccountMetrics(params.row.Id).openOpportunities;
+        return getAccountMetrics(params.row.id || params.row.Id).openOpportunities;
       },
       renderCell: (params: GridRenderCellParams) => (
         <Chip
@@ -414,7 +424,7 @@ const Accounts: React.FC = () => {
       type: 'number',
       filterable: true,
       valueGetter: (params) => {
-        return getAccountMetrics(params.row.Id).wonOpportunities;
+        return getAccountMetrics(params.row.id || params.row.Id).wonOpportunities;
       },
       renderCell: (params: GridRenderCellParams) => (
         <Chip
@@ -432,7 +442,7 @@ const Accounts: React.FC = () => {
       type: 'number',
       filterable: true,
       valueGetter: (params) => {
-        return getAccountMetrics(params.row.Id).openPipelineValue;
+        return getAccountMetrics(params.row.id || params.row.Id).openPipelineValue;
       },
       renderCell: (params: GridRenderCellParams) => (
         <Box sx={{ color: 'primary.main', fontWeight: 600 }}>
@@ -448,7 +458,7 @@ const Accounts: React.FC = () => {
       type: 'number',
       filterable: true,
       valueGetter: (params) => {
-        return getAccountMetrics(params.row.Id).wonValue;
+        return getAccountMetrics(params.row.id || params.row.Id).wonValue;
       },
       renderCell: (params: GridRenderCellParams) => (
         <Box sx={{ color: 'success.main', fontWeight: 600 }}>
@@ -464,7 +474,7 @@ const Accounts: React.FC = () => {
       type: 'number',
       filterable: true,
       valueGetter: (params) => {
-        return getAccountMetrics(params.row.Id).totalPaid;
+        return getAccountMetrics(params.row.id || params.row.Id).totalPaid;
       },
       renderCell: (params: GridRenderCellParams) => (
         <Box sx={{ color: 'success.main', fontWeight: 600 }}>
@@ -480,7 +490,7 @@ const Accounts: React.FC = () => {
       type: 'number',
       filterable: true,
       valueGetter: (params) => {
-        return getAccountMetrics(params.row.Id).outstanding;
+        return getAccountMetrics(params.row.id || params.row.Id).outstanding;
       },
       renderCell: (params: GridRenderCellParams) => (
         <Box sx={{ color: (params.value as number) > 0 ? 'warning.main' : 'text.secondary', fontWeight: 600 }}>
@@ -492,7 +502,7 @@ const Accounts: React.FC = () => {
 
   // Get opportunities for selected account
   const accountOpportunities = selectedAccount
-    ? opportunities?.filter((opp: Opportunity) => opp.AccountId === selectedAccount.Id) || []
+    ? opportunities?.filter((opp: Opportunity) => opp.AccountId === (selectedAccount.id || selectedAccount.Id)) || []
     : [];
 
   const openOpps = accountOpportunities.filter((opp: Opportunity) => 
@@ -563,7 +573,7 @@ const Accounts: React.FC = () => {
     },
   ];
 
-  const metrics = selectedAccount ? getAccountMetrics(selectedAccount.Id) : null;
+  const metrics = selectedAccount ? getAccountMetrics(selectedAccount.id || selectedAccount.Id || '') : null;
 
   return (
     <Box>
@@ -606,7 +616,7 @@ const Accounts: React.FC = () => {
               rows={accounts || []}
               columns={accountColumns}
               loading={accountsLoading || oppsLoading}
-              getRowId={(row) => row.Id}
+              getRowId={(row) => row.id || row.Id}
               pagination
               pageSizeOptions={[25, 50, 100, 250, 500]}
               initialState={{
@@ -614,7 +624,7 @@ const Accounts: React.FC = () => {
                   paginationModel: { pageSize: 100, page: 0 },
                 },
                 sorting: {
-                  sortModel: [{ field: 'Name', sort: 'asc' }],
+                  sortModel: [{ field: 'name', sort: 'asc' }],
                 },
               }}
               filterMode="client"

@@ -4,7 +4,7 @@ Simplified FastAPI server for Financial Forecasting POC.
 Uses direct Salesforce connection without MCP layer for simplicity.
 """
 
-from fastapi import FastAPI, HTTPException, Depends, Response, Request
+from fastapi import FastAPI, HTTPException, Depends, Response, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
@@ -23,6 +23,9 @@ from slack_sdk.errors import SlackApiError
 import requests
 from urllib.parse import urlencode, parse_qs
 from authlib.integrations.starlette_client import OAuth
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+import logging
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
@@ -30,6 +33,10 @@ load_dotenv()
 
 # Import config
 from config import SALESFORCE_CONFIG
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Financial Forecasting API",
@@ -384,7 +391,7 @@ async def update_opportunity(opportunity_id: str, update_request: OpportunityUpd
 # Salesforce - Accounts
 @app.get("/api/salesforce/accounts")
 async def get_accounts():
-    """Get ALL Salesforce accounts."""
+    """Get ALL Salesforce accounts for customer selection."""
     try:
         sf = get_salesforce()
         
@@ -395,9 +402,26 @@ async def get_accounts():
         ORDER BY Name ASC
         """
         
-        # Use query_all to get all records (handles pagination automatically)
+        # Use query_all to automatically handle Salesforce pagination (gets ALL records)
         result = sf.query_all(query)
-        return result.get("records", [])
+        accounts = result.get("records", [])
+        
+        # Format for frontend
+        formatted_accounts = [
+            {
+                "id": acc.get("Id"),
+                "name": acc.get("Name"),
+                "type": acc.get("Type"),
+                "industry": acc.get("Industry")
+            }
+            for acc in accounts
+        ]
+        
+        return {
+            "success": True,
+            "count": len(formatted_accounts),
+            "accounts": formatted_accounts
+        }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1458,12 +1482,21 @@ async def get_grant_invoices():
 
 
 @app.get("/api/matching/search-opportunities")
-async def search_opportunities(q: str = "", limit: int = 20):
-    """Search Salesforce opportunities by name or account."""
+async def search_opportunities(
+    q: str = "", 
+    limit: int = 20,
+    customer_name: str = Query(None),
+    invoice_amount: float = Query(None),
+    invoice_date: str = Query(None)
+):
+    """Search Salesforce opportunities by name or account with smart matching."""
     try:
+        from difflib import SequenceMatcher
+        from datetime import datetime, timedelta
+        
         sf = get_salesforce()
         
-        # Build search query
+        # Build search query - show all opportunities, but scoring will prefer won/collecting
         if q:
             query = f"""
             SELECT Id, Name, AccountId, Account.Name, Amount, StageName, 
@@ -1484,9 +1517,75 @@ async def search_opportunities(q: str = "", limit: int = 20):
         
         result = sf.query(query)
         
+        def calculate_match_score(opp, customer_name, invoice_amount, invoice_date):
+            """Calculate match score between invoice and opportunity."""
+            score = 0
+            explanation = {}
+            
+            # Name matching (40% weight)
+            if customer_name and opp.get('AccountName'):
+                name_ratio = SequenceMatcher(None, 
+                    customer_name.lower(), 
+                    opp['AccountName'].lower()
+                ).ratio() * 100
+                score += name_ratio * 0.4
+                explanation['name_match'] = name_ratio
+            
+            # Amount matching (30% weight)
+            if invoice_amount and opp.get('Amount'):
+                opp_amount = float(opp['Amount'])
+                amount_diff = abs(opp_amount - invoice_amount)
+                amount_ratio = max(0, 100 - (amount_diff / max(opp_amount, invoice_amount) * 100))
+                score += amount_ratio * 0.3
+                explanation['amount_match'] = amount_ratio
+            
+            # Date proximity (20% weight) - use for scoring but not filtering
+            if invoice_date and opp.get('CloseDate'):
+                try:
+                    inv_date = datetime.strptime(invoice_date, '%Y-%m-%d')
+                    close_date = datetime.strptime(opp['CloseDate'], '%Y-%m-%d')
+                    days_diff = abs((inv_date - close_date).days)
+                    
+                    # Score based on days difference (perfect match = 100, degrades over time)
+                    # More lenient - just use it for ranking, not filtering
+                    if days_diff <= 30:
+                        date_score = 100
+                    elif days_diff <= 90:
+                        date_score = 100 - ((days_diff - 30) * 1.5)  # Lose 1.5 points per day after 30
+                    elif days_diff <= 180:
+                        date_score = max(0, 10 - ((days_diff - 90) / 30))  # Minimal score after 90 days
+                    else:
+                        date_score = 0
+                    
+                    score += date_score * 0.2
+                    explanation['date_proximity_days'] = days_diff
+                except:
+                    pass
+            
+            # Stage weighting (30% weight) - heavily favor won/collecting but allow others
+            stage = opp.get('StageName', '')
+            if 'Collecting' in stage or 'In Effect' in stage:
+                score += 30  # Maximum bonus for active collection
+                explanation['stage_bonus'] = '🟢 Active collection'
+            elif 'Closed / Completed' in stage:
+                score += 20
+                explanation['stage_bonus'] = '✓ Completed'
+            elif 'Closed Won' in stage:
+                score += 25
+                explanation['stage_bonus'] = '✓ Won (not yet collecting)'
+            elif 'Closed Lost' in stage or 'Withdrawn' in stage:
+                score -= 20  # Penalty for closed/lost
+                explanation['stage_bonus'] = '❌ Closed/Lost'
+            else:
+                # Open pipeline stages - show but don't recommend
+                score -= 10  # Slight penalty
+                explanation['stage_bonus'] = '⚠️ Open pipeline (not yet won)'
+            
+            return score, explanation
+        
         opportunities = []
         for record in result.get('records', []):
-            opportunities.append({
+            opp_data = {
                 'Id': record.get('Id'),
                 'Name': record.get('Name'),
                 'AccountName': record.get('Account', {}).get('Name') if record.get('Account') else '',
@@ -1495,7 +1594,21 @@ async def search_opportunities(q: str = "", limit: int = 20):
                 'CloseDate': record.get('CloseDate'),
                 'Description': record.get('Description'),
                 'Type': record.get('Type')
-            })
+            }
+            
+            # Calculate match score if invoice data provided (no filtering by date)
+            if customer_name or invoice_amount or invoice_date:
+                score, explanation = calculate_match_score(
+                    opp_data, customer_name, invoice_amount, invoice_date
+                )
+                opp_data['matchScore'] = score
+                opp_data['matchExplanation'] = explanation
+            
+            opportunities.append(opp_data)
+        
+        # Sort by match score if available
+        if customer_name or invoice_amount or invoice_date:
+            opportunities.sort(key=lambda x: x.get('matchScore', 0), reverse=True)
         
         return {
             "success": True,
@@ -1613,11 +1726,1582 @@ async def delete_invoice_match(invoice_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================================================
+# FINANCE DASHBOARD - INVOICE & PAYMENT MANAGEMENT
+# ============================================================================
+
+@app.get("/api/finance/awaiting-invoices")
+async def get_awaiting_invoices():
+    """Get payments that are ready to be invoiced.
+    
+    Returns individual payment records (not opportunities) that:
+    - Belong to opportunities in 'Collecting / In Effect' stage
+    - Don't have an invoice yet (Invoice__c is null)
+    - Aren't marked as paid yet
+    """
+    try:
+        sf = get_salesforce()
+        
+        # Query for payments that need invoices
+        query = """
+        SELECT Id, npe01__Payment_Amount__c, npe01__Scheduled_Date__c, npe01__Paid__c,
+               npe01__Opportunity__c, npe01__Opportunity__r.Name, 
+               npe01__Opportunity__r.Account.Name, npe01__Opportunity__r.CloseDate,
+               npe01__Opportunity__r.Owner.Name, npe01__Opportunity__r.StageName,
+               Invoice__c
+        FROM npe01__OppPayment__c
+        WHERE npe01__Opportunity__r.StageName = 'Collecting / In Effect'
+        AND Invoice__c = null
+        AND npe01__Paid__c = false
+        ORDER BY npe01__Scheduled_Date__c ASC
+        """
+        
+        # Use query_all to get ALL payments awaiting invoices
+        result = sf.query_all(query)
+        
+        payments = []
+        for record in result.get('records', []):
+            payments.append({
+                'Id': record['Id'],
+                'PaymentAmount': record.get('npe01__Payment_Amount__c', 0),
+                'ScheduledDate': record.get('npe01__Scheduled_Date__c'),
+                'OpportunityId': record.get('npe01__Opportunity__c'),
+                'OpportunityName': record.get('npe01__Opportunity__r', {}).get('Name'),
+                'AccountName': record.get('npe01__Opportunity__r', {}).get('Account', {}).get('Name'),
+                'OwnerName': record.get('npe01__Opportunity__r', {}).get('Owner', {}).get('Name'),
+                'CloseDate': record.get('npe01__Opportunity__r', {}).get('CloseDate'),
+                'HasInvoice': record.get('Invoice__c') is not None,
+                'IsPaid': record.get('npe01__Paid__c', False)
+            })
+        
+        return {
+            "success": True,
+            "count": len(payments),
+            "payments": payments,
+            "summary": {
+                "total_amount": sum(p['PaymentAmount'] for p in payments)
+            }
+        }
+        
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
+class CreateInvoiceRequest(BaseModel):
+    payment_id: str  # The npe01__OppPayment__c record ID
+    send_email: bool = False
+
+
+@app.post("/api/finance/create-invoice")
+async def create_sage_invoice(request: CreateInvoiceRequest):
+    """Create invoice in Sage Intacct from a Salesforce payment record.
+    
+    NOTE: This is a simplified version for demo. 
+    For full production, we'd integrate with Sage Intacct API.
+    """
+    try:
+        sf = get_salesforce()
+        payment_id = request.payment_id
+        
+        # Get payment details
+        payment_query = f"""
+        SELECT Id, npe01__Payment_Amount__c, npe01__Scheduled_Date__c,
+               npe01__Opportunity__c, npe01__Opportunity__r.Name, npe01__Opportunity__r.Account.Name
+        FROM npe01__OppPayment__c
+        WHERE Id = '{payment_id}'
+        """
+        payment_result = sf.query(payment_query)
+        
+        if not payment_result.get('records'):
+            raise HTTPException(status_code=404, detail="Payment not found")
+        
+        payment = payment_result['records'][0]
+        opp_name = payment.get('npe01__Opportunity__r', {}).get('Name')
+        opp_id = payment.get('npe01__Opportunity__c')
+        amount = float(payment.get('npe01__Payment_Amount__c', 0))
+        
+        # For demo: Create placeholder invoice ID
+        # TODO: Replace with actual Sage Intacct integration
+        sage_invoice_id = f"DEMO-{payment_id[:8]}"
+        
+        # Create Invoice__c record in Salesforce
+        invoice_record = {
+            'Opportunity__c': opp_id,
+            'Sage_Invoice_ID__c': sage_invoice_id,  # FIXED: was Invoice_ID__c
+            'Invoice_Amount__c': amount,
+            'Invoice_Date__c': datetime.now().strftime('%Y-%m-%d'),
+            # Note: Due_Date__c field doesn't exist on Invoice__c
+            'Invoice_Status__c': 'Posted',  # Valid values: Posted (default), Sent, Partially Paid, Paid, Overdue, Cancelled
+            'Description__c': f"{opp_name} - Payment",
+        }
+        
+        sf_invoice_result = sf.Invoice__c.create(invoice_record)
+        sf_invoice_id = sf_invoice_result.get('id')
+        
+        # Link invoice to payment
+        sf.npe01__OppPayment__c.update(payment_id, {
+            'Invoice__c': sf_invoice_id
+        })
+        
+        return {
+            "success": True,
+            "message": f"Invoice created for payment",
+            "sage_invoice_id": sage_invoice_id,
+            "salesforce_invoice_id": sf_invoice_id,
+            "payment_id": payment_id,
+            "opportunity_name": opp_name,
+            "amount": amount,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
+# ============================================================================
+# AUTOMATIC PAYMENT SYNC FROM SAGE INTACCT
+# ============================================================================
+
+def sync_invoice_payments_from_sage():
+    """
+    Background job that syncs invoice payment status from Sage Intacct to Salesforce.
+    Runs automatically every 5 minutes.
+    """
+    try:
+        logger.info("🔄 Starting automatic Sage → Salesforce payment sync...")
+        
+        # Import here to avoid circular imports
+        import sys
+        sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        from mcp_client.services.sage_intacct_sync import SageIntacctService
+        
+        sf = get_salesforce()
+        
+        # Initialize Sage service
+        sage_config = {
+            'company_id': os.getenv('SAGE_COMPANY_ID'),
+            'user_id': os.getenv('SAGE_USER_ID'),
+            'user_password': os.getenv('SAGE_USER_PASSWORD'),
+            'sender_id': os.getenv('SAGE_SENDER_ID'),
+            'sender_password': os.getenv('SAGE_SENDER_PASSWORD')
+        }
+        sage = SageIntacctService(sage_config)
+        
+        # Get all Invoice__c records that aren't marked as Paid yet
+        invoice_query = """
+        SELECT Id, Sage_Invoice_ID__c, Invoice_Status__c, Invoice_Amount__c
+        FROM Invoice__c
+        WHERE Invoice_Status__c != 'Paid'
+        AND Sage_Invoice_ID__c != null
+        """
+        
+        # Use query_all to get ALL unpaid invoices
+        invoices_result = sf.query_all(invoice_query)
+        invoices = invoices_result.get('records', [])
+        
+        if not invoices:
+            logger.info("   No unpaid invoices to sync")
+            return
+        
+        logger.info(f"   Checking {len(invoices)} unpaid invoices in Sage...")
+        
+        invoices_updated = 0
+        payments_updated = 0
+        opportunities_completed = set()
+        
+        for invoice in invoices:
+            sage_invoice_id = invoice.get('Sage_Invoice_ID__c', '')
+            
+            # Skip DEMO invoices (not real Sage invoices)
+            if sage_invoice_id.startswith('DEMO-'):
+                continue
+            
+            try:
+                # Query Sage for this invoice
+                function_xml = f"""
+                <function controlid="get-invoice-{sage_invoice_id}">
+                    <read>
+                        <object>ARINVOICE</object>
+                        <keys>{sage_invoice_id}</keys>
+                        <fields>RECORDNO,STATE,TOTALDUE,TOTALPAID</fields>
+                    </read>
+                </function>"""
+                
+                sage_response = sage._make_api_request(function_xml)
+                
+                if not sage_response.get('success'):
+                    continue
+                
+                sage_data = sage_response.get('data', {})
+                sage_invoice = sage_data.get('arinvoice', {})
+                
+                if not sage_invoice:
+                    continue
+                
+                # Check if invoice is paid in Sage
+                sage_state = str(sage_invoice.get('STATE', '')).lower()
+                total_paid = float(sage_invoice.get('TOTALPAID', 0))
+                total_due = float(sage_invoice.get('TOTALDUE', 0))
+                
+                is_fully_paid = (sage_state == 'paid' or 
+                                 sage_state == 'closed' or 
+                                 total_due == 0)
+                
+                invoice_updates = {}
+                
+                # Update invoice status
+                if is_fully_paid and invoice.get('Invoice_Status__c') != 'Paid':
+                    invoice_updates['Invoice_Status__c'] = 'Paid'
+                    logger.info(f"   ✅ Invoice {sage_invoice_id} is PAID in Sage")
+                    
+                    # Mark the linked payment(s) as paid
+                    payment_query = f"""
+                    SELECT Id, npe01__Paid__c, npe01__Opportunity__c
+                    FROM npe01__OppPayment__c
+                    WHERE Invoice__c = '{invoice['Id']}'
+                    """
+                    payment_result = sf.query(payment_query)
+                    payments = payment_result.get('records', [])
+                    
+                    for payment in payments:
+                        if not payment.get('npe01__Paid__c'):
+                            # Mark payment as paid
+                            sf.npe01__OppPayment__c.update(payment['Id'], {
+                                'npe01__Paid__c': True,
+                                'npe01__Payment_Date__c': datetime.now().strftime('%Y-%m-%d')
+                            })
+                            payments_updated += 1
+                            logger.info(f"      → Marked Payment {payment['Id']} as PAID")
+                            
+                            # Track opportunity for completion check
+                            opp_id = payment.get('npe01__Opportunity__c')
+                            if opp_id:
+                                opportunities_completed.add(opp_id)
+                
+                elif total_paid > 0 and invoice.get('Invoice_Status__c') == 'Posted':
+                    # Partially paid
+                    invoice_updates['Invoice_Status__c'] = 'Partially Paid'
+                    logger.info(f"   💵 Invoice {sage_invoice_id} is PARTIALLY PAID (${total_paid})")
+                
+                # Update invoice in Salesforce if there are changes
+                if invoice_updates:
+                    sf.Invoice__c.update(invoice['Id'], invoice_updates)
+                    invoices_updated += 1
+                    
+            except Exception as e:
+                logger.error(f"   ❌ Error syncing invoice {sage_invoice_id}: {str(e)}")
+                continue
+        
+        # Check if any opportunities should be completed
+        opps_completed_count = 0
+        for opp_id in opportunities_completed:
+            # Check if ALL payments for this opportunity are paid
+            check_query = f"""
+            SELECT Id, npe01__Paid__c
+            FROM npe01__OppPayment__c
+            WHERE npe01__Opportunity__c = '{opp_id}'
+            """
+            all_payments = sf.query(check_query).get('records', [])
+            
+            if all_payments and all(p.get('npe01__Paid__c') for p in all_payments):
+                # All payments paid! Complete the opportunity
+                sf.Opportunity.update(opp_id, {
+                    'StageName': 'Closed / Completed'
+                })
+                opps_completed_count += 1
+                logger.info(f"   🎉 Opportunity {opp_id} COMPLETED (all payments received)")
+        
+        logger.info(f"✅ Sync complete: {invoices_updated} invoices updated, {payments_updated} payments marked as paid, {opps_completed_count} opportunities completed")
+        
+        return {
+            "success": True,
+            "invoices_updated": invoices_updated,
+            "payments_updated": payments_updated,
+            "opportunities_completed": opps_completed_count
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Sync failed: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/finance/sync-payments")
+async def manual_sync_payments():
+    """
+    Manually trigger the Sage → Salesforce payment sync.
+    Useful for testing or forcing an immediate sync.
+    """
+    result = sync_invoice_payments_from_sage()
+    return result
+
+
+# ============================================================================
+# SAGE INTACCT MASTER DATA (for invoice form dropdowns)
+# ============================================================================
+
+@app.get("/api/sage/customers")
+async def get_sage_customers():
+    """Get Sage Intacct customers for invoice creation.
+    
+    Uses the pre-exported grant invoices CSV to get list of grant customers.
+    This is more reliable than querying Sage API with pagination issues.
+    """
+    try:
+        import csv
+        
+        # Use the exported grant invoices CSV
+        csv_path = '/Users/jacquelinereverand/pursuit-mcp-client/nonprofit_grant_invoices.csv'
+        
+        if not os.path.exists(csv_path):
+            raise HTTPException(status_code=404, detail=f"Grant invoices CSV not found")
+        
+        # Extract unique customers from CSV
+        customers_map = {}
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                cust_id = row.get('customer_id')
+                cust_name = row.get('customer_name')
+                cust_type = row.get('customer_type', '')
+                
+                if cust_id and cust_name and cust_id not in customers_map:
+                    customers_map[cust_id] = {
+                        'id': cust_id,
+                        'name': cust_name,
+                        'type': cust_type if cust_type else None,
+                        'status': 'active'
+                    }
+        
+        customers = list(customers_map.values())
+        customers.sort(key=lambda x: x['name'])  # Sort alphabetically
+        
+        logger.info(f"Loaded {len(customers)} grant customers from CSV")
+        
+        return {
+            "success": True,
+            "count": len(customers),
+            "customers": customers
+        }
+        
+    except Exception as e:
+        import traceback
+        logger.error(f"Error loading customers: {str(e)}")
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
+@app.get("/api/sage/gl-accounts")
+async def get_sage_gl_accounts():
+    """Get Sage Intacct GL accounts for invoice line items."""
+    try:
+        import sys
+        sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        from mcp_client.services.sage_intacct_sync import SageIntacctService
+        
+        sage_config = {
+            'company_id': os.getenv('SAGE_COMPANY_ID'),
+            'user_id': os.getenv('SAGE_USER_ID'),
+            'user_password': os.getenv('SAGE_USER_PASSWORD'),
+            'sender_id': os.getenv('SAGE_SENDER_ID'),
+            'sender_password': os.getenv('SAGE_SENDER_PASSWORD')
+        }
+        sage = SageIntacctService(sage_config)
+        
+        function_xml = """
+        <function controlid="get-glaccount">
+            <readByQuery>
+                <object>GLACCOUNT</object>
+                <query></query>
+                <fields>ACCOUNTNO,TITLE,ACCOUNTTYPE</fields>
+                <pagesize>1000</pagesize>
+            </readByQuery>
+        </function>"""
+        
+        response = sage._make_api_request(function_xml)
+        
+        if not response.get('success'):
+            raise HTTPException(status_code=500, detail="Failed to fetch GL accounts")
+        
+        data = response.get('data', {})
+        accounts_data = data.get('glaccount', [])
+        
+        if not isinstance(accounts_data, list):
+            accounts_data = [accounts_data] if accounts_data else []
+        
+        accounts = [
+            {
+                'value': acc.get('ACCOUNTNO'),
+                'label': f"{acc.get('ACCOUNTNO')} - {acc.get('TITLE')}",
+                'type': acc.get('ACCOUNTTYPE')
+            }
+            for acc in accounts_data
+            if acc.get('ACCOUNTNO')
+        ]
+        
+        return {
+            "success": True,
+            "count": len(accounts),
+            "accounts": accounts
+        }
+        
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
+@app.get("/api/sage/departments")
+async def get_sage_departments():
+    """Get Sage Intacct departments."""
+    try:
+        import sys
+        sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        from mcp_client.services.sage_intacct_sync import SageIntacctService
+        
+        sage_config = {
+            'company_id': os.getenv('SAGE_COMPANY_ID'),
+            'user_id': os.getenv('SAGE_USER_ID'),
+            'user_password': os.getenv('SAGE_USER_PASSWORD'),
+            'sender_id': os.getenv('SAGE_SENDER_ID'),
+            'sender_password': os.getenv('SAGE_SENDER_PASSWORD')
+        }
+        sage = SageIntacctService(sage_config)
+        
+        function_xml = """
+        <function controlid="get-departments">
+            <readByQuery>
+                <object>DEPARTMENT</object>
+                <query></query>
+                <fields>DEPARTMENTID,TITLE</fields>
+                <pagesize>500</pagesize>
+            </readByQuery>
+        </function>"""
+        
+        response = sage._make_api_request(function_xml)
+        
+        if not response.get('success'):
+            raise HTTPException(status_code=500, detail="Failed to fetch departments")
+        
+        data = response.get('data', {})
+        dept_data = data.get('department', [])
+        
+        if not isinstance(dept_data, list):
+            dept_data = [dept_data] if dept_data else []
+        
+        departments = [
+            {
+                'value': d.get('DEPARTMENTID'),
+                'label': f"{d.get('DEPARTMENTID')} - {d.get('TITLE')}"
+            }
+            for d in dept_data
+            if d.get('DEPARTMENTID')
+        ]
+        
+        return {
+            "success": True,
+            "count": len(departments),
+            "departments": departments
+        }
+        
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
+@app.get("/api/sage/classes")
+async def get_sage_classes():
+    """Get Sage Intacct classes."""
+    try:
+        import sys
+        sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        from mcp_client.services.sage_intacct_sync import SageIntacctService
+        
+        sage_config = {
+            'company_id': os.getenv('SAGE_COMPANY_ID'),
+            'user_id': os.getenv('SAGE_USER_ID'),
+            'user_password': os.getenv('SAGE_USER_PASSWORD'),
+            'sender_id': os.getenv('SAGE_SENDER_ID'),
+            'sender_password': os.getenv('SAGE_SENDER_PASSWORD')
+        }
+        sage = SageIntacctService(sage_config)
+        
+        function_xml = """
+        <function controlid="get-classes">
+            <readByQuery>
+                <object>CLASS</object>
+                <query></query>
+                <fields>CLASSID,NAME</fields>
+                <pagesize>500</pagesize>
+            </readByQuery>
+        </function>"""
+        
+        response = sage._make_api_request(function_xml)
+        
+        if not response.get('success'):
+            raise HTTPException(status_code=500, detail="Failed to fetch classes")
+        
+        data = response.get('data', {})
+        class_data = data.get('class', [])
+        
+        if not isinstance(class_data, list):
+            class_data = [class_data] if class_data else []
+        
+        classes = [
+            {
+                'value': c.get('CLASSID'),
+                'label': f"{c.get('CLASSID')} - {c.get('NAME')}"
+            }
+            for c in class_data
+            if c.get('CLASSID')
+        ]
+        
+        return {
+            "success": True,
+            "count": len(classes),
+            "classes": classes
+        }
+        
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
+@app.get("/api/sage/locations")
+async def get_sage_locations():
+    """Get Sage Intacct locations."""
+    try:
+        import sys
+        sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        from mcp_client.services.sage_intacct_sync import SageIntacctService
+        
+        sage_config = {
+            'company_id': os.getenv('SAGE_COMPANY_ID'),
+            'user_id': os.getenv('SAGE_USER_ID'),
+            'user_password': os.getenv('SAGE_USER_PASSWORD'),
+            'sender_id': os.getenv('SAGE_SENDER_ID'),
+            'sender_password': os.getenv('SAGE_SENDER_PASSWORD')
+        }
+        sage = SageIntacctService(sage_config)
+        
+        function_xml = """
+        <function controlid="get-locations">
+            <readByQuery>
+                <object>LOCATION</object>
+                <query></query>
+                <fields>LOCATIONID,NAME</fields>
+                <pagesize>500</pagesize>
+            </readByQuery>
+        </function>"""
+        
+        response = sage._make_api_request(function_xml)
+        
+        if not response.get('success'):
+            raise HTTPException(status_code=500, detail="Failed to fetch locations")
+        
+        data = response.get('data', {})
+        loc_data = data.get('location', [])
+        
+        if not isinstance(loc_data, list):
+            loc_data = [loc_data] if loc_data else []
+        
+        locations = [
+            {
+                'value': l.get('LOCATIONID'),
+                'label': f"{l.get('LOCATIONID')} - {l.get('NAME')}"
+            }
+            for l in loc_data
+            if l.get('LOCATIONID')
+        ]
+        
+        return {
+            "success": True,
+            "count": len(locations),
+            "locations": locations
+        }
+        
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
+@app.get("/api/sage/payments")
+async def get_sage_payments(limit: int = 1000):
+    """Get payment transactions from Sage Intacct."""
+    try:
+        import sys
+        sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        from mcp_client.services.sage_intacct_sync import SageIntacctService
+        
+        sage_config = {
+            'company_id': os.getenv('SAGE_COMPANY_ID'),
+            'user_id': os.getenv('SAGE_USER_ID'),
+            'user_password': os.getenv('SAGE_USER_PASSWORD'),
+            'sender_id': os.getenv('SAGE_SENDER_ID'),
+            'sender_password': os.getenv('SAGE_SENDER_PASSWORD')
+        }
+        sage = SageIntacctService(sage_config)
+        
+        function_xml = f"""
+        <function controlid="get-payments">
+            <readByQuery>
+                <object>ARPAYMENT</object>
+                <query></query>
+                <fields>*</fields>
+                <pagesize>{limit}</pagesize>
+            </readByQuery>
+        </function>"""
+        
+        response = sage._make_api_request(function_xml)
+        
+        if not response.get('success'):
+            raise HTTPException(status_code=500, detail="Failed to fetch payments")
+        
+        data = response.get('data', {})
+        payments_data = data.get('arpayment', [])
+        
+        if not isinstance(payments_data, list):
+            payments_data = [payments_data] if payments_data else []
+        
+        return {
+            "success": True,
+            "count": len(payments_data),
+            "payments": payments_data
+        }
+        
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
+@app.get("/api/sage/invoices")
+async def get_sage_invoices(limit: int = 1000):
+    """Get AR invoices from Sage Intacct."""
+    try:
+        import sys
+        sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        from mcp_client.services.sage_intacct_sync import SageIntacctService
+        
+        sage_config = {
+            'company_id': os.getenv('SAGE_COMPANY_ID'),
+            'user_id': os.getenv('SAGE_USER_ID'),
+            'user_password': os.getenv('SAGE_USER_PASSWORD'),
+            'sender_id': os.getenv('SAGE_SENDER_ID'),
+            'sender_password': os.getenv('SAGE_SENDER_PASSWORD')
+        }
+        sage = SageIntacctService(sage_config)
+        
+        function_xml = f"""
+        <function controlid="get-invoices">
+            <readByQuery>
+                <object>ARINVOICE</object>
+                <query></query>
+                <fields>*</fields>
+                <pagesize>{limit}</pagesize>
+            </readByQuery>
+        </function>"""
+        
+        response = sage._make_api_request(function_xml)
+        
+        if not response.get('success'):
+            raise HTTPException(status_code=500, detail="Failed to fetch invoices")
+        
+        data = response.get('data', {})
+        invoices_data = data.get('arinvoice', [])
+        
+        if not isinstance(invoices_data, list):
+            invoices_data = [invoices_data] if invoices_data else []
+        
+        return {
+            "success": True,
+            "count": len(invoices_data),
+            "invoices": invoices_data
+        }
+        
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
+@app.get("/api/sage/expenses")
+async def get_sage_expenses(limit: int = 1000):
+    """Get expense transactions from Sage Intacct (AP bills)."""
+    try:
+        import sys
+        sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        from mcp_client.services.sage_intacct_sync import SageIntacctService
+        
+        sage_config = {
+            'company_id': os.getenv('SAGE_COMPANY_ID'),
+            'user_id': os.getenv('SAGE_USER_ID'),
+            'user_password': os.getenv('SAGE_USER_PASSWORD'),
+            'sender_id': os.getenv('SAGE_SENDER_ID'),
+            'sender_password': os.getenv('SAGE_SENDER_PASSWORD')
+        }
+        sage = SageIntacctService(sage_config)
+        
+        function_xml = f"""
+        <function controlid="get-expenses">
+            <readByQuery>
+                <object>APBILL</object>
+                <query></query>
+                <fields>*</fields>
+                <pagesize>{limit}</pagesize>
+            </readByQuery>
+        </function>"""
+        
+        response = sage._make_api_request(function_xml)
+        
+        if not response.get('success'):
+            raise HTTPException(status_code=500, detail="Failed to fetch expenses")
+        
+        data = response.get('data', {})
+        expenses_data = data.get('apbill', [])
+        
+        if not isinstance(expenses_data, list):
+            expenses_data = [expenses_data] if expenses_data else []
+        
+        return {
+            "success": True,
+            "count": len(expenses_data),
+            "expenses": expenses_data
+        }
+        
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
+@app.get("/api/sage/gl-accounts-balance")
+async def get_sage_gl_accounts_balance():
+    """Get GL account balances from Sage Intacct (cash accounts)."""
+    try:
+        import sys
+        sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        from mcp_client.services.sage_intacct_sync import SageIntacctService
+        
+        sage_config = {
+            'company_id': os.getenv('SAGE_COMPANY_ID'),
+            'user_id': os.getenv('SAGE_USER_ID'),
+            'user_password': os.getenv('SAGE_USER_PASSWORD'),
+            'sender_id': os.getenv('SAGE_SENDER_ID'),
+            'sender_password': os.getenv('SAGE_SENDER_PASSWORD')
+        }
+        sage = SageIntacctService(sage_config)
+        
+        function_xml = """
+        <function controlid="get-gl-balances">
+            <readByQuery>
+                <object>GLACCOUNT</object>
+                <query>ACCOUNTTYPE = 'balancesheet' OR ACCOUNTTYPE = 'cash'</query>
+                <fields>ACCOUNTNO,TITLE,ACCOUNTTYPE,NORMALBALANCE</fields>
+                <pagesize>1000</pagesize>
+            </readByQuery>
+        </function>"""
+        
+        response = sage._make_api_request(function_xml)
+        
+        if not response.get('success'):
+            raise HTTPException(status_code=500, detail="Failed to fetch GL accounts")
+        
+        data = response.get('data', {})
+        accounts_data = data.get('glaccount', [])
+        
+        if not isinstance(accounts_data, list):
+            accounts_data = [accounts_data] if accounts_data else []
+        
+        return {
+            "success": True,
+            "count": len(accounts_data),
+            "accounts": accounts_data
+        }
+        
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
+@app.get("/api/cashflow/summary")
+async def get_cashflow_summary():
+    """
+    Comprehensive cash flow summary combining:
+    - Sage Intacct: payments, invoices, expenses, cash balances
+    - Salesforce: pipeline forecast (weighted by probability and payment dates)
+    """
+    try:
+        import sys
+        sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        from mcp_client.services.sage_intacct_sync import SageIntacctService
+        from datetime import datetime, timedelta
+        from dateutil.relativedelta import relativedelta
+        import calendar
+        
+        # Initialize Sage Intacct
+        sage_config = {
+            'company_id': os.getenv('SAGE_COMPANY_ID'),
+            'user_id': os.getenv('SAGE_USER_ID'),
+            'user_password': os.getenv('SAGE_USER_PASSWORD'),
+            'sender_id': os.getenv('SAGE_SENDER_ID'),
+            'sender_password': os.getenv('SAGE_SENDER_PASSWORD')
+        }
+        
+        # Check if Sage is configured
+        sage_configured = all([
+            sage_config.get('company_id'),
+            sage_config.get('user_id'),
+            sage_config.get('user_password'),
+            sage_config.get('sender_id'),
+            sage_config.get('sender_password')
+        ])
+        
+        if not sage_configured:
+            # Return demo/empty data if Sage not configured
+            return {
+                "success": True,
+                "demo_mode": True,
+                "message": "Sage Intacct not configured - showing empty data",
+                "summary": {
+                    "current_cash": 0,
+                    "accounts_receivable": 0,
+                    "accounts_payable": 0,
+                    "net_cash_position": 0,
+                    "avg_monthly_expenses": 0,
+                    "runway_months": 0,
+                    "forecasted_revenue_6mo": 0
+                },
+                "monthly_breakdown": [],
+                "data_sources": {
+                    "payments_count": 0,
+                    "invoices_count": 0,
+                    "expenses_count": 0,
+                    "gl_accounts_count": 0,
+                    "sf_opportunities_count": 0
+                }
+            }
+        
+        sage = SageIntacctService(sage_config)
+        
+        # Get Salesforce data
+        sf = get_salesforce()
+        
+        # Try to fetch data from Sage Intacct with fallback
+        payments = []
+        invoices = []
+        expenses = []
+        gl_accounts = []
+        sage_error = None
+        
+        try:
+            # 1. Get payments (actual revenue received)
+            payments_xml = """
+            <function controlid="get-payments">
+                <readByQuery>
+                    <object>ARPAYMENT</object>
+                    <query></query>
+                    <fields>*</fields>
+                    <pagesize>1000</pagesize>
+                </readByQuery>
+            </function>"""
+            payments_result = sage._make_api_request(payments_xml)
+            payments_data = payments_result.get('data', {})
+            payments = payments_data.get('arpayment', [])
+            if not isinstance(payments, list):
+                payments = [payments] if payments else []
+        except Exception as e:
+            sage_error = str(e)
+            print(f"Warning: Failed to fetch Sage payments: {e}")
+        
+        try:
+            # 2. Get invoices (revenue billed but not yet received)
+            invoices_xml = """
+            <function controlid="get-invoices">
+                <readByQuery>
+                    <object>ARINVOICE</object>
+                    <query></query>
+                    <fields>*</fields>
+                    <pagesize>1000</pagesize>
+                </readByQuery>
+            </function>"""
+            invoices_result = sage._make_api_request(invoices_xml)
+            invoices_data = invoices_result.get('data', {})
+            invoices = invoices_data.get('arinvoice', [])
+            if not isinstance(invoices, list):
+                invoices = [invoices] if invoices else []
+        except Exception as e:
+            print(f"Warning: Failed to fetch Sage invoices: {e}")
+        
+        try:
+            # 3. Get expenses from GLDETAIL (actual expense transactions)
+            # Expense accounts are typically 5000-8999 range
+            # Get last 12 months of expense data
+            # Query for recent expenses (last 4 months to ensure we get full 3 months for burn rate)
+            # Sage limits to 1000 records, so we query a shorter period to get complete data
+            # Calculate date 4 months ago
+            from datetime import datetime
+            from dateutil.relativedelta import relativedelta
+            four_months_ago = datetime.now() - relativedelta(months=4)
+            query_start_date = four_months_ago.strftime('%m/%d/%Y')
+            
+            expenses_xml = f"""
+            <function controlid="get-gl-expenses">
+                <readByQuery>
+                    <object>GLDETAIL</object>
+                    <query>ACCOUNTNO &gt;= '5000' AND ACCOUNTNO &lt; '9000' AND BATCH_DATE &gt;= '{query_start_date}'</query>
+                    <fields>RECORDNO,ACCOUNTNO,ACCOUNTTITLE,BATCH_DATE,AMOUNT,TRX_AMOUNT</fields>
+                    <pagesize>2000</pagesize>
+                </readByQuery>
+            </function>"""
+            print(f"📊 DEBUG: Querying expenses from {query_start_date} onwards")
+            
+            expenses_result = sage._make_api_request(expenses_xml)
+            expenses_data = expenses_result.get('data', {})
+            gl_expenses = expenses_data.get('gldetail', [])
+            
+            if not isinstance(gl_expenses, list):
+                gl_expenses = [gl_expenses] if gl_expenses else []
+            
+            print(f"📊 DEBUG: Found {len(gl_expenses)} GL expense entries")
+            
+            # Convert GL entries to expense format for processing
+            expenses = []
+            for i, entry in enumerate(gl_expenses):
+                batch_date = entry.get('BATCH_DATE', '')
+                if batch_date:
+                    amount = abs(float(entry.get('AMOUNT', 0) or 0))
+                    expenses.append({
+                        'WHENPOSTED': batch_date,
+                        'WHENCREATED': batch_date,
+                        'TOTALENTERED': amount,
+                        'TOTALDUE': 0,  # GL entries are posted, not "due"
+                        'STATE': 'Posted',
+                        'ACCOUNTTITLE': entry.get('ACCOUNTTITLE', 'Expense')
+                    })
+                    # Log first few for debugging
+                    if i < 3:
+                        print(f"   Sample expense #{i+1}: {batch_date} - {entry.get('ACCOUNTTITLE')} = ${amount:,.2f}")
+        except Exception as e:
+            print(f"Warning: Failed to fetch Sage GL expenses: {e}")
+            expenses = []
+        
+        try:
+            # 4. Get bank/checking accounts for cash on hand
+            # CHECKINGACCOUNT has LASTRECONCILEDBALANCE which is the actual bank balance
+            bank_xml = """
+            <function controlid="get-bank-balances">
+                <readByQuery>
+                    <object>CHECKINGACCOUNT</object>
+                    <query></query>
+                    <fields>BANKACCOUNTID,GLACCOUNTNO,GLACCOUNTTITLE,LASTRECONCILEDBALANCE,LASTRECONCILEDDATE,STATUS</fields>
+                    <pagesize>100</pagesize>
+                </readByQuery>
+            </function>"""
+            bank_result = sage._make_api_request(bank_xml)
+            bank_data = bank_result.get('data', {})
+            gl_accounts = bank_data.get('checkingaccount', [])
+            if not isinstance(gl_accounts, list):
+                gl_accounts = [gl_accounts] if gl_accounts else []
+            print(f"📊 DEBUG: Found {len(gl_accounts)} bank accounts")
+            if gl_accounts:
+                print(f"📊 DEBUG: First account: {gl_accounts[0]}")
+        except Exception as e:
+            print(f"Warning: Failed to fetch Sage bank account balances: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        # 5. Get Salesforce pipeline for forecast
+        sf_query = """
+        SELECT Id, Name, Amount, Probability, CloseDate, StageName, 
+               PaymentDate__c, Earliest_Scheduled_Payment__c,
+               npe01__Number_of_Payments__c
+        FROM Opportunity
+        WHERE IsClosed = false AND Amount > 0
+        ORDER BY CloseDate ASC
+        """
+        sf_opps_result = sf.query_all(sf_query)
+        sf_opportunities = sf_opps_result.get('records', [])
+        
+        # Calculate monthly breakdown (last 6 months + next 6 months)
+        today = datetime.now()
+        months = []
+        for i in range(-6, 7):  # -6 to +6 months
+            month_date = today + relativedelta(months=i)
+            month_start = month_date.replace(day=1)
+            month_end = month_date.replace(day=calendar.monthrange(month_date.year, month_date.month)[1])
+            
+            months.append({
+                'month': month_start.strftime('%Y-%m'),
+                'month_name': month_start.strftime('%B %Y'),
+                'start_date': month_start.isoformat(),
+                'end_date': month_end.isoformat(),
+                'is_past': i < 0,
+                'is_current': i == 0,
+                'is_future': i > 0
+            })
+        
+        # Process monthly data
+        monthly_data = []
+        for month in months:
+            month_start = datetime.fromisoformat(month['start_date'])
+            month_end = datetime.fromisoformat(month['end_date'])
+            
+            # Calculate revenue for this month (from payments)
+            month_revenue = 0
+            for payment in payments:
+                payment_date_str = payment.get('WHENPOSTED') or payment.get('WHENPAID') or payment.get('WHENCREATED')
+                if payment_date_str:
+                    try:
+                        payment_date = datetime.fromisoformat(payment_date_str.replace('Z', '+00:00'))
+                        if month_start <= payment_date <= month_end:
+                            amount = float(payment.get('TOTALPAID', 0) or payment.get('TOTALENTERED', 0) or 0)
+                            month_revenue += amount
+                    except:
+                        pass
+            
+            # Calculate expenses for this month
+            month_expenses = 0
+            expense_count = 0
+            for expense in expenses:
+                expense_date_str = expense.get('WHENPOSTED') or expense.get('WHENCREATED')
+                if expense_date_str:
+                    try:
+                        # Handle both ISO format and Sage MM/DD/YYYY format
+                        if '/' in expense_date_str:
+                            # MM/DD/YYYY format from Sage
+                            parts = expense_date_str.split('/')
+                            if len(parts) == 3:
+                                expense_date = datetime(int(parts[2]), int(parts[0]), int(parts[1]))
+                            else:
+                                continue
+                        else:
+                            # ISO format
+                            expense_date = datetime.fromisoformat(expense_date_str.replace('Z', '+00:00'))
+                        
+                        if month_start <= expense_date <= month_end:
+                            amount = float(expense.get('TOTALENTERED', 0) or expense.get('TOTALDUE', 0) or 0)
+                            month_expenses += amount
+                            expense_count += 1
+                            if expense_count == 1 and month['is_past']:  # Log first expense for debugging
+                                print(f"   📊 Sample expense in {month['month_name']}: {expense_date_str} = ${amount}")
+                    except Exception as e:
+                        if month['is_past'] and expense_count < 2:
+                            print(f"   ⚠️ Failed to parse expense date: {expense_date_str} - {e}")
+            
+            # Calculate forecast for future months (from SF pipeline)
+            month_forecast = 0
+            if month['is_future'] or month['is_current']:
+                for opp in sf_opportunities:
+                    # Use payment date if available, otherwise close date
+                    payment_date_str = opp.get('PaymentDate__c') or opp.get('Earliest_Scheduled_Payment__c') or opp.get('CloseDate')
+                    if payment_date_str:
+                        try:
+                            payment_date = datetime.fromisoformat(payment_date_str.replace('Z', '+00:00'))
+                            if month_start <= payment_date <= month_end:
+                                amount = float(opp.get('Amount') or 0)
+                                probability = float(opp.get('Probability') or 0) / 100
+                                weighted_amount = amount * probability
+                                month_forecast += weighted_amount
+                        except:
+                            pass
+            
+            monthly_data.append({
+                'month': month['month'],
+                'month_name': month['month_name'],
+                'revenue': month_revenue,
+                'expenses': month_expenses,
+                'net': month_revenue - month_expenses,
+                'forecast': month_forecast,
+                'is_past': month['is_past'],
+                'is_current': month['is_current'],
+                'is_future': month['is_future']
+            })
+        
+        # Calculate summary metrics
+        # Sum up all active bank account balances (from CHECKINGACCOUNT.LASTRECONCILEDBALANCE)
+        current_cash = sum(
+            float(acc.get('LASTRECONCILEDBALANCE') or 0) 
+            for acc in gl_accounts
+            if acc.get('STATUS') == 'active'
+        )
+        print(f"💰 DEBUG: Total cash from {len([a for a in gl_accounts if a.get('STATUS') == 'active'])} active accounts: ${current_cash:,.2f}")
+        
+        # Calculate run rate (avg monthly expenses from last 3 months)
+        past_months = [m for m in monthly_data if m['is_past']][-3:]
+        
+        # Method 1: From actual expense records
+        expense_based_burn = sum(m['expenses'] for m in past_months) / len(past_months) if past_months else 0
+        
+        # Method 2: Implied burn from cash decrease (if no expense records)
+        # Calculate from bank balance changes over time
+        implied_burn = 0
+        if expense_based_burn == 0 and len(gl_accounts) > 0:
+            # Get oldest and newest reconciled dates to calculate cash burn
+            dated_accounts = []
+            for acc in gl_accounts:
+                if acc.get('LASTRECONCILEDDATE') and acc.get('LASTRECONCILEDBALANCE'):
+                    try:
+                        # Parse date in MM/DD/YYYY format
+                        date_parts = acc['LASTRECONCILEDDATE'].split('/')
+                        if len(date_parts) == 3:
+                            recon_date = datetime(int(date_parts[2]), int(date_parts[0]), int(date_parts[1]))
+                            balance = float(acc.get('LASTRECONCILEDBALANCE', 0))
+                            dated_accounts.append({'date': recon_date, 'balance': balance, 'account': acc['BANKACCOUNTID']})
+                    except:
+                        pass
+            
+            if len(dated_accounts) >= 2:
+                # Sort by date
+                dated_accounts.sort(key=lambda x: x['date'])
+                
+                # Calculate total change over time period
+                # Assume accounts at same date represent point-in-time snapshot
+                # Group by date and sum balances
+                date_snapshots = {}
+                for acc in dated_accounts:
+                    date_key = acc['date'].strftime('%Y-%m')
+                    if date_key not in date_snapshots:
+                        date_snapshots[date_key] = 0
+                    date_snapshots[date_key] += acc['balance']
+                
+                if len(date_snapshots) >= 2:
+                    # Get oldest and most recent
+                    dates = sorted(date_snapshots.keys())
+                    oldest_balance = date_snapshots[dates[0]]
+                    newest_balance = date_snapshots[dates[-1]]
+                    
+                    # Calculate months between
+                    oldest_date = datetime.strptime(dates[0], '%Y-%m')
+                    newest_date = datetime.strptime(dates[-1], '%Y-%m')
+                    months_diff = (newest_date.year - oldest_date.year) * 12 + (newest_date.month - oldest_date.month)
+                    
+                    if months_diff > 0 and newest_balance < oldest_balance:
+                        # Cash decreased - calculate average burn per month
+                        cash_decrease = oldest_balance - newest_balance
+                        implied_burn = cash_decrease / months_diff
+                        print(f"💡 Implied burn rate: ${implied_burn:,.2f}/month (from {dates[0]} to {dates[-1]})")
+        
+        # Use implied burn if no expense records, otherwise use actual expenses
+        avg_monthly_expenses = expense_based_burn if expense_based_burn > 0 else implied_burn
+        
+        # Total AR (outstanding invoices)
+        total_ar = sum(float(inv.get('TOTALDUE', 0) or 0) for inv in invoices if inv.get('STATE') != 'Paid')
+        
+        # Total AP (outstanding expenses)
+        total_ap = sum(float(exp.get('TOTALDUE', 0) or 0) for exp in expenses if exp.get('STATE') != 'Paid')
+        
+        # Calculate runway (months of cash remaining)
+        runway_months = current_cash / avg_monthly_expenses if avg_monthly_expenses > 0 else 999
+        
+        # Next 6 months forecast
+        future_months = [m for m in monthly_data if m['is_future']][:6]
+        forecasted_revenue = sum(m['forecast'] for m in future_months)
+        
+        response = {
+            "success": True,
+            "timestamp": datetime.now().isoformat(),
+            "summary": {
+                "current_cash": current_cash,
+                "accounts_receivable": total_ar,
+                "accounts_payable": total_ap,
+                "net_cash_position": current_cash + total_ar - total_ap,
+                "avg_monthly_expenses": avg_monthly_expenses,
+                "runway_months": round(runway_months, 1),
+                "forecasted_revenue_6mo": forecasted_revenue
+            },
+            "monthly_breakdown": monthly_data,
+            "data_sources": {
+                "payments_count": len(payments),
+                "invoices_count": len(invoices),
+                "expenses_count": len(expenses),
+                "bank_accounts_count": len(gl_accounts),
+                "sf_opportunities_count": len(sf_opportunities)
+            }
+        }
+        
+        # Add warning if Sage failed
+        if sage_error:
+            response["sage_warning"] = f"Sage Intacct data unavailable: {sage_error}. Showing Salesforce pipeline forecast only."
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            }
+        )
+
+
+# ============================================================================
+# OPPORTUNITY STAGE VALIDATION
+# ============================================================================
+
+@app.post("/api/opportunities/validate-stage-change")
+async def validate_stage_change(request: dict):
+    """Validate that opportunity can move to 'Collecting / In Effect'.
+    
+    Requirements:
+    - Must have payment schedule (at least 1 payment)
+    - Payment total must equal opportunity amount
+    """
+    try:
+        sf = get_salesforce()
+        opp_id = request.get('opportunity_id')
+        new_stage = request.get('new_stage')
+        
+        if new_stage != 'Collecting / In Effect':
+            return {"success": True, "can_proceed": True}
+        
+        # Get opportunity
+        opp_query = f"""
+        SELECT Id, Name, Amount
+        FROM Opportunity
+        WHERE Id = '{opp_id}'
+        """
+        opp_result = sf.query(opp_query)
+        
+        if not opp_result.get('records'):
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        
+        opp = opp_result['records'][0]
+        opp_amount = float(opp.get('Amount', 0))
+        
+        # Check for payment schedule
+        payment_query = f"""
+        SELECT Id, npe01__Payment_Amount__c, npe01__Scheduled_Date__c
+        FROM npe01__OppPayment__c
+        WHERE npe01__Opportunity__c = '{opp_id}'
+        ORDER BY npe01__Scheduled_Date__c ASC
+        """
+        payment_result = sf.query(payment_query)
+        payments = payment_result.get('records', [])
+        
+        if not payments:
+            return {
+                "success": False,
+                "can_proceed": False,
+                "error": "Payment schedule required",
+                "message": f"Cannot move to 'Collecting / In Effect' without a payment schedule.\n\nPlease create a payment schedule for this ${opp_amount:,.0f} opportunity first.\n\nGo to Salesforce → Opportunity → Related → Payments → New",
+                "action_required": "create_payment_schedule"
+            }
+        
+        # Validate payment total matches opportunity amount
+        payment_total = sum(float(p.get('npe01__Payment_Amount__c', 0)) for p in payments)
+        
+        if abs(payment_total - opp_amount) > 0.01:
+            return {
+                "success": False,
+                "can_proceed": False,
+                "error": "Payment schedule total doesn't match opportunity amount",
+                "message": f"Payment schedule total (${payment_total:,.0f}) doesn't match opportunity amount (${opp_amount:,.0f}).\n\nPlease adjust the payment schedule in Salesforce.",
+                "opportunity_amount": opp_amount,
+                "payment_total": payment_total,
+                "difference": payment_total - opp_amount,
+                "action_required": "fix_payment_schedule"
+            }
+        
+        return {
+            "success": True,
+            "can_proceed": True,
+            "message": f"✅ Payment schedule validated: {len(payments)} payment(s) totaling ${payment_total:,.0f}",
+            "payment_count": len(payments),
+            "payment_total": payment_total
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
+@app.get("/api/opportunities/{opportunity_id}/payment-schedule")
+async def get_payment_schedule(opportunity_id: str):
+    """Get payment schedule for an opportunity."""
+    try:
+        sf = get_salesforce()
+        
+        # Get opportunity details
+        opp_query = f"""
+        SELECT Id, Name, Amount, StageName
+        FROM Opportunity
+        WHERE Id = '{opportunity_id}'
+        """
+        opp_result = sf.query(opp_query)
+        
+        if not opp_result.get('records'):
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        
+        opportunity = opp_result['records'][0]
+        
+        # Get existing payment schedule
+        payment_query = f"""
+        SELECT Id, npe01__Payment_Amount__c, npe01__Scheduled_Date__c, 
+               npe01__Paid__c, npe01__Payment_Date__c
+        FROM npe01__OppPayment__c
+        WHERE npe01__Opportunity__c = '{opportunity_id}'
+        ORDER BY npe01__Scheduled_Date__c ASC
+        """
+        payment_result = sf.query(payment_query)
+        payments = payment_result.get('records', [])
+        
+        return {
+            "success": True,
+            "opportunity": {
+                "Id": opportunity['Id'],
+                "Name": opportunity['Name'],
+                "Amount": opportunity.get('Amount', 0),
+                "StageName": opportunity.get('StageName')
+            },
+            "payments": [{
+                "Id": p['Id'],
+                "Amount": p.get('npe01__Payment_Amount__c', 0),
+                "ScheduledDate": p.get('npe01__Scheduled_Date__c'),
+                "Paid": p.get('npe01__Paid__c', False),
+                "PaymentDate": p.get('npe01__Payment_Date__c')
+            } for p in payments]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
+class PaymentScheduleItem(BaseModel):
+    amount: float
+    scheduled_date: str  # YYYY-MM-DD format
+
+
+class CreatePaymentScheduleRequest(BaseModel):
+    opportunity_id: str
+    payments: List[PaymentScheduleItem]
+    delete_existing: bool = True  # Whether to delete existing payments first
+
+
+@app.post("/api/opportunities/create-payment-schedule")
+async def create_payment_schedule(request: CreatePaymentScheduleRequest):
+    """Create payment schedule for an opportunity.
+    
+    Validates that payment total matches opportunity amount.
+    Optionally deletes existing payments first.
+    """
+    try:
+        sf = get_salesforce()
+        opp_id = request.opportunity_id
+        
+        # Get opportunity
+        opp_query = f"""
+        SELECT Id, Name, Amount
+        FROM Opportunity
+        WHERE Id = '{opp_id}'
+        """
+        opp_result = sf.query(opp_query)
+        
+        if not opp_result.get('records'):
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        
+        opp = opp_result['records'][0]
+        opp_amount = float(opp.get('Amount', 0))
+        
+        # Validate payment total
+        payment_total = sum(p.amount for p in request.payments)
+        
+        if abs(payment_total - opp_amount) > 0.01:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "Payment total doesn't match opportunity amount",
+                    "opportunity_amount": opp_amount,
+                    "payment_total": payment_total,
+                    "difference": payment_total - opp_amount,
+                    "message": f"Payment total (${payment_total:,.2f}) must equal opportunity amount (${opp_amount:,.2f})"
+                }
+            )
+        
+        # Delete existing payments if requested
+        if request.delete_existing:
+            existing_query = f"""
+            SELECT Id
+            FROM npe01__OppPayment__c
+            WHERE npe01__Opportunity__c = '{opp_id}'
+            """
+            existing_result = sf.query(existing_query)
+            existing_payments = existing_result.get('records', [])
+            
+            for payment in existing_payments:
+                sf.npe01__OppPayment__c.delete(payment['Id'])
+        
+        # Create new payments
+        created_payments = []
+        for i, payment in enumerate(request.payments):
+            payment_record = {
+                'npe01__Opportunity__c': opp_id,
+                'npe01__Payment_Amount__c': payment.amount,
+                'npe01__Scheduled_Date__c': payment.scheduled_date,
+                'npe01__Paid__c': False
+            }
+            
+            result = sf.npe01__OppPayment__c.create(payment_record)
+            created_payments.append({
+                "Id": result['id'],
+                "Amount": payment.amount,
+                "ScheduledDate": payment.scheduled_date,
+                "Number": i + 1
+            })
+        
+        return {
+            "success": True,
+            "message": f"Created {len(created_payments)} payment(s) totaling ${payment_total:,.2f}",
+            "payments": created_payments,
+            "opportunity_name": opp.get('Name')
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
+@app.post("/api/opportunities/update-stage")
+async def update_opportunity_stage(request: dict):
+    """Update opportunity stage with validation.
+    
+    For 'Collecting / In Effect' stage, requires payment schedule.
+    """
+    try:
+        sf = get_salesforce()
+        opp_id = request.get('opportunity_id')
+        new_stage = request.get('new_stage')
+        
+        # Validate stage change
+        validation_result = await validate_stage_change({
+            'opportunity_id': opp_id,
+            'new_stage': new_stage
+        })
+        
+        if not validation_result.get('can_proceed'):
+            raise HTTPException(status_code=400, detail=validation_result)
+        
+        # Update stage
+        sf.Opportunity.update(opp_id, {
+            'StageName': new_stage
+        })
+        
+        return {
+            "success": True,
+            "message": f"Opportunity stage updated to '{new_stage}'",
+            "stage": new_stage,
+            "validation": validation_result
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
+# ============================================================================
+# BACKGROUND SCHEDULER FOR AUTOMATIC SYNC
+# ============================================================================
+
+# Initialize scheduler
+scheduler = BackgroundScheduler()
+
+@app.on_event("startup")
+async def start_scheduler():
+    """Start the background scheduler when the app starts."""
+    try:
+        # Run sync every 5 minutes
+        scheduler.add_job(
+            func=sync_invoice_payments_from_sage,
+            trigger=IntervalTrigger(minutes=5),
+            id='sync_sage_payments',
+            name='Sync payments from Sage Intacct to Salesforce',
+            replace_existing=True
+        )
+        
+        scheduler.start()
+        logger.info("⏰ Background scheduler started - syncing payments every 5 minutes")
+        
+        # Run initial sync on startup
+        logger.info("🔄 Running initial payment sync...")
+        sync_invoice_payments_from_sage()
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to start scheduler: {str(e)}")
+
+
+@app.on_event("shutdown")
+async def shutdown_scheduler():
+    """Shutdown the scheduler gracefully."""
+    try:
+        scheduler.shutdown()
+        logger.info("⏹️  Background scheduler stopped")
+    except Exception as e:
+        logger.error(f"❌ Error shutting down scheduler: {str(e)}")
+
+
 if __name__ == "__main__":
     print("🚀 Starting Financial Forecasting API...")
     print("📊 Connected to Salesforce:", SALESFORCE_CONFIG['USERNAME'])
     print("🌐 API available at: http://localhost:8000")
     print("📖 API docs at: http://localhost:8000/docs")
+    print("⏰ Automatic payment sync: Every 5 minutes")
     
     uvicorn.run(
         "simple_server:app",

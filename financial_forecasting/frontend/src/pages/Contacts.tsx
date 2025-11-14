@@ -72,7 +72,7 @@ const Contacts: React.FC = () => {
   const queryClient = useQueryClient();
 
   // Fetch all contacts
-  const { data: contacts, isLoading: contactsLoading, error: contactsError } = useQuery(
+  const { data: contactsData, isLoading: contactsLoading, error: contactsError } = useQuery(
     'all-contacts',
     async () => {
       const response = await apiService.getContacts();
@@ -87,13 +87,17 @@ const Contacts: React.FC = () => {
   );
 
   // Fetch accounts for dropdown
-  const { data: accounts, isLoading: accountsLoading } = useQuery(
+  const { data: accountsData, isLoading: accountsLoading } = useQuery(
     'accounts',
     async () => {
       const response = await apiService.getAccounts();
       return response.data;
     }
   );
+
+  // Ensure contacts and accounts are always arrays
+  const contacts = Array.isArray(contactsData) ? contactsData : (contactsData?.contacts || []);
+  const accounts = Array.isArray(accountsData) ? accountsData : (accountsData?.accounts || []);
 
   // Create contact mutation
   const createContactMutation = useMutation(

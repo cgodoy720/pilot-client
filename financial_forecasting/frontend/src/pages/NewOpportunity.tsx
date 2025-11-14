@@ -141,7 +141,7 @@ const NewOpportunity: React.FC = () => {
   });
 
   // Fetch accounts
-  const { data: accounts, isLoading: accountsLoading } = useQuery(
+  const { data: accountsData, isLoading: accountsLoading } = useQuery(
     'accounts',
     async () => {
       const response = await apiService.getAccounts();
@@ -150,7 +150,7 @@ const NewOpportunity: React.FC = () => {
   );
 
   // Fetch users
-  const { data: users, isLoading: usersLoading } = useQuery(
+  const { data: usersData, isLoading: usersLoading } = useQuery(
     'users',
     async () => {
       const response = await apiService.getUsers({ limit: 1000 });
@@ -159,7 +159,7 @@ const NewOpportunity: React.FC = () => {
   );
 
   // Fetch contacts (filtered by selected account if available)
-  const { data: contacts, isLoading: contactsLoading } = useQuery(
+  const { data: contactsData, isLoading: contactsLoading } = useQuery(
     ['contacts', formData.accountId],
     async () => {
       const response = await apiService.getContacts({ 
@@ -173,6 +173,11 @@ const NewOpportunity: React.FC = () => {
     }
   );
 
+  // Ensure all data is always an array
+  const accounts = Array.isArray(accountsData) ? accountsData : (accountsData?.accounts || []);
+  const users = Array.isArray(usersData) ? usersData : (usersData?.users || []);
+  const contacts = Array.isArray(contactsData) ? contactsData : (contactsData?.contacts || []);
+
   // Create opportunity mutation
   const createOpportunityMutation = useMutation(
     async (data: any) => {
@@ -183,7 +188,7 @@ const NewOpportunity: React.FC = () => {
       onSuccess: () => {
         queryClient.invalidateQueries('opportunities');
         toast.success('Opportunity created successfully!');
-        navigate('/opportunities');
+        navigate('/pipeline');
       },
       onError: (error: any) => {
         toast.error(error.response?.data?.detail || 'Failed to create opportunity');
@@ -332,7 +337,7 @@ const NewOpportunity: React.FC = () => {
   };
 
   const handleCancel = () => {
-    navigate('/opportunities');
+    navigate('/pipeline');
   };
 
   const handleCreateAccount = () => {

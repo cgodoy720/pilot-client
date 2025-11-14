@@ -1,114 +1,1218 @@
 invoice_id,invoice_number,customer_id,customer_name,customer_type,amount,due_amount,invoice_date,due_date,state,description,entity_id,entity_name,module_key
-30302,,C1766,Mizuho USA Foundation,No Type,450000.0,450000.0,11/07/2025,12/03/2027,Posted,"AI-Native program Jan 1, 2026 - Dec 31, 2028",PURSUIT,,4.AR
-29841,,C1521,Hearst Foundation,No Type,125000.0,0.0,09/30/2025,10/31/2025,Paid,,PURSUIT,,4.AR
-29386,,C2214,Loren Smith,No Type,2500.0,2500.0,09/15/2025,09/30/2025,Posted,,PURSUIT,,4.AR
-30264,,C2303,Kamesh Karra,No Type,1000.0,0.0,09/15/2025,10/31/2025,Paid,,PURSUIT,,4.AR
-29480,,C2230,Moawia Eldeeb,No Type,1000.0,1000.0,09/15/2025,09/30/2025,Posted,,PURSUIT,,4.AR
-29515,,C2260,Shawn Cherian,No Type,750.0,0.0,09/15/2025,09/30/2025,Paid,,PURSUIT,,4.AR
-29500,,C2249,Lan Hoang,No Type,500.0,0.0,09/15/2025,09/30/2025,Paid,,PURSUIT,,4.AR
-29516,,C2261,Sahebba Sabherwal,No Type,500.0,0.0,09/15/2025,09/30/2025,Paid,,PURSUIT,,4.AR
-29834,,C2295,Yelena Movshovich,No Type,5000.0,0.0,09/15/2025,10/31/2025,Paid,,PURSUIT,,4.AR
-29366,,C1354,Daniel Teran,BoD,25000.0,0.0,09/15/2025,10/31/2025,Reversed,,PURSUIT,,4.AR
-29498,,C2247,Daniela Gallo,No Type,104.7,0.0,09/15/2025,09/30/2025,Paid,,PURSUIT,,4.AR
-29577,,C2286,Steven Simmons,No Type,10000.0,0.0,09/15/2025,09/30/2025,Paid,,PURSUIT,,4.AR
-29367,,C1822,Alex Atallah,No Type,7500.0,7500.0,09/15/2025,10/31/2025,Posted,,PURSUIT,,4.AR
-29099,,C2194,Sameer Gupta,No Type,10000.0,0.0,08/07/2025,09/01/2025,Paid,,PURSUIT,,4.AR
-28215,,C1844,LSEG Foundation,No Type,19764.0,0.0,07/01/2025,07/31/2025,Paid,,PURSUIT,,4.AR
-28203,,C1455,Capital One,No Type,75000.0,0.0,06/10/2025,06/30/2025,Paid,,PURSUIT,,4.AR
-28710,,C1891,Wachtell Lipton Rosen & Katz Foundation,Unknown,50000.0,0.0,04/15/2025,07/31/2025,Paid,Techbash FY25 	Paul Vizcarrondo contribution,PURSUIT,,4.AR
-23507,,C2138,iCapital,No Type,20000.0,0.0,03/17/2025,04/16/2025,Paid,,PURSUIT,,4.AR
-24881,,C2113,Nasheed Jeremiah,Unknown,0.0,0.0,01/06/2025,01/06/2025,No Value,,PURSUIT,,4.AR
-24875,,C2105,Ayotunde Akinkunmi,Unknown,0.0,0.0,01/06/2025,01/06/2025,No Value,,PURSUIT,,4.AR
-24873,,C2104,Antonio Martinez,Unknown,0.0,0.0,01/06/2025,01/06/2025,No Value,,PURSUIT,,4.AR
-24874,,C2109,Jorge Godoy Rodriguez,Unknown,0.0,0.0,01/06/2025,01/06/2025,No Value,,PURSUIT,,4.AR
-24677,,C1622,Thomas Covo,No Type,1000.0,0.0,12/31/2024,01/31/2025,Paid,,PURSUIT,,4.AR
-25838,Oct-48,C1887,Abubakar Adams,Unknown,-687.5,0.0,12/20/2024,12/20/2024,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-24835,18/48,C1815,Rose Durandisse,No Type,300.0,0.0,12/20/2024,01/15/2025,Reversed,,PURSUIT,,4.AR
-24834,Jun-48,C2065,Keeanu Rodriguez,Unknown,1312.5,0.0,12/20/2024,01/15/2025,Reversed,,PURSUIT,,4.AR
-25768,Nov-48,C1873,Marangely Rosas,No Type,-1352.0,0.0,12/20/2024,12/20/2024,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-25819,Apr-48,C2090,Meera Ramesh,Unknown,-1312.5,0.0,12/20/2024,12/20/2024,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-24836,Jun-48,C2064,Augusto Rupay,Unknown,1312.5,0.0,12/20/2024,01/15/2025,Reversed,,PURSUIT,,4.AR
-24845,22/48,C1804,Anas Nahil,No Type,500.0,0.0,12/20/2024,01/15/2025,Reversed,,PURSUIT,,4.AR
-24841,15/48,C1869,Xing Zhong Mei,No Type,1312.5,0.0,12/20/2024,01/15/2025,Reversed,,PURSUIT,,4.AR
-25801,20/48,C1841,Isaac Guerrero,No Type,-541.67,0.0,12/20/2024,12/20/2024,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-25755,24/48,C1747,Damien Yule,No Type,-1000.0,0.0,12/20/2024,12/20/2024,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-25785,17/48,C1738,Benny Zheng,No Type,-1125.0,0.0,12/20/2024,12/20/2024,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-24833,15/48,C1845,Jan Carlos Matias-Trinidad,No Type,541.67,0.0,12/20/2024,01/15/2025,Reversed,,PURSUIT,,4.AR
-23964,,C1764,Edward & Ellen Roche Relief Foundation,No Type,-25000.0,0.0,11/21/2024,11/21/2024,Reversal,Duplicate,PURSUIT,Pursuit Transformation Company,4.AR
-25874,17/48,C1816,Edwin Codrington,No Type,1312.5,0.0,11/20/2024,12/15/2024,Reversed,,PURSUIT,,4.AR
-24816,17/48,C1819,Zane Ahmed,No Type,1125.0,0.0,11/20/2024,12/01/2024,Reversed,,PURSUIT,,4.AR
-25888,19/48,C1807,Jalamang Janka,No Type,108.33,0.0,11/20/2024,12/15/2024,Reversed,,PURSUIT,,4.AR
-25883,26/48,C1740,Joshuel Marte,No Type,1125.0,0.0,11/20/2024,12/15/2024,Reversed,,PURSUIT,,4.AR
-25705,17/48,C1820,Jorge Carrera,No Type,-1312.5,0.0,11/20/2024,11/20/2024,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-25864,9/48,C1887,Abubakar Adams,Unknown,687.5,0.0,11/20/2024,12/15/2024,Reversed,,PURSUIT,,4.AR
-26060,3/48,C1879,Ari Jackson,No Type,-500.0,0.0,11/20/2024,11/20/2024,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-23073,,C1734,Oluwademilade Jobi,No Type,500.0,0.0,10/20/2024,11/15/2024,Reversed,,PURSUIT,,4.AR
-23289,,C1021,Arbor Brothers Inc.,Corporate,125000.0,0.0,10/10/2024,12/31/2024,Paid,,PURSUIT,,4.AR
-22027,,C1106,Google LLC,Corporate,50000.0,0.0,09/20/2024,10/31/2024,Paid,Google end of year grant; paid through Fidelity Investment,PURSUIT,,4.AR
-22681,19/48,C1797,Oliver Chuzan,No Type,1094.38,0.0,09/20/2024,10/01/2024,Reversed,,PURSUIT,,4.AR
-20228,,C1106,Google LLC,Corporate,75000.0,0.0,07/02/2024,07/31/2024,Paid,,PURSUIT,,4.AR
-19538,,C1353,Soo Kim,BoD,10000.0,0.0,06/10/2024,06/30/2024,Paid,,PURSUIT,,4.AR
-19898,,C2055,Anthony Ghosn Bichara,Unknown,35000.0,0.0,06/10/2024,06/30/2024,Paid,,PURSUIT,,4.AR
-19425,,C1422,Michael Borofsky,No Type,15000.0,0.0,05/31/2024,06/30/2024,Paid,BASH F24,PURSUIT,,4.AR
-19419,,C1081,Elias Roman,BoD,25000.0,25000.0,05/31/2024,06/30/2024,Posted,BASH F24,PURSUIT,,4.AR
-19785,,C1268,Robin Hood Foundation,Foundations,280000.0,0.0,05/13/2024,06/30/2024,Paid,"FY24 Renewal April 1, 2024 - March 31, 2025",PURSUIT,,4.AR
-19248,,C1899,Simone Gross,Unknown,2912.7,0.0,05/03/2024,05/31/2024,Paid,,PURSUIT,,4.AR
-26051,,C1726,Coreen Cooper,No Type,-1312.5,0.0,04/19/2024,04/19/2024,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-26036,,C1727,Angelina Ebreo,No Type,-1312.5,0.0,04/19/2024,04/19/2024,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-24996,,C1729,Marsha Hall,No Type,1312.0,0.0,04/19/2024,05/01/2024,Reversed,,PURSUIT,,4.AR
-25763,,C1882,Juan Feliz,No Type,-1352.0,0.0,04/19/2024,04/19/2024,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-26021,,C1729,Marsha Hall,No Type,-1312.0,0.0,04/19/2024,04/19/2024,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-19114,,C1894,Chris Maddern,Unknown,10000.0,0.0,04/05/2024,06/30/2024,Paid,,PURSUIT,,4.AR
-26050,,C1726,Coreen Cooper,No Type,-1312.5,0.0,03/21/2024,03/21/2024,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-25765,,C1873,Marangely Rosas,No Type,-1352.0,0.0,03/21/2024,03/21/2024,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-25042,,C1726,Coreen Cooper,No Type,1312.5,0.0,02/20/2024,03/01/2024,Reversed,,PURSUIT,,4.AR
-25846,,C1819,Zane Ahmed,No Type,-1125.0,0.0,02/20/2024,02/20/2024,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-16668,,C1352,Jennifer Hensley,BoD,14212.5,0.0,12/31/2023,01/15/2024,Paid,,PURSUIT,,4.AR
-26047,,C1726,Coreen Cooper,No Type,-1312.5,0.0,12/21/2023,12/21/2023,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-25055,,C1727,Angelina Ebreo,No Type,1312.5,0.0,12/21/2023,01/01/2024,Reversed,,PURSUIT,,4.AR
-16683,,C1028,Blackstone Charitable Foundation,Foundations,-250000.0,0.0,11/27/2023,11/27/2023,Reversal,Wrong Donor,PURSUIT,,4.AR
-16551,,C1028,Blackstone Charitable Foundation,Foundations,250000.0,0.0,11/27/2023,12/31/2023,Reversed,,PURSUIT,,4.AR
-26017,,C1729,Marsha Hall,No Type,-1312.0,0.0,11/23/2023,11/23/2023,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-25742,,C1733,Jessica Netto,No Type,-1312.5,0.0,11/23/2023,11/23/2023,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-24992,,C1819,Zane Ahmed,No Type,1125.0,0.0,11/23/2023,12/01/2023,Reversed,,PURSUIT,,4.AR
-18872,,C1247,PDT Partners,Corporate,-100000.0,0.0,11/08/2023,11/08/2023,Reversal,,PURSUIT,,4.AR
-16311,,C1385,Zachary Smith,Individual,5000.0,0.0,10/25/2023,10/31/2023,Paid,,PURSUIT,,4.AR
-14105,,C1385,Zachary Smith,Individual,5000.0,0.0,08/25/2023,09/30/2023,Paid,,PURSUIT,,4.AR
-24990,,C1819,Zane Ahmed,No Type,1125.0,0.0,08/22/2023,09/01/2023,Reversed,,PURSUIT,,4.AR
-25704,,C1820,Jorge Carrera,No Type,-934.38,0.0,08/21/2023,08/21/2023,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-25027,,C1733,Jessica Netto,No Type,1312.5,0.0,07/24/2023,08/01/2023,Reversed,,PURSUIT,,4.AR
-25045,,C1726,Coreen Cooper,No Type,1312.5,0.0,07/24/2023,08/01/2023,Reversed,,PURSUIT,,4.AR
-26041,,C1726,Coreen Cooper,No Type,-1312.5,0.0,06/21/2023,06/21/2023,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-25048,,C1726,Coreen Cooper,No Type,1312.5,0.0,06/21/2023,07/01/2023,Reversed,,PURSUIT,,4.AR
-13275,,C1492,Thomas and Jeanne Elmezzi Foundation,No Type,100000.0,0.0,06/15/2023,07/31/2023,Paid,,PURSUIT,,4.AR
-26039,,C1726,Coreen Cooper,No Type,-662.5,0.0,04/20/2023,04/20/2023,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-12133,,C1699,Citi Ventures Inc.,No Type,80000.0,0.0,04/14/2023,04/30/2023,Paid,,PURSUIT,,4.AR
-25028,,C1733,Jessica Netto,No Type,1312.5,0.0,02/20/2023,03/01/2023,Reversed,,PURSUIT,,4.AR
-12271,012023,C1694,"Pursuit Transformation Benefit Corporation, Inc.",No Type,29767.0,0.0,01/31/2023,02/28/2023,Paid,Shared Services January 2023,PURSUIT,,4.AR
-10510,,C1351,Adam Belanich,BoD,10000.0,10000.0,12/31/2022,02/28/2023,Posted,,PURSUIT,,4.AR
-11022,,C1081,Elias Roman,BoD,10000.0,0.0,12/23/2022,03/31/2023,Paid,,PURSUIT,,4.AR
-26007,,C1729,Marsha Hall,No Type,-1312.0,0.0,12/20/2022,12/20/2022,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-10165,,C1563,Con Edison,No Type,45000.0,0.0,12/16/2022,01/31/2023,Paid,,PURSUIT,,4.AR
-10160,,C1608,Zohar Yardeni,No Type,9865.3,0.0,12/03/2022,12/31/2022,Paid,,PURSUIT,,4.AR
-9830,,C1768,Breyer Family Foundation,No Type,50000.0,0.0,11/21/2022,11/30/2022,Paid,,PURSUIT,,4.AR
-26004,,C1729,Marsha Hall,No Type,-1312.0,0.0,09/21/2022,09/21/2022,Reversal,Bill.com Duplicate,PURSUIT,,4.AR
-8854,,C1230,New York City Department  of Youth Community and Development,Government,454203.0,0.0,09/12/2022,12/31/2022,Paid,"DYCD FY22, 260 Discretionary Contract 931466T",PURSUIT,,4.AR
-7877,,C1714,Truist Foundation,No Type,50000.0,0.0,07/19/2022,07/31/2022,Paid,,PURSUIT,,4.AR
-7513,,C1230,New York City Department  of Youth Community and Development,Government,346373.0,0.0,06/29/2022,10/31/2022,Paid,"DYCD FY21, 260 Discretionary Contract79574",PURSUIT,,4.AR
-7641,052022,C1694,"Pursuit Transformation Benefit Corporation, Inc.",No Type,61606.0,0.0,05/31/2022,06/15/2022,Paid,Shared Services May 2022,PURSUIT,,4.AR
-5359,,C1667,"Apollo Global Management, Inc.",No Type,1000.0,0.0,02/02/2022,02/28/2022,Paid,,PURSUIT,,4.AR
-4458,Fidelity Invest 1.3.21,C1387,Joseph Robert Kerrey and Sarah Paley,Individual,10000.0,0.0,12/31/2021,01/15/2022,Paid,,PURSUIT,,4.AR
-4637,,C1184,"L and L Foundation, Inc.",Foundations,30000.0,0.0,12/31/2021,01/31/2022,Paid,,PURSUIT,,4.AR
-4233,,C1584,James Gutter,No Type,10000.0,0.0,12/08/2021,12/31/2021,Paid,,PURSUIT,,4.AR
-3682,,C1563,Con Edison,No Type,5000.0,0.0,09/01/2021,10/31/2021,Paid,,PURSUIT,,4.AR
-1731,,C1483,Amazon.com Services LLC,No Type,100000.0,0.0,05/17/2021,05/31/2021,Paid,,PURSUIT,,4.AR
-5352,,C1275,Salesforce.com Foundation,Foundations,-200000.0,0.0,05/11/2021,05/11/2021,Reversal,"Miscommunication between PBD and Salesforce, Grant was not approved. ",PURSUIT,,4.AR
-1513,,C1247,PDT Partners,Corporate,75000.0,0.0,03/31/2021,06/01/2021,Paid,,PURSUIT,,4.AR
-869,,C1028,Blackstone Charitable Foundation,Foundations,25000.0,0.0,02/23/2021,03/31/2021,Paid,,PURSUIT,,4.AR
-428,,C1391,Equinix Metal,No Type,30000.0,0.0,01/01/2021,03/31/2021,Reversed,,PURSUIT,,4.AR
-347,,C1299,Steven Brill,BoD,10000.0,0.0,12/31/2020,03/01/2021,Paid,,PURSUIT,,4.AR
-26,,C1351,Adam Belanich,BoD,3500.0,0.0,12/31/2020,03/01/2021,Paid,,PURSUIT,,4.AR
-198,,C1206,Mary Edlow,Individual,5000.0,0.0,12/29/2020,01/28/2021,Paid,,PURSUIT,,4.AR
-214,,C1373,Meredith Finn,Individual,1000.0,0.0,12/28/2020,02/26/2021,Paid,,PURSUIT,,4.AR
-4273,,C1385,Zachary Smith,Individual,25000.0,0.0,12/08/2020,12/31/2020,Paid,Zach Smith FY21,PURSUIT,,4.AR
-50,,C1353,Soo Kim,BoD,40000.0,0.0,09/24/2019,12/31/2019,Paid,,PURSUIT,,4.AR
+30302,,C1766,Mizuho USA Foundation,,450000.0,450000.0,11/07/2025,12/03/2027,Posted,"AI-Native program Jan 1, 2026 - Dec 31, 2028",,,4.AR
+30047,,C1209,Maureen McCarthy,,1000.0,0.0,10/30/2025,10/31/2025,Paid,Fidelity Investment,,,4.AR
+29991,,C2299,Soros Fund Managemen,,5000.0,5000.0,10/28/2025,11/30/2025,Posted,,,,4.AR
+29849,,C2298,Wells Fargo,,300000.0,0.0,10/23/2025,12/31/2025,Paid,,,,4.AR
+29850,,C1105,Goldman Sachs,,150000.0,150000.0,10/21/2025,11/30/2025,Posted,,,,4.AR
+30260,,C2158,The City of New York,,142861.0,0.0,10/14/2025,10/31/2025,Paid,,,,4.AR
+29968,,C1232,News Corp,,52.51,0.0,10/07/2025,10/31/2025,Paid,,,,4.AR
+29619,,C2145,Workforce Development Corporation,,5000.0,0.0,10/06/2025,11/30/2025,Paid,Contract# 2025WDC0013,PBC,PursuitTransformationBenefitCorporation,4.AR
+29603,,C1563,Con Edison,,100000.0,0.0,10/01/2025,10/15/2025,Paid,,,,4.AR
+29575,,C1702,Moody’s Corporation,,16000.0,16000.0,09/30/2025,10/15/2025,Posted,"Moody's FY23, 3 seats Y2 - Paid only for 2 seats (Juhao Chen was laid off)",PBC,PursuitTransformationBenefitCorporation,4.AR
+29574,,C1702,Moody’s Corporation,,24000.0,24000.0,09/30/2025,10/15/2025,Posted,"Moody's FY24, 3 seats Y1",PBC,PursuitTransformationBenefitCorporation,4.AR
+29573,,C1756,Poll Everywhere,,16000.0,0.0,09/30/2025,10/15/2025,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+29841,,C1521,Hearst Foundation,,125000.0,0.0,09/30/2025,10/31/2025,Paid,,,,4.AR
+29559,,C2285,Vishal Damani,,104.7,0.0,09/27/2025,09/30/2025,Paid,,,,4.AR
+29558,,C2284,Aman Kapadia,,1500.0,0.0,09/27/2025,09/30/2025,Paid,,,,4.AR
+29557,,C2283,Zachary Brenner,,500.0,0.0,09/27/2025,09/30/2025,Paid,,,,4.AR
+29987,,C1106,Google LLC,,104.7,0.0,09/25/2025,10/31/2025,Paid,,,,4.AR
+29534,,C1709,Citizens Philanthropic Foundation,,100000.0,0.0,09/23/2025,10/31/2025,Paid,,,,4.AR
+29535,,C1483,Amazon.com Services LLC,,50000.0,0.0,09/19/2025,09/30/2025,Paid,,,,4.AR
+29329,,C2201,Helaina Roman,,1000.0,0.0,09/17/2025,09/30/2025,Paid,,,,4.AR
+29372,,C2202,Anthony Capone,,10000.0,10000.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29517,,C2262,JP Bowditch,,522.24,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29368,,C2193,Christopher Kellen,,5000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29382,,C2212,Andrew Vigneault,,5000.0,5000.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29503,,C1930,Marianne Smith,,2500.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29833,,C1894,Chris Maddern,,15000.0,15000.0,09/15/2025,10/31/2025,Posted,,,,4.AR
+29488,,C2238,Justin Vogel,,500.01,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29508,,C1262,Richard Hughes,,522.24,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29392,,C1989,Thomas Yang,,1000.0,1000.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29495,,C2244,TJ Adeshola,,500.0,500.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29514,,C2259,Diana Franco,,250.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29505,,C1822,Alex Atallah,,10000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29579,,C2287,Mastercard,,500.0,0.0,09/15/2025,10/15/2025,Paid,,,,4.AR
+29397,,C2222,Raghav Chopra,,1000.0,1000.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29499,,C2248,Lauren Costello,,500.0,500.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29509,,C2255,Sijin Choi,,500.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29516,,C2261,Sahebba Sabherwal,,500.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29389,,C2217,Daniel Wallis,,2500.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29390,,C1935,Geoffrey Kristof,,2500.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+30271,,C2306,Danielle Kantor,,300.0,300.0,09/15/2025,11/15/2025,Posted,,,,4.AR
+29478,,C2228,Regina Chan,,1000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29387,,C2215,Neil Parikh,,2500.0,2500.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29490,,C2240,Zack Brenner,,500.0,0.0,09/15/2025,09/30/2025,Reversed,,,,4.AR
+29477,,C2227,Andres Martynek,,1000.0,1000.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29492,,C2016,John Lucas,,261.28,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29391,,C2218,Damian Sieczkowski,,1044.16,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29526,,C2220,Brion Bonkowski,,1000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29577,,C2286,Steven Simmons,,10000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29583,,C2288,Jukay Hsu,,2500.0,0.0,09/15/2025,10/15/2025,Paid,,,,4.AR
+29482,,C2232,Julia Malkina,,1000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29384,,C1611,Tony Perez,,5219.52,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29851,,C1354,Daniel Teran,,10000.0,0.0,09/15/2025,10/31/2025,Paid,,,,4.AR
+29394,,C2220,Brion Bonkowski,,1000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29484,,C2234,Paola Mata,,500.0,500.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29376,,C2208,Jacob Smith,,25000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29381,,C2211,Andrew Brownstein,,5000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29504,,C2252,Roseline Bilina,,500.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29476,,C2226,Bharat Sawhney,,1000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29500,,C2249,Lan Hoang,,500.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+30272,,C2307,Andres Cools,,200.0,200.0,09/15/2025,11/15/2025,Posted,,,,4.AR
+29473,,C2223,Jean Lau,,1000.0,1000.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29506,,C2253,Yoshiki Yasui,,500.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29487,,C2237,Michael Movshovich,,5000.0,0.0,09/15/2025,09/30/2025,Reversed,,,,4.AR
+29474,,C2224,Taylor Hunt,,5000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29493,,C2242,Jonathan Levin,,1044.16,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29498,,C2247,Daniela Gallo,,104.7,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29585,,C2289,Marc Wolinsky & Barry Skovgaard,,2500.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29838,,C1896,Richard Siu,,5000.0,5000.0,09/15/2025,11/30/2025,Posted,BASH F24,,,4.AR
+29578,,C2240,Zack Brenner,,-500.0,0.0,09/15/2025,09/15/2025,Reversal,,,,4.AR
+29512,,C2257,Pritha Mittal,,1000.0,1000.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29383,,C2017,Steven Smyser,,5000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29599,,C1106,Google LLC,,1000.0,0.0,09/15/2025,10/31/2025,Paid,,,,4.AR
+30270,,C2305,Pat Harrington,,313.47,313.47,09/15/2025,11/15/2025,Posted,,,,4.AR
+29481,,C2231,Hart Lambur,,1000.0,1000.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29513,,C2258,Annie Le,,1000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29379,,C2209,Jon Moses,,5000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29510,,C2256,Pia Desai,,25000.0,0.0,09/15/2025,10/15/2025,Paid,,,,4.AR
+29489,,C2239,Michael Gold,,478.7,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29480,,C2230,Moawia Eldeeb,,1000.0,1000.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29475,,C2225,Paul Hughes,,1000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29587,,C2290,Matthew Nash,,150.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29366,,C1354,Daniel Teran,,25000.0,0.0,09/15/2025,10/31/2025,Reversed,,,,4.AR
+30264,,C2303,Kamesh Karra,,1000.0,0.0,09/15/2025,10/31/2025,Paid,,,,4.AR
+29511,,C1627,Brett Lewis,,1000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29485,,C2235,Fabian Gowie,,500.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29531,,C2266,Matt Toback,,5000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29502,,C2251,Niki Quarmyne,,522.24,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29385,,C2213,Pedro Miranda,,5000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29830,,C1931,Ted Dimig,,2500.0,0.0,09/15/2025,10/31/2025,Paid,,,,4.AR
+29486,,C2236,Benjamin Huang,,250.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+30266,,C2237,Michael Movshovich,,-5000.0,0.0,09/15/2025,09/15/2025,Reversal,Paid by Yelena,,,4.AR
+29483,,C2233,Brendan O'Brien,,1000.0,1000.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29367,,C1822,Alex Atallah,,7500.0,7500.0,09/15/2025,10/31/2025,Posted,,,,4.AR
+29834,,C2295,Yelena Movshovich,,5000.0,0.0,09/15/2025,10/31/2025,Paid,,,,4.AR
+29507,,C2254,Keiko Yasui,,500.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29515,,C2260,Shawn Cherian,,750.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+30268,,C2304,Kari Hughes,,104.7,0.0,09/15/2025,11/15/2025,Paid,,,,4.AR
+29388,,C2216,Hunter Shelburne,,2500.0,2500.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29393,,C2219,Francisco Prat,,1000.0,1000.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29380,,C2210,Jacqui Jeanis,,25000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29501,,C2250,Tia Adams,,250.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29373,,C2203,Arturo Poire,,5000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29479,,C2229,Mark Veblen,,5000.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29386,,C2214,Loren Smith,,2500.0,2500.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29497,,C2246,David Gilford,,500.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29494,,C2243,Mary Catherine Lader,,5000.0,5000.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29496,,C2245,Ben Vonwiller,,500.0,0.0,09/15/2025,09/30/2025,Paid,,,,4.AR
+29491,,C2241,Larry Ossei-Mensah,,250.0,250.0,09/15/2025,09/30/2025,Posted,,,,4.AR
+29839,,C1354,Daniel Teran,,-25000.0,0.0,09/15/2025,09/15/2025,Reversal,,,,4.AR
+29289,,C2200,Wohl Rubenstein Charitable Trust,,8500.0,0.0,09/11/2025,09/15/2025,Paid,,,,4.AR
+29594,,C1844,LSEG Foundation,,-150.0,0.0,09/10/2025,09/10/2025,Reversal,,,,4.AR
+29589,,C1844,LSEG Foundation,,150.0,0.0,09/10/2025,09/30/2025,Reversed,,,,4.AR
+29092,,C1571,Eva and Yoel Haller,,3000.0,0.0,09/08/2025,09/12/2025,Paid,,,,4.AR
+29113,,C2199,The Simmons Family Foundation Inc,,10000.0,0.0,09/08/2025,09/15/2025,Paid,,,,4.AR
+29090,,C1838,JPMorgan Chase,,5000.0,5000.0,09/08/2025,09/08/2025,Posted,,,,4.AR
+29111,,C2198,Tiger Tracks LLC,,10000.0,0.0,09/05/2025,09/15/2025,Paid,,,,4.AR
+29105,,C1106,Google LLC,,100000.0,0.0,09/03/2025,09/12/2025,Paid,,,,4.AR
+29110,,C2197,Adobe Employee Community Fund (ECF),,20000.0,0.0,09/02/2025,11/30/2025,Paid,,,,4.AR
+29324,,C2015,Todd Barrish,,-500.0,0.0,08/27/2025,08/27/2025,Reversal,duplicate,,,4.AR
+29322,,C2015,Todd Barrish,,500.0,0.0,08/27/2025,09/15/2025,Reversed,,,,4.AR
+29325,,C2097,Citizens Bank,,300.0,0.0,08/22/2025,09/12/2025,Paid,,,,4.AR
+29323,,C2096,"CBRE, Inc.",,50000.0,0.0,08/20/2025,11/30/2025,Paid,,,,4.AR
+29000,,C1073,Deutsche Bank AG New York Br.,,50000.0,0.0,08/20/2025,09/30/2025,Paid,,,,4.AR
+29006,,C2191,Rise Light & Power,,50000.0,50000.0,08/20/2025,09/04/2025,Posted,,,,4.AR
+29086,,C1081,Elias Roman,,18000.0,0.0,08/15/2025,09/30/2025,Reversed,BASH F25,,,4.AR
+29088,,C2193,Christopher Kellen,,25000.0,0.0,08/15/2025,09/30/2025,Paid,,,,4.AR
+30045,,C1081,Elias Roman,,-18000.0,0.0,08/15/2025,08/15/2025,Reversal,"BASH F25 - Contribution changed into the form of forgiven principle ($17,500)",,,4.AR
+29087,,C1106,Google LLC,,7000.0,7000.0,08/15/2025,09/30/2025,Posted,,,,4.AR
+29015,,C1483,Amazon.com Services LLC,,100000.0,0.0,08/14/2025,09/30/2025,Paid,,,,4.AR
+29101,,C1909,Gutter Capital Management LLC,,15000.0,0.0,08/13/2025,08/31/2025,Paid,,,,4.AR
+29011,,C2192,Kanan Kapadia,,10000.0,0.0,08/13/2025,08/15/2025,Paid,,,,4.AR
+29027,,C1563,Con Edison,,50000.0,0.0,08/13/2025,09/15/2025,Paid,BASH F24,,,4.AR
+29009,,C1608,Zohar Yardeni,,15000.0,0.0,08/11/2025,08/20/2025,Paid,,,,4.AR
+28889,,C2145,Workforce Development Corporation,,10000.0,0.0,08/07/2025,08/22/2025,Paid,Contract# 2025WDC0013,PBC,PursuitTransformationBenefitCorporation,4.AR
+29099,,C2194,Sameer Gupta,,10000.0,0.0,08/07/2025,09/01/2025,Paid,,,,4.AR
+28278,,C2101,GitLab Foundation,,2500.0,0.0,07/15/2025,07/31/2025,Paid,,,,4.AR
+28265,,C2187,Blackstone Administrative Services Partnership L.P.,,18000.0,0.0,07/08/2025,10/31/2025,Paid,"$18,000 for the Fellows within 60 days after the date of invoice receipt; Larry Lamouth",PBC,PursuitTransformationBenefitCorporation,4.AR
+28218,,C2145,Workforce Development Corporation,,20000.0,0.0,07/01/2025,07/31/2025,Paid,Contract# 2025WDC0013,PBC,PursuitTransformationBenefitCorporation,4.AR
+28215,,C1844,LSEG Foundation,,19764.0,0.0,07/01/2025,07/31/2025,Paid,,,,4.AR
+29007,,C1268,Robin Hood Foundation,,280000.0,140000.0,07/01/2025,06/30/2026,Partially Paid,"FY25 Renewal July 1, 2025 - June 30, 2026",,,4.AR
+28712,,C2189,Cisco,,5000.0,0.0,07/01/2025,07/30/2025,Paid,,,,4.AR
+28217,,C1454,Morgan Stanley,,40000.0,0.0,07/01/2025,10/31/2025,Paid,,,,4.AR
+28216,,C2188,Silicon Valley Community Foundation,,100000.0,0.0,06/26/2025,09/30/2025,Paid,"Palo Alto
+Networks Cybersecurity Education Fund",,,4.AR
+28086,,C2145,Workforce Development Corporation,,10000.0,0.0,06/11/2025,06/26/2025,Paid,Contract# 2025WDC0013,PBC,PursuitTransformationBenefitCorporation,4.AR
+28203,,C1455,Capital One,,75000.0,0.0,06/10/2025,06/30/2025,Paid,,,,4.AR
+27089,,C2145,Workforce Development Corporation,,10000.0,0.0,05/09/2025,05/24/2025,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+27646,,C2183,PNC Financial,,5000.0,0.0,05/08/2025,07/31/2025,Paid,,,,4.AR
+27645,,C2182,Link Logistics Real Estate LLC,,125000.0,0.0,05/05/2025,06/19/2025,Paid,,,,4.AR
+27055,,C2157,Costco,,25000.0,0.0,05/01/2025,05/31/2025,Paid,,,,4.AR
+27780,,C2146,Pursuit Transformation Company Inc,,6699.0,0.0,04/30/2025,05/15/2025,Paid,Shared Services April 2025,PBC,PursuitTransformationBenefitCorporation,4.AR
+27037,,C2145,Workforce Development Corporation,,15000.0,0.0,04/25/2025,05/09/2025,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+27733,,C1105,Goldman Sachs,,5030.0,0.0,04/21/2025,04/21/2025,Paid,Goldman Sachs match for Jumi Barnes,,,4.AR
+28710,,C1891,Wachtell Lipton Rosen & Katz Foundation,,50000.0,0.0,04/15/2025,07/31/2025,Paid,Techbash FY25 	Paul Vizcarrondo contribution,,,4.AR
+26105,,C2145,Workforce Development Corporation,,10000.0,0.0,04/09/2025,05/08/2025,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+27781,,C1385,Zachary Smith,,100000.0,0.0,04/01/2025,06/30/2025,Paid,,,,4.AR
+27783,,C1890,Paul Vizcarrondo,,48018.25,0.0,04/01/2025,07/30/2025,Paid,,,,4.AR
+27782,,C1353,Soo Kim,,100000.0,0.0,04/01/2025,06/30/2025,Paid,,,,4.AR
+27032,,C2146,Pursuit Transformation Company Inc,,9896.0,9896.0,03/31/2025,04/15/2025,Posted,,PBC,PursuitTransformationBenefitCorporation,4.AR
+26642,,C1699,Citi Ventures Inc.,,40000.0,0.0,03/31/2025,05/01/2025,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+25858,,C1491,Ashli Rankin,,0.0,0.0,03/27/2025,03/27/2025,No Value,,,,4.AR
+25808,,C1775,John Pham,,-25.0,0.0,03/26/2025,03/26/2025,Reversal,Correction,,,4.AR
+23507,,C2138,iCapital,,20000.0,0.0,03/17/2025,04/16/2025,Paid,,,,4.AR
+25232,,C1696,Anna Maria and Stephen Kellen Foundation,,150000.0,0.0,03/13/2025,03/15/2025,Paid,,,,4.AR
+25229,,C1028,Blackstone Charitable Foundation,,150000.0,0.0,03/03/2025,03/31/2025,Paid,,,,4.AR
+25248,,C2146,Pursuit Transformation Company Inc,,19504.0,0.0,02/28/2025,03/15/2025,Paid,Pursuit.com FEB 2025 Invoice,PBC,PursuitTransformationBenefitCorporation,4.AR
+23506,,C2097,Citizens Bank,,50000.0,0.0,02/18/2025,04/01/2025,Paid,,,,4.AR
+24790,,C2145,Workforce Development Corporation,,200000.0,0.0,02/06/2025,01/31/2026,Reversed,,PBC,PursuitTransformationBenefitCorporation,4.AR
+25901,,C2145,Workforce Development Corporation,,-200000.0,0.0,02/06/2025,02/06/2025,Reversal,Revenue tied to deliverables ,PBC,PursuitTransformationBenefitCorporation,4.AR
+25240,,C1268,Robin Hood Foundation,,20000.0,0.0,02/06/2025,04/30/2025,Paid,,,,4.AR
+25244,,C2146,Pursuit Transformation Company Inc,,35029.0,0.0,01/31/2025,02/15/2025,Paid,Pursuit.com JAN 2025 Invoice,PBC,PursuitTransformationBenefitCorporation,4.AR
+23174,,C1073,Deutsche Bank AG New York Br.,,100.0,100.0,01/22/2025,01/31/2025,Posted,,,,4.AR
+24739,,C1081,Elias Roman,,189.0,0.0,01/20/2025,02/28/2025,Paid,,,,4.AR
+26194,,C1757,Peloton,,12000.0,0.0,01/13/2025,04/30/2025,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+24884,,C2116,Chantal Gomez,,0.0,0.0,01/06/2025,01/06/2025,No Value,,,,4.AR
+24883,,C2112,Marco Quispe,,0.0,0.0,01/06/2025,01/06/2025,No Value,,,,4.AR
+24882,,C2115,Akira Brown,,0.0,0.0,01/06/2025,01/06/2025,No Value,,,,4.AR
+24880,,C2108,Gerardo Garcia,,0.0,0.0,01/06/2025,01/06/2025,No Value,,,,4.AR
+24879,,C2110,Lynnette Jacobs,,0.0,0.0,01/06/2025,01/06/2025,No Value,,,,4.AR
+24878,,C2106,Ayyoub Belibel,,0.0,0.0,01/06/2025,01/06/2025,No Value,,,,4.AR
+24876,,C2107,Camilo Paez,,0.0,0.0,01/06/2025,01/06/2025,No Value,,,,4.AR
+24877,,C2111,Manoel Alves Teixeira,,0.0,0.0,01/06/2025,01/06/2025,No Value,,,,4.AR
+24875,,C2105,Ayotunde Akinkunmi,,0.0,0.0,01/06/2025,01/06/2025,No Value,,,,4.AR
+24881,,C2113,Nasheed Jeremiah,,0.0,0.0,01/06/2025,01/06/2025,No Value,,,,4.AR
+24873,,C2104,Antonio Martinez,,0.0,0.0,01/06/2025,01/06/2025,No Value,,,,4.AR
+24885,,C2114,Raymond Zhou,,0.0,0.0,01/06/2025,01/06/2025,No Value,,,,4.AR
+24874,,C2109,Jorge Godoy Rodriguez,,0.0,0.0,01/06/2025,01/06/2025,No Value,,,,4.AR
+24559,,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,-147000.0,0.0,12/31/2024,12/31/2024,Reversal,incorrect posting,,,4.AR
+24677,,C1622,Thomas Covo,,1000.0,0.0,12/31/2024,01/31/2025,Paid,,,,4.AR
+26220,,C2146,Pursuit Transformation Company Inc,,-147000.0,0.0,12/31/2024,12/31/2024,Reversal,,PBC,PursuitTransformationBenefitCorporation,4.AR
+25674,,C1338,WesternUnion Foundation,,-125000.0,0.0,12/31/2024,12/31/2024,Reversal,Opportunity Lost ,,,4.AR
+26219,,C2146,Pursuit Transformation Company Inc,,147000.0,0.0,12/31/2024,01/31/2025,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+23524,,C2146,Pursuit Transformation Company Inc,,147000.0,0.0,12/31/2024,02/28/2025,Reversed,,PBC,PursuitTransformationBenefitCorporation,4.AR
+24669,122024,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,41652.0,0.0,12/31/2024,01/15/2025,Paid,Shared Services December  2024,,,4.AR
+24477,,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,147000.0,0.0,12/31/2024,02/28/2025,Reversed,,,,4.AR
+23274,,C1184,"L and L Foundation, Inc.",,30000.0,0.0,12/31/2024,01/31/2025,Paid,,,,4.AR
+23508,,C1757,Peloton,,12000.0,0.0,12/30/2024,02/28/2025,Paid,,,,4.AR
+23169,,C1353,Soo Kim,,1500.0,0.0,12/23/2024,01/01/2025,Paid,,,,4.AR
+24856,27/48,C1758,Stephanie Marie Lucano,,562.5,0.0,12/20/2024,01/15/2025,Reversed,,,,4.AR
+25159,27/48,C1758,Stephanie Marie Lucano,,-562.5,0.0,12/20/2024,12/20/2024,Reversal,Duplicate,,,4.AR
+25834,Jan-48,C2102,Ryan Fodera,,-1000.0,0.0,12/20/2024,12/20/2024,Reversal,Bill.com Duplicate,,,4.AR
+25770,32/48,C1695,Obaid Rustemi,,-285.0,0.0,12/20/2024,12/20/2024,Reversal,Bill.com Duplicate,,,4.AR
+24832,32/48,C1695,Obaid Rustemi,,285.0,0.0,12/20/2024,01/15/2025,Reversed,,,,4.AR
+24869,Jan-48,C2102,Ryan Fodera,,1000.0,0.0,12/20/2024,01/15/2025,Reversed,,,,4.AR
+23859,,C1483,Amazon.com Services LLC,,-15000.0,0.0,12/15/2024,12/15/2024,Reversal,Duplicate,PURSUIT,Pursuit Transformation Company,4.AR
+23166,,C1228,Neeraj Bewtra and Barbara Deli,,10000.0,0.0,12/13/2024,01/01/2025,Paid,,,,4.AR
+23011,,C1483,Amazon.com Services LLC,,15000.0,0.0,12/05/2024,12/07/2024,Reversed,#2D-15836843,PURSUIT,Pursuit Transformation Company,4.AR
+22923,,C2063,Red Canary,,75000.0,0.0,12/02/2024,02/28/2025,Paid,Pursuit Commit & Cybersecurity program,PBC,PursuitTransformationBenefitCorporation,4.AR
+23321,,C1365,"Etsy, Inc.",,10000.0,0.0,12/01/2024,12/31/2024,Paid,,,,4.AR
+23865,112024,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,52721.0,0.0,11/30/2024,12/15/2024,Paid,Shared Services November 2024,,,4.AR
+23164,,C1483,Amazon.com Services LLC,,15000.0,0.0,11/27/2024,12/15/2024,Paid,,,,4.AR
+23964,,C1764,Edward & Ellen Roche Relief Foundation,,-25000.0,0.0,11/21/2024,11/21/2024,Reversal,Duplicate,PURSUIT,Pursuit Transformation Company,4.AR
+24823,26/48,C1758,Stephanie Marie Lucano,,562.5,0.0,11/20/2024,12/15/2024,Reversed,,,,4.AR
+26076,31/48,C1695,Obaid Rustemi,,-285.0,0.0,11/20/2024,11/20/2024,Reversal,Bill.com Duplicate,,,4.AR
+25891,31/48,C1695,Obaid Rustemi,,285.0,0.0,11/20/2024,12/15/2024,Reversed,,,,4.AR
+25836,26/48,C1758,Stephanie Marie Lucano,,-562.5,0.0,11/20/2024,11/20/2024,Reversal,Bill.com Duplicate,,,4.AR
+23160,,C1766,Mizuho USA Foundation,,40000.0,0.0,11/19/2024,01/01/2024,Paid,,,,4.AR
+23008,,C1837,MetLife Foundation,,150000.0,0.0,11/18/2024,12/18/2024,Reversed,,PURSUIT,Pursuit Transformation Company,4.AR
+23857,,C1837,MetLife Foundation,,-150000.0,0.0,11/18/2024,11/18/2024,Reversal,Duplicate,PURSUIT,Pursuit Transformation Company,4.AR
+22933,,C1230,New York City Department  of Youth Community and Development,,417203.0,0.0,11/13/2024,12/31/2024,Reversed,"DYCD FY24, 260 DIE in Tech Initiative",PURSUIT,Pursuit Transformation Company,4.AR
+26644,,C1230,New York City Department  of Youth Community and Development,,-417203.0,0.0,11/13/2024,11/13/2024,Reversal,"DYCD FY25, contract not registered in 2024",PURSUIT,Pursuit Transformation Company,4.AR
+23157,,C1454,Morgan Stanley,,40000.0,0.0,11/11/2024,12/31/2024,Paid,,,,4.AR
+22674,,C1081,Elias Roman,,260.59,260.59,11/02/2024,11/02/2024,Posted,,PURSUIT,Pursuit Transformation Company,4.AR
+23316,,C1586,Verizon Communications,,10000.0,0.0,11/01/2024,12/31/2024,Paid,,,,4.AR
+22693,,C1002,ABNY Foundation,,5000.0,0.0,11/01/2024,11/01/2024,Paid,,,,4.AR
+23833,102024,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,53046.0,0.0,10/31/2024,11/15/2024,Paid,Shared Services October 2024,,,4.AR
+22929,,C1764,Edward & Ellen Roche Relief Foundation,,25000.0,0.0,10/30/2024,11/30/2023,Reversed,Job Placement Training for Low-Income Women into High-Paying Software Engineering Roles.,PURSUIT,Pursuit Transformation Company,4.AR
+23152,,C1764,Edward & Ellen Roche Relief Foundation,,25000.0,0.0,10/30/2024,11/30/2024,Paid,Job Placement Training for Low-Income Women into High-Paying Software Engineering Roles.,,,4.AR
+22672,,C1764,Edward & Ellen Roche Relief Foundation,,25000.0,0.0,10/30/2024,11/30/2024,Reversed,,PBC,PursuitTransformationBenefitCorporation,4.AR
+22928,,C1764,Edward & Ellen Roche Relief Foundation,,-25000.0,0.0,10/30/2024,10/30/2024,Reversal,,PBC,PursuitTransformationBenefitCorporation,4.AR
+23302,,C1352,Jennifer Hensley,,14212.5,0.0,10/30/2024,12/31/2024,Paid,,,,4.AR
+22704,,C2101,GitLab Foundation,,750000.0,375000.0,10/25/2024,11/01/2024,Partially Paid,,,,4.AR
+22665,,C1702,Moody’s Corporation,,24000.0,0.0,10/16/2024,11/15/2024,Paid,"Moody's FY24, 3 seats Y1",PBC,PursuitTransformationBenefitCorporation,4.AR
+23165,,C1837,MetLife Foundation,,150000.0,0.0,10/16/2024,12/31/2024,Paid,,,,4.AR
+23327,,C1247,PDT Partners,,50000.0,0.0,10/15/2024,12/31/2024,Reversed,,,,4.AR
+25587,,C1247,PDT Partners,,-50000.0,0.0,10/15/2024,10/15/2024,Reversal,duplicate,,,4.AR
+22644,,C1866,Charities Aid Foundation America,,1000.0,0.0,10/10/2024,10/15/2024,Paid,,,,4.AR
+23289,,C1021,Arbor Brothers Inc.,,125000.0,0.0,10/10/2024,12/31/2024,Paid,,,,4.AR
+22643,,C1131,Ira DeCamp Foundation,,120000.0,0.0,10/10/2024,11/30/2024,Paid,2 year contract,,,4.AR
+22204,,C1073,Deutsche Bank AG New York Br.,,50000.0,0.0,10/03/2024,11/02/2024,Paid,,,,4.AR
+22187,,C1702,Moody’s Corporation,,24000.0,0.0,10/02/2024,11/01/2024,Paid,"Moody's FY23, 3 seats Y2",PBC,PursuitTransformationBenefitCorporation,4.AR
+22190,,C1756,Poll Everywhere,,24000.0,0.0,10/02/2024,11/01/2024,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+22188,,C1702,Moody’s Corporation,,16000.0,0.0,10/02/2024,11/01/2024,Paid,Moody's FY22 2 seats Y3,PBC,PursuitTransformationBenefitCorporation,4.AR
+22189,,C1703,"Thumbtack, Inc.",,8000.0,8000.0,10/02/2024,11/01/2024,Posted,"Thumbtack, Inc. FY22 Commitment_Year 3",PBC,PursuitTransformationBenefitCorporation,4.AR
+22666,,C1659,Union Square Ventures,,24000.0,0.0,10/01/2024,12/31/2024,Paid,"Commit FY22, Y3, three seats",PBC,PursuitTransformationBenefitCorporation,4.AR
+22102,,C2097,Citizens Bank,,0.01,0.01,09/30/2024,10/15/2024,Posted,,PBC,PursuitTransformationBenefitCorporation,4.AR
+22639,,C2100,Empire State Development,,3060000.0,0.0,09/30/2024,07/31/2025,Reversed,,,,4.AR
+23270,,C1230,New York City Department  of Youth Community and Development,,497203.0,0.0,09/30/2024,01/31/2025,Paid,Discretionary Award FY24 Contract 930259V,,,4.AR
+29572,,C1756,Poll Everywhere,,16000.0,0.0,09/30/2024,01/15/2025,Reversed,,PBC,PursuitTransformationBenefitCorporation,4.AR
+29600,,C1756,Poll Everywhere,,-16000.0,0.0,09/30/2024,09/30/2024,Reversal,,PBC,PursuitTransformationBenefitCorporation,4.AR
+23352,092024,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,67659.0,0.0,09/30/2024,10/15/2024,Paid,Shared Services September 2024,,,4.AR
+25902,,C2100,Empire State Development,,-3060000.0,0.0,09/30/2024,09/30/2024,Reversal,Revenue tied to deliverables (90% of capital expenditures incurred by Pursuit),,,4.AR
+22205,,C1231,New York State Department of Labor,,2000000.0,1477085.75,09/25/2024,09/30/2029,Partially Paid,"DOL Cyber Grant $2M FY24 (5 year grant)
+Award# 24A60HG000065-01-00 
+FAIN# 24A60HG000065",,,4.AR
+22176,,C1338,WesternUnion Foundation,,125000.0,0.0,09/24/2024,10/31/2024,Reversed,"September 1, 2024 - August 31, 2025",,,4.AR
+22027,,C1106,Google LLC,,50000.0,0.0,09/20/2024,10/31/2024,Paid,Google end of year grant; paid through Fidelity Investment,,,4.AR
+22097,,C1563,Con Edison,,100000.0,0.0,09/20/2024,09/30/2024,Paid,,,,4.AR
+22029,,C2096,"CBRE, Inc.",,50000.0,0.0,09/16/2024,01/15/2025,Paid,,,,4.AR
+22637,,C2098,Finish Line Foundation,,10000.0,0.0,09/03/2024,10/31/2024,Paid,,,,4.AR
+22621,082024,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,58281.0,0.0,08/31/2024,09/15/2024,Paid,Shared Services August 2024,,,4.AR
+21267,,C1455,Capital One,,75000.0,0.0,08/16/2024,08/31/2024,Paid,,,,4.AR
+21268,,C2085,Metlife Shared Services,,1000.0,0.0,08/09/2024,08/15/2024,Paid,,,,4.AR
+21374,,C1709,Citizens Philanthropic Foundation,,100000.0,0.0,08/02/2024,08/31/2024,Paid,,,,4.AR
+22208,072024,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,73032.0,0.0,07/31/2024,08/15/2024,Paid,Shared Services July 2024,,,4.AR
+22638,,C2099,Office of Children and Family Services,,25000.0,25000.0,07/31/2024,12/31/2024,Posted,,,,4.AR
+20217,,C1139,Jason Miller,,15000.0,0.0,07/10/2024,07/31/2024,Paid,,,,4.AR
+20228,,C1106,Google LLC,,75000.0,0.0,07/02/2024,07/31/2024,Paid,,,,4.AR
+19799,,C1844,LSEG Foundation,,25456.0,0.0,07/02/2024,08/31/2024,Paid,,,,4.AR
+22206,072024,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,70576.0,0.0,06/30/2024,07/15/2024,Paid,Shared Services June 2024,,,4.AR
+19749,,C1073,Deutsche Bank AG New York Br.,,50000.0,0.0,06/28/2024,07/31/2024,Paid,,,,4.AR
+19994,,C2060,Miruna Dragnea,,25000.0,0.0,06/18/2024,06/30/2024,Paid,Bash FY24 credit to Jumi Barnes,,,4.AR
+19864,,C1349,Stuart Spodek,,5000.0,0.0,06/17/2024,06/30/2024,Paid,BASH F24,,,4.AR
+19904,,C2057,Andrew Boas,,5000.0,0.0,06/17/2024,06/30/2024,Paid,,,,4.AR
+19525,,C1933,Tech:NYC Foundation,,6000.0,0.0,06/14/2024,06/30/2024,Paid,,,,4.AR
+19743,,C1894,Chris Maddern,,1466.7,0.0,06/12/2024,06/30/2024,Paid,,,,4.AR
+19639,,C1585,Jessie Cai,,3911.7,0.0,06/12/2024,06/30/2024,Paid,,,,4.AR
+19898,,C2055,Anthony Ghosn Bichara,,35000.0,0.0,06/10/2024,06/30/2024,Paid,,,,4.AR
+19524,,C1932,Ariela Rozman,,200.0,0.0,06/10/2024,06/10/2024,Paid,,,,4.AR
+19519,,C1931,Ted Dimig,,1447.5,0.0,06/10/2024,06/30/2024,Paid,,,,4.AR
+19860,,C1931,Ted Dimig,,1500.0,0.0,06/10/2024,06/30/2024,Paid,,,,4.AR
+19538,,C1353,Soo Kim,,10000.0,0.0,06/10/2024,06/30/2024,Paid,,,,4.AR
+19540,,C1935,Geoffrey Kristof,,2000.0,0.0,06/10/2024,06/30/2024,Paid,BASH FY24 T2P,,,4.AR
+19517,,C1929,Kenneth Ziegler,,1000.0,0.0,06/10/2024,06/30/2024,Paid,,,,4.AR
+19518,,C1930,Marianne Smith,,10000.0,0.0,06/10/2024,06/30/2024,Paid,,,,4.AR
+19406,,C1911,Plaxall Inc.,,5000.0,0.0,06/04/2024,06/15/2024,Paid,,,,4.AR
+19417,,C1914,Margot Edelman,,10000.0,10000.0,05/31/2024,06/30/2024,Posted,BASH F24,,,4.AR
+19422,,C1563,Con Edison,,50000.0,0.0,05/31/2024,06/30/2024,Paid,BASH F24,,,4.AR
+19987,052024,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,79416.0,0.0,05/31/2024,06/15/2024,Paid,Shared Services May 2024,,,4.AR
+19416,,C1913,Ritambhara Kumar,,5000.0,5000.0,05/31/2024,06/30/2024,Posted,BASH F24,,,4.AR
+19415,,C1912,Jumi Barnes,,10000.0,0.0,05/31/2024,06/30/2024,Paid,BASH FY24,,,4.AR
+19426,,C1349,Stuart Spodek,,25000.0,0.0,05/31/2024,06/30/2024,Paid,BASH F24,,,4.AR
+19425,,C1422,Michael Borofsky,,15000.0,0.0,05/31/2024,06/30/2024,Paid,BASH F24,,,4.AR
+19421,,C1325,"Uber USA, LLC",,100000.0,0.0,05/31/2024,06/30/2024,Paid,BASH F24,,,4.AR
+19423,,C1916,Mary-Catherine Lader,,8950.0,0.0,05/31/2024,06/30/2024,Paid,Bash FY24 paid via Vanguard Charitable Endowment Program,,,4.AR
+19424,,C1822,Alex Atallah,,15000.0,0.0,05/31/2024,06/30/2024,Paid,BASH F24,,,4.AR
+19418,,C1379,Sam Charney,,10000.0,10000.0,05/31/2024,06/30/2024,Posted,BASH F24,,,4.AR
+19419,,C1081,Elias Roman,,25000.0,25000.0,05/31/2024,06/30/2024,Posted,BASH F24,,,4.AR
+19420,,C1915,Tony Davis,,60000.0,0.0,05/31/2024,06/30/2024,Paid,BASH FY24,,,4.AR
+19414,,C1385,Zachary Smith,,125000.0,0.0,05/31/2024,06/30/2024,Paid,BASH FY24,,,4.AR
+19386,,C1907,Cushman & Wakefield Inc.,,10000.0,0.0,05/30/2024,06/13/2024,Paid,,,,4.AR
+19397,,C1909,Gutter Capital Management LLC,,15000.0,0.0,05/21/2024,05/31/2024,Paid,,,,4.AR
+19428,,C1292,Siegel Family Endowment,,5000000.0,3000000.0,05/20/2024,12/31/2028,Partially Paid,"Siegel Family Endowment $5M FY24
+2024 in the amount of $1,000,000 on or before December 31 
+2025 in the amount of $1,000,000 on or before December 31 
+2026 in the amount of $1,000,000 on or before December 31 
+2027 in the amount of $1,000,000 on or before December 31 
+2028 in the amount of $1,000,000 on or before December 31",,,4.AR
+19245,,C1898,The Heckscher Foundation,,10000.0,0.0,05/16/2024,05/31/2024,Paid,,,,4.AR
+19238,,C1896,Richard Siu,,10000.0,0.0,05/15/2024,06/30/2024,Paid,BASH F24,,,4.AR
+19785,,C1268,Robin Hood Foundation,,280000.0,0.0,05/13/2024,06/30/2024,Paid,"FY24 Renewal April 1, 2024 - March 31, 2025",,,4.AR
+19374,,C1699,Citi Ventures Inc.,,40000.0,0.0,05/07/2024,06/30/2024,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+19248,,C1899,Simone Gross,,2912.7,0.0,05/03/2024,05/31/2024,Paid,,,,4.AR
+19119,,C1325,"Uber USA, LLC",,100000.0,0.0,05/03/2024,05/31/2024,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+19234,,C1895,The New York Community Trust,,5000.0,0.0,05/01/2024,05/31/2024,Paid,,,,4.AR
+19960,12024,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,67568.0,0.0,04/30/2024,05/15/2024,Paid,Shared Services February 2024,,,4.AR
+20202,,C2063,Red Canary,,16000.0,0.0,04/23/2024,11/30/2024,Paid,"Hiring Partnership - 2 Seats Commitment 2024;
+PO#10450",PBC,PursuitTransformationBenefitCorporation,4.AR
+25016,,C1484,Ameni Alsaydi,,1100.0,0.0,04/19/2024,02/15/2026,Reversed,,,,4.AR
+25720,,C1484,Ameni Alsaydi,,-1100.0,0.0,04/19/2024,04/19/2024,Reversal,Bill.com Duplicate,,,4.AR
+20216,,C1803,"Spring Care, Inc.",,16000.0,0.0,04/17/2024,06/30/2024,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+19054,,C1891,Wachtell Lipton Rosen & Katz Foundation,,50000.0,0.0,04/16/2024,04/30/2024,Paid,,,,4.AR
+19007,,C1890,Paul Vizcarrondo,,50000.0,0.0,04/09/2024,04/30/2024,Paid,,,,4.AR
+19065,,C1008,Alan Jones,,-15000.0,0.0,04/05/2024,04/05/2024,Reversal,,,,4.AR
+19114,,C1894,Chris Maddern,,10000.0,0.0,04/05/2024,06/30/2024,Paid,,,,4.AR
+19061,,C1008,Alan Jones,,15000.0,0.0,04/05/2024,04/30/2024,Reversed,,,,4.AR
+19066,,C1008,Alan Jones,,14564.7,0.0,04/05/2024,04/30/2024,Paid,,,,4.AR
+19063,,C1892,Ann Kayman,,244.2,0.0,04/04/2024,04/30/2024,Paid,,,,4.AR
+19059,,C1794,Sarah Walker,,10000.0,0.0,04/01/2024,04/30/2024,Paid,,,,4.AR
+21916,12024,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,67671.0,0.0,03/31/2024,04/15/2024,Paid,Shared Services March 2024,,,4.AR
+18405,,C1028,Blackstone Charitable Foundation,,150000.0,0.0,03/18/2024,06/30/2024,Paid,,,,4.AR
+18410,,C1313,The Alphadyne Foundation,,150000.0,0.0,03/06/2024,03/31/2024,Paid,,,,4.AR
+19344,12024,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,69308.0,0.0,02/29/2024,03/15/2024,Paid,Shared Services February 2024,,,4.AR
+18035,,C1139,Jason Miller,,5000.0,0.0,02/29/2024,03/01/2024,Paid,,,,4.AR
+26000,,C1460,Nilber Remon,,-750.0,0.0,02/20/2024,02/20/2024,Reversal,Bill.com Duplicate,,,4.AR
+25018,,C1484,Ameni Alsaydi,,1100.0,0.0,02/20/2024,02/15/2026,Reversed,,,,4.AR
+25079,,C1460,Nilber Remon,,750.0,0.0,02/20/2024,03/01/2024,Reversed,,,,4.AR
+25719,,C1484,Ameni Alsaydi,,-1100.0,0.0,02/20/2024,02/20/2024,Reversal,Bill.com Duplicate,,,4.AR
+17857,,C1696,Anna Maria and Stephen Kellen Foundation,,150000.0,0.0,02/09/2024,02/29/2024,Paid,,,,4.AR
+17736,122023,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,69777.0,0.0,01/31/2024,02/15/2024,Paid,Shared Services December 2023,,,4.AR
+17453,,C1081,Elias Roman,,260.0,0.0,01/31/2024,01/31/2024,Paid,,,,4.AR
+25080,,C1460,Nilber Remon,,750.0,0.0,01/24/2024,02/01/2024,Reversed,,,,4.AR
+25999,,C1460,Nilber Remon,,-750.0,0.0,01/24/2024,01/24/2024,Reversal,Bill.com Duplicate,,,4.AR
+25017,,C1484,Ameni Alsaydi,,1100.0,0.0,01/24/2024,12/15/2025,Reversed,,,,4.AR
+25718,,C1484,Ameni Alsaydi,,-1100.0,0.0,01/24/2024,01/24/2024,Reversal,Bill.com Duplicate,,,4.AR
+16922,,C1866,Charities Aid Foundation America,,5194.77,0.0,01/12/2024,01/15/2024,Paid,,,,4.AR
+16576,,C1268,Robin Hood Foundation,,20000.0,0.0,01/03/2024,03/31/2023,Paid,"Search for a GM, Employer Services and has hired Daversa to lead the search",,,4.AR
+17716,,C1765,Uniswap Foundation,,50000.0,0.0,01/01/2024,01/31/2024,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+16670,,C1060,Craig Katerberg,,960.2,0.0,12/31/2023,01/15/2024,Paid,,,,4.AR
+17430,122023,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,65490.0,0.0,12/31/2023,10/15/2023,Paid,Shared Services December 2023,,,4.AR
+19872,,C1702,Moody’s Corporation,,-24000.0,0.0,12/31/2023,12/31/2023,Reversal,Duplicate,PBC,PursuitTransformationBenefitCorporation,4.AR
+16955,,C1619,Mathis-Pfohl Foundation,,5000.0,0.0,12/31/2023,01/15/2024,Paid,FY22 Contribution,,,4.AR
+16953,,C1121,Henri Benaim,,600.0,0.0,12/31/2023,01/15/2024,Paid,,,,4.AR
+16672,,C1778,Emily Dann,,1920.7,0.0,12/31/2023,01/15/2024,Paid,,,,4.AR
+16668,,C1352,Jennifer Hensley,,14212.5,0.0,12/31/2023,01/15/2024,Paid,,,,4.AR
+16677,,C1081,Elias Roman,,5400.0,0.0,12/31/2023,01/15/2024,Paid,,,,4.AR
+16666,,C1608,Zohar Yardeni,,15000.0,0.0,12/30/2023,01/15/2024,Paid,,,,4.AR
+17717,,C1880,Ballistic Ventures Alpha LLC,,75000.0,0.0,12/30/2023,03/15/2024,Paid,Pursuit Commit & Cybersecurity program,PBC,PursuitTransformationBenefitCorporation,4.AR
+25081,,C1460,Nilber Remon,,750.0,0.0,12/21/2023,01/01/2024,Reversed,,,,4.AR
+25693,36/36,C1404,Nadav Green,,-1313.0,0.0,12/21/2023,12/21/2023,Reversal,Bill.com Duplicate,,,4.AR
+16689,,C1184,"L and L Foundation, Inc.",,30000.0,0.0,12/21/2023,01/31/2024,Paid,,,,4.AR
+25998,,C1460,Nilber Remon,,-750.0,0.0,12/21/2023,12/21/2023,Reversal,Bill.com Duplicate,,,4.AR
+16920,,C1328,Venu and Melissa Angara,,1900.0,0.0,12/21/2023,01/15/2024,Paid,,,,4.AR
+24893,36/36,C1404,Nadav Green,,1313.0,0.0,12/21/2023,09/15/2025,Reversed,,,,4.AR
+16556,,C1228,Neeraj Bewtra and Barbara Deli,,9500.0,0.0,12/20/2023,01/01/2024,Paid,,,,4.AR
+16436,,C1717,Ribbon Home Inc.,,-64000.0,0.0,12/11/2023,12/11/2023,Reversal,Uncollectible,PBC,PursuitTransformationBenefitCorporation,4.AR
+16432,,C1325,"Uber USA, LLC",,25000.0,0.0,12/08/2023,12/31/2023,Paid,,,,4.AR
+16554,,C1846,Allstate Foundation,,5000.0,0.0,12/07/2023,01/01/2024,Paid,,,,4.AR
+16435,,C1659,Union Square Ventures,,-24000.0,0.0,12/05/2023,12/05/2023,Reversal,"Commit FY23 12 year two seats + 4 year one seats, each $8k",PBC,PursuitTransformationBenefitCorporation,4.AR
+16375,,C1659,Union Square Ventures,,24000.0,0.0,12/05/2023,12/20/2023,Reversed,"Commit FY23 12 year two seats + 4 year one seats, each $8k",PBC,PursuitTransformationBenefitCorporation,4.AR
+16686,,C1844,LSEG Foundation,,1512.75,0.0,12/01/2023,12/28/2023,Paid,,,,4.AR
+16439,,C1698,"Cedar Cares, Inc.",,-48000.0,0.0,12/01/2023,12/01/2023,Reversal,No Hires for 2023 and 2024,PBC,PursuitTransformationBenefitCorporation,4.AR
+17428,112023,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,60964.0,0.0,11/30/2023,10/15/2023,Paid,Shared Services November 2023,,,4.AR
+16924,,C1081,Elias Roman,,5000.0,0.0,11/29/2023,01/15/2024,Paid,,,,4.AR
+16444,,C1139,Jason Miller,,10000.0,0.0,11/29/2023,11/30/2023,Paid,,,,4.AR
+16683,,C1028,Blackstone Charitable Foundation,,-250000.0,0.0,11/27/2023,11/27/2023,Reversal,Wrong Donor,,,4.AR
+16684,,C1027,"BlackRock, Inc.",,250000.0,0.0,11/27/2023,01/01/2024,Paid,,,,4.AR
+16551,,C1028,Blackstone Charitable Foundation,,250000.0,0.0,11/27/2023,12/31/2023,Reversed,,,,4.AR
+24891,35/36,C1404,Nadav Green,,1313.0,0.0,11/23/2023,09/15/2025,Reversed,,,,4.AR
+25692,35/36,C1404,Nadav Green,,-1313.0,0.0,11/23/2023,11/23/2023,Reversal,Bill.com Duplicate,,,4.AR
+25083,,C1460,Nilber Remon,,750.0,0.0,11/23/2023,12/01/2023,Reversed,,,,4.AR
+25997,,C1460,Nilber Remon,,-750.0,0.0,11/23/2023,11/23/2023,Reversal,Bill.com Duplicate,,,4.AR
+17307,,C1842,The BlackRock Foundation,,-250000.0,0.0,11/21/2023,11/21/2023,Reversal,Duplicate,,,4.AR
+16107,,C1842,The BlackRock Foundation,,250000.0,0.0,11/21/2023,12/31/2023,Reversed,,,,4.AR
+16108,,C1766,Mizuho USA Foundation,,30000.0,0.0,11/20/2023,12/31/2023,Paid,,,,4.AR
+18473,,C1702,Moody’s Corporation,,24000.0,0.0,11/15/2023,05/31/2024,Reversed,,PBC,PursuitTransformationBenefitCorporation,4.AR
+15778,,C1839,The Allstate Foundation,,5000.0,0.0,11/09/2023,12/31/2023,Reversed,,,,4.AR
+17444,,C1839,The Allstate Foundation,,-5000.0,0.0,11/09/2023,11/09/2023,Reversal,Duplicate,,,4.AR
+18872,,C1247,PDT Partners,,-100000.0,0.0,11/08/2023,11/08/2023,Reversal,,,,4.AR
+18870,,C1247,PDT Partners,,100000.0,0.0,11/08/2023,12/31/2023,Reversed,,,,4.AR
+17426,102023,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,79436.0,24791.0,10/31/2023,10/15/2023,Partially Paid,Shared Services October 2023,,,4.AR
+15696,,C1494,BNY Mellon,,-50000.0,0.0,10/25/2023,10/25/2023,Reversal,,,,4.AR
+16311,,C1385,Zachary Smith,,5000.0,0.0,10/25/2023,10/31/2023,Paid,,,,4.AR
+15689,,C1494,BNY Mellon,,50000.0,0.0,10/25/2023,10/31/2023,Reversed,,,,4.AR
+15700,,C1837,MetLife Foundation,,250000.0,0.0,10/25/2023,11/30/2023,Paid,,,,4.AR
+25082,,C1460,Nilber Remon,,750.0,0.0,10/23/2023,11/01/2023,Reversed,,,,4.AR
+25691,34/36,C1404,Nadav Green,,-1313.0,0.0,10/23/2023,10/23/2023,Reversal,Bill.com Duplicate,,,4.AR
+25996,,C1460,Nilber Remon,,-750.0,0.0,10/23/2023,10/23/2023,Reversal,Bill.com Duplicate,,,4.AR
+24887,34/36,C1404,Nadav Green,,1313.0,0.0,10/23/2023,08/15/2025,Reversed,,,,4.AR
+15228,,C1247,PDT Partners,,100000.0,0.0,10/17/2023,10/31/2023,Paid,,,,4.AR
+17255,,C1515,VTS,,10000.0,0.0,10/17/2023,02/11/2024,Paid,Pursuit - Volunteering,,,4.AR
+15226,,C1338,WesternUnion Foundation,,125000.0,0.0,10/17/2023,12/31/2023,Paid,"October 1, 2023 - September 30, 2024",,,4.AR
+17446,,C1836,ICGAM,,-2500.0,0.0,10/16/2023,10/16/2023,Reversal,ACH Duplicate (see citizen contribution),,,4.AR
+15230,,C1836,ICGAM,,2500.0,0.0,10/13/2023,10/31/2023,Reversed,,,,4.AR
+16236,,C1844,LSEG Foundation,,23434.0,0.0,10/13/2023,12/28/2023,Paid,,,,4.AR
+17843,,C1881,Dragon Den's,,2961.25,0.0,10/13/2023,12/30/2023,Paid,,,,4.AR
+15659,092023,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,55064.0,0.0,09/30/2023,10/15/2023,Paid,Shared Services September 2023,,,4.AR
+24888,33/36,C1404,Nadav Green,,1313.0,0.0,09/22/2023,08/15/2025,Reversed,,,,4.AR
+25085,,C1460,Nilber Remon,,750.0,0.0,09/22/2023,10/01/2023,Reversed,,,,4.AR
+25690,33/36,C1404,Nadav Green,,-1313.0,0.0,09/22/2023,09/22/2023,Reversal,Bill.com Duplicate,,,4.AR
+15008,,C1764,Edward & Ellen Roche Relief Foundation,,20000.0,0.0,09/22/2023,11/30/2023,Paid,Job Placement Training for Low-Income Women into High-Paying Software Engineering Roles.,,,4.AR
+25995,,C1460,Nilber Remon,,-750.0,0.0,09/22/2023,09/22/2023,Reversal,Bill.com Duplicate,,,4.AR
+14322,,C1709,Citizens Philanthropic Foundation,,2500.0,0.0,09/13/2023,10/31/2023,Paid,,,,4.AR
+18472,,C1756,Poll Everywhere,,16000.0,0.0,09/09/2023,05/31/2024,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+14133,,C1826,Robot Family Foundation,,2000.0,0.0,09/06/2023,09/17/2023,Paid,,,,4.AR
+14104,,C1454,Morgan Stanley,,40000.0,0.0,09/01/2023,12/31/2023,Paid,,,,4.AR
+21803,082023,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,54294.0,0.0,08/31/2023,09/15/2023,Paid,Shared Services August 2023,,,4.AR
+14105,,C1385,Zachary Smith,,5000.0,0.0,08/25/2023,09/30/2023,Paid,,,,4.AR
+25689,32/36,C1404,Nadav Green,,-1313.0,0.0,08/22/2023,08/22/2023,Reversal,Bill.com Duplicate,,,4.AR
+25994,,C1460,Nilber Remon,,-750.0,0.0,08/22/2023,08/22/2023,Reversal,Bill.com Duplicate,,,4.AR
+25020,,C1484,Ameni Alsaydi,,1100.0,0.0,08/22/2023,10/15/2025,Reversed,,,,4.AR
+26172,,C1406,Javon Fowler,,-970.39,0.0,08/22/2023,08/22/2023,Reversal,Bill.com Duplicate,,,4.AR
+24890,32/36,C1404,Nadav Green,,1313.0,0.0,08/22/2023,08/15/2025,Reversed,,,,4.AR
+25086,,C1460,Nilber Remon,,750.0,0.0,08/22/2023,09/01/2023,Reversed,,,,4.AR
+25717,,C1484,Ameni Alsaydi,,-1100.0,0.0,08/22/2023,08/22/2023,Reversal,Bill.com Duplicate,,,4.AR
+14108,,C1827,The Chicago Community Foundation,,5000000.0,0.0,08/22/2023,09/15/2023,Paid,,,,4.AR
+24912,,C1406,Javon Fowler,,970.39,0.0,08/22/2023,12/15/2025,Reversed,,,,4.AR
+14115,,C1781,"Blackstone, Inc.",,98000.0,0.0,08/18/2023,12/31/2023,Paid,PO#85306,PBC,PursuitTransformationBenefitCorporation,4.AR
+13889,,C1563,Con Edison,,50000.0,0.0,08/12/2023,09/30/2023,Paid,,,,4.AR
+14182,072023,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,52938.0,0.0,07/31/2023,08/15/2023,Paid,Shared Services July 2023,,,4.AR
+14070,,C1365,"Etsy, Inc.",,10000.0,0.0,07/31/2023,08/09/2023,Paid,,,,4.AR
+13667,,C1709,Citizens Philanthropic Foundation,,100000.0,0.0,07/25/2023,08/31/2023,Paid,,,,4.AR
+24911,,C1406,Javon Fowler,,970.39,0.0,07/24/2023,12/15/2025,Reversed,,,,4.AR
+25084,,C1460,Nilber Remon,,750.0,0.0,07/24/2023,08/01/2023,Reversed,,,,4.AR
+26171,,C1406,Javon Fowler,,-970.39,0.0,07/24/2023,07/24/2023,Reversal,Bill.com Duplicate,,,4.AR
+25021,,C1484,Ameni Alsaydi,,1100.0,0.0,07/24/2023,08/15/2025,Reversed,,,,4.AR
+25993,,C1460,Nilber Remon,,-750.0,0.0,07/24/2023,07/24/2023,Reversal,Bill.com Duplicate,,,4.AR
+24886,31/36,C1404,Nadav Green,,1313.0,0.0,07/24/2023,07/15/2025,Reversed,,,,4.AR
+25716,,C1484,Ameni Alsaydi,,-1100.0,0.0,07/24/2023,07/24/2023,Reversal,Bill.com Duplicate,,,4.AR
+25688,31/36,C1404,Nadav Green,,-1313.0,0.0,07/24/2023,07/24/2023,Reversal,Bill.com Duplicate,,,4.AR
+13293,,C1230,New York City Department  of Youth Community and Development,,504203.0,0.0,07/08/2023,12/31/2023,Paid,"DYCD FY23, 260 Discretionary Contract 932039U",,,4.AR
+15658,062023,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,43609.0,0.0,06/30/2023,07/15/2023,Paid,Shared Services June 2023,,,4.AR
+13301,,C1822,Alex Atallah,,100000.0,0.0,06/30/2023,12/31/2023,Paid,,,,4.AR
+24903,,C1370,Leandro Wauters,,1000.0,0.0,06/21/2023,02/15/2026,Reversed,,,,4.AR
+24913,,C1406,Javon Fowler,,970.39,0.0,06/21/2023,12/15/2025,Reversed,,,,4.AR
+25992,,C1460,Nilber Remon,,-750.0,0.0,06/21/2023,06/21/2023,Reversal,Bill.com Duplicate,,,4.AR
+13294,,C1821,Macquarie Foundation,,750000.0,250000.0,06/21/2023,09/30/2025,Partially Paid,,,,4.AR
+25087,,C1460,Nilber Remon,,750.0,0.0,06/21/2023,07/01/2023,Reversed,,,,4.AR
+24892,30/36,C1404,Nadav Green,,1313.0,0.0,06/21/2023,07/15/2025,Reversed,,,,4.AR
+25687,30/36,C1404,Nadav Green,,-1313.0,0.0,06/21/2023,06/21/2023,Reversal,Bill.com Duplicate,,,4.AR
+25701,,C1370,Leandro Wauters,,-1000.0,0.0,06/21/2023,06/21/2023,Reversal,Bill.com Duplicate,,,4.AR
+26170,,C1406,Javon Fowler,,-970.39,0.0,06/21/2023,06/21/2023,Reversal,Bill.com Duplicate,,,4.AR
+13222,,C1455,Capital One,,75000.0,0.0,06/16/2023,06/30/2023,Paid,,,,4.AR
+13275,,C1492,Thomas and Jeanne Elmezzi Foundation,,100000.0,0.0,06/15/2023,07/31/2023,Paid,,,,4.AR
+21813,,C1106,Google LLC,,8900.0,0.0,05/31/2023,07/01/2023,Paid,Google match for Elias Roman,,,4.AR
+13341,052023,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,39127.0,0.0,05/31/2023,06/15/2023,Paid,Shared Services May 2023,,,4.AR
+13291,Bridge to Technology with Pursuit,C1459,"Goodwill Industries of Greater New York and Northern New Jersey, Inc",,25000.0,25000.0,05/25/2023,06/30/2023,Posted,Bridge to Technology with Pursuit,,,4.AR
+12589,,C1106,Google LLC,,5000.0,0.0,05/24/2023,06/15/2023,Paid,Google match for Elias Roman,,,4.AR
+25088,,C1460,Nilber Remon,,750.0,0.0,05/21/2023,06/01/2023,Reversed,,,,4.AR
+25686,29/36,C1404,Nadav Green,,-1313.0,0.0,05/21/2023,05/21/2023,Reversal,Bill.com Duplicate,,,4.AR
+26169,,C1406,Javon Fowler,,-970.39,0.0,05/21/2023,05/21/2023,Reversal,Bill.com Duplicate,,,4.AR
+25991,,C1460,Nilber Remon,,-750.0,0.0,05/21/2023,05/21/2023,Reversal,Bill.com Duplicate,,,4.AR
+24916,,C1406,Javon Fowler,,970.39,0.0,05/21/2023,12/15/2025,Reversed,,,,4.AR
+25700,,C1370,Leandro Wauters,,-1000.0,0.0,05/21/2023,05/21/2023,Reversal,Bill.com Duplicate,,,4.AR
+24889,29/36,C1404,Nadav Green,,1313.0,0.0,05/21/2023,07/15/2025,Reversed,,,,4.AR
+24905,,C1370,Leandro Wauters,,1000.0,0.0,05/21/2023,02/15/2026,Reversed,,,,4.AR
+13295,,C1268,Robin Hood Foundation,,280000.0,0.0,05/08/2023,06/30/2024,Paid,"FY23 Renewal April 1, 2023 - March 31, 2024",,,4.AR
+12440,,C1808,The CD&R Foundation Team,,25000.0,0.0,05/03/2023,06/30/2023,Paid,,,,4.AR
+12471,,C1139,Jason Miller,,20000.0,0.0,05/01/2023,05/31/2023,Paid,,,,4.AR
+13340,042023,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,34887.0,0.0,04/30/2023,05/15/2023,Paid,Shared Services April 2023,,,4.AR
+24901,28/36,C1404,Nadav Green,,1313.0,0.0,04/20/2023,06/15/2025,Reversed,,,,4.AR
+25990,,C1460,Nilber Remon,,-750.0,0.0,04/20/2023,04/20/2023,Reversal,Bill.com Duplicate,,,4.AR
+25089,,C1460,Nilber Remon,,750.0,0.0,04/20/2023,05/01/2023,Reversed,,,,4.AR
+24904,,C1370,Leandro Wauters,,1000.0,0.0,04/20/2023,02/15/2026,Reversed,,,,4.AR
+26168,,C1406,Javon Fowler,,-970.39,0.0,04/20/2023,04/20/2023,Reversal,Bill.com Duplicate,,,4.AR
+24923,,C1406,Javon Fowler,,970.39,0.0,04/20/2023,12/15/2025,Reversed,,,,4.AR
+25685,28/36,C1404,Nadav Green,,-1313.0,0.0,04/20/2023,04/20/2023,Reversal,Bill.com Duplicate,,,4.AR
+25699,,C1370,Leandro Wauters,,-1000.0,0.0,04/20/2023,04/20/2023,Reversal,Bill.com Duplicate,,,4.AR
+12136,,C1803,"Spring Care, Inc.",,16000.0,0.0,04/17/2023,05/17/2023,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+12133,,C1699,Citi Ventures Inc.,,80000.0,0.0,04/14/2023,04/30/2023,Paid,,,,4.AR
+12137,,C1028,Blackstone Charitable Foundation,,125000.0,0.0,04/13/2023,05/15/2023,Paid,,,,4.AR
+12310,,C1081,Elias Roman,,5000.0,0.0,04/12/2023,04/30/2023,Paid,,,,4.AR
+13874,,C1696,Anna Maria and Stephen Kellen Foundation,,50000.0,0.0,04/04/2023,05/31/2023,Paid,GOS,,,4.AR
+12430,,C1073,Deutsche Bank AG New York Br.,,50000.0,0.0,04/01/2023,04/30/2023,Paid,,,,4.AR
+12273,032023,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,28822.0,0.0,03/31/2023,04/30/2023,Paid,Shared Services March 2023,,,4.AR
+11999,,C1292,Siegel Family Endowment,,1000000.0,0.0,03/28/2023,03/31/2024,Paid,,,,4.AR
+24898,27/36,C1404,Nadav Green,,1313.0,0.0,03/21/2023,06/15/2025,Reversed,,,,4.AR
+25684,27/36,C1404,Nadav Green,,-1313.0,0.0,03/21/2023,03/21/2023,Reversal,Bill.com Duplicate,,,4.AR
+25091,,C1460,Nilber Remon,,750.0,0.0,03/21/2023,04/01/2023,Reversed,,,,4.AR
+24914,,C1406,Javon Fowler,,970.39,0.0,03/21/2023,12/15/2025,Reversed,,,,4.AR
+25989,,C1460,Nilber Remon,,-750.0,0.0,03/21/2023,03/21/2023,Reversal,Bill.com Duplicate,,,4.AR
+26167,,C1406,Javon Fowler,,-970.39,0.0,03/21/2023,03/21/2023,Reversal,Bill.com Duplicate,,,4.AR
+12269,,C1325,"Uber USA, LLC",,240000.0,0.0,03/20/2023,07/31/2023,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+12272,022023,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,29967.0,0.0,02/28/2023,03/31/2023,Paid,Shared Services February 2023,,,4.AR
+24896,26/36,C1404,Nadav Green,,1313.0,0.0,02/20/2023,06/15/2025,Reversed,,,,4.AR
+24907,,C1370,Leandro Wauters,,1000.0,0.0,02/20/2023,02/15/2026,Reversed,,,,4.AR
+25698,,C1370,Leandro Wauters,,-1000.0,0.0,02/20/2023,02/20/2023,Reversal,Bill.com Duplicate,,,4.AR
+25988,,C1460,Nilber Remon,,-750.0,0.0,02/20/2023,02/20/2023,Reversal,Bill.com Duplicate,,,4.AR
+26166,,C1406,Javon Fowler,,-970.39,0.0,02/20/2023,02/20/2023,Reversal,Bill.com Duplicate,,,4.AR
+25090,,C1460,Nilber Remon,,750.0,0.0,02/20/2023,03/01/2023,Reversed,,,,4.AR
+24926,,C1406,Javon Fowler,,970.39,0.0,02/20/2023,12/15/2025,Reversed,,,,4.AR
+25683,26/36,C1404,Nadav Green,,-1313.0,0.0,02/20/2023,02/20/2023,Reversal,Bill.com Duplicate,,,4.AR
+11023,,C1792,Change Happens Foundation,,10000.0,0.0,02/16/2023,06/30/2023,Paid,,,,4.AR
+12270,,C1702,Moody’s Corporation,,48000.0,0.0,02/07/2023,05/11/2024,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+18390,,C1702,Moody’s Corporation,,24000.0,0.0,02/07/2023,05/11/2024,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+12271,012023,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,29767.0,0.0,01/31/2023,02/28/2023,Paid,Shared Services January 2023,,,4.AR
+19984,,C1563,Con Edison,,4500.0,0.0,01/27/2023,02/28/2023,Paid,"(From a stale 2022 check, never cashed)",,,4.AR
+10948,,C1563,Con Edison,,4500.0,0.0,01/27/2023,02/28/2023,Paid,,,,4.AR
+25092,,C1460,Nilber Remon,,750.0,0.0,01/20/2023,02/01/2023,Reversed,,,,4.AR
+26165,,C1406,Javon Fowler,,-970.39,0.0,01/20/2023,01/20/2023,Reversal,Bill.com Duplicate,,,4.AR
+24910,,C1370,Leandro Wauters,,1000.0,0.0,01/20/2023,02/15/2026,Reversed,,,,4.AR
+25682,25/36,C1404,Nadav Green,,-1313.0,0.0,01/20/2023,01/20/2023,Reversal,Bill.com Duplicate,,,4.AR
+24915,,C1406,Javon Fowler,,970.39,0.0,01/20/2023,12/15/2025,Reversed,,,,4.AR
+24902,25/36,C1404,Nadav Green,,1313.0,0.0,01/20/2023,05/15/2025,Reversed,,,,4.AR
+25987,,C1460,Nilber Remon,,-750.0,0.0,01/20/2023,01/20/2023,Reversal,Bill.com Duplicate,,,4.AR
+25697,,C1370,Leandro Wauters,,-1000.0,0.0,01/20/2023,01/20/2023,Reversal,Bill.com Duplicate,,,4.AR
+17715,,C1765,Uniswap Foundation,,-50000.0,0.0,01/02/2023,01/02/2023,Reversal,Wrong date,PBC,PursuitTransformationBenefitCorporation,4.AR
+17712,,C1765,Uniswap Foundation,,50000.0,0.0,01/02/2023,01/31/2024,Reversed,,PBC,PursuitTransformationBenefitCorporation,4.AR
+18490,,C1391,Equinix Metal,,-30000.0,0.0,01/01/2023,01/01/2023,Reversal,Write off,,,4.AR
+18492,,C1585,Jessie Cai,,-5000.0,0.0,01/01/2023,01/01/2023,Reversal,Write off,,,4.AR
+18493,,C1534,Patrick Carroll,,-300.0,0.0,01/01/2023,01/01/2023,Reversal,Write off,,,4.AR
+18491,,C1666,One Ten,,-50000.0,0.0,01/01/2023,01/01/2023,Reversal,Write off,,,4.AR
+10903,,C1206,Mary Edlow,,5000.0,5000.0,12/31/2022,01/31/2023,Posted,,,,4.AR
+10909,,C1663,Kathleen Knight,,5000.0,0.0,12/31/2022,01/31/2023,Paid,,,,4.AR
+10785,,C1359,Akila Raman,,10000.0,0.0,12/31/2022,01/31/2023,Paid,,,,4.AR
+10715,,C1379,Sam Charney,,5000.0,0.0,12/31/2022,01/31/2023,Paid,,,,4.AR
+10931,122022,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,31467.0,0.0,12/31/2022,02/28/2023,Paid,Shared Services December 2022,,,4.AR
+10904,,C1121,Henri Benaim,,600.0,0.0,12/31/2022,01/31/2023,Paid,,,,4.AR
+11276,,C1794,Sarah Walker,,10000.0,0.0,12/31/2022,04/30/2023,Paid,,,,4.AR
+10533,,C1422,Michael Borofsky,,20000.0,0.0,12/31/2022,02/28/2023,Paid,,,,4.AR
+10509,,C1353,Soo Kim,,10000.0,0.0,12/31/2022,02/28/2023,Paid,,,,4.AR
+10882,,C1781,"Blackstone, Inc.",,48000.0,0.0,12/31/2022,01/31/2024,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+10534,,C1354,Daniel Teran,,25000.0,25000.0,12/31/2022,02/28/2023,Posted,,,,4.AR
+10510,,C1351,Adam Belanich,,10000.0,10000.0,12/31/2022,02/28/2023,Posted,,,,4.AR
+10508,,C1008,Alan Jones,,10000.0,0.0,12/31/2022,02/28/2023,Paid,,,,4.AR
+10517,,C1622,Thomas Covo,,1000.0,0.0,12/29/2022,01/31/2023,Paid,,,,4.AR
+10528,,C1387,Joseph Robert Kerrey and Sarah Paley,,10000.0,0.0,12/26/2022,01/31/2023,Paid,,,,4.AR
+11022,,C1081,Elias Roman,,10000.0,0.0,12/23/2022,03/31/2023,Paid,,,,4.AR
+10505,,C1328,Venu and Melissa Angara,,1900.0,0.0,12/21/2022,12/31/2022,Paid,,,,4.AR
+24894,24/36,C1404,Nadav Green,,1313.0,0.0,12/20/2022,05/15/2025,Reversed,,,,4.AR
+25681,24/36,C1404,Nadav Green,,-1313.0,0.0,12/20/2022,12/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+24917,,C1406,Javon Fowler,,1038.97,0.0,12/20/2022,12/15/2025,Reversed,,,,4.AR
+26164,,C1406,Javon Fowler,,-1038.97,0.0,12/20/2022,12/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+25986,,C1460,Nilber Remon,,-750.0,0.0,12/20/2022,12/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+25097,,C1460,Nilber Remon,,750.0,0.0,12/20/2022,01/01/2023,Reversed,,,,4.AR
+10524,,C1021,Arbor Brothers Inc.,,10000.0,0.0,12/19/2022,01/31/2023,Paid,,,,4.AR
+10519,,C1184,"L and L Foundation, Inc.",,30000.0,0.0,12/19/2022,01/31/2023,Paid,,,,4.AR
+10165,,C1563,Con Edison,,45000.0,0.0,12/16/2022,01/31/2023,Paid,,,,4.AR
+10521,,C1619,Mathis-Pfohl Foundation,,5000.0,0.0,12/15/2022,01/31/2023,Paid,FY22 Contribution,,,4.AR
+10526,,C1385,Zachary Smith,,30000.0,0.0,12/09/2022,01/31/2023,Paid,Zach Smith FY22,,,4.AR
+10161,,C1775,John Pham,,25.0,0.0,12/09/2022,12/31/2022,Reversed,,,,4.AR
+10114,,C1106,Google LLC,,100000.0,0.0,12/08/2022,01/31/2023,Paid,,,,4.AR
+10065,,C1770,Arcadia Charitable Trust,,150000.0,50000.0,12/07/2022,12/31/2024,Partially Paid,,,,4.AR
+10066,,C1352,Jennifer Hensley,,9500.0,0.0,12/03/2022,12/31/2022,Paid,,,,4.AR
+10160,,C1608,Zohar Yardeni,,9865.3,0.0,12/03/2022,12/31/2022,Paid,,,,4.AR
+10932,112022,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,34060.0,0.0,11/30/2022,02/28/2023,Paid,Shared Services November 2022,,,4.AR
+10062,Neeraj Bewtra and Barbara Deli - GOS,C1228,Neeraj Bewtra and Barbara Deli,,9500.0,0.0,11/30/2022,12/31/2022,Paid,Neeraj Bewtra and Barbara Deli - GOS,,,4.AR
+10103,,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,50000.0,0.0,11/30/2022,12/31/2022,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+10022,,C1757,Peloton,,20000.0,0.0,11/30/2022,12/16/2022,Paid,,,,4.AR
+25715,,C1484,Ameni Alsaydi,,-200.0,0.0,11/21/2022,11/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+24922,,C1406,Javon Fowler,,1038.97,0.0,11/21/2022,12/15/2025,Reversed,,,,4.AR
+25680,23/36,C1404,Nadav Green,,-1313.0,0.0,11/21/2022,11/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+24909,,C1370,Leandro Wauters,,1000.0,0.0,11/21/2022,02/15/2026,Reversed,,,,4.AR
+25093,,C1460,Nilber Remon,,750.0,0.0,11/21/2022,12/01/2022,Reversed,,,,4.AR
+25113,,C1484,Ameni Alsaydi,,200.0,0.0,11/21/2022,04/15/2025,Reversed,,,,4.AR
+10063,,C1081,Elias Roman,,1135.0,0.0,11/21/2022,12/31/2022,Paid,,,,4.AR
+26163,,C1406,Javon Fowler,,-1038.97,0.0,11/21/2022,11/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+24900,23/36,C1404,Nadav Green,,1313.0,0.0,11/21/2022,05/15/2025,Reversed,,,,4.AR
+25696,,C1370,Leandro Wauters,,-1000.0,0.0,11/21/2022,11/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+25714,,C1484,Ameni Alsaydi,,-900.0,0.0,11/21/2022,11/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+25019,,C1484,Ameni Alsaydi,,900.0,0.0,11/21/2022,05/15/2025,Reversed,,,,4.AR
+25985,,C1460,Nilber Remon,,-750.0,0.0,11/21/2022,11/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+9830,,C1768,Breyer Family Foundation,,50000.0,0.0,11/21/2022,11/30/2022,Paid,,,,4.AR
+10119,,C1765,Uniswap Foundation,,50000.0,0.0,11/17/2022,12/31/2022,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+10930,102022,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,79436.0,0.0,10/31/2022,02/28/2023,Paid,Shared Services October 2022,,,4.AR
+9574,,C1247,PDT Partners,,100000.0,0.0,10/27/2022,12/31/2022,Paid,,,,4.AR
+9792,,C1766,Mizuho USA Foundation,,40000.0,0.0,10/25/2022,06/30/2023,Paid,,,,4.AR
+9795,,C1043,Carroll and Milton Petrie Foundation,,40000.0,0.0,10/25/2022,11/30/2022,Paid,,,,4.AR
+9493,,C1764,Edward & Ellen Roche Relief Foundation,,20000.0,0.0,10/21/2022,12/31/2022,Paid,,,,4.AR
+24920,,C1406,Javon Fowler,,1038.97,0.0,10/20/2022,12/15/2025,Reversed,,,,4.AR
+25679,22/36,C1404,Nadav Green,,-1313.0,0.0,10/20/2022,10/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+26162,,C1406,Javon Fowler,,-1038.97,0.0,10/20/2022,10/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+25984,,C1460,Nilber Remon,,-750.0,0.0,10/20/2022,10/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+25094,,C1460,Nilber Remon,,750.0,0.0,10/20/2022,11/01/2022,Reversed,,,,4.AR
+24897,22/36,C1404,Nadav Green,,1313.0,0.0,10/20/2022,04/15/2025,Reversed,,,,4.AR
+10084,,C1230,New York City Department  of Youth Community and Development,,25000.0,0.0,10/19/2022,02/28/2023,Paid,"DYCD FY22, 260 Discretionary Contract 931786T",,,4.AR
+9494,,C1578,Yaron & Lisa Minsky,,1000000.0,0.0,10/19/2022,11/15/2024,Paid,,,,4.AR
+9495,,C1765,Uniswap Foundation,,250000.0,0.0,10/17/2022,12/31/2023,Reversed,,PBC,PursuitTransformationBenefitCorporation,4.AR
+10118,,C1765,Uniswap Foundation,,-250000.0,0.0,10/17/2022,10/17/2022,Reversal,,PBC,PursuitTransformationBenefitCorporation,4.AR
+9077,,C1760,Bank of America Charitable Foundation,,200000.0,0.0,10/05/2022,10/31/2023,Paid,,,,4.AR
+9059,,C1454,Morgan Stanley,,50000.0,0.0,10/04/2022,11/30/2022,Paid,,,,4.AR
+12126,Bridge to Technology with Pursuit,C1459,"Goodwill Industries of Greater New York and Northern New Jersey, Inc",,25000.0,0.0,10/03/2022,01/31/2022,Paid,Bridge to Technology with Pursuit,,,4.AR
+10484,,C1515,VTS,,-15000.0,0.0,10/01/2022,10/01/2022,Reversal,Pursuit - Volunteering wrong year,,,4.AR
+10485,,C1515,VTS,,15000.0,0.0,10/01/2022,08/31/2021,Paid,Pursuit - Volunteering,,,4.AR
+9446,082022,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,78319.0,0.0,09/30/2022,10/15/2022,Paid,Shared Services August 2022,,,4.AR
+9492,,C1763,"Meta Platforms, Inc.",,30000.0,0.0,09/28/2022,10/31/2022,Paid,,,,4.AR
+25983,,C1460,Nilber Remon,,-750.0,0.0,09/21/2022,09/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+24924,,C1406,Javon Fowler,,1038.97,0.0,09/21/2022,12/15/2025,Reversed,,,,4.AR
+25096,,C1460,Nilber Remon,,750.0,0.0,09/21/2022,10/01/2022,Reversed,,,,4.AR
+24908,,C1370,Leandro Wauters,,1000.0,0.0,09/21/2022,02/15/2026,Reversed,,,,4.AR
+25678,21/36,C1404,Nadav Green,,-1313.0,0.0,09/21/2022,09/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+24899,21/36,C1404,Nadav Green,,1313.0,0.0,09/21/2022,04/15/2025,Reversed,,,,4.AR
+25695,,C1370,Leandro Wauters,,-1000.0,0.0,09/21/2022,09/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+26161,,C1406,Javon Fowler,,-1038.97,0.0,09/21/2022,09/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+8980,,C1753,Standard Insustries,,10000.0,0.0,09/21/2022,10/31/2022,Paid,,,,4.AR
+7124,36/36,C1103,Gerardo Jimenez,,650.0,0.0,09/20/2022,10/01/2022,Paid,Septemebr 2022,,,4.AR
+8854,,C1230,New York City Department  of Youth Community and Development,,454203.0,0.0,09/12/2022,12/31/2022,Paid,"DYCD FY22, 260 Discretionary Contract 931466T",,,4.AR
+8844,082022,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,76043.0,0.0,08/31/2022,09/15/2022,Paid,Shared Services August 2022,,,4.AR
+8999,,C1757,Peloton,,240000.0,0.0,08/31/2022,10/15/2024,Paid,Peloton Commmitment,PBC,PursuitTransformationBenefitCorporation,4.AR
+8991,,C1756,Poll Everywhere,,72000.0,0.0,08/31/2022,10/15/2024,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+24906,,C1370,Leandro Wauters,,1000.0,0.0,08/21/2022,02/15/2026,Reversed,,,,4.AR
+24921,,C1406,Javon Fowler,,1038.97,0.0,08/21/2022,12/15/2025,Reversed,,,,4.AR
+24895,20/36,C1404,Nadav Green,,656.5,0.0,08/21/2022,04/15/2025,Reversed,,,,4.AR
+25677,20/36,C1404,Nadav Green,,-656.5,0.0,08/21/2022,08/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+25095,,C1460,Nilber Remon,,750.0,0.0,08/21/2022,09/01/2022,Reversed,,,,4.AR
+26160,,C1406,Javon Fowler,,-1038.97,0.0,08/21/2022,08/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+25982,,C1460,Nilber Remon,,-750.0,0.0,08/21/2022,08/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+25694,,C1370,Leandro Wauters,,-1000.0,0.0,08/21/2022,08/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+7123,35/36,C1103,Gerardo Jimenez,,650.0,0.0,08/20/2022,09/01/2022,Paid,Septemebr 2022,,,4.AR
+8150,,C1725,Stand Together Foundation,,25000.0,0.0,08/17/2022,08/31/2022,Paid,,,,4.AR
+8148,,C1483,Amazon.com Services LLC,,100000.0,0.0,08/11/2022,10/31/2022,Paid,,,,4.AR
+8985,,C1659,Union Square Ventures,,424000.0,0.0,08/10/2022,09/30/2024,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+8149,,C1114,"Guggenheim Partners, LLC",,15000.0,0.0,08/08/2022,09/15/2022,Paid,,,,4.AR
+8989,,C1754,"SeatGeek, Inc.",,48000.0,0.0,08/01/2022,08/31/2023,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+8807,072022,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,71143.0,0.0,07/31/2022,08/15/2022,Paid,Shared Services July 2022,,,4.AR
+8121,,C1481,The Knot Worldwide,,10000.0,0.0,07/27/2022,08/30/2022,Paid,,,,4.AR
+8492,25-26/48,C1500,Imran Nazir,,475.0,375.0,07/20/2022,08/01/2022,Partially Paid,June 2025,,,4.AR
+24919,,C1406,Javon Fowler,,1038.97,0.0,07/20/2022,12/15/2025,Reversed,,,,4.AR
+26159,,C1406,Javon Fowler,,-1038.97,0.0,07/20/2022,07/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+7122,34/36,C1103,Gerardo Jimenez,,650.0,0.0,07/20/2022,08/01/2022,Paid,Septemebr 2022,,,4.AR
+25981,,C1460,Nilber Remon,,-750.0,0.0,07/20/2022,07/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+25102,,C1460,Nilber Remon,,750.0,0.0,07/20/2022,08/01/2022,Reversed,,,,4.AR
+7877,,C1714,Truist Foundation,,50000.0,0.0,07/19/2022,07/31/2022,Paid,,,,4.AR
+8114,,C1338,WesternUnion Foundation,,100000.0,0.0,07/12/2022,07/31/2022,Paid,,,,4.AR
+8975,,C1027,"BlackRock, Inc.",,250000.0,0.0,07/01/2022,09/30/2021,Paid,,,,4.AR
+8990,,C1755,Chord,,96000.0,0.0,07/01/2022,07/31/2024,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+8987,,C1481,The Knot Worldwide,,24000.0,0.0,07/01/2022,10/01/2024,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+8143,,C1242,NYC Small Business Services,,5000.0,0.0,07/01/2022,08/31/2022,Paid,,,,4.AR
+7642,062022,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,65276.0,0.0,06/30/2022,07/15/2022,Paid,Shared Services June 2022,,,4.AR
+7513,,C1230,New York City Department  of Youth Community and Development,,346373.0,0.0,06/29/2022,10/31/2022,Paid,"DYCD FY21, 260 Discretionary Contract79574",,,4.AR
+8843,,C1494,BNY Mellon,,50000.0,0.0,06/21/2022,09/30/2022,Paid,,,,4.AR
+25980,,C1460,Nilber Remon,,-750.0,0.0,06/20/2022,06/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+25101,,C1460,Nilber Remon,,750.0,0.0,06/20/2022,07/01/2022,Reversed,,,,4.AR
+8799,,C1139,Jason Miller,,40000.0,0.0,06/20/2022,07/31/2022,Paid,,,,4.AR
+24918,,C1406,Javon Fowler,,1038.97,0.0,06/20/2022,12/15/2025,Reversed,,,,4.AR
+26158,,C1406,Javon Fowler,,-1038.97,0.0,06/20/2022,06/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+7121,33/36,C1103,Gerardo Jimenez,,650.0,0.0,06/20/2022,07/01/2022,Paid,Septemebr 2022,,,4.AR
+7220,26-36/36,C1160,Jose Rodriguez,,12100.0,0.0,06/20/2022,07/01/2022,Paid,April 2023,,,4.AR
+6998,,C1492,Thomas and Jeanne Elmezzi Foundation,,100000.0,0.0,06/15/2022,07/31/2022,Paid,,,,4.AR
+6723,,C1709,Citizens Philanthropic Foundation,,250000.0,0.0,06/08/2022,12/31/2022,Paid,,,,4.AR
+6724,,C1028,Blackstone Charitable Foundation,,50000.0,0.0,06/06/2022,07/31/2022,Paid,,,,4.AR
+7641,052022,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,61606.0,0.0,05/31/2022,06/15/2022,Paid,Shared Services May 2022,,,4.AR
+6719,,C1043,Carroll and Milton Petrie Foundation,,30000.0,0.0,05/26/2022,06/10/2022,Paid,Capacity building Grant,,,4.AR
+7896,,C1563,Con Edison,,5000.0,0.0,05/25/2022,07/01/2022,Paid,,,,4.AR
+7958,,C1455,Capital One,,100000.0,0.0,05/24/2022,06/30/2021,Paid,,,,4.AR
+6715,,C1325,"Uber USA, LLC",,240000.0,0.0,05/23/2022,05/27/2022,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+26157,,C1406,Javon Fowler,,-1038.97,0.0,05/20/2022,05/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+25103,,C1460,Nilber Remon,,750.0,0.0,05/20/2022,06/01/2022,Reversed,,,,4.AR
+25979,,C1460,Nilber Remon,,-750.0,0.0,05/20/2022,05/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+24925,,C1406,Javon Fowler,,1038.97,0.0,05/20/2022,12/15/2025,Reversed,,,,4.AR
+7219,25/36,C1160,Jose Rodriguez,,1100.0,0.0,05/20/2022,06/01/2022,Paid,April 2023,,,4.AR
+8988,,C1717,Ribbon Home Inc.,,64000.0,0.0,05/10/2022,06/30/2024,Reversed,,PBC,PursuitTransformationBenefitCorporation,4.AR
+8092,,C1717,Ribbon Home Inc.,,32000.0,0.0,05/10/2022,06/09/2022,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+7640,042022,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,60380.0,0.0,04/30/2022,05/15/2022,Paid,Shared Services April 2022,,,4.AR
+6678,,C1718,National Philanthropic Trust,,1000000.0,0.0,04/26/2022,05/31/2023,Paid,,,,4.AR
+25100,,C1460,Nilber Remon,,750.0,0.0,04/20/2022,05/01/2022,Reversed,,,,4.AR
+25978,,C1460,Nilber Remon,,-750.0,0.0,04/20/2022,04/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+26156,,C1406,Javon Fowler,,-1038.97,0.0,04/20/2022,04/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+24936,,C1406,Javon Fowler,,1038.97,0.0,04/20/2022,12/15/2025,Reversed,,,,4.AR
+6672,,C1073,Deutsche Bank AG New York Br.,,50000.0,0.0,04/15/2022,04/30/2022,Paid,,,,4.AR
+6576,,C1702,Moody’s Corporation,,24000.0,0.0,04/12/2022,05/11/2022,Paid,,,,4.AR
+8992,,C1702,Moody’s Corporation,,32000.0,0.0,04/12/2022,05/11/2024,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+6566,,C1698,"Cedar Cares, Inc.",,24000.0,0.0,04/11/2022,05/11/2022,Paid,Hiring Partnership - 3 Seat Commitment FY22,,,4.AR
+8986,,C1698,"Cedar Cares, Inc.",,48000.0,0.0,04/11/2022,05/11/2024,Reversed,Hiring Partnership - 3 Seat Commitment FY22,PBC,PursuitTransformationBenefitCorporation,4.AR
+6372,,C1696,Anna Maria and Stephen Kellen Foundation,,50000.0,0.0,04/05/2022,04/30/2022,Paid,GOS,,,4.AR
+6982,,C1268,Robin Hood Foundation,,280000.0,0.0,04/01/2022,03/31/2023,Paid,,,,4.AR
+6698,2/48,C1697,Yashiry Azize,,1144.0,0.0,03/31/2022,04/01/2022,Paid,,,,4.AR
+7639,032022,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,53266.0,0.0,03/31/2022,04/15/2022,Paid,Shared Services March 2022,,,4.AR
+25977,,C1460,Nilber Remon,,-750.0,0.0,03/21/2022,03/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+25099,,C1460,Nilber Remon,,750.0,0.0,03/21/2022,04/01/2022,Reversed,,,,4.AR
+24928,,C1406,Javon Fowler,,1038.97,0.0,03/21/2022,12/15/2025,Reversed,,,,4.AR
+26155,,C1406,Javon Fowler,,-1038.97,0.0,03/21/2022,03/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+5854,,C1302,Steven Schlafman,,7192.0,7192.0,03/15/2022,04/30/2022,Posted,Donation through Grapevine,,,4.AR
+8981,,C1703,"Thumbtack, Inc.",,16000.0,0.0,03/11/2022,04/10/2022,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+6602,,C1703,"Thumbtack, Inc.",,16000.0,0.0,03/11/2022,04/10/2022,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+8106,,C1705,Workforce Development Institute,,22500.0,0.0,03/01/2022,04/30/2022,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+6564,022022,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,48790.0,0.0,02/28/2022,03/15/2022,Paid,Shared Services February 2022,,,4.AR
+24931,,C1406,Javon Fowler,,1038.97,0.0,02/21/2022,12/15/2025,Reversed,,,,4.AR
+26154,,C1406,Javon Fowler,,-1038.97,0.0,02/21/2022,02/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+25976,,C1460,Nilber Remon,,-750.0,0.0,02/21/2022,02/21/2022,Reversal,Bill.com Duplicate,,,4.AR
+25098,,C1460,Nilber Remon,,750.0,0.0,02/21/2022,03/01/2022,Reversed,,,,4.AR
+5359,,C1667,"Apollo Global Management, Inc.",,1000.0,0.0,02/02/2022,02/28/2022,Paid,,,,4.AR
+5850,012022,C1694,"Pursuit Transformation Benefit Corporation, Inc.",,46950.0,0.0,01/31/2022,02/15/2022,Paid,Shared Services January 2022,,,4.AR
+6243,Bridge to Technology with Pursuit,C1459,"Goodwill Industries of Greater New York and Northern New Jersey, Inc",,77300.0,0.0,01/26/2022,04/30/2022,Paid,Bridge to Technology with Pursuit,,,4.AR
+24932,,C1406,Javon Fowler,,1038.97,0.0,01/20/2022,12/15/2025,Reversed,,,,4.AR
+26153,,C1406,Javon Fowler,,-1038.97,0.0,01/20/2022,01/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+25105,,C1460,Nilber Remon,,750.0,0.0,01/20/2022,02/01/2022,Reversed,,,,4.AR
+25975,,C1460,Nilber Remon,,-750.0,0.0,01/20/2022,01/20/2022,Reversal,Bill.com Duplicate,,,4.AR
+5612,,C1021,Arbor Brothers Inc.,,10000.0,0.0,01/18/2022,03/31/2022,Paid,,,,4.AR
+4631,,C1268,Robin Hood Foundation,,15000.0,0.0,01/14/2022,02/28/2022,Paid,RH Management Assistance Grant_ the creation of a promotional video,,,4.AR
+4458,Fidelity Invest 1.3.21,C1387,Joseph Robert Kerrey and Sarah Paley,,10000.0,0.0,12/31/2021,01/15/2022,Paid,,,,4.AR
+4637,,C1184,"L and L Foundation, Inc.",,30000.0,0.0,12/31/2021,01/31/2022,Paid,,,,4.AR
+4604,,C1351,Adam Belanich,,5000.0,0.0,12/31/2021,01/31/2022,Paid,Board Giving FY21,,,4.AR
+5360,,C1299,Steven Brill,,5000.0,0.0,12/31/2021,04/30/2022,Paid,,,,4.AR
+4635,,C1353,Soo Kim,,25000.0,0.0,12/31/2021,01/31/2022,Paid,Soo Kim Board Giving FY21,,,4.AR
+4645,,C1121,Henri Benaim,,600.0,0.0,12/30/2021,01/31/2022,Paid,,,,4.AR
+4601,,C1354,Daniel Teran,,25000.0,0.0,12/30/2021,12/31/2021,Paid,,,,4.AR
+4647,,C1422,Michael Borofsky,,10000.0,0.0,12/28/2021,01/31/2022,Paid,Michael Borofsky_Board Giving FY21,,,4.AR
+4654,,C1206,Mary Edlow,,5000.0,0.0,12/23/2021,01/31/2022,Paid,,,,4.AR
+4652,,C1021,Arbor Brothers Inc.,,5000.0,0.0,12/22/2021,01/31/2022,Paid,,,,4.AR
+4649,,C1622,Thomas Covo,,1000.0,0.0,12/22/2021,01/31/2022,Paid,,,,4.AR
+4460,,C1604,The Desai Sethi Foundation Inc.,,200000.0,0.0,12/22/2021,12/31/2021,Paid,,,,4.AR
+5358,,C1666,One Ten,,50000.0,0.0,12/22/2021,02/28/2022,Reversed,,,,4.AR
+26152,,C1406,Javon Fowler,,-800.0,0.0,12/21/2021,12/21/2021,Reversal,Bill.com Duplicate,,,4.AR
+4357,,C1603,Inherent Foundation,,25000.0,0.0,12/21/2021,12/31/2021,Paid,,,,4.AR
+24929,,C1406,Javon Fowler,,800.0,0.0,12/21/2021,12/15/2025,Reversed,,,,4.AR
+25974,,C1460,Nilber Remon,,-750.0,0.0,12/21/2021,12/21/2021,Reversal,Bill.com Duplicate,,,4.AR
+25109,,C1460,Nilber Remon,,750.0,0.0,12/21/2021,01/01/2022,Reversed,,,,4.AR
+4327,,C1328,Venu and Melissa Angara,,1900.0,0.0,12/17/2021,12/31/2021,Paid,,,,4.AR
+6567,,C1699,Citi Ventures Inc.,,100000.0,0.0,12/15/2021,02/28/2022,Paid,Hiring Partnership - 10 Seats Commitment FY22,,,4.AR
+4643,,C1621,Michael Freix,,1052.13,0.0,12/14/2021,01/31/2022,Paid,,,,4.AR
+8982,,C1659,Union Square Ventures,,208000.0,0.0,12/09/2021,09/30/2023,Paid,,PBC,PursuitTransformationBenefitCorporation,4.AR
+4660,,C1659,Union Square Ventures,,104000.0,0.0,12/09/2021,02/28/2022,Paid,,,,4.AR
+4233,,C1584,James Gutter,,10000.0,0.0,12/08/2021,12/31/2021,Paid,,,,4.AR
+4275,,C1385,Zachary Smith,,25000.0,0.0,12/08/2021,12/31/2021,Paid,Zach Smith FY21,,,4.AR
+4234,,C1585,Jessie Cai,,5000.0,0.0,12/06/2021,12/31/2021,Reversed,,,,4.AR
+4235,,C1586,Verizon Communications,,10000.0,0.0,12/03/2021,12/31/2021,Paid,,,,4.AR
+4639,,C1619,Mathis-Pfohl Foundation,,5000.0,0.0,12/02/2021,01/31/2022,Paid,FY21 Contribution,,,4.AR
+25108,,C1460,Nilber Remon,,750.0,0.0,11/22/2021,12/01/2021,Reversed,,,,4.AR
+25973,,C1460,Nilber Remon,,-750.0,0.0,11/22/2021,11/22/2021,Reversal,Bill.com Duplicate,,,4.AR
+24927,,C1406,Javon Fowler,,800.0,0.0,11/22/2021,12/15/2025,Reversed,,,,4.AR
+26151,,C1406,Javon Fowler,,-800.0,0.0,11/22/2021,11/22/2021,Reversal,Bill.com Duplicate,,,4.AR
+4085,,C1578,Yaron & Lisa Minsky,,500000.0,0.0,11/19/2021,12/31/2021,Paid,Yaron & Lisa Minsky FY21 Contribution,,,4.AR
+4220,,C1581,Art Blocks Community,,9885.0,0.0,11/18/2021,11/30/2021,Paid,Art Blocks Community - GOS,,,4.AR
+3904,Neeraj Bewtra and Barbara Deli - GOS,C1228,Neeraj Bewtra and Barbara Deli,,9500.0,0.0,11/16/2021,12/31/2021,Paid,Neeraj Bewtra and Barbara Deli - GOS,,,4.AR
+3719,FidelityInvest,C1572,Christine Amorossi,,200.0,0.0,11/12/2021,11/15/2021,Paid,Ms. Christine Amorossi Fidelity Investment 11/3/21 transfer in FR_xx2086,,,4.AR
+4222,,C1582,The Melissa Kahn Charitable Fund,,100.0,0.0,11/12/2021,12/31/2021,Paid,In memory of Eddie Marovich,,,4.AR
+3718,,C1365,"Etsy, Inc.",,10000.0,0.0,11/08/2021,12/31/2021,Paid,,,,4.AR
+3697,,C1571,Eva and Yoel Haller,,2000.0,0.0,11/03/2021,11/30/2021,Paid,,,,4.AR
+3721,,C1567,Arrow Impact,,500000.0,0.0,10/27/2021,12/31/2022,Paid,,,,4.AR
+4641,,C1620,"Givinga Foundation, Inc.",,48.9,0.0,10/25/2021,01/31/2022,Paid,,,,4.AR
+4277,,C1589,Eric Calderon,,9975.0,0.0,10/24/2021,12/31/2021,Paid,,,,4.AR
+3654,,C1131,Ira DeCamp Foundation,,150000.0,0.0,10/22/2021,12/31/2021,Paid,,,,4.AR
+24934,,C1406,Javon Fowler,,800.0,0.0,10/20/2021,12/15/2025,Reversed,,,,4.AR
+25972,,C1460,Nilber Remon,,-750.0,0.0,10/20/2021,10/20/2021,Reversal,Bill.com Duplicate,,,4.AR
+25110,,C1460,Nilber Remon,,750.0,0.0,10/20/2021,11/01/2021,Reversed,,,,4.AR
+3688,,C1569,Mary Claire Frye & Peter R. Frye,,250.0,0.0,10/20/2021,11/30/2021,Paid,,,,4.AR
+26150,,C1406,Javon Fowler,,-800.0,0.0,10/20/2021,10/20/2021,Reversal,Bill.com Duplicate,,,4.AR
+3651,,C1536,Zinman Family Fund,,200.0,0.0,10/19/2021,10/31/2021,Paid,,,,4.AR
+3648,,C1535,McMaster-Carr,,450.0,0.0,10/14/2021,10/31/2021,Paid,,,,4.AR
+3690,,C1570,Harold Jospeh & Ruth Newman,,500.0,0.0,10/04/2021,11/30/2021,Paid,,,,4.AR
+3693,,C1247,PDT Partners,,150000.0,0.0,10/01/2021,11/30/2021,Paid,,,,4.AR
+9805,,C1515,VTS,,15000.0,0.0,10/01/2021,11/30/2021,Reversed,Pursuit - Volunteering,,,4.AR
+3183,,C1105,Goldman Sachs,,100000.0,0.0,09/30/2021,11/30/2021,Paid,,,,4.AR
+3686,,C1568,The Margaret Baker Foundation,,10000.0,0.0,09/30/2021,10/31/2021,Paid,,,,4.AR
+3178,,C1514,Facebook,,20000.0,0.0,09/29/2021,01/22/2022,Paid,,,,4.AR
+3044,,C1521,Hearst Foundation,,100000.0,0.0,09/28/2021,11/30/2021,Paid,Hearst Foundation Grant,,,4.AR
+3647,,C1534,Patrick Carroll,,300.0,0.0,09/24/2021,10/31/2021,Reversed,,,,4.AR
+25106,,C1460,Nilber Remon,,750.0,0.0,09/20/2021,10/01/2021,Reversed,,,,4.AR
+24938,,C1406,Javon Fowler,,800.0,0.0,09/20/2021,12/15/2025,Reversed,,,,4.AR
+26149,,C1406,Javon Fowler,,-800.0,0.0,09/20/2021,09/20/2021,Reversal,Bill.com Duplicate,,,4.AR
+25971,,C1460,Nilber Remon,,-750.0,0.0,09/20/2021,09/20/2021,Reversal,Bill.com Duplicate,,,4.AR
+4261,13/36,C1524,Jessica Perez-Valle,,450.0,0.0,09/20/2021,10/01/2021,Paid,August 2023,,,4.AR
+3682,,C1563,Con Edison,,5000.0,0.0,09/01/2021,10/31/2021,Paid,,,,4.AR
+2994,,C1515,VTS,,10000.0,0.0,08/31/2021,08/31/2021,Paid,Pursuit - Volunteering,,,4.AR
+4296,4/36,C1528,Eric Widjaja,,1500.0,0.0,08/20/2021,09/01/2021,Paid,October 2024,,,4.AR
+25107,,C1460,Nilber Remon,,750.0,0.0,08/20/2021,09/01/2021,Reversed,,,,4.AR
+24933,,C1406,Javon Fowler,,800.0,0.0,08/20/2021,12/15/2025,Reversed,,,,4.AR
+26148,,C1406,Javon Fowler,,-800.0,0.0,08/20/2021,08/20/2021,Reversal,Bill.com Duplicate,,,4.AR
+25970,,C1460,Nilber Remon,,-750.0,0.0,08/20/2021,08/20/2021,Reversal,Bill.com Duplicate,,,4.AR
+4260,12/36,C1524,Jessica Perez-Valle,,450.0,0.0,08/20/2021,09/01/2021,Paid,August 2023,,,4.AR
+5123,1/26,C1532,Srirupa Datta,,1500.0,0.0,08/20/2021,09/01/2021,Paid,Monthly Payment August 2021,,,4.AR
+2581,,C1502,Adam Wishneusky,,5000.0,0.0,08/04/2021,08/31/2021,Paid,,,,4.AR
+4245,20/36,C1207,Mateo Navarrete,,94.5,0.0,07/31/2021,08/01/2021,Paid,December 2022,,,4.AR
+2285,,C1481,The Knot Worldwide,,10000.0,0.0,07/26/2021,10/31/2021,Paid,,,,4.AR
+26147,,C1406,Javon Fowler,,-800.0,0.0,07/20/2021,07/20/2021,Reversal,Bill.com Duplicate,,,4.AR
+24930,,C1406,Javon Fowler,,800.0,0.0,07/20/2021,09/15/2025,Reversed,,,,4.AR
+2571,36/36,C1345,Yaseen Al Dallash,,650.0,650.0,07/20/2021,08/01/2021,Posted,July 2021,,,4.AR
+25969,,C1460,Nilber Remon,,-750.0,0.0,07/20/2021,07/20/2021,Reversal,Bill.com Duplicate,,,4.AR
+25104,,C1460,Nilber Remon,,750.0,0.0,07/20/2021,08/01/2021,Reversed,,,,4.AR
+2280,,C1496,The ABNY Foundation,,10000.0,0.0,07/16/2021,08/31/2021,Paid,,,,4.AR
+2262,,C1002,ABNY Foundation,,10000.0,10000.0,06/30/2021,09/30/2021,Posted,,,,4.AR
+2267,,C1073,Deutsche Bank AG New York Br.,,50000.0,0.0,06/30/2021,07/31/2021,Paid,,,,4.AR
+25968,,C1460,Nilber Remon,,-750.0,0.0,06/21/2021,06/21/2021,Reversal,Bill.com Duplicate,,,4.AR
+26146,,C1406,Javon Fowler,,-800.0,0.0,06/21/2021,06/21/2021,Reversal,Bill.com Duplicate,,,4.AR
+25111,,C1460,Nilber Remon,,750.0,0.0,06/21/2021,07/01/2021,Reversed,,,,4.AR
+24935,,C1406,Javon Fowler,,800.0,0.0,06/21/2021,08/15/2025,Reversed,,,,4.AR
+2128,,C1494,BNY Mellon,,100000.0,0.0,06/21/2021,06/30/2021,Paid,,,,4.AR
+2119,,C1492,Thomas and Jeanne Elmezzi Foundation,,50000.0,0.0,06/17/2021,09/30/2021,Paid,,,,4.AR
+1996,,C1043,Carroll and Milton Petrie Foundation,,125000.0,0.0,06/10/2021,08/31/2021,Paid,,,,4.AR
+1994,,C1247,PDT Partners,,75000.0,0.0,06/02/2021,06/30/2021,Paid,,,,4.AR
+1775,,C1487,Maximiliano Caceres,,25000.0,0.0,06/01/2021,06/15/2021,Paid,,,,4.AR
+2582,,C1114,"Guggenheim Partners, LLC",,15000.0,0.0,06/01/2021,06/30/2021,Paid,,,,4.AR
+1787,,C1488,JW Player,,10000.0,0.0,05/28/2021,06/30/2021,Paid,,,,4.AR
+1742,RH Renewal 2021,C1268,Robin Hood Foundation,,280000.0,0.0,05/20/2021,02/04/2022,Paid,,,,4.AR
+1731,,C1483,Amazon.com Services LLC,,100000.0,0.0,05/17/2021,05/31/2021,Paid,,,,4.AR
+1703,,C1275,Salesforce.com Foundation,,200000.0,0.0,05/11/2021,07/31/2021,Reversed,,,,4.AR
+5352,,C1275,Salesforce.com Foundation,,-200000.0,0.0,05/11/2021,05/11/2021,Reversal,"Miscommunication between PBD and Salesforce, Grant was not approved. ",,,4.AR
+1701,,C1454,Morgan Stanley,,-50000.0,0.0,05/03/2021,05/03/2021,Reversal,Duplicate,,,4.AR
+1627,,C1454,Morgan Stanley,,50000.0,0.0,05/03/2021,05/31/2021,Reversed,,,,4.AR
+24937,,C1406,Javon Fowler,,800.0,0.0,05/01/2021,07/15/2025,Reversed,,,,4.AR
+26145,,C1406,Javon Fowler,,-800.0,0.0,05/01/2021,05/01/2021,Reversal,Bill.com Duplicate,,,4.AR
+1631,,C1477,Flanagan Fund,,10000.0,0.0,04/27/2021,05/15/2021,Paid,,,,4.AR
+26144,,C1406,Javon Fowler,,-800.0,0.0,04/20/2021,04/20/2021,Reversal,Bill.com Duplicate,,,4.AR
+24940,,C1406,Javon Fowler,,800.0,0.0,04/20/2021,06/15/2025,Reversed,,,,4.AR
+1258,,C1455,Capital One,,100000.0,0.0,04/13/2021,05/31/2021,Paid,,,,4.AR
+1257,,C1454,Morgan Stanley,,50000.0,0.0,04/13/2021,05/14/2021,Paid,,,,4.AR
+1500,,C1425,Vemo,,17554.05,0.0,03/31/2021,04/11/2021,Paid,,,,4.AR
+1513,,C1247,PDT Partners,,75000.0,0.0,03/31/2021,06/01/2021,Paid,,,,4.AR
+1151,,C1139,Jason Miller,,40000.0,0.0,03/26/2021,04/30/2021,Paid,,,,4.AR
+1529,22/36,C1009,Alejandro Franco,,850.0,0.0,03/20/2021,05/01/2021,Paid,Alejandro Franco,,,4.AR
+24941,,C1406,Javon Fowler,,800.0,0.0,03/20/2021,05/15/2025,Reversed,,,,4.AR
+2251,,C1193,Liam Kane,,1050.0,1050.0,03/20/2021,04/01/2021,Posted,ISA Pay off,,,4.AR
+26143,,C1406,Javon Fowler,,-800.0,0.0,03/20/2021,03/20/2021,Reversal,Bill.com Duplicate,,,4.AR
+24939,,C1406,Javon Fowler,,800.0,0.0,02/28/2021,04/15/2025,Reversed,,,,4.AR
+26142,,C1406,Javon Fowler,,-800.0,0.0,02/28/2021,02/28/2021,Reversal,Bill.com Duplicate,,,4.AR
+1272,,C1425,Vemo,,8627.05,0.0,02/28/2021,03/12/2021,Paid,,,,4.AR
+869,,C1028,Blackstone Charitable Foundation,,25000.0,0.0,02/23/2021,03/31/2021,Paid,,,,4.AR
+2250,,C1193,Liam Kane,,525.0,525.0,02/20/2021,03/01/2021,Posted,ISA Pay off,,,4.AR
+1418,21/36,C1009,Alejandro Franco,,850.0,0.0,02/20/2021,04/01/2021,Paid,Alejandro Franco,,,4.AR
+1093,,C1445,Vanguard Charitable,,1000000.0,0.0,02/12/2021,03/31/2021,Paid,,,,4.AR
+870,,C1423,Audible,,40000.0,0.0,02/09/2021,02/28/2021,Paid,,,,4.AR
+872,,C1313,The Alphadyne Foundation,,500000.0,0.0,02/02/2021,04/30/2021,Paid,,,,4.AR
+1395,,C1459,"Goodwill Industries of Greater New York and Northern New Jersey, Inc",,1000.0,0.0,02/02/2021,04/30/2021,Paid,,,,4.AR
+874,,C1424,JFF (Jobs For The Future),,250000.0,0.0,02/02/2021,02/28/2021,Paid,,,,4.AR
+665,,C1220,Michelle Shang,,1020.0,0.0,02/01/2021,02/01/2021,Paid,Michelle Shang,,,4.AR
+1740,,C1242,NYC Small Business Services,,5000.0,0.0,01/19/2021,07/31/2021,Paid,,,,4.AR
+6,,C1356,AWS Financial Services,,15000.0,0.0,01/13/2021,01/30/2021,Paid,,,,4.AR
+871,,C1325,"Uber USA, LLC",,160000.0,0.0,01/07/2021,12/31/2021,Paid,,,,4.AR
+641,,C1084,Elizabeth Peraza-Munoz,,-790.0,0.0,01/03/2021,01/03/2021,Reversal,,,,4.AR
+428,,C1391,Equinix Metal,,30000.0,0.0,01/01/2021,03/31/2021,Reversed,,,,4.AR
+117,,C1074,Deyvi Ortiz,,900.0,0.0,12/31/2020,02/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+347,,C1299,Steven Brill,,10000.0,0.0,12/31/2020,03/01/2021,Paid,,,,4.AR
+34,,C1009,Alejandro Franco,,750.0,0.0,12/31/2020,02/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+166,,C1148,Jevon Gordon,,900.0,900.0,12/31/2020,02/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+33,,C1009,Alejandro Franco,,400.0,0.0,12/31/2020,12/31/2020,Paid,Monthly ISA Invoice,,,4.AR
+84,,C1041,Caroline Kang,,330.0,0.0,12/31/2020,01/30/2021,Paid,Monthly ISA Invoice,,,4.AR
+868,,C1422,Michael Borofsky,,25000.0,0.0,12/31/2020,03/31/2021,Paid,FY20 Board Contribution,,,4.AR
+26,,C1351,Adam Belanich,,3500.0,0.0,12/31/2020,03/01/2021,Paid,,,,4.AR
+124,,C1081,Elias Roman,,1595.0,0.0,12/30/2020,01/29/2021,Paid,,,,4.AR
+198,,C1206,Mary Edlow,,5000.0,0.0,12/29/2020,01/28/2021,Paid,,,,4.AR
+28,,C1359,Akila Raman,,5000.0,0.0,12/28/2020,02/26/2021,Paid,,,,4.AR
+51,,C1353,Soo Kim,,50000.0,0.0,12/28/2020,02/26/2021,Paid,,,,4.AR
+145,,C1139,Jason Miller,,50000.0,0.0,12/28/2020,02/26/2021,Paid,,,,4.AR
+4274,,C1385,Zachary Smith,,-25000.0,0.0,12/28/2020,12/28/2020,Reversal,Wrong Year,,,4.AR
+146,,C1352,Jennifer Hensley,,5000.0,5000.0,12/28/2020,02/26/2021,Posted,,,,4.AR
+214,,C1373,Meredith Finn,,1000.0,0.0,12/28/2020,02/26/2021,Paid,,,,4.AR
+408,,C1385,Zachary Smith,,25000.0,0.0,12/28/2020,02/26/2021,Reversed,,,,4.AR
+127,,C1365,"Etsy, Inc.",,10000.0,0.0,12/22/2020,01/21/2021,Paid,,,,4.AR
+310,,C1379,Sam Charney,,5000.0,0.0,12/21/2020,02/19/2021,Paid,,,,4.AR
+267,,C1376,Oscar Victoria Gonzalez,,1000.0,1000.0,12/20/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+263,,C1239,Nicole Souvenir,,1060.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+194,,C1370,Leandro Wauters,,655.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+178,,C1151,Joanne Song,,900.0,900.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+299,,C1378,Robert Zarate-Morales,,600.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+66,,C1022,Ashley Joachim,,850.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+181,,C1159,Jorge Billini,,750.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+144,,C1366,Jabeen Cheema,,800.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+83,,C1041,Caroline Kang,,640.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+199,,C1371,Matthew Huie,,800.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+269,,C1377,Qiuyun Chen,,1516.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+230,,C1216,Meseret Gebru,,850.0,850.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+197,,C1195,Lisa Jiang,,700.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+109,,C1364,Chukwuka Okonkwo Aguolu,,1050.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+188,,C1368,Kameron Montague,,1050.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+67,,C1361,Ayoola Abudu,,900.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+140,,C1110,Gregory Davis,,1050.0,1050.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+355,,C1305,Susana Han,,850.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+49,,C1014,Amirah Oxendine,,1080.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+123,,C1081,Elias Roman,,10000.0,0.0,12/18/2020,01/17/2021,Paid,,,,4.AR
+121,,C1075,Diana Gaona,,1050.0,1050.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+344,,C1380,Simon Gaviria,,660.0,660.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+112,,C1057,Clifford Charles,,900.0,500.0,12/18/2020,01/01/2021,Partially Paid,Monthly ISA Invoice,,,4.AR
+312,,C1287,Serge Enama,,1000.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+126,,C1092,Erika Perez Valle,,800.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+23,,C1000,Abdelwahab Oufkir,,918.32,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+88,,C1363,Chaltin Pagan,,650.0,650.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+36,,C1011,Alex Park,,1180.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+242,,C1374,Muna Sharma,,800.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+187,,C1367,Jung Rae Jang,,1050.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+128,,C1103,Gerardo Jimenez,,650.0,0.0,12/18/2020,01/01/2021,Paid,,,,4.AR
+22,,C1358,Aaron Cabreja,,750.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+189,,C1369,Kelly Liang,,800.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+333,,C1291,Sheriff Ameen,,700.0,700.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+266,,C1244,Omolola Abudu,,900.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+37,,C1360,Alexander Onate,,936.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+393,,C1340,Winston Maragh,,900.0,900.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+324,,C1288,Shantal Taveras,,1050.0,1050.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+212,,C1213,Melina Gonzalez,,680.0,680.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+234,,C1218,Michael Flor,,700.0,700.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+642,,C1084,Elizabeth Peraza-Munoz,,790.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+182,,C1160,Jose Rodriguez,,1100.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+407,,C1345,Yaseen Al Dallash,,650.0,650.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+24,,C1001,Abid Hussain,,918.32,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+61,,C1020,Anne Kochanski,,600.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+291,,C1263,Rinat Tregerman,,900.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+298,,C1265,Robert Abreu,,750.0,750.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+78,,C1036,Bryant Ramirez,,800.0,800.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+370,,C1311,Tatiana Moronta,,900.0,900.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+190,,C1176,Kelveen Fabian,,820.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+125,,C1084,Elizabeth Peraza-Munoz,,790.0,0.0,12/18/2020,01/01/2021,Reversed,Monthly ISA Invoice,,,4.AR
+380,,C1383,Voniel Brown,,936.0,0.0,12/18/2020,01/11/2021,Paid,Monthly ISA Invoice,,,4.AR
+289,,C1260,Richard Crichlow,,1080.0,1080.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+346,,C1298,Steve Ramirez,,1050.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+185,,C1167,Joyce Ajagbe,,1020.0,0.0,12/18/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+158,,C1146,Jervon Arnold,,1040.0,1040.0,12/18/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+264,,C1375,Oath Inc. a Verizon Company,,25000.0,0.0,12/17/2020,01/16/2021,Paid,,,,4.AR
+394,,C1384,WorkRise,,300000.0,0.0,12/14/2020,01/13/2021,Paid,,,,4.AR
+4273,,C1385,Zachary Smith,,25000.0,0.0,12/08/2020,12/31/2020,Paid,Zach Smith FY21,,,4.AR
+378,,C1382,Verizon Media,,25000.0,0.0,12/07/2020,01/07/2021,Paid,,,,4.AR
+268,,C1246,Pamela Abreu,,900.0,0.0,12/01/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+277,,C1256,Rafael Soto,,800.0,0.0,12/01/2020,12/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+165,,C1148,Jevon Gordon,,900.0,900.0,11/30/2020,01/01/2021,Posted,Monthly ISA Invoice,,,4.AR
+116,,C1074,Deyvi Ortiz,,900.0,0.0,11/30/2020,01/01/2021,Paid,Monthly ISA Invoice,,,4.AR
+107,,C1054,Christopher Sancho,,520.0,520.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+343,,C1380,Simon Gaviria,,660.0,0.0,11/20/2020,12/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+392,,C1340,Winston Maragh,,900.0,900.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+60,,C1020,Anne Kochanski,,600.0,0.0,11/20/2020,12/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+77,,C1036,Bryant Ramirez,,800.0,800.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+184,,C1167,Joyce Ajagbe,,1020.0,0.0,11/20/2020,12/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+369,,C1311,Tatiana Moronta,,900.0,900.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+211,,C1213,Melina Gonzalez,,680.0,680.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+193,,C1370,Leandro Wauters,,655.0,0.0,11/20/2020,12/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+288,,C1260,Richard Crichlow,,1080.0,1080.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+332,,C1291,Sheriff Ameen,,700.0,700.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+177,,C1151,Joanne Song,,900.0,900.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+157,,C1146,Jervon Arnold,,1040.0,1040.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+297,,C1265,Robert Abreu,,750.0,750.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+87,,C1363,Chaltin Pagan,,650.0,650.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+196,,C1195,Lisa Jiang,,700.0,0.0,11/20/2020,12/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+354,,C1305,Susana Han,,850.0,0.0,11/20/2020,12/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+120,,C1075,Diana Gaona,,1050.0,1050.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+233,,C1218,Michael Flor,,700.0,700.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+262,,C1239,Nicole Souvenir,,1060.0,0.0,11/20/2020,12/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+48,,C1014,Amirah Oxendine,,1080.0,0.0,11/20/2020,12/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+229,,C1216,Meseret Gebru,,850.0,850.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+35,,C1011,Alex Park,,1178.24,0.0,11/20/2020,12/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+186,,C1367,Jung Rae Jang,,1050.0,0.0,11/20/2020,12/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+406,,C1345,Yaseen Al Dallash,,650.0,650.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+323,,C1288,Shantal Taveras,,1050.0,1050.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+139,,C1110,Gregory Davis,,1050.0,1050.0,11/20/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+345,,C1390,Stavros S Niarchos Foundation,,100000.0,0.0,11/01/2020,11/01/2021,Paid,,,,4.AR
+164,,C1148,Jevon Gordon,,900.0,900.0,10/31/2020,12/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+287,,C1260,Richard Crichlow,,1080.0,1080.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+47,,C1014,Amirah Oxendine,,1080.0,0.0,10/20/2020,11/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+138,,C1110,Gregory Davis,,1050.0,1050.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+210,,C1213,Melina Gonzalez,,680.0,680.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+232,,C1218,Michael Flor,,4200.0,4200.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+156,,C1146,Jervon Arnold,,1040.0,1040.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+261,,C1239,Nicole Souvenir,,1060.0,0.0,10/20/2020,11/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+368,,C1311,Tatiana Moronta,,900.0,900.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+228,,C1216,Meseret Gebru,,425.0,425.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+331,,C1291,Sheriff Ameen,,700.0,700.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+106,,C1054,Christopher Sancho,,520.0,520.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+180,,C1159,Jorge Billini,,750.0,0.0,10/20/2020,11/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+59,,C1020,Anne Kochanski,,600.0,0.0,10/20/2020,11/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+391,,C1340,Winston Maragh,,900.0,900.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+176,,C1151,Joanne Song,,900.0,900.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+322,,C1288,Shantal Taveras,,1050.0,1050.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+405,,C1345,Yaseen Al Dallash,,650.0,650.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+76,,C1036,Bryant Ramirez,,800.0,800.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+119,,C1075,Diana Gaona,,1050.0,1050.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+192,,C1370,Leandro Wauters,,655.0,0.0,10/20/2020,11/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+353,,C1305,Susana Han,,850.0,850.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+296,,C1265,Robert Abreu,,750.0,750.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+342,,C1380,Simon Gaviria,,660.0,0.0,10/20/2020,11/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+86,,C1363,Chaltin Pagan,,3900.0,3900.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+377,,C1381,Vanessa Mack,,10500.0,10500.0,10/20/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+163,,C1148,Jevon Gordon,,900.0,900.0,09/30/2020,11/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+290,,C1261,Richard Green,,1000.0,0.0,09/24/2020,10/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+105,,C1054,Christopher Sancho,,520.0,520.0,09/23/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+191,,C1370,Leandro Wauters,,655.0,0.0,09/21/2020,10/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+155,,C1146,Jervon Arnold,,1040.0,1040.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+58,,C1020,Anne Kochanski,,600.0,0.0,09/21/2020,10/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+75,,C1036,Bryant Ramirez,,800.0,800.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+46,,C1014,Amirah Oxendine,,1080.0,0.0,09/21/2020,10/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+404,,C1345,Yaseen Al Dallash,,650.0,650.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+295,,C1265,Robert Abreu,,750.0,750.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+137,,C1110,Gregory Davis,,1050.0,1050.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+175,,C1151,Joanne Song,,900.0,900.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+260,,C1239,Nicole Souvenir,,1060.0,0.0,09/21/2020,10/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+341,,C1380,Simon Gaviria,,660.0,660.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+330,,C1291,Sheriff Ameen,,700.0,700.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+143,,C1366,Jabeen Cheema,,800.0,0.0,09/21/2020,10/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+321,,C1288,Shantal Taveras,,1050.0,1050.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+65,,C1022,Ashley Joachim,,850.0,850.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+227,,C1216,Meseret Gebru,,850.0,850.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+352,,C1305,Susana Han,,850.0,850.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+118,,C1075,Diana Gaona,,1050.0,1050.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+241,,C1226,Monique Mojica,,750.0,750.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+286,,C1260,Richard Crichlow,,1080.0,1080.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+390,,C1340,Winston Maragh,,900.0,900.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+367,,C1311,Tatiana Moronta,,900.0,900.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+209,,C1213,Melina Gonzalez,,680.0,680.0,09/21/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+162,,C1148,Jevon Gordon,,900.0,900.0,08/31/2020,10/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+351,,C1305,Susana Han,,850.0,850.0,08/24/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+57,,C1020,Anne Kochanski,,600.0,0.0,08/24/2020,09/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+294,,C1265,Robert Abreu,,750.0,750.0,08/24/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+226,,C1216,Meseret Gebru,,850.0,850.0,08/24/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+45,,C1014,Amirah Oxendine,,1080.0,0.0,08/24/2020,09/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+389,,C1340,Winston Maragh,,900.0,900.0,08/24/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+208,,C1213,Melina Gonzalez,,680.0,680.0,08/24/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+285,,C1260,Richard Crichlow,,1080.0,1080.0,08/24/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+154,,C1146,Jervon Arnold,,1040.0,1040.0,08/24/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+340,,C1380,Simon Gaviria,,660.0,660.0,08/24/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+136,,C1110,Gregory Davis,,1050.0,1050.0,08/24/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+329,,C1291,Sheriff Ameen,,700.0,700.0,08/24/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+366,,C1311,Tatiana Moronta,,900.0,900.0,08/24/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+240,,C1226,Monique Mojica,,750.0,750.0,08/24/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+320,,C1288,Shantal Taveras,,1050.0,1050.0,08/24/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+259,,C1239,Nicole Souvenir,,1060.0,0.0,08/24/2020,09/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+111,,C1057,Clifford Charles,,900.0,0.0,08/24/2020,09/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+74,,C1036,Bryant Ramirez,,800.0,800.0,08/24/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+174,,C1151,Joanne Song,,900.0,900.0,08/24/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+104,,C1054,Christopher Sancho,,520.0,520.0,08/20/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+411,,C1193,Liam Kane,,-1575.0,-1575.0,07/24/2020,07/24/2020,Posted,Monthly ISA Invoice,,,4.AR
+73,,C1036,Bryant Ramirez,,800.0,800.0,07/21/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+319,,C1288,Shantal Taveras,,1050.0,1050.0,07/21/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+339,,C1380,Simon Gaviria,,660.0,660.0,07/21/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+365,,C1311,Tatiana Moronta,,900.0,900.0,07/21/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+350,,C1305,Susana Han,,850.0,0.0,07/21/2020,08/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+328,,C1291,Sheriff Ameen,,700.0,700.0,07/21/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+284,,C1260,Richard Crichlow,,1080.0,1080.0,07/21/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+293,,C1265,Robert Abreu,,750.0,750.0,07/21/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+249,,C1233,Newton Brooks Jr,,1450.0,1450.0,07/21/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+402,,C1345,Yaseen Al Dallash,,650.0,0.0,07/21/2020,08/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+225,,C1216,Meseret Gebru,,425.0,0.0,07/21/2020,08/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+300,,C1268,Robin Hood Foundation,,100000.0,0.0,07/21/2020,02/01/2021,Paid,,,,4.AR
+173,,C1151,Joanne Song,,400.0,400.0,07/21/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+135,,C1110,Gregory Davis,,1050.0,1050.0,07/21/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+388,,C1340,Winston Maragh,,900.0,900.0,07/21/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+258,,C1239,Nicole Souvenir,,1060.0,0.0,07/21/2020,08/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+207,,C1213,Melina Gonzalez,,680.0,680.0,07/21/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+153,,C1146,Jervon Arnold,,1040.0,1040.0,07/21/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+161,,C1148,Jevon Gordon,,900.0,900.0,07/21/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+239,,C1226,Monique Mojica,,750.0,750.0,07/21/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+82,,C1040,Caroline Cruz,,1000.0,1000.0,07/21/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+44,,C1014,Amirah Oxendine,,1080.0,0.0,07/20/2020,08/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+56,,C1020,Anne Kochanski,,600.0,0.0,07/20/2020,08/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+103,,C1054,Christopher Sancho,,520.0,520.0,07/20/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+110,,C1057,Clifford Charles,,900.0,0.0,07/20/2020,08/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+68,,C1027,"BlackRock, Inc.",,300000.0,0.0,07/16/2020,08/31/2021,Paid,,,,4.AR
+213,,C1372,Melinda Diaz,,700.0,700.0,07/15/2020,11/30/2020,Posted,,,,4.AR
+334,,C1292,Siegel Family Endowment,,2000000.0,0.0,07/08/2020,12/31/2022,Paid,,,,4.AR
+160,,C1148,Jevon Gordon,,900.0,900.0,06/30/2020,08/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+152,,C1146,Jervon Arnold,,1040.0,1040.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+224,,C1216,Meseret Gebru,,850.0,850.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+283,,C1260,Richard Crichlow,,1080.0,1080.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+43,,C1014,Amirah Oxendine,,1080.0,0.0,06/22/2020,07/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+102,,C1054,Christopher Sancho,,520.0,520.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+401,,C1345,Yaseen Al Dallash,,650.0,0.0,06/22/2020,07/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+134,,C1110,Gregory Davis,,1050.0,1050.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+364,,C1311,Tatiana Moronta,,900.0,900.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+72,,C1036,Bryant Ramirez,,800.0,800.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+55,,C1020,Anne Kochanski,,600.0,0.0,06/22/2020,07/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+376,,C1317,Thinley Dorjee,,896.0,896.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+81,,C1040,Caroline Cruz,,1000.0,1000.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+257,,C1239,Nicole Souvenir,,1060.0,0.0,06/22/2020,07/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+338,,C1380,Simon Gaviria,,660.0,660.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+387,,C1340,Winston Maragh,,900.0,900.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+318,,C1288,Shantal Taveras,,1050.0,1050.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+238,,C1226,Monique Mojica,,750.0,750.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+292,,C1265,Robert Abreu,,700.0,700.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+172,,C1151,Joanne Song,,900.0,900.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+206,,C1213,Melina Gonzalez,,680.0,680.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+327,,C1291,Sheriff Ameen,,700.0,700.0,06/22/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+875,,C1354,Daniel Teran,,25000.0,0.0,06/01/2020,12/31/2020,Paid,Twitter Fundraising,,,4.AR
+159,,C1148,Jevon Gordon,,900.0,900.0,05/31/2020,07/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+326,,C1291,Sheriff Ameen,,700.0,225.0,05/27/2020,06/07/2020,Partially Paid,Monthly ISA Invoice,,,4.AR
+237,,C1226,Monique Mojica,,750.0,750.0,05/20/2020,06/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+282,,C1260,Richard Crichlow,,1080.0,1080.0,05/20/2020,06/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+205,,C1213,Melina Gonzalez,,680.0,680.0,05/20/2020,06/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+400,,C1345,Yaseen Al Dallash,,650.0,0.0,05/20/2020,06/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+80,,C1040,Caroline Cruz,,1000.0,1000.0,05/20/2020,06/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+363,,C1311,Tatiana Moronta,,900.0,900.0,05/20/2020,06/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+133,,C1110,Gregory Davis,,1050.0,1050.0,05/20/2020,06/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+54,,C1020,Anne Kochanski,,600.0,0.0,05/20/2020,06/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+71,,C1036,Bryant Ramirez,,800.0,800.0,05/20/2020,06/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+101,,C1054,Christopher Sancho,,520.0,520.0,05/20/2020,06/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+151,,C1146,Jervon Arnold,,1040.0,1040.0,05/20/2020,06/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+317,,C1288,Shantal Taveras,,1050.0,1050.0,05/20/2020,06/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+171,,C1151,Joanne Song,,900.0,900.0,05/20/2020,06/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+256,,C1239,Nicole Souvenir,,1060.0,0.0,05/20/2020,06/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+223,,C1216,Meseret Gebru,,850.0,850.0,05/20/2020,06/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+386,,C1340,Winston Maragh,,900.0,900.0,05/20/2020,06/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+42,,C1014,Amirah Oxendine,,1080.0,0.0,05/20/2020,06/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+375,,C1317,Thinley Dorjee,,896.0,896.0,05/20/2020,06/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+114,,C1069,David Shin,,800.0,800.0,05/01/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+231,,C1218,Michael Flor,,700.0,700.0,04/30/2020,09/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+41,,C1014,Amirah Oxendine,,1080.0,0.0,04/20/2020,05/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+32,,C1007,Alan Holguin,,820.0,820.0,04/20/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+100,,C1054,Christopher Sancho,,520.0,520.0,04/20/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+79,,C1040,Caroline Cruz,,1000.0,1000.0,04/20/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+132,,C1110,Gregory Davis,,1050.0,1050.0,04/20/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+374,,C1317,Thinley Dorjee,,896.0,896.0,04/20/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+53,,C1020,Anne Kochanski,,600.0,0.0,04/20/2020,05/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+281,,C1260,Richard Crichlow,,1080.0,1080.0,04/20/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+399,,C1345,Yaseen Al Dallash,,650.0,0.0,04/20/2020,05/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+170,,C1151,Joanne Song,,900.0,900.0,04/20/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+150,,C1146,Jervon Arnold,,1040.0,1040.0,04/20/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+316,,C1288,Shantal Taveras,,1050.0,1050.0,04/20/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+385,,C1340,Winston Maragh,,900.0,900.0,04/20/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+362,,C1311,Tatiana Moronta,,900.0,900.0,04/20/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+204,,C1213,Melina Gonzalez,,680.0,680.0,04/20/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+349,,C1305,Susana Han,,850.0,850.0,04/20/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+222,,C1216,Meseret Gebru,,850.0,850.0,04/20/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+255,,C1239,Nicole Souvenir,,1060.0,0.0,04/20/2020,05/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+336,,C1380,Simon Gaviria,,660.0,0.0,04/20/2020,05/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+236,,C1226,Monique Mojica,,750.0,750.0,04/20/2020,05/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+325,,C1291,Sheriff Ameen,,525.0,0.0,04/20/2020,05/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+254,,C1239,Nicole Souvenir,,1060.0,0.0,02/29/2020,03/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+358,,C1310,Tasliym Twinaamani,,900.0,900.0,02/29/2020,03/31/2020,Posted,Monthly ISA Invoice,,,4.AR
+396,,C1343,Xianxian Chen,,920.0,0.0,02/20/2020,03/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+384,,C1340,Winston Maragh,,900.0,900.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+308,,C1270,Ruben Profit,,750.0,750.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+149,,C1146,Jervon Arnold,,1040.0,1040.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+31,,C1007,Alan Holguin,,820.0,820.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+221,,C1216,Meseret Gebru,,850.0,850.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+131,,C1110,Gregory Davis,,1050.0,1050.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+315,,C1288,Shantal Taveras,,1050.0,1050.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+40,,C1014,Amirah Oxendine,,1080.0,0.0,02/20/2020,03/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+169,,C1151,Joanne Song,,900.0,900.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+248,,C1233,Newton Brooks Jr,,1450.0,1450.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+361,,C1311,Tatiana Moronta,,900.0,900.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+398,,C1345,Yaseen Al Dallash,,650.0,0.0,02/20/2020,03/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+235,,C1226,Monique Mojica,,750.0,750.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+99,,C1054,Christopher Sancho,,520.0,520.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+203,,C1213,Melina Gonzalez,,680.0,680.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+280,,C1260,Richard Crichlow,,1080.0,1080.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+52,,C1020,Anne Kochanski,,600.0,0.0,02/20/2020,03/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+373,,C1317,Thinley Dorjee,,896.0,896.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+64,,C1022,Ashley Joachim,,850.0,850.0,02/20/2020,03/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+253,,C1239,Nicole Souvenir,,1060.0,0.0,01/31/2020,02/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+39,,C1014,Amirah Oxendine,,1080.0,0.0,01/27/2020,02/15/2020,Paid,Monthly ISA Invoice,,,4.AR
+357,,C1310,Tasliym Twinaamani,,900.0,900.0,01/27/2020,02/14/2020,Posted,Monthly ISA Invoice,,,4.AR
+307,,C1270,Ruben Profit,,750.0,750.0,01/20/2020,02/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+279,,C1260,Richard Crichlow,,1080.0,1080.0,01/20/2020,02/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+63,,C1022,Ashley Joachim,,850.0,850.0,01/20/2020,02/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+148,,C1146,Jervon Arnold,,1040.0,1040.0,01/20/2020,02/14/2020,Posted,Monthly ISA Invoice,,,4.AR
+220,,C1216,Meseret Gebru,,850.0,850.0,01/20/2020,02/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+98,,C1054,Christopher Sancho,,520.0,520.0,01/20/2020,02/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+168,,C1151,Joanne Song,,300.0,300.0,01/20/2020,02/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+247,,C1233,Newton Brooks Jr,,1450.0,1450.0,01/20/2020,02/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+360,,C1311,Tatiana Moronta,,900.0,900.0,01/20/2020,02/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+202,,C1213,Melina Gonzalez,,680.0,680.0,01/20/2020,02/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+397,,C1345,Yaseen Al Dallash,,650.0,0.0,01/20/2020,02/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+30,,C1007,Alan Holguin,,820.0,820.0,01/20/2020,02/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+372,,C1317,Thinley Dorjee,,896.0,896.0,01/20/2020,02/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+314,,C1288,Shantal Taveras,,1050.0,1050.0,01/20/2020,02/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+395,,C1343,Xianxian Chen,,920.0,0.0,01/20/2020,02/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+383,,C1340,Winston Maragh,,900.0,900.0,01/20/2020,02/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+93,,C1046,Chelsea Katsidzira,,900.0,900.0,01/20/2020,02/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+130,,C1110,Gregory Davis,,1050.0,1050.0,01/20/2020,02/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+250,,C1238,Nicole Hopkins,,500.0,500.0,01/01/2020,08/31/2020,Posted,Monthly ISA Invoice,,,4.AR
+381,,C1337,Wesnie Marcelin,,850.0,850.0,12/31/2019,01/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+92,,C1046,Chelsea Katsidzira,,900.0,900.0,12/31/2019,01/02/2020,Posted,Monthly ISA Invoice,,,4.AR
+29,,C1006,Alaa al Sudani,,850.0,850.0,12/19/2019,01/02/2020,Posted,Monthly ISA Invoice,,,4.AR
+276,,C1254,Rabiya Watson-Maiorana,,760.0,760.0,12/19/2019,01/02/2020,Posted,Monthly ISA Invoice,,,4.AR
+306,,C1270,Ruben Profit,,750.0,750.0,12/19/2019,01/02/2020,Posted,Monthly ISA Invoice,,,4.AR
+246,,C1233,Newton Brooks Jr,,1450.0,1450.0,12/19/2019,01/02/2020,Posted,Monthly ISA Invoice,,,4.AR
+97,,C1054,Christopher Sancho,,520.0,520.0,12/19/2019,01/02/2020,Posted,Monthly ISA Invoice,,,4.AR
+335,,C1380,Simon Gaviria,,660.0,0.0,12/19/2019,01/02/2020,Paid,Monthly ISA Invoice,,,4.AR
+219,,C1216,Meseret Gebru,,850.0,850.0,12/19/2019,01/02/2020,Posted,Monthly ISA Invoice,,,4.AR
+91,,C1046,Chelsea Katsidzira,,900.0,900.0,11/30/2019,12/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+96,,C1054,Christopher Sancho,,520.0,520.0,11/20/2019,12/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+218,,C1216,Meseret Gebru,,850.0,850.0,11/20/2019,12/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+305,,C1270,Ruben Profit,,750.0,750.0,11/20/2019,12/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+245,,C1233,Newton Brooks Jr,,1450.0,1450.0,11/20/2019,12/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+275,,C1254,Rabiya Watson-Maiorana,,760.0,760.0,11/20/2019,12/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+244,,C1233,Newton Brooks Jr,,1450.0,1450.0,10/20/2019,11/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+95,,C1054,Christopher Sancho,,520.0,520.0,10/20/2019,11/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+304,,C1270,Ruben Profit,,750.0,750.0,10/20/2019,11/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+62,,C1022,Ashley Joachim,,850.0,850.0,10/20/2019,11/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+217,,C1216,Meseret Gebru,,850.0,850.0,10/20/2019,11/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+274,,C1254,Rabiya Watson-Maiorana,,760.0,760.0,10/20/2019,11/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+90,,C1046,Chelsea Katsidzira,,900.0,900.0,10/14/2019,11/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+27,,C1004,AH Capital Management LLC,,200056.27,18208.53,10/09/2019,10/09/2022,Partially Paid,,,,4.AR
+201,,C1213,Melina Gonzalez,,8160.0,8160.0,10/03/2019,01/02/2020,Posted,Monthly ISA Invoice,,,4.AR
+50,,C1353,Soo Kim,,40000.0,0.0,09/24/2019,12/31/2019,Paid,,,,4.AR
+25,,C1351,Adam Belanich,,15000.0,0.0,09/23/2019,12/31/2019,Paid,,,,4.AR
+142,,C1127,Ilmira Estil,,6840.0,6840.0,09/20/2019,10/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+216,,C1216,Meseret Gebru,,850.0,850.0,09/19/2019,10/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+94,,C1054,Christopher Sancho,,520.0,520.0,09/19/2019,10/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+303,,C1270,Ruben Profit,,750.0,750.0,09/19/2019,10/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+273,,C1254,Rabiya Watson-Maiorana,,760.0,760.0,09/19/2019,10/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+243,,C1233,Newton Brooks Jr,,1450.0,1450.0,09/19/2019,10/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+122,,C1077,Dorian Guzman,,6000.0,6000.0,09/12/2019,04/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+309,,C1276,Salina Fu,,1250.0,1250.0,09/12/2019,02/07/2020,Posted,Monthly ISA Invoice,,,4.AR
+382,,C1340,Winston Maragh,,12600.0,12600.0,09/12/2019,01/02/2020,Posted,Monthly ISA Invoice,,,4.AR
+302,,C1270,Ruben Profit,,750.0,750.0,08/21/2019,09/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+272,,C1254,Rabiya Watson-Maiorana,,760.0,760.0,08/21/2019,09/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+215,,C1216,Meseret Gebru,,850.0,0.0,08/21/2019,09/01/2019,Paid,Monthly ISA Invoice,,,4.AR
+301,,C1270,Ruben Profit,,750.0,750.0,07/22/2019,08/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+271,,C1254,Rabiya Watson-Maiorana,,760.0,760.0,07/22/2019,08/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+265,,C1244,Omolola Abudu,,900.0,900.0,07/19/2019,07/19/2019,Posted,Monthly ISA Invoice,,,4.AR
+89,,C1045,Chanice St Louis,,2600.0,2600.0,06/25/2019,07/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+270,,C1254,Rabiya Watson-Maiorana,,660.0,660.0,06/20/2019,07/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+167,,C1151,Joanne Song,,10800.0,10800.0,06/04/2019,11/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+115,,C1231,New York State Department of Labor,,100000.0,0.0,05/24/2019,08/30/2020,Paid,,,,4.AR
+195,,C1192,Leigh Douglas,,17096.39,17096.39,04/22/2019,06/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+313,,C1288,Shantal Taveras,,5350.0,5350.0,04/22/2019,12/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+129,,C1110,Gregory Davis,,9450.0,9450.0,04/22/2019,12/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+179,,C1153,John Breshears,,5450.0,5450.0,04/15/2019,04/15/2019,Posted,Monthly ISA Invoice,,,4.AR
+200,,C1213,Melina Gonzalez,,13041.6,13041.6,04/05/2019,10/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+38,,C1014,Amirah Oxendine,,19440.0,0.0,04/02/2019,07/01/2019,Paid,Monthly ISA Invoice,,,4.AR
+356,,C1310,Tasliym Twinaamani,,8100.0,8100.0,04/02/2019,01/01/2020,Posted,Monthly ISA Invoice,,,4.AR
+113,,C1066,Daniel Sangobanow,,23795.2,23795.2,04/01/2019,07/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+278,,C1260,Richard Crichlow,,15100.0,15100.0,03/29/2019,01/02/2020,Posted,Monthly ISA Invoice,,,4.AR
+183,,C1164,Joshua Fermin,,11600.0,11600.0,03/28/2019,07/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+371,,C1317,Thinley Dorjee,,13440.0,13440.0,03/26/2019,09/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+379,,C1330,Victor Amos,,14900.0,14900.0,03/26/2019,07/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+141,,C1126,Ilias Sabillah,,11950.0,11950.0,03/26/2019,07/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+311,,C1277,Samantha Bretous,,23646.15,23646.15,03/25/2019,07/01/2019,Posted,Monthly ISA Invoice,,,4.AR
+252,,C1239,Nicole Souvenir,,12720.0,0.0,01/31/2019,01/01/2020,Paid,Monthly ISA Invoice,,,4.AR
+409,,C1386,Anonymous Donors,,-443018.0,-443018.0,12/31/2018,12/31/2018,Posted,,,,4.AR
+251,,C1239,Nicole Souvenir,,5300.0,0.0,12/31/2018,12/31/2018,Paid,Monthly ISA Invoice,,,4.AR
+410,,C1387,Joseph Robert Kerrey and Sarah Paley,,-5000.0,-5000.0,12/31/2018,12/31/2018,Posted,,,,4.AR

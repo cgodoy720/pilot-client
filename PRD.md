@@ -327,6 +327,153 @@ Automatic context aggregation from across Pursuit's systems (Slack notifications
 
 ---
 
+## User Journey 5: Complete Grant Lifecycle - From Opportunity to Payment (NEW)
+
+**Context:** The complete workflow connects partnerships' opportunity management with finance's invoice and payment tracking, creating a seamless handoff and automated stage transitions based on payment status.
+
+### Workflow Overview
+
+```
+1. Partnerships: Create opportunity → Link account & contact
+2. Partnerships: Update through pipeline stages
+3. System: When "Closed Won" → Prompt for payment schedule
+4. Finance: View new closed opportunities awaiting invoices
+5. Finance: Create invoice in Sage Intacct → Auto-move to "Collecting / In Effect"
+6. Finance: Track payments as received
+7. System: When all payments received → Auto-move to "Closed / Completed"
+```
+
+### 1. Payment Schedule on Closed Won
+
+- [ ] **[P0]** When opportunity stage changes to "Closed Won", system automatically opens payment schedule modal
+- [ ] **[P0]** User enters payment schedule in natural language (e.g., "3 payments of $100k each, quarterly starting Jan 2026")
+- [ ] **[P0]** AI parses natural language into structured table with columns:
+  - [ ] Payment Date
+  - [ ] Amount
+  - [ ] Status (defaults to "Scheduled")
+- [ ] **[P0]** User can review and edit generated schedule:
+  - [ ] Edit individual payment dates and amounts
+  - [ ] Add or delete payment rows
+  - [ ] Manual entry if AI parsing fails
+- [ ] **[P0]** System validates:
+  - [ ] Total of all payments matches opportunity amount
+  - [ ] All payment dates are in the future (or reasonable past)
+  - [ ] At least one payment is entered
+- [ ] **[P0]** Payment schedule saves to Salesforce NPSP Payment records
+- [ ] **[P0]** User can skip and add payment schedule later from opportunity detail page
+- [ ] **[P0]** Payment schedule displays on opportunity detail page for all users
+
+### 2. Finance Dashboard - Awaiting Invoices
+
+- [ ] **[P0]** Finance team can access dedicated "Finance Dashboard" from main navigation
+- [ ] **[P0]** Dashboard shows three tabs:
+  - [ ] "Awaiting Invoice" - Closed Won opportunities that need invoicing
+  - [ ] "Active Collections" - Opportunities in Collecting/In Effect stage
+  - [ ] "Completed" - Opportunities in Closed/Completed stage
+- [ ] **[P0]** "Awaiting Invoice" tab displays:
+  - [ ] Opportunity name
+  - [ ] Account name
+  - [ ] Total amount
+  - [ ] Close date
+  - [ ] Payment schedule summary (e.g., "3 payments, first due 01/15/2026")
+  - [ ] "Create Invoice" button
+- [ ] **[P0]** Each opportunity card shows payment schedule details when expanded
+- [ ] **[P0]** Finance can filter by:
+  - [ ] Date range (when opportunity was closed)
+  - [ ] Amount range
+  - [ ] Account
+- [ ] **[P0]** Finance can sort by:
+  - [ ] Close date
+  - [ ] Amount
+  - [ ] First payment due date
+
+### 3. Invoice Creation in Sage Intacct
+
+- [ ] **[P0]** Finance clicks "Create Invoice" button on opportunity
+- [ ] **[P0]** Modal opens pre-filled with opportunity data:
+  - [ ] Customer name (from Account)
+  - [ ] Contact email (from Primary Contact)
+  - [ ] Invoice amount
+  - [ ] Payment schedule breakdown
+  - [ ] Invoice date (defaults to today)
+  - [ ] Due date (defaults to first payment due date)
+  - [ ] Description (defaults to opportunity name)
+- [ ] **[P0]** Finance can edit invoice details before creating
+- [ ] **[P0]** System validates invoice data before submission
+- [ ] **[P0]** On "Confirm & Create":
+  - [ ] Create invoice in Sage Intacct via API
+  - [ ] Store Sage invoice ID in Salesforce custom field `Sage_Invoice_ID__c`
+  - [ ] Create `Grant_Invoice__c` junction record linking opportunity to invoice
+  - [ ] Automatically update opportunity stage to "Collecting / In Effect"
+  - [ ] Set `Invoice_Created_Date__c` custom field
+- [ ] **[P0]** Success message displays with Sage invoice ID and link
+- [ ] **[P0]** If invoice creation fails, show detailed error message and don't update opportunity stage
+- [ ] **[P0]** Invoice creation action is logged in opportunity history
+
+### 4. Payment Tracking - Active Collections
+
+- [ ] **[P0]** "Active Collections" tab shows all opportunities in "Collecting / In Effect" stage
+- [ ] **[P0]** Each opportunity displays:
+  - [ ] Opportunity name and account
+  - [ ] Total amount and amount received
+  - [ ] Progress bar showing payment completion (e.g., "2 of 3 payments received")
+  - [ ] Sage invoice ID with link to Sage Intacct
+  - [ ] Payment schedule with status for each payment
+  - [ ] "Track Payments" button/link
+- [ ] **[P0]** Payment schedule shows each payment with:
+  - [ ] Due date
+  - [ ] Amount
+  - [ ] Status: "Scheduled" (gray) | "Received" (green) | "Overdue" (red)
+  - [ ] Action button: "Mark Received" for scheduled/overdue payments
+- [ ] **[P0]** Overdue status applies when:
+  - [ ] Payment due date has passed
+  - [ ] Payment has not been marked as received
+- [ ] **[P0]** Finance clicks "Mark Received" on a payment
+- [ ] **[P0]** Confirmation modal opens with fields:
+  - [ ] Received date (defaults to today)
+  - [ ] Received amount (defaults to scheduled amount, editable)
+  - [ ] Payment method (dropdown: Wire Transfer, Check, ACH, Credit Card, Other)
+  - [ ] Notes (optional)
+- [ ] **[P0]** On confirmation:
+  - [ ] Update NPSP Payment record: set `npe01__Paid__c = true`
+  - [ ] Set `npe01__Payment_Date__c` to received date
+  - [ ] Set `npe01__Payment_Method__c`
+  - [ ] Update payment status in Sage Intacct (if supported by API)
+  - [ ] Recalculate opportunity payment totals
+  - [ ] Show success message
+- [ ] **[P0]** Payment schedule updates in real-time to show "Received" status
+
+### 5. Auto-Complete on Full Payment
+
+- [ ] **[P0]** When finance marks the final payment as received:
+  - [ ] System checks if all payments in schedule are marked "Received"
+  - [ ] If all received, automatically update opportunity stage to "Closed / Completed"
+  - [ ] Show success notification: "All payments received! Opportunity marked as complete."
+  - [ ] Log stage change in opportunity history
+  - [ ] Send Slack notification to opportunity owner
+- [ ] **[P0]** Opportunity appears in "Completed" tab of Finance Dashboard
+- [ ] **[P0]** Opportunity no longer appears in "Active Collections" tab
+- [ ] **[P0]** Partnerships team sees opportunity in "Closed / Completed" stage
+- [ ] **[P0]** Executive dashboard reflects completed opportunity in metrics
+
+### 6. Manual Stage Override
+
+- [ ] **[P0]** Partnerships team can still manually change opportunity stage at any time
+- [ ] **[P0]** If stage is manually changed away from "Collecting / In Effect", payment tracking remains available but doesn't auto-update stage
+- [ ] **[P0]** Finance can manually move opportunity to "Closed / Completed" even if not all payments received (for exceptions)
+
+### 7. Payment Dashboard Metrics
+
+- [ ] **[P0]** Finance Dashboard header shows summary metrics:
+  - [ ] Total outstanding receivables (sum of unpaid scheduled payments)
+  - [ ] Payments due this month (count and amount)
+  - [ ] Overdue payments (count and amount)
+  - [ ] Payments received this month (count and amount)
+- [ ] **[P0]** Metrics update in real-time as payments are marked received
+- [ ] **[P0]** CEO has read-only access to Finance Dashboard
+
+---
+
 ## Implementation Status
 
 ### ✅ Completed Features
@@ -450,4 +597,5 @@ None currently
 - 2025-11-09: Initial PRD created
 - 2025-11-09: Updated with current implementation status and completed features
 - 2025-11-09: Added account and contact creation features - users can now create new accounts and contacts inline when creating opportunities, and view all contacts associated with an account
+- 2025-11-13: Added complete grant lifecycle workflow from opportunity creation to payment completion, including payment schedule management, finance dashboard, invoice creation in Sage Intacct, and automated stage transitions based on payment status
 

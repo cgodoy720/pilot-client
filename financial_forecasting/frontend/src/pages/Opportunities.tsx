@@ -20,8 +20,6 @@ import {
   Alert,
   Select,
   Autocomplete,
-  Tabs,
-  Tab,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -45,6 +43,7 @@ import toast from 'react-hot-toast';
 import { format, addDays, parseISO, differenceInDays } from 'date-fns';
 
 import { apiService } from '../services/api';
+import PaymentScheduleModal from '../components/PaymentScheduleModal';
 
 // Opportunity stages - matching Salesforce picklist
 const OPPORTUNITY_STAGES = [
@@ -188,29 +187,40 @@ const Opportunities: React.FC = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
   const [editForm, setEditForm] = useState<any>({});
-  const [activeTab, setActiveTab] = useState<number>(0);
+  const [viewMode, setViewMode] = useState<'open' | 'collecting' | 'closed'>('open');
   const [recentlyChangedIds, setRecentlyChangedIds] = useState<Set<string>>(new Set());
   const recentlyChangedRef = useRef<Set<string>>(new Set());
-  const [filteredPipelineRows, setFilteredPipelineRows] = useState<Opportunity[]>([]);
-  const [filteredPaymentRows, setFilteredPaymentRows] = useState<Opportunity[]>([]);
+  const [filteredRows, setFilteredRows] = useState<Opportunity[]>([]);
   const [initialFilter, setInitialFilter] = useState<'atRisk' | 'stale' | null>(null);
+  
+  // Bulk action states
+  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
+  const [bulkActionDialogOpen, setBulkActionDialogOpen] = useState(false);
+  const [bulkAction, setBulkAction] = useState<'withdraw' | 'stage' | ''>('');
+  const [bulkTargetStage, setBulkTargetStage] = useState('');
+  
+  // Payment Schedule Modal state
+  const [paymentScheduleOpen, setPaymentScheduleOpen] = useState(false);
+  const [paymentScheduleOpp, setPaymentScheduleOpp] = useState<Opportunity | null>(null);
 
   const queryClient = useQueryClient();
 
   // Fetch opportunities
-  const { data: opportunities, isLoading, error } = useQuery(
+  const { data: opportunitiesData, isLoading, error } = useQuery(
     'opportunities',
     async () => {
       const response = await apiService.getOpportunities();
       return response.data;
-    },
-    {
-      refetchInterval: 30000, // Refresh every 30 seconds
     }
   );
 
+  // Ensure opportunities is always an array
+  const opportunities = Array.isArray(opportunitiesData) 
+    ? opportunitiesData 
+    : (opportunitiesData?.opportunities || opportunitiesData?.data || []);
+
   // Fetch users for Owner autocomplete
-  const { data: users } = useQuery(
+  const { data: usersData } = useQuery(
     'users',
     async () => {
       const response = await apiService.getUsers({ limit: 1000 });
@@ -222,7 +232,7 @@ const Opportunities: React.FC = () => {
   );
 
   // Fetch accounts for Account autocomplete
-  const { data: accounts } = useQuery(
+  const { data: accountsData } = useQuery(
     'accounts',
     async () => {
       const response = await apiService.getAccounts();
@@ -232,6 +242,10 @@ const Opportunities: React.FC = () => {
       staleTime: 300000, // Cache for 5 minutes
     }
   );
+
+  // Ensure users and accounts are always arrays
+  const users = Array.isArray(usersData) ? usersData : (usersData?.users || []);
+  const accounts = Array.isArray(accountsData) ? accountsData : (accountsData?.accounts || []);
 
   // Handle incoming filter from Dashboard
   useEffect(() => {
@@ -264,6 +278,28 @@ const Opportunities: React.FC = () => {
     }
   );
 
+  // Bulk update mutation
+  const bulkUpdateMutation = useMutation(
+    async ({ oppIds, updates }: { oppIds: string[]; updates: any }) => {
+      // Update all selected opportunities
+      const promises = oppIds.map(id => apiService.updateOpportunity(id, updates));
+      return await Promise.all(promises);
+    },
+    {
+      onSuccess: (data, variables) => {
+        queryClient.invalidateQueries('opportunities');
+        toast.success(`Successfully updated ${variables.oppIds.length} opportunities!`);
+        setBulkActionDialogOpen(false);
+        setSelectedRowIds([]);
+        setBulkAction('');
+        setBulkTargetStage('');
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to update: ${error.message}`);
+      },
+    }
+  );
+
   const handleEdit = (opp: Opportunity) => {
     setSelectedOpp(opp);
     setEditForm({
@@ -288,11 +324,55 @@ const Opportunities: React.FC = () => {
       if (editForm.CloseDate !== selectedOpp.CloseDate) updates.CloseDate = editForm.CloseDate;
 
       if (Object.keys(updates).length > 0) {
-        updateMutation.mutate({ oppId: selectedOpp.Id, updates });
+        // Check if stage is changing to "Closed Won"
+        const stageChangedToClosedWon = updates.StageName && 
+                                         updates.StageName.includes('Closed Won') && 
+                                         !selectedOpp.StageName.includes('Closed Won');
+        
+        // Save the opportunity first
+        updateMutation.mutate(
+          { oppId: selectedOpp.Id, updates },
+          {
+            onSuccess: () => {
+              // If moved to Closed Won, show payment schedule modal
+              if (stageChangedToClosedWon) {
+                const updatedOpp = { ...selectedOpp, ...updates };
+                setPaymentScheduleOpp(updatedOpp);
+                setPaymentScheduleOpen(true);
+              }
+            }
+          }
+        );
       } else {
         toast('No changes detected');
         setEditDialogOpen(false);
       }
+    }
+  };
+
+  const handleBulkAction = (action: 'withdraw' | 'stage') => {
+    if (selectedRowIds.length === 0) {
+      toast.error('Please select opportunities first');
+      return;
+    }
+    setBulkAction(action);
+    if (action === 'withdraw') {
+      setBulkTargetStage('Withdrawn');
+    }
+    setBulkActionDialogOpen(true);
+  };
+
+  const handleBulkActionConfirm = () => {
+    if (bulkAction === 'withdraw') {
+      bulkUpdateMutation.mutate({
+        oppIds: selectedRowIds,
+        updates: { StageName: 'Withdrawn' }
+      });
+    } else if (bulkAction === 'stage' && bulkTargetStage) {
+      bulkUpdateMutation.mutate({
+        oppIds: selectedRowIds,
+        updates: { StageName: bulkTargetStage }
+      });
     }
   };
 
@@ -449,6 +529,33 @@ const Opportunities: React.FC = () => {
                   return next;
                 });
               }, 5000); // Keep visible for 5 seconds
+            }
+            
+            // Check if moving to "Collecting / In Effect" - requires payment schedule
+            if (newStage === 'Collecting / In Effect') {
+              toast.dismiss(loadingToast);
+              
+              // Validate payment schedule exists
+              try {
+                const response = await apiService.validateStageChange(params.row.Id, newStage);
+                const validation = response.data;
+                
+                if (!validation.can_proceed) {
+                  // No payment schedule or invalid - redirect to payment schedule page
+                  toast.error(validation.message || 'Payment schedule required');
+                  navigate(`/payment-schedule/${params.row.Id}`);
+                  return;
+                }
+                
+                // Payment schedule valid, proceed with stage change
+                toast.success(validation.message || 'Payment schedule validated');
+              } catch (error: any) {
+                // Validation failed, redirect to payment schedule page
+                const errorMsg = error.response?.data?.message || 'Payment schedule required';
+                toast.error(errorMsg);
+                navigate(`/payment-schedule/${params.row.Id}`);
+                return;
+              }
             }
             
             // Optimistically update the UI immediately
@@ -818,48 +925,67 @@ const Opportunities: React.FC = () => {
     },
   ];
 
-  // Split opportunities into Pipeline (open) and Payments (closed/won)
-  // Payment Tracking: Won/Completed/Collection stages (any stage with payment activity)
+  // Calculate metrics for each view mode
+  const openOnlyOpps = opportunities?.filter((opp: Opportunity) => {
+    return OPEN_STAGES.includes(opp.StageName);
+  }) || [];
+
   const paymentOpps = opportunities?.filter((opp: Opportunity) => {
     const stage = opp.StageName || '';
-    return stage.includes('Closed Won') || 
-           stage.includes('Closed / Completed') ||
-           stage.includes('Collecting') ||
-           stage.includes('In Collection') ||
-           stage.includes('In Effect');
+    return stage.includes('Collecting') || stage.includes('In Effect');
   }) || [];
 
-  // Pipeline: Only include stages actively being pursued
-  // Also keep recently changed opportunities visible for 5 seconds
-  const allPipelineOpps = opportunities?.filter((opp: Opportunity) => {
-    const isOpen = OPEN_STAGES.includes(opp.StageName);
-    const inRecentSet = recentlyChangedIds.has(opp.Id);
-    const inRecentRef = recentlyChangedRef.current.has(opp.Id);
-    const shouldInclude = isOpen || inRecentSet || inRecentRef;
-    
-    if (inRecentSet || inRecentRef) {
-      console.log('🟢 Keeping opp visible:', opp.Id, opp.Name, 'Stage:', opp.StageName, 
-                  'inRecentSet:', inRecentSet, 'inRecentRef:', inRecentRef);
-    }
-    
-    return shouldInclude;
-  }) || [];
-
-  // Calculate summary metrics from FULL pipeline (before filtering) to match Overview
-  const totalPipeline = allPipelineOpps.reduce((sum: number, opp: Opportunity) => 
+  const totalPipeline = openOnlyOpps.reduce((sum: number, opp: Opportunity) => 
     sum + (opp.Amount || 0), 0) || 0;
   
-  const weightedPipeline = allPipelineOpps.reduce((sum: number, opp: Opportunity) => 
+  const weightedPipeline = openOnlyOpps.reduce((sum: number, opp: Opportunity) => 
     sum + ((opp.Amount || 0) * (opp.Probability || 0) / 100), 0) || 0;
 
-  // Apply additional filters from Dashboard navigation (for display only, not metrics)
-  let pipelineOpps = allPipelineOpps;
+  const totalPaymentsReceived = paymentOpps.reduce((sum: number, opp: Opportunity) => 
+    sum + (opp.npe01__Payments_Made__c || 0), 0) || 0;
+
+  const totalOutstanding = paymentOpps.reduce((sum: number, opp: Opportunity) => 
+    sum + ((opp.Amount || 0) - (opp.npe01__Payments_Made__c || 0)), 0) || 0;
+  
+  const totalExpected = paymentOpps.reduce((sum: number, opp: Opportunity) => 
+    sum + (opp.Amount || 0), 0) || 0;
+
+  // Filter opportunities based on view mode
+  const displayOpps = React.useMemo(() => {
+    if (viewMode === 'open') {
+      // Open pipeline - show open stages + recently changed
+      return opportunities?.filter((opp: Opportunity) => {
+        const isOpen = OPEN_STAGES.includes(opp.StageName);
+        const inRecentSet = recentlyChangedIds.has(opp.Id);
+        const inRecentRef = recentlyChangedRef.current.has(opp.Id);
+        return isOpen || inRecentSet || inRecentRef;
+      }) || [];
+    } else if (viewMode === 'collecting') {
+      // Collecting / In Effect - won grants with payment tracking
+      return opportunities?.filter((opp: Opportunity) => {
+        const stage = opp.StageName || '';
+        return stage.includes('Collecting') || stage.includes('In Effect');
+      }) || [];
+    } else {
+      // Closed - losses, withdrawn, completed
+      return opportunities?.filter((opp: Opportunity) => {
+        const stage = opp.StageName || '';
+        return stage.includes('Closed Lost') || 
+               stage.includes('Withdrawn') || 
+               stage.includes('Closed / Did not Fulfill') ||
+               stage.includes('Closed / Completed');
+      }) || [];
+    }
+  }, [opportunities, viewMode, recentlyChangedIds]);
+
+  // Apply additional filters from Dashboard navigation
+  let visibleOpps = displayOpps;
   if (initialFilter === 'atRisk') {
     const now = new Date();
     const currentQuarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
     const currentQuarterEnd = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 0);
     
-    pipelineOpps = pipelineOpps.filter((opp: Opportunity) => {
+    visibleOpps = visibleOpps.filter((opp: Opportunity) => {
       if (!opp.CloseDate) return false;
       const closeDate = parseISO(opp.CloseDate);
       const inCurrentQuarter = closeDate >= currentQuarterStart && closeDate <= currentQuarterEnd;
@@ -868,7 +994,7 @@ const Opportunities: React.FC = () => {
     });
   } else if (initialFilter === 'stale') {
     const now = new Date();
-    pipelineOpps = pipelineOpps.filter((opp: Opportunity) => {
+    visibleOpps = visibleOpps.filter((opp: Opportunity) => {
       if (!opp.CloseDate) return false;
       const closeDate = parseISO(opp.CloseDate);
       const isPastDue = closeDate < now;
@@ -881,26 +1007,87 @@ const Opportunities: React.FC = () => {
     });
   }
 
-  const totalPaymentsReceived = paymentOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + (opp.npe01__Payments_Made__c || 0), 0) || 0;
-
-  const totalOutstanding = paymentOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + ((opp.Amount || 0) - (opp.npe01__Payments_Made__c || 0)), 0) || 0;
-  
-  const totalExpected = paymentOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + (opp.Amount || 0), 0) || 0;
+  // Update filteredRows whenever visibleOpps changes (for totals bar)
+  React.useEffect(() => {
+    setFilteredRows(visibleOpps);
+  }, [visibleOpps]);
 
   return (
     <>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Box>
-          <Typography variant="h4">Grant Management</Typography>
-          <Typography variant="body2" color="textSecondary">
-            Manage your pipeline and track closed grants
-          </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Button
+            variant={viewMode === 'open' ? 'contained' : 'outlined'}
+            onClick={() => setViewMode('open')}
+            sx={{ minWidth: 150 }}
+          >
+            Open Pipeline
+            <Chip 
+              label={openOnlyOpps.length} 
+              size="small" 
+              sx={{ ml: 1, bgcolor: viewMode === 'open' ? 'rgba(255,255,255,0.3)' : 'default' }}
+            />
+          </Button>
+          <Button
+            variant={viewMode === 'collecting' ? 'contained' : 'outlined'}
+            onClick={() => setViewMode('collecting')}
+            color={viewMode === 'collecting' ? 'success' : 'inherit'}
+            sx={{ minWidth: 180 }}
+          >
+            Collecting / In Effect
+            <Chip 
+              label={paymentOpps.length} 
+              size="small" 
+              sx={{ ml: 1, bgcolor: viewMode === 'collecting' ? 'rgba(255,255,255,0.3)' : 'default' }}
+            />
+          </Button>
+          <Button
+            variant={viewMode === 'closed' ? 'contained' : 'outlined'}
+            onClick={() => setViewMode('closed')}
+            color={viewMode === 'closed' ? 'error' : 'inherit'}
+            sx={{ minWidth: 150 }}
+          >
+            Closed
+            <Chip 
+              label={opportunities?.filter((opp: Opportunity) => {
+                const stage = opp.StageName || '';
+                return stage.includes('Closed Lost') || 
+                       stage.includes('Withdrawn') || 
+                       stage.includes('Closed / Did not Fulfill') ||
+                       stage.includes('Closed / Completed');
+              }).length || 0} 
+              size="small" 
+              sx={{ ml: 1, bgcolor: viewMode === 'closed' ? 'rgba(255,255,255,0.3)' : 'default' }}
+            />
+          </Button>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
+          {selectedRowIds.length > 0 && (
+            <>
+              <Chip 
+                label={`${selectedRowIds.length} selected`} 
+                color="primary" 
+                onDelete={() => setSelectedRowIds([])}
+              />
+              <Button
+                onClick={() => handleBulkAction('withdraw')}
+                variant="outlined"
+                color="error"
+                size="small"
+              >
+                Withdraw Selected
+              </Button>
+              <Button
+                onClick={() => handleBulkAction('stage')}
+                variant="outlined"
+                color="primary"
+                size="small"
+              >
+                Change Stage
+              </Button>
+            </>
+          )}
           <Button
             startIcon={<AddIcon />}
             onClick={() => navigate('/opportunities/new')}
@@ -917,30 +1104,6 @@ const Opportunities: React.FC = () => {
             Refresh
           </Button>
         </Box>
-      </Box>
-
-      {/* Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
-          <Tab 
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <span>Open Pipeline</span>
-                <Chip label={pipelineOpps.length} size="small" color="primary" />
-              </Box>
-            } 
-            value={0}
-          />
-          <Tab 
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <span>Payment Tracking</span>
-                <Chip label={paymentOpps.length} size="small" color="success" />
-              </Box>
-            } 
-            value={1}
-          />
-        </Tabs>
       </Box>
 
       {/* Filter Alert */}
@@ -963,23 +1126,29 @@ const Opportunities: React.FC = () => {
         </Alert>
       )}
 
-      {/* Inline Editing Hint */}
-      {activeTab === 0 && (
+      {/* View Mode Hint */}
+      {viewMode === 'open' && (
         <Alert severity="info" sx={{ mb: 3 }}>
           <strong>Open Pipeline:</strong> Track and manage open opportunities. 
           Edit fields inline to update Salesforce instantly: Name, Account, Owner, Stage, Amount, Probability, Close Date, 1st Payment Date.
         </Alert>
       )}
       
-      {activeTab === 1 && (
+      {viewMode === 'collecting' && (
         <Alert severity="success" sx={{ mb: 3 }}>
-          <strong>Payment Tracking:</strong> Monitor closed/won grants and payment status. 
+          <strong>Collecting / In Effect:</strong> Monitor won grants with payment tracking. 
           Track received payments, outstanding amounts, and payment schedules.
         </Alert>
       )}
 
-      {/* Summary Cards - Pipeline View */}
-      {activeTab === 0 && (
+      {viewMode === 'closed' && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <strong>Closed Opportunities:</strong> View completed, lost, withdrawn, or unfulfilled opportunities.
+        </Alert>
+      )}
+
+      {/* Summary Cards */}
+      {viewMode === 'open' && (
         <Grid container spacing={3} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={6} md={3}>
             <Card>
@@ -987,7 +1156,7 @@ const Opportunities: React.FC = () => {
                 <Typography color="textSecondary" gutterBottom variant="body2">
                   Open Opportunities
                 </Typography>
-                <Typography variant="h4">{pipelineOpps.length}</Typography>
+                <Typography variant="h4">{openOnlyOpps.length}</Typography>
                 <Typography variant="body2" color="textSecondary">
                   Active deals
                 </Typography>
@@ -1029,7 +1198,7 @@ const Opportunities: React.FC = () => {
                   Avg Deal Size
                 </Typography>
                 <Typography variant="h4">
-                  {formatDollarMillions(totalPipeline / (pipelineOpps.length || 1))}
+                  {formatDollarMillions(totalPipeline / (openOnlyOpps.length || 1))}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Per opportunity
@@ -1040,18 +1209,17 @@ const Opportunities: React.FC = () => {
         </Grid>
       )}
 
-      {/* Summary Cards - Payment View */}
-      {activeTab === 1 && (
+      {viewMode === 'collecting' && (
         <Grid container spacing={3} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Typography color="textSecondary" gutterBottom variant="body2">
-                  Closed/Won Grants
+                  Active Grants
                 </Typography>
                 <Typography variant="h4">{paymentOpps.length}</Typography>
                 <Typography variant="body2" color="textSecondary">
-                  Awarded deals
+                  In collection
                 </Typography>
               </CardContent>
             </Card>
@@ -1109,179 +1277,122 @@ const Opportunities: React.FC = () => {
         </Alert>
       )}
 
-      {/* Data Grid - Pipeline View */}
-      {activeTab === 0 && (
-        <Card>
-          <CardContent>
-            {/* Filtered Totals Bar */}
-            {filteredPipelineRows.length > 0 && (
-              <Box sx={{ 
-                p: 2, 
-                mb: 2, 
-                bgcolor: 'background.paper', 
-                borderRadius: 1,
-                display: 'flex',
-                gap: 3,
-                flexWrap: 'wrap',
-                border: '1px solid',
-                borderColor: 'divider'
-              }}>
-                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                  Showing: {filteredPipelineRows.length} opportunities
-                </Typography>
-                <Typography variant="body2">
-                  Total Value: {formatDollarMillions(filteredPipelineRows.reduce((sum: number, opp: Opportunity) => sum + (opp.Amount || 0), 0))}
-                </Typography>
-                <Typography variant="body2">
-                  Weighted Value: {formatDollarMillions(filteredPipelineRows.reduce((sum: number, opp: Opportunity) => sum + ((opp.Amount || 0) * (opp.Probability || 0) / 100), 0))}
-                </Typography>
-                <Typography variant="body2">
-                  Avg Probability: {filteredPipelineRows.length > 0 ? Math.round(filteredPipelineRows.reduce((sum: number, opp: Opportunity) => sum + (opp.Probability || 0), 0) / filteredPipelineRows.length) : 0}%
-                </Typography>
-              </Box>
-            )}
-            <Box sx={{ height: 'calc(100vh - 500px)', minHeight: 600, width: '100%' }}>
-              <DataGrid
-                rows={pipelineOpps || []}
-                columns={pipelineColumns}
-                loading={isLoading}
-                onStateChange={(state) => {
-                  // Update filtered rows based on current filter/sort state
-                  const visibleRows = state.filter.filteredRowsLookup;
-                  const filtered = pipelineOpps.filter((opp: Opportunity) => visibleRows[opp.Id] !== false);
-                  setFilteredPipelineRows(filtered);
-                }}
-                getRowId={(row) => row.Id}
-                pagination
-                pageSizeOptions={[25, 50, 100, 250, 500]}
-                editMode="cell"
-                processRowUpdate={handleCellEdit}
-                onProcessRowUpdateError={(error) => {
-                  console.error('Error updating row:', error);
-                }}
-                initialState={{
-                  pagination: {
-                    paginationModel: { pageSize: 100, page: 0 },
+      {/* Data Grid */}
+      <Card>
+        <CardContent>
+          {/* Filtered Totals Bar */}
+          {filteredRows.length > 0 && viewMode !== 'closed' && (
+            <Box sx={{ 
+              p: 2, 
+              mb: 2, 
+              bgcolor: 'background.paper', 
+              borderRadius: 1,
+              display: 'flex',
+              gap: 3,
+              flexWrap: 'wrap',
+              border: '1px solid',
+              borderColor: 'divider'
+            }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                Showing: {filteredRows.length} opportunities
+              </Typography>
+              {viewMode === 'open' && (
+                <>
+                  <Typography variant="body2">
+                    Total Value: {formatDollarMillions(filteredRows.reduce((sum: number, opp: Opportunity) => sum + (opp.Amount || 0), 0))}
+                  </Typography>
+                  <Typography variant="body2">
+                    Weighted Value: {formatDollarMillions(filteredRows.reduce((sum: number, opp: Opportunity) => sum + ((opp.Amount || 0) * (opp.Probability || 0) / 100), 0))}
+                  </Typography>
+                  <Typography variant="body2">
+                    Avg Probability: {filteredRows.length > 0 ? Math.round(filteredRows.reduce((sum: number, opp: Opportunity) => sum + (opp.Probability || 0), 0) / filteredRows.length) : 0}%
+                  </Typography>
+                </>
+              )}
+              {viewMode === 'collecting' && (
+                <>
+                  <Typography variant="body2">
+                    Total Amount: {formatDollarMillions(filteredRows.reduce((sum: number, opp: Opportunity) => sum + (opp.Amount || 0), 0))}
+                  </Typography>
+                  <Typography variant="body2">
+                    Received: {formatDollarMillions(filteredRows.reduce((sum: number, opp: Opportunity) => sum + (opp.npe01__Payments_Made__c || 0), 0))}
+                  </Typography>
+                  <Typography variant="body2">
+                    Outstanding: {formatDollarMillions(filteredRows.reduce((sum: number, opp: Opportunity) => sum + ((opp.Amount || 0) - (opp.npe01__Payments_Made__c || 0)), 0))}
+                  </Typography>
+                </>
+              )}
+            </Box>
+          )}
+          <Box sx={{ height: 'calc(100vh - 500px)', minHeight: 600, width: '100%' }}>
+            <DataGrid
+              rows={visibleOpps || []}
+              columns={viewMode === 'collecting' ? paymentColumns : pipelineColumns}
+              loading={isLoading}
+              getRowId={(row) => row.Id}
+              pagination
+              pageSizeOptions={[25, 50, 100, 250, 500]}
+              editMode="cell"
+              processRowUpdate={viewMode === 'open' ? handleCellEdit : undefined}
+              onProcessRowUpdateError={(error) => {
+                console.error('Error updating row:', error);
+              }}
+              checkboxSelection
+              rowSelectionModel={selectedRowIds}
+              onRowSelectionModelChange={(newSelection) => {
+                setSelectedRowIds(newSelection as string[]);
+              }}
+              initialState={{
+                pagination: {
+                  paginationModel: { pageSize: 100, page: 0 },
+                },
+                sorting: {
+                  sortModel: viewMode === 'collecting' 
+                    ? [{ field: 'Most_Recent_Payment_Date__c', sort: 'desc' }]
+                    : [{ field: 'CloseDate', sort: 'asc' }],
+                },
+                filter: {
+                  filterModel: {
+                    items: [],
                   },
-                  sorting: {
-                    sortModel: [{ field: 'CloseDate', sort: 'asc' }],
-                  },
-                  filter: {
-                    filterModel: {
-                      items: [],
-                    },
-                  },
-                }}
-                filterMode="client"
-                sortingMode="client"
-                paginationMode="client"
-                disableRowSelectionOnClick
-                disableColumnFilter={false}
-                disableColumnMenu={false}
-                isCellEditable={(params) => {
-                  // Editable fields for pipeline view (StageName handled by custom dropdown)
-                  return ['Name', 'AccountId', 'OwnerId', 'Amount', 'Probability', 'CloseDate', 'PaymentDate__c'].includes(params.field);
-                }}
-                sx={{
-                  '& .MuiDataGrid-cell:focus': {
-                    outline: 'none',
-                  },
-                  '& .MuiDataGrid-cell--editable': {
-                    cursor: 'pointer',
-                    bgcolor: 'background.paper',
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
-                      boxShadow: 'inset 0 0 0 1px rgba(25, 118, 210, 0.5)',
-                    },
-                  },
-                  '& .MuiDataGrid-cell--editing': {
-                    backgroundColor: 'primary.light',
-                    boxShadow: 'inset 0 0 0 2px #1976d2',
-                  },
-                  '& .MuiDataGrid-row:hover .MuiDataGrid-cell--editable': {
+                },
+              }}
+              filterMode="client"
+              sortingMode="client"
+              paginationMode="client"
+              disableRowSelectionOnClick={false}
+              disableColumnFilter={false}
+              disableColumnMenu={false}
+              isCellEditable={(params) => {
+                // Only allow editing in open pipeline view
+                if (viewMode !== 'open') return false;
+                // Editable fields for pipeline view (StageName handled by custom dropdown)
+                return ['Name', 'AccountId', 'OwnerId', 'Amount', 'Probability', 'CloseDate', 'PaymentDate__c'].includes(params.field);
+              }}
+              sx={{
+                '& .MuiDataGrid-cell:focus': {
+                  outline: 'none',
+                },
+                '& .MuiDataGrid-cell--editable': {
+                  cursor: 'pointer',
+                  bgcolor: 'background.paper',
+                  '&:hover': {
                     backgroundColor: 'action.hover',
+                    boxShadow: 'inset 0 0 0 1px rgba(25, 118, 210, 0.5)',
                   },
-                }}
-              />
-            </Box>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Data Grid - Payment View */}
-      {activeTab === 1 && (
-        <Card>
-          <CardContent>
-            {/* Filtered Totals Bar */}
-            {filteredPaymentRows.length > 0 && (
-              <Box sx={{ 
-                p: 2, 
-                mb: 2, 
-                bgcolor: 'background.paper', 
-                borderRadius: 1,
-                display: 'flex',
-                gap: 3,
-                flexWrap: 'wrap',
-                border: '1px solid',
-                borderColor: 'divider'
-              }}>
-                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                  Showing: {filteredPaymentRows.length} opportunities
-                </Typography>
-                <Typography variant="body2">
-                  Total Amount: {formatDollarMillions(filteredPaymentRows.reduce((sum: number, opp: Opportunity) => sum + (opp.Amount || 0), 0))}
-                </Typography>
-                <Typography variant="body2">
-                  Received: {formatDollarMillions(filteredPaymentRows.reduce((sum: number, opp: Opportunity) => sum + (opp.npe01__Payments_Made__c || 0), 0))}
-                </Typography>
-                <Typography variant="body2">
-                  Outstanding: {formatDollarMillions(filteredPaymentRows.reduce((sum: number, opp: Opportunity) => sum + ((opp.Amount || 0) - (opp.npe01__Payments_Made__c || 0)), 0))}
-                </Typography>
-              </Box>
-            )}
-            <Box sx={{ height: 'calc(100vh - 500px)', minHeight: 600, width: '100%' }}>
-              <DataGrid
-                rows={paymentOpps || []}
-                columns={paymentColumns}
-                loading={isLoading}
-                onStateChange={(state) => {
-                  // Update filtered rows based on current filter/sort state
-                  const visibleRows = state.filter.filteredRowsLookup;
-                  const filtered = paymentOpps.filter((opp: Opportunity) => visibleRows[opp.Id] !== false);
-                  setFilteredPaymentRows(filtered);
-                }}
-                getRowId={(row) => row.Id}
-                pagination
-                pageSizeOptions={[25, 50, 100, 250, 500]}
-                initialState={{
-                  pagination: {
-                    paginationModel: { pageSize: 100, page: 0 },
-                  },
-                  sorting: {
-                    sortModel: [{ field: 'Most_Recent_Payment_Date__c', sort: 'desc' }],
-                  },
-                  filter: {
-                    filterModel: {
-                      items: [],
-                    },
-                  },
-                }}
-                filterMode="client"
-                sortingMode="client"
-                paginationMode="client"
-                disableRowSelectionOnClick
-                disableColumnFilter={false}
-                disableColumnMenu={false}
-                sx={{
-                  '& .MuiDataGrid-cell:focus': {
-                    outline: 'none',
-                  },
-                }}
-              />
-            </Box>
-          </CardContent>
-        </Card>
-      )}
+                },
+                '& .MuiDataGrid-cell--editing': {
+                  backgroundColor: 'primary.light',
+                  boxShadow: 'inset 0 0 0 2px #1976d2',
+                },
+                '& .MuiDataGrid-row:hover .MuiDataGrid-cell--editable': {
+                  backgroundColor: 'action.hover',
+                },
+              }}
+            />
+          </Box>
+        </CardContent>
+      </Card>
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
@@ -1356,6 +1467,70 @@ const Opportunities: React.FC = () => {
             disabled={updateMutation.isLoading}
           >
             {updateMutation.isLoading ? <CircularProgress size={24} /> : 'Save Changes'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Payment Schedule Modal */}
+      {paymentScheduleOpp && (
+        <PaymentScheduleModal
+          open={paymentScheduleOpen}
+          onClose={() => setPaymentScheduleOpen(false)}
+          opportunityId={paymentScheduleOpp.Id}
+          opportunityAmount={paymentScheduleOpp.Amount}
+          opportunityName={paymentScheduleOpp.Name}
+          onScheduleCreated={() => {
+            setPaymentScheduleOpen(false);
+            queryClient.invalidateQueries('opportunities');
+            toast.success('Payment schedule created! Opportunity saved.');
+          }}
+        />
+      )}
+
+      {/* Bulk Action Dialog */}
+      <Dialog open={bulkActionDialogOpen} onClose={() => setBulkActionDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {bulkAction === 'withdraw' ? 'Withdraw Opportunities' : 'Change Stage'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            {bulkAction === 'withdraw' ? (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                Are you sure you want to withdraw {selectedRowIds.length} selected opportunities?
+                This will change their stage to "Withdrawn".
+              </Alert>
+            ) : (
+              <>
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  Change the stage for {selectedRowIds.length} selected opportunities.
+                </Alert>
+                <TextField
+                  fullWidth
+                  select
+                  label="New Stage"
+                  value={bulkTargetStage}
+                  onChange={(e) => setBulkTargetStage(e.target.value)}
+                  sx={{ mt: 2 }}
+                >
+                  {OPPORTUNITY_STAGES.map((stage) => (
+                    <MenuItem key={stage} value={stage}>
+                      {stage}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkActionDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleBulkActionConfirm}
+            disabled={bulkUpdateMutation.isLoading || (bulkAction === 'stage' && !bulkTargetStage)}
+            color={bulkAction === 'withdraw' ? 'error' : 'primary'}
+          >
+            {bulkUpdateMutation.isLoading ? <CircularProgress size={24} /> : 'Confirm'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -27,3 +27,6 @@ requests==2.31.0
 # Pydantic (FastAPI dependency)
 pydantic==2.5.3
 
+# Background scheduler
+APScheduler==3.10.4
+

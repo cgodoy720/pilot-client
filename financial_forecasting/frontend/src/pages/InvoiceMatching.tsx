@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -59,6 +59,13 @@ interface Opportunity {
   CloseDate: string;
   Description: string;
   Type: string;
+  matchScore?: number;
+  matchExplanation?: {
+    name_match?: number;
+    amount_match?: number;
+    date_proximity_days?: number;
+    stage_bonus?: string;
+  };
 }
 
 interface Match {
@@ -93,20 +100,38 @@ export default function InvoiceMatching() {
   const [searching, setSearching] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Define searchOpportunities first (before useEffect that uses it)
+  const searchOpportunities = useCallback(async () => {
+    if (!matchDialogOpen) return;
+    setSearching(true);
+    try {
+      const res = await apiService.searchOpportunities(oppSearchTerm, 50, matchingInvoice ? {
+        customer_name: matchingInvoice.customer_name,
+        invoice_amount: parseFloat(matchingInvoice.amount),
+        invoice_date: matchingInvoice.invoice_date
+      } : undefined);
+      setSearchResults(res.data.opportunities || []);
+    } catch (error) {
+      console.error('Error searching opportunities:', error);
+    } finally {
+      setSearching(false);
+    }
+  }, [oppSearchTerm, matchingInvoice, matchDialogOpen]);
+
   useEffect(() => {
     loadData();
   }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (oppSearchTerm.length >= 2) {
+      if (oppSearchTerm.length >= 2 && matchDialogOpen) {
         searchOpportunities();
-      } else {
+      } else if (matchDialogOpen) {
         setSearchResults([]);
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [oppSearchTerm]);
+  }, [oppSearchTerm, matchDialogOpen, searchOpportunities]);
 
   const loadData = async () => {
     setLoading(true);
@@ -135,18 +160,6 @@ export default function InvoiceMatching() {
       alert('Failed to load invoice data');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const searchOpportunities = async () => {
-    setSearching(true);
-    try {
-      const res = await apiService.searchOpportunities(oppSearchTerm);
-      setSearchResults(res.data.opportunities || []);
-    } catch (error) {
-      console.error('Error searching opportunities:', error);
-    } finally {
-      setSearching(false);
     }
   };
 
@@ -503,29 +516,81 @@ export default function InvoiceMatching() {
 
               {/* Search Results */}
               {searchResults.length > 0 && (
-                <Paper variant="outlined" sx={{ maxHeight: 300, overflow: 'auto', mb: 2 }}>
+                <Paper variant="outlined" sx={{ maxHeight: 400, overflow: 'auto', mb: 2 }}>
                   <List>
-                    {searchResults.map((opp) => (
-                      <ListItem key={opp.Id} disablePadding>
-                        <ListItemButton
-                          selected={selectedOpp?.Id === opp.Id}
-                          onClick={() => setSelectedOpp(opp)}
+                    {searchResults.map((opp, index) => {
+                      const isBestMatch = index === 0 && (opp.matchScore || 0) > 50;
+                      return (
+                        <ListItem 
+                          key={opp.Id} 
+                          disablePadding
+                          sx={{
+                            borderLeft: isBestMatch ? '4px solid #4caf50' : 'none',
+                            bgcolor: isBestMatch ? 'action.hover' : 'inherit'
+                          }}
                         >
-                          <ListItemText
-                            primary={opp.Name}
-                            secondary={
-                              <>
-                                <Typography variant="body2">{opp.AccountName}</Typography>
-                                <Typography variant="caption">{opp.StageName} • {opp.CloseDate}</Typography>
-                              </>
-                            }
-                          />
-                          <Typography variant="h6" color="primary">
-                            ${(opp.Amount || 0).toLocaleString()}
-                          </Typography>
-                        </ListItemButton>
-                      </ListItem>
-                    ))}
+                          <ListItemButton
+                            selected={selectedOpp?.Id === opp.Id}
+                            onClick={() => setSelectedOpp(opp)}
+                          >
+                            <Box sx={{ width: '100%' }}>
+                              <Stack direction="row" justifyContent="space-between" alignItems="start">
+                                <Box flex={1}>
+                                  <Stack direction="row" spacing={1} alignItems="center">
+                                    <Typography variant="subtitle1">{opp.Name}</Typography>
+                                    {isBestMatch && (
+                                      <Chip 
+                                        label="Best Match" 
+                                        size="small" 
+                                        color="success" 
+                                        icon={<CheckCircleIcon />}
+                                      />
+                                    )}
+                                    {opp.matchScore && (
+                                      <Chip 
+                                        label={`${Math.round(opp.matchScore)}% match`}
+                                        size="small"
+                                        color={
+                                          opp.matchScore >= 70 ? 'success' :
+                                          opp.matchScore >= 50 ? 'warning' : 'default'
+                                        }
+                                      />
+                                    )}
+                                  </Stack>
+                                  <Typography variant="body2" color="text.secondary">
+                                    {opp.AccountName}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {opp.StageName} • {opp.CloseDate}
+                                  </Typography>
+                                  {opp.matchExplanation && opp.matchScore && (
+                                    <Box mt={0.5}>
+                                      <Typography variant="caption" color="text.secondary">
+                                        {opp.matchExplanation.name_match && (
+                                          <span>Name: {Math.round(opp.matchExplanation.name_match)}% • </span>
+                                        )}
+                                        {opp.matchExplanation.amount_match !== undefined && (
+                                          <span>Amount: {Math.round(opp.matchExplanation.amount_match)}% • </span>
+                                        )}
+                                        {opp.matchExplanation.date_proximity_days !== undefined && opp.matchExplanation.date_proximity_days !== null && (
+                                          <span>{opp.matchExplanation.date_proximity_days} days apart • </span>
+                                        )}
+                                        {opp.matchExplanation.stage_bonus && (
+                                          <span>{opp.matchExplanation.stage_bonus}</span>
+                                        )}
+                                      </Typography>
+                                    </Box>
+                                  )}
+                                </Box>
+                                <Typography variant="h6" color="primary" sx={{ ml: 2 }}>
+                                  ${(opp.Amount || 0).toLocaleString()}
+                                </Typography>
+                              </Stack>
+                            </Box>
+                          </ListItemButton>
+                        </ListItem>
+                      );
+                    })}
                   </List>
                 </Paper>
               )}

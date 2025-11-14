@@ -24,13 +24,8 @@ import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
   TrendingUp as TrendingUpIcon,
-  Business as BusinessIcon,
-  Person as PersonIcon,
-  Payment as PaymentIcon,
-  Receipt as ReceiptIcon,
-  Link as LinkIcon,
-  AccountBalance as AccountBalanceIcon,
-  Assessment as AssessmentIcon,
+  AttachMoney as AttachMoneyIcon,
+  CleaningServices as CleaningServicesIcon,
   Settings as SettingsIcon,
   Notifications as NotificationsIcon,
   AccountCircle as AccountCircleIcon,
@@ -50,15 +45,10 @@ interface LayoutProps {
 }
 
 const menuItems = [
-  { text: 'Overview', icon: <DashboardIcon />, path: '/dashboard' },
-  { text: 'Opportunities', icon: <TrendingUpIcon />, path: '/opportunities' },
-  { text: 'Accounts', icon: <BusinessIcon />, path: '/accounts' },
-  { text: 'Contacts', icon: <PersonIcon />, path: '/contacts' },
-  { text: 'Payment Processing', icon: <PaymentIcon />, path: '/payment-processing' },
-  { text: 'Invoices', icon: <ReceiptIcon />, path: '/invoices' },
-  { text: 'Invoice Matching', icon: <LinkIcon />, path: '/invoice-matching' },
-  { text: 'Cash Flow', icon: <AccountBalanceIcon />, path: '/cash-flow' },
-  { text: 'Reports', icon: <AssessmentIcon />, path: '/reports' },
+  { text: 'Overview', icon: <DashboardIcon />, path: '/overview' },
+  { text: 'Pipeline', icon: <TrendingUpIcon />, path: '/pipeline' },
+  { text: 'Revenue', icon: <AttachMoneyIcon />, path: '/revenue' },
+  { text: 'Cleanup', icon: <CleaningServicesIcon />, path: '/cleanup' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ];
 
@@ -78,7 +68,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     'health',
     () => apiService.servicesHealth(),
     {
-      refetchInterval: 30000, // Refetch every 30 seconds
       onError: (error) => {
         console.error('Health check failed:', error);
       },

@@ -71,16 +71,20 @@ const PaymentProcessing: React.FC = () => {
   });
 
   // Fetch opportunities
-  const { data: opportunities, isLoading, error } = useQuery(
+  const { data: opportunitiesData, isLoading, error } = useQuery(
     'opportunities',
     async () => {
       const response = await apiService.getOpportunities();
       return response.data;
     },
     {
-      refetchInterval: 30000, // Refresh every 30 seconds
     }
   );
+
+  // Ensure opportunities is always an array
+  const opportunities = Array.isArray(opportunitiesData) 
+    ? opportunitiesData 
+    : (opportunitiesData?.opportunities || opportunitiesData?.data || []);
 
   // Filter for closed/won deals that need payment processing
   const closedDeals = opportunities?.filter((opp: Opportunity) => {
@@ -506,4 +510,5 @@ const PaymentProcessing: React.FC = () => {
 };
 
 export default PaymentProcessing;
+
 

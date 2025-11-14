@@ -9,18 +9,13 @@ import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Opportunities from './pages/Opportunities';
+import Overview from './pages/Overview';
+import Pipeline from './pages/Pipeline';
+import Revenue from './pages/Revenue';
+import Cleanup from './pages/Cleanup';
 import NewOpportunity from './pages/NewOpportunity';
-import Accounts from './pages/Accounts';
-import Contacts from './pages/Contacts';
-import PaymentProcessing from './pages/PaymentProcessing';
-import Invoices from './pages/Invoices';
-import InvoiceMatching from './pages/InvoiceMatching';
-import CashFlow from './pages/CashFlow';
-import Reports from './pages/Reports';
+import PaymentSchedule from './pages/PaymentSchedule';
 import Settings from './pages/Settings';
-import FirefliesDebug from './pages/FirefliesDebug';
 
 // Create Material-UI theme
 const theme = createTheme({
@@ -101,27 +96,47 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Navigate to="/dashboard" replace />
+                      <Navigate to="/overview" replace />
                     </Layout>
                   </ProtectedRoute>
                 }
               />
               <Route
-                path="/dashboard"
+                path="/overview"
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Dashboard />
+                      <Overview />
                     </Layout>
                   </ProtectedRoute>
                 }
               />
               <Route
-                path="/opportunities"
+                path="/pipeline"
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Opportunities />
+                      <Pipeline />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/revenue"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Revenue />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/cleanup"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Cleanup />
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -137,71 +152,11 @@ function App() {
                 }
               />
               <Route
-                path="/accounts"
+                path="/payment-schedule/:opportunityId"
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Accounts />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/contacts"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Contacts />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/payment-processing"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <PaymentProcessing />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/invoices"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Invoices />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/invoice-matching"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <InvoiceMatching />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/cash-flow"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <CashFlow />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/reports"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Reports />
+                      <PaymentSchedule />
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -212,16 +167,6 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <Settings />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/fireflies-debug"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <FirefliesDebug />
                     </Layout>
                   </ProtectedRoute>
                 }

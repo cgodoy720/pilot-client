@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>Sage Invoice</label>
+    <pluralLabel>Sage Invoices</pluralLabel>
+    <nameField>
+        <displayFormat>INV-{0000}</displayFormat>
+        <label>Sage Invoice Name</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <deploymentStatus>Deployed</deploymentStatus>
+    <sharingModel>ControlledByParent</sharingModel>
+    <description>Junction object to link Opportunities to Sage Intacct invoices</description>
+    
+    <!-- Master-Detail Relationship to Opportunity -->
+    <fields>
+        <fullName>Opportunity__c</fullName>
+        <label>Opportunity</label>
+        <type>MasterDetail</type>
+        <referenceTo>Opportunity</referenceTo>
+        <relationshipLabel>Sage Invoices</relationshipLabel>
+        <relationshipName>Sage_Invoices</relationshipName>
+        <required>true</required>
+        <writeRequiresMasterRead>false</writeRequiresMasterRead>
+    </fields>
+    
+    <!-- Sage Invoice ID -->
+    <fields>
+        <fullName>Sage_Invoice_ID__c</fullName>
+        <label>Sage Invoice ID</label>
+        <type>Text</type>
+        <length>100</length>
+        <unique>true</unique>
+        <externalId>true</externalId>
+        <required>true</required>
+    </fields>
+    
+    <!-- Invoice Amount -->
+    <fields>
+        <fullName>Invoice_Amount__c</fullName>
+        <label>Invoice Amount</label>
+        <type>Currency</type>
+        <precision>16</precision>
+        <scale>2</scale>
+        <required>true</required>
+    </fields>
+    
+    <!-- Invoice Date -->
+    <fields>
+        <fullName>Invoice_Date__c</fullName>
+        <label>Invoice Date</label>
+        <type>Date</type>
+        <required>true</required>
+    </fields>
+    
+    <!-- Due Date -->
+    <fields>
+        <fullName>Due_Date__c</fullName>
+        <label>Due Date</label>
+        <type>Date</type>
+        <required>false</required>
+    </fields>
+    
+    <!-- Invoice Status -->
+    <fields>
+        <fullName>Invoice_Status__c</fullName>
+        <label>Invoice Status</label>
+        <type>Picklist</type>
+        <required>true</required>
+        <valueSet>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value>
+                    <fullName>Draft</fullName>
+                    <default>true</default>
+                    <label>Draft</label>
+                </value>
+                <value>
+                    <fullName>Sent</fullName>
+                    <default>false</default>
+                    <label>Sent</label>
+                </value>
+                <value>
+                    <fullName>Partially Paid</fullName>
+                    <default>false</default>
+                    <label>Partially Paid</label>
+                </value>
+                <value>
+                    <fullName>Paid</fullName>
+                    <default>false</default>
+                    <label>Paid</label>
+                </value>
+                <value>
+                    <fullName>Overdue</fullName>
+                    <default>false</default>
+                    <label>Overdue</label>
+                </value>
+                <value>
+                    <fullName>Cancelled</fullName>
+                    <default>false</default>
+                    <label>Cancelled</label>
+                </value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    
+    <!-- Description -->
+    <fields>
+        <fullName>Description__c</fullName>
+        <label>Description</label>
+        <type>LongTextArea</type>
+        <length>32768</length>
+        <visibleLines>3</visibleLines>
+        <required>false</required>
+    </fields>
+    
+    <!-- Sage Customer ID -->
+    <fields>
+        <fullName>Sage_Customer_ID__c</fullName>
+        <label>Sage Customer ID</label>
+        <type>Text</type>
+        <length>100</length>
+        <required>false</required>
+    </fields>
+    
+    <!-- Created in Sage Date -->
+    <fields>
+        <fullName>Created_in_Sage_Date__c</fullName>
+        <label>Created in Sage Date</label>
+        <type>DateTime</type>
+        <required>false</required>
+    </fields>
+</CustomObject>

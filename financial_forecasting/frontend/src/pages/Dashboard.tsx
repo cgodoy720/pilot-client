@@ -86,13 +86,18 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
   // Fetch opportunities
-  const { data: opportunities, isLoading } = useQuery(
+  const { data: opportunitiesData, isLoading } = useQuery(
     'opportunities',
     async () => {
       const response = await apiService.getOpportunities();
       return response.data;
     }
   );
+
+  // Ensure opportunities is always an array
+  const opportunities = Array.isArray(opportunitiesData) 
+    ? opportunitiesData 
+    : (opportunitiesData?.opportunities || opportunitiesData?.data || []);
 
   // Calculate metrics
   const metrics = useMemo(() => {
@@ -460,7 +465,7 @@ const Dashboard: React.FC = () => {
                   <Button
                     size="small"
                     color="warning"
-                    onClick={() => navigate('/opportunities', { state: { filterAtRisk: true } })}
+                    onClick={() => navigate('/pipeline', { state: { filterAtRisk: true } })}
                     sx={{ mt: 1 }}
                   >
                     View Details
@@ -482,7 +487,7 @@ const Dashboard: React.FC = () => {
             <Button 
               color="inherit" 
               size="small"
-              onClick={() => navigate('/opportunities', { state: { filterStale: true } })}
+              onClick={() => navigate('/pipeline', { state: { filterStale: true } })}
             >
               Review
             </Button>

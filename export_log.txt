@@ -1,0 +1,52 @@
+================================================================================
+Fetching grant invoices from Sage Intacct (MODULEKEY='4.AR')...
+Filtering out student invoices (@pursuit.org emails)
+================================================================================
+
+Batch 1...
+  Received 1000 invoices (706 remaining), filtering...
+  ✅ 707 grants, ❌ 293 students filtered out
+  Total grants so far: 707
+
+Batch 2...
+  Received 706 invoices (0 remaining), filtering...
+  ✅ 501 grants, ❌ 205 students filtered out
+  Total grants so far: 1208
+
+  ✅ Reached end of results
+
+================================================================================
+✅ Found 1208 GRANT invoices (after filtering)
+================================================================================
+
+✅ Exported 1208 invoices to nonprofit_grant_invoices.csv
+
+Before deduplication: 1208 rows
+After deduplication: 1208 unique invoices
+
+================================================================================
+✅ FINAL: 1208 unique nonprofit grant invoices
+================================================================================
+
+Top 20 most recent:
+                    customer_name    amount invoice_date
+            Mizuho USA Foundation 450000.00   11/07/2025
+                 Maureen McCarthy   1000.00   10/30/2025
+             Soros Fund Managemen   5000.00   10/28/2025
+                      Wells Fargo 300000.00   10/23/2025
+                    Goldman Sachs 150000.00   10/21/2025
+             The City of New York 142861.00   10/14/2025
+                        News Corp     52.51   10/07/2025
+Workforce Development Corporation   5000.00   10/06/2025
+                       Con Edison 100000.00   10/01/2025
+              Moody’s Corporation  16000.00   09/30/2025
+              Moody’s Corporation  24000.00   09/30/2025
+                  Poll Everywhere  16000.00   09/30/2025
+                Hearst Foundation 125000.00   09/30/2025
+                    Vishal Damani    104.70   09/27/2025
+                     Aman Kapadia   1500.00   09/27/2025
+                  Zachary Brenner    500.00   09/27/2025
+                       Google LLC    104.70   09/25/2025
+Citizens Philanthropic Foundation 100000.00   09/23/2025
+          Amazon.com Services LLC  50000.00   09/19/2025
+                    Helaina Roman   1000.00   09/17/2025
