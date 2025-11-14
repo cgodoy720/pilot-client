@@ -7,6 +7,13 @@ import ArrowButton from '../../components/ArrowButton/ArrowButton';
 import MissedAssignmentsSidebar from '../../components/MissedAssignmentsSidebar/MissedAssignmentsSidebar';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
 import './Dashboard.css';
 
 function Dashboard() {
@@ -478,7 +485,7 @@ function Dashboard() {
           <div className="dashboard__divider-2" />
 
           {/* Week Header: Title and Date Picker */}
-          <div className="dashboard__week-header">
+          <div className="dashboard__week-header items-end">
             <div className="dashboard__week-title">
               <span className="dashboard__week-label">
                 <span className="dashboard__week-level">L{currentLevel}</span>: Week {currentWeek}
@@ -500,30 +507,61 @@ function Dashboard() {
               <button
                 className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 rounded-md transition-all duration-300 ${
                   currentWeek > 1 
-                    ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer' 
+                    ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer' 
                     : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
                 }`}
                 onClick={() => navigateToWeek('prev')}
                 disabled={currentWeek <= 1 || slideDirection !== null}
               >
-                <ChevronLeft className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-pursuit-purple' : ''}`} />
+                <ChevronLeft className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-white' : ''}`} />
                 {currentWeek > 1 && (
-                  <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+                  <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
                 )}
               </button>
-              <span className="dashboard__date-label">Week {currentWeek}</span>
+              
+              {/* Week Dropdown */}
+              <Select 
+                value={String(currentWeek)} 
+                onValueChange={(val) => {
+                  const targetWeek = parseInt(val);
+                  if (targetWeek !== currentWeek && !slideDirection) {
+                    setSlideDirection(targetWeek > currentWeek ? 'out-right' : 'out-left');
+                    setTimeout(() => {
+                      setCurrentWeek(targetWeek);
+                      const newWeekData = allWeeksData.find(w => w.weekNumber === targetWeek);
+                      if (newWeekData) {
+                        setWeeklyGoal(newWeekData.weeklyGoal || '');
+                      }
+                      setSlideDirection(targetWeek > currentWeek ? 'in-from-right' : 'in-from-left');
+                      setTimeout(() => setSlideDirection(null), 1000);
+                    }, 1000);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[100px] h-[32px] bg-white rounded-[5px] px-[10px] border-0 text-[16px] leading-[18px] font-proxima font-normal text-carbon-black">
+                  <SelectValue>Week {String(currentWeek).padStart(2, '0')}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: currentDay?.week || 1 }, (_, i) => i + 1).map((week) => (
+                    <SelectItem key={week} value={String(week)}>
+                      Week {String(week).padStart(2, '0')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
               <button
                 className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 rounded-md transition-all duration-300 ${
                   currentDay?.week && currentWeek < currentDay.week
-                    ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer' 
+                    ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer' 
                     : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
                 }`}
                 onClick={() => navigateToWeek('next')}
                 disabled={!currentDay?.week || currentWeek >= currentDay.week || slideDirection !== null}
               >
-                <ChevronRight className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-pursuit-purple' : ''}`} />
+                <ChevronRight className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-white' : ''}`} />
                 {currentDay?.week && currentWeek < currentDay.week && (
-                  <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+                  <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
                 )}
               </button>
             </div>
@@ -551,7 +589,7 @@ function Dashboard() {
               
               // Calculate completion status for past days
               const deliverableTasks = day.tasks?.filter(t => 
-                t.deliverable_type && ['video', 'document', 'link'].includes(t.deliverable_type)
+                t.deliverable_type && ['video', 'document', 'link', 'structured'].includes(t.deliverable_type)
               ) || [];
               const completedDeliverables = deliverableTasks.filter(t => t.hasSubmission);
               const isComplete = deliverableTasks.length > 0 && deliverableTasks.length === completedDeliverables.length;
@@ -587,7 +625,7 @@ function Dashboard() {
                       <h4 className="dashboard__day-section-title">Activities</h4>
                       <div className="dashboard__day-activities">
                         {day.tasks.map((task, taskIndex) => {
-                          const isDeliverable = task.deliverable_type && ['video', 'document', 'link'].includes(task.deliverable_type);
+                          const isDeliverable = task.deliverable_type && ['video', 'document', 'link', 'structured'].includes(task.deliverable_type);
                           const showTaskCheckbox = dayIsPast && !dayIsToday;
                           const hasSubmission = task.hasSubmission;
                           
@@ -625,7 +663,11 @@ function Dashboard() {
                       }`}
                       onClick={() => handleNavigateToTask(day.id, task.id)}
                     >
-                      Submit {task.deliverable_type}
+                      {hasSubmission ? (
+                        <>✓ {task.deliverable_type.charAt(0).toUpperCase() + task.deliverable_type.slice(1)} Submitted</>
+                      ) : (
+                        `Submit ${task.deliverable_type}`
+                      )}
                     </button>
                   )}
                                 </div>
@@ -642,7 +684,7 @@ function Dashboard() {
 
                   {/* Arrow Button in top-right corner */}
                   {dayIsToday && (
-                    <div className="absolute top-2 right-3 z-10">
+                    <div className="absolute top-[13px] right-3 z-10">
                       <ArrowButton
                         onClick={() => handleNavigateToDayLearning(day.id)}
                         borderColor="#FFFFFF"
@@ -655,14 +697,14 @@ function Dashboard() {
                     </div>
                   )}
                   {!dayIsToday && showCheckbox && (
-                    <div className="absolute top-2 right-3 z-10">
+                    <div className="absolute top-[13px] right-3 z-10">
                       <ArrowButton
                         onClick={() => handleNavigateToDayLearning(day.id)}
                         borderColor="#4242EA"
-                        backgroundColor="#4242EA"
-                        arrowColor="#E3E3E3"
-                        hoverBackgroundColor="#E3E3E3"
-                        hoverArrowColor="#4242EA"
+                        backgroundColor="#E3E3E3"
+                        arrowColor="#4242EA"
+                        hoverBackgroundColor="#4242EA"
+                        hoverArrowColor="#E3E3E3"
                         size="md"
                       />
                     </div>
@@ -720,7 +762,34 @@ function Dashboard() {
                 <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
               )}
             </button>
-            <span className="dashboard__mobile-date-label">Week {currentWeek}</span>
+            
+            {/* Week Dropdown */}
+            <Select 
+              value={String(currentWeek)} 
+              onValueChange={(val) => {
+                const targetWeek = parseInt(val);
+                if (targetWeek !== currentWeek && !slideDirection) {
+                  setSlideDirection(targetWeek > currentWeek ? 'out-right' : 'out-left');
+                  setTimeout(() => {
+                    setCurrentWeek(targetWeek);
+                    setSlideDirection(targetWeek > currentWeek ? 'in-from-right' : 'in-from-left');
+                    setTimeout(() => setSlideDirection(null), 600);
+                  }, 600);
+                }
+              }}
+            >
+              <SelectTrigger className="w-[100px] h-[32px] bg-white rounded-[5px] px-[10px] border-0 text-[16px] leading-[18px] font-proxima font-normal text-carbon-black">
+                <SelectValue>Week {String(currentWeek).padStart(2, '0')}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: currentDay?.week || 1 }, (_, i) => i + 1).map((week) => (
+                  <SelectItem key={week} value={String(week)}>
+                    Week {String(week).padStart(2, '0')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
             <button
               className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 rounded-md transition-all duration-300 ${
                 currentDay?.week && currentWeek < currentDay.week
@@ -774,8 +843,8 @@ function Dashboard() {
                         </div>
                       </div>
                     )}
-          <div className="absolute top-2 right-3 z-10">
-                      <ArrowButton
+          <div className="absolute top-[13px] right-3 z-10">
+            <ArrowButton
               onClick={() => handleNavigateToDayLearning(day.id)}
               borderColor="#FFFFFF"
               backgroundColor="#FFFFFF"

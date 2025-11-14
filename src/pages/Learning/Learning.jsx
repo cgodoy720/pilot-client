@@ -56,6 +56,10 @@ function Learning() {
   const [showDailyOverview, setShowDailyOverview] = useState(true);
   const [isDeliverableSidebarOpen, setIsDeliverableSidebarOpen] = useState(false);
   
+  // Submission tracking state
+  const [taskSubmissions, setTaskSubmissions] = useState({});
+  // Format: { [taskId]: { id, content, created_at, updated_at } }
+  
   // Get dayId from URL query parameters
   const queryParams = new URLSearchParams(location.search);
   const dayId = queryParams.get('dayId');
@@ -237,24 +241,53 @@ function Learning() {
     setIsAiThinking(true);
     
     try {
-      // Check if there's existing conversation history
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${task.id}?dayNumber=${currentDay?.day_number}&cohort=${currentDay?.cohort}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-          signal: abortController.signal,
-        }
-      );
+      // Fetch both conversation history and submission in parallel
+      const [conversationResponse, submissionResponse] = await Promise.all([
+        fetch(
+          `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${task.id}?dayNumber=${currentDay?.day_number}&cohort=${currentDay?.cohort}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+            signal: abortController.signal,
+          }
+        ),
+        fetch(
+          `${import.meta.env.VITE_API_URL}/api/submissions/${task.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+            signal: abortController.signal,
+          }
+        ).catch(() => null) // Don't fail if submission doesn't exist
+      ]);
       
       // Check if this request was aborted
       if (abortController.signal.aborted) {
         return;
       }
       
-      if (response.ok) {
-        const data = await response.json();
+      // Handle submission data
+      if (submissionResponse && submissionResponse.ok) {
+        const submissionData = await submissionResponse.json();
+        console.log(`📦 Loaded submission for task ${task.id}:`, submissionData);
+        setTaskSubmissions(prev => ({
+          ...prev,
+          [task.id]: submissionData
+        }));
+      } else {
+        // No submission exists yet - clear any old submission data
+        setTaskSubmissions(prev => {
+          const newSubmissions = { ...prev };
+          delete newSubmissions[task.id];
+          return newSubmissions;
+        });
+      }
+      
+      // Handle conversation data
+      if (conversationResponse.ok) {
+        const data = await conversationResponse.json();
         console.log(`📨 Loaded ${data.messages?.length || 0} messages for task ${task.id}:`, data.messages);
         
         if (data.messages && data.messages.length > 0) {
@@ -273,13 +306,22 @@ function Learning() {
             setHasInitialMessage(true);
           }
         } else {
-          // No conversation yet - start it by calling /messages/start
-          console.log('📝 No existing messages, starting new conversation');
+          // Empty messages array could mean:
+          // 1. Thread exists but no messages (shouldn't happen, but possible)
+          // 2. No thread exists yet
+          // In BOTH cases, we should call /messages/start which will:
+          // - Get or create a thread
+          // - Only create the first message if none exists
+          console.log('📝 No existing messages found, starting conversation');
           await startTaskConversation(task, abortController);
         }
+      } else if (conversationResponse.status === 404) {
+        // 404 means no thread exists - start new conversation
+        console.log('📝 No thread exists, starting new conversation');
+        await startTaskConversation(task, abortController);
       } else {
-        console.error('❌ Failed to load task messages, status:', response.status);
-        // Fallback to starting conversation
+        console.error('❌ Failed to load task messages, status:', conversationResponse.status);
+        // For other errors, try starting conversation as fallback
         await startTaskConversation(task, abortController);
       }
     } catch (error) {
@@ -327,6 +369,15 @@ function Learning() {
       if (abortController.signal.aborted) {
         return;
       }
+      
+      // Handle 409 - conversation already exists
+      if (response.status === 409) {
+        const data = await response.json();
+        console.log('⚠️ Conversation already started:', data.message);
+        // The messages should have been loaded already, so just return
+        // This prevents duplicate first messages
+        return;
+      }
 
       if (response.ok) {
         const data = await response.json();
@@ -345,7 +396,7 @@ function Learning() {
           setHasInitialMessage(true);
         }
       } else {
-        console.error('Failed to start conversation');
+        console.error('Failed to start conversation, status:', response.status);
         // Fallback to loading intro locally (old behavior)
         if (!abortController.signal.aborted) {
           await loadTaskIntro(task);
@@ -532,8 +583,43 @@ function Learning() {
   };
 
   const handleDeliverableSubmit = async (deliverableData) => {
+    const currentTask = tasks[currentTaskIndex];
+    
+    if (!currentTask?.id) {
+      toast.error("Unable to submit - task not found");
+      return;
+    }
+    
     try {
-      // Submit deliverable logic here
+      console.log('📤 Submitting deliverable for task:', currentTask.id, deliverableData);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          taskId: currentTask.id,
+          content: deliverableData, // Backend expects plain string content
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit deliverable');
+      }
+      
+      const submission = await response.json();
+      console.log('✅ Submission successful:', submission);
+      
+      // Update local state with the submission
+      setTaskSubmissions(prev => ({
+        ...prev,
+        [currentTask.id]: submission
+      }));
+      
+      // Show success toast
       toast.success("Good job! You just submitted your deliverable.", {
         duration: 4000,
         action: {
@@ -541,9 +627,13 @@ function Learning() {
           onClick: () => setIsDeliverableSidebarOpen(true)
         }
       });
-      setIsDeliverableSidebarOpen(false);
+      
+      // Keep sidebar open so user can see "Submitted" badge
+      // setIsDeliverableSidebarOpen(false); // Commented out - keep open
+      
     } catch (error) {
-      toast.error("Failed to submit deliverable. Please try again.");
+      console.error('❌ Error submitting deliverable:', error);
+      toast.error(error.message || "Failed to submit deliverable. Please try again.");
     }
   };
 
@@ -616,7 +706,7 @@ function Learning() {
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0">
                           <span className="text-pursuit-purple text-sm font-proxima font-semibold">
-                            {user?.first_name ? user.first_name.charAt(0).toUpperCase() : 'Y'}
+                            {user?.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
                           </span>
                         </div>
                         <div className="flex-1 text-carbon-black leading-relaxed text-base font-proxima">
@@ -669,6 +759,7 @@ function Learning() {
         {tasks[currentTaskIndex] && (
           <DeliverablePanel
             task={tasks[currentTaskIndex]}
+            currentSubmission={taskSubmissions[tasks[currentTaskIndex].id]}
             isOpen={isDeliverableSidebarOpen}
             onClose={() => setIsDeliverableSidebarOpen(false)}
             onSubmit={handleDeliverableSubmit}

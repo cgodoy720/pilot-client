@@ -138,10 +138,13 @@ const DailyOverview = ({ currentDay, tasks, onStartActivity }) => {
               }, 600);
             }}
             size="lg"
-              className="bg-pursuit-purple hover:bg-pursuit-purple/90 text-white px-12 py-5 text-[20px] leading-[23px] font-proxima font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+            className="group relative overflow-hidden bg-pursuit-purple hover:bg-pursuit-purple border border-pursuit-purple text-white px-12 py-5 text-[20px] leading-[23px] font-proxima font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
             disabled={isAnimating}
           >
+            <span className="relative z-10 transition-colors duration-300 group-hover:text-pursuit-purple">
               Go!
+            </span>
+            <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
           </Button>
           </div>
         </div>

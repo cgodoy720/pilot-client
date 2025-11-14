@@ -54,21 +54,26 @@ function DeliverablePanel({
       <SheetContent side="right" className="w-[400px] sm:w-[460px] flex flex-col p-0 gap-0 bg-[#F1F1F1]">
         {/* Header with title and close button (close button is in SheetContent) */}
         <div className="px-[25px] py-[20px] flex flex-col gap-[6px]">
-          {/* Deliverable title */}
-          <h2 className="text-[18px] leading-[20px] font-proxima font-bold text-carbon-black">
-            Deliverable
-          </h2>
+          {/* Deliverable title with submitted badge */}
+          <div className="flex items-center gap-2">
+            <h2 className="text-[18px] leading-[20px] font-proxima font-bold text-carbon-black">
+              Deliverable
+            </h2>
+            {currentSubmission && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-proxima font-semibold">
+                <CheckCircle className="w-3 h-3" />
+                Submitted
+              </span>
+            )}
+          </div>
           
           {/* Separator */}
           <div className="w-full h-0 border border-carbon-black"></div>
           
-          {/* Task title */}
-          <h3 className="text-[18px] leading-[20px] font-proxima font-normal text-carbon-black flex items-center gap-2">
-            {task.title || task.task_title}
-            {currentSubmission && currentSubmission.task_id === task.id && (
-              <CheckCircle className="w-5 h-5 text-success-green" title="Submitted" />
-            )}
-          </h3>
+          {/* Deliverable instructions instead of task title */}
+          <div className="text-[16px] leading-[22px] font-proxima font-normal text-carbon-black">
+            {task.deliverable || 'Please complete the deliverable for this activity.'}
+          </div>
         </div>
 
         {/* Body - Dynamic submission form */}

@@ -129,16 +129,10 @@ function FlexibleSubmission({ task, currentSubmission, isSubmitting, isLocked, o
       <div className="flex-1 overflow-y-auto px-[25px] py-[20px]">
         <div className="flex flex-col gap-[25px] w-full">
           
-          {/* Deliverable explanation */}
-          <div className="flex flex-col gap-[40px]">
-            <div className="text-[18px] leading-[26px] font-proxima font-normal text-carbon-black">
-              {task.deliverable || 'Deliverable explanation and instructions go here. Lorem ipsum dolor sit amet, consectetur adipiscing elit.'}
-            </div>
-
-            {/* Upload Unit */}
-            <div className="flex flex-col gap-[15px]">
-              {/* Toggle Button Group */}
-              <div className="flex items-center w-[140px] h-[28px] bg-[#E3E3E3] rounded-[100px] shadow-[inset_0px_2px_4px_rgba(0,0,0,0.15)]">
+          {/* Upload Unit */}
+          <div className="flex flex-col gap-[15px]">
+            {/* Toggle Button Group */}
+            <div className="flex items-center w-[140px] h-[28px] bg-[#E3E3E3] rounded-[100px] shadow-[inset_0px_2px_4px_rgba(0,0,0,0.15)]">
                 <button
                   onClick={() => handleTypeChange('link')}
                   disabled={isLocked}
@@ -194,51 +188,39 @@ function FlexibleSubmission({ task, currentSubmission, isSubmitting, isLocked, o
                 </div>
               )}
               
-              {content && isValidUrl(content) && (
-                <a 
-                  href={content} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="inline-flex items-center gap-2 text-xs text-pursuit-purple hover:text-pursuit-purple/80 font-proxima"
-                >
-                  View shared document in new tab
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              )}
-            </div>
-
-            {/* Submission with Check Mark */}
-            <div className="flex flex-col gap-[10px]">
-              {/* Check Mark with Question */}
-              <div className="flex items-center gap-[7px]">
-                <div className="flex items-center justify-center w-[16px] h-[16px] bg-white border border-white rounded-[10px]">
-                  {/* Checkbox visual */}
-                </div>
-                <p className="text-[18px] leading-[20px] font-proxima font-normal text-carbon-black">
-                  Did you give us permission?
-                </p>
-              </div>
-
-              {/* Button - Styled like Submit button from Figma */}
-              <Button
-                onClick={handleSubmit}
-                disabled={!isFormComplete() || isSubmitting || isLocked}
-                className={cn(
-                  "flex items-center justify-center px-[20px] py-[5px] h-[32px] bg-white rounded-[100px]",
-                  "text-[16px] leading-[18px] font-proxima font-normal text-[#F1F1F1]",
-                  "hover:bg-white/90 transition-colors"
-                )}
+            {content && isValidUrl(content) && (
+              <a 
+                href={content} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="inline-flex items-center gap-2 text-xs text-pursuit-purple hover:text-pursuit-purple/80 font-proxima"
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  'Submit'
-                )}
-              </Button>
-            </div>
+                View shared document in new tab
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+            
+            {/* Submission Button */}
+            <Button
+              onClick={handleSubmit}
+              disabled={!isFormComplete() || isSubmitting || isLocked}
+              className={cn(
+                "flex items-center justify-center px-[20px] py-[5px] h-[32px] bg-pursuit-purple rounded-[100px]",
+                "text-[16px] leading-[18px] font-proxima font-normal text-[#F1F1F1]",
+                "hover:bg-pursuit-purple/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              )}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : currentSubmission ? (
+                'Update Submission'
+              ) : (
+                'Submit'
+              )}
+            </Button>
           </div>
 
           {/* Validation Error */}
