@@ -641,6 +641,90 @@ const ApplicationDetail = () => {
                                     )}
                                 </div>
                             )}
+                            
+                            {/* Deliberation Section */}
+                            {application?.status === 'submitted' && (
+                                <div className="application-detail__deliberation-section" style={{
+                                    marginTop: '16px',
+                                    padding: '12px',
+                                    borderRadius: '8px',
+                                    background: 'rgba(75, 61, 237, 0.05)',
+                                    border: '1px solid rgba(75, 61, 237, 0.2)'
+                                }}>
+                                    <div style={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        gap: '8px',
+                                        marginBottom: '8px'
+                                    }}>
+                                        <strong style={{ fontSize: '0.9rem' }}>Deliberation Status</strong>
+                                    </div>
+                                    <select
+                                        value={application?.deliberation || ''}
+                                        onChange={(e) => {
+                                            const newValue = e.target.value || null;
+                                            // Call API to update
+                                            fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${applicant.applicant_id}/deliberation`, {
+                                                method: 'PATCH',
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    'Authorization': `Bearer ${token}`
+                                                },
+                                                body: JSON.stringify({ deliberation: newValue })
+                                            })
+                                            .then(response => {
+                                                if (!response.ok) throw new Error('Failed to update');
+                                                return response.json();
+                                            })
+                                            .then(() => {
+                                                // Update local state
+                                                setApplicationData(prev => ({
+                                                    ...prev,
+                                                    application: {
+                                                        ...prev.application,
+                                                        deliberation: newValue
+                                                    }
+                                                }));
+                                                Swal.fire({
+                                                    icon: 'success',
+                                                    title: 'Updated!',
+                                                    text: 'Deliberation status has been updated',
+                                                    timer: 1500,
+                                                    showConfirmButton: false
+                                                });
+                                            })
+                                            .catch(error => {
+                                                console.error('Error updating deliberation:', error);
+                                                Swal.fire({
+                                                    icon: 'error',
+                                                    title: 'Error',
+                                                    text: 'Failed to update deliberation status'
+                                                });
+                                            });
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px 14px',
+                                            borderRadius: '6px',
+                                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                                            backgroundColor: 
+                                                application?.deliberation === 'yes' ? 'rgba(16, 185, 129, 0.2)' :
+                                                application?.deliberation === 'maybe' ? 'rgba(251, 191, 36, 0.2)' :
+                                                application?.deliberation === 'no' ? 'rgba(239, 68, 68, 0.2)' :
+                                                'rgba(107, 114, 128, 0.2)',
+                                            color: 'var(--color-text-primary)',
+                                            cursor: 'pointer',
+                                            fontSize: '0.875rem',
+                                            fontWeight: '600'
+                                        }}
+                                    >
+                                        <option value="">Not Set</option>
+                                        <option value="yes">✓ Yes - Admit</option>
+                                        <option value="maybe">? Maybe - Review</option>
+                                        <option value="no">✗ No - Decline</option>
+                                    </select>
+                                </div>
+                            )}
                         </div>
 
                         <div className="application-detail__condensed-header-right">
