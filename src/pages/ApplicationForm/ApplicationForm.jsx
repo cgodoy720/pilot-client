@@ -1343,15 +1343,76 @@ const ApplicationForm = () => {
             {currentSection === -1 ? (
               <div className="application-form__intro-tab">
                 <div className="application-form__intro-tab-content">
-                  <h2 className="application-form__intro-tab-title">WELCOME TO YOUR AI-NATIVE APPLICATION!</h2>
+                  <h2 className="application-form__intro-tab-title">Welcome to the Pursuit Application!</h2>
+                  
                   <div className="application-form__intro-tab-description">
-                    <p className="first-paragraph"><strong>The goal of this program is to train AI-natives. It's about approaching problems using AI first, knowing how to engage with it effectively, and being comfortable adapting as the technology evolves.</strong></p>
+                    <p className="first-paragraph">
+                      We're excited you're here. Applications for our next cohort launching on <strong>March 14th</strong> close <strong>February 15th</strong>, so now's the time to share your story.
+                    </p>
 
-                    <p><strong>No coding experience is required.</strong></p>
+                    <h3 style={{ marginTop: '2rem', marginBottom: '1rem', fontSize: '1.3rem', fontWeight: '600' }}>
+                      When filling out your application, keep these things in mind:
+                    </h3>
                     
-                    <p>If you're open to learning, excited by new ideas, and eager to explore the potential of AI, this program is for you.</p>
-                    
-                    <p>We highly encourage communities underrepresented in tech and those without college degrees to apply.</p>
+                    <ul style={{ listStyle: 'none', padding: 0, marginBottom: '1.5rem' }}>
+                      <li style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
+                        <strong>Take your time.</strong> Go beyond one-word answers—help us get to know you by sharing your whole story.
+                      </li>
+                      <li style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
+                        <strong>Be honest.</strong> No tech experience? That's okay! We care more about your drive and why you're excited to learn.
+                      </li>
+                      <li style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
+                        <strong>Show curiosity.</strong> Tell us how you think, how you ask questions, and how you approach new challenges.
+                      </li>
+                    </ul>
+
+                    <p style={{ marginBottom: '2rem' }}>
+                      This is your chance to help us understand not just where you've been, but where you want to go.
+                    </p>
+
+                    <div style={{ background: 'rgba(66, 66, 234, 0.1)', border: '1px solid rgba(66, 66, 234, 0.3)', borderRadius: '8px', padding: '1.5rem', marginBottom: '2rem' }}>
+                      <h3 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.2rem', fontWeight: '600' }}>
+                        Reminder that to be considered for workshops, you must:
+                      </h3>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                        <li style={{ marginBottom: '0.5rem' }}>✓ Complete an application in full.</li>
+                        <li style={{ marginBottom: '0.5rem' }}>✓ Meet all eligibility requirements (see below).</li>
+                        <li style={{ marginBottom: '0.5rem' }}>✓ Attend an information session before the deadline.</li>
+                      </ul>
+                    </div>
+
+                    <details style={{ marginBottom: '1.5rem', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '1rem' }}>
+                      <summary style={{ cursor: 'pointer', fontWeight: '600', fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+                        Eligibility Requirements
+                      </summary>
+                      <div style={{ paddingTop: '1rem', lineHeight: '1.6' }}>
+                        <p>Applicants must meet all of the following:</p>
+                        <ul>
+                          <li>Annual salary/income is less than $45,000</li>
+                          <li>18 years or older</li>
+                          <li>Proficient in English (speaking and writing)</li>
+                          <li>Eligible to work in the U.S.</li>
+                          <li>Able to commit to the full in-person schedule</li>
+                          <li>Committed to participating for the full length of the program</li>
+                        </ul>
+                      </div>
+                    </details>
+
+                    <details style={{ marginBottom: '2rem', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '1rem' }}>
+                      <summary style={{ cursor: 'pointer', fontWeight: '600', fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+                        FAQs
+                      </summary>
+                      <div style={{ paddingTop: '1rem', lineHeight: '1.6' }}>
+                        <h4 style={{ marginTop: 0, marginBottom: '0.5rem' }}>Do I need to attend an info session?</h4>
+                        <p style={{ marginBottom: '1.5rem' }}>Yes, attendance is required to be considered.</p>
+                        
+                        <h4 style={{ marginBottom: '0.5rem' }}>What if I want to learn more?</h4>
+                        <p style={{ marginBottom: '1.5rem' }}>Visit our <a href="https://www.pursuit.org" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>website here</a>!</p>
+                        
+                        <h4 style={{ marginBottom: '0.5rem' }}>I have more questions. Who do I contact?</h4>
+                        <p style={{ margin: 0 }}>Please reach out to us at: <a href="mailto:admissions@pursuit.org" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>admissions@pursuit.org</a></p>
+                      </div>
+                    </details>
                   </div>
                   
                   <div className="application-form__intro-tab-actions">

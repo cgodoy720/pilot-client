@@ -1,82 +1,146 @@
+/* Override any parent constraints for this specific page */
+.admissions-dashboard:has(.payment-terms) {
+  overflow-y: auto;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.admissions-dashboard:has(.payment-terms) .payment-terms {
+  flex: 1;
+  overflow-y: auto;
+}
+
 .payment-terms {
   max-width: 960px;
   margin: 0 auto;
   padding: 24px;
+  padding-bottom: 80px; /* Extra space at bottom for scrolling */
+  color: var(--color-text-primary);
+  min-height: 100%;
 }
 
 .payment-terms__header {
   margin-bottom: 24px;
+  padding: 20px 0;
 }
 
 .payment-terms__title {
   margin: 0 0 8px 0;
   font-size: 28px;
+  color: var(--color-text-primary);
+  font-weight: 600;
 }
 
 .payment-terms__subtitle {
   margin: 0;
-  color: #555;
+  color: var(--color-text-secondary);
+  font-size: 16px;
 }
 
 .payment-terms__section {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--color-background-light);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  padding: 16px;
+  padding: 20px;
   margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .payment-terms__section-title {
-  margin: 0 0 8px 0;
+  margin: 0 0 12px 0;
   font-size: 20px;
+  color: var(--color-text-primary);
+  font-weight: 600;
 }
 
 .payment-terms__text {
   margin: 0 0 8px 0;
-  line-height: 1.5;
+  line-height: 1.6;
+  color: var(--color-text-primary);
 }
 
 .payment-terms__list {
   padding-left: 20px;
   margin: 0;
+  color: var(--color-text-primary);
 }
 
 .payment-terms__list-item {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+}
+
+.payment-terms__list-item strong {
+  color: var(--color-primary);
+  font-weight: 600;
 }
 
 .payment-terms__example {
-  border: 1px dashed #d1d5db;
+  border: 1px dashed var(--color-border);
   border-radius: 6px;
-  padding: 12px;
-  margin-bottom: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: var(--color-background-dark);
 }
 
 .payment-terms__example-title {
-  margin: 0 0 6px 0;
+  margin: 0 0 8px 0;
   font-size: 16px;
+  color: var(--color-text-primary);
+  font-weight: 600;
 }
 
 .payment-terms__faq {
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 12px;
+  background: var(--color-background-dark);
 }
 
 .payment-terms__faq-question {
   cursor: pointer;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  padding: 4px 0;
+}
+
+.payment-terms__faq-question:hover {
+  color: var(--color-primary);
+}
+
+.payment-terms__faq-answer {
+  padding-top: 8px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
 }
 
 .payment-terms__cta {
   text-align: center;
-  margin-top: 24px;
+  margin-top: 32px;
+  padding: 24px;
+  background: var(--color-background-light);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
 }
 
 .payment-terms__link {
-  color: #2563eb;
+  color: var(--color-primary);
   text-decoration: none;
+  font-weight: 600;
+  padding: 10px 20px;
+  border: 2px solid var(--color-primary);
+  border-radius: 6px;
+  display: inline-block;
+  transition: all 0.2s ease;
 }
 
 .payment-terms__link:hover {
-  text-decoration: underline;
+  background: var(--color-primary);
+  color: #fff;
+  text-decoration: none;
 }
 
 
