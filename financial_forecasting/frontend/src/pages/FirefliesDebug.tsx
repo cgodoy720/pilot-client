@@ -38,7 +38,8 @@ const FirefliesDebug: React.FC = () => {
   const { data, isLoading, error } = useQuery(
     'fireflies-debug',
     async () => {
-      const response = await fetch('http://localhost:8000/api/fireflies/recent-meetings?limit=50');
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/api/fireflies/recent-meetings?limit=50`);
       if (!response.ok) throw new Error('Failed to fetch meetings');
       return response.json();
     }
