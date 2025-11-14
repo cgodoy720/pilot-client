@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import logoFull from '../../assets/logo-full.png';
 import './Signup.css';
 
+const SPECIAL_CHARS = '!@#$%^&*(),.?":{}|<>';
+
 const Signup = () => {
   const [userType, setUserType] = useState(''); // 'builder', 'applicant', or 'workshop'
   const [isReturningWorkshopUser, setIsReturningWorkshopUser] = useState(false); // For returning workshop participants
@@ -403,7 +405,7 @@ const Signup = () => {
                     Include at least one number
                   </li>
                   <li className={passwordValidation.special ? 'valid' : 'invalid'}>
-                    Include at least one special character
+                    Include at least one special character ({SPECIAL_CHARS})
                   </li>
                 </ul>
                 

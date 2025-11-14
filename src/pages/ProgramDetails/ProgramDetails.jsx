@@ -70,18 +70,18 @@ const ProgramDetails = () => {
           <div className="program-details__text-box">
             <p>
               <strong>Start Date:</strong><br/>
-              December 6, 2025<br/><br/>
+              March 14, 2025<br/><br/>
               <strong>Schedule:</strong><br/>
               Mon - Wed: 6:00 - 10:30 PM<br/>
               Sat - Sun: 10:00AM - 6:00 PM<br/><br/>
               <strong>Location:</strong><br/>
               47-10 Austell Pl. Long Island City, NY 11101
             </p>
-            <p>
+            {/* <p>
               <strong>Payment Terms:</strong><br/>
               Review how your payments are structured, including deposits, installments, and due dates. 
               <Link className="program-details__link" to="/payment-terms">View Payment Structure Terms</Link>
-            </p>
+            </p> */}
           </div>
         </div>
       </div>

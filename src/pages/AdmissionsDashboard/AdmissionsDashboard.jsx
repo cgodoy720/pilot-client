@@ -43,7 +43,7 @@ const AdmissionsDashboard = () => {
     const [demographicsModalData, setDemographicsModalData] = useState({ race: [], gender: [], education: [] });
     // Overview stage demographics (replaces funnel)
     const [activeOverviewStage, setActiveOverviewStage] = useState('applied'); // applied | info | workshops | offers | marketing
-    const [stageDemographics, setStageDemographics] = useState({ race: [], gender: [], education: [], age: [] });
+    const [stageDemographics, setStageDemographics] = useState({ race: [], gender: [], education: [], age: [], referral: [] });
     const [averageIncome, setAverageIncome] = useState(null); // Average income for the current stage
     // Application status filter for demographics
     const [applicantStatusFilter, setApplicantStatusFilter] = useState('all'); // all | accounts_created | in_progress | submitted | ineligible
@@ -94,6 +94,7 @@ const AdmissionsDashboard = () => {
         ready_for_workshop_invitation: false,
         name_search: '',
         cohort_id: '',
+        deliberation: '',
         limit: 10000, // High limit to get all records
         offset: 0
     });
@@ -104,8 +105,36 @@ const AdmissionsDashboard = () => {
         direction: 'desc' // 'asc' or 'desc'
     });
 
+    // Column visibility state
+    const [visibleColumns, setVisibleColumns] = useState({
+        name: true,
+        email: true,
+        phone: true,
+        status: true,
+        assessment: true,
+        info_session: true,
+        workshop: true,
+        structured_task_grade: true, // Show by default so users can see grades
+        admission: true,
+        notes: true,
+        deliberation: true,
+        age: false,
+        gender: false,
+        race: false,
+        education: false,
+        referral: false
+    });
+
+    // Column label mapping for display
+    const columnLabels = {
+        structured_task_grade: 'Workshop Grade',
+        info_session: 'Info Session',
+        // Add other custom labels as needed
+    };
+
     // Overview quick views state
     const [overviewQuickView, setOverviewQuickView] = useState(''); // '', 'dec2025', 'sep2025', 'deferred'
+    const [overviewDeliberationFilter, setOverviewDeliberationFilter] = useState(''); // '', 'yes', 'maybe', 'no'
 
     // Event registrations management
     const [selectedEvent, setSelectedEvent] = useState(null);
@@ -166,8 +195,12 @@ const AdmissionsDashboard = () => {
     // Close filter dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
-            // Check if click is outside any filter dropdown
-            if (openFilterColumn && !event.target.closest('th')) {
+            // Check if click is outside any filter dropdown or column toggle button
+            const isTableHeader = event.target.closest('th');
+            const isColumnToggle = event.target.closest('.admissions-dashboard__column-toggle-btn') || 
+                                    event.target.closest('[data-column-toggle]');
+            
+            if (openFilterColumn && !isTableHeader && !isColumnToggle) {
                 setOpenFilterColumn(null);
             }
         };
@@ -359,6 +392,20 @@ const AdmissionsDashboard = () => {
             // Update state
             setStats(statsData);
             setApplications(applicationsData);
+            
+            // Debug: Check if structured_task_grade is in the response
+            if (applicationsData?.applications) {
+                const withGrades = applicationsData.applications.filter(a => a.structured_task_grade);
+                console.log(`📊 Applications loaded: ${applicationsData.applications.length} total, ${withGrades.length} with structured_task_grade`);
+                if (withGrades.length > 0) {
+                    console.log('Sample applicants with grades:', withGrades.slice(0, 3).map(a => ({
+                        name: a.full_name,
+                        id: a.applicant_id,
+                        grade: a.structured_task_grade
+                    })));
+                }
+            }
+            
             setInfoSessions(infoSessionsData);
             setWorkshops(workshopsData.workshops || workshopsData);
 
@@ -622,14 +669,14 @@ const AdmissionsDashboard = () => {
             if (subset === 'offers') subsetApps = apps.filter(a => a.final_status === 'accepted');
 
             const ids = subsetApps.map(a => a.applicant_id).filter(Boolean);
-            let race = [], gender = [], education = [], age = [];
+            let race = [], gender = [], education = [], age = [], referral = [];
             if (ids.length) {
                 const expResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/export?ids=${ids.join(',')}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (expResp.ok) {
                     const detailed = await expResp.json();
-                    const agg = { race: {}, gender: {}, education: {}, age: {} };
+                    const agg = { race: {}, gender: {}, education: {}, age: {}, referral: {} };
                     const add = (obj, key) => { if (!key) return; obj[key] = (obj[key] || 0) + 1; };
                     detailed.forEach(d => {
                         const dem = d.demographics || {};
@@ -637,9 +684,10 @@ const AdmissionsDashboard = () => {
                         if (Array.isArray(raceVal)) raceVal.forEach(r => add(agg.race, r)); else add(agg.race, raceVal);
                         add(agg.gender, dem.gender || dem.GENDER);
                         add(agg.education, dem.education_level || dem['WHAT IS YOUR CURRENT HIGHEST EDUCATIONAL ATTAINED']);
+                        add(agg.referral, dem.referral_source);
                     });
                     const toArr = (o) => Object.keys(o).map(k => ({ label: k || 'Unknown', count: o[k] })).sort((a,b)=>b.count-a.count);
-                    race = toArr(agg.race); gender = toArr(agg.gender); education = toArr(agg.education);
+                    race = toArr(agg.race); gender = toArr(agg.gender); education = toArr(agg.education); referral = toArr(agg.referral);
                 }
             }
             setDemographicsModalData({ race, gender, education });
@@ -666,7 +714,18 @@ const AdmissionsDashboard = () => {
             });
             if (!appsResp.ok) throw new Error('Failed to load applications for stage demographics');
             const appsData = await appsResp.json();
-            const apps = Array.isArray(appsData?.applications) ? appsData.applications : [];
+            let apps = Array.isArray(appsData?.applications) ? appsData.applications : [];
+
+            // Filter by deliberation status if selected
+            if (overviewDeliberationFilter) {
+                if (overviewDeliberationFilter === 'null') {
+                    // Filter for null/empty deliberation
+                    apps = apps.filter(a => !a.deliberation);
+                } else {
+                    // Filter for specific deliberation value
+                    apps = apps.filter(a => a.deliberation === overviewDeliberationFilter);
+                }
+            }
 
             // Calculate status breakdown for "applied" stage
             if (subset === 'applied') {
@@ -745,7 +804,7 @@ const AdmissionsDashboard = () => {
             const ids = subsetApps.map(a => a.applicant_id).filter(Boolean);
             const totalApplicants = subsetApps.length;
             const applicantsWithoutId = totalApplicants - ids.length; // Count applicants without applicant_id
-            let race = [], gender = [], education = [], age = [];
+            let race = [], gender = [], education = [], age = [], referral = [];
             if (ids.length) {
                 const expResp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/export?ids=${ids.join(',')}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
@@ -753,7 +812,7 @@ const AdmissionsDashboard = () => {
                 if (expResp.ok) {
                     const detailed = await expResp.json();
                     setStageDetailedApplicantsCache({ key: cacheKey, rows: detailed });
-                    const agg = { race: {}, gender: {}, education: {}, age: {} };
+                    const agg = { race: {}, gender: {}, education: {}, age: {}, referral: {} };
                     let processedCount = 0;
                     
                     // Pre-add "Not Listed" entries for applicants without applicant_id
@@ -762,6 +821,7 @@ const AdmissionsDashboard = () => {
                         agg.gender['Not Listed'] = applicantsWithoutId;
                         agg.education['Not Listed'] = applicantsWithoutId;
                         agg.age['Not Listed'] = applicantsWithoutId;
+                        agg.referral['Not Listed'] = applicantsWithoutId;
                     }
                     
                     // Normalize labels to prevent duplicate buckets (e.g., 'Not listed' vs 'Not Listed')
@@ -894,6 +954,9 @@ const AdmissionsDashboard = () => {
                         
                         // Education: count once per person
                         add(agg.education, normalize('education', dem.education_level || dem['WHAT IS YOUR CURRENT HIGHEST EDUCATIONAL ATTAINED']));
+                        
+                        // Referral Source: count once per person
+                        add(agg.referral, normalize('referral', dem.referral_source));
                     });
                     // Calculate average income
                     const avgIncome = incomeCount > 0 ? Math.round(totalIncome / incomeCount) : null;
@@ -908,6 +971,7 @@ const AdmissionsDashboard = () => {
                         agg.gender['Not Listed'] = (agg.gender['Not Listed'] || 0) + missingFromExport;
                         agg.education['Not Listed'] = (agg.education['Not Listed'] || 0) + missingFromExport;
                         agg.age['Not Listed'] = (agg.age['Not Listed'] || 0) + missingFromExport;
+                        agg.referral['Not Listed'] = (agg.referral['Not Listed'] || 0) + missingFromExport;
                     }
                     
                     // Double-check totals and ensure they match totalApplicants
@@ -915,6 +979,7 @@ const AdmissionsDashboard = () => {
                     const genderTotal = Object.values(agg.gender).reduce((sum, count) => sum + count, 0);
                     const educationTotal = Object.values(agg.education).reduce((sum, count) => sum + count, 0);
                     const ageTotal = Object.values(agg.age).reduce((sum, count) => sum + count, 0);
+                    const referralTotal = Object.values(agg.referral).reduce((sum, count) => sum + count, 0);
                     
                     if (genderTotal < totalApplicants) {
                         agg.gender['Not Listed'] = (agg.gender['Not Listed'] || 0) + (totalApplicants - genderTotal);
@@ -924,6 +989,9 @@ const AdmissionsDashboard = () => {
                     }
                     if (ageTotal < totalApplicants) {
                         agg.age['Not Listed'] = (agg.age['Not Listed'] || 0) + (totalApplicants - ageTotal);
+                    }
+                    if (referralTotal < totalApplicants) {
+                        agg.referral['Not Listed'] = (agg.referral['Not Listed'] || 0) + (totalApplicants - referralTotal);
                     }
                     
                     const toArr = (o) => Object.keys(o).map(k => ({ label: k || 'Not Listed', count: o[k] })).sort((a,b)=>b.count-a.count);
@@ -985,13 +1053,14 @@ const AdmissionsDashboard = () => {
                     }).sort((a,b)=>b.count-a.count);
                     
                     gender = toArr(agg.gender); education = toArr(agg.education);
-                    age = toArr(agg.age);
+                    age = toArr(agg.age); referral = toArr(agg.referral);
                 } else {
                     // If export fails, create "Not Listed" entries for all applicants
                     race = [{ label: 'Not Listed', count: totalApplicants }];
                     gender = [{ label: 'Not Listed', count: totalApplicants }];
                     education = [{ label: 'Not Listed', count: totalApplicants }];
                     age = [{ label: 'Not Listed', count: totalApplicants }];
+                    referral = [{ label: 'Not Listed', count: totalApplicants }];
                     setAverageIncome(null);
                     setStageDetailedApplicantsCache({ key: cacheKey, rows: [] });
                 }
@@ -1001,18 +1070,19 @@ const AdmissionsDashboard = () => {
                 gender = [{ label: 'Not Listed', count: totalApplicants }];
                 education = [{ label: 'Not Listed', count: totalApplicants }];
                 age = [{ label: 'Not Listed', count: totalApplicants }];
+                referral = [{ label: 'Not Listed', count: totalApplicants }];
                 setAverageIncome(null);
                 setStageDetailedApplicantsCache({ key: cacheKey, rows: [] });
             } else {
                 // No applicants, empty arrays
-                race = []; gender = []; education = []; age = [];
+                race = []; gender = []; education = []; age = []; referral = [];
                 setAverageIncome(null);
                 setStageDetailedApplicantsCache({ key: cacheKey, rows: [] });
             }
-            setStageDemographics({ race, gender, education, age });
+            setStageDemographics({ race, gender, education, age, referral });
         } catch (err) {
             console.error('Error loading stage demographics:', err);
-            setStageDemographics({ race: [], gender: [], education: [], age: [] });
+            setStageDemographics({ race: [], gender: [], education: [], age: [], referral: [] });
             setAverageIncome(null);
             setAppliedStatusBreakdown(null);
         }
@@ -1028,7 +1098,7 @@ const AdmissionsDashboard = () => {
         if (!hasAdminAccess || !token) return;
         loadStageDemographics(activeOverviewStage);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeOverviewStage, overviewQuickView, applicantStatusFilter]);
+    }, [activeOverviewStage, overviewQuickView, applicantStatusFilter, overviewDeliberationFilter]);
 
     // Load applicants filtered by demographic
     const loadFilteredApplicants = async (demographicType, demographicValue) => {
@@ -2209,6 +2279,50 @@ const AdmissionsDashboard = () => {
     const closeNotesModal = () => {
         setNotesModalOpen(false);
         setSelectedApplicant(null);
+    };
+
+    // Handle deliberation update
+    const handleDeliberationChange = async (applicantId, newValue) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${applicantId}/deliberation`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ deliberation: newValue })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update deliberation');
+            }
+
+            // Update local state
+            setApplications(prev => ({
+                ...prev,
+                applications: prev.applications.map(app =>
+                    app.applicant_id === applicantId
+                        ? { ...app, deliberation: newValue }
+                        : app
+                )
+            }));
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Updated!',
+                text: 'Deliberation status has been updated',
+                timer: 1500,
+                showConfirmButton: false
+            });
+
+        } catch (error) {
+            console.error('Error updating deliberation:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to update deliberation status'
+            });
+        }
     };
 
     // Handle column sorting
@@ -3549,7 +3663,7 @@ const AdmissionsDashboard = () => {
 
                                     {overviewDetailsOpen && (
                                         <div style={{ marginTop: '1rem', padding: '1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.15)' }}>
-                                            <div style={{ display: 'flex', gap: '1.25rem', margin: '0 0 1rem 0', flexWrap: 'wrap' }}>
+                                            <div style={{ display: 'flex', gap: '1.25rem', margin: '0 0 1rem 0', flexWrap: 'wrap', alignItems: 'center' }}>
                                                 {[
                                                     { key: 'applied', label: 'Total Applicants' },
                                                     { key: 'info', label: 'Info Session' },
@@ -3566,6 +3680,29 @@ const AdmissionsDashboard = () => {
                                                         {s.label}
                                                     </button>
                                         ))}
+                                        
+                                        {/* Deliberation Filter */}
+                                        <select
+                                            value={overviewDeliberationFilter}
+                                            onChange={(e) => setOverviewDeliberationFilter(e.target.value)}
+                                            className="filter-select"
+                                            style={{ 
+                                                marginLeft: 'auto',
+                                                minWidth: '200px', 
+                                                padding: '8px 12px',
+                                                backgroundColor: 'rgba(75, 61, 237, 0.1)',
+                                                border: '1px solid rgba(75, 61, 237, 0.3)',
+                                                borderRadius: '6px',
+                                                color: 'var(--color-text-primary)',
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            <option value="">Deliberation: All</option>
+                                            <option value="yes">✓ Yes - Accept</option>
+                                            <option value="maybe">? Maybe - Review</option>
+                                            <option value="no">✗ No - Decline</option>
+                                            <option value="null">Not Set</option>
+                                        </select>
                                     </div>
 
                                             {/* Status breakdown for Total Applicants */}
@@ -3984,6 +4121,50 @@ const AdmissionsDashboard = () => {
                                     </div>
                                 </div>
 
+                                                {/* Gender */}
+                                <div className="admissions-dashboard__stat-card demographic-card" style={{ position: 'relative' }}>
+                                    <div className="admissions-dashboard__stat-card-header" style={{ position: 'relative' }}>
+                                                        <h3 
+                                                            className="admissions-dashboard__stat-card-title" 
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                            onClick={() => handleDemographicTitleClick('gender')}
+                                                        >
+                                                            {activeOverviewStage === 'info' ? 'Info Session Attendees by Gender' : activeOverviewStage === 'workshops' ? 'Workshop Participants by Gender' : activeOverviewStage === 'assessment' ? 'Assessment Completed by Gender' : activeOverviewStage === 'offers' ? 'Offers by Gender' : 'Applicants by Gender'}
+                                                        </h3>
+                                                        <input
+                                                            type="checkbox"
+                                                            style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
+                                                            onClick={(e) => handleDemographicExport(e, 'gender', null, `gender-${activeOverviewStage || 'all'}`)}
+                                                        />
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                        {(() => {
+                                                            const data = stageDemographics.gender || [];
+                                                            const total = data.reduce((s, d) => s + (d.count || 0), 0) || 1;
+                                                            return data.slice(0, 8).map((d, idx) => (
+                                                                <div 
+                                                                    key={`gender-${idx}`} 
+                                                                    style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '0.875rem', background: 'rgba(75, 61, 237, 0.05)', borderRadius: '8px', border: '1px solid rgba(75, 61, 237, 0.15)', minWidth: 0, cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative' }}
+                                                                    onClick={() => handleDemographicValueClick('gender', d.label)}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(75, 61, 237, 0.15)'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(75, 61, 237, 0.05)'}
+                                                                >
+                                                                    <div style={{ height: '8px', width: '90px', flexShrink: 0, background: 'rgba(255,255,255,0.08)', borderRadius: '4px', position: 'relative', overflow: 'hidden', marginTop: '4px' }}>
+                                                                        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.round((d.count/total)*100)}%`, background: 'linear-gradient(90deg, #8b5cf6, #a78bfa)', borderRadius: '4px' }} />
+                                                                    </div>
+                                                                    <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                                                                        <span style={{ fontWeight: 800, fontSize: '0.85rem', letterSpacing: '-0.01em', color: 'var(--color-text-primary)', wordBreak: 'break-word', lineHeight: '1.4' }}>{d.label || 'Unknown'}</span>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                                                            <span style={{ fontSize: '0.95rem', fontWeight: 900, letterSpacing: '-0.01em', color: 'var(--color-text-primary)' }}>{Math.round((d.count/total)*100)}%</span>
+                                                                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '-0.01em' }}>{d.count}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ));
+                                                        })()}
+                                                    </div>
+                                </div>
+
                                                 {/* Education */}
                                 <div className="admissions-dashboard__stat-card demographic-card" style={{ position: 'relative' }}>
                                     <div className="admissions-dashboard__stat-card-header" style={{ position: 'relative' }}>
@@ -4069,6 +4250,50 @@ const AdmissionsDashboard = () => {
                                     </div>
                                                 </div>
 
+                                                {/* Referral Source */}
+                                <div className="admissions-dashboard__stat-card demographic-card" style={{ position: 'relative' }}>
+                                    <div className="admissions-dashboard__stat-card-header" style={{ position: 'relative' }}>
+                                                        <h3 
+                                                            className="admissions-dashboard__stat-card-title" 
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                            onClick={() => handleDemographicTitleClick('referral')}
+                                                        >
+                                                            {activeOverviewStage === 'info' ? 'Info Session Attendees by Referral Source' : activeOverviewStage === 'workshops' ? 'Workshop Participants by Referral Source' : activeOverviewStage === 'assessment' ? 'Assessment Completed by Referral Source' : activeOverviewStage === 'offers' ? 'Offers by Referral Source' : 'Applicants by Referral Source'}
+                                                        </h3>
+                                                        <input
+                                                            type="checkbox"
+                                                            style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', width: '18px', height: '18px', cursor: 'pointer', zIndex: 10 }}
+                                                            onClick={(e) => handleDemographicExport(e, 'referral', null, `referral-${activeOverviewStage || 'all'}`)}
+                                                        />
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                        {(() => {
+                                                            const data = stageDemographics.referral || [];
+                                                            const total = data.reduce((s, d) => s + (d.count || 0), 0) || 1;
+                                                            return data.slice(0, 8).map((d, idx) => (
+                                                                <div 
+                                                                    key={`referral-${idx}`} 
+                                                                    style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '0.875rem', background: 'rgba(75, 61, 237, 0.05)', borderRadius: '8px', border: '1px solid rgba(75, 61, 237, 0.15)', minWidth: 0, cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative' }}
+                                                                    onClick={() => handleDemographicValueClick('referral', d.label)}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(75, 61, 237, 0.15)'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(75, 61, 237, 0.05)'}
+                                                                >
+                                                                    <div style={{ height: '8px', width: '90px', flexShrink: 0, background: 'rgba(255,255,255,0.08)', borderRadius: '4px', position: 'relative', overflow: 'hidden', marginTop: '4px' }}>
+                                                                        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.round((d.count/total)*100)}%`, background: 'linear-gradient(90deg, #ec4899, #f472b6)', borderRadius: '4px' }} />
+                                                                    </div>
+                                                                    <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                                                                        <span style={{ fontWeight: 800, fontSize: '0.85rem', letterSpacing: '-0.01em', color: 'var(--color-text-primary)', wordBreak: 'break-word', lineHeight: '1.4' }}>{d.label || 'Unknown'}</span>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                                                            <span style={{ fontSize: '0.95rem', fontWeight: 900, letterSpacing: '-0.01em', color: 'var(--color-text-primary)' }}>{Math.round((d.count/total)*100)}%</span>
+                                                                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '-0.01em' }}>{d.count}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ));
+                                                        })()}
+                                                    </div>
+                                </div>
+
                                             </div>
                                             )}
                                         </div>
@@ -4107,6 +4332,71 @@ const AdmissionsDashboard = () => {
                                     ))}
                                     <option value="deferred">Deferred Applications</option>
                                 </select>
+                                <div style={{ position: 'relative' }} data-column-toggle>
+                                    <button
+                                        className="admissions-dashboard__column-toggle-btn"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenFilterColumn(openFilterColumn === 'columns' ? null : 'columns');
+                                        }}
+                                        style={{
+                                            padding: '8px 16px',
+                                            backgroundColor: 'var(--color-primary)',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.875rem'
+                                        }}
+                                    >
+                                        ⚙️ Columns
+                                    </button>
+                                    {openFilterColumn === 'columns' && (
+                                        <div 
+                                            data-column-toggle
+                                            style={{
+                                                position: 'absolute',
+                                                top: '100%',
+                                                right: 0,
+                                                marginTop: '8px',
+                                                backgroundColor: 'var(--color-background-dark)',
+                                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                borderRadius: '4px',
+                                                padding: '12px',
+                                                zIndex: 1000,
+                                                minWidth: '200px',
+                                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                                            }}
+                                        >
+                                            <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '0.9rem' }}>Toggle Columns</div>
+                                            {Object.keys(visibleColumns).map(column => (
+                                                <label 
+                                                    key={column}
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '8px',
+                                                        padding: '6px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '0.875rem'
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={visibleColumns[column]}
+                                                        onChange={(e) => {
+                                                            setVisibleColumns({
+                                                                ...visibleColumns,
+                                                                [column]: e.target.checked
+                                                            });
+                                                        }}
+                                                    />
+                                                    <span>{columnLabels[column] || (column.charAt(0).toUpperCase() + column.slice(1).replace('_', ' '))}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                                 <button
                                     className="admissions-dashboard__bulk-actions-btn"
                                     disabled={selectedApplicants.length === 0}
@@ -4149,24 +4439,27 @@ const AdmissionsDashboard = () => {
                                                     }}
                                                 />
                                             </th>
-                                            <th className="sortable-header" onClick={() => handleColumnSort('name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span>Name</span>
-                                                    <span style={{ fontSize: '1rem', opacity: 0.6 }}>
-                                                        {columnSort.column === 'name' ? (columnSort.direction === 'asc' ? '▲' : '▼') : '⇅'}
-                                                    </span>
-                                                </div>
-                                            </th>
-                                            <th>Email</th>
-                                            <th>Phone</th>
-                                            <th style={{ position: 'relative' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span 
-                                                        onClick={() => handleColumnSort('status')} 
-                                                        style={{ cursor: 'pointer', userSelect: 'none' }}
-                                                    >
-                                                        Status
-                                                    </span>
+                                            {visibleColumns.name && (
+                                                <th className="sortable-header" onClick={() => handleColumnSort('name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span>Name</span>
+                                                        <span style={{ fontSize: '1rem', opacity: 0.6 }}>
+                                                            {columnSort.column === 'name' ? (columnSort.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                                                        </span>
+                                                    </div>
+                                                </th>
+                                            )}
+                                            {visibleColumns.email && <th>Email</th>}
+                                            {visibleColumns.phone && <th>Phone</th>}
+                                            {visibleColumns.status && (
+                                                <th style={{ position: 'relative' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span 
+                                                            onClick={() => handleColumnSort('status')} 
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                        >
+                                                            Status
+                                                        </span>
                                                     <span 
                                                         onClick={() => handleColumnSort('status')}
                                                         style={{ fontSize: '1rem', opacity: 0.6, cursor: 'pointer' }}
@@ -4227,14 +4520,16 @@ const AdmissionsDashboard = () => {
                                                     </div>
                                                 )}
                                             </th>
-                                            <th style={{ position: 'relative' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span 
-                                                        onClick={() => handleColumnSort('assessment')} 
-                                                        style={{ cursor: 'pointer', userSelect: 'none' }}
-                                                    >
-                                                        Assessment
-                                                    </span>
+                                            )}
+                                            {visibleColumns.assessment && (
+                                                <th style={{ position: 'relative' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span 
+                                                            onClick={() => handleColumnSort('assessment')} 
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                        >
+                                                            Assessment
+                                                        </span>
                                                     <span 
                                                         onClick={() => handleColumnSort('assessment')}
                                                         style={{ fontSize: '1rem', opacity: 0.6, cursor: 'pointer' }}
@@ -4295,14 +4590,16 @@ const AdmissionsDashboard = () => {
                                                     </div>
                                                 )}
                                             </th>
-                                            <th style={{ position: 'relative' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span 
-                                                        onClick={() => handleColumnSort('info_session')} 
-                                                        style={{ cursor: 'pointer', userSelect: 'none' }}
-                                                    >
-                                                        Info Session
-                                                    </span>
+                                            )}
+                                            {visibleColumns.info_session && (
+                                                <th style={{ position: 'relative' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span 
+                                                            onClick={() => handleColumnSort('info_session')} 
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                        >
+                                                            Info Session
+                                                        </span>
                                                     <span 
                                                         onClick={() => handleColumnSort('info_session')}
                                                         style={{ fontSize: '1rem', opacity: 0.6, cursor: 'pointer' }}
@@ -4363,14 +4660,16 @@ const AdmissionsDashboard = () => {
                                                     </div>
                                                 )}
                                             </th>
-                                            <th style={{ position: 'relative' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span 
-                                                        onClick={() => handleColumnSort('workshop')} 
-                                                        style={{ cursor: 'pointer', userSelect: 'none' }}
-                                                    >
-                                                        Workshop
-                                                    </span>
+                                            )}
+                                            {visibleColumns.workshop && (
+                                                <th style={{ position: 'relative' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span 
+                                                            onClick={() => handleColumnSort('workshop')} 
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                        >
+                                                            Workshop
+                                                        </span>
                                                     <span 
                                                         onClick={() => handleColumnSort('workshop')}
                                                         style={{ fontSize: '1rem', opacity: 0.6, cursor: 'pointer' }}
@@ -4431,14 +4730,21 @@ const AdmissionsDashboard = () => {
                                                     </div>
                                                 )}
                                             </th>
-                                            <th style={{ position: 'relative' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span>Admission</span>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setOpenFilterColumn(openFilterColumn === 'admission' ? null : 'admission');
-                                                        }}
+                                            )}
+                                            {visibleColumns.structured_task_grade && (
+                                                <th>
+                                                    <span>Workshop Grade</span>
+                                                </th>
+                                            )}
+                                            {visibleColumns.admission && (
+                                                <th style={{ position: 'relative' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span>Admission</span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setOpenFilterColumn(openFilterColumn === 'admission' ? null : 'admission');
+                                                            }}
                                                         style={{
                                                             background: 'none',
                                                             border: 'none',
@@ -4488,7 +4794,72 @@ const AdmissionsDashboard = () => {
                                                     </div>
                                                 )}
                                             </th>
-                                            <th>Notes</th>
+                                            )}
+                                            {visibleColumns.deliberation && (
+                                                <th style={{ position: 'relative' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span>Deliberation</span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setOpenFilterColumn(openFilterColumn === 'deliberation' ? null : 'deliberation');
+                                                            }}
+                                                            style={{
+                                                                background: 'none',
+                                                                border: 'none',
+                                                                cursor: 'pointer',
+                                                                padding: '2px',
+                                                                fontSize: '0.9rem',
+                                                                opacity: applicationFilters.deliberation ? 1 : 0.5,
+                                                                color: applicationFilters.deliberation ? '#4242ea' : 'inherit'
+                                                            }}
+                                                        >
+                                                            ☰
+                                                        </button>
+                                                    </div>
+                                                    {openFilterColumn === 'deliberation' && (
+                                                        <div style={{
+                                                            position: 'absolute',
+                                                            top: '100%',
+                                                            left: 0,
+                                                            backgroundColor: 'var(--color-background-dark)',
+                                                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                            borderRadius: '4px',
+                                                            padding: '8px',
+                                                            zIndex: 1000,
+                                                            minWidth: '150px',
+                                                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                                                        }}>
+                                                            {['', 'yes', 'maybe', 'no', 'null'].map(value => (
+                                                                <div
+                                                                    key={value}
+                                                                    onClick={() => {
+                                                                        setApplicationFilters({ ...applicationFilters, deliberation: value });
+                                                                        setOpenFilterColumn(null);
+                                                                    }}
+                                                                    style={{
+                                                                        padding: '8px 12px',
+                                                                        cursor: 'pointer',
+                                                                        backgroundColor: applicationFilters.deliberation === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent',
+                                                                        borderRadius: '4px',
+                                                                        fontSize: '0.9rem'
+                                                                    }}
+                                                                    onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
+                                                                    onMouseLeave={(e) => e.target.style.backgroundColor = applicationFilters.deliberation === value ? 'rgba(66, 66, 234, 0.2)' : 'transparent'}
+                                                                >
+                                                                    {value === '' ? 'All' : value === 'null' ? 'Not Set' : value.charAt(0).toUpperCase() + value.slice(1)}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </th>
+                                            )}
+                                            {visibleColumns.age && <th>Age</th>}
+                                            {visibleColumns.gender && <th>Gender</th>}
+                                            {visibleColumns.race && <th>Race</th>}
+                                            {visibleColumns.education && <th>Education</th>}
+                                            {visibleColumns.referral && <th>Referral</th>}
+                                            {visibleColumns.notes && <th>Notes</th>}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -4512,48 +4883,55 @@ const AdmissionsDashboard = () => {
                                                         }}
                                                     />
                                                 </td>
-                                                <td
-                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className={app.application_id ? "clickable-cell" : ""}
-                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
-                                                >
-                                                    <div className="applicant-name">
-                                                        {app.full_name || `${app.first_name} ${app.last_name}`}
-                                                        {app.has_masters_degree && (
-                                                            <span className="admissions-dashboard__masters-flag" title="Has Masters Degree">🎓</span>
-                                                        )}
-                                                        {app.missing_count > 0 && (
-                                                            <span className="admissions-dashboard__missing-flag" title={`${app.missing_count} key questions incomplete`}>
-                                                                ⚠️ {app.missing_count}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="clickable-cell">
-                                                    <span
-                                                        className="copyable-email"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleEmailClick(app.email);
-                                                        }}
-                                                        title="Click to copy email"
+                                                {visibleColumns.name && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
                                                     >
-                                                        {app.email}
-                                                    </span>
-                                                </td>
-                                                <td className="clickable-cell">
-                                                    <span
-                                                        className="copyable-phone"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handlePhoneClick(app.phone_number);
-                                                        }}
-                                                        title="Click to copy phone number"
-                                                    >
-                                                        {formatPhoneNumber(app.phone_number)}
-                                                    </span>
-                                                </td>
-                                                <td
+                                                        <div className="applicant-name">
+                                                            {app.full_name || `${app.first_name} ${app.last_name}`}
+                                                            {app.has_masters_degree && (
+                                                                <span className="admissions-dashboard__masters-flag" title="Has Masters Degree">🎓</span>
+                                                            )}
+                                                            {app.missing_count > 0 && (
+                                                                <span className="admissions-dashboard__missing-flag" title={`${app.missing_count} key questions incomplete`}>
+                                                                    ⚠️ {app.missing_count}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                )}
+                                                {visibleColumns.email && (
+                                                    <td className="clickable-cell">
+                                                        <span
+                                                            className="copyable-email"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleEmailClick(app.email);
+                                                            }}
+                                                            title="Click to copy email"
+                                                        >
+                                                            {app.email}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                {visibleColumns.phone && (
+                                                    <td className="clickable-cell">
+                                                        <span
+                                                            className="copyable-phone"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handlePhoneClick(app.phone_number);
+                                                            }}
+                                                            title="Click to copy phone number"
+                                                        >
+                                                            {formatPhoneNumber(app.phone_number)}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                {visibleColumns.status && (
+                                                    <td
                                                     onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
                                                     className={app.application_id ? "clickable-cell" : ""}
                                                     style={{ cursor: app.application_id ? 'pointer' : 'default' }}
@@ -4562,7 +4940,9 @@ const AdmissionsDashboard = () => {
                                                         {app.status === 'no_application' ? 'Account Created' : app.status === 'in_progress' ? 'In Progress' : app.status}
                                                     </span>
                                                 </td>
-                                                <td className="admissions-dashboard__assessment-cell">
+                                                )}
+                                                {visibleColumns.assessment && (
+                                                    <td className="admissions-dashboard__assessment-cell">
                                                     <div className="admissions-dashboard__assessment-container">
                                                         {app.final_status || app.recommendation ? (
                                                             <select
@@ -4586,47 +4966,173 @@ const AdmissionsDashboard = () => {
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td
-                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className={app.application_id ? "clickable-cell" : ""}
-                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
-                                                >
-                                                    <span className={`info-session-badge info-session-badge--${app.info_session_status || 'not_registered'}`}>
-                                                        {(app.info_session_status || 'not_registered').replace('_', ' ')}
-                                                    </span>
-                                                </td>
-                                                <td
-                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className={app.application_id ? "clickable-cell" : ""}
-                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
-                                                >
-                                                    <span className={`workshop-badge workshop-badge--${app.workshop_status || 'pending'}`}>
-                                                        {(app.workshop_status || 'pending').replace('_', ' ')}
-                                                    </span>
-                                                </td>
-                                                <td
-                                                    onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
-                                                    className={app.application_id ? "clickable-cell" : ""}
-                                                    style={{ cursor: app.application_id ? 'pointer' : 'default' }}
-                                                >
-                                                    <span className={`admission-badge admission-badge--${app.program_admission_status || 'pending'}`}>
-                                                        {(app.program_admission_status || 'pending').replace('_', ' ')}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <button
-                                                        className="notes-btn"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            openNotesModal({
-                                                                applicant_id: app.applicant_id,
-                                                                name: app.full_name || `${app.first_name} ${app.last_name}`
-                                                            });
-                                                        }}
+                                                )}
+                                                {visibleColumns.info_session && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
                                                     >
-                                                        Notes
-                                                    </button>
-                                                </td>
+                                                        <span className={`info-session-badge info-session-badge--${app.info_session_status || 'not_registered'}`}>
+                                                            {(app.info_session_status || 'not_registered').replace('_', ' ')}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                {visibleColumns.workshop && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                    >
+                                                        <span className={`workshop-badge workshop-badge--${app.workshop_status || 'pending'}`}>
+                                                            {(app.workshop_status || 'pending').replace('_', ' ')}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                {visibleColumns.structured_task_grade && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default', textAlign: 'center' }}
+                                                    >
+                                                        {app.structured_task_grade ? (
+                                                            <span 
+                                                                style={{
+                                                                    display: 'inline-block',
+                                                                    width: '20px',
+                                                                    height: '20px',
+                                                                    borderRadius: '50%',
+                                                                    backgroundColor: 
+                                                                        app.structured_task_grade === 'green' ? '#10b981' :
+                                                                        app.structured_task_grade === 'yellow' ? '#fbbf24' :
+                                                                        app.structured_task_grade === 'red' ? '#ef4444' :
+                                                                        '#6b7280',
+                                                                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                                                                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                                                                    cursor: 'help'
+                                                                }}
+                                                                title={
+                                                                    app.structured_task_grade === 'green' ? 'Top 25% - Strong performance' :
+                                                                    app.structured_task_grade === 'yellow' ? 'Middle 50% - Average performance' :
+                                                                    app.structured_task_grade === 'red' ? 'Bottom 25% - Needs improvement' :
+                                                                    'No grade available'
+                                                                }
+                                                            />
+                                                        ) : (
+                                                            <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>—</span>
+                                                        )}
+                                                    </td>
+                                                )}
+                                                {visibleColumns.admission && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                    >
+                                                        <span className={`admission-badge admission-badge--${app.program_admission_status || 'pending'}`}>
+                                                            {(app.program_admission_status || 'pending').replace('_', ' ')}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                {visibleColumns.deliberation && (
+                                                    <td onClick={(e) => e.stopPropagation()}>
+                                                        <select
+                                                            value={app.deliberation || ''}
+                                                            onChange={(e) => handleDeliberationChange(app.applicant_id, e.target.value || null)}
+                                                            style={{
+                                                                padding: '6px 12px',
+                                                                borderRadius: '4px',
+                                                                border: '1px solid rgba(255, 255, 255, 0.2)',
+                                                                backgroundColor: 
+                                                                    app.deliberation === 'yes' ? 'rgba(16, 185, 129, 0.2)' :
+                                                                    app.deliberation === 'maybe' ? 'rgba(251, 191, 36, 0.2)' :
+                                                                    app.deliberation === 'no' ? 'rgba(239, 68, 68, 0.2)' :
+                                                                    'rgba(107, 114, 128, 0.2)',
+                                                                color: 'var(--color-text-primary)',
+                                                                cursor: 'pointer',
+                                                                fontSize: '0.875rem'
+                                                            }}
+                                                        >
+                                                            <option value="">Not Set</option>
+                                                            <option value="yes">Yes</option>
+                                                            <option value="maybe">Maybe</option>
+                                                            <option value="no">No</option>
+                                                        </select>
+                                                    </td>
+                                                )}
+                                                {visibleColumns.age && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                    >
+                                                        {app.date_of_birth ? new Date().getFullYear() - new Date(app.date_of_birth).getFullYear() : 'N/A'}
+                                                    </td>
+                                                )}
+                                                {visibleColumns.gender && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                    >
+                                                        {app.gender || 'N/A'}
+                                                    </td>
+                                                )}
+                                                {visibleColumns.race && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                    >
+                                                        {(() => {
+                                                            if (!app.race_ethnicity) return 'N/A';
+                                                            try {
+                                                                const parsed = JSON.parse(app.race_ethnicity);
+                                                                if (Array.isArray(parsed)) {
+                                                                    return parsed.join(', ');
+                                                                }
+                                                                return parsed;
+                                                            } catch (e) {
+                                                                // Not JSON, return as-is
+                                                                return app.race_ethnicity;
+                                                            }
+                                                        })()}
+                                                    </td>
+                                                )}
+                                                {visibleColumns.education && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                    >
+                                                        {app.education_level || 'N/A'}
+                                                    </td>
+                                                )}
+                                                {visibleColumns.referral && (
+                                                    <td
+                                                        onClick={() => app.application_id && navigate(`/admissions-dashboard/application/${app.application_id}`)}
+                                                        className={app.application_id ? "clickable-cell" : ""}
+                                                        style={{ cursor: app.application_id ? 'pointer' : 'default' }}
+                                                    >
+                                                        {app.referral_source || 'N/A'}
+                                                    </td>
+                                                )}
+                                                {visibleColumns.notes && (
+                                                    <td>
+                                                        <button
+                                                            className="notes-btn"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                openNotesModal({
+                                                                    applicant_id: app.applicant_id,
+                                                                    name: app.full_name || `${app.first_name} ${app.last_name}`
+                                                                });
+                                                            }}
+                                                        >
+                                                            Notes
+                                                        </button>
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>
