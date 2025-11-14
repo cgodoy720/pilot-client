@@ -190,5 +190,17 @@
       "invoice_amount": 150000.0,
       "invoice_date": "10/21/2025"
     }
+  },
+  "29603": {
+    "opportunity_id": "006Pa00000DAtDSIA1",
+    "confidence": "Confirmed",
+    "notes": "",
+    "matched_at": "2025-11-14T13:28:19.662586",
+    "matched_by": "web_user",
+    "invoice_data": {
+      "customer_name": "Con Edison",
+      "invoice_amount": 100000.0,
+      "invoice_date": "10/01/2025"
+    }
   }
 }

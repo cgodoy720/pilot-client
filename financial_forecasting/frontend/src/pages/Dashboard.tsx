@@ -356,6 +356,11 @@ const Dashboard: React.FC = () => {
         </Typography>
       </Box>
 
+      {/* Disclaimer Alert */}
+      <Alert severity="warning" sx={{ mb: 3 }}>
+        <strong>Note:</strong> Numbers shown are placeholders. Calculations have not yet been cleared with the Finance/PBD team and may be inaccurate.
+      </Alert>
+
       {/* Hero Metrics */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={4}>
