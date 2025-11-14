@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -31,6 +31,11 @@ interface PaymentRow {
 export default function PaymentSchedule() {
   const { opportunityId } = useParams<{ opportunityId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if we came from a stage change
+  const fromStageChange = location.state?.fromStageChange;
+  const targetStage = location.state?.targetStage;
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -122,14 +127,19 @@ export default function PaymentSchedule() {
       // Save payment schedule
       await apiService.savePaymentSchedule(opportunityId!, payments);
       
-      // Update opportunity stage to Collecting / In Effect
-      await apiService.updateOpportunityStage(opportunityId!, 'Collecting / In Effect');
+      // Update opportunity stage if we came from a stage change
+      if (fromStageChange && targetStage) {
+        await apiService.updateOpportunityStage(opportunityId!, targetStage);
+        toast.success(`Payment schedule saved and opportunity moved to ${targetStage}!`);
+      } else {
+        // Default behavior - move to Collecting / In Effect
+        await apiService.updateOpportunityStage(opportunityId!, 'Collecting / In Effect');
+        toast.success('Payment schedule created and opportunity moved to Collecting / In Effect!');
+      }
       
-      toast.success('Payment schedule created and opportunity moved to Collecting / In Effect!');
-      
-      // Redirect to finance dashboard
+      // Redirect back to opportunities or revenue page
       setTimeout(() => {
-        navigate('/revenue');
+        navigate(fromStageChange ? '/opportunities' : '/revenue');
       }, 1500);
       
     } catch (error: any) {
@@ -168,8 +178,14 @@ export default function PaymentSchedule() {
   return (
     <Box p={3}>
       <Typography variant="h4" gutterBottom fontWeight="bold">
-        Create Payment Schedule
+        {fromStageChange ? 'Review Payment Schedule' : 'Create Payment Schedule'}
       </Typography>
+
+      {fromStageChange && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Please review and confirm the payment schedule before moving to "{targetStage}"
+        </Alert>
+      )}
 
       {/* Opportunity Info */}
       <Card sx={{ mb: 3 }}>

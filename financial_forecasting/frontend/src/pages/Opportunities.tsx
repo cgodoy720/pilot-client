@@ -538,38 +538,22 @@ const Opportunities: React.FC = () => {
               }, 5000); // Keep visible for 5 seconds
             }
             
-            // Check if moving to "Collecting / In Effect" - requires payment schedule
+            // Check if moving to "Collecting / In Effect" - always show payment schedule to validate/update
             if (newStage === 'Collecting / In Effect') {
-              console.log('🔵 Validating payment schedule for opportunity:', params.row.Id);
-              
-              // Validate payment schedule exists
-              try {
-                const response = await apiService.validateStageChange(params.row.Id, newStage);
-                const validation = response.data;
-                
-                console.log('🟢 Validation response:', validation);
-                
-                if (!validation.can_proceed) {
-                  // No payment schedule or invalid - redirect to payment schedule page
-                  toast.dismiss(loadingToast);
-                  toast.error(validation.message || 'Payment schedule required', { duration: 5000 });
-                  console.log('🔴 Cannot proceed, redirecting to payment schedule page');
-                  navigate(`/payment-schedule/${params.row.Id}`);
-                  return;
+              toast.dismiss(loadingToast);
+              toast('Please review and confirm payment schedule', { 
+                icon: '💰',
+                duration: 3000 
+              });
+              console.log('💰 Redirecting to payment schedule for validation/update');
+              navigate(`/payment-schedule/${params.row.Id}`, {
+                state: { 
+                  fromStageChange: true,
+                  targetStage: newStage,
+                  opportunityId: params.row.Id
                 }
-                
-                // Payment schedule valid, proceed with stage change
-                console.log('✅ Payment schedule validated, proceeding with stage change');
-                toast.dismiss(loadingToast);
-              } catch (error: any) {
-                // Validation failed, redirect to payment schedule page
-                const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Payment schedule required';
-                toast.dismiss(loadingToast);
-                toast.error(errorMsg, { duration: 5000 });
-                console.error('❌ Validation error:', error);
-                navigate(`/payment-schedule/${params.row.Id}`);
-                return;
-              }
+              });
+              return;
             }
             
             // Optimistically update the UI immediately
