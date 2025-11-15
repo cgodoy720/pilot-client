@@ -1027,6 +1027,10 @@ function GPT() {
                                   // Preprocess content to convert bullet points and URLs to markdown
                                   let processedContent = message.content;
                                   
+                                  // Step 0: Strip all ** (bold markdown) from the content BEFORE processing
+                                  // This prevents ** from appearing in link text or anywhere else
+                                  processedContent = processedContent.replace(/\*\*/g, '');
+                                  
                                   // Step 1: Convert URLs to markdown links FIRST (before any text manipulation)
                                   // Pattern: "Title (Type): Description URL" - structured resource links
                                   processedContent = processedContent.replace(
@@ -1039,9 +1043,6 @@ function GPT() {
                                     /(?<!\()(?<!]\()https?:\/\/[^\s)]+/g,
                                     (url) => `[${url}](${url})`
                                   );
-                                  
-                                  // Step 1.5: Remove any ** that appear immediately before markdown links
-                                  processedContent = processedContent.replace(/\*\*(\[.*?\]\(.*?\))/g, '$1');
                                   
                                   // Step 2: Handle inline "Resources:" section - convert to proper bulleted list
                                   // Match "Resources: - Item1 - Item2" pattern and split into list
