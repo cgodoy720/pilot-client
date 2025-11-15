@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 
-const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, onStartActivity }) => {
+const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, isPastDay = false, onStartActivity }) => {
   const [isAnimating, setIsAnimating] = useState(false);
   
   if (!currentDay || !tasks || tasks.length === 0) {
@@ -105,7 +105,7 @@ const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, onStartActiv
                 return (
                 <div key={task.id}>
                   <div className="flex items-start gap-2 py-2">
-                    {/* Task Checkbox - Match Dashboard exactly: 14x14 circle with SVG icons */}
+                    {/* Task Checkbox - Three states based on completion and day type */}
                     <div 
                       className="flex-shrink-0 mt-[3px]"
                       style={{
@@ -115,12 +115,21 @@ const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, onStartActiv
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        background: completed ? 'var(--color-pursuit-purple)' : 'var(--color-mastery-pink)',
-                        border: completed ? '1px solid var(--color-pursuit-purple)' : '1px solid var(--color-mastery-pink)'
+                        // Completed: Purple | Incomplete Past Day: Pink | Incomplete Current Day: White
+                        background: completed 
+                          ? 'var(--color-pursuit-purple)' 
+                          : isPastDay 
+                            ? 'var(--color-mastery-pink)' 
+                            : 'white',
+                        border: completed 
+                          ? '1px solid var(--color-pursuit-purple)' 
+                          : isPastDay 
+                            ? '1px solid var(--color-mastery-pink)' 
+                            : '1px solid white'
                       }}
                     >
                       {completed ? (
-                        // Purple checkmark (same as Dashboard)
+                        // Purple checkmark for completed tasks
                         <svg viewBox="0 0 14 14" style={{
                           width: '12px',
                           height: '12px',
@@ -133,8 +142,8 @@ const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, onStartActiv
                         }}>
                           <polyline points="2.5,6 5.5,9 11.5,3" />
                         </svg>
-                      ) : (
-                        // Pink X (same as Dashboard)
+                      ) : isPastDay ? (
+                        // Pink X for incomplete past day tasks
                         <svg viewBox="0 0 8 8" style={{
                           width: '8px',
                           height: '8px',
@@ -145,7 +154,7 @@ const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, onStartActiv
                           <line x1="1" y1="1" x2="7" y2="7" />
                           <line x1="7" y1="1" x2="1" y2="7" />
                         </svg>
-                      )}
+                      ) : null /* White circle with no icon for current day incomplete tasks */}
                     </div>
                     <span className="text-base leading-[18px] font-proxima font-normal text-carbon-black flex-1">
                       {task.task_title || `Activity ${index + 1}`}

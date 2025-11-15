@@ -796,11 +796,24 @@ function Learning() {
 
   // Show daily overview first
   if (showDailyOverview) {
+    // Determine if this day is in the past by comparing dates
+    const isPastDay = currentDay?.day_date ? (() => {
+      const dayDate = new Date(currentDay.day_date);
+      const today = new Date();
+      
+      // Set both to start of day for accurate comparison
+      dayDate.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      
+      return dayDate < today;
+    })() : false;
+    
     return (
       <DailyOverview 
         currentDay={currentDay}
         tasks={tasks}
         taskCompletionMap={taskCompletionMap}
+        isPastDay={isPastDay}
         onStartActivity={handleStartActivity}
       />
     );
