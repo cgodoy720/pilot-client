@@ -4,12 +4,40 @@ import { useAuth } from '../../context/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getThreads, getThreadMessages, createThread, sendMessageToGPT } from '../../utils/api';
 import SummaryModal from '../../components/SummaryModal/SummaryModal';
+import ReactMarkdown from 'react-markdown';
 
 // New Components
 import GPTTopBar from './components/GPTTopBar';
 import ChatTray from './components/ChatTray';
 import MessageBubble from './components/MessageBubble';
 import ProcessingOverlay from './components/ProcessingOverlay';
+
+// Shadcn UI Components
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '../../components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
 
 function GPT() {
   const { token, user } = useAuth();
@@ -34,6 +62,16 @@ function GPT() {
   // Model selection state
   const [selectedModel, setSelectedModel] = useState('anthropic/claude-sonnet-4.5');
   
+  // Available LLM models - matches Learning page
+  const LLM_MODELS = [
+    { value: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', description: 'Advanced reasoning' },
+    { value: 'anthropic/claude-haiku-4.5', label: 'Claude Haiku 4.5', description: 'Fast & efficient' },
+    { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini', description: 'Quick responses' },
+    { value: 'google/gemini-2.0-flash-thinking-exp', label: 'Gemini Flash 2.0', description: 'Reasoning optimized' },
+    { value: 'deepseek/deepseek-chat', label: 'DeepSeek Chat', description: 'Code specialist' },
+    { value: 'x-ai/grok-4-fast', label: 'Grok 4 Fast', description: 'Fast reasoning' }
+  ];
+  
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [showThreadDropdown, setShowThreadDropdown] = useState(false);
@@ -49,6 +87,9 @@ function GPT() {
   
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const fetchThreadsAbortControllerRef = useRef(null);
+  const fetchMessagesAbortControllerRef = useRef(null);
 
   // Check if user is inactive (in historical access mode)
   const isInactiveUser = user && user.active === false;
@@ -58,6 +99,21 @@ function GPT() {
   const summaryUrl = searchParams.get('summaryUrl');
   const summaryTitle = searchParams.get('summaryTitle'); 
   const summaryData = searchParams.get('summaryData');
+
+  // Cleanup: abort any pending requests when component unmounts
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (fetchThreadsAbortControllerRef.current) {
+        fetchThreadsAbortControllerRef.current.abort();
+      }
+      if (fetchMessagesAbortControllerRef.current) {
+        fetchMessagesAbortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Fetch threads on component mount
   useEffect(() => {
@@ -148,9 +204,23 @@ function GPT() {
   }, [messages]);
 
   const fetchThreads = async () => {
+    // Abort any pending fetch threads request
+    if (fetchThreadsAbortControllerRef.current) {
+      fetchThreadsAbortControllerRef.current.abort();
+    }
+    
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    fetchThreadsAbortControllerRef.current = abortController;
+    
     try {
       setIsLoading(true);
-      const data = await getThreads(token);
+      const data = await getThreads(token, abortController.signal);
+      
+      // Check if this request was aborted
+      if (abortController.signal.aborted) {
+        return;
+      }
       
       const threadsArray = Array.isArray(data) ? data : 
                           data.threads ? data.threads : 
@@ -159,17 +229,50 @@ function GPT() {
       setThreads(threadsArray);
       setError('');
     } catch (err) {
+      // Ignore abort errors
+      if (err.name === 'AbortError') {
+        return;
+      }
       console.error('Error fetching threads:', err);
       setError('Failed to load conversations. Please try again.');
     } finally {
-      setIsLoading(false);
+      // Only update loading state if not aborted
+      if (!abortController.signal.aborted) {
+        setIsLoading(false);
+      }
     }
   };
 
   const fetchMessages = async (threadId) => {
+    // Abort any pending fetch messages request
+    if (fetchMessagesAbortControllerRef.current) {
+      fetchMessagesAbortControllerRef.current.abort();
+    }
+    
+    // CRITICAL: Also abort any pending send message request when switching threads
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Reset AI thinking state since we're switching contexts
+    setIsAiThinking(false);
+    setIsSending(false);
+    
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    fetchMessagesAbortControllerRef.current = abortController;
+    
+    // Clear messages immediately to prevent showing stale content
+    setMessages([]);
+    
     try {
       setIsLoading(true);
-      const data = await getThreadMessages(threadId, token);
+      const data = await getThreadMessages(threadId, token, abortController.signal);
+      
+      // Check if this request was aborted
+      if (abortController.signal.aborted) {
+        return;
+      }
       
       let messagesArray = Array.isArray(data) ? data : 
                          data.messages ? data.messages : 
@@ -194,14 +297,34 @@ function GPT() {
       setMessages(messagesArray);
       setError('');
     } catch (err) {
+      // Ignore abort errors
+      if (err.name === 'AbortError') {
+        return;
+      }
       console.error('Error fetching messages:', err);
       setError('Failed to load messages. Please try again.');
     } finally {
-      setIsLoading(false);
+      // Only update loading state if not aborted
+      if (!abortController.signal.aborted) {
+        setIsLoading(false);
+      }
     }
   };
 
   const handleThreadSelect = (threadId) => {
+    // Abort any ongoing operations when switching threads
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    if (fetchMessagesAbortControllerRef.current) {
+      fetchMessagesAbortControllerRef.current.abort();
+    }
+    
+    // Reset states
+    setIsAiThinking(false);
+    setIsSending(false);
+    setError('');
+    
     setActiveThread(threadId);
   };
 
@@ -273,6 +396,15 @@ function GPT() {
   };
 
   const sendMessageToNewThread = async (threadId) => {
+    // Abort any pending send message request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
     const messageToSend = newMessage;
     const tempUserMessageId = Date.now();
     const tempUserMessage = {
@@ -288,7 +420,12 @@ function GPT() {
     setIsAiThinking(true);
 
     try {
-      const response = await sendMessageToGPT(messageToSend, threadId, token, selectedModel);
+      const response = await sendMessageToGPT(messageToSend, threadId, token, selectedModel, abortController.signal);
+      
+      // Check if this request was aborted
+      if (abortController.signal.aborted) {
+        return;
+      }
       
       setTimeout(() => {
         fetchThreads();
@@ -306,18 +443,34 @@ function GPT() {
       
       setError('');
     } catch (err) {
+      // Ignore abort errors
+      if (err.name === 'AbortError') {
+        return;
+      }
       console.error('Error sending message:', err);
       setError('Failed to send message. Please try again.');
       setMessages(prevMessages => 
         prevMessages.filter(msg => msg.message_id !== tempUserMessageId)
       );
     } finally {
-      setIsSending(false);
-      setIsAiThinking(false);
+      // Only update state if not aborted
+      if (!abortController.signal.aborted) {
+        setIsSending(false);
+        setIsAiThinking(false);
+      }
     }
   };
 
   const sendMessageToExistingThread = async () => {
+    // Abort any pending send message request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
     const messageToSend = newMessage;
     const tempUserMessageId = Date.now();
     const tempUserMessage = {
@@ -334,7 +487,12 @@ function GPT() {
 
     try {
       const isFirstMessage = messages.length === 0;
-      const response = await sendMessageToGPT(messageToSend, activeThread, token, selectedModel);
+      const response = await sendMessageToGPT(messageToSend, activeThread, token, selectedModel, abortController.signal);
+      
+      // Check if this request was aborted
+      if (abortController.signal.aborted) {
+        return;
+      }
       
       if (isFirstMessage) {
         setTimeout(() => {
@@ -354,14 +512,21 @@ function GPT() {
       
       setError('');
     } catch (err) {
+      // Ignore abort errors
+      if (err.name === 'AbortError') {
+        return;
+      }
       console.error('Error sending message:', err);
       setError('Failed to send message. Please try again.');
       setMessages(prevMessages => 
         prevMessages.filter(msg => msg.message_id !== tempUserMessageId)
       );
     } finally {
-      setIsSending(false);
-      setIsAiThinking(false);
+      // Only update state if not aborted
+      if (!abortController.signal.aborted) {
+        setIsSending(false);
+        setIsAiThinking(false);
+      }
     }
   };
 
@@ -635,7 +800,7 @@ function GPT() {
   });
 
   return (
-    <div className="h-screen bg-bg-light flex flex-col">
+    <div className="gpt h-screen bg-bg-light flex flex-col">
       {/* Historical Access Banner */}
       {isInactiveUser && (
         <div className="bg-carbon-black/80 text-gray-300 py-3 px-4 text-center text-sm font-proxima">
@@ -644,9 +809,9 @@ function GPT() {
       )}
 
       {/* Top Bar with Search */}
-      <div className="h-[52px] bg-bg-light border-b border-divider flex items-center px-[25px]">
+      <div className="h-[45px] bg-bg-light border-b border-divider flex items-center justify-center px-[25px]">
         <div className="relative">
-          <div className="flex items-center justify-center bg-white rounded-lg h-[32px] w-[664px] px-[10px] py-1">
+          <div className="flex items-center justify-center bg-white rounded-lg h-[32px] w-[672px] px-[10px] py-1">
             <div className="flex items-center justify-between w-full px-[7px]">
               <input
                 type="text"
@@ -683,7 +848,7 @@ function GPT() {
                   setSearchQuery('');
                 }}
               />
-              <div className="absolute top-full left-0 mt-1 w-[664px] max-h-[400px] bg-white rounded-lg shadow-lg overflow-y-auto z-40">
+              <div className="absolute top-full left-0 mt-1 w-[672px] max-h-[400px] bg-white rounded-lg shadow-lg overflow-y-auto z-40">
                 {searchQuery && (
                   <div className="px-4 py-2 text-sm text-gray-500 border-b border-divider">
                     {filteredThreads.length === 0 ? 'No results found' : 
@@ -731,7 +896,7 @@ function GPT() {
           <div className="flex-1 overflow-y-auto py-8 px-6" style={{ paddingBottom: '180px' }}>
             {!activeThread ? (
               <div className="flex flex-col items-center justify-start min-h-full pt-[50px]">
-                <div className="max-w-[660px] text-center">
+                <div className="max-w-2xl text-center">
                   <h2 className="text-[18px] leading-[26px] font-proxima font-normal text-black mb-6">
                     What can we build together?
                   </h2>
@@ -743,7 +908,7 @@ function GPT() {
                 </div>
               </div>
             ) : (
-              <div className="max-w-[664px] mx-auto">
+              <div className="max-w-2xl mx-auto">
                 {isLoading && messages.length === 0 ? (
                   <div className="text-center text-gray-500 font-proxima">Loading messages...</div>
                 ) : messages.length === 0 ? (
@@ -756,23 +921,57 @@ function GPT() {
                   </div>
                 ) : (
                   <>
-                    {messages.map((message) => (
-                      <MessageBubble
-                        key={getMessageId(message)}
-                        message={message}
-                        onContentSummary={showContentSummary}
-                        getMessageRole={getMessageRole}
-                        getMessageId={getMessageId}
-                      />
-                    ))}
+                    {messages.map((message, index) => {
+                      const role = getMessageRole(message);
+                      
+                      // Handle content source messages with MessageBubble component
+                      if (role === 'content_source' || role === 'system_content_summary') {
+                        return (
+                          <MessageBubble
+                            key={getMessageId(message)}
+                            message={message}
+                            onContentSummary={showContentSummary}
+                            getMessageRole={getMessageRole}
+                            getMessageId={getMessageId}
+                          />
+                        );
+                      }
+                      
+                      return (
+                        <div key={getMessageId(message) || index} className="mb-6">
+                          {role === 'user' ? (
+                            // User message with avatar inside - matches Learning page
+                            <div className="bg-stardust rounded-lg px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+                                  <span className="text-pursuit-purple text-sm font-proxima font-semibold">
+                                    {user?.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
+                                  </span>
+                                </div>
+                                <div className="flex-1 text-carbon-black leading-relaxed text-base font-proxima">
+                                  {message.content}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            // AI/System message (no avatar) - matches Learning page
+                            <div className="text-carbon-black leading-relaxed text-base">
+                              <ReactMarkdown>
+                                {message.content}
+                              </ReactMarkdown>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                     
                     {isAiThinking && (
                       <div className="mb-6">
-                        <div className="flex gap-1">
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                        </div>
+                        <img 
+                          src="/preloader.gif" 
+                          alt="Loading..." 
+                          className="w-8 h-8"
+                        />
                       </div>
                     )}
                     
@@ -785,7 +984,7 @@ function GPT() {
 
           {/* Chat Input - Absolute positioned at bottom of chat interface */}
           <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
-            <div className="pointer-events-auto max-w-[664px] mx-auto">
+            <div className="pointer-events-auto max-w-2xl mx-auto">
               {/* Chat Tray */}
               <div className="bg-stardust rounded-[20px] p-[10px_15px] shadow-[4px_4px_10px_rgba(0,0,0,0.15)] flex flex-col gap-[10px]">
                 {/* Input Area */}
@@ -815,42 +1014,65 @@ function GPT() {
                     
                     {/* Right side - LLM dropdown, Upload, Send */}
                     <div className="flex items-center gap-[6px]">
-                      {/* LLM Dropdown */}
-                      <div className="relative">
-                        <select
-                          value={selectedModel}
-                          onChange={(e) => setSelectedModel(e.target.value)}
-                          disabled={isInactiveUser}
-                          className="appearance-none bg-bg-light rounded-lg px-[7px] py-[5px] pr-[20px] text-[12px] leading-[14px] font-proxima font-normal text-carbon-black cursor-pointer disabled:opacity-50 border-none outline-none h-[30px]"
-                        >
-                          <option value="anthropic/claude-sonnet-4.5">Auto</option>
-                          <option value="openai/gpt-4o">GPT 4o</option>
-                          <option value="anthropic/claude-sonnet-3.5">Claude 3.5</option>
-                        </select>
-                        {/* Chevron Icon */}
-                        <div className="absolute right-[7px] top-1/2 -translate-y-1/2 pointer-events-none">
-                          <svg className="w-[9px] h-[4.5px] text-carbon-black rotate-90" fill="none" stroke="currentColor" viewBox="0 0 9 4.5">
-                            <path d="M1 0.75L4.5 4.25L8 0.75" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </div>
-                      </div>
+                      {/* LLM Dropdown - matches Learning page styling */}
+                      <Select value={selectedModel} onValueChange={setSelectedModel}>
+                        <SelectTrigger className="bg-bg-light border-0 rounded-md px-3 py-1.5 text-xs h-auto w-auto font-proxima focus:ring-0 focus:ring-offset-0">
+                          <SelectValue>
+                            {LLM_MODELS.find(model => model.value === selectedModel)?.label}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LLM_MODELS.map(model => (
+                            <SelectItem key={model.value} value={model.value} className="text-xs font-proxima">
+                              <div className="flex flex-col">
+                                <span>{model.label}</span>
+                                <span className="text-xs text-gray-500">{model.description}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       
-                      {/* Upload Button */}
-                      <button
-                        onClick={() => {
-                          if (!activeThread) {
-                            handleCreateThread();
-                          } else {
-                            fileInputRef.current?.click();
-                          }
-                        }}
-                        disabled={isInactiveUser || isProcessingUpload}
-                        className="w-[30px] h-[30px] bg-bg-light rounded-lg flex items-center justify-center disabled:opacity-50"
-                      >
-                        <svg className="w-[14px] h-[14px] text-carbon-black" fill="none" stroke="currentColor" viewBox="0 0 14 14">
-                          <path d="M7 11V3M7 3L4 6M7 3L10 6M1 13H13" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
+                      {/* Upload Button with Dropdown */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            onClick={() => {
+                              if (!activeThread) {
+                                handleCreateThread();
+                              }
+                            }}
+                            disabled={isInactiveUser || isProcessingUpload}
+                            className="w-[30px] h-[30px] bg-bg-light rounded-lg flex items-center justify-center disabled:opacity-50"
+                          >
+                            <svg className="w-[14px] h-[14px] text-carbon-black" fill="none" stroke="currentColor" viewBox="0 0 14 14">
+                              <path d="M7 11V3M7 3L4 6M7 3L10 6M1 13H13" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" side="top" className="w-48">
+                          <DropdownMenuItem 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span>Upload File</span>
+                            <span className="text-xs text-gray-500 ml-auto">PDF, TXT, MD, DOCX</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => setShowUrlInput(true)}
+                            className="flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                            <span>Add URL</span>
+                            <span className="text-xs text-gray-500 ml-auto">Article, YouTube, etc.</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       
                       {/* Send Button */}
                       <button
@@ -918,48 +1140,52 @@ function GPT() {
         </div>
       )}
 
-      {/* URL Input Modal */}
-      {showUrlInput && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-40" onClick={() => setShowUrlInput(false)}>
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-proxima font-semibold text-carbon-black mb-4">Add URL</h3>
-            <input
-              type="url"
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              placeholder="Enter URL (Google Docs, article, video...)"
-              className="w-full px-3 py-2 border border-divider rounded-md font-proxima text-base mb-4"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleUrlSubmit();
-                } else if (e.key === 'Escape') {
-                  setShowUrlInput(false);
-                  setUrlInput('');
-                }
-              }}
-              autoFocus
-            />
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => {
-                  setShowUrlInput(false);
-                  setUrlInput('');
+      {/* URL Input Dialog */}
+      <Dialog open={showUrlInput} onOpenChange={setShowUrlInput}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add URL</DialogTitle>
+            <DialogDescription>
+              Enter a URL to analyze and summarize content from articles, YouTube videos, Google Docs, and more.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="url-input">URL</Label>
+              <Input
+                id="url-input"
+                type="url"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="https://example.com/article"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && urlInput.trim() && !isProcessingUpload) {
+                    handleUrlSubmit();
+                  }
                 }}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <button
+                onClick={() => setUrlInput('')}
                 className="px-4 py-2 border border-divider rounded-md font-proxima text-sm hover:bg-gray-100"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleUrlSubmit}
-                disabled={!urlInput.trim() || isProcessingUpload}
-                className="px-4 py-2 bg-pursuit-purple text-white rounded-md font-proxima text-sm hover:bg-pursuit-purple/90 disabled:opacity-50"
-              >
-                Summarize
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </DialogClose>
+            <button
+              onClick={handleUrlSubmit}
+              disabled={!urlInput.trim() || isProcessingUpload}
+              className="px-4 py-2 bg-pursuit-purple text-white rounded-md font-proxima text-sm hover:bg-pursuit-purple/90 disabled:opacity-50"
+            >
+              Summarize
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

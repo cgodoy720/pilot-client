@@ -2,15 +2,22 @@ import { useEffect, useRef, useState } from 'react';
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
 import { Send, Paperclip } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 
 // Available LLM models
 const LLM_MODELS = [
-  { value: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', description: 'Balanced speed & intelligence' },
+  { value: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', description: 'Advanced reasoning' },
   { value: 'anthropic/claude-haiku-4.5', label: 'Claude Haiku 4.5', description: 'Fast & efficient' },
   { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini', description: 'Quick responses' },
   { value: 'google/gemini-2.0-flash-thinking-exp', label: 'Gemini Flash 2.0', description: 'Reasoning optimized' },
   { value: 'deepseek/deepseek-chat', label: 'DeepSeek Chat', description: 'Code specialist' },
-  { value: 'anthropic/claude-3.7-sonnet', label: 'Claude Sonnet 3.7', description: 'Advanced reasoning' }
+  { value: 'x-ai/grok-4-fast', label: 'Grok 4 Fast', description: 'Fast reasoning' }
 ];
 
 const AutoExpandTextarea = ({ 
@@ -107,21 +114,23 @@ const AutoExpandTextarea = ({
           <div className="flex items-center gap-2">
             {/* LLM Selector - Only show for conversation mode */}
             {showLlmDropdown && (
-              <div className="bg-bg-light rounded-md px-3 py-1.5 text-xs">
-                <select 
-                  className="bg-transparent border-0 text-carbon-black font-proxima text-xs focus:outline-none cursor-pointer"
-                  value={localModel}
-                  onChange={(e) => {
-                    setLocalModel(e.target.value);
-                  }}
-                >
+              <Select value={localModel} onValueChange={setLocalModel}>
+                <SelectTrigger className="bg-bg-light border-0 rounded-md px-3 py-1.5 text-xs h-auto w-auto font-proxima focus:ring-0 focus:ring-offset-0">
+                  <SelectValue>
+                    {LLM_MODELS.find(model => model.value === localModel)?.label}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
                   {LLM_MODELS.map(model => (
-                    <option key={model.value} value={model.value}>
-                      {model.label}
-                    </option>
+                    <SelectItem key={model.value} value={model.value} className="text-xs font-proxima">
+                      <div className="flex flex-col">
+                        <span>{model.label}</span>
+                        <span className="text-xs text-gray-500">{model.description}</span>
+                      </div>
+                    </SelectItem>
                   ))}
-                </select>
-              </div>
+                </SelectContent>
+              </Select>
             )}
 
             {/* Send button */}

@@ -3,7 +3,31 @@
 .gpt {
   width: 100%;
   height: 100%;
+  background-color: var(--color-background-darker);
+  color: var(--color-text-primary);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Hide scrollbar but keep functionality - prevents layout shift */
+.gpt ::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
+
+.gpt ::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+/* For Firefox */
+.gpt * {
+  scrollbar-width: none;
+}
+
+/* For IE and Edge */
+.gpt * {
+  -ms-overflow-style: none;
 }
 
 /* Smooth scroll behavior */
