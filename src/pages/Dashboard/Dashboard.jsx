@@ -39,6 +39,9 @@ function Dashboard() {
   const [slideDirection, setSlideDirection] = useState(null); // 'left' or 'right'
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // NEW: Task completion status map for current week
+  const [taskCompletionMap, setTaskCompletionMap] = useState({});
+
   useEffect(() => {
     // Only fetch dashboard data if user is active
     if (isActive) {
@@ -143,6 +146,48 @@ function Dashboard() {
     const week = allWeeksData.find(w => w.weekNumber === currentWeek);
     return week?.days || [];
   }, [currentWeek, allWeeksData]);
+  
+  // NEW: Fetch completion status for all tasks in current week
+  useEffect(() => {
+    const fetchWeekCompletionStatus = async () => {
+      if (!weekData.length || !token) return;
+      
+      // Collect all task IDs from the current week
+      const taskIds = [];
+      weekData.forEach(day => {
+        day.tasks?.forEach(task => {
+          taskIds.push(task.id);
+        });
+      });
+      
+      if (taskIds.length === 0) return;
+      
+      try {
+        console.log(`📊 Fetching completion status for ${taskIds.length} tasks in week ${currentWeek}`);
+        
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/learning/batch-completion-status?taskIds=${taskIds.join(',')}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`✅ Received completion status for ${Object.keys(data.completionStatus).length} tasks`);
+          setTaskCompletionMap(data.completionStatus);
+        } else {
+          console.error('Failed to fetch completion status');
+        }
+      } catch (error) {
+        console.error('Error fetching batch completion status:', error);
+      }
+    };
+    
+    fetchWeekCompletionStatus();
+  }, [weekData, currentWeek, token]);
 
   // Memoized navigation handlers
   const navigateToWeek = useCallback(async (direction) => {
@@ -625,28 +670,27 @@ function Dashboard() {
                       <h4 className="dashboard__day-section-title">Activities</h4>
                       <div className="dashboard__day-activities">
                         {day.tasks.map((task, taskIndex) => {
-                          const isDeliverable = task.deliverable_type && ['video', 'document', 'link', 'structured'].includes(task.deliverable_type);
+                          // NEW: Use completion map for all tasks (not just deliverables)
+                          const completionStatus = taskCompletionMap[task.id];
+                          const isComplete = completionStatus?.isComplete || false;
                           const showTaskCheckbox = dayIsPast && !dayIsToday;
-                          const hasSubmission = task.hasSubmission;
                           
                           return (
                             <div key={task.id}>
                               <div className="dashboard__day-activity">
-                                {/* Task Checkbox */}
+                                {/* Task Checkbox - Purple (complete) or Pink (incomplete) */}
                                 {showTaskCheckbox && (
                                   <div className={`dashboard__task-checkbox ${
-                                    hasSubmission ? 'dashboard__task-checkbox--complete' : 
-                                    isDeliverable ? 'dashboard__task-checkbox--incomplete' : 
-                                    'dashboard__task-checkbox--complete'
+                                    isComplete ? 'dashboard__task-checkbox--complete' : 'dashboard__task-checkbox--incomplete'
                                   }`}>
-                                    {isDeliverable && !hasSubmission ? (
+                                    {isComplete ? (
+                                      <svg viewBox="0 0 14 14" className="dashboard__task-checkbox-check">
+                                        <polyline points="2.5,6 5.5,9 11.5,3" />
+                                      </svg>
+                                    ) : (
                                       <svg viewBox="0 0 8 8" className="dashboard__task-checkbox-x">
                                         <line x1="1" y1="1" x2="7" y2="7" />
                                         <line x1="7" y1="1" x2="1" y2="7" />
-                                      </svg>
-                                    ) : (
-                                      <svg viewBox="0 0 14 14" className="dashboard__task-checkbox-check">
-                                        <polyline points="2.5,6 5.5,9 11.5,3" />
                                       </svg>
                                     )}
                                   </div>
@@ -656,14 +700,14 @@ function Dashboard() {
                                   <span className="dashboard__task-title">{task.task_title}</span>
                                   
                   {/* Deliverable Submit Button */}
-                  {isDeliverable && (
+                  {completionStatus?.requiresDeliverable && (
                     <button 
                       className={`dashboard__deliverable-link ${
-                        hasSubmission ? 'dashboard__deliverable-link--submitted' : 'dashboard__deliverable-link--pending'
+                        task.hasSubmission ? 'dashboard__deliverable-link--submitted' : 'dashboard__deliverable-link--pending'
                       }`}
                       onClick={() => handleNavigateToTask(day.id, task.id)}
                     >
-                      {hasSubmission ? (
+                      {task.hasSubmission ? (
                         <>✓ {task.deliverable_type.charAt(0).toUpperCase() + task.deliverable_type.slice(1)} Submitted</>
                       ) : (
                         `Submit ${task.deliverable_type}`

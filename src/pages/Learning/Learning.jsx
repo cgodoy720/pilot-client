@@ -64,6 +64,9 @@ function Learning() {
   // Task completion tracking state
   const [isTaskComplete, setIsTaskComplete] = useState(false);
   
+  // Task completion map from backend (for DailyOverview checkmarks)
+  const [taskCompletionMap, setTaskCompletionMap] = useState({});
+  
   // Get dayId from URL query parameters
   const queryParams = new URLSearchParams(location.search);
   const dayId = queryParams.get('dayId');
@@ -197,6 +200,11 @@ function Learning() {
             setTasks(allTasks);
             console.log('Processed tasks:', allTasks);
             
+            // NEW: Fetch completion status for all tasks on this day
+            if (allTasks.length > 0) {
+              fetchTaskCompletionStatus(allTasks.map(t => t.id));
+            }
+            
             // Handle taskId navigation
             if (taskId) {
               const taskIndex = allTasks.findIndex(t => t.id === parseInt(taskId));
@@ -223,6 +231,34 @@ function Learning() {
       loadDayData();
     }
   }, [token, dayId, taskId]);
+
+  // Function to fetch completion status for all tasks (for DailyOverview)
+  const fetchTaskCompletionStatus = async (taskIds) => {
+    if (!taskIds || taskIds.length === 0) return;
+    
+    try {
+      console.log(`📊 Fetching completion status for ${taskIds.length} tasks`);
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/learning/batch-completion-status?taskIds=${taskIds.join(',')}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Received completion status for ${Object.keys(data.completionStatus).length} tasks`);
+        setTaskCompletionMap(data.completionStatus);
+      } else {
+        console.error('Failed to fetch completion status');
+      }
+    } catch (error) {
+      console.error('Error fetching batch completion status:', error);
+    }
+  };
 
   // Helper function to load conversation for a task
   const loadTaskConversation = async (task) => {
@@ -764,6 +800,7 @@ function Learning() {
       <DailyOverview 
         currentDay={currentDay}
         tasks={tasks}
+        taskCompletionMap={taskCompletionMap}
         onStartActivity={handleStartActivity}
       />
     );

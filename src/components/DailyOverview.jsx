@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 
-const DailyOverview = ({ currentDay, tasks, onStartActivity }) => {
+const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, onStartActivity }) => {
   const [isAnimating, setIsAnimating] = useState(false);
   
   if (!currentDay || !tasks || tasks.length === 0) {
@@ -14,6 +14,12 @@ const DailyOverview = ({ currentDay, tasks, onStartActivity }) => {
       </div>
     );
   }
+  
+  // Helper function to check if a task is completed using the completion map
+  const isTaskCompleted = (taskId) => {
+    const completionStatus = taskCompletionMap[taskId];
+    return completionStatus?.isComplete || false;
+  };
 
   // Format date like ActivityHeader does
   const formatDate = (dateString) => {
@@ -93,10 +99,54 @@ const DailyOverview = ({ currentDay, tasks, onStartActivity }) => {
             
             {/* Activities List - Circles aligned directly under header with dotted dividers */}
             <div className="mb-4">
-            {tasks.map((task, index) => (
+            {tasks.map((task, index) => {
+                const completed = isTaskCompleted(task.id);
+                
+                return (
                 <div key={task.id}>
                   <div className="flex items-start gap-2 py-2">
-                    <div className="w-[12px] h-[12px] rounded-full bg-white flex-shrink-0 mt-[3px]" />
+                    {/* Task Checkbox - Match Dashboard exactly: 14x14 circle with SVG icons */}
+                    <div 
+                      className="flex-shrink-0 mt-[3px]"
+                      style={{
+                        width: '14px',
+                        height: '14px',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: completed ? 'var(--color-pursuit-purple)' : 'var(--color-mastery-pink)',
+                        border: completed ? '1px solid var(--color-pursuit-purple)' : '1px solid var(--color-mastery-pink)'
+                      }}
+                    >
+                      {completed ? (
+                        // Purple checkmark (same as Dashboard)
+                        <svg viewBox="0 0 14 14" style={{
+                          width: '12px',
+                          height: '12px',
+                          stroke: 'var(--color-background)',
+                          strokeWidth: '1.5',
+                          fill: 'none',
+                          strokeLinecap: 'round',
+                          strokeLinejoin: 'round',
+                          transform: 'translateY(1px)'
+                        }}>
+                          <polyline points="2.5,6 5.5,9 11.5,3" />
+                        </svg>
+                      ) : (
+                        // Pink X (same as Dashboard)
+                        <svg viewBox="0 0 8 8" style={{
+                          width: '8px',
+                          height: '8px',
+                          stroke: 'var(--color-background)',
+                          strokeWidth: '1.5',
+                          strokeLinecap: 'round'
+                        }}>
+                          <line x1="1" y1="1" x2="7" y2="7" />
+                          <line x1="7" y1="1" x2="1" y2="7" />
+                        </svg>
+                      )}
+                    </div>
                     <span className="text-base leading-[18px] font-proxima font-normal text-carbon-black flex-1">
                       {task.task_title || `Activity ${index + 1}`}
                     </span>
@@ -106,7 +156,8 @@ const DailyOverview = ({ currentDay, tasks, onStartActivity }) => {
                     <div className="border-b border-dotted border-gray-300" />
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Category Time Blocks - Only show "Build" category if it exists */}
