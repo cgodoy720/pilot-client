@@ -11,26 +11,26 @@ const FormQuestion = ({ question, value, onChange, slideDirection, onEnter }) =>
       case 'text':
         return (
           <textarea
-            className="w-full px-0 py-2 border-0 border-b-2 border-white/60 bg-transparent text-white text-lg placeholder:text-white/40 focus:border-white focus:ring-0 focus:outline-none rounded-none resize-vertical min-h-[80px] box-border transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="w-full px-0 py-1 border-0 border-b-2 border-white/60 bg-transparent text-white text-lg placeholder:text-white/40 focus:border-white focus:ring-0 focus:outline-none rounded-none resize-vertical min-h-[60px] box-border transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type your answer here..."
-            rows={3}
+            rows={2}
             maxLength={question.validation?.max_length}
             autoFocus
           />
         );
 
-      case 'email':
+      case 'long_text':
         return (
-          <input
-            type="email"
-            className="w-full px-0 py-2 border-0 border-b-2 border-white/60 bg-transparent text-white text-lg placeholder:text-white/40 focus:border-white focus:ring-0 focus:outline-none rounded-none box-border transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+          <textarea
+            className="w-full px-0 py-1 border-0 border-b-2 border-white/60 bg-transparent text-white text-lg placeholder:text-white/40 focus:border-white focus:ring-0 focus:outline-none rounded-none resize-vertical min-h-[120px] box-border transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Type your answer here..."
+            placeholder="Type your detailed answer here..."
+            rows={5}
+            maxLength={question.validation?.max_length}
             autoFocus
           />
         );
@@ -52,18 +52,27 @@ const FormQuestion = ({ question, value, onChange, slideDirection, onEnter }) =>
                         onChange([...selectedValues, option]);
                       }
                     }}
-                    className={`w-full md:w-[210px] min-h-[200px] border rounded-[20px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-center p-6 gap-4 cursor-pointer transition-all ${
+                    className={`group relative w-full md:w-[210px] min-h-[100px] border rounded-[20px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-center p-4 gap-3 cursor-pointer transition-all overflow-hidden ${
                       isSelected 
-                        ? 'border-white bg-white/10' 
-                        : 'border-white/30 bg-transparent hover:bg-white/5'
+                        ? 'border-white bg-white' 
+                        : 'border-white/30 bg-transparent hover:border-white'
                     }`}
                   >
-                    <p className="text-white text-sm md:text-base leading-tight text-center">
+                    {/* Hover fill animation */}
+                    {!isSelected && (
+                      <div className="absolute inset-0 bg-white -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
+                    )}
+                    
+                    <p className={`relative z-10 text-sm md:text-base leading-tight text-center transition-colors duration-300 ${
+                      isSelected 
+                        ? 'text-[#4E4DED]' 
+                        : 'text-white group-hover:text-[#4E4DED]'
+                    }`}>
                       {option}
                     </p>
                     {isSelected && (
-                      <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
-                        <span className="text-[#4E4DED] text-sm font-bold">✓</span>
+                      <div className="relative z-10 w-6 h-6 rounded-full bg-[#4E4DED] flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">✓</span>
                       </div>
                     )}
                   </div>
@@ -80,18 +89,27 @@ const FormQuestion = ({ question, value, onChange, slideDirection, onEnter }) =>
                   <div 
                     key={index}
                     onClick={() => onChange(option)}
-                    className={`w-full md:w-[210px] min-h-[200px] border rounded-[20px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-center p-6 gap-4 cursor-pointer transition-all ${
+                    className={`group relative w-full md:w-[210px] min-h-[100px] border rounded-[20px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-center p-4 gap-3 cursor-pointer transition-all overflow-hidden ${
                       isSelected 
-                        ? 'border-white bg-white/10' 
-                        : 'border-white/30 bg-transparent hover:bg-white/5'
+                        ? 'border-white bg-white' 
+                        : 'border-white/30 bg-transparent hover:border-white'
                     }`}
                   >
-                    <p className="text-white text-sm md:text-base leading-tight text-center">
+                    {/* Hover fill animation */}
+                    {!isSelected && (
+                      <div className="absolute inset-0 bg-white -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
+                    )}
+                    
+                    <p className={`relative z-10 text-sm md:text-base leading-tight text-center transition-colors duration-300 ${
+                      isSelected 
+                        ? 'text-[#4E4DED]' 
+                        : 'text-white group-hover:text-[#4E4DED]'
+                    }`}>
                       {option}
                     </p>
                     {isSelected && (
-                      <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
-                        <span className="text-[#4E4DED] text-sm font-bold">✓</span>
+                      <div className="relative z-10 w-6 h-6 rounded-full bg-[#4E4DED] flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">✓</span>
                       </div>
                     )}
                   </div>
@@ -112,15 +130,26 @@ const FormQuestion = ({ question, value, onChange, slideDirection, onEnter }) =>
               {range.map((num) => (
                 <button
                   key={num}
-                  className={`w-16 h-16 rounded-[20px] border ${
+                  className={`group relative w-16 h-16 rounded-[20px] border transition-all duration-300 flex items-center justify-center shadow-[4px_4px_40px_rgba(0,0,0,0.05)] overflow-hidden ${
                     value === num
-                      ? 'border-white bg-white/10' 
-                      : 'border-white/30 bg-transparent hover:bg-white/5'
-                  } text-white text-xl font-semibold cursor-pointer transition-all duration-300 flex items-center justify-center shadow-[4px_4px_40px_rgba(0,0,0,0.05)]`}
+                      ? 'border-white bg-white' 
+                      : 'border-white/30 bg-transparent hover:border-white'
+                  }`}
                   onClick={() => onChange(num)}
                   type="button"
                 >
+                  {/* Hover fill animation */}
+                  {value !== num && (
+                    <div className="absolute inset-0 bg-white -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
+                  )}
+                  
+                  <span className={`relative z-10 text-xl font-semibold transition-colors duration-300 ${
+                    value === num
+                      ? 'text-[#4E4DED]'
+                      : 'text-white group-hover:text-[#4E4DED]'
+                  }`}>
                   {num}
+                  </span>
                 </button>
               ))}
             </div>
@@ -139,38 +168,56 @@ const FormQuestion = ({ question, value, onChange, slideDirection, onEnter }) =>
 
       case 'true_false':
         return (
-          <div className="flex flex-col md:flex-row gap-6 mb-16">
+          <div className="flex flex-col md:flex-row gap-6 mb-16 justify-center items-center">
             <div 
               onClick={() => onChange(true)}
-              className={`w-full md:w-[210px] min-h-[200px] border rounded-[20px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-center p-6 gap-4 cursor-pointer transition-all ${
+              className={`group relative w-full md:w-[160px] min-h-[80px] border rounded-[20px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-center p-4 gap-3 cursor-pointer transition-all overflow-hidden ${
                 value === true 
-                  ? 'border-white bg-white/10' 
-                  : 'border-white/30 bg-transparent hover:bg-white/5'
+                  ? 'border-white bg-white' 
+                  : 'border-white/30 bg-transparent hover:border-white'
               }`}
             >
-              <p className="text-white text-sm md:text-base leading-tight text-center">
+              {/* Hover fill animation */}
+              {value !== true && (
+                <div className="absolute inset-0 bg-white -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
+              )}
+              
+              <p className={`relative z-10 text-sm md:text-base leading-tight text-center transition-colors duration-300 ${
+                value === true 
+                  ? 'text-[#4E4DED]' 
+                  : 'text-white group-hover:text-[#4E4DED]'
+              }`}>
                 {question.true_label || 'True'}
               </p>
               {value === true && (
-                <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
-                  <span className="text-[#4E4DED] text-sm font-bold">✓</span>
+                <div className="relative z-10 w-6 h-6 rounded-full bg-[#4E4DED] flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">✓</span>
                 </div>
               )}
             </div>
             <div 
               onClick={() => onChange(false)}
-              className={`w-full md:w-[210px] min-h-[200px] border rounded-[20px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-center p-6 gap-4 cursor-pointer transition-all ${
+              className={`group relative w-full md:w-[160px] min-h-[80px] border rounded-[20px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-center p-4 gap-3 cursor-pointer transition-all overflow-hidden ${
                 value === false 
-                  ? 'border-white bg-white/10' 
-                  : 'border-white/30 bg-transparent hover:bg-white/5'
+                  ? 'border-white bg-white' 
+                  : 'border-white/30 bg-transparent hover:border-white'
               }`}
             >
-              <p className="text-white text-sm md:text-base leading-tight text-center">
+              {/* Hover fill animation */}
+              {value !== false && (
+                <div className="absolute inset-0 bg-white -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
+              )}
+              
+              <p className={`relative z-10 text-sm md:text-base leading-tight text-center transition-colors duration-300 ${
+                value === false 
+                  ? 'text-[#4E4DED]' 
+                  : 'text-white group-hover:text-[#4E4DED]'
+              }`}>
                 {question.false_label || 'False'}
               </p>
               {value === false && (
-                <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
-                  <span className="text-[#4E4DED] text-sm font-bold">✓</span>
+                <div className="relative z-10 w-6 h-6 rounded-full bg-[#4E4DED] flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">✓</span>
                 </div>
               )}
             </div>
@@ -198,7 +245,7 @@ const FormQuestion = ({ question, value, onChange, slideDirection, onEnter }) =>
         {renderInput()}
       </div>
 
-      {question.validation?.max_length && question.type === 'text' && (
+      {question.validation?.max_length && (question.type === 'text' || question.type === 'long_text') && (
         <div className="text-right text-sm text-white/50 mt-2">
           {(value || '').length} / {question.validation.max_length}
         </div>

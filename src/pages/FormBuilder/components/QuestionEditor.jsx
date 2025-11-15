@@ -46,7 +46,7 @@ const QuestionEditor = ({
   const getTypeLabel = (type) => {
     const labels = {
       text: 'Text Input',
-      email: 'Email',
+      long_text: 'Long Text',
       multiple_choice: 'Multiple Choice',
       scale: 'Scale Rating',
       true_false: 'True/False'
@@ -102,7 +102,7 @@ const QuestionEditor = ({
           onChange={(e) => handleChange('text', e.target.value)}
           placeholder={
             question.type === 'text' ? "e.g., What is your name?" :
-            question.type === 'email' ? "e.g., What is your email address?" :
+            question.type === 'long_text' ? "e.g., Please describe your experience in detail." :
             question.type === 'multiple_choice' ? "e.g., What is your favorite color?" :
             question.type === 'scale' ? "e.g., How satisfied are you with our service?" :
             question.type === 'true_false' ? "e.g., Do you agree to the terms?" :
@@ -139,9 +139,11 @@ const QuestionEditor = ({
       </div>
 
       {/* Type-specific settings */}
-      {question.type === 'text' && (
+      {(question.type === 'text' || question.type === 'long_text') && (
         <div className="pt-6 border-t border-gray-200">
-          <h4 className="text-sm font-semibold text-gray-700 mb-4">Text Settings</h4>
+          <h4 className="text-sm font-semibold text-gray-700 mb-4">
+            {question.type === 'long_text' ? 'Long Text Settings' : 'Text Settings'}
+          </h4>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Length</label>

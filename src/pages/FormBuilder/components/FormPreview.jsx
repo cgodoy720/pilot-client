@@ -11,13 +11,13 @@ const FormPreview = ({ title, description, questions, settings }) => {
           />
         );
 
-      case 'email':
+      case 'long_text':
         return (
-          <input
-            type="email"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base opacity-60"
-            placeholder="your.email@example.com"
+          <textarea
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base resize-vertical opacity-60"
+            placeholder="Your detailed answer..."
             disabled
+            rows={6}
           />
         );
 

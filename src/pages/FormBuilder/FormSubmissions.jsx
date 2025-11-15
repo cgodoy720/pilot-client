@@ -49,13 +49,31 @@ const FormSubmissions = () => {
 
   const handleToggleFlag = async (submission) => {
     try {
+      const newFlaggedState = !submission.flagged;
+      
+      // Optimistically update the UI
+      setSubmissions(prevSubmissions => 
+        prevSubmissions.map(sub => 
+          sub.submission_id === submission.submission_id 
+            ? { ...sub, flagged: newFlaggedState }
+            : sub
+        )
+      );
+      
+      // Update selected submission if it's the one being toggled
+      if (selectedSubmission?.submission_id === submission.submission_id) {
+        setSelectedSubmission(prev => ({ ...prev, flagged: newFlaggedState }));
+      }
+      
+      // Send update to server
       await updateSubmission(formId, submission.submission_id, {
-        flagged: !submission.flagged
+        flagged: newFlaggedState
       });
-      loadFormAndSubmissions();
     } catch (error) {
       console.error('Error updating submission:', error);
       Swal.fire('Error', 'Failed to update submission', 'error');
+      // Revert on error
+      loadFormAndSubmissions();
     }
   };
 

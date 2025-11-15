@@ -104,14 +104,14 @@ const FormEditor = () => {
       question_id: `q${Date.now()}`,
       type,
       text: type === 'text' ? 'What is your answer?' : 
-            type === 'email' ? 'What is your email address?' :
+            type === 'long_text' ? 'Please provide your detailed response:' :
             type === 'multiple_choice' ? 'Select an option:' :
             type === 'scale' ? 'How would you rate this?' :
             type === 'true_false' ? 'Please choose:' : '',
       help_text: '',
       required: true,
       order: formData.questions.length + 1,
-      validation: type === 'text' ? { min_length: null, max_length: null } : {},
+      validation: (type === 'text' || type === 'long_text') ? { min_length: null, max_length: null } : {},
       options: type === 'multiple_choice' ? ['Option 1', 'Option 2', 'Option 3'] : [],
       multiple_select: false,
       scale_config: type === 'scale' ? { min: 1, max: 5, min_label: 'Not Satisfied', max_label: 'Very Satisfied' } : {},
@@ -313,12 +313,12 @@ const FormEditor = () => {
                     <span className="flex-1 font-medium relative z-10">Text Input</span>
                   </button>
                   <button 
-                    onClick={() => handleAddQuestion('email')} 
-                    title="Email address with validation"
+                    onClick={() => handleAddQuestion('long_text')} 
+                    title="Long text input for detailed answers"
                     className="flex items-center gap-3 p-3.5 border-2 border-gray-200 rounded-xl bg-white cursor-pointer text-left text-sm transition-all duration-300 relative overflow-hidden hover:border-[#4242ea] hover:text-[#4242ea] hover:translate-x-1 hover:shadow-sm"
                   >
-                    <span className="text-xl relative z-10">📧</span>
-                    <span className="flex-1 font-medium relative z-10">Email</span>
+                    <span className="text-xl relative z-10">📄</span>
+                    <span className="flex-1 font-medium relative z-10">Long Text</span>
                   </button>
                   <button 
                     onClick={() => handleAddQuestion('multiple_choice')} 

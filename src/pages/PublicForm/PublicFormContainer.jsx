@@ -4,7 +4,8 @@ import { getPublicForm, submitForm, generateSessionId } from '../../services/for
 import FormQuestion from './components/FormQuestion';
 import ThankYouScreen from './components/ThankYouScreen';
 import FormClosed from './components/FormClosed';
-import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowRight, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '../../components/ui/alert';
 import logo from '../../assets/logo-full.png';
 import './PublicFormContainer.css';
 
@@ -22,6 +23,7 @@ const PublicFormContainer = () => {
   const [slideDirection, setSlideDirection] = useState('next');
   const [showWelcome, setShowWelcome] = useState(true);
   const [respondentEmail, setRespondentEmail] = useState('');
+  const [validationError, setValidationError] = useState(null);
 
   useEffect(() => {
     loadForm();
@@ -47,6 +49,11 @@ const PublicFormContainer = () => {
   };
 
   const handleAnswerChange = (questionId, answer, questionText) => {
+    // Clear validation error when user makes a change
+    if (validationError) {
+      setValidationError(null);
+    }
+    
     setResponses({
       ...responses,
       [questionId]: {
@@ -87,22 +94,56 @@ const PublicFormContainer = () => {
     return true;
   };
 
-  const handleSubmit = async () => {
-    // Check required fields
-    const unansweredRequired = form.questions.filter(q => {
-      if (!q.required) return false;
-      const response = responses[q.question_id];
-      return !response || !response.answer;
-    });
-
-    if (unansweredRequired.length > 0) {
-      alert('Please answer all required questions');
-      return;
+  const validateResponses = () => {
+    // Check all questions for validation errors
+    for (const question of form.questions) {
+      const response = responses[question.question_id];
+      
+      // Check if required question is answered
+      if (question.required) {
+        if (!response || !response.answer) {
+          return `Question "${question.text}" is required.`;
+        }
+        
+        // Check for empty strings or empty arrays
+        if (typeof response.answer === 'string' && !response.answer.trim()) {
+          return `Question "${question.text}" is required.`;
+        }
+        if (Array.isArray(response.answer) && response.answer.length === 0) {
+          return `Question "${question.text}" requires at least one selection.`;
+        }
+      }
+      
+      // Validate text length constraints
+      if ((question.type === 'text' || question.type === 'long_text') && response?.answer) {
+        const answerLength = response.answer.length;
+        
+        if (question.validation?.min_length && answerLength < question.validation.min_length) {
+          return `Question "${question.text}" requires at least ${question.validation.min_length} characters. You have ${answerLength}.`;
+        }
+        
+        if (question.validation?.max_length && answerLength > question.validation.max_length) {
+          return `Question "${question.text}" can have at most ${question.validation.max_length} characters. You have ${answerLength}.`;
+        }
+      }
     }
-
+    
     // Check email if required
     if (form.settings.require_email && !respondentEmail) {
-      alert('Please provide your email address');
+      return 'Please provide your email address to submit the form.';
+    }
+    
+    return null;
+  };
+
+  const handleSubmit = async () => {
+    // Clear any previous errors
+    setValidationError(null);
+    
+    // Validate all responses
+    const error = validateResponses();
+    if (error) {
+      setValidationError(error);
       return;
     }
 
@@ -128,7 +169,7 @@ const PublicFormContainer = () => {
       }
     } catch (err) {
       console.error('Error submitting form:', err);
-      alert(err.response?.data?.error || 'Failed to submit form');
+      setValidationError(err.response?.data?.error || 'Failed to submit form. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -162,19 +203,6 @@ const PublicFormContainer = () => {
   if (showWelcome) {
     return (
       <div className="min-h-screen relative flex flex-col bg-[#4E4DED]">
-        {/* Top Right Login Link */}
-        <div className="absolute top-7 right-8 flex items-center gap-2">
-          <span className="text-white text-sm">
-            Already have an account? Login
-          </span>
-          <Link 
-            to="/login"
-            className="w-4 h-4 p-0.5 border-white border rounded bg-transparent hover:bg-white/10 inline-flex items-center justify-center"
-          >
-            <ArrowRight className="w-2.5 h-2.5 text-white" />
-          </Link>
-        </div>
-
         {/* Main Content - Centered */}
         <div className="flex-1 flex flex-col items-center justify-center px-8">
           <div className="w-full max-w-[660px]">
@@ -239,6 +267,18 @@ const PublicFormContainer = () => {
       {/* Main Content - Centered */}
       <div className="flex-1 flex flex-col items-center justify-center px-8">
         <div className="w-full max-w-2xl">
+          {/* Validation Error Alert */}
+          {validationError && (
+            <div className="mb-6">
+              <Alert variant="destructive" className="bg-red-900/20 border-red-500/50 text-white">
+                <AlertCircle className="h-4 w-4 text-white" />
+                <AlertDescription className="text-white">
+                  {validationError}
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+
           <div className="mb-12">
             {/* Question with slide animation - wrapped in overflow-hidden */}
             <div className="overflow-hidden relative">
