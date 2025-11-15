@@ -717,8 +717,127 @@ function Learning() {
                   ) : (
                     // AI/System message (no avatar)
                   <div className="text-carbon-black leading-relaxed text-base">
-                    <ReactMarkdown>
-                      {message.content}
+                    <ReactMarkdown
+                      components={{
+                        p: ({ node, children, ...props }) => (
+                          <p className="mb-4" {...props}>{children}</p>
+                        ),
+                        h1: ({ node, children, ...props }) => (
+                          <h1 className="text-xl font-semibold mt-6 mb-4 first:mt-0 text-carbon-black" {...props}>{children}</h1>
+                        ),
+                        h2: ({ node, children, ...props }) => (
+                          <h2 className="text-lg font-semibold mt-5 mb-3 first:mt-0 text-carbon-black" {...props}>{children}</h2>
+                        ),
+                        h3: ({ node, children, ...props }) => (
+                          <h3 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-carbon-black" {...props}>{children}</h3>
+                        ),
+                        ul: ({ node, children, ...props }) => (
+                          <ul className="list-disc pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ul>
+                        ),
+                        ol: ({ node, children, ...props }) => (
+                          <ol className="list-decimal pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ol>
+                        ),
+                        li: ({ node, children, ...props }) => (
+                          <li className="text-carbon-black" {...props}>{children}</li>
+                        ),
+                        a: ({ node, children, ...props }) => (
+                          <a className="text-blue-500 hover:underline break-all" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+                        ),
+                        code: ({ node, inline, className, children, ...props }) => {
+                          if (inline) {
+                            return (
+                              <code
+                                className="px-1.5 py-0.5 rounded text-sm font-mono bg-gray-200 text-carbon-black"
+                                {...props}
+                              >
+                                {children}
+                              </code>
+                            );
+                          }
+                          return (
+                            <code className="block" {...props}>
+                              {children}
+                            </code>
+                          );
+                        },
+                        pre: ({ node, children, ...props }) => (
+                          <pre
+                            className="p-4 rounded-lg my-4 overflow-x-auto text-sm font-mono bg-gray-100 text-carbon-black"
+                            {...props}
+                          >
+                            {children}
+                          </pre>
+                        ),
+                        blockquote: ({ node, children, ...props }) => (
+                          <blockquote
+                            className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-700"
+                            {...props}
+                          >
+                            {children}
+                          </blockquote>
+                        ),
+                        strong: ({ node, children, ...props }) => (
+                          <strong className="font-semibold text-carbon-black" {...props}>{children}</strong>
+                        ),
+                        em: ({ node, children, ...props }) => (
+                          <em className="italic text-carbon-black" {...props}>{children}</em>
+                        ),
+                      }}
+                    >
+                      {(() => {
+                        // Preprocess content to convert bullet points and URLs to markdown
+                        let processedContent = message.content;
+                        
+                        // Step 1: Convert URLs to markdown links FIRST (before any text manipulation)
+                        // Pattern: "Title (Type): Description URL" - structured resource links
+                        processedContent = processedContent.replace(
+                          /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
+                          '[$1 ($2)]($4): $3'
+                        );
+                        
+                        // Fallback: Convert any remaining bare URLs to clickable links
+                        processedContent = processedContent.replace(
+                          /(?<!\()(?<!]\()https?:\/\/[^\s)]+/g,
+                          (url) => `[${url}](${url})`
+                        );
+                        
+                        // Step 1.5: Remove any ** that appear immediately before markdown links
+                        processedContent = processedContent.replace(/\*\*(\[.*?\]\(.*?\))/g, '$1');
+                        
+                        // Step 2: Handle inline "Resources:" section - convert to proper bulleted list
+                        // Match "Resources: - Item1 - Item2" pattern and split into list
+                        processedContent = processedContent.replace(
+                          /Resources:\s*-\s*(.+?)(?=\n\n|$)/gis,
+                          (match, resourcesText) => {
+                            // Split by " - " pattern that precedes a markdown link [
+                            const items = resourcesText.split(/\s+-\s+(?=\[)/);
+                            
+                            // Format each item as a bullet
+                            const formattedItems = items
+                              .map(item => item.trim())
+                              .filter(item => item.length > 0)
+                              .map(item => `- ${item}`)
+                              .join('\n');
+                            
+                            return `**Resources:**\n\n${formattedItems}`;
+                          }
+                        );
+                        
+                        // Step 3: Convert bullet points to markdown (preserves links)
+                        processedContent = processedContent.replace(/^•\s+/gm, '- ');
+                        processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
+                        
+                        // Step 4: Convert numbered lists
+                        processedContent = processedContent.replace(/^(\d+)\.\s+/gm, '$1. ');
+                        
+                        // Step 5: Format section headers (exclude Resources: which is already bold)
+                        processedContent = processedContent.replace(
+                          /\n\n(?!\*\*Resources:\*\*)([A-Z][^:\n]+:)(?!\s*\n\n-)/g,
+                          '\n\n## $1'
+                        );
+                        
+                        return processedContent;
+                      })()}
                     </ReactMarkdown>
                   </div>
                   )}
