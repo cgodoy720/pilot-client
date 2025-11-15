@@ -895,17 +895,15 @@ function GPT() {
           {/* Empty State or Messages Area */}
           <div className="flex-1 overflow-y-auto py-8 px-6" style={{ paddingBottom: '180px' }}>
             {!activeThread ? (
-              <div className="flex flex-col items-center justify-start min-h-full pt-[50px]">
-                <div className="max-w-2xl text-center">
-                  <h2 className="text-[18px] leading-[26px] font-proxima font-normal text-black mb-6">
-                    What can we build together?
-                  </h2>
-                  <img 
-                    src="/preloader-still.gif" 
-                    alt="Pursuit" 
-                    className="w-[60px] h-[60px] mx-auto"
-                  />
-                </div>
+              <div className="max-w-2xl mx-auto pt-[50px]">
+                <h2 className="text-[18px] leading-[26px] font-proxima font-normal text-black mb-6">
+                  What can we build together?
+                </h2>
+                <img 
+                  src="/preloader-still.gif" 
+                  alt="Pursuit" 
+                  className="w-[60px] h-[60px]"
+                />
               </div>
             ) : (
               <div className="max-w-2xl mx-auto">
