@@ -19,6 +19,7 @@ import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
 import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
 import BuilderFeedbackForm from '../../components/BuilderFeedbackForm/BuilderFeedbackForm';
 import DeliverablePanel from './components/DeliverablePanel/DeliverablePanel';
+import TaskCompletionBar from '../../components/TaskCompletionBar/TaskCompletionBar';
 
 import './Learning.css';
 import '../../styles/smart-tasks.css';
@@ -59,6 +60,9 @@ function Learning() {
   // Submission tracking state
   const [taskSubmissions, setTaskSubmissions] = useState({});
   // Format: { [taskId]: { id, content, created_at, updated_at } }
+  
+  // Task completion tracking state
+  const [isTaskComplete, setIsTaskComplete] = useState(false);
   
   // Get dayId from URL query parameters
   const queryParams = new URLSearchParams(location.search);
@@ -240,6 +244,9 @@ function Learning() {
     setMessages([]);
     setIsAiThinking(true);
     
+    // Reset task completion state when switching tasks
+    setIsTaskComplete(false);
+    
     try {
       // Fetch both conversation history and submission in parallel
       const [conversationResponse, submissionResponse] = await Promise.all([
@@ -340,7 +347,31 @@ function Learning() {
       // Only clear loading state if this request wasn't aborted
       if (!abortController.signal.aborted) {
         setIsAiThinking(false);
+        // Check if task is complete after loading conversation
+        checkTaskCompletion(task.id);
       }
+    }
+  };
+
+  // Function to check if current task is complete
+  const checkTaskCompletion = async (taskId) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/learning/task-completion-status/${taskId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Task ${taskId} completion status:`, data);
+        setIsTaskComplete(data.isComplete);
+      }
+    } catch (error) {
+      console.error('Error checking task completion:', error);
     }
   };
 
@@ -557,6 +588,8 @@ function Learning() {
         // Double-check we're still on the same task before adding AI response
         if (tasks[currentTaskIndex]?.id === messageTaskId && !abortController.signal.aborted) {
           setMessages(prev => [...prev, aiMessage]);
+          // Check if task is now complete after receiving AI response
+          checkTaskCompletion(messageTaskId);
         } else {
           console.log('⚠️ Task changed before AI response - ignoring message');
         }
@@ -631,10 +664,65 @@ function Learning() {
       // Keep sidebar open so user can see "Submitted" badge
       // setIsDeliverableSidebarOpen(false); // Commented out - keep open
       
+      // NEW: Check if task is now complete (in case conclusion was already reached)
+      console.log('🔍 Checking completion status after deliverable submission...');
+      await checkTaskCompletion(currentTask.id);
+      
     } catch (error) {
       console.error('❌ Error submitting deliverable:', error);
       toast.error(error.message || "Failed to submit deliverable. Please try again.");
     }
+  };
+
+  // Handler for Next Exercise button on completion bar
+  const handleNextExercise = async () => {
+    const currentTask = tasks[currentTaskIndex];
+    
+    if (!currentTask?.id) {
+      toast.error("Unable to proceed - current task not found");
+      return;
+    }
+    
+    try {
+      // Mark current task as complete
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/learning/complete-task/${currentTask.id}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            notes: ''
+          }),
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to mark task as complete');
+      }
+      
+      console.log('✅ Task marked as complete');
+      
+      // Navigate to next task
+      const nextTaskIndex = currentTaskIndex + 1;
+      if (nextTaskIndex < tasks.length) {
+        await handleTaskChange(nextTaskIndex);
+      } else {
+        toast.success("🎉 You've completed all exercises for today!");
+      }
+      
+    } catch (error) {
+      console.error('Error marking task complete:', error);
+      toast.error("Failed to mark task complete. Please try again.");
+    }
+  };
+
+  // Handler for AI Feedback button on completion bar
+  const handleAiFeedback = () => {
+    // TODO: Implement AI Feedback modal
+    toast.info("AI Feedback feature coming soon!");
   };
 
   // Loading state
@@ -861,9 +949,16 @@ function Learning() {
             </div>
           </div>
 
-          {/* Chat Input - Absolute positioned at bottom of chat interface, same container context */}
+          {/* Chat Input OR Task Completion Bar - Absolute positioned at bottom */}
           <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
             <div className="max-w-2xl mx-auto pointer-events-auto">
+              {isTaskComplete ? (
+                <TaskCompletionBar
+                  onNextExercise={handleNextExercise}
+                  onAiFeedback={handleAiFeedback}
+                  isLastTask={currentTaskIndex === tasks.length - 1}
+                />
+              ) : (
               <AutoExpandTextarea
                 onSubmit={handleSendMessage}
                 disabled={isSending || isAiThinking || !isActive}
@@ -871,6 +966,7 @@ function Learning() {
                 onAssignmentClick={() => setIsDeliverableSidebarOpen(true)}
                 showLlmDropdown={tasks[currentTaskIndex]?.task_mode === 'conversation'}
               />
+              )}
             </div>
           </div>
         </div>

@@ -1,0 +1,147 @@
+/* Task Completion Bar - Replaces input tray when task is complete */
+.task-completion-bar {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  right: 24px;
+  z-index: 10;
+  animation: slideUpFadeIn 0.4s ease-out;
+}
+
+@keyframes slideUpFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.task-completion-bar__content {
+  max-width: 664px;
+  margin: 0 auto;
+  background: linear-gradient(90deg, #4242EA 0%, #FFD3C2 123.12%);
+  box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.15);
+  border-radius: 20px;
+  padding: 15px 20px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Left side - AI Feedback button */
+.task-completion-bar__left {
+  display: flex;
+  align-items: center;
+}
+
+.task-completion-bar__feedback-btn {
+  display: flex;
+  align-items: center;
+  padding: 6px 14px;
+  gap: 4px;
+  background: #FFFFFF;
+  border: 1px solid #FFFFFF;
+  border-radius: 20px;
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: #4242EA;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.task-completion-bar__feedback-btn:hover {
+  background: #f8f8f8;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.task-completion-bar__feedback-btn:active {
+  transform: translateY(0);
+}
+
+/* Right side - Next Exercise */
+.task-completion-bar__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.task-completion-bar__next-text {
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 26px;
+  color: #FFFFFF;
+}
+
+.task-completion-bar__next-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  background: #FFFFFF;
+  border: 1px solid #FFFFFF;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  color: #4242EA;
+  font-size: 14px;
+}
+
+.task-completion-bar__next-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.task-completion-bar__next-btn:active {
+  transform: translateY(0);
+}
+
+/* Success message for last task */
+.task-completion-bar__success-message {
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 26px;
+  color: #FFFFFF;
+  text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .task-completion-bar {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .task-completion-bar__content {
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .task-completion-bar__right {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .task-completion-bar__next-text {
+    font-size: 16px;
+  }
+
+  .task-completion-bar__success-message {
+    font-size: 16px;
+  }
+}
+
