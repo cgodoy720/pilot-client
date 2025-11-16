@@ -15,6 +15,7 @@ import Content from './pages/Content';
 import FacilitatorView from './pages/FacilitatorView';
 import AdminPrompts from './pages/AdminPrompts';
 import Stats from './pages/Stats';
+import Performance from './pages/Performance/Performance';
 import Account from './pages/Account/Account';
 import Payment from './pages/Payment/Payment';
 import Assessment from './pages/Assessment/Assessment';
@@ -302,9 +303,10 @@ function App() {
             </WorkshopAdminRoute>
           </Layout>
         } />
-        <Route path="/stats" element={
+        <Route path="/stats" element={<Navigate to="/performance" replace />} />
+        <Route path="/performance" element={
           <Layout>
-            <Stats />
+            <Performance />
           </Layout>
         } />
         <Route path="/account" element={
