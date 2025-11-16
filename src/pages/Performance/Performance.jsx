@@ -15,11 +15,6 @@ const Performance = () => {
   const [feedbackData, setFeedbackData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [debugInfo, setDebugInfo] = useState({
-    photoSource: 'loading',
-    attendanceSource: 'loading',
-    feedbackCount: 0
-  });
 
   // Load user photo (real API call with fallback)
   useEffect(() => {
@@ -29,13 +24,11 @@ const Performance = () => {
           // Try real API call first
           const photoUrl = await getUserProfilePhoto(user.user_id, token);
           setUserPhoto(photoUrl);
-          setDebugInfo(prev => ({ ...prev, photoSource: 'api' }));
           console.log('✅ Loaded user photo from API:', photoUrl);
         } catch (error) {
           console.error('Failed to load user photo:', error);
           // Fallback to default avatar
           setUserPhoto('/assets/default-avatar.png');
-          setDebugInfo(prev => ({ ...prev, photoSource: 'fallback' }));
           console.log('📝 Using default avatar as fallback');
         }
       }
@@ -62,7 +55,6 @@ const Performance = () => {
           );
           
           setAttendanceData(attendance);
-          setDebugInfo(prev => ({ ...prev, attendanceSource: 'api' }));
           console.log('✅ Loaded real attendance data:', attendance.length, 'records');
         } catch (error) {
           console.error('Failed to load attendance data:', error);
@@ -96,7 +88,6 @@ const Performance = () => {
           }
           
           setAttendanceData(mockAttendance);
-          setDebugInfo(prev => ({ ...prev, attendanceSource: 'mock' }));
         }
       }
     };
@@ -115,7 +106,6 @@ const Performance = () => {
           
           const feedback = await fetchCombinedFeedback(user.user_id, dateRange);
           setFeedbackData(feedback);
-          setDebugInfo(prev => ({ ...prev, feedbackCount: feedback.length }));
           console.log('✅ Loaded feedback data:', feedback.length, 'items');
         } catch (error) {
           console.error('Failed to load feedback data:', error);
@@ -192,21 +182,41 @@ const Performance = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      {/* Debug Info Panel (temporary) */}
-      <div className="max-w-7xl mx-auto mb-4">
-        <div className="bg-muted/50 border border-border rounded-lg p-3 text-xs">
-          <span className="font-semibold">Debug Info:</span>
-          <span className="ml-2">Photo: {debugInfo.photoSource}</span>
-          <span className="ml-2">Attendance: {debugInfo.attendanceSource}</span>
-          <span className="ml-2">Feedback: {debugInfo.feedbackCount} items</span>
-          <span className="ml-2">User ID: {user?.user_id}</span>
+    <div className="min-h-screen bg-[#EFEFEF]">
+      {/* Top Navigation Bar - Matching Dashboard styling */}
+      <div className="flex items-stretch justify-between w-full h-[45px] mb-[15px] border-b border-[#C8C8C8]">
+        <h1 
+          className="font-normal text-2xl leading-[44px] tracking-[0.005em] m-0 pl-10 flex items-center"
+          style={{
+            background: 'linear-gradient(90deg, #1E1E1E 0%, #4242EA 55.29%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            fontFamily: 'var(--font-family)'
+          }}
+        >
+          {new Date().toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit' 
+          })} Carlos' Performance!
+        </h1>
+        <div className="flex items-center gap-2 px-5 bg-[#4242EA] text-white font-medium text-sm leading-[150%] tracking-[0.005em] h-full">
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-white rounded-full"></div>
+            <div className="w-2 h-2 bg-white rounded-full"></div>
+            <div className="w-2 h-2 bg-white rounded-full"></div>
+            <div className="w-2 h-2 bg-white rounded-full"></div>
+            <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+          </div>
+          <span className="ml-2">WK 05/08</span>
         </div>
       </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-6rem)] max-w-7xl mx-auto">
-        {/* Left Panel - Attendance Calendar */}
-        <div className="bg-card border border-border rounded-xl p-6 overflow-hidden flex flex-col">
+
+      {/* Main Content - Full width panels without containers */}
+      <div className="flex h-[calc(100vh-75px)]">
+        {/* Left Panel - Attendance Calendar (Full Space) */}
+        <div className="flex-1 px-10 pb-10 flex flex-col bg-[#EFEFEF]">
           <AttendanceCalendar
             userId={user.user_id}
             month={selectedMonth}
@@ -218,8 +228,11 @@ const Performance = () => {
           />
         </div>
         
-        {/* Right Panel - Feedback Inbox */}
-        <div className="bg-card border border-border rounded-xl p-6 overflow-hidden flex flex-col">
+        {/* Vertical Divider */}
+        <div className="w-px bg-[#C8C8C8]"></div>
+        
+        {/* Right Panel - Feedback Inbox (Full Space) */}
+        <div className="flex-1 px-10 pb-10 flex flex-col bg-[#EFEFEF]">
           <FeedbackInbox
             userId={user.user_id}
             feedbackData={feedbackData}

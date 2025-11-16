@@ -76,7 +76,7 @@ export const getClassDaysInRange = (startDate, endDate) => {
 };
 
 /**
- * Generate calendar weeks with Saturday-Friday structure
+ * Generate calendar weeks with Saturday-Friday structure (to match program schedule)
  * 
  * @param {number} month - Month (0-11)
  * @param {number} year - Year
@@ -120,14 +120,14 @@ export const generateCalendarWeeks = (month, year, attendanceRecords = []) => {
     const dayOfMonth = dateObj.getDate();
     const monthOfDate = dateObj.getMonth();
     const yearOfDate = dateObj.getFullYear();
-    const dateKey = dateObj.toDateString();
-    
-    // Check if this is a class day
     const dayOfWeek = dateObj.getDay();
-    const isClassDay = [0, 1, 2, 3, 6].includes(dayOfWeek); // Sat, Sun, Mon, Tue, Wed
+    const dateKey = dateObj.toDateString();
     
     // Get attendance record for this date
     const attendanceRecord = attendanceMap[dateKey];
+    
+    // A day is a class day if we have attendance data for it (from curriculum)
+    const isClassDay = !!attendanceRecord;
     
     calendarDates.push({
       date: new Date(dateObj),
@@ -137,7 +137,7 @@ export const generateCalendarWeeks = (month, year, attendanceRecords = []) => {
       isPreviousMonth: (yearOfDate < year) || (yearOfDate === year && monthOfDate < month),
       isNextMonth: (yearOfDate > year) || (yearOfDate === year && monthOfDate > month),
       isClassDay: isClassDay,
-      attendanceStatus: attendanceRecord?.status || (isClassDay ? 'absent' : null),
+      attendanceStatus: attendanceRecord?.status || null,
       attendanceRecord: attendanceRecord || null
     });
     

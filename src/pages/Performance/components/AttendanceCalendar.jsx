@@ -5,6 +5,7 @@ import { Badge } from '../../../components/ui/badge';
 import { Card, CardContent } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { Progress } from '../../../components/ui/progress';
+import ArrowButton from '../../../components/ArrowButton/ArrowButton';
 import { generateCalendarWeeks, getAttendanceStatistics } from '../../../utils/attendanceService';
 
 const MONTH_NAMES = [
@@ -28,12 +29,9 @@ const AttendanceCalendar = ({
     return generateCalendarWeeks(month, year, attendanceData);
   }, [month, year, attendanceData]);
 
-  // Calculate attendance statistics
+  // Calculate attendance statistics based on actual attendance data
   const attendanceStats = useMemo(() => {
-    const startDate = new Date(year, month, 1).toISOString().split('T')[0];
-    const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
-    
-    // For now, calculate from the provided attendance data
+    // Use the attendance data directly since it's already filtered by curriculum
     const classAttendance = attendanceData.filter(record => {
       const recordDate = new Date(record.date);
       const recordMonth = recordDate.getMonth();
@@ -44,12 +42,11 @@ const AttendanceCalendar = ({
     const present = classAttendance.filter(r => r.status === 'present').length;
     const late = classAttendance.filter(r => r.status === 'late').length;
     const excused = classAttendance.filter(r => r.status === 'excused').length;
+    const absent = classAttendance.filter(r => r.status === 'absent').length;
     const attended = present + late + excused;
     
-    // Count total class days in the month
-    const totalClassDays = calendarWeeks
-      .flatMap(week => week.days)
-      .filter(day => day.isCurrentMonth && day.isClassDay).length;
+    // Total class days is the length of attendance data (curriculum-based)
+    const totalClassDays = classAttendance.length;
     
     const attendanceRate = totalClassDays > 0 ? Math.round((attended / totalClassDays) * 100) : 0;
     
@@ -60,9 +57,9 @@ const AttendanceCalendar = ({
       present,
       late,
       excused,
-      absent: totalClassDays - attended
+      absent
     };
-  }, [attendanceData, month, year, calendarWeeks]);
+  }, [attendanceData, month, year]);
 
   const handlePrevMonth = () => {
     if (month === 0) {
@@ -82,21 +79,16 @@ const AttendanceCalendar = ({
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'present': return 'bg-blue-500';
-      case 'late': return 'bg-orange-500';
-      case 'excused': return 'bg-purple-500';
-      case 'absent': return 'bg-gray-400';
-      default: return 'bg-gray-200';
-    }
-  };
-
   const getStatusDot = (status) => {
+    const colors = {
+      'present': 'bg-blue-500',
+      'late': 'bg-orange-500', 
+      'excused': 'bg-purple-500',
+      'absent': 'bg-gray-400'
+    };
+    
     return (
-      <div 
-        className={`w-3 h-3 rounded-full ${getStatusColor(status)} absolute -top-1 -right-1 border-2 border-white`}
-      />
+      <div className={`w-2 h-2 rounded-full ${colors[status] || 'bg-gray-200'}`} />
     );
   };
 
@@ -110,9 +102,12 @@ const AttendanceCalendar = ({
   };
 
   return (
-    <div className="flex flex-col h-full gap-6">
+    <div className="flex flex-col h-full">
+      {/* Title */}
+      <h2 className="text-3xl font-bold text-[#1F2937] mb-4" style={{ fontFamily: 'var(--font-family-bold)' }}>Persistence</h2>
+      
       {/* Attendance Summary */}
-      <div className="flex items-center gap-6 p-4 bg-muted/10 rounded-xl border border-border">
+      <div className="flex items-center gap-6 mb-4">
         <div className="flex-shrink-0">
           <div className="relative w-20 h-20 flex items-center justify-center">
             {/* Circular Progress Background */}
@@ -121,7 +116,7 @@ const AttendanceCalendar = ({
                 cx="40"
                 cy="40"
                 r="30"
-                stroke="hsl(var(--muted))"
+                stroke="#E5E7EB"
                 strokeWidth="6"
                 fill="none"
               />
@@ -129,7 +124,7 @@ const AttendanceCalendar = ({
                 cx="40"
                 cy="40"
                 r="30"
-                stroke="hsl(var(--primary))"
+                stroke="#4242EA"
                 strokeWidth="6"
                 fill="none"
                 strokeLinecap="round"
@@ -140,98 +135,108 @@ const AttendanceCalendar = ({
             </svg>
             {/* Percentage Text */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-2xl font-bold text-primary">
+              <span className="text-2xl font-bold text-[#4242EA]">
                 {attendanceStats.attendanceRate}%
               </span>
             </div>
           </div>
         </div>
         <div className="flex-1">
-          <p className="text-muted-foreground text-sm mb-1">You've attended</p>
-          <p className="text-foreground text-lg font-medium">
+          <p className="text-[#6B7280] text-sm mb-1">You've attended</p>
+          <p className="text-[#1F2937] text-lg font-medium">
             <span className="font-bold">{attendanceStats.attended} / {attendanceStats.totalClassDays}</span> Days
           </p>
         </div>
       </div>
 
-      {/* Month Header */}
-      <div className="flex items-center justify-between px-2">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={handlePrevMonth}
-          className="p-2 hover:bg-muted rounded-md"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        
-        <h2 className="text-xl font-semibold text-foreground">
-          {MONTH_NAMES[month]} {year}
-        </h2>
-        
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={handleNextMonth}
-          className="p-2 hover:bg-muted rounded-md"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+      {/* Month and Year Header */}
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-2xl font-bold text-[#1F2937]">
+          {MONTH_NAMES[month]}
+        </h3>
+        <div className="text-lg font-semibold text-[#6B7280]">
+          {year}
+        </div>
       </div>
 
       {/* Week Days Header */}
-      <div className="grid grid-cols-7 gap-0.5 pb-2 border-b border-border">
+      <div className="grid grid-cols-8 gap-[3px] mb-1">
+        <div></div> {/* Empty space for week numbers */}
         {WEEKDAY_NAMES.map(day => (
-          <div key={day} className="text-center text-xs font-semibold text-muted-foreground py-2 uppercase tracking-wider">
+          <div key={day} className="text-center text-xs font-bold text-[#6B7280] py-2 uppercase tracking-wider">
             {day}
           </div>
         ))}
       </div>
 
-      {/* Calendar Grid */}
-      <div className="flex-1 flex flex-col gap-0.5 min-h-0">
+      {/* Calendar Grid with Week Numbers */}
+      <div className="flex-1 flex flex-col gap-[3px] min-h-0">
         {calendarWeeks.map((week, weekIdx) => (
-          <div key={weekIdx} className="grid grid-cols-7 gap-0.5 flex-1">
+          <div key={weekIdx} className="grid grid-cols-8 gap-[3px] h-[85px]">
+            {/* Week Number */}
+            <div className="flex items-center justify-center">
+              <span className="text-xs font-bold text-[#6B7280] transform -rotate-90">
+                WEEK {String(weekIdx + 1).padStart(2, '0')}
+              </span>
+            </div>
+            
+            {/* Week Days */}
             {week.days.map((day, dayIdx) => (
               <div
                 key={dayIdx}
                 className={`
-                  bg-card border border-border rounded-lg flex flex-col relative min-h-[60px] transition-all hover:bg-muted/50
-                  ${day.isCurrentMonth ? '' : 'opacity-40 bg-muted/30'}
-                  ${!day.isClassDay ? 'bg-muted/20' : ''}
+                  rounded-[20px] flex flex-col relative h-[85px] p-[11px_8px_8px_11px] transition-all overflow-hidden
+                  ${day.isCurrentMonth ? 'bg-[#F3F4F6]' : 'bg-[#F9FAFB] opacity-50'}
+                  ${!day.isClassDay && day.isCurrentMonth ? 'bg-[#F9FAFB]' : ''}
                 `}
               >
-                <div className="absolute top-1 left-1.5 text-xs font-medium text-foreground z-10">
-                  {day.dayOfMonth}
+                {/* Date and Status Dot - Overlay on top of photo */}
+                <div className="flex items-center gap-1 z-20 relative">
+                  <span className={`text-sm font-bold drop-shadow-lg ${
+                    day.isClassDay && day.attendanceStatus && ['present', 'late', 'excused'].includes(day.attendanceStatus) 
+                      ? 'text-white' 
+                      : 'text-black'
+                  }`}>
+                    {String(day.dayOfMonth).padStart(2, '0')}
+                  </span>
+                  {day.isClassDay && day.attendanceStatus && (
+                    getStatusDot(day.attendanceStatus)
+                  )}
                 </div>
                 
-                {/* User Photo and Status for Attended Days */}
-                {day.isClassDay && day.attendanceStatus && ['present', 'late', 'excused'].includes(day.attendanceStatus) && (
-                  <div className="flex-1 flex items-center justify-center pt-5">
-                    <div className="relative">
-                      <Avatar className="w-8 h-8 border-2 border-background">
-                        <AvatarImage src={userPhoto} alt="User" />
-                        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                          {formatUserInitials('User')}
-                        </AvatarFallback>
-                      </Avatar>
-                      {getStatusDot(day.attendanceStatus)}
-                    </div>
+                {/* User Photo Background for Attended Days */}
+                {day.isClassDay && day.attendanceStatus && ['present', 'late', 'excused'].includes(day.attendanceStatus) && userPhoto && (
+                  <div 
+                    className="absolute inset-0 rounded-[20px] bg-cover bg-center bg-no-repeat"
+                    style={{
+                      backgroundImage: `url(${userPhoto})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center'
+                    }}
+                  />
+                )}
+                
+                {/* Fallback for attended days without photo */}
+                {day.isClassDay && day.attendanceStatus && ['present', 'late', 'excused'].includes(day.attendanceStatus) && !userPhoto && (
+                  <div className="absolute inset-0 rounded-[20px] bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+                    <span className="text-white text-2xl font-bold">
+                      {formatUserInitials('User')}
+                    </span>
                   </div>
                 )}
                 
-                {/* Status indicator for absent class days */}
-                {day.isClassDay && (!day.attendanceStatus || day.attendanceStatus === 'absent') && (
-                  <div className="flex-1 flex items-center justify-center pt-5">
-                    <div className={`w-3 h-3 rounded-full ${getStatusColor('absent')}`} />
-                  </div>
-                )}
-                
-                {/* No class indicator */}
+                {/* No Class Text */}
                 {!day.isClassDay && day.isCurrentMonth && (
-                  <div className="flex-1 flex items-center justify-center pt-5">
-                    <span className="text-xs text-muted-foreground text-center leading-tight">No Class</span>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-xs text-[#9CA3AF] text-center leading-tight">
+                      No Class
+                    </span>
                   </div>
+                )}
+                
+                {/* Absent Days - Show empty space with just the dot */}
+                {day.isClassDay && (!day.attendanceStatus || day.attendanceStatus === 'absent') && (
+                  <div className="flex-1"></div>
                 )}
               </div>
             ))}
@@ -239,21 +244,47 @@ const AttendanceCalendar = ({
         ))}
       </div>
 
+      {/* Navigation Buttons */}
+      <div className="flex items-center justify-center gap-4 mt-6">
+        <ArrowButton
+          onClick={handlePrevMonth}
+          rotation={180}
+          borderColor="#E5E7EB"
+          backgroundColor="transparent"
+          arrowColor="#6B7280"
+          hoverBackgroundColor="#F3F4F6"
+          hoverArrowColor="#4242EA"
+          size="md"
+        />
+        <span className="text-sm font-medium text-[#6B7280] px-4">
+          {MONTH_NAMES[month]}
+        </span>
+        <ArrowButton
+          onClick={handleNextMonth}
+          borderColor="#E5E7EB"
+          backgroundColor="transparent"
+          arrowColor="#6B7280"
+          hoverBackgroundColor="#F3F4F6"
+          hoverArrowColor="#4242EA"
+          size="md"
+        />
+      </div>
+
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 p-4 bg-muted/10 rounded-lg border border-border">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="flex flex-wrap gap-4 mt-4">
+        <div className="flex items-center gap-2 text-sm text-[#6B7280]">
           <div className="w-3 h-3 rounded-full bg-blue-500" />
           <span>Present</span>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 text-sm text-[#6B7280]">
           <div className="w-3 h-3 rounded-full bg-orange-500" />
           <span>Late</span>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 text-sm text-[#6B7280]">
           <div className="w-3 h-3 rounded-full bg-purple-500" />
           <span>Excused</span>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 text-sm text-[#6B7280]">
           <div className="w-3 h-3 rounded-full bg-gray-400" />
           <span>Absent</span>
         </div>
