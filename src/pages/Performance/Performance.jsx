@@ -12,6 +12,7 @@ const Performance = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [userPhoto, setUserPhoto] = useState(null);
   const [attendanceData, setAttendanceData] = useState([]);
+  const [programInfo, setProgramInfo] = useState(null);
   const [feedbackData, setFeedbackData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -47,15 +48,17 @@ const Performance = () => {
           const endDate = new Date(selectedYear, selectedMonth + 1, 0);
           
           // Try real API call first
-          const attendance = await fetchUserAttendance(
+          const result = await fetchUserAttendance(
             user.user_id,
             startDate.toISOString().split('T')[0],
             endDate.toISOString().split('T')[0],
             token
           );
           
-          setAttendanceData(attendance);
-          console.log('✅ Loaded real attendance data:', attendance.length, 'records');
+          setAttendanceData(result.attendance);
+          setProgramInfo(result.programInfo);
+          console.log('✅ Loaded real attendance data:', result.attendance.length, 'records');
+          console.log('✅ Program info:', result.programInfo);
         } catch (error) {
           console.error('Failed to load attendance data:', error);
           
@@ -223,6 +226,7 @@ const Performance = () => {
             year={selectedYear}
             userPhoto={userPhoto}
             attendanceData={attendanceData}
+            programInfo={programInfo}
             onMonthChange={handleMonthChange}
             onYearChange={handleYearChange}
           />

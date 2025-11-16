@@ -20,14 +20,16 @@ const AttendanceCalendar = ({
   month, 
   year, 
   userPhoto, 
-  attendanceData, 
+  attendanceData,
+  programInfo,
   onMonthChange, 
   onYearChange 
 }) => {
-  // Generate calendar weeks with Saturday-Friday structure
+  // Generate calendar weeks with Saturday-Friday structure and program week numbers
   const calendarWeeks = useMemo(() => {
-    return generateCalendarWeeks(month, year, attendanceData);
-  }, [month, year, attendanceData]);
+    const programStartDate = programInfo?.programStartDate ? new Date(programInfo.programStartDate) : null;
+    return generateCalendarWeeks(month, year, attendanceData, programStartDate);
+  }, [month, year, attendanceData, programInfo]);
 
   // Calculate attendance statistics based on actual attendance data
   const attendanceStats = useMemo(() => {
@@ -181,16 +183,18 @@ const AttendanceCalendar = ({
                 height: weekIdx === calendarWeeks.length - 1 ? '85px' : 'calc(85px + 2px)'
               }}
             >
-              <span 
-                className="text-xs font-bold text-[#6B7280]"
-                style={{
-                  writingMode: 'vertical-rl',
-                  textOrientation: 'mixed',
-                  transform: 'rotate(180deg)'
-                }}
-              >
-                WEEK {String(weekIdx + 1).padStart(2, '0')}
-              </span>
+              {week.programWeek !== null && (
+                <span 
+                  className="text-xs font-bold text-[#6B7280]"
+                  style={{
+                    writingMode: 'vertical-rl',
+                    textOrientation: 'mixed',
+                    transform: 'rotate(180deg)'
+                  }}
+                >
+                  WEEK {String(week.programWeek).padStart(2, '0')}
+                </span>
+              )}
             </div>
           ))}
         </div>

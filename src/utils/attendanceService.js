@@ -18,20 +18,23 @@ export const fetchUserAttendance = async (userId, startDate, endDate, token) => 
     );
     
     if (response.success && response.data) {
-      return response.data.map(record => ({
-        date: record.attendance_date,
-        status: record.status, // 'present', 'late', 'absent', 'excused'
-        checkInTime: record.check_in_time,
-        lateMinutes: record.late_arrival_minutes,
-        photoUrl: record.photo_url,
-        notes: record.notes
-      }));
+      return {
+        attendance: response.data.map(record => ({
+          date: record.attendance_date,
+          status: record.status, // 'present', 'late', 'absent', 'excused'
+          checkInTime: record.check_in_time,
+          lateMinutes: record.late_arrival_minutes,
+          photoUrl: record.photo_url,
+          notes: record.notes
+        })),
+        programInfo: response.programInfo || null
+      };
     }
     
-    return [];
+    return { attendance: [], programInfo: null };
   } catch (error) {
     console.error('Error fetching attendance:', error);
-    return [];
+    return { attendance: [], programInfo: null };
   }
 };
 
@@ -81,9 +84,10 @@ export const getClassDaysInRange = (startDate, endDate) => {
  * @param {number} month - Month (0-11)
  * @param {number} year - Year
  * @param {Array} attendanceRecords - Array of attendance records
- * @returns {Array} - Array of calendar weeks
+ * @param {Date|null} programStartDate - Program start date for calculating week numbers
+ * @returns {Array} - Array of calendar weeks with program week numbers
  */
-export const generateCalendarWeeks = (month, year, attendanceRecords = []) => {
+export const generateCalendarWeeks = (month, year, attendanceRecords = [], programStartDate = null) => {
   const firstDayOfMonth = new Date(year, month, 1);
   const lastDayOfMonth = new Date(year, month + 1, 0);
   
@@ -148,8 +152,42 @@ export const generateCalendarWeeks = (month, year, attendanceRecords = []) => {
   const weeks = [];
   for (let i = 0; i < calendarDates.length; i += 7) {
     const weekDays = calendarDates.slice(i, i + 7);
+    
+    // Calculate program week number for this week
+    let programWeek = null;
+    if (programStartDate) {
+      // Check if this week has any class days
+      const hasClassDays = weekDays.some(day => day.isClassDay);
+      
+      if (hasClassDays) {
+        // Find the first class day in this week
+        const firstClassDay = weekDays.find(day => day.isClassDay);
+        if (firstClassDay) {
+          // Calculate weeks since program start (Saturday-Friday weeks)
+          const programStart = new Date(programStartDate);
+          programStart.setHours(0, 0, 0, 0);
+          
+          // Find the Saturday of the week containing the program start
+          const programStartDayOfWeek = programStart.getDay();
+          const programStartWeekSaturday = new Date(programStart);
+          const daysToSaturday = programStartDayOfWeek === 6 ? 0 : (programStartDayOfWeek + 1) % 7;
+          programStartWeekSaturday.setDate(programStart.getDate() - daysToSaturday);
+          
+          // Find the Saturday of the current week
+          const currentWeekSaturday = new Date(weekDays[0].date);
+          
+          // Calculate the difference in weeks
+          const daysDiff = Math.floor((currentWeekSaturday - programStartWeekSaturday) / (1000 * 60 * 60 * 24));
+          const weeksDiff = Math.floor(daysDiff / 7);
+          
+          programWeek = weeksDiff + 1;
+        }
+      }
+    }
+    
     weeks.push({
-      days: weekDays
+      days: weekDays,
+      programWeek: programWeek  // null if no class days or before program start
     });
   }
   
