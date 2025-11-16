@@ -70,10 +70,11 @@
 .admissions-dashboard__content {
   flex: 1;
   overflow-y: auto;
-  padding: 1.5rem 2rem 1rem 2rem;
+  padding: 1.5rem 0 1rem 0;
   width: 100%;
   height: 0;
   /* Force flex child to respect parent height */
+  /* ZERO horizontal padding for FULL page width table */
 }
 
 /* Overview Section - Full height layout */
@@ -440,12 +441,16 @@
   box-sizing: border-box;
 }
 
-/* Ensure Applications section maintains consistent width */
+/* Ensure Applications section maintains consistent width and has ZERO padding for FULL page width */
 .admissions-dashboard__applications {
   min-width: 0;
   /* Allow flexbox to work properly */
   overflow: hidden;
   /* Prevent content from breaking out */
+  padding: 0;
+  /* ZERO padding - table stretches FULL page width edge to edge */
+  background: transparent;
+  /* Remove background to blend with page */
 }
 
 .admissions-dashboard__overview h2,
@@ -645,12 +650,14 @@
   /* Always take full width of parent */
   overflow-x: auto;
   /* Allow horizontal scrolling if needed */
+  max-width: 100vw;
+  /* Never exceed viewport width */
 }
 
 .data-table {
   width: 100%;
-  min-width: 1200px;
-  /* Ensure minimum width to prevent shrinking */
+  min-width: 1800px;
+  /* Maximized minimum width for all columns with generous space */
   border-collapse: collapse;
   table-layout: fixed;
   /* Fixed layout for consistent column widths */
@@ -2132,27 +2139,27 @@ Assessment Funnel Styles */
 
 /* Compact Applications Table Styles */
 .admissions-dashboard__applications .data-table {
-  font-size: 0.8rem;
+  font-size: 0.7rem;
 }
 
 .admissions-dashboard__applications .data-table th {
-  font-size: 0.75rem;
-  padding: 0.6rem 0.4rem;
+  font-size: 0.65rem;
+  padding: 0.5rem 0.3rem;
   font-weight: 600;
 }
 
 .admissions-dashboard__applications .data-table td {
-  font-size: 0.8rem;
-  padding: 0.6rem 0.4rem;
-  line-height: 1.3;
+  font-size: 0.7rem;
+  padding: 0.5rem 0.3rem;
+  line-height: 1.2;
   vertical-align: middle;
 }
 
 /* Compact copyable elements */
 .copyable-email,
 .copyable-phone {
-  font-size: 0.8rem;
-  padding: 1px 3px;
+  font-size: 0.7rem;
+  padding: 1px 2px;
 }
 
 /* Extra compact info session badges */
@@ -2799,24 +2806,24 @@ lumn Widths for Consistent Layout */
   width: 120px;
 }
 
-/* Status */
+/* Status - narrower */
 .data-table th:nth-child(6) {
-  width: 140px;
+  width: 100px;
 }
 
 /* Assessment */
 .data-table th:nth-child(7) {
-  width: 130px;
+  width: 110px;
 }
 
 /* Info Session */
 .data-table th:nth-child(8) {
-  width: 120px;
+  width: 100px;
 }
 
-/* Workshop */
+/* Workshop - narrower */
 .data-table th:nth-child(9) {
-  width: 120px;
+  width: 90px;
 }
 
 /* Admission */
@@ -2850,24 +2857,24 @@ lumn Widths for Consistent Layout */
   width: 120px;
 }
 
-/* Status */
+/* Status - narrower */
 .data-table td:nth-child(6) {
-  width: 140px;
+  width: 100px;
 }
 
 /* Assessment */
 .data-table td:nth-child(7) {
-  width: 130px;
+  width: 110px;
 }
 
 /* Info Session */
 .data-table td:nth-child(8) {
-  width: 120px;
+  width: 100px;
 }
 
-/* Workshop */
+/* Workshop - narrower */
 .data-table td:nth-child(9) {
-  width: 120px;
+  width: 90px;
 }
 
 /* Admission */
@@ -3593,11 +3600,23 @@ onsive table adjustments */
   /* Prevent the container from shrinking */
 }
 
-/* Make sure the applications section doesn't change width */
-.admissions-dashboard__applications .data-section__header,
+/* Make sure the applications section stretches FULL page width */
+.admissions-dashboard__applications .data-section__header {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem 0.25rem;
+  /* Absolute minimal horizontal padding for controls */
+  margin-bottom: 0.5rem;
+}
+
 .admissions-dashboard__applications .data-table-container {
   width: 100%;
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  /* ZERO margin and padding - FULL width edge to edge */
+  border-radius: 0;
+  /* Remove border radius for true edge-to-edge look */
 }
 
 /* Inf
