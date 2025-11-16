@@ -160,8 +160,8 @@ const AttendanceCalendar = ({
       </div>
 
       {/* Week Days Header */}
-      <div className="grid grid-cols-8 gap-[3px] mb-1">
-        <div></div> {/* Empty space for week numbers */}
+      <div className="grid grid-cols-[30px_repeat(7,1fr)] gap-[2px] mb-1">
+        <div></div> {/* Narrow space - week labels are absolutely positioned */}
         {WEEKDAY_NAMES.map(day => (
           <div key={day} className="text-center text-xs font-bold text-[#6B7280] py-2 uppercase tracking-wider">
             {day}
@@ -169,15 +169,38 @@ const AttendanceCalendar = ({
         ))}
       </div>
 
-      {/* Calendar Grid with Week Numbers */}
-      <div className="flex-1 flex flex-col gap-[3px] min-h-0">
-        {calendarWeeks.map((week, weekIdx) => (
-          <div key={weekIdx} className="grid grid-cols-8 gap-[3px] h-[85px]">
-            {/* Week Number */}
-            <div className="flex items-center justify-center">
-              <span className="text-xs font-bold text-[#6B7280] transform -rotate-90">
+      {/* Calendar Grid with Week Labels */}
+      <div className="flex-1 flex flex-col gap-[2px] min-h-0 relative">
+        {/* Week Labels - Positioned absolutely at far left edge (left-0) */}
+        <div className="absolute left-0 top-0 flex flex-col pointer-events-none">
+          {calendarWeeks.map((week, weekIdx) => (
+            <div 
+              key={weekIdx} 
+              className="flex items-center justify-start pl-1"
+              style={{ 
+                height: weekIdx === calendarWeeks.length - 1 ? '85px' : 'calc(85px + 2px)'
+              }}
+            >
+              <span 
+                className="text-xs font-bold text-[#6B7280]"
+                style={{
+                  writingMode: 'vertical-rl',
+                  textOrientation: 'mixed',
+                  transform: 'rotate(180deg)'
+                }}
+              >
                 WEEK {String(weekIdx + 1).padStart(2, '0')}
               </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar Rows */}
+        {calendarWeeks.map((week, weekIdx) => (
+          <div key={weekIdx} className="grid grid-cols-[30px_repeat(7,1fr)] gap-[2px] h-[85px]">
+            {/* Narrow space - week labels overlay this */}
+            <div className="flex items-center justify-center">
+              {/* Week label is absolutely positioned at left-0, this is just minimal spacing */}
             </div>
             
             {/* Week Days */}
