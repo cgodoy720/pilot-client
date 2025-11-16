@@ -26,6 +26,8 @@ const SessionTester = ({ sharedData, updateSharedData }) => {
   const [isUpdatingFromEdit, setIsUpdatingFromEdit] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
+  const [showSchemaEditor, setShowSchemaEditor] = useState(false);
+  const [schemaFields, setSchemaFields] = useState([]);
   const fileInputRef = useRef(null);
 
   // Listen for generated JSON from JSON Generator
@@ -300,6 +302,15 @@ const SessionTester = ({ sharedData, updateSharedData }) => {
     if (currentDayData.time_blocks[taskBlockIndex] && currentDayData.time_blocks[taskBlockIndex].task) {
       currentDayData.time_blocks[taskBlockIndex].task[field] = value;
       
+      // If deliverable_type is changing to 'structured', initialize empty schema if needed
+      if (field === 'deliverable_type' && value === 'structured') {
+        if (!currentDayData.time_blocks[taskBlockIndex].task.deliverable_schema) {
+          currentDayData.time_blocks[taskBlockIndex].task.deliverable_schema = {
+            fields: []
+          };
+        }
+      }
+      
       // Update tasks array too
       const updatedTasks = [...tasks];
       updatedTasks[currentTaskIndex][field] = value;
@@ -307,6 +318,69 @@ const SessionTester = ({ sharedData, updateSharedData }) => {
       
       updateSessionData(updatedAllDays);
     }
+  };
+
+  // Open schema editor
+  const openSchemaEditor = () => {
+    const currentTaskData = tasks[currentTaskIndex];
+    if (currentTaskData && currentTaskData.deliverable_schema && currentTaskData.deliverable_schema.fields) {
+      setSchemaFields([...currentTaskData.deliverable_schema.fields]);
+    } else {
+      setSchemaFields([]);
+    }
+    setShowSchemaEditor(true);
+  };
+
+  // Close schema editor
+  const closeSchemaEditor = () => {
+    setShowSchemaEditor(false);
+    setSchemaFields([]);
+  };
+
+  // Save schema changes
+  const saveSchema = () => {
+    const updatedAllDays = [...allDays];
+    const currentDayData = updatedAllDays[currentDayIndex];
+    const taskBlockIndex = tasks[currentTaskIndex].blockIndex;
+    const task = currentDayData.time_blocks[taskBlockIndex].task;
+    
+    task.deliverable_schema = {
+      fields: schemaFields
+    };
+    
+    // Update tasks array
+    const updatedTasks = [...tasks];
+    updatedTasks[currentTaskIndex].deliverable_schema = task.deliverable_schema;
+    setTasks(updatedTasks);
+    
+    updateSessionData(updatedAllDays);
+    closeSchemaEditor();
+  };
+
+  // Add new schema field
+  const addSchemaField = () => {
+    setSchemaFields([...schemaFields, {
+      name: 'new_field',
+      label: 'New Field',
+      type: 'text',
+      placeholder: '',
+      required: false,
+      rows: 1
+    }]);
+  };
+
+  // Update schema field
+  const updateSchemaField = (index, field, value) => {
+    const updated = [...schemaFields];
+    updated[index][field] = value;
+    setSchemaFields(updated);
+  };
+
+  // Delete schema field
+  const deleteSchemaField = (index) => {
+    const updated = [...schemaFields];
+    updated.splice(index, 1);
+    setSchemaFields(updated);
   };
 
   // Start editing a message
@@ -1140,9 +1214,42 @@ const SessionTester = ({ sharedData, updateSharedData }) => {
                       <div className="session-data-tester__smart-config-grid">
                         <div className="session-data-tester__smart-config-item">
                           <label>Task Mode:</label>
-                          <span className={`session-data-tester__badge session-data-tester__badge--${currentTask.task_mode || 'basic'}`}>
-                            {currentTask.task_mode === 'conversation' ? '💬 Conversation' : '📝 Basic'}
-                          </span>
+                          <select
+                            value={currentTask.task_mode || 'basic'}
+                            onChange={(e) => updateTaskCheckbox('task_mode', e.target.value)}
+                            className="session-data-tester__select"
+                          >
+                            <option value="basic">📝 Basic</option>
+                            <option value="conversation">💬 Conversation</option>
+                          </select>
+                        </div>
+                        
+                        <div className="session-data-tester__smart-config-item">
+                          <label>Deliverable Type:</label>
+                          <div className="session-data-tester__deliverable-controls">
+                            <select
+                              value={currentTask.deliverable_type || ''}
+                              onChange={(e) => updateTaskCheckbox('deliverable_type', e.target.value)}
+                              className="session-data-tester__select"
+                            >
+                              <option value="">None</option>
+                              <option value="text">📄 Text</option>
+                              <option value="document">📃 Document</option>
+                              <option value="video">🎥 Video</option>
+                              <option value="link">🔗 Link</option>
+                              <option value="structured">📋 Structured</option>
+                            </select>
+                            {currentTask.deliverable_type === 'structured' && (
+                              <button
+                                onClick={openSchemaEditor}
+                                className="session-data-tester__btn session-data-tester__btn--schema"
+                                title="Edit deliverable schema"
+                              >
+                                <FaEdit />
+                                Edit Schema
+                              </button>
+                            )}
+                          </div>
                         </div>
                         
                         {currentTask.persona && (
@@ -1706,9 +1813,42 @@ const SessionTester = ({ sharedData, updateSharedData }) => {
                         <div className="session-data-tester__smart-config-grid">
                           <div className="session-data-tester__smart-config-item">
                             <label>Task Mode:</label>
-                            <span className={`session-data-tester__badge session-data-tester__badge--${currentTask.task_mode || 'basic'}`}>
-                              {currentTask.task_mode === 'conversation' ? '💬 Conversation' : '📝 Basic'}
-                            </span>
+                            <select
+                              value={currentTask.task_mode || 'basic'}
+                              onChange={(e) => updateTaskCheckbox('task_mode', e.target.value)}
+                              className="session-data-tester__select"
+                            >
+                              <option value="basic">📝 Basic</option>
+                              <option value="conversation">💬 Conversation</option>
+                            </select>
+                          </div>
+                          
+                          <div className="session-data-tester__smart-config-item">
+                            <label>Deliverable Type:</label>
+                            <div className="session-data-tester__deliverable-controls">
+                              <select
+                                value={currentTask.deliverable_type || ''}
+                                onChange={(e) => updateTaskCheckbox('deliverable_type', e.target.value)}
+                                className="session-data-tester__select"
+                              >
+                                <option value="">None</option>
+                                <option value="text">📄 Text</option>
+                                <option value="document">📃 Document</option>
+                                <option value="video">🎥 Video</option>
+                                <option value="link">🔗 Link</option>
+                                <option value="structured">📋 Structured</option>
+                              </select>
+                              {currentTask.deliverable_type === 'structured' && (
+                                <button
+                                  onClick={openSchemaEditor}
+                                  className="session-data-tester__btn session-data-tester__btn--schema"
+                                  title="Edit deliverable schema"
+                                >
+                                  <FaEdit />
+                                  Edit Schema
+                                </button>
+                              )}
+                            </div>
                           </div>
                           
                           {currentTask.persona && (
@@ -1979,6 +2119,167 @@ const SessionTester = ({ sharedData, updateSharedData }) => {
               >
                 <FaTimes />
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Schema Editor Modal */}
+      {showSchemaEditor && (
+        <div className="session-data-tester__schema-editor-overlay">
+          <div className="session-data-tester__schema-editor">
+            <div className="session-data-tester__schema-editor-header">
+              <h2>Edit Deliverable Schema</h2>
+              <button
+                onClick={closeSchemaEditor}
+                className="session-data-tester__schema-editor-close"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="session-data-tester__schema-editor-content">
+              <p className="session-data-tester__schema-editor-help">
+                Define the structure of the deliverable form that users will fill out. Each field represents one input in the form.
+              </p>
+
+              {schemaFields.length === 0 ? (
+                <div className="session-data-tester__schema-empty">
+                  <p>No fields defined yet. Click "Add Field" to create your first form field.</p>
+                </div>
+              ) : (
+                <div className="session-data-tester__schema-fields">
+                  {schemaFields.map((field, index) => (
+                    <div key={index} className="session-data-tester__schema-field">
+                      <div className="session-data-tester__schema-field-header">
+                        <h4>Field {index + 1}</h4>
+                        <button
+                          onClick={() => deleteSchemaField(index)}
+                          className="session-data-tester__btn session-data-tester__btn--delete-small"
+                          title="Delete field"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
+                      
+                      <div className="session-data-tester__schema-field-grid">
+                        <div className="session-data-tester__schema-field-row">
+                          <label>Field Name (key):</label>
+                          <input
+                            type="text"
+                            value={field.name || ''}
+                            onChange={(e) => updateSchemaField(index, 'name', e.target.value)}
+                            placeholder="field_name"
+                            className="session-data-tester__schema-input"
+                          />
+                        </div>
+                        
+                        <div className="session-data-tester__schema-field-row">
+                          <label>Label (display):</label>
+                          <input
+                            type="text"
+                            value={field.label || ''}
+                            onChange={(e) => updateSchemaField(index, 'label', e.target.value)}
+                            placeholder="Field Label"
+                            className="session-data-tester__schema-input"
+                          />
+                        </div>
+                        
+                        <div className="session-data-tester__schema-field-row">
+                          <label>Field Type:</label>
+                          <select
+                            value={field.type || 'text'}
+                            onChange={(e) => updateSchemaField(index, 'type', e.target.value)}
+                            className="session-data-tester__select"
+                          >
+                            <option value="text">Text</option>
+                            <option value="textarea">Textarea</option>
+                            <option value="number">Number</option>
+                            <option value="email">Email</option>
+                            <option value="url">URL</option>
+                            <option value="date">Date</option>
+                            <option value="checkbox">Checkbox</option>
+                            <option value="select">Select</option>
+                          </select>
+                        </div>
+                        
+                        <div className="session-data-tester__schema-field-row">
+                          <label>Placeholder:</label>
+                          <input
+                            type="text"
+                            value={field.placeholder || ''}
+                            onChange={(e) => updateSchemaField(index, 'placeholder', e.target.value)}
+                            placeholder="Enter placeholder text..."
+                            className="session-data-tester__schema-input"
+                          />
+                        </div>
+                        
+                        {field.type === 'textarea' && (
+                          <div className="session-data-tester__schema-field-row">
+                            <label>Rows:</label>
+                            <input
+                              type="number"
+                              value={field.rows || 3}
+                              onChange={(e) => updateSchemaField(index, 'rows', parseInt(e.target.value) || 3)}
+                              min="1"
+                              max="20"
+                              className="session-data-tester__schema-input session-data-tester__schema-input--small"
+                            />
+                          </div>
+                        )}
+                        
+                        <div className="session-data-tester__schema-field-row">
+                          <label>Help Text:</label>
+                          <input
+                            type="text"
+                            value={field.help || ''}
+                            onChange={(e) => updateSchemaField(index, 'help', e.target.value)}
+                            placeholder="Optional help text"
+                            className="session-data-tester__schema-input"
+                          />
+                        </div>
+                        
+                        <div className="session-data-tester__schema-field-row">
+                          <label className="session-data-tester__checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={field.required || false}
+                              onChange={(e) => updateSchemaField(index, 'required', e.target.checked)}
+                              className="session-data-tester__checkbox"
+                            />
+                            <span className="session-data-tester__checkbox-text">Required Field</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={addSchemaField}
+                className="session-data-tester__btn session-data-tester__btn--add"
+              >
+                <FaPlus />
+                Add Field
+              </button>
+            </div>
+
+            <div className="session-data-tester__schema-editor-actions">
+              <button
+                onClick={closeSchemaEditor}
+                className="session-data-tester__btn session-data-tester__btn--cancel"
+              >
+                <FaTimes />
+                Cancel
+              </button>
+              <button
+                onClick={saveSchema}
+                className="session-data-tester__btn session-data-tester__btn--save"
+              >
+                <FaSave />
+                Save Schema
               </button>
             </div>
           </div>
