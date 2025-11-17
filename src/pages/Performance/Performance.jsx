@@ -219,7 +219,7 @@ const Performance = () => {
       {/* Main Content - Full width panels without containers */}
       <div className="flex h-[calc(100vh-75px)]">
         {/* Left Panel - Attendance Calendar (Full Space) */}
-        <div className="flex-1 px-10 pb-10 flex flex-col bg-[#EFEFEF]">
+        <div className="flex-1 px-10 pb-10 flex flex-col bg-[#EFEFEF] overflow-y-auto">
           <AttendanceCalendar
             userId={user.user_id}
             month={selectedMonth}

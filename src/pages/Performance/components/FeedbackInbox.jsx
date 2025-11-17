@@ -70,10 +70,10 @@ const FeedbackInbox = ({ userId, feedbackData, onTaskClick, onIncompleteTaskNavi
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-3xl font-bold text-[#1F2937]" style={{ fontFamily: 'var(--font-family-bold)' }}>Inbox</h2>
+        <h2 className="text-2xl font-bold text-[#1F2937]" style={{ fontFamily: 'var(--font-family-bold)' }}>Inbox</h2>
         <div className="flex items-center gap-3">
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-32 border-[#E5E7EB] bg-white">
+            <SelectTrigger className="w-32 h-8 border-[#E5E7EB] bg-white text-sm">
               <SelectValue placeholder="All" />
             </SelectTrigger>
             <SelectContent>
@@ -91,7 +91,7 @@ const FeedbackInbox = ({ userId, feedbackData, onTaskClick, onIncompleteTaskNavi
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-48 border-[#E5E7EB] bg-white"
+              className="pl-10 w-48 h-8 border-[#E5E7EB] bg-white text-sm"
             />
           </div>
         </div>

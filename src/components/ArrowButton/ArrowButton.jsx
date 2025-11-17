@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ChevronRight } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 const ArrowButton = ({ 
@@ -12,7 +12,8 @@ const ArrowButton = ({
   size = 'md',
   rotation = 0,
   disabled = false,
-  className = ''
+  className = '',
+  useChevron = false
 }) => {
   const sizeClasses = {
     sm: 'w-4 h-4',
@@ -25,6 +26,8 @@ const ArrowButton = ({
     md: 'w-4 h-4',
     lg: 'w-[18px] h-[18px]'
   };
+
+  const Icon = useChevron ? ChevronRight : ArrowRight;
 
   return (
     <button
@@ -42,7 +45,7 @@ const ArrowButton = ({
         backgroundColor: backgroundColor
       }}
     >
-      <ArrowRight 
+      <Icon 
         className={cn(
           'relative z-10 transition-colors duration-300',
           !disabled && 'group-hover:!text-[var(--hover-arrow)]',
