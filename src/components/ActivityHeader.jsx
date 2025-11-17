@@ -69,6 +69,8 @@ const ActivityHeader = ({ currentDay, tasks, currentTaskIndex, onTaskChange }) =
           rotation={180}
             disabled={!hasPrevious}
           className="!w-[24px] !h-[24px] !rounded-[6px]"
+          useChevron={true}
+          strokeWidth={1}
         />
 
         {/* Activity Dropdown */}
@@ -107,6 +109,8 @@ const ActivityHeader = ({ currentDay, tasks, currentTaskIndex, onTaskChange }) =
           size="md"
             disabled={!hasNext}
           className="!w-[24px] !h-[24px] !rounded-[6px]"
+          useChevron={true}
+          strokeWidth={1}
         />
         </div>
 

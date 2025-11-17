@@ -28,7 +28,15 @@ const ArrowButton = ({
     lg: 'w-[18px] h-[18px]'
   };
 
+  // Chevrons use taller dimensions to appear longer
+  const chevronIconSizes = {
+    sm: 'w-3.5 h-5',
+    md: 'w-5 h-7',
+    lg: 'w-[18px] h-[26px]'
+  };
+
   const Icon = useChevron ? ChevronRight : ArrowRight;
+  const iconSizeClass = useChevron ? chevronIconSizes[size] : iconSizes[size];
 
   return (
     <button
@@ -50,7 +58,7 @@ const ArrowButton = ({
         className={cn(
           'relative z-10 transition-colors duration-300',
           !disabled && 'group-hover:!text-[var(--hover-arrow)]',
-          iconSizes[size]
+          iconSizeClass
         )}
         style={{ 
           color: arrowColor,

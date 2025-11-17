@@ -27,12 +27,13 @@ const CalendarHeader = ({ currentMonth, currentYear, onPrevMonth, onNextMonth, o
           <ArrowButton
             onClick={onPrevMonth}
             borderColor="#4242EA"
-            backgroundColor="#4242EA"
-            arrowColor="#FFFFFF"
-            hoverBackgroundColor="#EFEFEF"
-            hoverArrowColor="#4242EA"
+            backgroundColor="#EFEFEF"
+            arrowColor="#4242EA"
+            hoverBackgroundColor="#4242EA"
+            hoverArrowColor="#FFFFFF"
             size="md"
             rotation={180}
+            useChevron={true}
             className="!w-[32px] !h-[32px] !rounded-[8px]"
             strokeWidth={1}
           />
@@ -55,11 +56,12 @@ const CalendarHeader = ({ currentMonth, currentYear, onPrevMonth, onNextMonth, o
           <ArrowButton
             onClick={onNextMonth}
             borderColor="#4242EA"
-            backgroundColor="#4242EA"
-            arrowColor="#FFFFFF"
-            hoverBackgroundColor="#EFEFEF"
-            hoverArrowColor="#4242EA"
+            backgroundColor="#EFEFEF"
+            arrowColor="#4242EA"
+            hoverBackgroundColor="#4242EA"
+            hoverArrowColor="#FFFFFF"
             size="md"
+            useChevron={true}
             className="!w-[32px] !h-[32px] !rounded-[8px]"
             strokeWidth={1}
           />

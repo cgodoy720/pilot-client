@@ -123,10 +123,10 @@ const DayCell = ({ dateObj, isToday, isPast, isFuture, hasDeliverables, isComple
                 <ArrowButton
                   onClick={onClick}
                   borderColor={isToday ? '#FFFFFF' : '#4242EA'}
-                  backgroundColor={isToday ? '#FFFFFF' : '#4242EA'}
-                  arrowColor={isToday ? '#4242EA' : '#FFFFFF'}
-                  hoverBackgroundColor={isToday ? '#4242EA' : '#E3E3E3'}
-                  hoverArrowColor={isToday ? '#FFFFFF' : '#4242EA'}
+                  backgroundColor={isToday ? '#4242EA' : '#E6E3DE'}
+                  arrowColor={isToday ? '#FFFFFF' : '#4242EA'}
+                  hoverBackgroundColor={isToday ? '#FFFFFF' : '#4242EA'}
+                  hoverArrowColor={isToday ? '#4242EA' : '#FFFFFF'}
                   size="md"
                   className="!w-[20px] !h-[20px] !rounded-[0.4rem]"
                   strokeWidth={1}

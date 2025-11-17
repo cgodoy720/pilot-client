@@ -90,6 +90,7 @@ function GPT() {
   const abortControllerRef = useRef(null);
   const fetchThreadsAbortControllerRef = useRef(null);
   const fetchMessagesAbortControllerRef = useRef(null);
+  const textareaRef = useRef(null);
 
   // Check if user is inactive (in historical access mode)
   const isInactiveUser = user && user.active === false;
@@ -202,6 +203,28 @@ function GPT() {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
+
+  // Auto-resize textarea based on content
+  const handleTextareaResize = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      // Reset height to auto to get the correct scrollHeight
+      textarea.style.height = 'auto';
+      
+      // Calculate new height (min 1 row, max 5 rows)
+      const lineHeight = 26; // matches text-[18px] leading-[26px]
+      const minHeight = lineHeight; // 1 row minimum
+      const maxHeight = lineHeight * 5; // 5 rows maximum
+      
+      const newHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
+      textarea.style.height = `${newHeight}px`;
+    }
+  };
+
+  // Initial resize on mount
+  useEffect(() => {
+    handleTextareaResize();
+  }, []);
 
   const fetchThreads = async () => {
     // Abort any pending fetch threads request
@@ -416,6 +439,7 @@ function GPT() {
     
     setMessages(prevMessages => [...prevMessages, tempUserMessage]);
     setNewMessage('');
+    handleTextareaResize(); // Reset height after clearing
     setIsSending(true);
     setIsAiThinking(true);
 
@@ -482,6 +506,7 @@ function GPT() {
     
     setMessages(prevMessages => [...prevMessages, tempUserMessage]);
     setNewMessage('');
+    handleTextareaResize(); // Reset height after clearing
     setIsSending(true);
     setIsAiThinking(true);
 
@@ -1109,10 +1134,11 @@ function GPT() {
                 <div className="flex flex-col gap-2">
                   {/* Text Input */}
                   <div className="bg-white rounded-lg px-[11px] py-1 flex items-center">
-                    <input
-                      type="text"
+                    <textarea
+                      ref={textareaRef}
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
+                      onInput={handleTextareaResize}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
@@ -1121,7 +1147,8 @@ function GPT() {
                       }}
                       placeholder="Ask me anything..."
                       disabled={isInactiveUser || isSending || isLoading}
-                      className="flex-1 text-[18px] leading-[26px] font-proxima font-normal text-black bg-transparent border-none outline-none placeholder:text-black disabled:opacity-50"
+                      className="flex-1 text-[18px] leading-[26px] font-proxima font-normal text-black bg-transparent border-none outline-none placeholder:text-black disabled:opacity-50 resize-none overflow-hidden"
+                      style={{ height: 'auto', minHeight: '26px' }}
                     />
                   </div>
                   
