@@ -12,11 +12,8 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy application code (includes mcp_client)
 COPY . .
-
-# Copy mcp_client from parent directory
-COPY ../mcp_client /app/mcp_client
 
 # Create directory for cache files
 RUN mkdir -p /tmp
