@@ -13,7 +13,8 @@ const ArrowButton = ({
   rotation = 0,
   disabled = false,
   className = '',
-  useChevron = false
+  useChevron = false,
+  strokeWidth = 2
 }) => {
   const sizeClasses = {
     sm: 'w-4 h-4',
@@ -56,6 +57,7 @@ const ArrowButton = ({
           '--hover-arrow': hoverArrowColor,
           transform: rotation ? `rotate(${rotation}deg)` : undefined
         }}
+        strokeWidth={strokeWidth}
       />
       {!disabled && (
         <div 

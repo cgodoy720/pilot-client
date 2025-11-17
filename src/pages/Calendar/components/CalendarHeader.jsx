@@ -34,6 +34,7 @@ const CalendarHeader = ({ currentMonth, currentYear, onPrevMonth, onNextMonth, o
             size="md"
             rotation={180}
             className="!w-[32px] !h-[32px] !rounded-[8px]"
+            strokeWidth={1}
           />
           
           {/* Month Dropdown */}
@@ -60,6 +61,7 @@ const CalendarHeader = ({ currentMonth, currentYear, onPrevMonth, onNextMonth, o
             hoverArrowColor="#4242EA"
             size="md"
             className="!w-[32px] !h-[32px] !rounded-[8px]"
+            strokeWidth={1}
           />
         </div>
       </div>

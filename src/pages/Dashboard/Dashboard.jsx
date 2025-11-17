@@ -550,15 +550,16 @@ function Dashboard() {
 
             <div className="dashboard__date-picker">
               <button
-                className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 rounded-md transition-all duration-300 ${
+                className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
                   currentWeek > 1 
                     ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer' 
                     : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
                 }`}
+                style={{ borderRadius: '7px' }}
                 onClick={() => navigateToWeek('prev')}
                 disabled={currentWeek <= 1 || slideDirection !== null}
               >
-                <ChevronLeft className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-white' : ''}`} />
+                <ChevronLeft className={`w-5 h-7 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-white' : ''}`} strokeWidth={1} />
                 {currentWeek > 1 && (
                   <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
                 )}
@@ -583,7 +584,7 @@ function Dashboard() {
                   }
                 }}
               >
-                <SelectTrigger className="w-[100px] h-[32px] bg-white rounded-[5px] px-[10px] border-0 text-[16px] leading-[18px] font-proxima font-normal text-carbon-black">
+                <SelectTrigger className="w-[100px] h-10 bg-white px-[10px] border-0 text-[16px] leading-[18px] font-proxima font-normal text-carbon-black" style={{ borderRadius: '7px' }}>
                   <SelectValue>Week {String(currentWeek).padStart(2, '0')}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -596,15 +597,16 @@ function Dashboard() {
               </Select>
               
               <button
-                className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 rounded-md transition-all duration-300 ${
+                className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
                   currentDay?.week && currentWeek < currentDay.week
                     ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer' 
                     : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
                 }`}
+                style={{ borderRadius: '7px' }}
                 onClick={() => navigateToWeek('next')}
                 disabled={!currentDay?.week || currentWeek >= currentDay.week || slideDirection !== null}
               >
-                <ChevronRight className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-white' : ''}`} />
+                <ChevronRight className={`w-5 h-7 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-white' : ''}`} strokeWidth={1} />
                 {currentDay?.week && currentWeek < currentDay.week && (
                   <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
                 )}
@@ -737,6 +739,7 @@ function Dashboard() {
                         hoverBackgroundColor="#4242EA"
                         hoverArrowColor="#FFFFFF"
                         size="md"
+                        strokeWidth={1}
                       />
                     </div>
                   )}
@@ -750,6 +753,7 @@ function Dashboard() {
                         hoverBackgroundColor="#4242EA"
                         hoverArrowColor="#E3E3E3"
                         size="md"
+                        strokeWidth={1}
                       />
                     </div>
                   )}
@@ -793,15 +797,16 @@ function Dashboard() {
           {/* Date Picker */}
           <div className="dashboard__mobile-date-picker">
             <button
-              className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 rounded-md transition-all duration-300 ${
+              className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
                 currentWeek > 1 
                   ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer' 
                   : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
               }`}
+              style={{ borderRadius: '7px' }}
               onClick={() => navigateToWeek('prev')}
               disabled={currentWeek <= 1 || slideDirection !== null}
             >
-              <ChevronLeft className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-pursuit-purple' : ''}`} />
+              <ChevronLeft className={`w-5 h-7 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-pursuit-purple' : ''}`} strokeWidth={1} />
               {currentWeek > 1 && (
                 <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
               )}
@@ -822,7 +827,7 @@ function Dashboard() {
                 }
               }}
             >
-              <SelectTrigger className="w-[100px] h-[32px] bg-white rounded-[5px] px-[10px] border-0 text-[16px] leading-[18px] font-proxima font-normal text-carbon-black">
+              <SelectTrigger className="w-[100px] h-10 bg-white px-[10px] border-0 text-[16px] leading-[18px] font-proxima font-normal text-carbon-black" style={{ borderRadius: '7px' }}>
                 <SelectValue>Week {String(currentWeek).padStart(2, '0')}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -835,15 +840,16 @@ function Dashboard() {
             </Select>
             
             <button
-              className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 rounded-md transition-all duration-300 ${
+              className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
                 currentDay?.week && currentWeek < currentDay.week
                   ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer' 
                   : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
               }`}
+              style={{ borderRadius: '7px' }}
               onClick={() => navigateToWeek('next')}
               disabled={!currentDay?.week || currentWeek >= currentDay.week || slideDirection !== null}
             >
-              <ChevronRight className={`w-4 h-4 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-pursuit-purple' : ''}`} />
+              <ChevronRight className={`w-5 h-7 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-pursuit-purple' : ''}`} strokeWidth={1} />
               {currentDay?.week && currentWeek < currentDay.week && (
                 <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
               )}
@@ -896,6 +902,7 @@ function Dashboard() {
               hoverBackgroundColor="#4242EA"
               hoverArrowColor="#FFFFFF"
               size="md"
+              strokeWidth={1}
             />
           </div>
                   </div>

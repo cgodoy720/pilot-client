@@ -129,6 +129,7 @@ const DayCell = ({ dateObj, isToday, isPast, isFuture, hasDeliverables, isComple
                   hoverArrowColor={isToday ? '#FFFFFF' : '#4242EA'}
                   size="md"
                   className="!w-[20px] !h-[20px] !rounded-[0.4rem]"
+                  strokeWidth={1}
                 />
               )}
             </div>
