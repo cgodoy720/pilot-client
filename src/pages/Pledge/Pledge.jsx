@@ -281,7 +281,7 @@ The Pursuit AI-Native Program is an intensive program designed to empower indivi
 • Adaptive Approach to Learning: Continuously adjusting the curriculum and approach based on real-time feedback and the evolving AI landscape.
 
 II. Program Schedule & Calendar
-Program Start Date: Saturday, September 6, 2025
+Program Start Date: Saturday, December 6, 2025
 Program Duration: 2 months in AI Literacy, with the opportunity to continue for up to 7 months in AI Build and AI Showcase if selected. Please note that there may be breaks between program phases.
 
 Weekly Schedule:
@@ -303,7 +303,7 @@ Months 5-7: AI Showcase:
 • Activities: Portfolio development, building in public, job searching, and interview preparation.
 
 Key Dates:
-• Commitment Ceremony & Launch Event: September 6, 2025
+• Commitment Ceremony & Launch Event: December 6, 2025
 • Good Job Agreement Start: If you proceed to the second stage of the program (L2), you will be subject to the payment obligations of the Good Job Agreement.
 
 III. Laptops & Space
