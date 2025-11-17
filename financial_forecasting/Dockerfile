@@ -15,6 +15,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Copy mcp_client from parent directory
+COPY ../mcp_client /app/mcp_client
+
 # Create directory for cache files
 RUN mkdir -p /tmp
 
