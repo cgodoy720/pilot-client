@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import Layout from '../../components/Layout/Layout';
+import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import AttendanceCalendar from './components/AttendanceCalendar';
 import FeedbackInbox from './components/FeedbackInbox';
 import { fetchUserAttendance } from '../../utils/attendanceService';
@@ -163,24 +163,21 @@ const Performance = () => {
 
   if (error && !loading) {
     return (
-      <Layout isLoading={loading}>
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
-          <h2 className="text-destructive text-xl font-semibold">Error Loading Performance Data</h2>
-          <p className="text-muted-foreground max-w-md">{error}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="bg-primary text-primary-foreground px-6 py-3 rounded-md text-sm hover:bg-primary/90 transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      </Layout>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
+        <h2 className="text-destructive text-xl font-semibold">Error Loading Performance Data</h2>
+        <p className="text-muted-foreground max-w-md">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="bg-primary text-primary-foreground px-6 py-3 rounded-md text-sm hover:bg-primary/90 transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
     );
   }
 
   return (
-    <Layout isLoading={loading}>
-      <div className="min-h-screen bg-[#EFEFEF]">
+    <div className="min-h-screen bg-[#EFEFEF]">
       {/* Top Navigation Bar - Matching Dashboard styling */}
       <div className="flex items-stretch justify-between w-full h-[45px] mb-[15px] border-b border-[#C8C8C8]">
         <h1 
@@ -240,8 +237,10 @@ const Performance = () => {
           />
         </div>
       </div>
-      </div>
-    </Layout>
+      
+      {/* Loading Curtain */}
+      <LoadingCurtain isLoading={loading} />
+    </div>
   );
 };
 

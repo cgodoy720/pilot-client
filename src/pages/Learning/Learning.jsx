@@ -23,7 +23,7 @@ import TaskCompletionBar from '../../components/TaskCompletionBar/TaskCompletion
 
 import './Learning.css';
 import '../../styles/smart-tasks.css';
-import Layout from '../../components/Layout/Layout';
+import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 
 function Learning() {
   const { token, user } = useAuth();
@@ -777,7 +777,7 @@ function Learning() {
     })() : false;
     
     return (
-      <Layout isLoading={isPageLoading}>
+      <>
         <DailyOverview 
           currentDay={currentDay}
           tasks={tasks}
@@ -785,12 +785,14 @@ function Learning() {
           isPastDay={isPastDay}
           onStartActivity={handleStartActivity}
         />
-      </Layout>
+        {/* Loading Curtain */}
+        <LoadingCurtain isLoading={isPageLoading} />
+      </>
     );
   }
 
   return (
-    <Layout isLoading={isPageLoading}>
+    <>
       {/* Add a check for empty tasks */}
       {tasks.length === 0 ? (
         <div className="min-h-screen bg-bg-light flex items-center justify-center">
@@ -1053,7 +1055,10 @@ function Learning() {
           )}
         </div>
       )}
-    </Layout>
+      
+      {/* Loading Curtain */}
+      <LoadingCurtain isLoading={isPageLoading} />
+    </>
   );
 }
 

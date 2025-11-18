@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import Layout from '../../components/Layout/Layout';
+import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import CalendarHeader from './components/CalendarHeader';
 import WeekView from './components/WeekView';
 import { ScrollArea } from '../../components/ui/scroll-area';
@@ -228,17 +228,14 @@ function Calendar() {
 
   if (error && !isLoading) {
     return (
-      <Layout isLoading={isLoading}>
-        <div className="w-full h-full bg-bg-light flex items-center justify-center">
-          <div className="text-red-500 font-proxima">{error}</div>
-        </div>
-      </Layout>
+      <div className="w-full h-full bg-bg-light flex items-center justify-center">
+        <div className="text-red-500 font-proxima">{error}</div>
+      </div>
     );
   }
 
   return (
-    <Layout isLoading={isLoading}>
-      <div className="w-full h-full bg-bg-light flex flex-col">
+    <div className="w-full h-full bg-bg-light flex flex-col">
         {/* Error State */}
         {error && (
           <div className="p-4 mx-6 mt-6 bg-destructive/10 border border-destructive/20 rounded-lg">
@@ -274,10 +271,12 @@ function Calendar() {
                 currentYear={currentYear}
               />
             ))}
-          </div>
-        </ScrollArea>
-      </div>
-    </Layout>
+        </div>
+      </ScrollArea>
+      
+      {/* Loading Curtain */}
+      <LoadingCurtain isLoading={isLoading} />
+    </div>
   );
 }
 

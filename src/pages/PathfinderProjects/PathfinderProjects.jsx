@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import confetti from 'canvas-confetti';
-import Layout from '../../components/Layout/Layout';
+import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import './PathfinderProjects.css';
 
 function PathfinderProjects() {
@@ -720,8 +720,7 @@ function PathfinderProjects() {
   };
 
   return (
-    <Layout isLoading={isLoading}>
-      <div className="pathfinder-projects">
+    <div className="pathfinder-projects">
       <div className="pathfinder-projects__container">
         <div className="pathfinder-projects__header">
           <button 
@@ -1447,8 +1446,10 @@ function PathfinderProjects() {
           </div>
         </div>
       )}
-      </div>
-    </Layout>
+      
+      {/* Loading Curtain */}
+      <LoadingCurtain isLoading={isLoading} />
+    </div>
   );
 }
 

@@ -5,7 +5,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getThreads, getThreadMessages, createThread, sendMessageToGPT } from '../../utils/api';
 import SummaryModal from '../../components/SummaryModal/SummaryModal';
 import ReactMarkdown from 'react-markdown';
-import Layout from '../../components/Layout/Layout';
+import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 
 // New Components
 import GPTTopBar from './components/GPTTopBar';
@@ -830,8 +830,7 @@ function GPT() {
   });
 
   return (
-    <Layout isLoading={isLoading}>
-      <div className="gpt h-screen bg-bg-light flex flex-col">
+    <div className="gpt h-screen bg-bg-light flex flex-col">
       {/* Historical Access Banner */}
       {isInactiveUser && (
         <div className="bg-carbon-black/80 text-gray-300 py-3 px-4 text-center text-sm font-proxima">
@@ -1335,8 +1334,10 @@ function GPT() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </div>
-    </Layout>
+      
+      {/* Loading Curtain */}
+      <LoadingCurtain isLoading={isLoading} />
+    </div>
   );
 }
 
