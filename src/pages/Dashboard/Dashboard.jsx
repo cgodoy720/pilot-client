@@ -213,10 +213,14 @@ function Dashboard() {
     // Phase 2: Update week
     setCurrentWeek(newWeek);
     
-    // Update weekly goal
+    // Update weekly goal and level
     const newWeekData = allWeeksData.find(w => w.weekNumber === newWeek);
     if (newWeekData) {
       setWeeklyGoal(newWeekData.weeklyGoal || '');
+      // Update level based on the first day of the new week
+      if (newWeekData.days && newWeekData.days.length > 0) {
+        setCurrentLevel(newWeekData.days[0].level || 1);
+      }
     }
     
     // Phase 3: Slide in new cards from opposite direction
@@ -577,6 +581,10 @@ function Dashboard() {
                       const newWeekData = allWeeksData.find(w => w.weekNumber === targetWeek);
                       if (newWeekData) {
                         setWeeklyGoal(newWeekData.weeklyGoal || '');
+                        // Update level based on the first day of the new week
+                        if (newWeekData.days && newWeekData.days.length > 0) {
+                          setCurrentLevel(newWeekData.days[0].level || 1);
+                        }
                       }
                       setSlideDirection(targetWeek > currentWeek ? 'in-from-right' : 'in-from-left');
                       setTimeout(() => setSlideDirection(null), 1000);
@@ -821,6 +829,12 @@ function Dashboard() {
                   setSlideDirection(targetWeek > currentWeek ? 'out-right' : 'out-left');
                   setTimeout(() => {
                     setCurrentWeek(targetWeek);
+                    // Update level for mobile dropdown as well
+                    const newWeekData = allWeeksData.find(w => w.weekNumber === targetWeek);
+                    if (newWeekData && newWeekData.days && newWeekData.days.length > 0) {
+                      setCurrentLevel(newWeekData.days[0].level || 1);
+                      setWeeklyGoal(newWeekData.weeklyGoal || '');
+                    }
                     setSlideDirection(targetWeek > currentWeek ? 'in-from-right' : 'in-from-left');
                     setTimeout(() => setSlideDirection(null), 600);
                   }, 600);
