@@ -23,6 +23,7 @@ import TaskCompletionBar from '../../components/TaskCompletionBar/TaskCompletion
 
 import './Learning.css';
 import '../../styles/smart-tasks.css';
+import Layout from '../../components/Layout/Layout';
 
 function Learning() {
   const { token, user } = useAuth();
@@ -761,39 +762,6 @@ function Learning() {
     toast.info("AI Feedback feature coming soon!");
   };
 
-  // Loading state
-  if (isPageLoading) {
-    return <div className="min-h-screen bg-bg-light flex items-center justify-center">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-carbon-black">Loading learning session...</h2>
-      </div>
-    </div>;
-  }
-
-  // Add a check for empty tasks
-  if (tasks.length === 0) {
-    return (
-      <div className="min-h-screen bg-bg-light flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-carbon-black mb-4">No Activities Available</h2>
-          <p className="text-gray-600 mb-2">There are no activities scheduled for today.</p>
-          <p className="text-gray-600 mb-6">Check back tomorrow for your next scheduled activities.</p>
-          <button
-            onClick={() => navigate('/calendar')}
-            className="relative px-8 py-3 rounded-lg bg-pursuit-purple text-white font-proxima font-semibold overflow-hidden group active:scale-95 transition-all duration-300 hover:shadow-[0_0_0_1px_#4242EA]"
-          >
-            <span className="relative z-10 group-hover:text-pursuit-purple transition-colors duration-300">
-              View Calendar
-            </span>
-            <div 
-              className="absolute inset-0 -translate-x-full group-hover:translate-x-0 transition-transform duration-300 bg-bg-light"
-            />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // Show daily overview first
   if (showDailyOverview) {
     // Determine if this day is in the past by comparing dates
@@ -809,18 +777,42 @@ function Learning() {
     })() : false;
     
     return (
-      <DailyOverview 
-        currentDay={currentDay}
-        tasks={tasks}
-        taskCompletionMap={taskCompletionMap}
-        isPastDay={isPastDay}
-        onStartActivity={handleStartActivity}
-      />
+      <Layout isLoading={isPageLoading}>
+        <DailyOverview 
+          currentDay={currentDay}
+          tasks={tasks}
+          taskCompletionMap={taskCompletionMap}
+          isPastDay={isPastDay}
+          onStartActivity={handleStartActivity}
+        />
+      </Layout>
     );
   }
 
   return (
-    <div className="learning h-screen bg-bg-light flex flex-col">
+    <Layout isLoading={isPageLoading}>
+      {/* Add a check for empty tasks */}
+      {tasks.length === 0 ? (
+        <div className="min-h-screen bg-bg-light flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-carbon-black mb-4">No Activities Available</h2>
+            <p className="text-gray-600 mb-2">There are no activities scheduled for today.</p>
+            <p className="text-gray-600 mb-6">Check back tomorrow for your next scheduled activities.</p>
+            <button
+              onClick={() => navigate('/calendar')}
+              className="relative px-8 py-3 rounded-lg bg-pursuit-purple text-white font-proxima font-semibold overflow-hidden group active:scale-95 transition-all duration-300 hover:shadow-[0_0_0_1px_#4242EA]"
+            >
+              <span className="relative z-10 group-hover:text-pursuit-purple transition-colors duration-300">
+                View Calendar
+              </span>
+              <div 
+                className="absolute inset-0 -translate-x-full group-hover:translate-x-0 transition-transform duration-300 bg-bg-light"
+              />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="learning h-screen bg-bg-light flex flex-col">
       {/* Activity Header */}
       <ActivityHeader 
         currentDay={currentDay}
@@ -1033,33 +1025,35 @@ function Learning() {
         )}
       </div>
 
-      {/* Workshop Lock Banner */}
-      {workshopInfo?.isLocked && (
-        <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4 mx-6 mt-4">
-          <div className="flex items-center gap-3">
-            <div className="text-2xl">🔒</div>
-            <div>
-              <h3 className="font-bold text-yellow-800">Workshop Content Locked</h3>
-              <p className="text-yellow-700">
-                Tasks will be available on{' '}
-                <strong>
-                  {new Date(workshopInfo.startDate).toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric',
-                    timeZone: 'America/New_York'
-                  })}
-                </strong>
-                {workshopInfo.daysUntilStart > 0 && (
-                  <span> ({workshopInfo.daysUntilStart} {workshopInfo.daysUntilStart === 1 ? 'day' : 'days'} from now)</span>
-                )}
-              </p>
+          {/* Workshop Lock Banner */}
+          {workshopInfo?.isLocked && (
+            <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4 mx-6 mt-4">
+              <div className="flex items-center gap-3">
+                <div className="text-2xl">🔒</div>
+                <div>
+                  <h3 className="font-bold text-yellow-800">Workshop Content Locked</h3>
+                  <p className="text-yellow-700">
+                    Tasks will be available on{' '}
+                    <strong>
+                      {new Date(workshopInfo.startDate).toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric',
+                        timeZone: 'America/New_York'
+                      })}
+                    </strong>
+                    {workshopInfo.daysUntilStart > 0 && (
+                      <span> ({workshopInfo.daysUntilStart} {workshopInfo.daysUntilStart === 1 ? 'day' : 'days'} from now)</span>
+                    )}
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
-    </div>
+    </Layout>
   );
 }
 

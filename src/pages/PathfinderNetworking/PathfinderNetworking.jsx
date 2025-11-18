@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import Layout from '../../components/Layout/Layout';
 import './PathfinderNetworking.css';
 // MUI Icons
 import ComputerIcon from '@mui/icons-material/Computer';
@@ -546,12 +547,9 @@ function PathfinderNetworking() {
     ? activities
     : activities.filter(activity => activity.type === filterType);
 
-  if (isLoading) {
-    return <div className="pathfinder-networking__loading">Loading hustle activities...</div>;
-  }
-
   return (
-    <div className="pathfinder-networking">
+    <Layout isLoading={isLoading}>
+      <div className="pathfinder-networking">
       <div className="pathfinder-networking__container">
         <div className="pathfinder-networking__header">
           <button 
@@ -1274,7 +1272,8 @@ function PathfinderNetworking() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </Layout>
   );
 }
 

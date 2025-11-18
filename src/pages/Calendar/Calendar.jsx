@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import Layout from '../../components/Layout/Layout';
 import CalendarHeader from './components/CalendarHeader';
 import WeekView from './components/WeekView';
 import { ScrollArea } from '../../components/ui/scroll-area';
@@ -225,55 +226,58 @@ function Calendar() {
     return weeks;
   }, [weeksData, currentMonth, currentYear]);
 
-  if (isLoading) {
+  if (error && !isLoading) {
     return (
-      <div className="w-full h-full bg-bg-light flex items-center justify-center">
-        <div className="text-carbon-black font-proxima">Loading calendar data...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="w-full h-full bg-bg-light flex items-center justify-center">
-        <div className="text-red-500 font-proxima">{error}</div>
-      </div>
+      <Layout isLoading={isLoading}>
+        <div className="w-full h-full bg-bg-light flex items-center justify-center">
+          <div className="text-red-500 font-proxima">{error}</div>
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="w-full h-full bg-bg-light flex flex-col">
-      {/* Calendar Header */}
-      <CalendarHeader
-        currentMonth={currentMonth}
-        currentYear={currentYear}
-        onPrevMonth={handlePrevMonth}
-        onNextMonth={handleNextMonth}
-        onMonthChange={handleMonthChange}
-        cohortFilter={cohortFilter}
-        onCohortChange={setCohortFilter}
-        userRole={user?.role}
-      />
-      
-      {/* Weeks List */}
-      <ScrollArea className="flex-1 px-[85px] py-[20px]">
-        <div className="flex flex-col gap-[34px]">
-          {calendarWeeks.map((week, idx) => (
-            <WeekView
-              key={idx}
-              weekNumber={week.weekNumber}
-              weeklyGoal={week.weeklyGoal}
-              days={week.days}
-              onDayClick={handleDayClick}
-              currentDayId={currentDayId}
-              userProgress={userProgress}
-              currentMonth={currentMonth}
-              currentYear={currentYear}
-            />
-          ))}
-        </div>
-      </ScrollArea>
-    </div>
+    <Layout isLoading={isLoading}>
+      <div className="w-full h-full bg-bg-light flex flex-col">
+        {/* Error State */}
+        {error && (
+          <div className="p-4 mx-6 mt-6 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <p className="text-destructive text-sm">{error}</p>
+          </div>
+        )}
+        
+        {/* Calendar Header */}
+        <CalendarHeader
+          currentMonth={currentMonth}
+          currentYear={currentYear}
+          onPrevMonth={handlePrevMonth}
+          onNextMonth={handleNextMonth}
+          onMonthChange={handleMonthChange}
+          cohortFilter={cohortFilter}
+          onCohortChange={setCohortFilter}
+          userRole={user?.role}
+        />
+        
+        {/* Weeks List */}
+        <ScrollArea className="flex-1 px-[85px] py-[20px]">
+          <div className="flex flex-col gap-[34px]">
+            {calendarWeeks.map((week, idx) => (
+              <WeekView
+                key={idx}
+                weekNumber={week.weekNumber}
+                weeklyGoal={week.weeklyGoal}
+                days={week.days}
+                onDayClick={handleDayClick}
+                currentDayId={currentDayId}
+                userProgress={userProgress}
+                currentMonth={currentMonth}
+                currentYear={currentYear}
+              />
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
+    </Layout>
   );
 }
 

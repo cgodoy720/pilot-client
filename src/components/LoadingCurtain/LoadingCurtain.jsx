@@ -10,27 +10,32 @@ const LoadingCurtain = ({ isLoading }) => {
       setShouldRender(true);
       setProgress(0);
       
-      // Simulate loading progress
+      // Simulate smooth loading progress from 1-100
       const interval = setInterval(() => {
         setProgress(prev => {
           if (prev >= 100) {
             clearInterval(interval);
             return 100;
           }
-          return prev + 25;
+          // Increment by 2-4 for smooth progression
+          const increment = Math.floor(Math.random() * 3) + 2;
+          return Math.min(prev + increment, 100);
         });
-      }, 250);
+      }, 50);
 
       return () => clearInterval(interval);
+    } else if (!isLoading && shouldRender) {
+      // When loading finishes, ensure we reach 100% before closing
+      setProgress(100);
     }
-  }, [isLoading]);
+  }, [isLoading, shouldRender]);
 
   useEffect(() => {
     if (!isLoading && shouldRender) {
-      // Wait for curtain animation to fully complete (0.5s) before unmounting
+      // Wait a moment to show 100%, then wait for curtain animation to complete
       const timeout = setTimeout(() => {
         setShouldRender(false);
-      }, 600);
+      }, 800); // Increased from 600ms to 800ms to show 100% briefly
       return () => clearTimeout(timeout);
     }
   }, [isLoading, shouldRender]);
