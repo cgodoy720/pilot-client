@@ -1881,11 +1881,11 @@ def sync_invoice_payments_from_sage():
         
         # Import here to avoid circular imports
         import sys
-        # Add /app to path for Docker container, or use local path for development
-        if '/app' not in sys.path:
-            sys.path.insert(0, '/app')
-        if '/Users/jacquelinereverand/pursuit-mcp-client' not in sys.path:
-            sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        import os
+        # Add parent directory to path (works in both Docker and local dev)
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
         from mcp_client.services.sage_intacct_sync import SageIntacctService
         
         sf = get_salesforce()
@@ -2112,11 +2112,11 @@ async def get_sage_gl_accounts():
     """Get Sage Intacct GL accounts for invoice line items."""
     try:
         import sys
-        # Add /app to path for Docker container, or use local path for development
-        if '/app' not in sys.path:
-            sys.path.insert(0, '/app')
-        if '/Users/jacquelinereverand/pursuit-mcp-client' not in sys.path:
-            sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        import os
+        # Add parent directory to path (works in both Docker and local dev)
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
         from mcp_client.services.sage_intacct_sync import SageIntacctService
         
         sage_config = {
@@ -2178,11 +2178,11 @@ async def get_sage_departments():
     """Get Sage Intacct departments."""
     try:
         import sys
-        # Add /app to path for Docker container, or use local path for development
-        if '/app' not in sys.path:
-            sys.path.insert(0, '/app')
-        if '/Users/jacquelinereverand/pursuit-mcp-client' not in sys.path:
-            sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        import os
+        # Add parent directory to path (works in both Docker and local dev)
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
         from mcp_client.services.sage_intacct_sync import SageIntacctService
         
         sage_config = {
@@ -2243,11 +2243,11 @@ async def get_sage_classes():
     """Get Sage Intacct classes."""
     try:
         import sys
-        # Add /app to path for Docker container, or use local path for development
-        if '/app' not in sys.path:
-            sys.path.insert(0, '/app')
-        if '/Users/jacquelinereverand/pursuit-mcp-client' not in sys.path:
-            sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        import os
+        # Add parent directory to path (works in both Docker and local dev)
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
         from mcp_client.services.sage_intacct_sync import SageIntacctService
         
         sage_config = {
@@ -2308,11 +2308,11 @@ async def get_sage_locations():
     """Get Sage Intacct locations."""
     try:
         import sys
-        # Add /app to path for Docker container, or use local path for development
-        if '/app' not in sys.path:
-            sys.path.insert(0, '/app')
-        if '/Users/jacquelinereverand/pursuit-mcp-client' not in sys.path:
-            sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        import os
+        # Add parent directory to path (works in both Docker and local dev)
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
         from mcp_client.services.sage_intacct_sync import SageIntacctService
         
         sage_config = {
@@ -2373,11 +2373,11 @@ async def get_sage_payments(limit: int = 1000):
     """Get payment transactions from Sage Intacct."""
     try:
         import sys
-        # Add /app to path for Docker container, or use local path for development
-        if '/app' not in sys.path:
-            sys.path.insert(0, '/app')
-        if '/Users/jacquelinereverand/pursuit-mcp-client' not in sys.path:
-            sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        import os
+        # Add parent directory to path (works in both Docker and local dev)
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
         from mcp_client.services.sage_intacct_sync import SageIntacctService
         
         sage_config = {
@@ -2429,11 +2429,11 @@ async def get_sage_invoices(limit: int = 1000):
     """Get AR invoices from Sage Intacct."""
     try:
         import sys
-        # Add /app to path for Docker container, or use local path for development
-        if '/app' not in sys.path:
-            sys.path.insert(0, '/app')
-        if '/Users/jacquelinereverand/pursuit-mcp-client' not in sys.path:
-            sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        import os
+        # Add parent directory to path (works in both Docker and local dev)
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
         from mcp_client.services.sage_intacct_sync import SageIntacctService
         
         sage_config = {
@@ -2485,11 +2485,11 @@ async def get_sage_expenses(limit: int = 1000):
     """Get expense transactions from Sage Intacct (AP bills)."""
     try:
         import sys
-        # Add /app to path for Docker container, or use local path for development
-        if '/app' not in sys.path:
-            sys.path.insert(0, '/app')
-        if '/Users/jacquelinereverand/pursuit-mcp-client' not in sys.path:
-            sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        import os
+        # Add parent directory to path (works in both Docker and local dev)
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
         from mcp_client.services.sage_intacct_sync import SageIntacctService
         
         sage_config = {
@@ -2541,11 +2541,11 @@ async def get_sage_gl_accounts_balance():
     """Get GL account balances from Sage Intacct (cash accounts)."""
     try:
         import sys
-        # Add /app to path for Docker container, or use local path for development
-        if '/app' not in sys.path:
-            sys.path.insert(0, '/app')
-        if '/Users/jacquelinereverand/pursuit-mcp-client' not in sys.path:
-            sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        import os
+        # Add parent directory to path (works in both Docker and local dev)
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
         from mcp_client.services.sage_intacct_sync import SageIntacctService
         
         sage_config = {
@@ -2601,11 +2601,11 @@ async def get_cashflow_summary():
     """
     try:
         import sys
-        # Add /app to path for Docker container, or use local path for development
-        if '/app' not in sys.path:
-            sys.path.insert(0, '/app')
-        if '/Users/jacquelinereverand/pursuit-mcp-client' not in sys.path:
-            sys.path.insert(0, '/Users/jacquelinereverand/pursuit-mcp-client')
+        import os
+        # Add parent directory to path (works in both Docker and local dev)
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
         from mcp_client.services.sage_intacct_sync import SageIntacctService
         from datetime import datetime, timedelta
         from dateutil.relativedelta import relativedelta
