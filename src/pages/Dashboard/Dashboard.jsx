@@ -688,21 +688,25 @@ function Dashboard() {
                           return (
                             <div key={task.id}>
                               <div className="dashboard__day-activity">
-                                {/* Task Checkbox - Purple (complete) or Pink (incomplete) */}
+                                {/* Task Checkbox - Purple (complete), Pink (incomplete with deliverable), or White circle (incomplete without deliverable) */}
                                 {showTaskCheckbox && (
                                   <div className={`dashboard__task-checkbox ${
-                                    isComplete ? 'dashboard__task-checkbox--complete' : 'dashboard__task-checkbox--incomplete'
+                                    isComplete 
+                                      ? 'dashboard__task-checkbox--complete' 
+                                      : completionStatus?.requiresDeliverable 
+                                        ? 'dashboard__task-checkbox--incomplete' 
+                                        : 'dashboard__task-checkbox--empty'
                                   }`}>
                                     {isComplete ? (
                                       <svg viewBox="0 0 14 14" className="dashboard__task-checkbox-check">
                                         <polyline points="2.5,6 5.5,9 11.5,3" />
                                       </svg>
-                                    ) : (
+                                    ) : completionStatus?.requiresDeliverable ? (
                                       <svg viewBox="0 0 8 8" className="dashboard__task-checkbox-x">
                                         <line x1="1" y1="1" x2="7" y2="7" />
                                         <line x1="7" y1="1" x2="1" y2="7" />
                                       </svg>
-                                    )}
+                                    ) : null}
                                   </div>
                                 )}
                                 

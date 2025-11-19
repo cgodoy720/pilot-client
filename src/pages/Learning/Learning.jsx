@@ -194,6 +194,7 @@ function Learning() {
                     duration_minutes: task.duration_minutes,
                     deliverable_type: task.deliverable_type,
                     deliverable: task.deliverable,
+                    deliverable_schema: task.deliverable_schema,
                     thread_id: task.thread_id,
                     intro: task.intro,
                     questions: task.questions,
