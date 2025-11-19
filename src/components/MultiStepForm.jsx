@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import ArrowButton from './ArrowButton/ArrowButton';
 import logoFull from '../assets/logo-full.png';
 
-const MultiStepForm = ({ userType, onSubmit, onBack }) => {
+const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [direction, setDirection] = useState('forward');
   const [formData, setFormData] = useState({
@@ -272,6 +272,16 @@ const MultiStepForm = ({ userType, onSubmit, onBack }) => {
                   </p>
                 )}
 
+                {/* Server Error Message */}
+                {error && (
+                  <div className="mt-4 bg-red-500/20 border border-red-400/50 rounded-lg p-4">
+                    <p className="text-red-300 text-sm flex items-start gap-2">
+                      <span className="text-red-300 flex-shrink-0">✗</span>
+                      <span className="whitespace-pre-wrap">{error}</span>
+                    </p>
+                  </div>
+                )}
+
                 {/* Password Requirements Display */}
                 {currentQuestion.id === 'password' && formData.password && (
                   <div className="mt-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4">
@@ -339,11 +349,11 @@ const MultiStepForm = ({ userType, onSubmit, onBack }) => {
               // Last step - show Create Account button with hover animation
               <button
                 onClick={handleNext}
-                disabled={!isCurrentStepValid}
+                disabled={!isCurrentStepValid || isSubmitting}
                 className="relative bg-white text-pursuit-purple rounded-full px-6 py-2 text-sm font-proxima h-auto disabled:opacity-50 disabled:cursor-not-allowed font-medium overflow-hidden group transition-colors duration-300 border border-white"
               >
                 <span className="relative z-10 transition-colors duration-300 group-hover:text-white">
-                Create Account
+                  {isSubmitting ? 'Creating Account...' : 'Create Account'}
                 </span>
                 <div 
                   className="absolute inset-0 -translate-x-full group-hover:translate-x-0 transition-transform duration-300 bg-pursuit-purple"

@@ -51,7 +51,8 @@ function GPT() {
   const [isSending, setIsSending] = useState(false);
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   
   // Summary-related state
   const [currentThreadSummary, setCurrentThreadSummary] = useState(null);
@@ -262,7 +263,8 @@ function GPT() {
     } finally {
       // Only update loading state if not aborted
       if (!abortController.signal.aborted) {
-      setIsLoading(false);
+        setIsLoading(false);
+        setIsInitialLoad(false);
       }
     }
   };
@@ -1336,7 +1338,7 @@ function GPT() {
       </Dialog>
       
       {/* Loading Curtain */}
-      <LoadingCurtain isLoading={isLoading} />
+      <LoadingCurtain isLoading={isInitialLoad} />
     </div>
   );
 }

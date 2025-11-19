@@ -32,6 +32,9 @@ const Signup = () => {
   };
 
   const handleMultiStepSubmit = async (formData) => {
+    console.log('🔵 handleMultiStepSubmit called with userType:', userType);
+    console.log('🔵 Form data:', { ...formData, password: '[REDACTED]' });
+    
     setError('');
     setSuccessMessage('');
     setIsSubmitting(true);
@@ -42,13 +45,18 @@ const Signup = () => {
       let requestBody;
 
       if (userType === 'builder') {
+        console.log('🔵 Processing builder signup...');
         // Create builder account using the existing AuthContext signup
         const result = await signup(formData.firstName, formData.lastName, formData.email, formData.password);
         
+        console.log('🔵 Builder signup result:', result);
+        
         if (result.success) {
+          console.log('✅ Builder signup successful');
           setRegistrationComplete(true);
           setSuccessMessage(result.message || 'Builder account created successfully! Please check your email to verify your account.');
         } else {
+          console.error('❌ Builder signup failed:', result.error);
           setError(result.error || 'Failed to create account');
         }
         setIsSubmitting(false);
@@ -134,6 +142,8 @@ const Signup = () => {
         userType={userType} 
         onSubmit={handleMultiStepSubmit}
         onBack={handleBackToSelection}
+        error={error}
+        isSubmitting={isSubmitting}
       />
     );
   }
