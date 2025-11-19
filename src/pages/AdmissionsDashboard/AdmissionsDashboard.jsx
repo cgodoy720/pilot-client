@@ -278,6 +278,7 @@ const AdmissionsDashboard = () => {
     };
 
     // Helper: robustly map overview quick view to a cohort_id or 'deferred'
+    // Workshop cohorts are now excluded from getCohorts API, so no need to merge
     const getOverviewCohortParam = () => {
         if (!overviewQuickView || overviewQuickView === 'all_time') return '';
         if (overviewQuickView === 'deferred') return 'deferred';
@@ -288,8 +289,8 @@ const AdmissionsDashboard = () => {
         if (overviewQuickView === 'dec2025') {
             const match = candidates.find(c => {
                 const n = norm(c.name);
-                return n.includes('dec') && n.includes('2025');
-            }) || candidates.find(c => norm(c.name).includes('december 2025'));
+                return (n.includes('dec') || n.includes('december')) && n.includes('2025');
+            });
             return match?.cohort_id || '';
         }
 
@@ -297,7 +298,7 @@ const AdmissionsDashboard = () => {
             const match = candidates.find(c => {
                 const n = norm(c.name);
                 return (n.includes('sep') || n.includes('september')) && n.includes('2025');
-            }) || candidates.find(c => norm(c.name).includes('september 2025'));
+            });
             return match?.cohort_id || '';
         }
 
@@ -485,7 +486,7 @@ const AdmissionsDashboard = () => {
                 if (workshopsResp.ok) {
                     const workshopsData = await workshopsResp.json();
                     const workshops = Array.isArray(workshopsData) ? workshopsData : (workshopsData.workshops || []);
-                    // Filter to admissions workshops only
+                    // Filter to admissions workshops only (workshop cohorts are excluded from applicant filtering)
                     const admissionsWorkshops = workshops.filter(w => w.workshop_type === 'admissions');
                     
                     // Get set of applicant IDs from filtered apps
