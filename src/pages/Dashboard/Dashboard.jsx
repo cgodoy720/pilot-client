@@ -204,7 +204,7 @@ function Dashboard() {
     }
     
     // Phase 1: Slide out old cards
-    const slideOutDirection = direction === 'prev' ? 'out-left' : 'out-right';
+    const slideOutDirection = direction === 'prev' ? 'out-right' : 'out-left';
     setSlideDirection(slideOutDirection);
     
     // Wait for slide-out animation
@@ -224,7 +224,7 @@ function Dashboard() {
     }
     
     // Phase 3: Slide in new cards from opposite direction
-    const slideInDirection = direction === 'prev' ? 'in-from-right' : 'in-from-left';
+    const slideInDirection = direction === 'prev' ? 'in-from-left' : 'in-from-right';
     setSlideDirection(slideInDirection);
     
     // Reset after slide-in completes
