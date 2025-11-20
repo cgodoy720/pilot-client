@@ -319,12 +319,23 @@ async def get_opportunities(stage: Optional[str] = None):
                npe01__Payments_Made__c, Outstanding_Payments__c, 
                Number_of_Payments_Received__c, Most_Recent_Payment_Date__c,
                Last_Actual_Payment__c, npe01__Number_of_Payments__c,
-               PaymentDate__c, Earliest_Scheduled_Payment__c
+               PaymentDate__c, Earliest_Scheduled_Payment__c,
+               RecordType.Name, Active_Opportunity__c
         FROM Opportunity
         """
         
+        # Build WHERE clause with filters
+        where_clauses = []
+        
+        # Always filter for Philanthropy record type and Active opportunities
+        where_clauses.append("RecordType.Name = 'Philanthropy'")
+        where_clauses.append("Active_Opportunity__c = true")
+        
         if stage:
-            query += f" WHERE StageName = '{stage}'"
+            where_clauses.append(f"StageName = '{stage}'")
+        
+        if where_clauses:
+            query += " WHERE " + " AND ".join(where_clauses)
         
         query += " ORDER BY CloseDate DESC"
         

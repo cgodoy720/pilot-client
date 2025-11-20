@@ -94,6 +94,8 @@ interface Opportunity {
   npe01__Number_of_Payments__c?: number;
   PaymentDate__c?: string;
   Earliest_Scheduled_Payment__c?: string;
+  RecordType?: { Name: string };
+  Active_Opportunity__c?: boolean;
 }
 
 // Custom Autocomplete Edit Component for Account
