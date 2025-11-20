@@ -320,36 +320,42 @@ const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onC
 
   // Render scale question
   const renderScaleQuestion = () => {
+    const scaleValues = currentQuestion.scale;
+    
     return (
       <div className="survey-interface__question-content">
         <div className="survey-interface__scale-container">
-          {currentQuestion.leftLabel && (
-            <span className="survey-interface__scale-label survey-interface__scale-label--left">
-              {currentQuestion.leftLabel}
-            </span>
-          )}
-          
           <div className="survey-interface__scale-options">
-            {currentQuestion.scale.map(value => (
-              <button
-                key={value}
-                type="button"
-                className={`survey-interface__scale-button ${
-                  responses[currentQuestion.id] === value.toString() ? 'survey-interface__scale-button--selected' : ''
-                }`}
-                onClick={() => handleResponseChange(value.toString())}
-                disabled={isSubmitting || isCompleted}
-              >
-                <span>{value}</span>
-              </button>
-            ))}
+            {currentQuestion.scale.map((value, index) => {
+              const isFirst = index === 0;
+              const isLast = index === scaleValues.length - 1;
+              const showLabel = (isFirst && currentQuestion.leftLabel) || (isLast && currentQuestion.rightLabel);
+              const labelText = isFirst ? currentQuestion.leftLabel : (isLast ? currentQuestion.rightLabel : '');
+              
+              return (
+                <div 
+                  key={value}
+                  className="survey-interface__scale-option-wrapper"
+                >
+                  <button
+                    type="button"
+                    className={`survey-interface__scale-button ${
+                      responses[currentQuestion.id] === value.toString() ? 'survey-interface__scale-button--selected' : ''
+                    }`}
+                    onClick={() => handleResponseChange(value.toString())}
+                    disabled={isSubmitting || isCompleted}
+                  >
+                    <span>{value}</span>
+                  </button>
+                  {showLabel && (
+                    <span className="survey-interface__scale-label">
+                      {labelText}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          
-          {currentQuestion.rightLabel && (
-            <span className="survey-interface__scale-label survey-interface__scale-label--right">
-              {currentQuestion.rightLabel}
-            </span>
-          )}
         </div>
       </div>
     );

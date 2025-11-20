@@ -555,8 +555,16 @@ function Learning() {
       setCurrentTaskIndex(taskIndex);
     }
     
-    // Load conversation for this task
-    await loadTaskConversation(task);
+    // Check if this is an assessment task
+    const isTaskAssessment = task?.task_type === 'assessment';
+    
+    if (isTaskAssessment) {
+      // For assessment tasks, check completion status (AssessmentInterface will load itself)
+      await checkTaskCompletion(task.id);
+    } else {
+      // For regular tasks, load conversation (which will check completion)
+      await loadTaskConversation(task);
+    }
   };
 
   const loadTaskIntro = async (task) => {
@@ -595,12 +603,23 @@ function Learning() {
   const handleTaskChange = async (newTaskIndex) => {
     if (newTaskIndex === currentTaskIndex) return;
     
+    // Reset completion state when switching tasks
+    setIsTaskComplete(false);
+    
     setCurrentTaskIndex(newTaskIndex);
     
     const newTask = tasks[newTaskIndex];
     
-    // Load conversation for the new task
-    await loadTaskConversation(newTask);
+    // Check if this is an assessment task
+    const isTaskAssessment = newTask?.task_type === 'assessment';
+    
+    if (isTaskAssessment) {
+      // For assessment tasks, check completion status immediately
+      await checkTaskCompletion(newTask.id);
+    } else {
+      // For regular tasks, load conversation (which will check completion)
+      await loadTaskConversation(newTask);
+    }
   };
 
   const handleSendMessage = async (messageContent, modelFromTextarea) => {
@@ -916,7 +935,6 @@ function Learning() {
   // Handle assessment completion
   const handleAssessmentComplete = async () => {
     const currentTask = tasks[currentTaskIndex];
-    const isLastTask = currentTaskIndex === tasks.length - 1;
     
     if (!currentTask?.id) {
       toast.error("Unable to proceed - current task not found");
@@ -945,7 +963,8 @@ function Learning() {
       
       console.log('✅ Assessment task marked as complete');
       
-      // Update local completion status
+      // Update both local state and taskCompletionMap (single update)
+      setIsTaskComplete(true);
       setTaskCompletionMap(prev => ({
         ...prev,
         [currentTask.id]: {
@@ -955,19 +974,10 @@ function Learning() {
         }
       }));
       
-      // Navigate based on whether this is the last task
-      if (isLastTask) {
-        // If last task, navigate back to overview after delay
-        setTimeout(() => {
-          setShowDailyOverview(true);
-        }, 2000);
-      } else {
-        // If not last task, navigate to next task after delay
-        setTimeout(async () => {
-          const nextTaskIndex = currentTaskIndex + 1;
-          await handleTaskChange(nextTaskIndex);
-        }, 2000);
-      }
+      // Refresh completion status from backend to ensure consistency
+      await checkTaskCompletion(currentTask.id);
+      
+      // NO AUTO-NAVIGATION - let user click "Next Exercise" manually
       
     } catch (error) {
       console.error('Error marking assessment task complete:', error);
@@ -1064,6 +1074,19 @@ function Learning() {
               isCompleted={taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete || false}
               isLastTask={currentTaskIndex === tasks.length - 1}
             />
+            
+            {/* Assessment Task Completion Bar - Same as chat interface */}
+            <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
+              <div className="max-w-2xl mx-auto pointer-events-auto">
+                {(isTaskComplete || taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete) && (
+                  <TaskCompletionBar
+                    onNextExercise={handleNextExercise}
+                    onAiFeedback={handleAiFeedback}
+                    isLastTask={currentTaskIndex === tasks.length - 1}
+                  />
+                )}
+              </div>
+            </div>
           </div>
         ) : (
           // Chat Interface
@@ -1237,7 +1260,7 @@ function Learning() {
           {/* Chat Input OR Task Completion Bar - Absolute positioned at bottom */}
           <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
             <div className="max-w-2xl mx-auto pointer-events-auto">
-              {isTaskComplete ? (
+              {(isTaskComplete || taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete) ? (
                 <TaskCompletionBar
                   onNextExercise={handleNextExercise}
                   onAiFeedback={handleAiFeedback}

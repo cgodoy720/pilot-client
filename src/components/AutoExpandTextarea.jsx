@@ -26,6 +26,9 @@ const AutoExpandTextarea = ({
   disabled = false,
   showAssignmentButton = false,
   onAssignmentClick,
+  assignmentButtonText = "Assignment",
+  showInstructionsButton = false,
+  onInstructionsClick,
   showLlmDropdown = false
 }) => {
   const textareaRef = useRef(null);
@@ -97,15 +100,24 @@ const AutoExpandTextarea = ({
 
         {/* Bottom row with buttons */}
         <div className="flex justify-between items-center">
-          {/* Left side - Assignment button */}
+          {/* Left side - Assignment and Instructions buttons */}
           <div className="flex gap-2">
+            {showInstructionsButton && (
+              <Button
+                onClick={onInstructionsClick}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 h-6 rounded-full"
+              >
+                Instructions
+              </Button>
+            )}
             {showAssignmentButton && (
               <Button
                 onClick={onAssignmentClick}
                 size="sm"
                 className="bg-pursuit-purple hover:bg-pursuit-purple/90 text-stardust text-xs px-3 py-1 h-6 rounded-full"
               >
-                Assignment
+                {assignmentButtonText}
               </Button>
             )}
           </div>
