@@ -2,14 +2,35 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 
-const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, isPastDay = false, onStartActivity }) => {
+const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, isPastDay = false, onStartActivity, isPageLoading = false, navigate }) => {
   const [isAnimating, setIsAnimating] = useState(false);
   
+  // If still loading, return null - LoadingCurtain handles the visual loading state
+  if (isPageLoading) {
+    return null;
+  }
+  
+  // If loading is complete but there are no activities, show the "No Activities Available" message
   if (!currentDay || !tasks || tasks.length === 0) {
     return (
       <div className="min-h-screen bg-bg-light flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-carbon-black mb-4">Loading today's activities...</h2>
+          <h2 className="text-2xl font-bold text-carbon-black mb-4">No Activities Available</h2>
+          <p className="text-gray-600 mb-2">There are no activities scheduled for today.</p>
+          <p className="text-gray-600 mb-6">Check back tomorrow for your next scheduled activities.</p>
+          {navigate && (
+            <button
+              onClick={() => navigate('/calendar')}
+              className="relative px-8 py-3 rounded-lg bg-pursuit-purple text-white font-proxima font-semibold overflow-hidden group active:scale-95 transition-all duration-300 hover:shadow-[0_0_0_1px_#4242EA]"
+            >
+              <span className="relative z-10 group-hover:text-pursuit-purple transition-colors duration-300">
+                View Calendar
+              </span>
+              <div 
+                className="absolute inset-0 -translate-x-full group-hover:translate-x-0 transition-transform duration-300 bg-bg-light"
+              />
+            </button>
+          )}
         </div>
       </div>
     );

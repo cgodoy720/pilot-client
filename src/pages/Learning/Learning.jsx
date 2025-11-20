@@ -1007,6 +1007,8 @@ function Learning() {
           taskCompletionMap={taskCompletionMap}
           isPastDay={isPastDay}
           onStartActivity={handleStartActivity}
+          isPageLoading={isPageLoading}
+          navigate={navigate}
         />
         {/* Loading Curtain */}
         <LoadingCurtain isLoading={isPageLoading} />
