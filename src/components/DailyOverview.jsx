@@ -124,11 +124,14 @@ const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, isPastDay = 
                 const completionStatus = taskCompletionMap[task.id];
                 const completed = completionStatus?.isComplete || false;
                 const requiresDeliverable = completionStatus?.requiresDeliverable || false;
+                const isBreakTask = task.task_type === 'break';
                 
                 return (
                 <div key={task.id}>
                   <div className="flex items-start gap-2 py-2">
                     {/* Task Checkbox - Three states based on completion and deliverable requirement */}
+                    {/* Hide checkbox for break tasks */}
+                    {!isBreakTask ? (
                     <div 
                       className="flex-shrink-0 mt-[3px]"
                       style={{
@@ -179,6 +182,10 @@ const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, isPastDay = 
                         </svg>
                       ) : null /* White circle with no icon for incomplete tasks without deliverables */}
                     </div>
+                    ) : (
+                      // Empty spacer for break tasks to maintain alignment
+                      <div className="flex-shrink-0" style={{ width: '14px' }} />
+                    )}
                     <span className="text-base leading-[18px] font-proxima font-normal text-carbon-black flex-1">
                       {task.task_title || `Activity ${index + 1}`}
                     </span>

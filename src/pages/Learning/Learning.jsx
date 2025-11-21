@@ -19,6 +19,7 @@ import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
 import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
 import SurveyInterface from '../../components/SurveyInterface/SurveyInterface';
 import AssessmentInterface from '../../components/AssessmentInterface/AssessmentInterface';
+import BreakInterface from '../../components/BreakInterface/BreakInterface';
 import DeliverablePanel from './components/DeliverablePanel/DeliverablePanel';
 import TaskCompletionBar from '../../components/TaskCompletionBar/TaskCompletionBar';
 
@@ -319,6 +320,14 @@ function Learning() {
     const isTaskAssessment = task?.task_type === 'assessment';
     if (isTaskAssessment) {
       console.log(`Task ${task.id} is an assessment, skipping conversation load`);
+      setIsAiThinking(false);
+      return;
+    }
+
+    // If this is a break task, don't load conversation - break interface will handle itself
+    const isTaskBreak = task?.task_type === 'break';
+    if (isTaskBreak) {
+      console.log(`Task ${task.id} is a break, skipping conversation load`);
       setIsAiThinking(false);
       return;
     }
@@ -870,6 +879,18 @@ function Learning() {
     return currentTask?.task_type === 'assessment';
   };
 
+  // Check if current task is a break
+  const isCurrentTaskBreak = () => {
+    const currentTask = tasks[currentTaskIndex];
+    
+    if (!currentTask) {
+      return false;
+    }
+    
+    // Break detection based on task_type
+    return currentTask?.task_type === 'break';
+  };
+
   // Handle survey completion
   const handleSurveyComplete = async () => {
     const currentTask = tasks[currentTaskIndex];
@@ -1050,7 +1071,7 @@ function Learning() {
 
       {/* Main Content Area - Takes remaining height */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Survey Interface OR Assessment Interface OR Chat Interface */}
+        {/* Survey Interface OR Assessment Interface OR Break Interface OR Chat Interface */}
         {isCurrentTaskSurvey() ? (
           // Survey Interface
           <div className="flex-1 flex flex-col relative overflow-hidden">
@@ -1089,6 +1110,13 @@ function Learning() {
                 )}
               </div>
             </div>
+          </div>
+        ) : isCurrentTaskBreak() ? (
+          // Break Interface
+          <div className="flex-1 flex flex-col relative overflow-hidden">
+            <BreakInterface
+              taskTitle={tasks[currentTaskIndex]?.task_title}
+            />
           </div>
         ) : (
           // Chat Interface
@@ -1282,8 +1310,8 @@ function Learning() {
         </div>
         )}
 
-        {/* Deliverable Sidebar - Only show for non-survey and non-assessment tasks */}
-        {tasks[currentTaskIndex] && !isCurrentTaskSurvey() && !isCurrentTaskAssessment() && (
+        {/* Deliverable Sidebar - Only show for non-survey, non-assessment, and non-break tasks */}
+        {tasks[currentTaskIndex] && !isCurrentTaskSurvey() && !isCurrentTaskAssessment() && !isCurrentTaskBreak() && (
           <DeliverablePanel
             task={tasks[currentTaskIndex]}
             currentSubmission={taskSubmissions[tasks[currentTaskIndex].id]}
