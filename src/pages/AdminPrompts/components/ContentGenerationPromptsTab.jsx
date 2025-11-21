@@ -1,29 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  IconButton,
-  Chip,
-  CircularProgress,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel
-} from '@mui/material';
-import Swal from 'sweetalert2';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Star as StarIcon,
-  StarBorder as StarBorderIcon
-} from '@mui/icons-material';
+import { Button } from '../../../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Badge } from '../../../components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
+import { Plus, Edit, Trash2, Star } from 'lucide-react';
+import PromptFormDialog from './shared/PromptFormDialog';
+import LoadingState from './shared/LoadingState';
+import EmptyState from './shared/EmptyState';
+import DeleteConfirmDialog from './shared/DeleteConfirmDialog';
 
 const ContentGenerationPromptsTab = ({ showNotification, reloadPrompts }) => {
   const [prompts, setPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('all');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingPrompt, setEditingPrompt] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, prompt: null });
 
   useEffect(() => {
     fetchPrompts();
@@ -58,272 +50,97 @@ const ContentGenerationPromptsTab = ({ showNotification, reloadPrompts }) => {
     }
   };
 
-  const handleCreate = async () => {
-    const { value: formData } = await Swal.fire({
-      title: 'Create Content Generation Prompt',
-      html: `
-        <div style="text-align: left;">
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; margin-bottom: 0.5rem; color: #fff; font-weight: 500;">Name *</label>
-            <input id="swal-name" class="swal2-input" placeholder="e.g., json_build_guidelines_v2" 
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff;">
-            <small style="color: #888;">Unique identifier</small>
-          </div>
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; margin-bottom: 0.5rem; color: #fff; font-weight: 500;">Display Name *</label>
-            <input id="swal-display-name" class="swal2-input" placeholder="e.g., JSON Build Guidelines v2.0"
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff;">
-          </div>
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; margin-bottom: 0.5rem; color: #fff; font-weight: 500;">Prompt Type *</label>
-            <select id="swal-type" style="width: 100%; padding: 0.75rem; background: #1A1F2C; border: 1px solid #444; color: #fff; border-radius: 4px;">
-              <option value="json_builder">JSON Builder</option>
-              <option value="facilitator_notes">Facilitator Notes</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; margin-bottom: 0.5rem; color: #fff; font-weight: 500;">Description</label>
-            <textarea id="swal-description" placeholder="What this prompt does and when to use it..." rows="3"
-                      style="width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; padding: 0.5rem; border-radius: 4px; resize: vertical;"></textarea>
-          </div>
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; margin-bottom: 0.5rem; color: #fff; font-weight: 500;">Content * (Markdown supported)</label>
-            <textarea id="swal-content" placeholder="Enter the prompt content..." rows="10"
-                      style="width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; padding: 0.5rem; border-radius: 4px; font-family: Monaco, monospace; font-size: 0.9rem; resize: vertical;"></textarea>
-            <small style="color: #888;">This is the actual prompt that will be used for content generation</small>
-          </div>
-          <div style="margin-bottom: 1rem;">
-            <label style="display: flex; align-items: center; color: #fff; cursor: pointer;">
-              <input type="checkbox" id="swal-default" style="margin-right: 0.5rem;">
-              Set as default for this type
-            </label>
-          </div>
-          <div style="margin-bottom: 1rem;">
-            <label style="display: flex; align-items: center; color: #fff; cursor: pointer;">
-              <input type="checkbox" id="swal-active" checked style="margin-right: 0.5rem;">
-              Active (enabled for use)
-            </label>
-          </div>
-        </div>
-      `,
-      background: '#2a2d3e',
-      color: '#fff',
-      showCancelButton: true,
-      confirmButtonText: 'Create Prompt',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#4242ea',
-      cancelButtonColor: '#666',
-      width: '700px',
-      preConfirm: () => {
-        const name = document.getElementById('swal-name').value;
-        const displayName = document.getElementById('swal-display-name').value;
-        const promptType = document.getElementById('swal-type').value;
-        const description = document.getElementById('swal-description').value;
-        const content = document.getElementById('swal-content').value;
-        const isDefault = document.getElementById('swal-default').checked;
-        const isActive = document.getElementById('swal-active').checked;
-
-        if (!name.trim()) {
-          Swal.showValidationMessage('Name is required');
-          return false;
-        }
-        if (!displayName.trim()) {
-          Swal.showValidationMessage('Display name is required');
-          return false;
-        }
-        if (!content.trim()) {
-          Swal.showValidationMessage('Content is required');
-          return false;
-        }
-
-        return {
-          name: name.trim(),
-          display_name: displayName.trim(),
-          prompt_type: promptType,
-          description: description.trim() || '',
-          content: content.trim(),
-          is_default: isDefault,
-          is_active: isActive
-        };
-      }
-    });
-
-    if (formData) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/prompts/content-generation`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(formData)
-        });
-
-        if (response.ok) {
-          showNotification('Content generation prompt created successfully');
-          fetchPrompts();
-        } else {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to create prompt');
-        }
-      } catch (error) {
-        console.error('Error creating prompt:', error);
-        showNotification(error.message, 'error');
-      }
+  const formFields = [
+    {
+      name: 'name',
+      label: 'Name',
+      type: 'text',
+      required: true,
+      placeholder: 'e.g., json_build_guidelines_v2',
+      helpText: 'Unique identifier'
+    },
+    {
+      name: 'display_name',
+      label: 'Display Name',
+      type: 'text',
+      required: true,
+      placeholder: 'e.g., JSON Build Guidelines v2.0',
+      helpText: 'Human-readable name'
+    },
+    {
+      name: 'prompt_type',
+      label: 'Prompt Type',
+      type: 'select',
+      required: true,
+      options: [
+        { value: 'json_builder', label: 'JSON Builder' },
+        { value: 'facilitator_notes', label: 'Facilitator Notes' },
+        { value: 'other', label: 'Other' }
+      ],
+      helpText: 'Category of content generation'
+    },
+    {
+      name: 'description',
+      label: 'Description',
+      type: 'textarea',
+      rows: 3,
+      placeholder: 'What this prompt does and when to use it...',
+      helpText: 'Explanation of the prompt\'s purpose'
+    },
+    {
+      name: 'content',
+      label: 'Content',
+      type: 'textarea',
+      required: true,
+      rows: 10,
+      placeholder: 'Enter the prompt content...',
+      helpText: 'The actual prompt that will be used for content generation (Markdown supported)'
+    },
+    {
+      name: 'is_default',
+      label: 'Set as default for this type',
+      type: 'checkbox',
+      defaultValue: false
     }
+  ];
+
+  const handleCreate = () => {
+    setEditingPrompt(null);
+    setDialogOpen(true);
   };
 
-  const handleEdit = async (prompt) => {
-    const { value: formData } = await Swal.fire({
-      title: 'Edit Content Generation Prompt',
-      html: `
-        <div style="text-align: left;">
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; margin-bottom: 0.5rem; color: #fff; font-weight: 500;">Name *</label>
-            <input id="swal-name" class="swal2-input" value="${prompt.name || ''}"
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff;">
-          </div>
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; margin-bottom: 0.5rem; color: #fff; font-weight: 500;">Display Name *</label>
-            <input id="swal-display-name" class="swal2-input" value="${prompt.display_name || ''}"
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff;">
-          </div>
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; margin-bottom: 0.5rem; color: #fff; font-weight: 500;">Prompt Type *</label>
-            <select id="swal-type" style="width: 100%; padding: 0.75rem; background: #1A1F2C; border: 1px solid #444; color: #fff; border-radius: 4px;">
-              <option value="json_builder" ${prompt.prompt_type === 'json_builder' ? 'selected' : ''}>JSON Builder</option>
-              <option value="facilitator_notes" ${prompt.prompt_type === 'facilitator_notes' ? 'selected' : ''}>Facilitator Notes</option>
-              <option value="other" ${prompt.prompt_type === 'other' ? 'selected' : ''}>Other</option>
-            </select>
-          </div>
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; margin-bottom: 0.5rem; color: #fff; font-weight: 500;">Description</label>
-            <textarea id="swal-description" rows="3"
-                      style="width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; padding: 0.5rem; border-radius: 4px; resize: vertical;">${prompt.description || ''}</textarea>
-          </div>
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; margin-bottom: 0.5rem; color: #fff; font-weight: 500;">Content *</label>
-            <textarea id="swal-content" rows="10"
-                      style="width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; padding: 0.5rem; border-radius: 4px; font-family: Monaco, monospace; font-size: 0.9rem; resize: vertical;">${prompt.content || ''}</textarea>
-          </div>
-          <div style="margin-bottom: 1rem;">
-            <label style="display: flex; align-items: center; color: #fff; cursor: pointer;">
-              <input type="checkbox" id="swal-default" ${prompt.is_default ? 'checked' : ''} style="margin-right: 0.5rem;">
-              Set as default for this type
-            </label>
-          </div>
-          <div style="margin-bottom: 1rem;">
-            <label style="display: flex; align-items: center; color: #fff; cursor: pointer;">
-              <input type="checkbox" id="swal-active" ${prompt.is_active !== false ? 'checked' : ''} style="margin-right: 0.5rem;">
-              Active (enabled for use)
-            </label>
-          </div>
-        </div>
-      `,
-      background: '#2a2d3e',
-      color: '#fff',
-      showCancelButton: true,
-      confirmButtonText: 'Save Changes',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#4242ea',
-      cancelButtonColor: '#666',
-      width: '700px',
-      preConfirm: () => {
-        const name = document.getElementById('swal-name').value;
-        const displayName = document.getElementById('swal-display-name').value;
-        const promptType = document.getElementById('swal-type').value;
-        const description = document.getElementById('swal-description').value;
-        const content = document.getElementById('swal-content').value;
-        const isDefault = document.getElementById('swal-default').checked;
-        const isActive = document.getElementById('swal-active').checked;
-
-        if (!name.trim()) {
-          Swal.showValidationMessage('Name is required');
-          return false;
-        }
-        if (!displayName.trim()) {
-          Swal.showValidationMessage('Display name is required');
-          return false;
-        }
-        if (!content.trim()) {
-          Swal.showValidationMessage('Content is required');
-          return false;
-        }
-
-        return {
-          name: name.trim(),
-          display_name: displayName.trim(),
-          prompt_type: promptType,
-          description: description.trim() || '',
-          content: content.trim(),
-          is_default: isDefault,
-          is_active: isActive
-        };
-      }
-    });
-
-    if (formData) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/prompts/content-generation/${prompt.id}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(formData)
-        });
-
-        if (response.ok) {
-          showNotification('Prompt updated successfully');
-          fetchPrompts();
-        } else {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to update prompt');
-        }
-      } catch (error) {
-        console.error('Error updating prompt:', error);
-        showNotification(error.message, 'error');
-      }
-    }
+  const handleEdit = (prompt) => {
+    setEditingPrompt(prompt);
+    setDialogOpen(true);
   };
 
-  const handleDelete = async (prompt) => {
-    const result = await Swal.fire({
-      title: 'Delete Prompt?',
-      text: `Are you sure you want to delete "${prompt.display_name}"? This cannot be undone.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#666',
-      confirmButtonText: 'Yes, delete it',
-      background: '#2a2d3e',
-      color: '#fff'
-    });
+  const handleDelete = (prompt) => {
+    setDeleteDialog({ open: true, prompt });
+  };
 
-    if (result.isConfirmed) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/prompts/content-generation/${prompt.id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          showNotification('Prompt deleted successfully');
-          fetchPrompts();
-        } else {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to delete prompt');
+  const confirmDelete = async () => {
+    const prompt = deleteDialog.prompt;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/prompts/content-generation/${prompt.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      } catch (error) {
-        console.error('Error deleting prompt:', error);
-        showNotification(error.message, 'error');
+      });
+
+      if (response.ok) {
+        showNotification('Content generation prompt deleted successfully');
+        fetchPrompts();
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete prompt');
       }
+    } catch (error) {
+      console.error('Error deleting prompt:', error);
+      showNotification(error.message, 'error');
+    } finally {
+      setDeleteDialog({ open: false, prompt: null });
     }
   };
 
@@ -338,7 +155,7 @@ const ContentGenerationPromptsTab = ({ showNotification, reloadPrompts }) => {
       });
 
       if (response.ok) {
-        showNotification(`Set "${prompt.display_name}" as default for ${prompt.prompt_type}`);
+        showNotification(`"${prompt.display_name}" set as default for ${prompt.prompt_type}`);
         fetchPrompts();
       } else {
         const error = await response.json();
@@ -350,164 +167,222 @@ const ContentGenerationPromptsTab = ({ showNotification, reloadPrompts }) => {
     }
   };
 
-  const getTypeColor = (type) => {
+  const handleSubmit = async (formData) => {
+    try {
+      const token = localStorage.getItem('token');
+      const url = editingPrompt
+        ? `${import.meta.env.VITE_API_URL}/api/admin/prompts/content-generation/${editingPrompt.id}`
+        : `${import.meta.env.VITE_API_URL}/api/admin/prompts/content-generation`;
+      
+      const response = await fetch(url, {
+        method: editingPrompt ? 'PUT' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        showNotification(`Content generation prompt ${editingPrompt ? 'updated' : 'created'} successfully`);
+        setDialogOpen(false);
+        fetchPrompts();
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || `Failed to ${editingPrompt ? 'update' : 'create'} prompt`);
+      }
+    } catch (error) {
+      console.error('Error saving prompt:', error);
+      showNotification(error.message, 'error');
+    }
+  };
+
+  const getTypeBadgeColor = (type) => {
     switch (type) {
-      case 'json_builder': return 'primary';
-      case 'facilitator_notes': return 'secondary';
-      default: return 'default';
+      case 'json_builder':
+        return 'bg-[#4242EA] text-white hover:bg-[#3535D1]';
+      case 'facilitator_notes':
+        return 'bg-purple-600 text-white hover:bg-purple-700';
+      case 'other':
+        return 'bg-orange-500 text-white hover:bg-orange-600';
+      default:
+        return 'bg-gray-500 text-white hover:bg-gray-600';
     }
   };
 
   const getTypeLabel = (type) => {
-    switch (type) {
-      case 'json_builder': return 'JSON Builder';
-      case 'facilitator_notes': return 'Facilitator Notes';
-      default: return type;
-    }
+    const labels = {
+      json_builder: 'JSON Builder',
+      facilitator_notes: 'Facilitator Notes',
+      other: 'Other'
+    };
+    return labels[type] || type;
   };
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <div className="w-[200px] h-10 bg-[#E3E3E3] animate-pulse rounded"></div>
+          <div className="w-[150px] h-10 bg-[#E3E3E3] animate-pulse rounded"></div>
+        </div>
+        <LoadingState count={3} />
+      </div>
     );
   }
 
   return (
-    <div className="prompt-tab">
-      <div className="prompt-tab__header">
-        <div>
-          <Typography variant="h5" gutterBottom>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-start gap-4 flex-wrap">
+        <div className="flex-1">
+          <h2 className="font-proxima-bold text-2xl text-[#1E1E1E] mb-2">
             Content Generation Prompts
-          </Typography>
-          <Typography variant="body2" color="textSecondary">
-            Manage prompts for JSON Generator, Facilitator Notes, and other content generation tools
-          </Typography>
+          </h2>
+          <p className="font-proxima text-[#666]">
+            Specialized prompts used for generating different types of content.
+          </p>
         </div>
-        <div className="prompt-tab__actions">
-          <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel>Filter by Type</InputLabel>
-            <Select
-              value={filterType}
-              label="Filter by Type"
-              onChange={(e) => setFilterType(e.target.value)}
-            >
-              <MenuItem value="all">All Types</MenuItem>
-              <MenuItem value="json_builder">JSON Builder</MenuItem>
-              <MenuItem value="facilitator_notes">Facilitator Notes</MenuItem>
-              <MenuItem value="other">Other</MenuItem>
-            </Select>
-          </FormControl>
+
+        <div className="flex gap-3 items-center flex-wrap">
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-[200px] bg-white border-[#C8C8C8]">
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="json_builder">JSON Builder</SelectItem>
+              <SelectItem value="facilitator_notes">Facilitator Notes</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Button
-            variant="contained"
-            startIcon={<AddIcon />}
             onClick={handleCreate}
+            className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
           >
+            <Plus className="h-4 w-4 mr-2" />
             Create Prompt
           </Button>
         </div>
       </div>
 
+      {/* Prompts Grid */}
       {prompts.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state__icon">📝</div>
-          <Typography variant="h6" gutterBottom>
-            No content generation prompts found
-          </Typography>
-          <Typography variant="body2" color="textSecondary">
-            Create your first prompt to get started
-          </Typography>
-        </div>
+        <EmptyState
+          icon="✨"
+          title="No content generation prompts found"
+          description={filterType === 'all' ? 'Create your first content generation prompt to get started.' : `No prompts found for type: ${getTypeLabel(filterType)}`}
+          actionLabel="Create Prompt"
+          onAction={handleCreate}
+        />
       ) : (
-        <div className="prompt-list">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {prompts.map((prompt) => (
-            <div key={prompt.id} className="prompt-item">
-              <div className="prompt-item__header">
-                <div className="prompt-item__title">
-                  <Typography variant="h6" component="h3">
-                    {prompt.display_name}
-                    {prompt.is_default && (
-                      <Chip
-                        icon={<StarIcon />}
-                        label="Default"
-                        size="small"
-                        color="warning"
-                        sx={{ ml: 1 }}
-                      />
-                    )}
-                    {!prompt.is_active && (
-                      <Chip 
-                        label="Inactive" 
-                        size="small" 
-                        color="default"
-                        sx={{ ml: 1 }}
-                      />
-                    )}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    {prompt.name}
-                  </Typography>
-                  <Box sx={{ mt: 0.5 }}>
-                    <Chip
-                      label={getTypeLabel(prompt.prompt_type)}
-                      size="small"
-                      color={getTypeColor(prompt.prompt_type)}
-                    />
-                  </Box>
-                  {prompt.description && (
-                    <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                      {prompt.description}
-                    </Typography>
+            <Card key={prompt.id} className="bg-white border-[#C8C8C8] hover:border-[#4242EA] hover:shadow-lg transition-all duration-200">
+              <CardHeader>
+                <div className="flex justify-between items-start gap-2 mb-2">
+                  <Badge className={getTypeBadgeColor(prompt.prompt_type)}>
+                    {getTypeLabel(prompt.prompt_type)}
+                  </Badge>
+                  {prompt.is_default && (
+                    <Badge className="bg-[#FFD3C2] text-[#1E1E1E] hover:bg-[#FFD3C2]">
+                      Default
+                    </Badge>
                   )}
                 </div>
-                <div className="prompt-item__actions">
-                  <IconButton
-                    size="small"
-                    onClick={() => handleSetDefault(prompt)}
-                    disabled={prompt.is_default}
-                    title={prompt.is_default ? 'This is the default' : 'Set as default'}
-                  >
-                    {prompt.is_default ? <StarIcon color="warning" /> : <StarBorderIcon />}
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleEdit(prompt)}
-                    title="Edit"
-                  >
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleDelete(prompt)}
-                    disabled={prompt.is_default}
-                    title={prompt.is_default ? 'Cannot delete default prompt' : 'Delete'}
-                    color="error"
-                  >
-                    <DeleteIcon />
-                  </IconButton>
+
+                <CardTitle className="font-proxima-bold text-[#1E1E1E] text-base">
+                  {prompt.display_name}
+                </CardTitle>
+
+                <CardDescription className="font-proxima text-[#666] text-xs">
+                  ID: {prompt.name}
+                </CardDescription>
+
+                {prompt.description && (
+                  <CardDescription className="font-proxima text-[#666] text-sm mt-2">
+                    {prompt.description}
+                  </CardDescription>
+                )}
+              </CardHeader>
+
+              <CardContent className="space-y-3">
+                <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-3 max-h-[150px] overflow-y-auto">
+                  <pre className="font-mono text-xs text-[#1E1E1E] whitespace-pre-wrap leading-relaxed">
+                    {prompt.content.length > 300 ? `${prompt.content.substring(0, 300)}...` : prompt.content}
+                  </pre>
                 </div>
-              </div>
-              
-              <div className="prompt-item__content">
-                <Typography variant="caption" color="textSecondary" display="block" mb={1}>
-                  Prompt Content Preview:
-                </Typography>
-                {prompt.content.substring(0, 500)}
-                {prompt.content.length > 500 && '...'}
-              </div>
-              
-              <div className="prompt-item__meta">
-                <span>Updated: {new Date(prompt.updated_at).toLocaleDateString()}</span>
-                <span>{prompt.content.length} characters</span>
-              </div>
-            </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-[#E3E3E3]">
+                  <div className="text-xs text-[#666] font-proxima">
+                    Updated: {new Date(prompt.updated_at).toLocaleDateString()}
+                  </div>
+
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleSetDefault(prompt)}
+                      disabled={prompt.is_default}
+                      className={`h-7 w-7 ${
+                        prompt.is_default 
+                          ? 'text-[#4242EA]' 
+                          : 'text-[#666] hover:text-[#4242EA]'
+                      }`}
+                      title={prompt.is_default ? 'This is the default' : 'Set as default'}
+                    >
+                      <Star className={`h-3.5 w-3.5 ${prompt.is_default ? 'fill-current' : ''}`} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(prompt)}
+                      className="h-7 w-7 text-[#666] hover:text-[#4242EA]"
+                      title="Edit"
+                    >
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(prompt)}
+                      disabled={prompt.is_default}
+                      className="h-7 w-7 text-[#666] hover:text-red-600 disabled:opacity-30"
+                      title={prompt.is_default ? 'Cannot delete default prompt' : 'Delete'}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
+
+      {/* Form Dialog */}
+      <PromptFormDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onSubmit={handleSubmit}
+        title={editingPrompt ? 'Edit Content Generation Prompt' : 'Create Content Generation Prompt'}
+        confirmText={editingPrompt ? 'Update' : 'Create'}
+        initialData={editingPrompt || {}}
+        fields={formFields}
+      />
+
+      {/* Delete Confirmation */}
+      <DeleteConfirmDialog
+        open={deleteDialog.open}
+        onClose={() => setDeleteDialog({ open: false, prompt: null })}
+        onConfirm={confirmDelete}
+        title="Delete Content Generation Prompt?"
+        itemName={deleteDialog.prompt?.display_name}
+        description="This action cannot be undone."
+      />
     </div>
   );
 };
 
 export default ContentGenerationPromptsTab;
-

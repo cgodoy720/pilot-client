@@ -1,11 +1,11 @@
-/* Notes Modal Component */
+/* Notes Modal Component - Light Theme */
 .notes-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -13,8 +13,8 @@
 }
 
 .notes-modal {
-  background: #1a1f2c;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: white;
+  border: 1px solid var(--color-divider);
   border-radius: 12px;
   width: 90%;
   max-width: 600px;
@@ -22,20 +22,21 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 .notes-modal__header {
   padding: 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--color-divider);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-bg-light);
 }
 
 .notes-modal__header h2 {
   margin: 0;
-  color: var(--color-text-primary);
+  color: var(--color-carbon-black);
   font-size: 1.5rem;
   font-weight: 600;
   text-align: left;
@@ -44,7 +45,7 @@
 .notes-modal__close-btn {
   background: none;
   border: none;
-  color: var(--color-text-secondary);
+  color: var(--color-carbon-black);
   font-size: 1.5rem;
   cursor: pointer;
   padding: 0;
@@ -58,8 +59,8 @@
 }
 
 .notes-modal__close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--color-text-primary);
+  background: var(--color-divider);
+  color: var(--color-pursuit-purple);
 }
 
 .notes-modal__content {
@@ -77,16 +78,16 @@
   flex-direction: column;
   gap: 1rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--color-divider);
 }
 
 .add-note-textarea {
   width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: white;
+  border: 1px solid var(--color-divider);
   border-radius: 6px;
   padding: 0.75rem;
-  color: var(--color-text-primary);
+  color: var(--color-carbon-black);
   font-size: 0.9rem;
   resize: vertical;
   min-height: 80px;
@@ -94,18 +95,19 @@
 
 .add-note-textarea:focus {
   outline: none;
-  border-color: var(--color-primary);
-  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--color-pursuit-purple);
+  background: white;
+  box-shadow: 0 0 0 2px rgba(111, 61, 235, 0.1);
 }
 
 .add-note-textarea::placeholder {
-  color: var(--color-text-secondary);
-  opacity: 0.7;
+  color: var(--color-carbon-black);
+  opacity: 0.5;
 }
 
 .add-note-btn {
   align-self: flex-start;
-  background: var(--color-primary);
+  background: var(--color-pursuit-purple);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -116,7 +118,7 @@
 }
 
 .add-note-btn:hover:not(:disabled) {
-  background: #5a6bc4;
+  background: rgba(111, 61, 235, 0.9);
 }
 
 .add-note-btn:disabled {
@@ -130,7 +132,7 @@
   border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 6px;
   padding: 0.75rem;
-  color: #f87171;
+  color: #dc2626;
   font-size: 0.9rem;
   text-align: left;
 }
@@ -148,14 +150,15 @@
   align-items: center;
   gap: 1rem;
   padding: 2rem;
-  color: var(--color-text-secondary);
+  color: var(--color-carbon-black);
+  opacity: 0.7;
 }
 
 .notes-loading .spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid rgba(102, 126, 234, 0.2);
-  border-top: 3px solid var(--color-primary);
+  border: 3px solid var(--color-divider);
+  border-top: 3px solid var(--color-pursuit-purple);
   border-radius: 50%;
   animation: notes-spin 1s linear infinite;
 }
@@ -168,13 +171,14 @@
 .no-notes {
   text-align: left;
   padding: 2rem;
-  color: var(--color-text-secondary);
+  color: var(--color-carbon-black);
+  opacity: 0.7;
 }
 
 /* Note Items */
 .note-item {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-bg-light);
+  border: 1px solid var(--color-divider);
   border-radius: 8px;
   padding: 1rem;
 }
@@ -185,25 +189,25 @@
   align-items: center;
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--color-divider);
 }
 
 .note-author {
   font-weight: 600;
-  color: var(--color-primary);
+  color: var(--color-pursuit-purple);
   font-size: 0.9rem;
   text-align: left;
 }
 
 .note-date {
   font-size: 0.8rem;
-  color: var(--color-text-secondary);
-  opacity: 0.8;
+  color: var(--color-carbon-black);
+  opacity: 0.7;
   text-align: left;
 }
 
 .note-content {
-  color: var(--color-text-primary);
+  color: var(--color-carbon-black);
   line-height: 1.5;
   margin-bottom: 0.75rem;
   white-space: pre-wrap;
@@ -217,8 +221,8 @@
 
 .edit-note-btn, .delete-note-btn {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: var(--color-text-secondary);
+  border: 1px solid var(--color-divider);
+  color: var(--color-carbon-black);
   padding: 0.25rem 0.75rem;
   border-radius: 4px;
   font-size: 0.8rem;
@@ -227,8 +231,8 @@
 }
 
 .edit-note-btn:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  border-color: var(--color-pursuit-purple);
+  color: var(--color-pursuit-purple);
 }
 
 .delete-note-btn:hover {
@@ -245,11 +249,11 @@
 
 .edit-note-textarea {
   width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: white;
+  border: 1px solid var(--color-divider);
   border-radius: 6px;
   padding: 0.75rem;
-  color: var(--color-text-primary);
+  color: var(--color-carbon-black);
   font-size: 0.9rem;
   resize: vertical;
   min-height: 80px;
@@ -257,8 +261,8 @@
 
 .edit-note-textarea:focus {
   outline: none;
-  border-color: var(--color-primary);
-  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--color-pursuit-purple);
+  box-shadow: 0 0 0 2px rgba(111, 61, 235, 0.1);
 }
 
 .note-edit-actions {
@@ -267,7 +271,7 @@
 }
 
 .save-edit-btn {
-  background: var(--color-primary);
+  background: var(--color-pursuit-purple);
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -279,7 +283,7 @@
 }
 
 .save-edit-btn:hover:not(:disabled) {
-  background: #5a6bc4;
+  background: rgba(111, 61, 235, 0.9);
 }
 
 .save-edit-btn:disabled {
@@ -289,8 +293,8 @@
 
 .cancel-edit-btn {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: var(--color-text-secondary);
+  border: 1px solid var(--color-divider);
+  color: var(--color-carbon-black);
   padding: 0.5rem 1rem;
   border-radius: 4px;
   font-size: 0.8rem;
@@ -299,8 +303,7 @@
 }
 
 .cancel-edit-btn:hover {
-  border-color: var(--color-text-primary);
-  color: var(--color-text-primary);
+  border-color: var(--color-carbon-black);
 }
 
 /* Responsive Design */
@@ -332,7 +335,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -340,35 +343,38 @@
 }
 
 .delete-confirm-modal {
-  background: #1a1f2c;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: white;
+  border: 1px solid var(--color-divider);
   border-radius: 12px;
   padding: 2rem;
   width: 90%;
   max-width: 400px;
   text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .delete-confirm-modal h3 {
   margin: 0 0 1rem 0;
-  color: var(--color-text-primary);
+  color: var(--color-carbon-black);
   font-size: 1.25rem;
   font-weight: 600;
 }
 
 .delete-confirm-modal p {
   margin: 0 0 1rem 0;
-  color: var(--color-text-secondary);
+  color: var(--color-carbon-black);
+  opacity: 0.7;
   text-align: center;
 }
 
 .note-preview {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-bg-light);
+  border: 1px solid var(--color-divider);
   border-radius: 6px;
   padding: 0.75rem;
   margin: 1rem 0 1.5rem 0;
-  color: var(--color-text-secondary);
+  color: var(--color-carbon-black);
+  opacity: 0.8;
   font-style: italic;
   text-align: left;
   font-size: 0.9rem;
@@ -381,9 +387,9 @@
 }
 
 .cancel-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: var(--color-text-primary);
+  background: white;
+  border: 1px solid var(--color-divider);
+  color: var(--color-carbon-black);
   padding: 0.75rem 1.5rem;
   border-radius: 6px;
   cursor: pointer;
@@ -392,7 +398,8 @@
 }
 
 .cancel-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--color-bg-light);
+  border-color: var(--color-carbon-black);
 }
 
 .confirm-delete-btn {
@@ -409,4 +416,4 @@
 .confirm-delete-btn:hover {
   background: #c82333;
   border-color: #c82333;
-} 
+}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import './FormSettings.css';
+import { X, Plus } from 'lucide-react';
 
 const FormSettings = ({ settings, onUpdate }) => {
   const [emailInput, setEmailInput] = useState('');
@@ -30,70 +30,69 @@ const FormSettings = ({ settings, onUpdate }) => {
   };
 
   return (
-    <div className="form-settings">
-      <h2 className="form-settings__title">Form Settings</h2>
+    <div className="max-w-3xl">
+      <h2 className="text-2xl font-bold text-gray-800 mb-8">Form Settings</h2>
 
-      <div className="form-settings__section">
-        <h3 className="form-settings__section-title">Response Settings</h3>
+      {/* Response Settings */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-6">Response Settings</h3>
         
-        <div className="form-settings__field">
-          <label className="form-settings__checkbox-label">
+        <div className="space-y-4">
+          <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
               checked={settings.allow_multiple_submissions}
               onChange={(e) => handleChange('allow_multiple_submissions', e.target.checked)}
+              className="w-5 h-5 accent-[#4242ea] cursor-pointer mt-0.5"
             />
-            <div>
-              <strong>Allow Multiple Submissions</strong>
-              <p className="form-settings__help-text">
+            <div className="flex-1">
+              <strong className="text-gray-800 block">Allow Multiple Submissions</strong>
+              <p className="text-sm text-gray-600 mt-1">
                 Allow respondents to submit the form more than once
               </p>
             </div>
           </label>
-        </div>
 
-        <div className="form-settings__field">
-          <label className="form-settings__checkbox-label">
+          <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
               checked={settings.require_email}
               onChange={(e) => handleChange('require_email', e.target.checked)}
+              className="w-5 h-5 accent-[#4242ea] cursor-pointer mt-0.5"
             />
-            <div>
-              <strong>Require Email Address</strong>
-              <p className="form-settings__help-text">
+            <div className="flex-1">
+              <strong className="text-gray-800 block">Require Email Address</strong>
+              <p className="text-sm text-gray-600 mt-1">
                 Collect respondent email addresses
               </p>
             </div>
           </label>
-        </div>
 
-        <div className="form-settings__field">
-          <label className="form-settings__checkbox-label">
+          <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
               checked={settings.show_progress}
               onChange={(e) => handleChange('show_progress', e.target.checked)}
+              className="w-5 h-5 accent-[#4242ea] cursor-pointer mt-0.5"
             />
-            <div>
-              <strong>Show Progress Indicator</strong>
-              <p className="form-settings__help-text">
+            <div className="flex-1">
+              <strong className="text-gray-800 block">Show Progress Indicator</strong>
+              <p className="text-sm text-gray-600 mt-1">
                 Display progress bar to respondents
               </p>
             </div>
           </label>
-        </div>
 
-        <div className="form-settings__field">
-          <label className="form-settings__checkbox-label">
+          <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
               checked={settings.enable_save_continue}
               onChange={(e) => handleChange('enable_save_continue', e.target.checked)}
+              className="w-5 h-5 accent-[#4242ea] cursor-pointer mt-0.5"
             />
-            <div>
-              <strong>Enable Save & Continue Later</strong>
-              <p className="form-settings__help-text">
+            <div className="flex-1">
+              <strong className="text-gray-800 block">Enable Save & Continue Later</strong>
+              <p className="text-sm text-gray-600 mt-1">
                 Allow respondents to save progress and complete later
               </p>
             </div>
@@ -101,13 +100,14 @@ const FormSettings = ({ settings, onUpdate }) => {
         </div>
       </div>
 
-      <div className="form-settings__section">
-        <h3 className="form-settings__section-title">Completion Settings</h3>
+      {/* Completion Settings */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-6">Completion Settings</h3>
         
-        <div className="form-settings__field">
-          <label className="form-settings__label">Thank You Message</label>
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Thank You Message</label>
           <textarea
-            className="form-settings__textarea"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base resize-vertical transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
             value={settings.thank_you_message}
             onChange={(e) => handleChange('thank_you_message', e.target.value)}
             placeholder="Thank you for your submission!"
@@ -115,34 +115,36 @@ const FormSettings = ({ settings, onUpdate }) => {
           />
         </div>
 
-        <div className="form-settings__field">
-          <label className="form-settings__label">Redirect URL (Optional)</label>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Redirect URL (Optional)</label>
           <input
             type="url"
-            className="form-settings__input"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
             value={settings.redirect_url || ''}
             onChange={(e) => handleChange('redirect_url', e.target.value)}
             placeholder="https://example.com/thank-you"
           />
-          <p className="form-settings__help-text">
+          <p className="text-sm text-gray-600 mt-2">
             Redirect respondents to this URL after submission
           </p>
         </div>
       </div>
 
-      <div className="form-settings__section">
-        <h3 className="form-settings__section-title">Email Notifications</h3>
+      {/* Email Notifications */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-6">Email Notifications</h3>
         
-        <div className="form-settings__field">
-          <label className="form-settings__checkbox-label">
+        <div className="mb-6">
+          <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
               checked={settings.email_notifications}
               onChange={(e) => handleChange('email_notifications', e.target.checked)}
+              className="w-5 h-5 accent-[#4242ea] cursor-pointer mt-0.5"
             />
-            <div>
-              <strong>Send Email Notifications</strong>
-              <p className="form-settings__help-text">
+            <div className="flex-1">
+              <strong className="text-gray-800 block">Send Email Notifications</strong>
+              <p className="text-sm text-gray-600 mt-1">
                 Receive an email when someone submits this form
               </p>
             </div>
@@ -150,34 +152,40 @@ const FormSettings = ({ settings, onUpdate }) => {
         </div>
 
         {settings.email_notifications && (
-          <div className="form-settings__field">
-            <label className="form-settings__label">Notification Recipients</label>
-            <div className="form-settings__email-list">
-              {(settings.notification_emails || []).map((email, index) => (
-                <div key={index} className="form-settings__email-item">
-                  <span>{email}</span>
-                  <button
-                    className="form-settings__remove-email-btn"
-                    onClick={() => handleRemoveEmail(email)}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Notification Recipients</label>
+            {(settings.notification_emails || []).length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {(settings.notification_emails || []).map((email, index) => (
+                  <div 
+                    key={index} 
+                    className="flex items-center gap-2 px-3 py-2 bg-[#4242ea]/10 text-[#4242ea] rounded-lg text-sm"
                   >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="form-settings__email-input-group">
+                    <span>{email}</span>
+                    <button
+                      onClick={() => handleRemoveEmail(email)}
+                      className="text-[#4242ea] hover:text-[#3333d1] transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
               <input
                 type="email"
-                className="form-settings__input"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleAddEmail()}
                 placeholder="Enter email address"
               />
               <button
-                className="form-settings__add-email-btn"
                 onClick={handleAddEmail}
+                className="px-4 py-2 bg-[#4242ea] text-white border-none rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 inline-flex items-center gap-2 hover:bg-[#3333d1]"
               >
+                <Plus className="w-4 h-4" />
                 Add
               </button>
             </div>
@@ -185,33 +193,34 @@ const FormSettings = ({ settings, onUpdate }) => {
         )}
       </div>
 
-      <div className="form-settings__section">
-        <h3 className="form-settings__section-title">Form Limits (Optional)</h3>
+      {/* Form Limits */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-800 mb-6">Form Limits (Optional)</h3>
         
-        <div className="form-settings__field">
-          <label className="form-settings__label">Submission Limit</label>
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Submission Limit</label>
           <input
             type="number"
-            className="form-settings__input form-settings__input--small"
+            className="w-48 px-4 py-2 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
             value={settings.submission_limit || ''}
             onChange={(e) => handleChange('submission_limit', parseInt(e.target.value) || null)}
             placeholder="Unlimited"
             min="1"
           />
-          <p className="form-settings__help-text">
+          <p className="text-sm text-gray-600 mt-2">
             Stop accepting responses after this many submissions
           </p>
         </div>
 
-        <div className="form-settings__field">
-          <label className="form-settings__label">Expiration Date</label>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Expiration Date</label>
           <input
             type="datetime-local"
-            className="form-settings__input"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
             value={settings.expires_at || ''}
             onChange={(e) => handleChange('expires_at', e.target.value)}
           />
-          <p className="form-settings__help-text">
+          <p className="text-sm text-gray-600 mt-2">
             Stop accepting responses after this date/time
           </p>
         </div>
@@ -221,4 +230,3 @@ const FormSettings = ({ settings, onUpdate }) => {
 };
 
 export default FormSettings;
-

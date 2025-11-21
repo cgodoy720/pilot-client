@@ -1,0 +1,52 @@
+/* NavBarAdmissions Component Styles */
+
+.navbar-admissions {
+    @apply border-b border-divider bg-white px-10;
+    height: 45px !important;
+    min-height: 45px !important;
+    max-height: 45px !important;
+}
+
+.navbar-admissions__list {
+    @apply w-full justify-start gap-2 bg-transparent p-0;
+    height: 45px !important;
+    min-height: 45px !important;
+    max-height: 45px !important;
+}
+
+.navbar-admissions__trigger {
+    @apply relative inline-flex items-center justify-center whitespace-nowrap px-4 text-sm font-medium;
+    @apply text-carbon-black transition-colors duration-200;
+    @apply hover:text-pursuit-purple hover:bg-transparent;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pursuit-purple focus-visible:ring-offset-2;
+    @apply disabled:pointer-events-none disabled:opacity-50;
+    height: 45px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+/* Remove any default outlines or shadows */
+.navbar-admissions__trigger:focus {
+    @apply outline-none;
+}
+
+/* Active state */
+.navbar-admissions__trigger[data-state="active"] {
+    @apply text-pursuit-purple;
+}
+
+/* Remove default background effects */
+.navbar-admissions__trigger {
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+/* Style the highlight (sliding indicator) from animate-ui */
+.navbar-admissions__list [class*="absolute"][class*="z-0"] {
+    @apply border-b-2 border-pursuit-purple bg-transparent shadow-none;
+    @apply rounded-none;
+    top: auto !important;
+    bottom: 0 !important;
+    height: 2px !important;
+}
+

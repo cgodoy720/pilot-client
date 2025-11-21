@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Button } from '../../../../components/ui/button';
+import { Textarea } from '../../../../components/ui/textarea';
+import { Input } from '../../../../components/ui/input';
+import { Loader2 } from 'lucide-react';
 
 function StructuredSubmission({ task, schema, currentSubmission, isSubmitting, isLocked, onSubmit }) {
   const [formData, setFormData] = useState({});
@@ -70,38 +74,38 @@ function StructuredSubmission({ task, schema, currentSubmission, isSubmitting, i
     switch (field.type) {
       case 'textarea':
         return (
-          <textarea
-            className="submission-form__textarea"
+          <Textarea
             value={value}
             onChange={(e) => handleChange(field.name, e.target.value)}
             placeholder={field.placeholder || ''}
             rows={field.rows || 4}
             disabled={isLocked || isSubmitting}
+            className="resize-none font-proxima"
           />
         );
       
       case 'text':
       case 'url':
         return (
-          <input
+          <Input
             type={field.type === 'url' ? 'url' : 'text'}
-            className="submission-form__input"
             value={value}
             onChange={(e) => handleChange(field.name, e.target.value)}
             placeholder={field.placeholder || ''}
             disabled={isLocked || isSubmitting}
+            className="font-proxima"
           />
         );
       
       default:
         return (
-          <input
+          <Input
             type="text"
-            className="submission-form__input"
             value={value}
             onChange={(e) => handleChange(field.name, e.target.value)}
             placeholder={field.placeholder || ''}
             disabled={isLocked || isSubmitting}
+            className="font-proxima"
           />
         );
     }
@@ -114,56 +118,61 @@ function StructuredSubmission({ task, schema, currentSubmission, isSubmitting, i
   };
 
   return (
-    <div className="submission-form">
-      {schema.fields.map(field => (
-        <div key={field.name} className="submission-form__field">
-          <label className={`submission-form__label ${field.required ? 'submission-form__label--required' : ''}`}>
-            {field.label}
-          </label>
-          
-          {renderField(field)}
-          
-          {field.help && (
-            <div className="submission-form__help">
-              {field.help}
-            </div>
-          )}
-          
-          {field.type === 'textarea' && (
-            <div className="submission-form__char-counter">
-              {(formData[field.name] || '').length} characters
-            </div>
-          )}
-        </div>
-      ))}
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+        {schema.fields.map(field => (
+          <div key={field.name} className="space-y-2">
+            <label className={`block text-sm font-medium font-proxima text-carbon-black ${field.required ? 'after:content-["*"] after:ml-0.5 after:text-red-500' : ''}`}>
+              {field.label}
+            </label>
+            
+            {renderField(field)}
+            
+            {field.help && (
+              <p className="text-xs text-carbon-black/60 font-proxima">
+                {field.help}
+              </p>
+            )}
+            
+            {field.type === 'textarea' && (
+              <p className="text-xs text-carbon-black/40 font-proxima">
+                {(formData[field.name] || '').length} characters
+              </p>
+            )}
+          </div>
+        ))}
 
-      {validationError && (
-        <div className="submission-form__validation-error">
-          {validationError}
-        </div>
-      )}
+        {validationError && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-3">
+            <p className="text-xs text-red-600 font-proxima">
+              {validationError}
+            </p>
+          </div>
+        )}
 
-      <div className="submission-form__actions">
-        <button
+        {!isFormComplete() && !isLocked && (
+          <p className="text-xs text-carbon-black/60 font-proxima">
+            All required fields (*) must be completed before submitting.
+          </p>
+        )}
+      </div>
+
+      {/* Submit Button - Fixed at bottom */}
+      <div className="border-t border-divider px-6 py-4">
+        <Button
           onClick={handleSubmit}
           disabled={!isFormComplete() || isSubmitting || isLocked}
-          className="submission-form__btn submission-form__btn--primary"
+          className="w-full bg-pursuit-purple hover:bg-pursuit-purple/90 text-white font-proxima text-sm"
         >
           {isSubmitting ? (
             <>
-              <div className="submission-form__spinner" />
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               Submitting...
             </>
           ) : (
             `Submit ${task.deliverable || 'Deliverable'}`
           )}
-        </button>
-        
-        {!isFormComplete() && !isLocked && (
-          <div className="submission-form__help">
-            All required fields (*) must be completed before submitting.
-          </div>
-        )}
+        </Button>
       </div>
     </div>
   );

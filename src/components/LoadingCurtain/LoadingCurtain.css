@@ -1,0 +1,70 @@
+.loading-curtain {
+  position: fixed;
+  top: 0;
+  left: 50px;
+  width: calc(100vw - 50px);
+  height: 100vh;
+  background: linear-gradient(90deg, #FFD3C2 0%, #4242EA 70%);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.loading-curtain.loaded {
+  animation: curtain-open 0.5s ease-out forwards;
+}
+
+@keyframes curtain-open {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 100%);
+  }
+}
+
+.loading-curtain__logo {
+  width: 36px;
+  height: 52px;
+  object-fit: contain;
+  margin-bottom: 32px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.loading-curtain__text {
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 18px;
+  color: #FFFFFF;
+  text-align: center;
+}
+
+.loading-curtain__percentage {
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: #FFFFFF;
+  opacity: 0.9;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+@media (max-width: 768px) {
+  .loading-curtain {
+    left: 0;
+    width: 100vw;
+  }
+}

@@ -1,27 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  IconButton,
-  Chip,
-  CircularProgress,
-  Tabs,
-  Tab
-} from '@mui/material';
-import Swal from 'sweetalert2';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Star as StarIcon,
-  StarBorder as StarBorderIcon
-} from '@mui/icons-material';
+import { Button } from '../../../components/ui/button';
+import { Badge } from '../../../components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
+import { ScrollArea } from '../../../components/ui/scroll-area';
+import { Plus, Edit, Trash2, Star } from 'lucide-react';
+import PromptFormDialog from './shared/PromptFormDialog';
+import LoadingState from './shared/LoadingState';
+import EmptyState from './shared/EmptyState';
+import DeleteConfirmDialog from './shared/DeleteConfirmDialog';
 
 const PersonasTab = ({ showNotification, reloadPrompts }) => {
   const [personas, setPersonas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPersonaTab, setSelectedPersonaTab] = useState(0);
+  const [selectedPersonaId, setSelectedPersonaId] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingPersona, setEditingPersona] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, persona: null });
 
   useEffect(() => {
     fetchPersonas();
@@ -40,6 +35,9 @@ const PersonasTab = ({ showNotification, reloadPrompts }) => {
       if (response.ok) {
         const data = await response.json();
         setPersonas(data.personas || []);
+        if (data.personas.length > 0 && !selectedPersonaId) {
+          setSelectedPersonaId(data.personas[0].id);
+        }
       } else {
         throw new Error('Failed to fetch personas');
       }
@@ -51,119 +49,62 @@ const PersonasTab = ({ showNotification, reloadPrompts }) => {
     }
   };
 
-  const handleCreate = async () => {
-    const { value: formData } = await Swal.fire({
-      title: 'Create New Persona',
-      html: `
-        <div style="text-align: left;">
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Name (ID) *</label>
-            <input id="swal-name" class="swal2-input" placeholder="e.g., mentor, expert, critic" 
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; height: 32px; font-size: 0.85rem; padding: 0.25rem 0.5rem;">
-            <small style="color: #888; font-size: 0.75rem;">Unique identifier used in code (lowercase, no spaces)</small>
-          </div>
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Display Name</label>
-            <input id="swal-display-name" class="swal2-input" placeholder="e.g., The Mentor, The Expert"
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; height: 32px; font-size: 0.85rem; padding: 0.25rem 0.5rem;">
-            <small style="color: #888; font-size: 0.75rem;">Human-readable name for the persona</small>
-          </div>
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Description</label>
-            <input id="swal-description" class="swal2-input" placeholder="Brief description of the persona's role"
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; height: 32px; font-size: 0.85rem; padding: 0.25rem 0.5rem;">
-            <small style="color: #888; font-size: 0.75rem;">Brief description of the persona's role and approach</small>
-          </div>
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Content *</label>
-            <textarea id="swal-content" placeholder="Enter the persona definition..." rows="8"
-                      style="width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; padding: 0.5rem; border-radius: 4px; font-family: Monaco, monospace; font-size: 0.9rem; resize: vertical;"></textarea>
-          </div>
-          <div style="margin-bottom: 0.5rem;">
-            <label style="display: flex; align-items: center; color: #fff; cursor: pointer; font-size: 0.85rem;">
-              <input type="checkbox" id="swal-default" style="margin-right: 0.5rem;">
-              Set as default persona
-            </label>
-          </div>
-        </div>
-      `,
-      background: '#2a2d3e',
-      color: '#fff',
-      showCancelButton: true,
-      confirmButtonText: 'Create Persona',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#4242ea',
-      cancelButtonColor: '#666',
-      width: '600px',
-      preConfirm: () => {
-        const name = document.getElementById('swal-name').value;
-        const displayName = document.getElementById('swal-display-name').value;
-        const description = document.getElementById('swal-description').value;
-        const content = document.getElementById('swal-content').value;
-        const isDefault = document.getElementById('swal-default').checked;
-
-        if (!name.trim()) {
-          Swal.showValidationMessage('Name is required');
-          return false;
-        }
-        if (!content.trim()) {
-          Swal.showValidationMessage('Content is required');
-          return false;
-        }
-
-        return {
-          name: name.trim(),
-          display_name: displayName.trim() || undefined,
-          description: description.trim() || undefined,
-          content: content.trim(),
-          is_default: isDefault
-        };
-      }
-    });
-
-    if (formData) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/prompts/personas`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(formData)
-        });
-
-        if (response.ok) {
-          showNotification('Persona created successfully');
-          fetchPersonas();
-        } else {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to create persona');
-        }
-      } catch (error) {
-        console.error('Error creating persona:', error);
-        showNotification(error.message, 'error');
-      }
+  const formFields = [
+    {
+      name: 'name',
+      label: 'Name (ID)',
+      type: 'text',
+      required: true,
+      placeholder: 'e.g., mentor, expert, critic',
+      helpText: 'Unique identifier used in code (lowercase, no spaces)'
+    },
+    {
+      name: 'display_name',
+      label: 'Display Name',
+      type: 'text',
+      placeholder: 'e.g., The Mentor, The Expert',
+      helpText: 'Human-readable name for the persona'
+    },
+    {
+      name: 'description',
+      label: 'Description',
+      type: 'text',
+      placeholder: 'Brief description of the persona\'s role',
+      helpText: 'Brief description of the persona\'s role and approach'
+    },
+    {
+      name: 'content',
+      label: 'Content',
+      type: 'textarea',
+      required: true,
+      rows: 10,
+      placeholder: 'Enter the persona definition...',
+      helpText: 'The persona\'s characteristics and behavioral guidelines'
+    },
+    {
+      name: 'is_default',
+      label: 'Set as default persona',
+      type: 'checkbox',
+      defaultValue: false
     }
+  ];
+
+  const handleCreate = () => {
+    setEditingPersona(null);
+    setDialogOpen(true);
   };
 
+  const handleEdit = (persona) => {
+    setEditingPersona(persona);
+    setDialogOpen(true);
+  };
 
+  const handleDelete = (persona) => {
+    setDeleteDialog({ open: true, persona });
+  };
 
-  const handleDelete = async (persona) => {
-    const result = await Swal.fire({
-      title: 'Delete Persona?',
-      text: `Are you sure you want to delete "${persona.display_name || persona.name}"? This action cannot be undone.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#666',
-      confirmButtonText: 'Delete',
-      cancelButtonText: 'Cancel',
-      background: '#2a2d3e',
-      color: '#fff'
-    });
-
-    if (result.isConfirmed) {
+  const confirmDelete = async () => {
+    const persona = deleteDialog.persona;
       try {
         const token = localStorage.getItem('token');
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/prompts/personas/${persona.id}`, {
@@ -183,7 +124,8 @@ const PersonasTab = ({ showNotification, reloadPrompts }) => {
       } catch (error) {
         console.error('Error deleting persona:', error);
         showNotification(error.message, 'error');
-      }
+    } finally {
+      setDeleteDialog({ open: false, persona: null });
     }
   };
 
@@ -210,85 +152,15 @@ const PersonasTab = ({ showNotification, reloadPrompts }) => {
     }
   };
 
-  const handlePersonaTabChange = (event, newValue) => {
-    setSelectedPersonaTab(newValue);
-  };
-
-  const handleEdit = async (persona) => {
-    const { value: formData } = await Swal.fire({
-      title: 'Edit Persona',
-      html: `
-        <div style="text-align: left;">
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Name (ID) *</label>
-            <input id="swal-name" class="swal2-input" value="${persona.name}" 
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; height: 32px; font-size: 0.85rem; padding: 0.25rem 0.5rem;">
-            <small style="color: #888; font-size: 0.75rem;">Unique identifier used in code (lowercase, no spaces)</small>
-          </div>
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Display Name</label>
-            <input id="swal-display-name" class="swal2-input" value="${persona.display_name || ''}"
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; height: 32px; font-size: 0.85rem; padding: 0.25rem 0.5rem;">
-            <small style="color: #888; font-size: 0.75rem;">Human-readable name for the persona</small>
-          </div>
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Description</label>
-            <input id="swal-description" class="swal2-input" value="${persona.description || ''}"
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; height: 32px; font-size: 0.85rem; padding: 0.25rem 0.5rem;">
-            <small style="color: #888; font-size: 0.75rem;">Brief description of the persona's role and approach</small>
-          </div>
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Content *</label>
-            <textarea id="swal-content" rows="8"
-                      style="width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; padding: 0.5rem; border-radius: 4px; font-family: Monaco, monospace; font-size: 0.9rem; resize: vertical;">${persona.content}</textarea>
-          </div>
-          <div style="margin-bottom: 0.5rem;">
-            <label style="display: flex; align-items: center; color: #fff; cursor: pointer; font-size: 0.85rem;">
-              <input type="checkbox" id="swal-default" ${persona.is_default ? 'checked' : ''} style="margin-right: 0.5rem;">
-              Set as default persona
-            </label>
-          </div>
-        </div>
-      `,
-      background: '#2a2d3e',
-      color: '#fff',
-      showCancelButton: true,
-      confirmButtonText: 'Update Persona',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#4242ea',
-      cancelButtonColor: '#666',
-      width: '700px',
-      preConfirm: () => {
-        const name = document.getElementById('swal-name').value;
-        const displayName = document.getElementById('swal-display-name').value;
-        const description = document.getElementById('swal-description').value;
-        const content = document.getElementById('swal-content').value;
-        const isDefault = document.getElementById('swal-default').checked;
-
-        if (!name.trim()) {
-          Swal.showValidationMessage('Name is required');
-          return false;
-        }
-        if (!content.trim()) {
-          Swal.showValidationMessage('Content is required');
-          return false;
-        }
-
-        return {
-          name: name.trim(),
-          display_name: displayName.trim() || undefined,
-          description: description.trim() || undefined,
-          content: content.trim(),
-          is_default: isDefault
-        };
-      }
-    });
-
-    if (formData) {
+  const handleSubmit = async (formData) => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/prompts/personas/${persona.id}`, {
-          method: 'PUT',
+      const url = editingPersona
+        ? `${import.meta.env.VITE_API_URL}/api/admin/prompts/personas/${editingPersona.id}`
+        : `${import.meta.env.VITE_API_URL}/api/admin/prompts/personas`;
+      
+      const response = await fetch(url, {
+        method: editingPersona ? 'PUT' : 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -297,159 +169,209 @@ const PersonasTab = ({ showNotification, reloadPrompts }) => {
         });
 
         if (response.ok) {
-          showNotification('Persona updated successfully');
+        showNotification(`Persona ${editingPersona ? 'updated' : 'created'} successfully`);
+        setDialogOpen(false);
           fetchPersonas();
         } else {
           const error = await response.json();
-          throw new Error(error.error || 'Failed to update persona');
+        throw new Error(error.error || `Failed to ${editingPersona ? 'update' : 'create'} persona`);
         }
       } catch (error) {
-        console.error('Error updating persona:', error);
+      console.error('Error saving persona:', error);
         showNotification(error.message, 'error');
-      }
     }
   };
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingState count={2} />;
   }
 
-  const currentPersona = personas[selectedPersonaTab];
-
-  return (
-    <div className="prompt-tab">
-      <div className="prompt-tab__header">
-        <div>
-          <Typography variant="h5" gutterBottom>
-            AI Personas
-          </Typography>
-          <Typography variant="body2" color="textSecondary">
-            Different AI personalities that determine interaction style and approach with users.
-          </Typography>
-        </div>
-        <div className="prompt-tab__actions">
+  if (personas.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-start gap-4 flex-wrap">
+          <div>
+            <h2 className="font-proxima-bold text-2xl text-[#1E1E1E] mb-2">
+              AI Personas
+            </h2>
+            <p className="font-proxima text-[#666]">
+              Different AI personalities that determine interaction style and approach with users.
+            </p>
+          </div>
           <Button
-            variant="contained"
-            startIcon={<AddIcon />}
             onClick={handleCreate}
+            className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
           >
+            <Plus className="h-4 w-4 mr-2" />
             Create Persona
           </Button>
         </div>
+
+        <EmptyState
+          icon="🎭"
+          title="No personas found"
+          description="Create your first AI persona to get started."
+          actionLabel="Create Persona"
+          onAction={handleCreate}
+        />
+
+        <PromptFormDialog
+          open={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+          onSubmit={handleSubmit}
+          title="Create Persona"
+          confirmText="Create"
+          initialData={{}}
+          fields={formFields}
+        />
+      </div>
+    );
+  }
+
+  const currentPersona = personas.find(p => p.id === selectedPersonaId) || personas[0];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-start gap-4 flex-wrap">
+        <div>
+          <h2 className="font-proxima-bold text-2xl text-[#1E1E1E] mb-2">
+            AI Personas
+          </h2>
+          <p className="font-proxima text-[#666]">
+            Different AI personalities that determine interaction style and approach with users.
+          </p>
+        </div>
+          <Button
+            onClick={handleCreate}
+          className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
+          >
+          <Plus className="h-4 w-4 mr-2" />
+            Create Persona
+          </Button>
       </div>
 
-      {personas.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state__icon">🎭</div>
-          <Typography variant="h6" gutterBottom>
-            No personas found
-          </Typography>
-          <Typography variant="body2" color="textSecondary">
-            Create your first AI persona to get started.
-          </Typography>
-        </div>
-      ) : (
-        <div className="personas-tab-container">
-          {/* Sub-navigation tabs */}
-          <div className="personas-sub-tabs">
-            <Tabs
-              value={selectedPersonaTab}
-              onChange={handlePersonaTabChange}
-              variant="scrollable"
-              scrollButtons="auto"
-              className="personas-sub-tabs__tabs"
+      {/* Personas Tabs */}
+      <Tabs value={selectedPersonaId?.toString()} onValueChange={(val) => setSelectedPersonaId(parseInt(val))}>
+        <TabsList className="bg-white border border-[#C8C8C8] p-1 h-auto flex-wrap justify-start">
+          {personas.map((persona) => (
+            <TabsTrigger
+              key={persona.id}
+              value={persona.id.toString()}
+              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
             >
-              {personas.map((persona, index) => (
-                <Tab
-                  key={persona.id}
-                  label={
-                    <div className="persona-tab-label">
-                      <span>{persona.display_name || persona.name}</span>
-                      {persona.is_default && (
-                        <Chip
-                          label="Default"
-                          size="small"
-                          color="primary"
-                          sx={{ ml: 0.5, fontSize: '0.65rem', height: '16px' }}
-                        />
-                      )}
-                    </div>
-                  }
-                />
-              ))}
-            </Tabs>
-          </div>
+              <span className="truncate max-w-[150px]">
+                {persona.display_name || persona.name}
+              </span>
+              {persona.is_default && (
+                <Badge className="ml-1 bg-[#FFD3C2] text-[#1E1E1E] hover:bg-[#FFD3C2] h-4 text-[10px] px-1">
+                  Default
+                </Badge>
+              )}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-          {/* Current persona content */}
-          {currentPersona && (
-            <div className="persona-content">
-              <div className="persona-content__header">
-                <div className="persona-content__title">
-                  <Typography variant="h6" component="h3">
-                    {currentPersona.display_name || currentPersona.name}
-                    {currentPersona.is_default && (
-                      <Chip
-                        label="Default"
-                        size="small"
-                        color="primary"
-                        sx={{ ml: 1 }}
-                      />
-                    )}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    ID: {currentPersona.name}
-                  </Typography>
-                  {currentPersona.description && (
-                    <Typography variant="body2" color="textSecondary">
-                      {currentPersona.description}
-                    </Typography>
+        {personas.map((persona) => (
+          <TabsContent key={persona.id} value={persona.id.toString()} className="m-0 mt-6">
+            <Card className="bg-white border-[#C8C8C8]">
+              <CardHeader>
+                <div className="flex justify-between items-start gap-4">
+                  <div className="flex-1">
+                    <CardTitle className="font-proxima-bold text-[#1E1E1E] flex items-center gap-2 flex-wrap">
+                      {persona.display_name || persona.name}
+                      {persona.is_default && (
+                        <Badge className="bg-[#4242EA] text-white hover:bg-[#3535D1]">
+                          Default
+                        </Badge>
+                      )}
+                    </CardTitle>
+                    <CardDescription className="font-proxima text-[#666] mt-1">
+                      ID: {persona.name}
+                    </CardDescription>
+                    {persona.description && (
+                      <CardDescription className="font-proxima text-[#666]">
+                        {persona.description}
+                      </CardDescription>
                   )}
                 </div>
-                <div className="persona-content__actions">
-                  <IconButton
-                    size="small"
-                    onClick={() => handleSetDefault(currentPersona)}
-                    disabled={currentPersona.is_default}
-                    title={currentPersona.is_default ? 'This is the default' : 'Set as default'}
-                  >
-                    {currentPersona.is_default ? <StarIcon color="primary" /> : <StarBorderIcon />}
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleEdit(currentPersona)}
+
+                  <div className="flex gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleSetDefault(persona)}
+                      disabled={persona.is_default}
+                      className={`h-8 w-8 ${
+                        persona.is_default 
+                          ? 'text-[#4242EA]' 
+                          : 'text-[#666] hover:text-[#4242EA]'
+                      }`}
+                      title={persona.is_default ? 'This is the default' : 'Set as default'}
+                    >
+                      <Star className={`h-4 w-4 ${persona.is_default ? 'fill-current' : ''}`} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(persona)}
+                      className="h-8 w-8 text-[#666] hover:text-[#4242EA]"
                     title="Edit"
                   >
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleDelete(currentPersona)}
-                    disabled={currentPersona.is_default}
-                    title={currentPersona.is_default ? 'Cannot delete default persona' : 'Delete'}
-                    color="error"
-                  >
-                    <DeleteIcon />
-                  </IconButton>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(persona)}
+                      disabled={persona.is_default}
+                      className="h-8 w-8 text-[#666] hover:text-red-600 disabled:opacity-30"
+                      title={persona.is_default ? 'Cannot delete default persona' : 'Delete'}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              </CardHeader>
 
-              <div className="persona-content__body">
-                <div className="persona-content__text">
-                  {currentPersona.content}
+              <CardContent>
+                <ScrollArea className="h-[50vh] w-full rounded-lg">
+                  <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
+                    <pre className="font-mono text-sm text-[#1E1E1E] whitespace-pre-wrap leading-relaxed">
+                      {persona.content}
+                    </pre>
+                  </div>
+                </ScrollArea>
+
+                <div className="mt-3 text-xs text-[#666] font-proxima">
+                  Last updated: {new Date(persona.updated_at).toLocaleString()}
                 </div>
-                
-                <div className="persona-content__meta">
-                  <span>Last updated: {new Date(currentPersona.updated_at).toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        ))}
+      </Tabs>
+
+      {/* Form Dialog */}
+      <PromptFormDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onSubmit={handleSubmit}
+        title={editingPersona ? 'Edit Persona' : 'Create Persona'}
+        confirmText={editingPersona ? 'Update' : 'Create'}
+        initialData={editingPersona || {}}
+        fields={formFields}
+      />
+
+      {/* Delete Confirmation */}
+      <DeleteConfirmDialog
+        open={deleteDialog.open}
+        onClose={() => setDeleteDialog({ open: false, persona: null })}
+        onConfirm={confirmDelete}
+        title="Delete Persona?"
+        itemName={deleteDialog.persona?.display_name || deleteDialog.persona?.name}
+        description="This action cannot be undone."
+      />
     </div>
   );
 };

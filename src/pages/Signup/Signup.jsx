@@ -1,34 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import MultiStepForm from '../../components/MultiStepForm';
+import ArrowButton from '../../components/ArrowButton/ArrowButton';
 import logoFull from '../../assets/logo-full.png';
-import './Signup.css';
-
-const SPECIAL_CHARS = '!@#$%^&*(),.?":{}|<>';
 
 const Signup = () => {
   const [userType, setUserType] = useState(''); // 'builder', 'applicant', or 'workshop'
-  const [isReturningWorkshopUser, setIsReturningWorkshopUser] = useState(false); // For returning workshop participants
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [accessCode, setAccessCode] = useState(''); // For workshop participants
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [registrationComplete, setRegistrationComplete] = useState(false);
-  const [passwordValidation, setPasswordValidation] = useState({
-    length: false,
-    uppercase: false,
-    lowercase: false,
-    number: false,
-    special: false,
-    match: false
-  });
   
   const navigate = useNavigate();
   const { signup, isAuthenticated, setAuthState } = useAuth();
@@ -40,18 +24,6 @@ const Signup = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // Validate password as user types
-  useEffect(() => {
-    setPasswordValidation({
-      length: password.length >= 8,
-      uppercase: /[A-Z]/.test(password),
-      lowercase: /[a-z]/.test(password),
-      number: /[0-9]/.test(password),
-      special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-      match: password === confirmPassword && password !== ''
-    });
-  }, [password, confirmPassword]);
-
   const handleUserTypeSelect = (type) => {
     setUserType(type);
     setError('');
@@ -59,50 +31,45 @@ const Signup = () => {
     setRegistrationComplete(false);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleMultiStepSubmit = async (formData) => {
+    console.log('🔵 handleMultiStepSubmit called with userType:', userType);
+    console.log('🔵 Form data:', { ...formData, password: '[REDACTED]' });
+    
     setError('');
     setSuccessMessage('');
-    
-    // Check if user type is selected
-    if (!userType) {
-      setError('Please select an account type');
-      return;
-    }
-    
-    // Skip password validation for returning workshop users (simpler form)
-    if (!isReturningWorkshopUser) {
-      // Check if all password validations pass
-      const allValidationsPass = Object.values(passwordValidation).every(value => value);
-      
-      if (!allValidationsPass) {
-        setError('Please ensure your password meets all requirements');
-        return;
-      }
-    }
-    
     setIsSubmitting(true);
-    
+
     try {
       let response;
       let endpoint;
       let requestBody;
 
       if (userType === 'builder') {
+        console.log('🔵 Processing builder signup...');
         // Create builder account using the existing AuthContext signup
-        const result = await signup(firstName, lastName, email, password);
+        const result = await signup(formData.firstName, formData.lastName, formData.email, formData.password);
+        
+        console.log('🔵 Builder signup result:', result);
         
         if (result.success) {
+          console.log('✅ Builder signup successful');
           setRegistrationComplete(true);
           setSuccessMessage(result.message || 'Builder account created successfully! Please check your email to verify your account.');
         } else {
+          console.error('❌ Builder signup failed:', result.error);
           setError(result.error || 'Failed to create account');
         }
+        setIsSubmitting(false);
         return;
       } else if (userType === 'applicant') {
         // Create applicant account in admissions app
         endpoint = `${import.meta.env.VITE_API_URL}/api/applications/signup`;
-        requestBody = { firstName, lastName, email, password };
+        requestBody = { 
+          firstName: formData.firstName, 
+          lastName: formData.lastName, 
+          email: formData.email, 
+          password: formData.password 
+        };
         
         response = await fetch(endpoint, {
           method: 'POST',
@@ -121,59 +88,31 @@ const Signup = () => {
           setError(data.error || data.message || 'Failed to create account');
         }
       } else if (userType === 'workshop') {
-        if (isReturningWorkshopUser) {
-          // Login returning workshop participant
-          endpoint = `${import.meta.env.VITE_API_URL}/api/workshop/login-returning`;
-          requestBody = {
-            access_code: accessCode,
-            email,
-            password
-          };
-          
-          response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody),
-          });
+        // Create workshop participant account
+        endpoint = `${import.meta.env.VITE_API_URL}/api/workshop/access`;
+        requestBody = {
+          access_code: formData.accessCode,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          email: formData.email,
+          password: formData.password
+        };
+        
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
 
-          const data = await response.json();
+        const data = await response.json();
 
-          if (response.ok) {
-            // Set auth state and redirect
-            setAuthState(data.user, data.token);
-            navigate(data.redirectTo || '/dashboard');
-          } else {
-            setError(data.error || 'Failed to log in');
-          }
+        if (response.ok) {
+          setRegistrationComplete(true);
+          setSuccessMessage('Workshop account created successfully! Please check your email to verify your account before logging in.');
         } else {
-          // Create workshop participant account
-          endpoint = `${import.meta.env.VITE_API_URL}/api/workshop/access`;
-          requestBody = {
-            access_code: accessCode,
-            first_name: firstName,
-            last_name: lastName,
-            email,
-            password
-          };
-          
-          response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody),
-          });
-
-          const data = await response.json();
-
-          if (response.ok) {
-            setRegistrationComplete(true);
-            setSuccessMessage('Workshop account created successfully! Please check your email to verify your account before logging in.');
-          } else {
-            setError(data.error || 'Failed to create workshop account');
-          }
+          setError(data.error || 'Failed to create workshop account');
         }
       }
     } catch (err) {
@@ -184,290 +123,231 @@ const Signup = () => {
     }
   };
 
+  const handleBackToSelection = () => {
+    setUserType('');
+    setError('');
+    setSuccessMessage('');
+    setRegistrationComplete(false);
+  };
+
   // If still loading auth state, show nothing
   if (isAuthenticated === null) {
     return null;
   }
 
-  // User type selection screen
-  if (!userType) {
+  // Show MultiStepForm for builder, applicant and workshop signups
+  if ((userType === 'builder' || userType === 'applicant' || userType === 'workshop') && !registrationComplete) {
     return (
-      <div className="signup-container">
-        <div className="signup-form-container">
-          <div className="signup-logo-container">
-            <img src={logoFull} alt="Pursuit Logo" className="signup-logo" />
-          </div>
-          
-          <div className="signup-headline">
-            <h1>CHOOSE YOUR<br />ACCOUNT TYPE</h1>
-          </div>
-          
-          <div className="user-type-selection">
-            <p className="user-type-description">
-              Select the type of account you'd like to create:
+      <MultiStepForm 
+        userType={userType} 
+        onSubmit={handleMultiStepSubmit}
+        onBack={handleBackToSelection}
+        error={error}
+        isSubmitting={isSubmitting}
+      />
+    );
+  }
+
+  // Show success screen after registration
+  if (registrationComplete) {
+    return (
+      <div 
+        className="min-h-screen relative flex flex-col"
+        style={{
+          background: 'linear-gradient(158.49deg, #4242EA 29.85%, #FFD3C2 116.57%)'
+        }}
+      >
+        {/* Header */}
+        <div className="absolute top-5 left-8">
+          <h1 className="text-white text-xl md:text-2xl font-proxima leading-tight">
+            Let's create your account
+          </h1>
+        </div>
+        
+        {/* Top Right Login Link */}
+        <div className="absolute top-7 right-8 flex items-center gap-2">
+          <span className="text-white text-sm font-proxima">
+            Already have an account? Login
+          </span>
+          <Link to="/login">
+            <ArrowButton 
+              size="sm"
+              borderColor="white"
+              arrowColor="white"
+              backgroundColor="transparent"
+              hoverBackgroundColor="white"
+              hoverArrowColor="#4242EA"
+            />
+          </Link>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col items-center justify-center px-8">
+          <div className="w-full max-w-2xl text-left">
+            <h2 className="text-white text-3xl md:text-4xl font-bold font-proxima mb-6">
+              Congratulations!
+            </h2>
+            <p className="text-white text-lg md:text-xl font-proxima mb-8 leading-relaxed max-w-xl">
+              Transformation awaits in your inbox. Log into your account using the link in the confirmation Email!
             </p>
             
-            <div className="user-type-options">
-              <button 
-                onClick={() => handleUserTypeSelect('applicant')}
-                className="user-type-option"
-              >
-                <div className="user-type-icon">📝</div>
-                <h3>Applicant</h3>
-                <p>For prospective students applying to the AI-Native Program</p>
-              </button>
-              
-              <button 
-                onClick={() => handleUserTypeSelect('builder')}
-                className="user-type-option"
-              >
-                <div className="user-type-icon">🔧</div>
-                <h3>Builder</h3>
-                <p>For current Pursuit students and alumni who want to access the main learning platform</p>
-              </button>
-              
-              <button 
-                onClick={() => handleUserTypeSelect('workshop')}
-                className="user-type-option"
-              >
-                <div className="user-type-icon">🎯</div>
-                <h3>Workshop</h3>
-                <p>For workshop participants with an access code from your organization</p>
-              </button>
-            </div>
-            
-            <div className="signup-back-to-login">
-              <Link to="/login" className="login-link">Already have an account? Log in</Link>
-            </div>
+            <Button 
+              asChild 
+              className="bg-white text-pursuit-purple hover:bg-gray-100 rounded-full px-6 py-3 text-base font-proxima font-medium"
+            >
+              <Link to="/login">Back to Login</Link>
+            </Button>
           </div>
+        </div>
+
+        {/* Bottom Right Logo */}
+        <div className="absolute bottom-8 right-8">
+          <img 
+            src={logoFull} 
+            alt="Pursuit Logo" 
+            className="h-[71.93px] w-[280px]" 
+          />
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="signup-container">
-      <div className="signup-form-container">
-        <div className="signup-logo-container">
-          <img src={logoFull} alt="Pursuit Logo" className="signup-logo" />
+  // User type selection screen
+  if (!userType) {
+    return (
+      <div className="min-h-screen bg-pursuit-purple relative flex flex-col">
+        {/* Header */}
+        <div className="absolute top-5 left-8">
+          <h1 className="text-white text-xl md:text-2xl font-proxima leading-tight">
+            Let's create your account
+          </h1>
         </div>
         
-        <div className="signup-headline">
-          <h1>CREATE YOUR<br />{userType.toUpperCase()}<br />ACCOUNT</h1>
+        {/* Top Right Login Link */}
+        <div className="absolute top-7 right-8 flex items-center gap-2">
+          <span className="text-white text-sm font-proxima">
+            Already have an account? Login
+          </span>
+          <Link to="/login">
+            <ArrowButton 
+              size="sm"
+              borderColor="white"
+              arrowColor="white"
+              backgroundColor="transparent"
+              hoverBackgroundColor="white"
+              hoverArrowColor="#4242EA"
+            />
+          </Link>
         </div>
-        
-        {registrationComplete ? (
-          <div className="signup-success">
-            <p className="signup-success-message">{successMessage}</p>
-            {(userType === 'builder' || userType === 'workshop') && (
-              <div className="signup-verification-instructions">
-                <h3>What's next?</h3>
-                <ol>
-                  <li>Check your email inbox for a verification message</li>
-                  <li>Click the verification link in the email</li>
-                  <li>Once verified, you can log into your account</li>
-                </ol>
-                <p>Don't see the email? Check your spam folder or request a new verification link.</p>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col items-center justify-center px-8">
+          {/* Container that matches card width */}
+          <div className="w-full max-w-[660px]">
+            {/* Step indicator and question - aligned to left of cards */}
+            <div className="text-left mb-12">
+              <p className="text-white text-sm font-bold font-proxima mb-3">
+                01 of 08
+              </p>
+              <h2 className="text-white text-base md:text-lg font-bold font-proxima">
+                What type of account do you want to create?
+              </h2>
+            </div>
+
+            {/* Account Type Cards */}
+            <div className="flex flex-col md:flex-row gap-6 mb-16">
+            {/* Applicant Card */}
+            <div className="w-full md:w-[210px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
+              <div className="flex flex-col items-center gap-4 w-full flex-1">
+                <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
+                  Applicant
+                </h3>
+                <p className="text-white text-sm md:text-base font-proxima leading-tight text-center w-full flex-1">
+                  For prospective Builders applying to the AI-Native Program
+                </p>
               </div>
-            )}
-            <div className="signup-actions">
-              <Link to="/login" className="signup-button">Go to Login</Link>
-              {(userType === 'builder' || userType === 'workshop') && (
-                <Link to="/resend-verification" className="signup-link">Resend Verification Email</Link>
-              )}
+              <Button
+                onClick={() => handleUserTypeSelect('applicant')}
+                variant="outline"
+                className="border-white text-white hover:bg-white hover:text-pursuit-purple rounded-full px-5 py-1.5 text-sm font-proxima h-auto bg-transparent w-auto"
+              >
+                Select
+              </Button>
+            </div>
+
+            {/* Builder Card */}
+            <div className="w-full md:w-[212px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
+              <div className="flex flex-col items-center gap-4 w-full flex-1">
+                <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
+                  Builder
+                </h3>
+                <p className="text-white text-sm md:text-base font-proxima leading-tight text-center w-full flex-1">
+                  For current Pursuit Builders and alumni who want to access the Pursuit Platform
+                </p>
+              </div>
+              <Button
+                onClick={() => handleUserTypeSelect('builder')}
+                variant="outline"
+                className="border-white text-white hover:bg-white hover:text-pursuit-purple rounded-full px-5 py-1.5 text-sm font-proxima h-auto bg-transparent w-auto"
+              >
+                Select
+              </Button>
+            </div>
+
+            {/* Workshop Card */}
+            <div className="w-full md:w-[211px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
+              <div className="flex flex-col items-center gap-4 w-full flex-1">
+                <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
+                  Workshop
+                </h3>
+                <p className="text-white text-sm md:text-base font-proxima leading-tight text-center w-full flex-1">
+                  For workshop participants with an access code from your organization
+                </p>
+              </div>
+              <Button
+                onClick={() => handleUserTypeSelect('workshop')}
+                variant="outline"
+                className="border-white text-white hover:bg-white hover:text-pursuit-purple rounded-full px-5 py-1.5 text-sm font-proxima h-auto bg-transparent w-auto"
+              >
+                Select
+              </Button>
             </div>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="signup-form">
-            {error && <div className="signup-error">{error}</div>}
-            {successMessage && <div className="signup-success-message">{successMessage}</div>}
-            
-            <div className="signup-account-type">
-              <p>Creating a <strong>{userType}</strong> account</p>
-              <button 
-                type="button" 
-                onClick={() => setUserType('')} 
-                className="change-account-type"
-              >
-                Change account type
-              </button>
-            </div>
-            
-            {/* Access Code field - only for workshop participants */}
-            {userType === 'workshop' && (
-              <div className="signup-input-group">
-                <input
-                  type="text"
-                  value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value)}
-                  placeholder="Workshop Access Code (e.g., META-WS-2025)"
-                  required
-                  className="signup-input"
-                  disabled={isSubmitting}
-                  autoComplete="off"
-                />
-                <p className="signup-input-hint">Enter the code provided by your workshop facilitator</p>
-              </div>
-            )}
-            
-            {/* Show name fields only for NEW workshop participants */}
-            {!(userType === 'workshop' && isReturningWorkshopUser) && (
-              <>
-                <div className="signup-input-group">
-                  <input
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="First Name"
-                    required
-                    className="signup-input"
-                    disabled={isSubmitting}
-                  />
-                </div>
-                
-                <div className="signup-input-group">
-                  <input
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Last Name"
-                    required
-                    className="signup-input"
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </>
-            )}
-            
-            <div className="signup-input-group">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
-                required
-                className="signup-input"
-                disabled={isSubmitting}
-              />
-            </div>
-            
-            <div className="signup-input-group password-input-group">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                required
-                className="signup-input"
-                disabled={isSubmitting}
-                onFocus={() => setIsPasswordFocused(true)}
-                onBlur={() => setIsPasswordFocused(false)}
-              />
-              <button 
-                type="button" 
-                className="password-toggle"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-            
-            {/* Confirm password field - not needed for returning workshop users */}
-            {!(userType === 'workshop' && isReturningWorkshopUser) && (
-              <div className="signup-input-group">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm Password"
-                  required
-                  className="signup-input"
-                  disabled={isSubmitting}
-                />
-              </div>
-            )}
-            
-            {/* Password validation feedback - only show for new accounts */}
-            {!(userType === 'workshop' && isReturningWorkshopUser) && (isPasswordFocused || password.length > 0) && (
-              <div className="password-validation">
-                <h4>Password must:</h4>
-                <ul>
-                  <li className={passwordValidation.length ? 'valid' : 'invalid'}>
-                    Be at least 8 characters long
-                  </li>
-                  <li className={passwordValidation.uppercase ? 'valid' : 'invalid'}>
-                    Include at least one uppercase letter
-                  </li>
-                  <li className={passwordValidation.lowercase ? 'valid' : 'invalid'}>
-                    Include at least one lowercase letter
-                  </li>
-                  <li className={passwordValidation.number ? 'valid' : 'invalid'}>
-                    Include at least one number
-                  </li>
-                  <li className={passwordValidation.special ? 'valid' : 'invalid'}>
-                    Include at least one special character ({SPECIAL_CHARS})
-                  </li>
-                </ul>
-                
-                {confirmPassword.length > 0 && (
-                  <div className={`password-match ${passwordValidation.match ? 'valid' : 'invalid'}`}>
-                    {passwordValidation.match ? 'Passwords match ✓' : 'Passwords do not match ✗'}
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {/* Workshop-specific toggle for returning users */}
-            {userType === 'workshop' && (
-              <div className="signup-links">
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    setIsReturningWorkshopUser(!isReturningWorkshopUser);
-                    setError('');
-                  }} 
-                  className="signup-link change-type-button"
-                >
-                  {isReturningWorkshopUser 
-                    ? 'New to workshops? Create a new account' 
-                    : 'Attended a workshop before? Log in here'}
-                </button>
-              </div>
-            )}
-            
-            {/* For non-workshop users */}
-            {userType !== 'workshop' && (
-              <div className="signup-links">
-                <span>Already have an account?</span>
-                <Link to="/login" className="signup-link">Log in</Link>
-              </div>
-            )}
-            
-            <div className="signup-links">
-              <span>Changed your mind?</span>
-              <button 
-                type="button" 
-                onClick={() => setUserType('')} 
-                className="signup-link change-type-button"
-              >
-                Change account type
-              </button>
-            </div>
-            
-            <button 
-              type="submit" 
-              className="signup-button"
-              disabled={isSubmitting}
-            >
-              {isSubmitting 
-                ? (isReturningWorkshopUser ? 'Logging in...' : 'Creating Account...') 
-                : (isReturningWorkshopUser ? 'Log In' : 'Create Account')}
-            </button>
-          </form>
-        )}
+
+          {/* Navigation Arrows */}
+          <div className="flex gap-2">
+            <ArrowButton
+              size="lg"
+              borderColor="rgba(255, 255, 255, 0.2)"
+              arrowColor="rgba(255, 255, 255, 0.2)"
+              backgroundColor="transparent"
+              hoverBackgroundColor="rgba(255, 255, 255, 0.2)"
+              hoverArrowColor="rgba(255, 255, 255, 0.2)"
+              rotation={180}
+              disabled={true}
+            />
+            <ArrowButton
+              size="lg"
+              borderColor="white"
+              arrowColor="#4242EA"
+              backgroundColor="white"
+              hoverBackgroundColor="#4242EA"
+              hoverArrowColor="white"
+            />
+          </div>
+          </div>
+        </div>
+
+        {/* Bottom Right Logo */}
+        <div className="absolute bottom-8 right-8">
+          <img src={logoFull} alt="Pursuit Logo" className="h-[71.93px] w-[280px]" />
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // This component should never reach here since all user types now use MultiStepForm
+  return null;
 };
 
 export default Signup; 

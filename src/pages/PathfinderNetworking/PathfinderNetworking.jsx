@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import './PathfinderNetworking.css';
 // MUI Icons
 import ComputerIcon from '@mui/icons-material/Computer';
@@ -545,10 +546,6 @@ function PathfinderNetworking() {
   const filteredActivities = filterType === 'all'
     ? activities
     : activities.filter(activity => activity.type === filterType);
-
-  if (isLoading) {
-    return <div className="pathfinder-networking__loading">Loading hustle activities...</div>;
-  }
 
   return (
     <div className="pathfinder-networking">
@@ -1274,6 +1271,9 @@ function PathfinderNetworking() {
           )}
         </div>
       </div>
+      
+      {/* Loading Curtain */}
+      <LoadingCurtain isLoading={isLoading} />
     </div>
   );
 }

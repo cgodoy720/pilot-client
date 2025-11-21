@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
+import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import './PathfinderPersonalDashboard.css';
 
 function PathfinderPersonalDashboard() {
@@ -607,10 +608,6 @@ function PathfinderPersonalDashboard() {
     );
   };
 
-  if (isLoading) {
-    return <div className="pathfinder-personal-dashboard__loading">Loading dashboard...</div>;
-  }
-
   return (
     <div className="pathfinder-personal-dashboard">
       {error && (
@@ -845,6 +842,9 @@ function PathfinderPersonalDashboard() {
           </div>
         </div>
       </div>
+      
+      {/* Loading Curtain */}
+      <LoadingCurtain isLoading={isLoading} />
     </div>
   );
 }

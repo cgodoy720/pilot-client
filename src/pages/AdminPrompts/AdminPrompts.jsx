@@ -1,13 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Tabs,
-  Tab,
-  Alert,
-  Snackbar,
-  CircularProgress
-} from '@mui/material';
+import React, { useState } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { toast } from 'sonner';
 import BasePromptsTab from './components/BasePromptsTab';
 import PersonasTab from './components/PersonasTab';
 import ProgramContextsTab from './components/ProgramContextsTab';
@@ -17,28 +10,14 @@ import StatusTab from './components/StatusTab';
 import './AdminPrompts.css';
 
 const AdminPrompts = () => {
-  const [currentTab, setCurrentTab] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [notification, setNotification] = useState({
-    open: false,
-    message: '',
-    severity: 'success'
-  });
 
   const showNotification = (message, severity = 'success') => {
-    setNotification({
-      open: true,
-      message,
-      severity
-    });
-  };
-
-  const closeNotification = () => {
-    setNotification(prev => ({ ...prev, open: false }));
-  };
-
-  const handleTabChange = (event, newValue) => {
-    setCurrentTab(newValue);
+    if (severity === 'error') {
+      toast.error(message);
+    } else {
+      toast.success(message);
+    }
   };
 
   const reloadPrompts = async () => {
@@ -67,86 +46,101 @@ const AdminPrompts = () => {
   };
 
   return (
-    <div className="admin-prompts">
-      <Tabs
-        value={currentTab}
-        onChange={handleTabChange}
-        className="admin-prompts__tabs"
-        variant="scrollable"
-        scrollButtons="auto"
-      >
-        <Tab label="Base Prompts" />
-        <Tab label="Personas" />
-        <Tab label="Program Contexts" />
-        <Tab label="Modes" />
-        <Tab label="Content Generation" />
-        <Tab label="Current AI Prompt" />
-      </Tabs>
+    <div className="w-full min-h-full p-6 bg-[#EFEFEF]">
+      <div className="max-w-[1400px] mx-auto">
+        <Tabs defaultValue="base" className="w-full">
+          <TabsList className="bg-white border border-[#C8C8C8] p-1 h-auto flex-wrap justify-start">
+            <TabsTrigger 
+              value="base" 
+              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+            >
+              Base Prompts
+            </TabsTrigger>
+            <TabsTrigger 
+              value="personas"
+              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+            >
+              Personas
+            </TabsTrigger>
+            <TabsTrigger 
+              value="contexts"
+              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+            >
+              Program Contexts
+            </TabsTrigger>
+            <TabsTrigger 
+              value="modes"
+              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+            >
+              Modes
+            </TabsTrigger>
+            <TabsTrigger 
+              value="content"
+              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+            >
+              Content Generation
+            </TabsTrigger>
+            <TabsTrigger 
+              value="status"
+              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+            >
+              Current AI Prompt
+            </TabsTrigger>
+          </TabsList>
 
-      <div className="admin-prompts__tab-content">
-        {currentTab === 0 && (
-          <BasePromptsTab 
-            showNotification={showNotification}
-            reloadPrompts={reloadPrompts}
-          />
-        )}
-        {currentTab === 1 && (
-          <PersonasTab 
-            showNotification={showNotification}
-            reloadPrompts={reloadPrompts}
-          />
-        )}
-        {currentTab === 2 && (
-          <ProgramContextsTab 
-            showNotification={showNotification}
-            reloadPrompts={reloadPrompts}
-          />
-        )}
-        {currentTab === 3 && (
-          <ModesTab 
-            showNotification={showNotification}
-            reloadPrompts={reloadPrompts}
-          />
-        )}
-        {currentTab === 4 && (
-          <ContentGenerationPromptsTab 
-            showNotification={showNotification}
-            reloadPrompts={reloadPrompts}
-          />
-        )}
-        {currentTab === 5 && (
-          <StatusTab 
-            showNotification={showNotification}
-            reloadPrompts={reloadPrompts}
-          />
+          <div className="mt-6">
+            <TabsContent value="base" className="m-0">
+              <BasePromptsTab 
+                showNotification={showNotification}
+                reloadPrompts={reloadPrompts}
+              />
+            </TabsContent>
+
+            <TabsContent value="personas" className="m-0">
+              <PersonasTab 
+                showNotification={showNotification}
+                reloadPrompts={reloadPrompts}
+              />
+            </TabsContent>
+
+            <TabsContent value="contexts" className="m-0">
+              <ProgramContextsTab 
+                showNotification={showNotification}
+                reloadPrompts={reloadPrompts}
+              />
+            </TabsContent>
+
+            <TabsContent value="modes" className="m-0">
+              <ModesTab 
+                showNotification={showNotification}
+                reloadPrompts={reloadPrompts}
+              />
+            </TabsContent>
+
+            <TabsContent value="content" className="m-0">
+              <ContentGenerationPromptsTab 
+                showNotification={showNotification}
+                reloadPrompts={reloadPrompts}
+              />
+            </TabsContent>
+
+            <TabsContent value="status" className="m-0">
+              <StatusTab 
+                showNotification={showNotification}
+                reloadPrompts={reloadPrompts}
+              />
+            </TabsContent>
+          </div>
+        </Tabs>
+
+        {/* Global loading overlay */}
+        {loading && (
+          <div className="fixed inset-0 bg-white/80 flex flex-col items-center justify-center z-50">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4242EA]"></div>
+            <p className="mt-4 font-proxima text-[#1E1E1E]">Reloading prompts...</p>
+          </div>
         )}
       </div>
-
-      {/* Global loading overlay */}
-      {loading && (
-        <Box className="admin-prompts__loading-overlay">
-          <CircularProgress />
-          <Typography variant="body2" sx={{ mt: 2 }}>
-            Reloading prompts...
-          </Typography>
-        </Box>
-      )}
-
-      {/* Notification snackbar */}
-      <Snackbar
-        open={notification.open}
-        autoHideDuration={6000}
-        onClose={closeNotification}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert
-          onClose={closeNotification}
-          severity={notification.severity}
-          sx={{ width: '100%' }}
-        >
-          {notification.message}
-        </Alert>
-      </Snackbar>
     </div>
   );
 };

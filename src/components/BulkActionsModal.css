@@ -1,11 +1,11 @@
-/* Bulk Actions Modal - BEM naming convention */
+/* Bulk Actions Modal - Light Theme */
 .bulk-actions-modal__overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -13,14 +13,14 @@
 }
 
 .bulk-actions-modal__container {
-  background: #1a1f2c;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: white;
+  border: 1px solid var(--color-divider);
   border-radius: 12px;
   width: 90%;
   max-width: 500px;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
 }
 
 .bulk-actions-modal__header {
@@ -28,12 +28,13 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--color-divider);
+  background: var(--color-bg-light);
 }
 
 .bulk-actions-modal__header h2 {
   margin: 0;
-  color: var(--color-text-primary);
+  color: var(--color-carbon-black);
   font-size: 1.25rem;
   font-weight: 600;
 }
@@ -41,7 +42,7 @@
 .bulk-actions-modal__close {
   background: none;
   border: none;
-  color: var(--color-text-secondary);
+  color: var(--color-carbon-black);
   font-size: 1.5rem;
   cursor: pointer;
   padding: 0.25rem;
@@ -50,7 +51,7 @@
 }
 
 .bulk-actions-modal__close:hover {
-  color: var(--color-text-primary);
+  color: var(--color-pursuit-purple);
 }
 
 .bulk-actions-modal__content {
@@ -59,7 +60,7 @@
 
 .bulk-actions-modal__content p {
   margin: 0 0 1.5rem 0;
-  color: var(--color-text-primary);
+  color: var(--color-carbon-black);
   font-size: 1rem;
 }
 
@@ -70,7 +71,7 @@
 .bulk-actions-modal__field label {
   display: block;
   margin-bottom: 0.5rem;
-  color: var(--color-text-primary);
+  color: var(--color-carbon-black);
   font-weight: 500;
   font-size: 0.9rem;
 }
@@ -80,10 +81,10 @@
 .bulk-actions-modal__textarea {
   width: 100%;
   padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: white;
+  border: 1px solid var(--color-divider);
   border-radius: 6px;
-  color: var(--color-text-primary);
+  color: var(--color-carbon-black);
   font-size: 0.9rem;
   transition: border-color 0.2s ease;
 }
@@ -92,7 +93,8 @@
 .bulk-actions-modal__input:focus,
 .bulk-actions-modal__textarea:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--color-pursuit-purple);
+  box-shadow: 0 0 0 2px rgba(111, 61, 235, 0.1);
 }
 
 .bulk-actions-modal__textarea {
@@ -102,29 +104,30 @@
 }
 
 .bulk-actions-modal__action-description {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-bg-light);
+  border: 1px solid var(--color-divider);
   border-radius: 6px;
   padding: 1rem;
-  color: var(--color-text-secondary);
+  color: var(--color-carbon-black);
+  opacity: 0.8;
   font-size: 0.85rem;
   line-height: 1.4;
   margin-top: 1rem;
 }
 
 .bulk-actions-modal__action-summary {
-  background: rgba(102, 126, 234, 0.1);
-  border: 1px solid rgba(102, 126, 234, 0.2);
+  background: rgba(111, 61, 235, 0.1);
+  border: 1px solid rgba(111, 61, 235, 0.2);
   border-radius: 6px;
   padding: 0.75rem;
-  color: var(--color-primary);
+  color: var(--color-pursuit-purple);
   font-size: 0.9rem;
   margin-bottom: 1rem;
 }
 
 .bulk-actions-modal__email-preview {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-bg-light);
+  border: 1px solid var(--color-divider);
   border-radius: 6px;
   padding: 1rem;
   margin-top: 1rem;
@@ -133,7 +136,8 @@
 
 .bulk-actions-modal__email-preview div {
   margin-bottom: 0.5rem;
-  color: var(--color-text-secondary);
+  color: var(--color-carbon-black);
+  opacity: 0.8;
 }
 
 .bulk-actions-modal__email-preview div:last-child {
@@ -141,15 +145,17 @@
 }
 
 .bulk-actions-modal__email-preview strong {
-  color: var(--color-text-primary);
+  color: var(--color-carbon-black);
+  font-weight: 600;
 }
 
 .bulk-actions-modal__footer {
   display: flex;
   gap: 1rem;
   padding: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--color-divider);
   justify-content: flex-end;
+  background: var(--color-bg-light);
 }
 
 .bulk-actions-modal__btn {
@@ -169,28 +175,28 @@
 }
 
 .bulk-actions-modal__btn--secondary {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: var(--color-text-secondary);
+  background: white;
+  border: 1px solid var(--color-divider);
+  color: var(--color-carbon-black);
 }
 
 .bulk-actions-modal__btn--secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--color-text-primary);
+  background: var(--color-bg-light);
+  border-color: var(--color-carbon-black);
 }
 
 .bulk-actions-modal__btn--primary {
-  background: var(--color-primary);
+  background: var(--color-pursuit-purple);
   color: white;
 }
 
 .bulk-actions-modal__btn--primary:hover:not(:disabled) {
-  background: #5a67d8;
+  background: rgba(111, 61, 235, 0.9);
   transform: translateY(-1px);
 }
 
 .bulk-actions-modal__btn--primary:disabled {
-  background: #4a5568;
+  background: #cbd5e0;
 }
 
 /* Loading State Styles */
@@ -205,8 +211,8 @@
 .bulk-actions-modal__spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid rgba(102, 126, 234, 0.2);
-  border-top: 3px solid var(--color-primary);
+  border: 3px solid var(--color-divider);
+  border-top: 3px solid var(--color-pursuit-purple);
   border-radius: 50%;
   animation: bulk-actions-modal-spin 1s linear infinite;
   margin-bottom: 1.5rem;
@@ -218,7 +224,7 @@
 }
 
 .bulk-actions-modal__loading-text {
-  color: var(--color-text-primary);
+  color: var(--color-carbon-black);
 }
 
 .bulk-actions-modal__loading-text p {
@@ -227,13 +233,15 @@
 }
 
 .bulk-actions-modal__loading-subtext {
-  color: var(--color-text-secondary) !important;
+  color: var(--color-carbon-black) !important;
+  opacity: 0.8 !important;
   font-size: 0.9rem !important;
   font-weight: 500;
 }
 
 .bulk-actions-modal__loading-note {
-  color: var(--color-text-secondary) !important;
+  color: var(--color-carbon-black) !important;
+  opacity: 0.7 !important;
   font-size: 0.85rem !important;
   font-style: italic;
   margin-top: 1rem !important;
