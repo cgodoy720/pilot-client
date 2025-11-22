@@ -102,6 +102,7 @@ function GPT() {
   const summaryUrl = searchParams.get('summaryUrl');
   const summaryTitle = searchParams.get('summaryTitle'); 
   const summaryData = searchParams.get('summaryData');
+  const waitingForResponse = searchParams.get('waitingForResponse') === 'true';
 
   // Cleanup: abort any pending requests when component unmounts
   useEffect(() => {
@@ -156,6 +157,17 @@ function GPT() {
     }
   }, [summaryUrl, summaryTitle, summaryData, searchParams, setSearchParams, threadIdFromUrl]);
 
+  // Handle waitingForResponse parameter - show preloader immediately
+  useEffect(() => {
+    if (waitingForResponse) {
+      setIsAiThinking(true);
+      // Clear the URL parameter
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('waitingForResponse');
+      setSearchParams(newSearchParams, { replace: true });
+    }
+  }, [waitingForResponse, searchParams, setSearchParams]);
+
   // Handle threadId URL parameter
   useEffect(() => {
     if (threadIdFromUrl && threads.length > 0) {
@@ -189,6 +201,29 @@ function GPT() {
       setMessages([]);
     }
   }, [activeThread, token]);
+
+  // Poll for new messages when waiting for AI response
+  useEffect(() => {
+    if (!isAiThinking || !activeThread || !token) return;
+
+    let pollCount = 0;
+    const maxPolls = 30; // Stop polling after 60 seconds (30 * 2s)
+
+    const pollInterval = setInterval(() => {
+      pollCount++;
+      if (pollCount >= maxPolls) {
+        clearInterval(pollInterval);
+        setIsAiThinking(false); // Stop showing preloader after timeout
+        return;
+      }
+      
+      // Fetch messages to check if AI has responded (pass isPolling=true to prevent clearing messages)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      fetchMessages(activeThread, true);
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [isAiThinking, activeThread, token]);
 
   // Clear summary data when switching to a thread without summary
   useEffect(() => {
@@ -269,27 +304,31 @@ function GPT() {
     }
   };
 
-  const fetchMessages = async (threadId) => {
+  const fetchMessages = async (threadId, isPolling = false) => {
     // Abort any pending fetch messages request
     if (fetchMessagesAbortControllerRef.current) {
       fetchMessagesAbortControllerRef.current.abort();
     }
     
     // CRITICAL: Also abort any pending send message request when switching threads
-    if (abortControllerRef.current) {
+    if (abortControllerRef.current && !isPolling) {
       abortControllerRef.current.abort();
     }
     
-    // Reset AI thinking state since we're switching contexts
+    // Only reset AI thinking state when switching threads (not when polling)
+    if (!isPolling) {
     setIsAiThinking(false);
     setIsSending(false);
+    }
     
     // Create new AbortController for this request
     const abortController = new AbortController();
     fetchMessagesAbortControllerRef.current = abortController;
     
-    // Clear messages immediately to prevent showing stale content
+    // Only clear messages when switching threads, not when polling
+    if (!isPolling) {
     setMessages([]);
+    }
     
     try {
       setIsLoading(true);
@@ -320,8 +359,38 @@ function GPT() {
         return message;
       });
       
+      // When polling, only update messages if they've actually changed (to prevent flashing)
+      if (isPolling) {
+        // Compare message count and last message ID to avoid unnecessary updates
+        const currentLastMessageId = messages.length > 0 ? getMessageId(messages[messages.length - 1]) : null;
+        const newLastMessageId = messagesArray.length > 0 ? getMessageId(messagesArray[messagesArray.length - 1]) : null;
+        
+        // Only update if messages actually changed
+        if (currentLastMessageId !== newLastMessageId || messages.length !== messagesArray.length) {
+          setMessages(messagesArray);
+          
+          // Update isAiThinking based on last message role
+          if (messagesArray.length > 0) {
+            const lastMessage = messagesArray[messagesArray.length - 1];
+            const lastMessageRole = getMessageRole(lastMessage);
+            setIsAiThinking(lastMessageRole === 'user');
+          }
+        }
+      } else {
       setMessages(messagesArray);
       setError('');
+        
+        // Check if we're waiting for an AI response (last message is from user)
+        if (messagesArray.length > 0) {
+          const lastMessage = messagesArray[messagesArray.length - 1];
+          const lastMessageRole = getMessageRole(lastMessage);
+          setIsAiThinking(lastMessageRole === 'user');
+        }
+      }
+      
+      if (!isPolling) {
+        setError('');
+      }
     } catch (err) {
       // Ignore abort errors
       if (err.name === 'AbortError') {

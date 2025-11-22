@@ -228,9 +228,12 @@ const Performance = () => {
         <div className="w-px bg-[#C8C8C8]"></div>
         
         {/* Right Panel - Feedback Inbox (Full Space) */}
-        <div className="flex-1 px-10 pb-10 flex flex-col bg-[#EFEFEF]">
+        <div className="flex-1 px-10 flex flex-col bg-[#EFEFEF]">
           <FeedbackInbox
             userId={user.user_id}
+            month={selectedMonth}
+            year={selectedYear}
+            cohort={user?.cohort}
             feedbackData={feedbackData}
             onTaskClick={handleTaskClick}
             onIncompleteTaskNavigate={handleIncompleteTaskNavigate}

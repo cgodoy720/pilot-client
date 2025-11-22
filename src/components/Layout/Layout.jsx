@@ -273,7 +273,7 @@ const Layout = ({ children, isLoading = false }) => {
         ), 'Performance', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)}
         
         {/* Assessment - Show for fellows, admin, and staff; Hide for workshop participants, workshop admins, and applicants */}
-        {renderNavLink('/assessment', (
+        {/* {renderNavLink('/assessment', (
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             <polyline points="14,2 14,8 20,8" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -281,7 +281,7 @@ const Layout = ({ children, isLoading = false }) => {
             <line x1="16" y1="17" x2="8" y2="17" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             <polyline points="10,9 9,9 8,9" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-        ), 'Assessment', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)}
+        ), 'Assessment', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)} */}
         
         {/* Payment - NEW from dev */}
         {renderNavLink('/payment', <Briefcase className="h-4 w-4 text-[#E3E3E3]" />, 'Payment', 
