@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import Swal from 'sweetalert2';
-import './PathfinderAdmin.css';
 import { formatSalary } from '../../utils/salaryFormatter';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
+import { Badge } from '../../components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 
 function PathfinderAdmin() {
   const { user, token } = useAuth();
@@ -1375,102 +1382,66 @@ function PathfinderAdmin() {
   }
 
   return (
-    <div className="pathfinder-admin">
-      <div className="pathfinder-admin__container">
-        <div className="pathfinder-admin__header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-            <h1 className="pathfinder-admin__title">Pathfinder Admin Dashboard</h1>
+    <div className="w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto p-6">
+      <div className="max-w-full mx-auto">
+        <div className="flex justify-between items-center mb-8 gap-4 flex-wrap">
+          <div className="flex items-center gap-6">
+            <h1 className="text-2xl font-semibold text-[#1a1a1a] m-0">Pathfinder Admin Dashboard</h1>
             
             {/* Cohort Filter */}
-            <div className="pathfinder-admin__filter-group" style={{ marginBottom: 0 }}>
-              <label>Filter by Cohort:</label>
-              <select
-                value={cohortFilter}
-                onChange={(e) => setCohortFilter(e.target.value)}
-                className="pathfinder-admin__filter-select"
-              >
-                <option value="">All Cohorts</option>
-                {availableCohorts.map(cohort => (
-                  <option key={cohort} value={cohort}>{cohort}</option>
-                ))}
-              </select>
+            <div className="flex items-center gap-2">
+              <label className="font-medium text-[#1a1a1a] whitespace-nowrap">Filter by Cohort:</label>
+              <Select value={cohortFilter} onValueChange={setCohortFilter}>
+                <SelectTrigger className="w-[200px] bg-white border-[#d0d0d0]">
+                  <SelectValue placeholder="All Cohorts" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Cohorts</SelectItem>
+                  {availableCohorts.map(cohort => (
+                    <SelectItem key={cohort} value={cohort}>{cohort}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           
-          <button 
-            className="pathfinder-admin__export-btn"
+          <Button 
+            className="px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] hover:bg-[#3333d1] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(66,66,234,0.3)]"
             onClick={handleExport}
           >
             Export Data
-          </button>
+          </Button>
         </div>
 
         {error && (
-          <div className="pathfinder-admin__message pathfinder-admin__message--error">
+          <div className="p-4 bg-red-100 text-red-600 border border-red-200 rounded-md mb-6 font-medium">
             {error}
           </div>
         )}
 
-        {/* Tabs Row */}
-        <div className="pathfinder-admin__tabs-row">
-          {/* View Tabs */}
-          <div className="pathfinder-admin__tabs">
-            <button
-              className={`pathfinder-admin__tab ${view === 'overview' ? 'pathfinder-admin__tab--active' : ''}`}
-              onClick={() => setView('overview')}
-            >
-              Overview
-            </button>
-            <button
-              className={`pathfinder-admin__tab ${view === 'builders' ? 'pathfinder-admin__tab--active' : ''}`}
-              onClick={() => setView('builders')}
-            >
-              Builders
-            </button>
-            <button
-              className={`pathfinder-admin__tab ${view === 'companies' ? 'pathfinder-admin__tab--active' : ''}`}
-              onClick={() => setView('companies')}
-            >
-              Companies
-            </button>
-            <button
-              className={`pathfinder-admin__tab ${view === 'build-projects' ? 'pathfinder-admin__tab--active' : ''}`}
-              onClick={() => setView('build-projects')}
-            >
-              Build Projects
-            </button>
-            <button
-              className={`pathfinder-admin__tab ${view === 'job-applications' ? 'pathfinder-admin__tab--active' : ''}`}
-              onClick={() => setView('job-applications')}
-            >
-              Job Applications
-            </button>
-            <button
-              className={`pathfinder-admin__tab ${view === 'ceremonies' ? 'pathfinder-admin__tab--active' : ''}`}
-              onClick={() => setView('ceremonies')}
-            >
-              Ceremonies
-            </button>
-            <button
-              className={`pathfinder-admin__tab ${view === 'prds' ? 'pathfinder-admin__tab--active' : ''}`}
-              onClick={() => setView('prds')}
-            >
+        {/* Tabs */}
+        <Tabs value={view} onValueChange={setView} className="w-full">
+          <TabsList className="grid w-full grid-cols-7 mb-8">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="builders">Builders</TabsTrigger>
+            <TabsTrigger value="companies">Companies</TabsTrigger>
+            <TabsTrigger value="build-projects">Build Projects</TabsTrigger>
+            <TabsTrigger value="job-applications">Job Applications</TabsTrigger>
+            <TabsTrigger value="ceremonies">Ceremonies</TabsTrigger>
+            <TabsTrigger value="prds" className="relative">
               PRDs
               {pendingApprovals.length > 0 && (
-                <span className="pathfinder-admin__tab-badge">{pendingApprovals.length}</span>
+                <Badge className="ml-1 bg-red-500 text-white text-xs px-1.5 py-0.5">
+                  {pendingApprovals.length}
+                </Badge>
               )}
-            </button>
-            <button
-              className={`pathfinder-admin__tab ${view === 'weekly-goals' ? 'pathfinder-admin__tab--active' : ''}`}
-              onClick={() => setView('weekly-goals')}
-            >
-              Weekly Goals
-            </button>
-          </div>
-        </div>
+            </TabsTrigger>
+            <TabsTrigger value="weekly-goals">Weekly Goals</TabsTrigger>
+          </TabsList>
 
-        {/* Overview View */}
-        {view === 'overview' && overview && (
+          {/* Overview View */}
+          <TabsContent value="overview" className="mt-0">
+            {overview && (
           <div className="pathfinder-admin__overview">
             {/* This Week Stats */}
             <div className="pathfinder-admin__section-header" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1965,10 +1936,12 @@ function PathfinderAdmin() {
               </div>
             </div>
           </div>
-        )}
+            )}
+          </TabsContent>
 
         {/* Builders View */}
-        {view === 'builders' && (
+        <TabsContent value="builders" className="mt-0">
+          {(
           <div className="pathfinder-admin__builders">
             <div className="pathfinder-admin__table-container">
               {builders.length === 0 ? (
@@ -2055,10 +2028,12 @@ function PathfinderAdmin() {
               )}
             </div>
           </div>
-        )}
+          )}
+        </TabsContent>
 
         {/* Companies View */}
-        {view === 'companies' && (
+        <TabsContent value="companies" className="mt-0">
+          {(
           <div className="pathfinder-admin__companies">
             {/* View Mode Toggle */}
             <div className="pathfinder-admin__view-toggle">
@@ -2264,7 +2239,8 @@ function PathfinderAdmin() {
         )}
 
         {/* PRDs View with Sub-tabs */}
-        {view === 'prds' && (
+        <TabsContent value="prds" className="mt-0">
+          {(
           <div className="pathfinder-admin__prd-approvals">
             <div className="pathfinder-admin__section-header">
               {/* Sub-tab navigation */}
@@ -2826,10 +2802,12 @@ function PathfinderAdmin() {
               </>
             )}
           </div>
-        )}
+          )}
+        </TabsContent>
 
         {/* Build Projects View */}
-        {view === 'build-projects' && (
+        <TabsContent value="build-projects" className="mt-0">
+          {(
           <div className="pathfinder-admin__build-projects">
             <div className="pathfinder-admin__section-header">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
@@ -3364,10 +3342,12 @@ function PathfinderAdmin() {
               </div>
             </div>
           </div>
-        )}
+          )}
+        </TabsContent>
 
         {/* Ceremonies View */}
-        {view === 'ceremonies' && (
+        <TabsContent value="ceremonies" className="mt-0">
+          {(
           <div className="pathfinder-admin__ceremonies">
             <div className="pathfinder-admin__ceremonies-header">
               <div className="pathfinder-admin__ceremonies-title-row">
@@ -3518,8 +3498,8 @@ function PathfinderAdmin() {
               </div>
             </div>
           </div>
-        )}
-      </div>
+          )}
+        </TabsContent>
 
       {/* Archive Modal */}
       {showArchiveModal && (
@@ -3585,10 +3565,12 @@ function PathfinderAdmin() {
             </div>
           </div>
         </div>
-      )}
+        )}
+      </TabsContent>
 
       {/* Job Applications View */}
-      {view === 'job-applications' && (
+      <TabsContent value="job-applications" className="mt-0">
+        {(
         <div className="pathfinder-admin__job-applications">
           <div className="pathfinder-admin__section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -3934,10 +3916,12 @@ function PathfinderAdmin() {
             </div>
           )}
         </div>
-      )}
+        )}
+      </TabsContent>
 
       {/* Weekly Goals View */}
-      {view === 'weekly-goals' && (
+      <TabsContent value="weekly-goals" className="mt-0">
+        {(
         <div className="pathfinder-admin__weekly-goals">
           <div className="pathfinder-admin__weekly-goals-header">
             <h2>Weekly Goals Management</h2>
@@ -4362,7 +4346,8 @@ function PathfinderAdmin() {
             </div>
           </div>
         </div>
-      )}
+        )}
+      </TabsContent>
 
       {/* Builder Filter Modal */}
       {showBuilderFilterModal && (
@@ -4404,6 +4389,8 @@ function PathfinderAdmin() {
           </div>
         </div>
       )}
+        </Tabs>
+      </div>
     </div>
   );
 }

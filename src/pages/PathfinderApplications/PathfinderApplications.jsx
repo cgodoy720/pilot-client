@@ -6,7 +6,14 @@ import Swal from 'sweetalert2';
 import confetti from 'canvas-confetti';
 import CompanyAutocomplete from '../../components/CompanyAutocomplete';
 import RichTextEditor from '../../components/RichTextEditor';
-import './PathfinderApplications.css';
+import { Card, CardContent } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
+import { Badge } from '../../components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 
 // Helper function to get local date in YYYY-MM-DD format
 const getLocalDate = () => {
@@ -1048,32 +1055,32 @@ function PathfinderApplications() {
   }
 
   return (
-    <div className="pathfinder-applications">
-      <div className="pathfinder-applications__container">
-        <div className="pathfinder-applications__header">
-          <button 
-            className="pathfinder-applications__add-btn"
+    <div className="w-full max-w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto overflow-x-hidden p-0 px-6 pb-6 box-border relative">
+      <div className="max-w-full w-full mx-auto box-border flex flex-col overflow-x-hidden">
+        <div className="flex justify-between items-center mb-4 gap-4 flex-wrap max-w-full w-full relative">
+          <Button 
+            className="px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] relative overflow-hidden flex-shrink-0 whitespace-nowrap z-[100] hover:bg-[#3333d1] hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_6px_20px_rgba(66,66,234,0.4)] active:translate-y-0 active:scale-100 active:shadow-[0_2px_8px_rgba(66,66,234,0.2)]"
             onClick={() => setShowForm(!showForm)}
           >
             {showForm ? 'Cancel' : '+ Add Job'}
-          </button>
+          </Button>
           
-          <div className="pathfinder-applications__header-controls">
-            <div className="pathfinder-applications__search">
-              <svg className="pathfinder-applications__search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <div className="flex items-center gap-4 flex-1 min-w-min justify-end">
+            <div className="relative flex items-center flex-[0_1_280px] min-w-[150px]">
+              <svg className="absolute left-3 text-[#666666] pointer-events-none" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5"/>
                 <path d="M11 11L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
-              <input
+              <Input
                 type="text"
-                className="pathfinder-applications__search-input"
+                className="py-2 px-9 bg-white border border-[#d0d0d0] rounded-md text-[#1a1a1a] text-[0.95rem] w-full box-border transition-colors duration-200 focus:border-[#4242ea] placeholder:text-[#666666] placeholder:opacity-60"
                 placeholder="Search applications..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               {searchQuery && (
                 <button
-                  className="pathfinder-applications__search-clear"
+                  className="absolute right-2 bg-none border-none text-[#666666] cursor-pointer p-1 rounded text-sm flex items-center justify-center transition-colors duration-200 hover:bg-[#f0f0f0]"
                   onClick={() => setSearchQuery('')}
                   title="Clear search"
                 >
@@ -1082,23 +1089,28 @@ function PathfinderApplications() {
               )}
             </div>
             
-            <div className="pathfinder-applications__filter-dropdown">
-              <select value={filterStage} onChange={(e) => setFilterStage(e.target.value)}>
-                <option value="all">All Stages</option>
-                <option value="prospect">Prospect</option>
-                <option value="applied">Applied</option>
-                <option value="screen">Phone Screen</option>
-                <option value="oa">Online Assessment</option>
-                <option value="interview">Interview</option>
-                <option value="offer">Offer</option>
-                <option value="rejected">Rejected</option>
-                <option value="withdrawn">Withdrawn</option>
-              </select>
-            </div>
+            <Select value={filterStage} onValueChange={setFilterStage}>
+              <SelectTrigger className="w-[180px] bg-white border-[#d0d0d0]">
+                <SelectValue placeholder="All Stages" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Stages</SelectItem>
+                <SelectItem value="prospect">Prospect</SelectItem>
+                <SelectItem value="applied">Applied</SelectItem>
+                <SelectItem value="screen">Phone Screen</SelectItem>
+                <SelectItem value="oa">Online Assessment</SelectItem>
+                <SelectItem value="interview">Interview</SelectItem>
+                <SelectItem value="offer">Offer</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="withdrawn">Withdrawn</SelectItem>
+              </SelectContent>
+            </Select>
             
-            <div className="pathfinder-applications__view-toggle">
-              <button
-                className={`pathfinder-applications__view-btn ${viewMode === 'kanban' ? 'pathfinder-applications__view-btn--active' : ''}`}
+            <div className="flex border border-[#e0e0e0] rounded-md bg-white overflow-hidden">
+              <Button
+                variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+                size="sm"
+                className={`px-3 py-2 rounded-none border-none transition-all duration-200 ${viewMode === 'kanban' ? 'bg-[#4242ea] text-white' : 'bg-transparent text-[#666666] hover:bg-[#f5f5f5] hover:text-[#1a1a1a]'}`}
                 onClick={() => setViewMode('kanban')}
                 title="Kanban View"
               >
@@ -1107,9 +1119,11 @@ function PathfinderApplications() {
                   <rect x="6.5" y="2" width="3" height="8" fill="currentColor"/>
                   <rect x="11" y="2" width="3" height="10" fill="currentColor"/>
                 </svg>
-              </button>
-              <button
-                className={`pathfinder-applications__view-btn ${viewMode === 'table' ? 'pathfinder-applications__view-btn--active' : ''}`}
+              </Button>
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'ghost'}
+                size="sm"
+                className={`px-3 py-2 rounded-none border-none transition-all duration-200 ${viewMode === 'table' ? 'bg-[#4242ea] text-white' : 'bg-transparent text-[#666666] hover:bg-[#f5f5f5] hover:text-[#1a1a1a]'}`}
                 onClick={() => setViewMode('table')}
                 title="Table View"
               >
@@ -1118,7 +1132,7 @@ function PathfinderApplications() {
                   <rect x="2" y="7" width="12" height="2" fill="currentColor"/>
                   <rect x="2" y="11" width="12" height="2" fill="currentColor"/>
                 </svg>
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -1835,158 +1849,170 @@ function PathfinderApplications() {
 
         {/* Applications View - Table or Kanban */}
         {viewMode === 'table' ? (
-          <div className="pathfinder-applications__table-container">
+          <div className="w-full overflow-x-auto bg-white rounded-lg border border-[#e0e0e0]">
             {sortedAndFilteredApplications.length === 0 ? (
-              <div className="pathfinder-applications__empty">
+              <div className="text-center p-8 text-[#666666]">
                 <p>No applications yet. Click "+ New Application" to add your first one!</p>
               </div>
             ) : (
-              <table className="pathfinder-applications__table">
-              <thead>
-                <tr>
-                  <th onClick={() => handleSort('company_name')} className="pathfinder-applications__sortable">
-                    Company
-                    {sortColumn === 'company_name' && (
-                      <span className="pathfinder-applications__sort-icon">
-                        {sortDirection === 'asc' ? ' ▲' : ' ▼'}
-                      </span>
-                    )}
-                  </th>
-                  <th onClick={() => handleSort('stage')} className="pathfinder-applications__sortable">
-                    Current Stage
-                    {sortColumn === 'stage' && (
-                      <span className="pathfinder-applications__sort-icon">
-                        {sortDirection === 'asc' ? ' ▲' : ' ▼'}
-                      </span>
-                    )}
-                  </th>
-                  <th onClick={() => handleSort('date_applied')} className="pathfinder-applications__sortable">
-                    Date Applied / Deadline
-                    {sortColumn === 'date_applied' && (
-                      <span className="pathfinder-applications__sort-icon">
-                        {sortDirection === 'asc' ? ' ▲' : ' ▼'}
-                      </span>
-                    )}
-                  </th>
-                  <th onClick={() => handleSort('role_title')} className="pathfinder-applications__sortable">
-                    Position Title
-                    {sortColumn === 'role_title' && (
-                      <span className="pathfinder-applications__sort-icon">
-                        {sortDirection === 'asc' ? ' ▲' : ' ▼'}
-                      </span>
-                    )}
-                  </th>
-                  <th>Job Posting</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedAndFilteredApplications.map(app => (
-                  <tr key={app.job_application_id}>
-                    <td className="pathfinder-applications__table-company">
-                      <div className="pathfinder-applications__company-cell">
-                        {app.company_logo ? (
-                          <img 
-                            src={app.company_logo} 
-                            alt={app.company_name}
-                            className="pathfinder-applications__company-logo"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              const placeholder = e.target.nextElementSibling;
-                              if (placeholder) placeholder.style.display = 'flex';
-                            }}
-                          />
-                        ) : null}
-                        <div 
-                          className="pathfinder-applications__company-logo-initial"
-                          style={{ 
-                            backgroundColor: getInitialColor(app.company_name),
-                            display: app.company_logo ? 'none' : 'flex'
-                          }}
-                        >
-                          {getCompanyInitial(app.company_name)}
-                        </div>
-                        <span>{app.company_name}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="pathfinder-applications__table-stage-cell">
-                        <span 
-                          className="pathfinder-applications__table-stage"
-                        >
-                          {getStageLabel(app.stage)}
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-[#e0e0e0] bg-[#f9f9f9]">
+                    <th 
+                      onClick={() => handleSort('company_name')} 
+                      className="px-4 py-3 text-left text-sm font-semibold text-[#1a1a1a] cursor-pointer hover:bg-[#f0f0f0] transition-colors"
+                    >
+                      Company
+                      {sortColumn === 'company_name' && (
+                        <span className="ml-1 text-[#4242ea]">
+                          {sortDirection === 'asc' ? ' ▲' : ' ▼'}
                         </span>
-                        {app.response_received && (
-                          <span className="pathfinder-applications__response-badge pathfinder-applications__response-badge--table">
-                            📧
-                          </span>
-                        )}
-                        {(() => {
-                          const daysSinceUpdate = getDaysSinceLastUpdate(app.stage_history);
-                          if (daysSinceUpdate >= 30 && app.stage === 'applied') {
-                            return (
-                              <span className="pathfinder-applications__stale-badge pathfinder-applications__stale-badge--critical pathfinder-applications__stale-badge--table">
-                                ⚠️ {daysSinceUpdate}d
-                              </span>
-                            );
-                          } else if (daysSinceUpdate >= 14 && app.stage === 'applied') {
-                            return (
-                              <span className="pathfinder-applications__stale-badge pathfinder-applications__stale-badge--warning pathfinder-applications__stale-badge--table">
-                                ⏳ {daysSinceUpdate}d
-                              </span>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </div>
-                    </td>
-                    <td>
-                      {app.stage === 'prospect' ? 'Deadline: ' : 'Applied: '}
-                      {new Date(app.date_applied).toLocaleDateString()}
-                    </td>
-                    <td>{app.role_title}</td>
-                    <td>
-                      {app.source ? (
-                        <a 
-                          href={app.source} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="pathfinder-applications__table-link"
-                        >
-                          View Posting
-                        </a>
-                      ) : (
-                        <span className="pathfinder-applications__table-no-link">—</span>
                       )}
-                    </td>
-                    <td className="pathfinder-applications__table-actions">
-                      <button 
-                        onClick={() => handleEdit(app)}
-                        className="pathfinder-applications__table-btn pathfinder-applications__table-btn--edit"
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(app.job_application_id)}
-                        className="pathfinder-applications__table-btn pathfinder-applications__table-btn--delete"
-                      >
-                        Delete
-                      </button>
-                    </td>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('stage')} 
+                      className="px-4 py-3 text-left text-sm font-semibold text-[#1a1a1a] cursor-pointer hover:bg-[#f0f0f0] transition-colors"
+                    >
+                      Current Stage
+                      {sortColumn === 'stage' && (
+                        <span className="ml-1 text-[#4242ea]">
+                          {sortDirection === 'asc' ? ' ▲' : ' ▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th 
+                      onClick={() => handleSort('date_applied')} 
+                      className="px-4 py-3 text-left text-sm font-semibold text-[#1a1a1a] cursor-pointer hover:bg-[#f0f0f0] transition-colors"
+                    >
+                      Date Applied / Deadline
+                      {sortColumn === 'date_applied' && (
+                        <span className="ml-1 text-[#4242ea]">
+                          {sortDirection === 'asc' ? ' ▲' : ' ▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th 
+                      onClick={() => handleSort('role_title')} 
+                      className="px-4 py-3 text-left text-sm font-semibold text-[#1a1a1a] cursor-pointer hover:bg-[#f0f0f0] transition-colors"
+                    >
+                      Position Title
+                      {sortColumn === 'role_title' && (
+                        <span className="ml-1 text-[#4242ea]">
+                          {sortDirection === 'asc' ? ' ▲' : ' ▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#1a1a1a]">Job Posting</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#1a1a1a]">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {sortedAndFilteredApplications.map(app => (
+                    <tr key={app.job_application_id} className="border-b border-[#e0e0e0] hover:bg-[#f9f9f9] transition-colors">
+                      <td className="px-4 py-3 text-sm text-[#1a1a1a]">
+                        <div className="flex items-center gap-3">
+                          {app.company_logo ? (
+                            <img 
+                              src={app.company_logo} 
+                              alt={app.company_name}
+                              className="w-8 h-8 rounded object-contain bg-white p-1 flex-shrink-0"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                const placeholder = e.target.nextElementSibling;
+                                if (placeholder) placeholder.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div 
+                            className="w-8 h-8 rounded flex items-center justify-center text-white font-semibold text-sm uppercase flex-shrink-0"
+                            style={{ 
+                              backgroundColor: getInitialColor(app.company_name),
+                              display: app.company_logo ? 'none' : 'flex'
+                            }}
+                          >
+                            {getCompanyInitial(app.company_name)}
+                          </div>
+                          <span className="font-semibold text-[#1a1a1a]">{app.company_name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-block px-3 py-1 rounded-full text-xs font-medium text-[#6b7280] bg-white border border-[#d1d5db]">
+                            {getStageLabel(app.stage)}
+                          </span>
+                          {app.response_received && (
+                            <span className="inline-block px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-300">
+                              📧
+                            </span>
+                          )}
+                          {(() => {
+                            const daysSinceUpdate = getDaysSinceLastUpdate(app.stage_history);
+                            if (daysSinceUpdate >= 30 && app.stage === 'applied') {
+                              return (
+                                <span className="inline-block px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-300">
+                                  ⚠️ {daysSinceUpdate}d
+                                </span>
+                              );
+                            } else if (daysSinceUpdate >= 14 && app.stage === 'applied') {
+                              return (
+                                <span className="inline-block px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700 border border-yellow-300">
+                                  ⏳ {daysSinceUpdate}d
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#1a1a1a]">
+                        {app.stage === 'prospect' ? 'Deadline: ' : 'Applied: '}
+                        {new Date(app.date_applied).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#1a1a1a]">{app.role_title}</td>
+                      <td className="px-4 py-3 text-sm text-[#1a1a1a]">
+                        {app.source ? (
+                          <a 
+                            href={app.source} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-[#4242ea] font-medium no-underline transition-colors hover:text-[#3333d1] hover:underline"
+                          >
+                            View Posting
+                          </a>
+                        ) : (
+                          <span className="text-[#999999] opacity-50">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEdit(app)}
+                            className="h-8 px-3 text-xs bg-[#4242ea] text-white border-none rounded transition-all hover:bg-[#3333d1] font-medium cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(app.job_application_id)}
+                            className="h-8 px-3 text-xs bg-[#ef4444] text-white border-none rounded transition-all hover:bg-[#dc2626] font-medium cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         ) : (
-          <div className="pathfinder-applications__kanban">
+          <div className="flex gap-4 overflow-x-auto pb-4">
             {sortedAndFilteredApplications.length === 0 ? (
-              <div className="pathfinder-applications__empty">
-                <p>No applications yet. Click "+ New Application" to add your first one!</p>
+              <div className="text-center p-8 text-[#666666]">
+                <p>No applications yet. Click "+ Add Job" to add your first one!</p>
               </div>
             ) : (
-              <div className="pathfinder-applications__kanban-board">
+              <>
                 {['prospect', 'applied', 'interview', 'offer', 'accepted', 'rejected', 'withdrawn'].map(stage => {
                   // For interview column, include screen, oa, and interview stages
                   const stageApplications = stage === 'interview' 
@@ -1996,147 +2022,156 @@ function PathfinderApplications() {
                   return (
                     <div 
                       key={stage} 
-                      className={`pathfinder-applications__kanban-column ${collapsedColumns[stage] ? 'pathfinder-applications__kanban-column--collapsed' : ''}`}
+                      className={`flex-shrink-0 w-80 bg-[#f8f9fa] rounded-lg p-4 border border-[#e0e0e0] transition-all duration-200 hover:shadow-sm ${collapsedColumns[stage] ? 'w-16' : ''}`}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, stage)}
                     >
-                      <div className="pathfinder-applications__kanban-header">
-                        <h3>{getStageLabel(stage)}</h3>
-                        <div className="pathfinder-applications__kanban-header-right">
-                          <span className="pathfinder-applications__kanban-count">{stageApplications.length}</span>
-                          <button
-                            className="pathfinder-applications__kanban-collapse-btn"
+                      <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#e0e0e0]">
+                        <h3 className={`font-semibold text-[#1a1a1a] text-sm uppercase tracking-wide ${collapsedColumns[stage] ? 'transform -rotate-90 origin-center whitespace-nowrap' : ''}`}>
+                          {getStageLabel(stage)}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="bg-[#e0e0e0] text-[#666666] text-xs px-2 py-1">
+                            {stageApplications.length}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 hover:bg-[#e0e0e0]"
                             onClick={() => toggleColumnCollapse(stage)}
                             title={collapsedColumns[stage] ? "Expand column" : "Collapse column"}
                           >
                             {collapsedColumns[stage] ? '→' : '←'}
-                          </button>
+                          </Button>
                         </div>
                       </div>
                       {!collapsedColumns[stage] && (
-                        <div className="pathfinder-applications__kanban-cards">
+                        <div className="flex flex-col gap-3">
                         {stageApplications.map(app => (
-                          <div 
+                          <Card 
                             key={app.job_application_id} 
-                            className={`pathfinder-applications__kanban-card ${draggedApp?.job_application_id === app.job_application_id ? 'pathfinder-applications__kanban-card--dragging' : ''}`}
+                            className={`cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 bg-white border-[#e0e0e0] relative ${draggedApp?.job_application_id === app.job_application_id ? 'opacity-50 rotate-2' : ''}`}
                             draggable
                             onMouseDown={(e) => handleCardMouseDown(e, app)}
                             onMouseUp={(e) => handleCardMouseUp(e, app)}
                             onDragStart={(e) => handleDragStart(e, app)}
                             onDragEnd={handleDragEnd}
                           >
+                            <CardContent className="p-4 relative">
                             {/* Stale Indicator - Top Right */}
                             {(() => {
                               const daysSinceUpdate = getDaysSinceLastUpdate(app.stage_history);
                               if (daysSinceUpdate >= 30 && app.stage === 'applied') {
                                 return (
-                                  <span className="pathfinder-applications__stale-badge pathfinder-applications__stale-badge--critical pathfinder-applications__stale-badge--top">
+                                  <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-1.5 py-0.5">
                                     ⚠️ {daysSinceUpdate}d
-                                  </span>
+                                  </Badge>
                                 );
                               } else if (daysSinceUpdate >= 14 && app.stage === 'applied') {
                                 return (
-                                  <span className="pathfinder-applications__stale-badge pathfinder-applications__stale-badge--warning pathfinder-applications__stale-badge--top">
+                                  <Badge className="absolute -top-2 -right-2 bg-yellow-500 text-white text-xs px-1.5 py-0.5">
                                     ⏳ {daysSinceUpdate}d
-                                  </span>
+                                  </Badge>
                                 );
                               }
                               return null;
                             })()}
                             
-                            {/* Main card content wrapper */}
-                            <div className="pathfinder-applications__kanban-card-content">
-                              <div className="pathfinder-applications__kanban-card-header">
-                                <div className="pathfinder-applications__kanban-company">
-                                  {app.stage === 'accepted' ? (
-                                    <div 
-                                      className="pathfinder-applications__kanban-trophy-icon"
-                                      title="Accepted Offer!"
-                                    >
-                                      🏆
-                                    </div>
-                                  ) : app.company_logo ? (
-                                    <img 
-                                      src={app.company_logo} 
-                                      alt={app.company_name}
-                                      className="pathfinder-applications__kanban-company-logo"
-                                      onError={(e) => {
-                                        e.target.style.display = 'none';
-                                        const placeholder = e.target.nextElementSibling;
-                                        if (placeholder) placeholder.style.display = 'flex';
-                                      }}
-                                    />
-                                  ) : null}
-                                  {app.stage !== 'accepted' && (
-                                    <div 
-                                      className="pathfinder-applications__kanban-company-logo-initial"
-                                      style={{ 
-                                        backgroundColor: getInitialColor(app.company_name),
-                                        display: app.company_logo ? 'none' : 'flex'
-                                      }}
-                                    >
-                                      {getCompanyInitial(app.company_name)}
-                                    </div>
-                                  )}
-                                  <h4>{app.company_name}</h4>
-                                </div>
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDelete(app.job_application_id);
-                                  }}
-                                  onMouseDown={(e) => e.stopPropagation()}
-                                  draggable={false}
-                                  className="pathfinder-applications__kanban-card-btn pathfinder-applications__kanban-card-btn--delete"
-                                  title="Delete"
-                                >
-                                  🗑️
-                                </button>
+                            {/* Company Header */}
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                {app.stage === 'accepted' ? (
+                                  <div 
+                                    className="text-2xl"
+                                    title="Accepted Offer!"
+                                  >
+                                    🏆
+                                  </div>
+                                ) : app.company_logo ? (
+                                  <img 
+                                    src={app.company_logo} 
+                                    alt={app.company_name}
+                                    className="w-8 h-8 object-contain rounded border"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      const placeholder = e.target.nextElementSibling;
+                                      if (placeholder) placeholder.style.display = 'flex';
+                                    }}
+                                  />
+                                ) : null}
+                                {app.stage !== 'accepted' && (
+                                  <div 
+                                    className="w-8 h-8 rounded text-white text-sm font-semibold flex items-center justify-center"
+                                    style={{ 
+                                      backgroundColor: getInitialColor(app.company_name),
+                                      display: app.company_logo ? 'none' : 'flex'
+                                    }}
+                                  >
+                                    {getCompanyInitial(app.company_name)}
+                                  </div>
+                                )}
+                                <h4 className="font-semibold text-[#1a1a1a] text-sm leading-tight">{app.company_name}</h4>
                               </div>
-                              <p className="pathfinder-applications__kanban-card-title">{app.role_title}</p>
-                              
-                              {/* Withdrawal Reason - Only show for withdrawn jobs */}
-                              {app.stage === 'withdrawn' && app.withdrawal_reason && (
-                                <div className="pathfinder-applications__withdrawal-reason">
-                                  <span className="pathfinder-applications__withdrawal-reason-label">Reason:</span> {app.withdrawal_reason}
-                                </div>
+                              <Button 
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 hover:text-red-600"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(app.job_application_id);
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                draggable={false}
+                                title="Delete"
+                              >
+                                🗑️
+                              </Button>
+                            </div>
+                            
+                            <p className="font-medium text-[#1a1a1a] text-sm mb-3 leading-tight">{app.role_title}</p>
+                            
+                            {/* Withdrawal Reason - Only show for withdrawn jobs */}
+                            {app.stage === 'withdrawn' && app.withdrawal_reason && (
+                              <div className="text-xs text-[#666] mb-2 p-2 bg-gray-50 rounded">
+                                <span className="font-medium">Reason:</span> {app.withdrawal_reason}
+                              </div>
+                            )}
+                            
+                            {/* Badges Container */}
+                            <div className="flex flex-wrap gap-1.5">
+                              {/* Response Received Badge */}
+                              {app.response_received && (
+                                <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700">
+                                  📧 Response
+                                </Badge>
                               )}
                               
-                              {/* Badges Container */}
-                              <div className="pathfinder-applications__kanban-card-badges">
-                                {/* Response Received Badge */}
-                                {app.response_received && (
-                                  <span className="pathfinder-applications__response-badge">
-                                    📧 Response
-                                  </span>
-                                )}
-                                
-                                {/* Linked Activities Badge */}
-                                {activityCounts[app.job_application_id] > 0 && (
-                                  <span className="pathfinder-applications__activity-badge">
-                                    ⚡ {activityCounts[app.job_application_id]} {activityCounts[app.job_application_id] === 1 ? 'Hustle' : 'Hustles'}
-                                  </span>
-                                )}
+                              {/* Linked Activities Badge */}
+                              {activityCounts[app.job_application_id] > 0 && (
+                                <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-green-100 text-green-700">
+                                  ⚡ {activityCounts[app.job_application_id]} {activityCounts[app.job_application_id] === 1 ? 'Hustle' : 'Hustles'}
+                                </Badge>
+                              )}
 
-                                {/* Linked Builds Badge */}
-                                {buildCounts[app.job_application_id] > 0 && (
-                                  <span className="pathfinder-applications__build-badge">
-                                    🔧 {buildCounts[app.job_application_id]} {buildCounts[app.job_application_id] === 1 ? 'Build' : 'Builds'}
-                                  </span>
-                                )}
-                              </div>
+                              {/* Linked Builds Badge */}
+                              {buildCounts[app.job_application_id] > 0 && (
+                                <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700">
+                                  🔧 {buildCounts[app.job_application_id] === 1 ? 'Build' : 'Builds'}
+                                </Badge>
+                              )}
                             </div>
                             
                             {/* Stage History Timeline - Outside padded content */}
                             {renderStageTimeline(app.stage_history)}
-                          </div>
+                            </CardContent>
+                          </Card>
                         ))}
-                      </div>
+                        </div>
                       )}
                     </div>
                   );
                 })}
-              </div>
+              </>
             )}
           </div>
         )}

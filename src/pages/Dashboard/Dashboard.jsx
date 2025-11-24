@@ -509,8 +509,8 @@ function Dashboard() {
             {/* Vertical Divider */}
             <div className="dashboard__vertical-divider"></div>
 
-            {/* Upcoming Section */}
-            <div className="dashboard__upcoming">
+            {/* Upcoming Section - Hidden until events are available */}
+            <div className="dashboard__upcoming" style={{ visibility: 'hidden' }}>
               <h2 className="dashboard__section-title">Upcoming</h2>
               <div className="dashboard__upcoming-list">
                 {upcomingEvents.map((event, index) => (
@@ -960,8 +960,8 @@ function Dashboard() {
           {/* Divider 3 */}
           <div className="dashboard__mobile-divider-3" />
 
-          {/* Upcoming Section */}
-          <div className="dashboard__mobile-upcoming">
+          {/* Upcoming Section - Hidden until events are available */}
+          <div className="dashboard__mobile-upcoming" style={{ visibility: 'hidden' }}>
             <h2 className="dashboard__mobile-section-title">Upcoming</h2>
             <div className="dashboard__mobile-upcoming-list">
               {upcomingEvents.map((event, index) => (

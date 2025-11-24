@@ -4,7 +4,12 @@ import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import confetti from 'canvas-confetti';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
-import './PathfinderProjects.css';
+import { Card, CardContent } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Badge } from '../../components/ui/badge';
 
 function PathfinderProjects() {
   const { user, token } = useAuth();
@@ -720,15 +725,15 @@ function PathfinderProjects() {
   };
 
   return (
-    <div className="pathfinder-projects">
-      <div className="pathfinder-projects__container">
-        <div className="pathfinder-projects__header">
-          <button 
-            className="pathfinder-projects__add-btn"
+    <div className="w-full max-w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto overflow-x-hidden p-0 px-6 pb-6 box-border relative">
+      <div className="max-w-full w-full mx-auto box-border flex flex-col overflow-x-hidden">
+        <div className="flex justify-between items-center mb-4 gap-4 flex-wrap max-w-full w-full">
+          <Button 
+            className="px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] relative overflow-hidden flex-shrink-0 whitespace-nowrap hover:bg-[#3333d1] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(66,66,234,0.4)] active:translate-y-0 active:shadow-[0_2px_8px_rgba(66,66,234,0.2)]"
             onClick={() => setShowForm(!showForm)}
           >
             {showForm ? 'Cancel' : '+ Add Project'}
-          </button>
+          </Button>
         </div>
 
         {/* Add/Edit Form Modal */}
@@ -1211,188 +1216,193 @@ function PathfinderProjects() {
 
         {/* Kanban Board */}
         <div className="pathfinder-projects__kanban">
-          {projects.length === 0 ? (
-            <div className="pathfinder-projects__empty">
-              <p>No projects yet. Click "+ Add Project" to start tracking your builds!</p>
-            </div>
-          ) : (
-            <div className="pathfinder-projects__kanban-board">
-              {['ideation', 'planning', 'development', 'testing', 'launch'].map(stage => {
-                const stageProjects = projects.filter(proj => proj.stage === stage);
-                
-                return (
-                  <div 
-                    key={stage} 
-                    className={`pathfinder-projects__kanban-column ${collapsedColumns[stage] ? 'pathfinder-projects__kanban-column--collapsed' : ''}`}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, stage)}
-                  >
-                    <div className="pathfinder-projects__kanban-header">
-                      <h3>{getStageLabel(stage)}</h3>
-                      <div className="pathfinder-projects__kanban-header-right">
-                        <span className="pathfinder-projects__kanban-count">{stageProjects.length}</span>
-                        <button
-                          className="pathfinder-projects__kanban-collapse-btn"
-                          onClick={() => toggleColumnCollapse(stage)}
-                          title={collapsedColumns[stage] ? "Expand column" : "Collapse column"}
-                        >
-                          {collapsedColumns[stage] ? '→' : '←'}
-                        </button>
-                      </div>
+        {projects.length === 0 ? (
+          <div className="text-center p-8 text-[#666666]">
+            <p>No projects yet. Click "+ Add Project" to start tracking your builds!</p>
+          </div>
+        ) : (
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {['ideation', 'planning', 'development', 'testing', 'launch'].map(stage => {
+              const stageProjects = projects.filter(proj => proj.stage === stage);
+              
+              return (
+                <div 
+                  key={stage} 
+                  className={`flex-shrink-0 w-80 bg-[#f8f9fa] rounded-lg p-4 border border-[#e0e0e0] transition-all duration-200 hover:shadow-sm ${collapsedColumns[stage] ? 'w-16' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, stage)}
+                >
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#e0e0e0]">
+                    <h3 className={`font-semibold text-[#1a1a1a] text-sm uppercase tracking-wide ${collapsedColumns[stage] ? 'transform -rotate-90 origin-center whitespace-nowrap' : ''}`}>
+                      {getStageLabel(stage)}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-[#e0e0e0] text-[#666666] text-xs px-2 py-1">
+                        {stageProjects.length}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 hover:bg-[#e0e0e0]"
+                        onClick={() => toggleColumnCollapse(stage)}
+                        title={collapsedColumns[stage] ? "Expand column" : "Collapse column"}
+                      >
+                        {collapsedColumns[stage] ? '→' : '←'}
+                      </Button>
                     </div>
-                    {!collapsedColumns[stage] && (
-                      <div className="pathfinder-projects__kanban-cards">
-                      {stageProjects.map(project => {
-                        const daysUntil = getDaysUntilTarget(project.target_date);
-                        const isOverdue = daysUntil < 0;
-                        const isDueSoon = daysUntil >= 0 && daysUntil <= 7;
+                  </div>
+                  {!collapsedColumns[stage] && (
+                    <div className="flex flex-col gap-3">
+                    {stageProjects.map(project => {
+                      const daysUntil = getDaysUntilTarget(project.target_date);
+                      const isOverdue = daysUntil < 0;
+                      const isDueSoon = daysUntil >= 0 && daysUntil <= 7;
 
-                        return (
-                          <div 
-                            key={project.project_id} 
-                            className={`pathfinder-projects__kanban-card ${draggedProject?.project_id === project.project_id ? 'pathfinder-projects__kanban-card--dragging' : ''}`}
-                            draggable
-                            onMouseDown={(e) => handleCardMouseDown(e, project)}
-                            onMouseUp={(e) => handleCardMouseUp(e, project)}
-                            onDragStart={(e) => handleDragStart(e, project)}
-                            onDragEnd={handleDragEnd}
-                          >
-                            <div className="pathfinder-projects__kanban-card-actions">
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDelete(project.project_id);
-                                }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                draggable={false}
-                                className="pathfinder-projects__kanban-card-btn pathfinder-projects__kanban-card-btn--delete"
-                                title="Delete"
-                              >
-                                🗑️
-                              </button>
-                            </div>
+                      return (
+                        <Card 
+                          key={project.project_id} 
+                          className={`cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 bg-white border-[#e0e0e0] relative group ${draggedProject?.project_id === project.project_id ? 'opacity-50 rotate-2' : ''}`}
+                          draggable
+                          onMouseDown={(e) => handleCardMouseDown(e, project)}
+                          onMouseUp={(e) => handleCardMouseUp(e, project)}
+                          onDragStart={(e) => handleDragStart(e, project)}
+                          onDragEnd={handleDragEnd}
+                        >
+                          <CardContent className="p-4 relative">
+                            <Button 
+                              variant="ghost"
+                              size="sm"
+                              className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 hover:text-red-600"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(project.project_id);
+                              }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              draggable={false}
+                              title="Delete"
+                            >
+                              🗑️
+                            </Button>
                             
-                            <div className="pathfinder-projects__kanban-card-content">
-                              <div className="pathfinder-projects__kanban-card-header">
-                                <div className="pathfinder-projects__project-initial" style={{
+                            <div className="flex items-center gap-3 mb-3">
+                              <div 
+                                className="w-8 h-8 rounded flex items-center justify-center text-sm font-semibold"
+                                style={{
                                   backgroundColor: 'white',
                                   border: project.stage === 'launch' ? '2px solid #FFD700' : '1px solid #d0d0d0',
                                   fontSize: project.stage === 'launch' ? '1.25rem' : '0.875rem'
-                                }}>
-                                  {project.stage === 'launch' ? '🤖' : getProjectInitial(project.project_name)}
-                                </div>
-                                <h4>{project.project_name}</h4>
+                                }}
+                              >
+                                {project.stage === 'launch' ? '🤖' : getProjectInitial(project.project_name)}
                               </div>
+                              <h4 className="font-semibold text-[#1a1a1a] text-sm leading-tight flex-1">{project.project_name}</h4>
+                            </div>
                               
-                              <div className="pathfinder-projects__kanban-card-meta">
-                                <div className="pathfinder-projects__target-date">
-                                  <span className="pathfinder-projects__meta-label">Target:</span>
-                                  <span className="pathfinder-projects__meta-value">
+                            <div className="space-y-2 text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[#666] font-medium">Target:</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[#1a1a1a]">
                                     {new Date(project.target_date).toLocaleDateString()}
                                   </span>
                                   {isOverdue && (
-                                    <span className="pathfinder-projects__overdue-badge">
+                                    <Badge className="bg-red-500 text-white text-xs px-1.5 py-0.5">
                                       Overdue
-                                    </span>
+                                    </Badge>
                                   )}
                                   {isDueSoon && !isOverdue && (
-                                    <span className="pathfinder-projects__due-soon-badge">
+                                    <Badge className="bg-yellow-500 text-white text-xs px-1.5 py-0.5">
                                       Due Soon
-                                    </span>
+                                    </Badge>
                                   )}
                                 </div>
-                                
-                                {/* Linked Job */}
-                                {project.linked_job_id && project.linked_job_company && (
-                                  <div className="pathfinder-projects__linked-job">
-                                    <span className="pathfinder-projects__meta-label">For Job:</span>
-                                    <a 
-                                      href={`/pathfinder/applications?job=${project.linked_job_id}`}
-                                      className="pathfinder-projects__job-link"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      {project.linked_job_company} - {project.linked_job_role}
-                                    </a>
-                                  </div>
-                                )}
-                                
-                                {/* Launch Checklist Progress - Only show in Testing stage */}
-                                {project.stage === 'testing' && (
-                                  <div className="pathfinder-projects__checklist-progress-card">
-                                    <span className="pathfinder-projects__meta-label">Launch Checklist:</span>
-                                    <span className="pathfinder-projects__meta-value">
-                                      {(() => {
-                                        const checklist = typeof project.launch_checklist === 'string' 
-                                          ? JSON.parse(project.launch_checklist) 
-                                          : project.launch_checklist;
-                                        const count = checklist ? Object.values(checklist).filter(Boolean).length : 0;
-                                        return count;
-                                      })()} of 7 completed
-                                    </span>
-                                  </div>
-                                )}
-                                
-                                {project.prd_link && (
-                                  <div className="pathfinder-projects__prd-link">
-                                    <a 
-                                      href={project.prd_link} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="pathfinder-projects__link"
-                                    >
-                                      View PRD
-                                    </a>
-                                    
-                                    {/* PRD Approval Status - Inline with View PRD */}
-                                    {project.prd_approved && project.approver_first_name ? (
-                                      <div className="pathfinder-projects__prd-status pathfinder-projects__prd-status--approved">
-                                        <span className="pathfinder-projects__status-icon">✓</span>
-                                        <span className="pathfinder-projects__status-text">
-                                          Approved by {project.approver_first_name} {project.approver_last_name.charAt(0)}.
-                                        </span>
-                                      </div>
-                                    ) : project.prd_submitted ? (
-                                      <div className="pathfinder-projects__prd-status pathfinder-projects__prd-status--pending">
-                                        <span className="pathfinder-projects__status-icon">○</span>
-                                        <span className="pathfinder-projects__status-text">
-                                          Pending Approval
-                                        </span>
-                                      </div>
-                                    ) : (
-                                      <button
-                                        className="pathfinder-projects__prd-status pathfinder-projects__submit-prd-btn"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleSubmitPRD(project.project_id);
-                                        }}
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                        draggable={false}
-                                        title="Submit PRD for approval"
-                                      >
-                                        <span className="pathfinder-projects__status-icon">→</span>
-                                        <span className="pathfinder-projects__status-text">
-                                          Submit for Approval
-                                        </span>
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                                
-                                {/* No PRD indicator for Planning stage */}
-                                {!project.prd_link && project.stage === 'planning' && (
-                                  <div className="pathfinder-projects__prd-link">
-                                    <div className="pathfinder-projects__prd-status pathfinder-projects__prd-status--missing">
-                                      <span className="pathfinder-projects__status-icon">✕</span>
-                                      <span className="pathfinder-projects__status-text">
-                                        No PRD yet
+                              </div>
+                              
+                              {/* Linked Job */}
+                              {project.linked_job_id && project.linked_job_company && (
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[#666] font-medium">For Job:</span>
+                                  <a 
+                                    href={`/pathfinder/applications?job=${project.linked_job_id}`}
+                                    className="text-[#4242ea] hover:text-[#3333d1] text-xs underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {project.linked_job_company} - {project.linked_job_role}
+                                  </a>
+                                </div>
+                              )}
+                              
+                              {/* Launch Checklist Progress - Only show in Testing stage */}
+                              {project.stage === 'testing' && (
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[#666] font-medium">Launch Checklist:</span>
+                                  <span className="text-[#1a1a1a] text-xs">
+                                    {(() => {
+                                      const checklist = typeof project.launch_checklist === 'string' 
+                                        ? JSON.parse(project.launch_checklist) 
+                                        : project.launch_checklist;
+                                      const count = checklist ? Object.values(checklist).filter(Boolean).length : 0;
+                                      return count;
+                                    })()} of 7 completed
+                                  </span>
+                                </div>
+                              )}
+                              
+                              {project.prd_link && (
+                                <div className="flex flex-col gap-1">
+                                  <a 
+                                    href={project.prd_link} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-[#4242ea] hover:text-[#3333d1] text-xs underline"
+                                  >
+                                    View PRD
+                                  </a>
+                                  
+                                  {/* PRD Approval Status */}
+                                  {project.prd_approved && project.approver_first_name ? (
+                                    <div className="flex items-center gap-1 text-green-600">
+                                      <span>✓</span>
+                                      <span className="text-xs">
+                                        Approved by {project.approver_first_name} {project.approver_last_name.charAt(0)}.
                                       </span>
                                     </div>
-                                  </div>
-                                )}
-                              </div>
+                                  ) : project.prd_submitted ? (
+                                    <div className="flex items-center gap-1 text-yellow-600">
+                                      <span>○</span>
+                                      <span className="text-xs">Pending Approval</span>
+                                    </div>
+                                  ) : (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 text-xs p-1 justify-start text-[#4242ea] hover:text-[#3333d1]"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSubmitPRD(project.project_id);
+                                      }}
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                      draggable={false}
+                                      title="Submit PRD for approval"
+                                    >
+                                      <span>→</span>
+                                      <span>Submit for Approval</span>
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                              
+                              {/* No PRD indicator for Planning stage */}
+                              {!project.prd_link && project.stage === 'planning' && (
+                                <div className="flex items-center gap-1 text-red-600">
+                                  <span>✕</span>
+                                  <span className="text-xs">No PRD yet</span>
+                                </div>
+                              )}
                             </div>
-                          </div>
+                            </CardContent>
+                          </Card>
                         );
                       })}
                     </div>
