@@ -80,6 +80,7 @@ function Learning() {
   const scrollAreaRef = useRef(null);
   const abortControllerRef = useRef(null);
   const sendMessageAbortControllerRef = useRef(null);
+  const textareaRef = useRef(null);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -87,6 +88,30 @@ function Learning() {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
+
+  // Auto-focus input when initial message loads
+  useEffect(() => {
+    if (hasInitialMessage && textareaRef.current && !editingMessageId && isActive) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 200);
+    }
+  }, [hasInitialMessage, editingMessageId, isActive]);
+
+  // Auto-focus input when AI response arrives
+  useEffect(() => {
+    if (messages.length > 0 && !isAiThinking && !isSending) {
+      const lastMessage = messages[messages.length - 1];
+      // Focus when last message is from AI and input is not disabled
+      if (lastMessage.sender === 'ai' && textareaRef.current && !editingMessageId && isActive) {
+        // Small delay to ensure DOM is ready and user can see the response
+        setTimeout(() => {
+          textareaRef.current?.focus();
+        }, 300);
+      }
+    }
+  }, [messages, isAiThinking, isSending, editingMessageId, isActive]);
   
   // Cleanup: abort any pending requests when component unmounts
   useEffect(() => {
@@ -844,12 +869,6 @@ function Learning() {
     }
   };
 
-  // Handler for AI Feedback button on completion bar
-  const handleAiFeedback = () => {
-    // TODO: Implement AI Feedback modal
-    toast.info("AI Feedback feature coming soon!");
-  };
-
   // Check if current task is a survey
   const isCurrentTaskSurvey = () => {
     const currentTask = tasks[currentTaskIndex];
@@ -1104,7 +1123,6 @@ function Learning() {
                 {(isTaskComplete || taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete) && (
                   <TaskCompletionBar
                     onNextExercise={handleNextExercise}
-                    onAiFeedback={handleAiFeedback}
                     isLastTask={currentTaskIndex === tasks.length - 1}
                   />
                 )}
@@ -1293,11 +1311,11 @@ function Learning() {
               {(isTaskComplete || taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete) ? (
                 <TaskCompletionBar
                   onNextExercise={handleNextExercise}
-                  onAiFeedback={handleAiFeedback}
                   isLastTask={currentTaskIndex === tasks.length - 1}
                 />
               ) : (
               <AutoExpandTextarea
+                ref={textareaRef}
                 onSubmit={handleSendMessage}
                 disabled={isSending || isAiThinking || !isActive}
                 showAssignmentButton={['video', 'document', 'link', 'structured'].includes(tasks[currentTaskIndex]?.deliverable_type)}

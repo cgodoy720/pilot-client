@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
 import { Send, Paperclip } from 'lucide-react';
@@ -20,7 +20,7 @@ const LLM_MODELS = [
   { value: 'x-ai/grok-4-fast', label: 'Grok 4 Fast', description: 'Fast reasoning' }
 ];
 
-const AutoExpandTextarea = ({ 
+const AutoExpandTextarea = forwardRef(({ 
   onSubmit, 
   placeholder = "Reply to coach...", 
   disabled = false,
@@ -29,8 +29,9 @@ const AutoExpandTextarea = ({
   assignmentButtonText = "Assignment",
   showInstructionsButton = false,
   onInstructionsClick,
-  showLlmDropdown = false
-}) => {
+  showLlmDropdown = false,
+  shouldFocus = false
+}, ref) => {
   const textareaRef = useRef(null);
   const [localModel, setLocalModel] = useState(LLM_MODELS[0].value);
 
@@ -60,6 +61,25 @@ const AutoExpandTextarea = ({
   useEffect(() => {
     handleResize();
   }, []);
+
+  // Expose focus method to parent components
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      if (textareaRef.current && !disabled) {
+        textareaRef.current.focus();
+      }
+    }
+  }));
+
+  // Handle shouldFocus prop changes
+  useEffect(() => {
+    if (shouldFocus && !disabled && textareaRef.current) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 100);
+    }
+  }, [shouldFocus, disabled]);
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -93,7 +113,7 @@ const AutoExpandTextarea = ({
             onKeyPress={handleKeyPress}
             placeholder={placeholder}
             disabled={disabled}
-            className="border-0 resize-none bg-transparent text-carbon-black placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 min-h-[26px] text-lg font-proxima leading-[26px] w-full"
+            className="border-0 resize-none bg-transparent text-carbon-black placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 min-h-[26px] text-[18px] md:text-[18px] placeholder:text-[18px] md:placeholder:text-[18px] font-proxima leading-[26px] w-full"
             style={{ height: 'auto', minHeight: '26px' }}
           />
         </div>
@@ -159,6 +179,8 @@ const AutoExpandTextarea = ({
       </div>
     </div>
   );
-};
+});
+
+AutoExpandTextarea.displayName = 'AutoExpandTextarea';
 
 export default AutoExpandTextarea;

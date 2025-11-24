@@ -296,6 +296,7 @@ const AttendanceCalendar = ({
             size="md"
             className="!w-[32px] !h-[32px] !rounded-[8px]"
             useChevron={true}
+            strokeWidth={1}
           />
           <span className="text-sm font-bold text-[var(--color-carbon-black)]" style={{ fontFamily: 'var(--font-family-bold)' }}>
             {MONTH_NAMES[month === 0 ? 11 : month - 1]}
@@ -317,6 +318,7 @@ const AttendanceCalendar = ({
             size="md"
             className="!w-[32px] !h-[32px] !rounded-[8px]"
             useChevron={true}
+            strokeWidth={1}
           />
         </div>
       </div>

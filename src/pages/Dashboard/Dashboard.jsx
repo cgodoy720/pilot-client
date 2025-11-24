@@ -629,6 +629,7 @@ function Dashboard() {
             {weekData.map((day, index) => {
               const dayIsToday = isDateToday(day.day_date);
               const dayIsPast = isDatePast(day.day_date);
+              const dayIsFuture = !dayIsToday && !dayIsPast;
               const showCheckbox = dayIsPast && !dayIsToday;
               
               // For future weeks (going forward): out-left and in-from-right flow left-to-right
@@ -726,8 +727,13 @@ function Dashboard() {
                     <button 
                       className={`dashboard__deliverable-link ${
                         task.hasSubmission ? 'dashboard__deliverable-link--submitted' : 'dashboard__deliverable-link--pending'
-                      }`}
-                      onClick={() => handleNavigateToTask(day.id, task.id)}
+                      } ${dayIsFuture ? 'dashboard__deliverable-link--disabled' : ''}`}
+                      onClick={() => {
+                        if (!dayIsFuture) {
+                          handleNavigateToTask(day.id, task.id);
+                        }
+                      }}
+                      disabled={dayIsFuture}
                     >
                       {task.hasSubmission ? (
                         <>✓ {task.deliverable_type.charAt(0).toUpperCase() + task.deliverable_type.slice(1)} Submitted</>

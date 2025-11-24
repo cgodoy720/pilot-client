@@ -287,6 +287,30 @@
   .font-proxima {
     font-family: var(--font-family);
   }
+
+  /* Performance Page Scrollbar Styling */
+  .performance-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .performance-scrollbar::-webkit-scrollbar-track {
+    background: #EFEFEF;
+  }
+
+  .performance-scrollbar::-webkit-scrollbar-thumb {
+    background: #4242EA;
+    border-radius: 4px;
+  }
+
+  .performance-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #3535C7;
+  }
+
+  /* Firefox scrollbar styling */
+  .performance-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #4242EA #EFEFEF;
+  }
 }
 
 @layer base {

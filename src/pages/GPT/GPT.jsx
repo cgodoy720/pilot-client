@@ -241,6 +241,31 @@ function GPT() {
     }
   }, [messages]);
 
+  // Auto-focus input when messages load after thread selection
+  useEffect(() => {
+    if (!isLoading && !isInitialLoad && activeThread && messages.length > 0 && textareaRef.current && !isInactiveUser) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 200);
+    }
+  }, [isLoading, isInitialLoad, activeThread, messages.length, isInactiveUser]);
+
+  // Auto-focus input when AI response arrives
+  useEffect(() => {
+    if (messages.length > 0 && !isAiThinking && !isSending && textareaRef.current && !isInactiveUser) {
+      const lastMessage = messages[messages.length - 1];
+      const lastMessageRole = lastMessage.message_role || lastMessage.role;
+      // Focus when last message is from AI/assistant
+      if (lastMessageRole === 'assistant' || lastMessageRole === 'ai') {
+        // Small delay to ensure DOM is ready and user can see the response
+        setTimeout(() => {
+          textareaRef.current?.focus();
+        }, 300);
+      }
+    }
+  }, [messages, isAiThinking, isSending, isInactiveUser]);
+
   // Auto-resize textarea based on content
   const handleTextareaResize = () => {
     const textarea = textareaRef.current;

@@ -190,28 +190,22 @@ const Performance = () => {
             fontFamily: 'var(--font-family)'
           }}
         >
-          {new Date().toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: '2-digit', 
-            day: '2-digit' 
-          })} Carlos' Performance!
+          {(() => {
+            const firstName = user?.firstName || user?.first_name || 'User';
+            const possessive = firstName.toLowerCase().endsWith('s') ? "'" : "'s";
+            return `${new Date().toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: '2-digit', 
+              day: '2-digit' 
+            })} ${firstName}${possessive} Performance!`;
+          })()}
         </h1>
-        <div className="flex items-center gap-2 px-5 bg-[#4242EA] text-white font-medium text-sm leading-[150%] tracking-[0.005em] h-full">
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-white rounded-full"></div>
-            <div className="w-2 h-2 bg-white rounded-full"></div>
-            <div className="w-2 h-2 bg-white rounded-full"></div>
-            <div className="w-2 h-2 bg-white rounded-full"></div>
-            <div className="w-2 h-2 bg-white/40 rounded-full"></div>
-          </div>
-          <span className="ml-2">WK 05/08</span>
-        </div>
       </div>
 
       {/* Main Content - Full width panels without containers */}
       <div className="flex h-[calc(100vh-75px)]">
         {/* Left Panel - Attendance Calendar (Full Space) */}
-        <div className="flex-1 px-10 pb-10 flex flex-col bg-[#EFEFEF] overflow-y-auto">
+        <div className="flex-1 px-10 pb-10 flex flex-col bg-[#EFEFEF] overflow-y-auto performance-scrollbar">
           <AttendanceCalendar
             userId={user.user_id}
             month={selectedMonth}
@@ -228,7 +222,7 @@ const Performance = () => {
         <div className="w-px bg-[#C8C8C8]"></div>
         
         {/* Right Panel - Feedback Inbox (Full Space) */}
-        <div className="flex-1 px-10 flex flex-col bg-[#EFEFEF]">
+        <div className="flex-1 px-10 flex flex-col bg-[#EFEFEF] overflow-y-auto performance-scrollbar">
           <FeedbackInbox
             userId={user.user_id}
             month={selectedMonth}

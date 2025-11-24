@@ -571,6 +571,30 @@
   color: var(--color-pursuit-purple);
 }
 
+.dashboard__deliverable-link--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.dashboard__deliverable-link--disabled:hover {
+  color: inherit;
+  background: inherit;
+  text-decoration: none;
+}
+
+.dashboard__deliverable-link--pending.dashboard__deliverable-link--disabled {
+  background: var(--color-stardust);
+  border-color: var(--color-mastery-pink);
+  color: var(--color-mastery-pink);
+  opacity: 0.5;
+}
+
+.dashboard__deliverable-link--pending.dashboard__deliverable-link--disabled:hover {
+  background: var(--color-stardust);
+  color: var(--color-mastery-pink);
+}
+
 .dashboard__activity-divider {
   width: 100%;
   height: 0px;

@@ -228,8 +228,9 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
   };
 
   const getCompletionCircle = (task) => {
-    // Simplified completion logic: incomplete vs complete
-    const isComplete = task.has_submission || task.has_feedback;
+    // has_submission now represents actual completion status (includes conversation completion)
+    // Backend calculates this based on conversation state, assessments, surveys, and deliverables
+    const isComplete = task.has_submission;
     
     if (isComplete) {
       // Purple filled circle for complete tasks
@@ -237,7 +238,7 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
         <div 
           className="w-3 h-3 rounded-full"
           style={{ backgroundColor: '#6B46C1' }}
-          title="Complete"
+          title={`Complete${task.completion_reason ? `: ${task.completion_reason}` : ''}`}
         />
       );
     } else {
@@ -246,7 +247,7 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
         <div 
           className="w-3 h-3 rounded-full border-2"
           style={{ borderColor: '#EC4899' }}
-          title="Incomplete"
+          title={`Incomplete${task.completion_reason ? `: ${task.completion_reason}` : ''}`}
         />
       );
     }
@@ -256,12 +257,12 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-[#1F2937]">Inbox</h2>
+          <h2 className="text-2xl font-bold text-[#1F2937] font-proxima-bold">Inbox</h2>
         </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p className="text-[#6B7280]">Loading tasks...</p>
+            <p className="text-[#6B7280] font-proxima">Loading tasks...</p>
           </div>
         </div>
       </div>
@@ -272,12 +273,12 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-[#1F2937]">Inbox</h2>
+          <h2 className="text-2xl font-bold text-[#1F2937] font-proxima-bold">Inbox</h2>
         </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-red-600 mb-2">Error loading tasks</p>
-            <p className="text-[#6B7280] text-sm">{error}</p>
+            <p className="text-red-600 mb-2 font-proxima">Error loading tasks</p>
+            <p className="text-[#6B7280] text-sm font-proxima">{error}</p>
             <Button 
               onClick={() => window.location.reload()} 
               className="mt-4"
@@ -295,7 +296,7 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex flex-col gap-3 mb-4">
-        <h2 className="text-2xl font-bold text-[#1F2937]" style={{ fontFamily: 'var(--font-family-bold)' }}>Inbox</h2>
+        <h2 className="text-2xl font-bold text-[#1F2937] font-proxima-bold">Inbox</h2>
         <div className="flex items-center gap-2">
           <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger className="w-32 h-7 border-[#E5E7EB] bg-white text-xs">
@@ -316,7 +317,7 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-7 h-7 border-[#E5E7EB] bg-white text-xs"
+              className="pl-7 h-7 border-[#E5E7EB] bg-white text-xs font-proxima"
             />
           </div>
         </div>
@@ -324,25 +325,25 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
 
       {/* Table Header */}
       <div className="grid grid-cols-[60px_80px_1fr_70px_70px] gap-3 p-3 mb-1">
-        <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider">Date</div>
-        <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider">Type</div>
-        <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider">Activity</div>
-        <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider text-center">Complete</div>
-        <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider text-center">Feedback</div>
+        <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider font-proxima">Date</div>
+        <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider font-proxima">Type</div>
+        <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider font-proxima">Activity</div>
+        <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider text-center font-proxima">Complete</div>
+        <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider text-center font-proxima">Feedback</div>
       </div>
 
       {/* Task List */}
-      <div className="flex-1 overflow-y-auto space-y-1 pb-6">
+      <div className="flex-1 overflow-y-auto space-y-1 pb-6 performance-scrollbar">
         {filteredTasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-center space-y-2">
-            <p className="text-[#6B7280]">
+            <p className="text-[#6B7280] font-proxima">
               {tasksData.length === 0 
                 ? "No task data available yet." 
                 : "No tasks found for the selected filters."
               }
             </p>
             {tasksData.length === 0 && (
-              <p className="text-xs text-[#9CA3AF]">
+              <p className="text-xs text-[#9CA3AF] font-proxima">
                 Complete some assignments to see them here.
               </p>
             )}
@@ -367,20 +368,20 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
                   >
                     <div className="grid grid-cols-[60px_80px_1fr_70px_70px] gap-3 p-2 w-full items-center">
                       {/* Date */}
-                      <div className="text-xs text-[#6B7280]">
+                      <div className="text-xs text-[#6B7280] font-proxima">
                         {formatDate(task.day_date)}
                       </div>
                       
                       {/* Type */}
                       <div>
-                        <Badge variant="outline" className="text-xs px-1 py-0" style={{ fontSize: '11px' }}>
+                        <Badge variant="outline" className="text-xs px-1 py-0 font-proxima" style={{ fontSize: '11px' }}>
                           {task.task_type || 'Task'}
                         </Badge>
                       </div>
                       
                       {/* Activity (Subject) */}
                       <div className="overflow-hidden">
-                        <span className="text-sm text-[#1F2937] truncate block">{task.task_title}</span>
+                        <span className="text-sm text-[#1F2937] truncate block font-proxima">{task.task_title}</span>
                       </div>
                       
                       {/* Complete */}
@@ -410,8 +411,8 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
                       <div className="space-y-3">
                         {/* Positive Message */}
                         <div>
-                          <h3 className="text-base font-semibold text-[#4242EA] mb-1">You're doing awesome!</h3>
-                          <p className="text-[#6B7280] leading-relaxed text-sm">
+                          <h3 className="text-base font-semibold text-[#4242EA] mb-1 font-proxima-bold">You're doing awesome!</h3>
+                          <p className="text-[#6B7280] leading-relaxed text-sm font-proxima">
                             {task.feedback?.content || 'Great work on this assignment. Keep up the excellent progress!'}
                           </p>
                         </div>
@@ -419,10 +420,10 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
                         {/* Skills Tags */}
                         {task.feedback?.skills && task.feedback.skills.length > 0 && (
                           <div>
-                            <h4 className="text-xs font-medium text-[#1F2937] mb-1">You did great with:</h4>
+                            <h4 className="text-xs font-medium text-[#1F2937] mb-1 font-proxima">You did great with:</h4>
                             <div className="flex flex-wrap gap-1">
                               {task.feedback.skills.slice(0, 3).map((skill, idx) => (
-                                <Badge key={idx} className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-0 text-xs px-2 py-0">
+                                <Badge key={idx} className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-0 text-xs px-2 py-0 font-proxima">
                                   {skill}
                                 </Badge>
                               ))}
@@ -433,12 +434,12 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
                         {/* Improvement Areas */}
                         {task.feedback?.improvement_areas && task.feedback.improvement_areas.length > 0 && (
                           <div>
-                            <h4 className="text-xs font-medium text-[#1F2937] mb-1">Let's work on:</h4>
+                            <h4 className="text-xs font-medium text-[#1F2937] mb-1 font-proxima">Let's work on:</h4>
                             <div className="flex flex-wrap gap-1">
                               {task.feedback.improvement_areas.slice(0, 3).map((area, idx) => (
                                 <Badge 
                                   key={idx} 
-                                  className="bg-purple-100 text-purple-700 hover:bg-purple-200 cursor-pointer border-0 text-xs px-2 py-0"
+                                  className="bg-purple-100 text-purple-700 hover:bg-purple-200 cursor-pointer border-0 text-xs px-2 py-0 font-proxima"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleImprovementClick(task, area);
@@ -456,7 +457,7 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
                           <Button 
                             variant="outline"
                             size="sm"
-                            className="border-[#E5E7EB] text-[#1F2937] hover:bg-[#F9FAFB] text-xs h-7"
+                            className="border-[#E5E7EB] text-[#1F2937] hover:bg-[#F9FAFB] text-xs h-7 font-proxima"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleIncompleteTaskNavigate(task);
@@ -471,8 +472,8 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
                       // Submitted but no feedback yet
                       <div className="space-y-3">
                         <div>
-                          <h3 className="text-base font-semibold text-[#8B5CF6] mb-1">Submitted!</h3>
-                          <p className="text-[#6B7280] leading-relaxed text-sm">
+                          <h3 className="text-base font-semibold text-[#8B5CF6] mb-1 font-proxima-bold">Submitted!</h3>
+                          <p className="text-[#6B7280] leading-relaxed text-sm font-proxima">
                             Great job submitting this assignment. Feedback will be available soon.
                           </p>
                         </div>
@@ -481,15 +482,15 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
                       // Show incomplete message (no feedback and no submission)
                       <div className="space-y-3">
                         <div>
-                          <h3 className="text-base font-semibold text-[#EC4899] mb-1">This task needs your attention</h3>
-                          <p className="text-[#6B7280] leading-relaxed text-sm">
+                          <h3 className="text-base font-semibold text-[#EC4899] mb-1 font-proxima-bold">This task needs your attention</h3>
+                          <p className="text-[#6B7280] leading-relaxed text-sm font-proxima">
                             You haven't completed this assignment yet.
                           </p>
                         </div>
                         
                         <div className="flex gap-2">
                           <Button 
-                            className="bg-green-600 hover:bg-green-700 text-white text-xs h-7"
+                            className="bg-green-600 hover:bg-green-700 text-white text-xs h-7 font-proxima"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleIncompleteTaskNavigate(task);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowRight, ChevronRight } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -9,6 +9,7 @@ const ArrowButton = ({
   backgroundColor = 'transparent',
   hoverBackgroundColor = 'white',
   hoverArrowColor = '#4242EA',
+  hoverBorderColor,
   size = 'md',
   rotation = 0,
   disabled = false,
@@ -16,6 +17,7 @@ const ArrowButton = ({
   useChevron = false,
   strokeWidth = 2
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
   const sizeClasses = {
     sm: 'w-4 h-4',
     md: 'w-5 h-5',
@@ -38,10 +40,14 @@ const ArrowButton = ({
   const Icon = useChevron ? ChevronRight : ArrowRight;
   const iconSizeClass = useChevron ? chevronIconSizes[size] : iconSizes[size];
 
+  const currentBorderColor = isHovered && hoverBorderColor ? hoverBorderColor : borderColor;
+
   return (
     <button
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
+      onMouseEnter={() => !disabled && setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       className={cn(
         'relative flex items-center justify-center rounded-[0.4rem] overflow-hidden transition-all duration-300',
         !disabled && 'group active:scale-95',
@@ -50,8 +56,9 @@ const ArrowButton = ({
         className
       )}
       style={{
-        border: `1px solid ${borderColor}`,
-        backgroundColor: backgroundColor
+        border: `1px solid ${currentBorderColor}`,
+        backgroundColor: backgroundColor,
+        transition: 'border-color 0.3s ease, background-color 0.3s ease'
       }}
     >
       <Icon 

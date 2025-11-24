@@ -1,21 +1,11 @@
 import React from 'react';
-import { FaArrowRight } from 'react-icons/fa';
+import ArrowButton from '../ArrowButton/ArrowButton';
 import './TaskCompletionBar.css';
 
-function TaskCompletionBar({ onNextExercise, onAiFeedback, isLastTask = false }) {
+function TaskCompletionBar({ onNextExercise, isLastTask = false }) {
   return (
     <div className="task-completion-bar">
       <div className="task-completion-bar__content">
-        {/* Left side - AI Feedback button */}
-        <div className="task-completion-bar__left">
-          <button 
-            className="task-completion-bar__feedback-btn"
-            onClick={onAiFeedback}
-          >
-            AI Feedback
-          </button>
-        </div>
-
         {/* Right side - Next Exercise or Success Message */}
         <div className="task-completion-bar__right">
           {isLastTask ? (
@@ -25,12 +15,18 @@ function TaskCompletionBar({ onNextExercise, onAiFeedback, isLastTask = false })
           ) : (
             <>
               <span className="task-completion-bar__next-text">Next Exercise</span>
-              <button 
-                className="task-completion-bar__next-btn"
+              <ArrowButton
                 onClick={onNextExercise}
-              >
-                <FaArrowRight />
-              </button>
+                borderColor="white"
+                arrowColor="#4242EA"
+                backgroundColor="white"
+                hoverBackgroundColor="#4242EA"
+                hoverArrowColor="#FFFFFF"
+                hoverBorderColor="#4242EA"
+                size="md"
+                strokeWidth={1}
+                className="!w-8 !h-8"
+              />
             </>
           )}
         </div>
