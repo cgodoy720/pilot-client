@@ -736,7 +736,12 @@ function Dashboard() {
                       disabled={dayIsFuture}
                     >
                       {task.hasSubmission ? (
-                        <>✓ {task.deliverable_type.charAt(0).toUpperCase() + task.deliverable_type.slice(1)} Submitted</>
+                        <>
+                          <svg viewBox="0 0 14 14" className="inline-block w-3 h-3 mr-1 align-middle" style={{ marginTop: '-2px' }}>
+                            <polyline points="2.5,6 5.5,9 11.5,3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          {task.deliverable_type.charAt(0).toUpperCase() + task.deliverable_type.slice(1)} Submitted
+                        </>
                       ) : (
                         `Submit ${task.deliverable_type}`
                       )}

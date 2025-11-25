@@ -202,6 +202,15 @@ const ApplicationForm = () => {
     initializeApplication();
   }, []);
 
+  // Handle ineligible status redirect
+  useEffect(() => {
+    if (currentSession?.application?.status === 'ineligible') {
+      console.log('Application is ineligible, redirecting to dashboard');
+      localStorage.setItem('applicationStatus', 'ineligible');
+      navigate('/apply');
+    }
+  }, [currentSession?.application?.status, navigate]);
+
   useEffect(() => {
     const loadQuestions = async () => {
       try {
@@ -1178,13 +1187,6 @@ const ApplicationForm = () => {
       totalInSection: visibleRootQuestions.length
     };
   };
-
-  if (currentSession?.application?.status === 'ineligible') {
-    console.log('Application is ineligible, redirecting to dashboard');
-    localStorage.setItem('applicationStatus', 'ineligible');
-    navigate('/apply');
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-[#EFEFEF] font-sans">

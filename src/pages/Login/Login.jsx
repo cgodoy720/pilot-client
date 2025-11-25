@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/button';
@@ -18,8 +18,14 @@ const Login = () => {
   const { login, isAuthenticated, setAuthState } = useAuth();
 
   // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
+
+  // Return null while redirecting
   if (isAuthenticated) {
-    navigate('/dashboard');
     return null;
   }
 

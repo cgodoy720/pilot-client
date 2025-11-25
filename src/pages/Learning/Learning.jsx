@@ -281,7 +281,7 @@ function Learning() {
                 
                 // Load conversation for this task
                 const task = allTasks[taskIndex];
-                loadTaskConversation(task);
+                await loadTaskConversation(task);
               }
             }
           }
