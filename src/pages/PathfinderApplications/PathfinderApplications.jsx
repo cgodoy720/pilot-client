@@ -6,11 +6,12 @@ import Swal from 'sweetalert2';
 import confetti from 'canvas-confetti';
 import CompanyAutocomplete from '../../components/CompanyAutocomplete';
 import RichTextEditor from '../../components/RichTextEditor';
+import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
@@ -1050,16 +1051,12 @@ function PathfinderApplications() {
 
   const sortedAndFilteredApplications = sortApplications(filteredApplications);
 
-  if (isLoading) {
-    return <div className="pathfinder-applications__loading">Loading applications...</div>;
-  }
-
   return (
     <div className="w-full max-w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto overflow-x-hidden p-0 px-6 pb-6 box-border relative">
       <div className="max-w-full w-full mx-auto box-border flex flex-col overflow-x-hidden">
         <div className="flex justify-between items-center mb-4 gap-4 flex-wrap max-w-full w-full relative">
           <Button 
-            className="px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] relative overflow-hidden flex-shrink-0 whitespace-nowrap z-[100] hover:bg-[#3333d1] hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_6px_20px_rgba(66,66,234,0.4)] active:translate-y-0 active:scale-100 active:shadow-[0_2px_8px_rgba(66,66,234,0.2)]"
+            className="px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] relative overflow-hidden flex-shrink-0 whitespace-nowrap hover:bg-[#3333d1] hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_6px_20px_rgba(66,66,234,0.4)] active:translate-y-0 active:scale-100 active:shadow-[0_2px_8px_rgba(66,66,234,0.2)]"
             onClick={() => setShowForm(!showForm)}
           >
             {showForm ? 'Cancel' : '+ Add Job'}
@@ -1138,75 +1135,82 @@ function PathfinderApplications() {
         </div>
 
         {/* Add/Edit Form Modal */}
-        {showForm && (
-          <div className="pathfinder-applications__modal-overlay" onClick={resetForm}>
-            <div className="pathfinder-applications__modal" onClick={(e) => e.stopPropagation()}>
-              <div className="pathfinder-applications__modal-header">
-                <h2>{isEditing ? 'Edit Job' : 'Add New Job'}</h2>
-                <button type="button" className="pathfinder-applications__modal-close" onClick={resetForm}>
-                  ×
-                </button>
-              </div>
-
-              <div className="pathfinder-applications__modal-content">
-                {/* For NEW jobs: show URL panel on left, form on right (no tabs) */}
-                {!isEditing ? (
-                  <div className="pathfinder-applications__content-wrapper pathfinder-applications__content-wrapper--two-col">
-                    {/* URL Import Panel - LEFT side for new applications */}
-                    <div className="pathfinder-applications__form-panel pathfinder-applications__form-panel--left">
-                      <h3 className="pathfinder-applications__panel-title">Import from URL</h3>
-                      <p className="pathfinder-applications__url-description">
+        <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()}>
+          <DialogContent className="max-w-[1200px] p-0 flex flex-col max-h-[90vh] overflow-hidden">
+            <DialogHeader className="flex flex-row justify-between items-center p-6 border-b-2 border-[#e0e0e0] flex-shrink-0">
+              <DialogTitle className="m-0 text-[#1a1a1a] text-2xl font-semibold">
+                {isEditing ? 'Edit Job' : 'Add New Job'}
+              </DialogTitle>
+            </DialogHeader>
+            
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              {/* For NEW jobs: show URL panel on left, form on right (no tabs) */}
+              {!isEditing ? (
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] flex-1 min-h-0">
+                  {/* URL Import Panel - LEFT side for new applications */}
+                  <Card className="rounded-none border-none shadow-none bg-[#f9f9f9] border-r-2 border-[#e0e0e0] p-6 flex flex-col flex-shrink-0">
+                    <CardContent className="p-0">
+                      <div className="flex items-center gap-2 mb-4">
+                        <h4 className="text-lg font-semibold text-[#1a1a1a]">Import from URL</h4>
+                      </div>
+                      <p className="text-sm text-[#666666] mb-4 leading-relaxed">
                         Paste a job posting URL to try auto-filling the form. Even if auto-fill doesn't work, the URL will be saved as your source.
                       </p>
-                      <div className="pathfinder-applications__url-input-group">
-                        <input
-                          type="url"
-                          value={jobUrl}
-                          onChange={(e) => {
-                            setJobUrl(e.target.value);
-                            setError(''); // Clear error when typing new URL
-                          }}
-                          placeholder="https://www.linkedin.com/jobs/view/..."
-                          className="pathfinder-applications__url-input"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleFetchJobDetails();
-                            }
-                          }}
-                        />
-                        <button
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Paste URL</label>
+                          <textarea
+                            value={jobUrl}
+                            onChange={(e) => {
+                              setJobUrl(e.target.value);
+                              setError(''); // Clear error when typing new URL
+                            }}
+                            placeholder="https://www.linkedin.com/jobs/view/..."
+                            rows="5"
+                            className="w-full p-3 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && e.ctrlKey) {
+                                e.preventDefault();
+                                handleFetchJobDetails();
+                              }
+                            }}
+                          />
+                        </div>
+                        <Button
                           type="button"
                           onClick={handleFetchJobDetails}
                           disabled={isFetchingUrl || !jobUrl.trim()}
-                          className="pathfinder-applications__fetch-btn"
+                          className="w-full bg-[#4242ea] text-white hover:bg-[#3333d1] disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                          {isFetchingUrl ? 'Fetching...' : 'Fetch Details'}
-                        </button>
+                          {isFetchingUrl ? 'Fetching Details...' : 'Fetch Details'}
+                        </Button>
                       </div>
-                      <div className="pathfinder-applications__url-examples">
-                        <strong>Works Best:</strong> Greenhouse, Lever, Workday
-                        <br />
-                        <strong>Limited:</strong> LinkedIn, Indeed (may require manual entry)
+                      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                        <div className="text-sm text-[#1a1a1a] font-medium mb-2">Supported:</div>
+                        <div className="text-xs text-[#666666] space-y-1">
+                          <div><strong>Works Best:</strong> Greenhouse, Lever, Workday</div>
+                          <div><strong>Limited:</strong> LinkedIn, Indeed (may require manual entry)</div>
+                        </div>
                       </div>
                       {error && (
-                        <div className="pathfinder-applications__url-error">
+                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
                           {error}
                         </div>
                       )}
-                    </div>
+                    </CardContent>
+                  </Card>
 
-                    {/* Form Panel - RIGHT side for new applications */}
-                    <div className="pathfinder-applications__form-panel pathfinder-applications__form-panel--right">
-                      <h3 className="pathfinder-applications__panel-title">Job Details</h3>
+                  {/* Form Panel - RIGHT side for new applications */}
+                  <Card className="rounded-none border-none shadow-none bg-white p-6 flex flex-col overflow-y-auto min-h-0">
+                    <CardContent className="p-0">
+                      <h3 className="text-lg font-semibold text-[#1a1a1a] mb-6">Job Details</h3>
 
-                      <form onSubmit={handleSubmit} className="pathfinder-applications__form">
-                        {/* All form fields (no tabs for new jobs) */}
+                      <div className="space-y-6">
                         {/* Row 1: Company Name, Role Title */}
-                        <div className="pathfinder-applications__form-row">
-                          <div className="pathfinder-applications__form-group">
-                            <label>Company Name *</label>
-                            <div className="pathfinder-applications__company-input-wrapper">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Company Name *</label>
+                            <div className="relative">
                               <CompanyAutocomplete
                                 value={formData.companyName}
                                 onChange={(value) => setFormData(prev => ({ ...prev, companyName: value }))}
@@ -1216,7 +1220,7 @@ function PathfinderApplications() {
                                 <img 
                                   src={formData.companyLogo} 
                                   alt={formData.companyName}
-                                  className="pathfinder-applications__company-input-logo"
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 object-contain pointer-events-none"
                                   onError={(e) => {
                                     e.target.style.display = 'none';
                                   }}
@@ -1224,84 +1228,92 @@ function PathfinderApplications() {
                               )}
                             </div>
                           </div>
-                          <div className="pathfinder-applications__form-group">
-                            <label>Role Title *</label>
-                            <input
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Role Title *</label>
+                            <Input
                               type="text"
                               name="roleTitle"
                               value={formData.roleTitle}
                               onChange={handleInputChange}
                               required
+                              className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                             />
                           </div>
                         </div>
 
                         {/* Row 2: Source URL, Source Type */}
-                        <div className="pathfinder-applications__form-row">
-                          <div className="pathfinder-applications__form-group">
-                            <label>Source URL</label>
-                            <input
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Source URL</label>
+                            <Input
                               type="url"
                               name="source"
                               value={formData.source}
                               onChange={handleInputChange}
                               placeholder="https://..."
+                              className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                             />
                           </div>
-                          <div className="pathfinder-applications__form-group">
-                            <label>Source Type</label>
-                            <select
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Source Type</label>
+                            <Select
                               name="sourceType"
                               value={formData.sourceType}
-                              onChange={handleInputChange}
+                              onValueChange={(value) => handleInputChange({ target: { name: 'sourceType', value } })}
                             >
-                              <option value="">Select source...</option>
-                              <option value="LinkedIn">LinkedIn</option>
-                              <option value="Greenhouse">Greenhouse</option>
-                              <option value="Indeed">Indeed</option>
-                              <option value="Lever">Lever</option>
-                              <option value="Company Website">Company Website</option>
-                              <option value="Referral">Referral</option>
-                              <option value="Recruiter">Recruiter</option>
-                              <option value="Job Board">Job Board</option>
-                              <option value="Other">Other</option>
-                            </select>
+                              <SelectTrigger className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent">
+                                <SelectValue placeholder="Select source..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="LinkedIn">LinkedIn</SelectItem>
+                                <SelectItem value="Greenhouse">Greenhouse</SelectItem>
+                                <SelectItem value="Indeed">Indeed</SelectItem>
+                                <SelectItem value="Lever">Lever</SelectItem>
+                                <SelectItem value="Company Website">Company Website</SelectItem>
+                                <SelectItem value="Referral">Referral</SelectItem>
+                                <SelectItem value="Recruiter">Recruiter</SelectItem>
+                                <SelectItem value="Job Board">Job Board</SelectItem>
+                                <SelectItem value="Other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
 
                         {/* Row 3: Salary, Location */}
-                        <div className="pathfinder-applications__form-row">
-                          <div className="pathfinder-applications__form-group">
-                            <label>Salary</label>
-                            <input
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Salary</label>
+                            <Input
                               type="text"
                               name="salary"
                               value={formData.salary}
                               onChange={handleInputChange}
                               placeholder="e.g., $80,000 - $100,000"
+                              className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                             />
                           </div>
-                          <div className="pathfinder-applications__form-group">
-                            <label>Location</label>
-                            <input
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Location</label>
+                            <Input
                               type="text"
                               name="location"
                               value={formData.location}
                               onChange={handleInputChange}
                               placeholder="e.g., New York, NY or Remote"
+                              className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                             />
                           </div>
                         </div>
 
-                        <div className="pathfinder-applications__form-group">
-                          <label>
+                        <div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">
                             Job Description
                             {formData.jobDescription && (
-                              <span className="pathfinder-applications__char-count">
+                              <span className="ml-2 text-xs text-[#666666]">
                                 ({formData.jobDescription.length.toLocaleString()} characters)
                               </span>
                             )}
-                            <span className="pathfinder-applications__field-hint">
+                            <span className="ml-2 text-xs text-[#666666]">
                               💡 Saved for reference after job posting is taken down
                             </span>
                           </label>
@@ -1312,86 +1324,80 @@ function PathfinderApplications() {
                           />
                         </div>
 
-                        <div className="pathfinder-applications__form-checkbox">
+                        <div className="flex items-center gap-2">
                           <input
                             type="checkbox"
                             id="internalReferral"
                             name="internalReferral"
                             checked={formData.internalReferral}
                             onChange={(e) => setFormData(prev => ({ ...prev, internalReferral: e.target.checked }))}
+                            className="w-4 h-4 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-2"
                           />
-                          <label htmlFor="internalReferral">Internal Referral</label>
+                          <label htmlFor="internalReferral" className="text-sm text-[#1a1a1a] cursor-pointer">Internal Referral</label>
                         </div>
 
                         {/* Contact Information */}
-                        <div className="pathfinder-applications__form-row pathfinder-applications__form-row--four-col">
-                          <div className="pathfinder-applications__form-group">
-                            <label>Contact Name</label>
-                            <input
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Name</label>
+                            <Input
                               type="text"
                               name="contactName"
                               value={formData.contactName}
                               onChange={handleInputChange}
+                              className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                             />
                           </div>
-                          <div className="pathfinder-applications__form-group">
-                            <label>Contact Title</label>
-                            <input
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Title</label>
+                            <Input
                               type="text"
                               name="contactTitle"
                               value={formData.contactTitle}
                               onChange={handleInputChange}
+                              className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                             />
                           </div>
-                          <div className="pathfinder-applications__form-group">
-                            <label>Contact Email</label>
-                            <input
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Email</label>
+                            <Input
                               type="email"
                               name="contactEmail"
                               value={formData.contactEmail}
                               onChange={handleInputChange}
+                              className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                             />
                           </div>
-                          <div className="pathfinder-applications__form-group">
-                            <label>Contact Phone</label>
-                            <input
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Phone</label>
+                            <Input
                               type="tel"
                               name="contactPhone"
                               value={formData.contactPhone}
                               onChange={handleInputChange}
                               placeholder="(555) 555-5555"
+                              className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                             />
                           </div>
                         </div>
 
                         {/* Notes */}
-                        <div className="pathfinder-applications__form-group">
-                          <label>Notes</label>
+                        <div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Notes</label>
                           <textarea
                             name="notes"
                             value={formData.notes}
                             onChange={handleInputChange}
                             rows="6"
                             placeholder="Add any additional notes, insights, or follow-up actions..."
+                            className="w-full p-3 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                           />
                         </div>
-
-                        <div className="pathfinder-applications__form-actions">
-                          <button type="submit" className="pathfinder-applications__submit-btn">
-                            Add Application
-                          </button>
-                          <button 
-                            type="button" 
-                            className="pathfinder-applications__cancel-btn"
-                            onClick={resetForm}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-                  </div>
-                ) : (
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
                   // For EDITING jobs: show tabbed form on left, timeline on right
                   <div className="pathfinder-applications__content-wrapper">
                     {/* Left Section: Tabs + Form Panel */}
@@ -1423,7 +1429,6 @@ function PathfinderApplications() {
 
                       {/* Form Panel - inside left section */}
                       <div className="pathfinder-applications__form-panel pathfinder-applications__form-panel--left">
-                        <form onSubmit={handleSubmit} className="pathfinder-applications__form">
                           {/* Job Info Tab */}
                           {activeTab === 'job-info' && (
                             <>
@@ -1610,20 +1615,6 @@ function PathfinderApplications() {
                               </div>
                             </>
                           )}
-
-                          <div className="pathfinder-applications__form-actions">
-                            <button type="submit" className="pathfinder-applications__submit-btn">
-                              Update Application
-                            </button>
-                            <button 
-                              type="button" 
-                              className="pathfinder-applications__cancel-btn"
-                              onClick={resetForm}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </form>
                       </div>
                     </div> {/* End left-section */}
 
@@ -1840,12 +1831,20 @@ function PathfinderApplications() {
                     </div>
                   </div>
                 )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    )}
+                  </div>
+                )}
+              
+              <DialogFooter className="flex justify-end p-6 border-t-2 border-[#e0e0e0] bg-white flex-shrink-0 gap-2">
+                <Button type="button" variant="outline" onClick={resetForm}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-[#4242ea] text-white hover:bg-[#3333d1]">
+                  {isEditing ? 'Update Application' : 'Add Application'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* Applications View - Table or Kanban */}
         {viewMode === 'table' ? (
@@ -2402,6 +2401,9 @@ function PathfinderApplications() {
           </div>
         </div>
       )}
+      
+      {/* Loading Curtain */}
+      <LoadingCurtain isLoading={isLoading} />
     </div>
   );
 }
