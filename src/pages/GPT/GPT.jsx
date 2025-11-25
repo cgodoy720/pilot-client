@@ -12,6 +12,7 @@ import GPTTopBar from './components/GPTTopBar';
 import ChatTray from './components/ChatTray';
 import MessageBubble from './components/MessageBubble';
 import ProcessingOverlay from './components/ProcessingOverlay';
+import ArrowButton from '../../components/ArrowButton/ArrowButton';
 
 // Shadcn UI Components
 import {
@@ -939,6 +940,10 @@ function GPT() {
         <div className="relative">
           <div className="flex items-center justify-center bg-white rounded-lg h-[32px] w-[672px] px-[10px] py-1">
             <div className="flex items-center justify-between w-full px-[7px]">
+              <svg className="w-5 h-5 text-divider mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8" strokeWidth="1.5" />
+                <path d="M21 21l-4.35-4.35" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
               <input
                 type="text"
                 placeholder="Browse chat history or search by keyword"
@@ -950,17 +955,13 @@ function GPT() {
               <button
                 onClick={handleCreateThread}
                 disabled={isInactiveUser || isLoading}
-                className="ml-2 text-pursuit-purple hover:text-pursuit-purple/80 disabled:opacity-50"
+                className="ml-2 text-gray-400 hover:text-pursuit-purple disabled:opacity-50 transition-colors"
                 title="New conversation"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 4v16m8-8H4" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M12 4v16m8-8H4" strokeWidth="1" strokeLinecap="round" />
                 </svg>
               </button>
-              <svg className="w-6 h-6 text-carbon-black ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <circle cx="11" cy="11" r="8" strokeWidth="1" />
-                <path d="M21 21l-4.35-4.35" strokeWidth="1" strokeLinecap="round" />
-              </svg>
             </div>
           </div>
           
@@ -1289,8 +1290,8 @@ function GPT() {
                         disabled={isInactiveUser || isProcessingUpload}
                         className="w-[30px] h-[30px] bg-bg-light rounded-lg flex items-center justify-center disabled:opacity-50"
                       >
-                        <svg className="w-[14px] h-[14px] text-carbon-black" fill="none" stroke="currentColor" viewBox="0 0 14 14">
-                          <path d="M7 11V3M7 3L4 6M7 3L10 6M1 13H13" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+                        <svg className="w-[14px] h-[14px] text-carbon-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </button>
                         </DropdownMenuTrigger>
@@ -1319,15 +1320,19 @@ function GPT() {
                       </DropdownMenu>
                       
                       {/* Send Button */}
-                      <button
+                      <ArrowButton
                         onClick={handleSendMessage}
                         disabled={!newMessage.trim() || isInactiveUser || isSending || isLoading}
-                        className="w-[30px] h-[30px] bg-pursuit-purple rounded-lg flex items-center justify-center disabled:opacity-50 transition-opacity"
-                      >
-                        <svg className="w-[14px] h-[14px] text-bg-light" fill="none" stroke="currentColor" viewBox="0 0 14 14">
-                          <path d="M7 4L10 7L7 10M3 7H10" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
+                        size="lg"
+                        rotation={-90}
+                        borderColor="#4242EA"
+                        backgroundColor="#4242EA"
+                        arrowColor="white"
+                        hoverBackgroundColor="white"
+                        hoverArrowColor="#4242EA"
+                        className="w-[30px] h-[30px] disabled:opacity-50"
+                        strokeWidth={1}
+                      />
                     </div>
                   </div>
                 </div>
