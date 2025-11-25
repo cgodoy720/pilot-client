@@ -284,10 +284,10 @@ const Layout = ({ children, isLoading = false }) => {
         ), 'Assessment', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)} */}
         
         {/* Payment - NEW from dev */}
-        {renderNavLink('/payment', <Briefcase className="h-4 w-4 text-[#E3E3E3]" />, 'Payment', 
+        {/* {renderNavLink('/payment', <Briefcase className="h-4 w-4 text-[#E3E3E3]" />, 'Payment', 
           !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant,
           () => location.pathname.startsWith('/payment')
-        )}
+        )} */}
         
         {/* Workshop Admin Dashboard - NEW from dev */}
         {renderNavLink('/workshop-admin-dashboard', <Wrench className="h-4 w-4 text-[#E3E3E3]" />, 'Workshop Admin', 
@@ -334,12 +334,12 @@ const Layout = ({ children, isLoading = false }) => {
         <div className="flex-1"></div>
 
         {/* Account */}
-        {renderNavLink('/account', (
+        {/* {renderNavLink('/account', (
           <svg width="16" height="16" viewBox="0 0 14 18" fill="none">
             <path d="M7 9C9.20914 9 11 7.20914 11 5C11 2.79086 9.20914 1 7 1C4.79086 1 3 2.79086 3 5C3 7.20914 4.79086 9 7 9Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             <path d="M1 17V15C1 13.9391 1.42143 12.9217 2.17157 12.1716C2.92172 11.4214 3.93913 11 5 11H9C10.0609 11 11.0783 11.4214 11.8284 12.1716C12.5786 12.9217 13 13.9391 13 15V17" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-        ), 'Account')}
+        ), 'Account')} */}
 
         {/* Logout */}
         {(isMobile && isMobileNavbarOpen) || !isMobile ? (

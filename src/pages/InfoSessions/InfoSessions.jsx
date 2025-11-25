@@ -3,8 +3,12 @@ import { format } from 'date-fns';
 import { useNavigate, Link } from 'react-router-dom';
 import pursuitLogoFull from '../../assets/logo-full.png';
 import { getEasternTimeParts, formatInEasternTime } from '../../utils/dateHelpers';
-import './InfoSessions.css';
-// TEMP: Replace with real user/admin logic
+import { Button } from '../../components/ui/button';
+import { Card, CardContent } from '../../components/ui/card';
+import { Badge } from '../../components/ui/badge';
+import { Alert, AlertDescription } from '../../components/ui/alert';
+import { Calendar, Clock, MapPin, CheckCircle2, Laptop, Building } from 'lucide-react';
+
 const isAdmin = false;
 const currentUserName = 'You';
 
@@ -23,21 +27,19 @@ const InfoSessions = () => {
         meeting_link: ''
     });
     const [currentApplicantId, setCurrentApplicantId] = useState(null);
-    const [registrationStatus, setRegistrationStatus] = useState(null); // 'success', 'error', or null
+    const [registrationStatus, setRegistrationStatus] = useState(null);
     const [statusMessage, setStatusMessage] = useState('');
     const [processingEventId, setProcessingEventId] = useState(null);
     const [showRescheduleModal, setShowRescheduleModal] = useState(false);
     const [rescheduleFromEvent, setRescheduleFromEvent] = useState(null);
     const [selectedNewSessionId, setSelectedNewSessionId] = useState('');
     
-    // Self-managed status state (no longer relying on props)
     const [infoSessionStatus, setInfoSessionStatus] = useState(localStorage.getItem('infoSessionStatus') || 'not signed-up');
     const [sessionDetails, setSessionDetails] = useState(() => {
         const saved = localStorage.getItem('infoSessionDetails');
         return saved ? JSON.parse(saved) : null;
     });
 
-    // Load current applicant ID on mount
     useEffect(() => {
         const loadApplicantId = async () => {
             try {
@@ -46,7 +48,6 @@ const InfoSessions = () => {
                     const userData = JSON.parse(savedUser);
                     setUser(userData);
                     
-                    // Get applicant ID from the database using email
                     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/applicant/by-email/${userData.email}`);
                     if (response.ok) {
                         const applicant = await response.json();
@@ -78,7 +79,6 @@ const InfoSessions = () => {
         navigate('/apply');
     };
 
-    // Clear status messages after 5 seconds
     useEffect(() => {
         if (registrationStatus) {
             const timer = setTimeout(() => {
@@ -89,7 +89,6 @@ const InfoSessions = () => {
         }
     }, [registrationStatus]);
 
-    // Fetch info sessions on mount
     useEffect(() => {
         const fetchEvents = async () => {
             try {
@@ -112,7 +111,6 @@ const InfoSessions = () => {
                 console.log('Is array:', Array.isArray(data));
                 console.log('Number of sessions:', data.length);
                 
-                // Add registrations data to each event
                 const eventsWithRegistrations = data.map(event => ({
                     ...event,
                     registrations: event.registrations || []
@@ -123,7 +121,6 @@ const InfoSessions = () => {
                 setEvents(eventsWithRegistrations);
                 console.log('setEvents called with:', eventsWithRegistrations.length, 'events');
                 
-                // Force a re-render check
                 setTimeout(() => {
                     console.log('=== POST-SETSTATE CHECK ===');
                     console.log('Events state should now be:', eventsWithRegistrations.length);
@@ -131,14 +128,13 @@ const InfoSessions = () => {
                 
             } catch (error) {
                 console.error('Error fetching events:', error);
-                setEvents([]); // Ensure events is always an array
+                setEvents([]);
             }
         };
 
         fetchEvents();
-    }, []); // Remove currentUserId dependency since we don't need it for fetching
+    }, []);
 
-    // Add new event
     const handleAddEvent = async (e) => {
         e.preventDefault();
         try {
@@ -159,7 +155,6 @@ const InfoSessions = () => {
                 throw new Error('Failed to create info session');
             }
 
-            // Refresh the events list
             const refreshResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/info-sessions`);
             if (refreshResponse.ok) {
                 const updatedData = await refreshResponse.json();
@@ -185,7 +180,6 @@ const InfoSessions = () => {
         }
     };
 
-    // Sign up for an event
     const handleSignUp = async (eventId) => {
         setProcessingEventId(eventId);
         try {
@@ -214,7 +208,6 @@ const InfoSessions = () => {
 
             const responseData = await response.json();
 
-            // SUCCESS - Show success status
             const event = events.find(e => e.event_id === eventId);
             const easternEventTime = getEasternTimeParts(event.start_time);
             const eventDate = format(easternEventTime, 'MMMM d, yyyy');
@@ -223,10 +216,8 @@ const InfoSessions = () => {
             setRegistrationStatus('success');
             setStatusMessage(`You're registered for the Information Session on ${eventDate} at ${eventTime}!`);
 
-            // Update local status state (multiple registrations now allowed)
             setInfoSessionStatus('signed-up');
 
-            // IMMEDIATE STATE UPDATE - Add the registration to the event in state
             setEvents(prevEvents => 
                 prevEvents.map(evt => {
                     if (evt.event_id === eventId) {
@@ -247,16 +238,14 @@ const InfoSessions = () => {
                 })
             );
 
-            // Update status (multiple registrations now allowed)
             setInfoSessionStatus('signed-up');
         } catch (error) {
             console.error('Error signing up for event:', error);
             
-            // Enhanced error messages based on error type
             let errorMessage = 'Failed to register for this event.';
             
             if (error.message.includes('already registered') || error.message.includes('User already registered') || error.message.includes("You're already registered for an event")) {
-                errorMessage = error.message; // Use the backend message directly
+                errorMessage = error.message;
             } else if (error.message.includes('capacity') || error.message.includes('full')) {
                 errorMessage = 'Sorry, this event is fully booked. Please try registering for another session.';
             } else if (error.message.includes('not found')) {
@@ -272,7 +261,6 @@ const InfoSessions = () => {
         }
     };
 
-    // Mark attendance
     const handleMarkAttendance = async (eventId, registrationId) => {
         try {
             await EventService.updateRegistrationStatus(eventId, registrationId, 'attended');
@@ -283,7 +271,6 @@ const InfoSessions = () => {
         }
     };
 
-    // Check if user is registered for an event (only active registrations)
     const isUserRegistered = (event) => {
         return event.registrations?.some(reg => 
             reg.applicant_id === currentApplicantId && 
@@ -291,7 +278,6 @@ const InfoSessions = () => {
         );
     };
 
-    // Get user's active registration for an event
     const getUserRegistration = (event) => {
         return event.registrations?.find(reg => 
             reg.applicant_id === currentApplicantId && 
@@ -299,18 +285,15 @@ const InfoSessions = () => {
         );
     };
 
-    // Check if an event has already passed
     const isEventPassed = (event) => {
         const easternEventTime = getEasternTimeParts(event.start_time);
         const now = new Date();
         return easternEventTime && easternEventTime < now;
     };
 
-    // Get registered events
     const registeredEvents = events.filter(event => isUserRegistered(event));
     const availableEvents = events.filter(event => !isUserRegistered(event));
 
-    // Cancel registration
     const handleCancelRegistration = async (eventId, registrationId) => {
         setProcessingEventId(eventId);
         
@@ -337,7 +320,6 @@ const InfoSessions = () => {
             const responseData = await response.json();
             console.log('Cancel response data:', responseData);
             
-            // IMMEDIATE STATE UPDATE - Mark registration as cancelled
             setEvents(prevEvents => {
                 return prevEvents.map(evt => {
                     if (evt.event_id === eventId) {
@@ -359,7 +341,6 @@ const InfoSessions = () => {
             setRegistrationStatus('success');
             setStatusMessage('Registration cancelled successfully.');
             
-            // Check if user still has other info session registrations
             const remainingRegistrations = events.filter(evt => 
                 evt.event_id !== eventId && 
                 evt.registrations?.some(reg => 
@@ -368,12 +349,10 @@ const InfoSessions = () => {
                 )
             );
             
-            // Only clear status if no other registrations exist
             if (remainingRegistrations.length === 0) {
                 setInfoSessionStatus('not signed-up');
             }
 
-            // Force refresh to ensure we have the latest data from server
             setTimeout(async () => {
                 try {
                     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/info-sessions`);
@@ -388,7 +367,7 @@ const InfoSessions = () => {
                 } catch (error) {
                     console.error('Error refreshing after cancellation:', error);
                 }
-            }, 100); // Small delay to ensure server state is updated
+            }, 100);
 
         } catch (error) {
             console.error('Error cancelling registration:', error);
@@ -400,164 +379,213 @@ const InfoSessions = () => {
     };
 
     return (
-        <div className="admissions-dashboard">
+        <div className="min-h-screen bg-[#EFEFEF] font-sans">
             {/* Top Bar */}
-            <div className="admissions-dashboard__topbar">
-                <div className="admissions-dashboard__topbar-left">
-                            <div className="admissions-dashboard__logo-section">
-          <Link to="/apply">
-            <img src={pursuitLogoFull} alt="Pursuit Logo" className="admissions-dashboard__logo-full" />
-          </Link>
-        </div>
-                    <div className="admissions-dashboard__welcome-text">
-                        Welcome, {user?.firstName || 'John'}!
+            <div className="bg-white border-b border-[#C8C8C8] px-4 md:px-8 py-2">
+                <div className="max-w-[1400px] mx-auto flex justify-between items-center">
+                    <div className="flex items-center gap-3 md:gap-5">
+                        <Link to="/apply">
+                            <img 
+                                src={pursuitLogoFull} 
+                                alt="Pursuit Logo" 
+                                className="h-8 md:h-10 object-contain cursor-pointer"
+                                style={{ filter: 'invert(1)' }}
+                            />
+                        </Link>
+                        <div className="text-base md:text-lg font-semibold text-[#1E1E1E]">
+                            Welcome, {user?.firstName || 'John'}!
+                        </div>
                     </div>
-                </div>
-                <div className="admissions-dashboard__topbar-right">
-                    <button 
-                        onClick={handleBackToDashboard}
-                        className="admissions-dashboard__button--secondary"
-                    >
-                        ← Back to Dashboard
-                    </button>
-                    <button 
-                        onClick={handleLogout}
-                        className="admissions-dashboard__button--primary"
-                    >
-                        Log Out
-                    </button>
+                    <div className="flex items-center gap-2 md:gap-4">
+                        <Button 
+                            onClick={handleBackToDashboard}
+                            variant="outline"
+                            className="border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white"
+                        >
+                            ← Back to Dashboard
+                        </Button>
+                        <Button 
+                            onClick={handleLogout}
+                            variant="outline"
+                            className="border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white"
+                        >
+                            Log Out
+                        </Button>
+                    </div>
                 </div>
             </div>
 
-            {/* Info Sessions Container */}
-            <div className="info-sessions__main">
+            {/* Main Content */}
+            <div className="max-w-[1400px] mx-auto px-8 py-8">
                 {/* Title */}
-                <div className="admissions-dashboard__title-section">
-                    <h1 className="admissions-dashboard__title">
-                        Select a time slot for your info session at Pursuit HQ.
-                    </h1>
-                </div>
+                <h1 className="text-5xl font-bold text-[#1E1E1E] leading-tight mb-8">
+                    Select a time slot for your info session at Pursuit HQ.
+                </h1>
 
-                <div className="info-sessions__content">
-                    
-                    {/* Status Messages */}
-                    {registrationStatus && (
-                        <div className={`info-sessions__status-banner info-sessions__status-banner--${registrationStatus}`}>
-                            <div className="info-sessions__status-content">
-                                <span className="info-sessions__status-icon">
-                                    {registrationStatus === 'success' ? '🎉' : '⚠️'}
-                                </span>
-                                <strong>{statusMessage}</strong>
-                            </div>
-                        </div>
-                    )}
+                {/* Status Messages */}
+                {registrationStatus && (
+                    <Alert className={`mb-6 ${registrationStatus === 'success' ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'}`}>
+                        <AlertDescription className="flex items-center gap-2">
+                            <span className="text-2xl">
+                                {registrationStatus === 'success' ? '🎉' : '⚠️'}
+                            </span>
+                            <strong className={registrationStatus === 'success' ? 'text-green-900' : 'text-red-900'}>
+                                {statusMessage}
+                            </strong>
+                        </AlertDescription>
+                    </Alert>
+                )}
 
-                    {/* Time Slots Grid */}
-                    <div className="info-sessions__time-slots-grid">
-                        {events.length === 0 ? (
-                            <div className="info-sessions__no-sessions-message">
-                                <h3>No Information Sessions Scheduled</h3>
-                                <p>We'll add sessions as soon as they're scheduled. Check back regularly!</p>
-                            </div>
-                        ) : (
-                            events.map((event) => {
-                                const isRegistered = isUserRegistered(event);
-                                const isFull = (event.registered_count || 0) >= event.capacity;
-                                const isPassed = isEventPassed(event);
-                                const registration = getUserRegistration(event);
-                                
-                                // Convert UTC times to Eastern Time for display
-                                const easternStartTime = getEasternTimeParts(event.start_time);
-                                const easternEndTime = getEasternTimeParts(event.end_time);
-                                
-                                const month = format(easternStartTime, 'MMMM');
-                                const day = format(easternStartTime, 'd');
-                                const dayOfWeek = format(easternStartTime, 'EEEE');
-                                const timeRange = `${formatInEasternTime(event.start_time, 'time')} - ${formatInEasternTime(event.end_time, 'time')}`;
-                                
-                                return (
-                                    <div 
-                                        key={event.event_id} 
-                                        className={`info-sessions__time-slot-card ${isRegistered ? 'info-sessions__time-slot-card--selected' : ''} ${isFull && !isRegistered ? 'info-sessions__time-slot-card--full' : ''} ${isPassed ? 'info-sessions__time-slot-card--passed' : ''}`}
-                                    >
-                                        <div className="info-sessions__time-slot-header">
-                                            <div className="info-sessions__date-info">
-                                                <span className="info-sessions__month">{month}</span>
-                                                <span className="info-sessions__day">{day}</span>
-                                                <span className="info-sessions__day-of-week">{dayOfWeek}</span>
+                {/* Time Slots Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {events.length === 0 ? (
+                        <Card className="col-span-full">
+                            <CardContent className="p-12 text-center">
+                                <h3 className="text-2xl font-bold text-[#1E1E1E] mb-2">No Information Sessions Scheduled</h3>
+                                <p className="text-[#666]">We'll add sessions as soon as they're scheduled. Check back regularly!</p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        events.map((event) => {
+                            const isRegistered = isUserRegistered(event);
+                            const isFull = (event.registered_count || 0) >= event.capacity;
+                            const isPassed = isEventPassed(event);
+                            const registration = getUserRegistration(event);
+                            
+                            const easternStartTime = getEasternTimeParts(event.start_time);
+                            const easternEndTime = getEasternTimeParts(event.end_time);
+                            
+                            const month = format(easternStartTime, 'MMMM');
+                            const day = format(easternStartTime, 'd');
+                            const dayOfWeek = format(easternStartTime, 'EEEE');
+                            const timeRange = `${formatInEasternTime(event.start_time, 'time')} - ${formatInEasternTime(event.end_time, 'time')}`;
+                            
+                            return (
+                                <Card 
+                                    key={event.event_id} 
+                                    className={`transition-all duration-200 ${
+                                        isRegistered ? 'border-2 border-green-500 shadow-lg' : 
+                                        isFull && !isRegistered ? 'opacity-60' : 
+                                        isPassed ? 'opacity-50' : 
+                                        'hover:shadow-lg'
+                                    }`}
+                                >
+                                    <CardContent className="p-6 space-y-4">
+                                        {/* Date Header */}
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <Calendar className="h-6 w-6 text-[#4242EA]" />
+                                                <div>
+                                                    <div className="text-2xl font-bold text-[#1E1E1E]">{day}</div>
+                                                    <div className="text-sm text-[#666]">{month}</div>
+                                                </div>
                                             </div>
-                                            <div className="info-sessions__time-info">
-                                                <span className="info-sessions__time-range">{timeRange}</span>
-                                            </div>
+                                            {isRegistered && (
+                                                <Badge className="bg-green-500 hover:bg-green-600">
+                                                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                                                    Reserved
+                                                </Badge>
+                                            )}
+                                        </div>
+
+                                        {/* Day of Week */}
+                                        <div className="text-lg font-semibold text-[#1E1E1E]">{dayOfWeek}</div>
+
+                                        {/* Time */}
+                                        <div className="flex items-center gap-2 text-[#666]">
+                                            <Clock className="h-5 w-5" />
+                                            <span>{timeRange}</span>
+                                        </div>
+
+                                        {/* Location */}
+                                        <div className="flex items-center gap-2 text-[#666]">
+                                            {event.is_online ? (
+                                                <>
+                                                    <Laptop className="h-5 w-5" />
+                                                    <span>Online</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Building className="h-5 w-5" />
+                                                    <span>In-Person</span>
+                                                </>
+                                            )}
                                         </div>
                                         
-                                        <div className="info-sessions__location-info">
-                                            <span className="info-sessions__location-type">
-                                                {event.is_online ? '💻 Online' : '🏢 In-Person'}
-                                            </span>
-                                        </div>
-                                        
+                                        {/* Actions */}
                                         {isRegistered ? (
-                                            <div className="info-sessions__slot-actions info-sessions__registered-actions">
-                                                <button
-                                                    className="info-sessions__cancel-selection-btn"
+                                            <div className="flex gap-2 pt-2">
+                                                <Button
                                                     onClick={() => handleCancelRegistration(event.event_id, registration?.registration_id)}
                                                     disabled={processingEventId === event.event_id}
+                                                    variant="outline"
+                                                    className="flex-1 border-red-500 text-red-600 hover:bg-red-500 hover:text-white"
                                                 >
                                                     {processingEventId === event.event_id ? 'Cancelling...' : 'Cancel'}
-                                                </button>
-                                                <div className="info-sessions__selected-indicator">Reserved</div>
+                                                </Button>
                                             </div>
                                         ) : (
-                                            <div className="info-sessions__slot-actions">
-                                                <button
-                                                    className={`info-sessions__select-btn ${isFull ? 'info-sessions__select-btn--full' : ''} ${isPassed ? 'info-sessions__select-btn--disabled' : ''}`}
-                                                    onClick={() => !isFull && !isPassed && handleSignUp(event.event_id)}
-                                                    disabled={processingEventId === event.event_id || isFull || isPassed}
-                                                >
-                                                    {isPassed ? 'Event Passed' :
-                                                     isFull ? 'Full' : 
-                                                     processingEventId === event.event_id ? 'Reserving...' : 'Reserve'}
-                                                </button>
-                                            </div>
+                                            <Button
+                                                onClick={() => !isFull && !isPassed && handleSignUp(event.event_id)}
+                                                disabled={processingEventId === event.event_id || isFull || isPassed}
+                                                className={`w-full ${
+                                                    isPassed ? 'bg-gray-400 cursor-not-allowed' :
+                                                    isFull ? 'bg-gray-400 cursor-not-allowed' : 
+                                                    'bg-[#4242EA] hover:bg-[#3535D1]'
+                                                }`}
+                                            >
+                                                {isPassed ? 'Event Passed' :
+                                                 isFull ? 'Full' : 
+                                                 processingEventId === event.event_id ? 'Reserving...' : 'Reserve'}
+                                            </Button>
                                         )}
                                         
                                         {event.is_online && event.meeting_link && isRegistered && (
-                                            <div className="info-sessions__meeting-link-section">
-                                                <a href={event.meeting_link} target="_blank" rel="noopener noreferrer" className="info-sessions__meeting-link">
+                                            <a 
+                                                href={event.meeting_link} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="block"
+                                            >
+                                                <Button variant="outline" className="w-full border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white">
                                                     Join Meeting
-                                                </a>
-                                            </div>
+                                                </Button>
+                                            </a>
                                         )}
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })
+                    )}
+                </div>
 
-                    {/* Admin form */}
-                    {isAdmin && (
-                        <div className="info-sessions__admin-form-section">
-                            <h3>Add New Info Session</h3>
-                            <form onSubmit={handleAddEvent}>
+                {/* Admin form - hidden for applicants */}
+                {isAdmin && (
+                    <Card className="mt-8">
+                        <CardContent className="p-6">
+                            <h3 className="text-xl font-bold text-[#1E1E1E] mb-4">Add New Info Session</h3>
+                            <form onSubmit={handleAddEvent} className="space-y-4">
                                 <input
                                     type="text"
                                     placeholder="Title"
                                     value={newEvent.title}
                                     onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
                                     required
+                                    className="w-full px-3 py-2 border border-[#C8C8C8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4242EA]"
                                 />
                                 <input
                                     type="datetime-local"
                                     value={newEvent.start_time}
                                     onChange={(e) => setNewEvent({ ...newEvent, start_time: e.target.value })}
                                     required
+                                    className="w-full px-3 py-2 border border-[#C8C8C8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4242EA]"
                                 />
                                 <input
                                     type="datetime-local"
                                     value={newEvent.end_time}
                                     onChange={(e) => setNewEvent({ ...newEvent, end_time: e.target.value })}
                                     required
+                                    className="w-full px-3 py-2 border border-[#C8C8C8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4242EA]"
                                 />
                                 <input
                                     type="text"
@@ -565,20 +593,23 @@ const InfoSessions = () => {
                                     value={newEvent.location}
                                     onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
                                     required
+                                    className="w-full px-3 py-2 border border-[#C8C8C8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4242EA]"
                                 />
                                 <input
                                     type="number"
                                     placeholder="Capacity"
                                     value={newEvent.capacity}
                                     onChange={(e) => setNewEvent({ ...newEvent, capacity: e.target.value })}
+                                    className="w-full px-3 py-2 border border-[#C8C8C8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4242EA]"
                                 />
-                                <label>
+                                <label className="flex items-center gap-2">
                                     <input
                                         type="checkbox"
                                         checked={newEvent.is_online}
                                         onChange={(e) => setNewEvent({ ...newEvent, is_online: e.target.checked })}
+                                        className="h-4 w-4 text-[#4242EA] focus:ring-[#4242EA] rounded"
                                     />
-                                    Online Event
+                                    <span>Online Event</span>
                                 </label>
                                 {newEvent.is_online && (
                                     <input
@@ -586,16 +617,19 @@ const InfoSessions = () => {
                                         placeholder="Meeting Link"
                                         value={newEvent.meeting_link}
                                         onChange={(e) => setNewEvent({ ...newEvent, meeting_link: e.target.value })}
+                                        className="w-full px-3 py-2 border border-[#C8C8C8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4242EA]"
                                     />
                                 )}
-                                <button type="submit">Add Session</button>
+                                <Button type="submit" className="bg-[#4242EA] hover:bg-[#3535D1]">
+                                    Add Session
+                                </Button>
                             </form>
-                        </div>
-                    )}
-                </div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </div>
     );
 };
 
-export default InfoSessions; 
+export default InfoSessions;
