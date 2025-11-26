@@ -97,7 +97,7 @@ const ProgramDetails = () => {
                     <h3 className="text-lg font-bold">Start Date</h3>
                   </div>
                   <p className="text-2xl font-semibold text-[#1E1E1E] ml-7">
-                    March 14, 2025
+                    March 14, 2026
                   </p>
                 </div>
 
