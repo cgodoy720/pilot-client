@@ -83,9 +83,22 @@ const ApplicationsTab = ({
   token
 }) => {
   const columnLabels = {
-    structured_task_grade: 'Workshop Grade',
+    name: 'Name',
+    email: 'Email',
+    phone: 'Phone',
+    status: 'Status',
+    assessment: 'Assessment',
     info_session: 'Info Session',
-    program_admission_status: 'Admission'
+    workshop: 'Workshop',
+    structured_task_grade: 'Workshop Grade',
+    admission: 'Admission',
+    deliberation: 'Deliberation',
+    notes: 'Notes',
+    age: 'Age',
+    gender: 'Gender',
+    race: 'Race/Ethnicity',
+    education: 'Education',
+    referral: 'Referral Source'
   };
 
   // Sort applications
@@ -206,64 +219,84 @@ const ApplicationsTab = ({
     return <span className="text-[#4242ea] ml-1">{columnSort.direction === 'asc' ? '▲' : '▼'}</span>;
   };
 
-  // Render filterable column header
-  const renderFilterableHeader = (column, filterKey, label) => {
+  // Render sortable + filterable column header
+  const renderSortableFilterableHeader = (column, filterKey, label, sortKey = null) => {
     const options = filterOptions[filterKey];
     const currentValue = applicationFilters[filterKey] || '';
     const isFiltered = currentValue !== '';
+    const isSortable = sortKey !== null;
+    const isSorted = columnSort.column === sortKey;
     
     return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <div className="flex items-center cursor-pointer hover:text-[#4242ea] select-none">
-            <span className={isFiltered ? 'text-[#4242ea] font-proxima-bold' : 'font-proxima-bold'}>
-              {label}
-            </span>
-            <span className="ml-1">
-              {isFiltered ? (
-                <span className="text-[#4242ea]">▼</span>
-              ) : (
-                <span className="text-gray-400">▼</span>
-              )}
-            </span>
-          </div>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-40 font-proxima">
-          {options.map((option) => (
-            <DropdownMenuItem
-              key={option.value}
-              className={`cursor-pointer ${currentValue === option.value ? 'bg-[#4242ea]/10 text-[#4242ea]' : ''}`}
-              onClick={() => {
-                setApplicationFilters({ 
-                  ...applicationFilters, 
-                  [filterKey]: option.value,
-                  offset: 0 
-                });
-              }}
+      <div className="flex items-center gap-1">
+        {/* Sortable label */}
+        {isSortable ? (
+          <span 
+            className="cursor-pointer hover:text-[#4242ea] font-proxima-bold select-none flex items-center"
+            onClick={() => handleColumnSort(sortKey)}
+          >
+            {label}
+            {isSorted ? (
+              <span className="text-[#4242ea] ml-1">{columnSort.direction === 'asc' ? '▲' : '▼'}</span>
+            ) : (
+              <span className="text-gray-400 ml-1">⇅</span>
+            )}
+          </span>
+        ) : (
+          <span className="font-proxima-bold">{label}</span>
+        )}
+        
+        {/* Filter dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button 
+              className={`p-1 rounded hover:bg-gray-200 ${isFiltered ? 'text-[#4242ea]' : 'text-gray-400'}`}
+              onClick={(e) => e.stopPropagation()}
             >
-              {currentValue === option.value && <span className="mr-2">✓</span>}
-              {option.label}
-            </DropdownMenuItem>
-          ))}
-          {isFiltered && (
-            <>
-              <DropdownMenuSeparator />
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+              </svg>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-44 font-proxima">
+            <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase">Filter by {label}</div>
+            <DropdownMenuSeparator />
+            {options.map((option) => (
               <DropdownMenuItem
-                className="cursor-pointer text-red-600 hover:text-red-700"
+                key={option.value}
+                className={`cursor-pointer ${currentValue === option.value ? 'bg-[#4242ea]/10 text-[#4242ea]' : ''}`}
                 onClick={() => {
                   setApplicationFilters({ 
                     ...applicationFilters, 
-                    [filterKey]: '',
+                    [filterKey]: option.value,
                     offset: 0 
                   });
                 }}
               >
-                Clear Filter
+                {currentValue === option.value && <span className="mr-2">✓</span>}
+                {option.label}
               </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+            ))}
+            {isFiltered && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="cursor-pointer text-red-600 hover:text-red-700"
+                  onClick={() => {
+                    setApplicationFilters({ 
+                      ...applicationFilters, 
+                      [filterKey]: '',
+                      offset: 0 
+                    });
+                  }}
+                >
+                  ✕ Clear Filter
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     );
   };
 
@@ -318,7 +351,9 @@ const ApplicationsTab = ({
               ⚙️ Columns
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-48 font-proxima">
+          <DropdownMenuContent className="w-48 font-proxima max-h-[400px] overflow-y-auto">
+            <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase">Show/Hide Columns</div>
+            <DropdownMenuSeparator />
             {Object.keys(visibleColumns).map(column => (
               <DropdownMenuCheckboxItem
                 key={column}
@@ -434,35 +469,50 @@ const ApplicationsTab = ({
                     <TableHead className="font-proxima-bold">Phone</TableHead>
                   )}
                   {visibleColumns.status && (
-                    <TableHead className="font-proxima-bold">
-                      {renderFilterableHeader('status', 'status', 'Status')}
+                    <TableHead>
+                      {renderSortableFilterableHeader('status', 'status', 'Status', 'status')}
                     </TableHead>
                   )}
                   {visibleColumns.assessment && (
                     <TableHead className="font-proxima-bold">Assessment</TableHead>
                   )}
                   {visibleColumns.info_session && (
-                    <TableHead className="font-proxima-bold">
-                      {renderFilterableHeader('info_session', 'info_session_status', 'Info Session')}
+                    <TableHead>
+                      {renderSortableFilterableHeader('info_session', 'info_session_status', 'Info Session', 'info_session_status')}
                     </TableHead>
                   )}
                   {visibleColumns.workshop && (
-                    <TableHead className="font-proxima-bold">
-                      {renderFilterableHeader('workshop', 'workshop_status', 'Workshop')}
+                    <TableHead>
+                      {renderSortableFilterableHeader('workshop', 'workshop_status', 'Workshop', 'workshop_status')}
                     </TableHead>
                   )}
                   {visibleColumns.structured_task_grade && (
                     <TableHead className="font-proxima-bold">Workshop Grade</TableHead>
                   )}
                   {visibleColumns.admission && (
-                    <TableHead className="font-proxima-bold">
-                      {renderFilterableHeader('admission', 'program_admission_status', 'Admission')}
+                    <TableHead>
+                      {renderSortableFilterableHeader('admission', 'program_admission_status', 'Admission', 'program_admission_status')}
                     </TableHead>
                   )}
                   {visibleColumns.deliberation && (
-                    <TableHead className="font-proxima-bold">
-                      {renderFilterableHeader('deliberation', 'deliberation', 'Deliberation')}
+                    <TableHead>
+                      {renderSortableFilterableHeader('deliberation', 'deliberation', 'Deliberation', 'deliberation')}
                     </TableHead>
+                  )}
+                  {visibleColumns.age && (
+                    <TableHead className="font-proxima-bold">Age</TableHead>
+                  )}
+                  {visibleColumns.gender && (
+                    <TableHead className="font-proxima-bold">Gender</TableHead>
+                  )}
+                  {visibleColumns.race && (
+                    <TableHead className="font-proxima-bold">Race/Ethnicity</TableHead>
+                  )}
+                  {visibleColumns.education && (
+                    <TableHead className="font-proxima-bold">Education</TableHead>
+                  )}
+                  {visibleColumns.referral && (
+                    <TableHead className="font-proxima-bold">Referral</TableHead>
                   )}
                   {visibleColumns.notes && (
                     <TableHead className="font-proxima-bold">Notes</TableHead>
@@ -557,6 +607,31 @@ const ApplicationsTab = ({
                             <SelectItem value="no">No</SelectItem>
                           </SelectContent>
                         </Select>
+                      </TableCell>
+                    )}
+                    {visibleColumns.age && (
+                      <TableCell className="font-proxima text-gray-600">
+                        {app.age || '-'}
+                      </TableCell>
+                    )}
+                    {visibleColumns.gender && (
+                      <TableCell className="font-proxima text-gray-600">
+                        {app.gender || '-'}
+                      </TableCell>
+                    )}
+                    {visibleColumns.race && (
+                      <TableCell className="font-proxima text-gray-600 max-w-[150px] truncate" title={app.race_ethnicity}>
+                        {app.race_ethnicity || '-'}
+                      </TableCell>
+                    )}
+                    {visibleColumns.education && (
+                      <TableCell className="font-proxima text-gray-600 max-w-[150px] truncate" title={app.education_level}>
+                        {app.education_level || '-'}
+                      </TableCell>
+                    )}
+                    {visibleColumns.referral && (
+                      <TableCell className="font-proxima text-gray-600 max-w-[150px] truncate" title={app.how_did_you_hear}>
+                        {app.how_did_you_hear || '-'}
                       </TableCell>
                     )}
                     {visibleColumns.notes && (
