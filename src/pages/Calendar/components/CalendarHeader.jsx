@@ -35,7 +35,7 @@ const CalendarHeader = ({ currentMonth, currentYear, onPrevMonth, onNextMonth, o
             rotation={180}
             useChevron={true}
             className="!w-[32px] !h-[32px] !rounded-[8px]"
-            strokeWidth={1}
+            strokeWidth={0.8}
           />
           
           {/* Month Dropdown */}
@@ -63,7 +63,7 @@ const CalendarHeader = ({ currentMonth, currentYear, onPrevMonth, onNextMonth, o
             size="md"
             useChevron={true}
             className="!w-[32px] !h-[32px] !rounded-[8px]"
-            strokeWidth={1}
+            strokeWidth={0.8}
           />
         </div>
       </div>

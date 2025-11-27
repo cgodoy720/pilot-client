@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import './BulkActionsModal.css';
 
-const BulkActionsModal = ({ selectedCount, onClose, onAction, isLoading }) => {
+const BulkActionsModal = ({ isOpen, selectedCount, onClose, onAction, isLoading }) => {
     const [selectedAction, setSelectedAction] = useState('');
     const [customSubject, setCustomSubject] = useState('');
     const [customBody, setCustomBody] = useState('');
     const [showConfirmation, setShowConfirmation] = useState(false);
+
+    // Don't render if not open
+    if (!isOpen) return null;
 
     const actions = [
         { value: 'invite_to_workshop', label: 'Invite to workshop' },

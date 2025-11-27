@@ -559,11 +559,11 @@ function Dashboard() {
                     ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer' 
                     : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
                 }`}
-                style={{ borderRadius: '7px' }}
+                style={{ borderRadius: '.85rem' }}
                 onClick={() => navigateToWeek('prev')}
                 disabled={currentWeek <= 1 || slideDirection !== null}
               >
-                <ChevronLeft className={`w-5 h-7 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-white' : ''}`} strokeWidth={1} />
+                <ChevronLeft className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-white' : ''}`} strokeWidth={0.8} />
                 {currentWeek > 1 && (
                   <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
                 )}
@@ -612,11 +612,11 @@ function Dashboard() {
                     ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer' 
                     : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
                 }`}
-                style={{ borderRadius: '7px' }}
+                style={{ borderRadius: '.85rem' }}
                 onClick={() => navigateToWeek('next')}
                 disabled={!currentDay?.week || currentWeek >= currentDay.week || slideDirection !== null}
               >
-                <ChevronRight className={`w-5 h-7 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-white' : ''}`} strokeWidth={1} />
+                <ChevronRight className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-white' : ''}`} strokeWidth={0.8} />
                 {currentDay?.week && currentWeek < currentDay.week && (
                   <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
                 )}
@@ -833,11 +833,11 @@ function Dashboard() {
                   ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer' 
                   : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
               }`}
-              style={{ borderRadius: '7px' }}
+              style={{ borderRadius: '.85rem' }}
               onClick={() => navigateToWeek('prev')}
               disabled={currentWeek <= 1 || slideDirection !== null}
             >
-              <ChevronLeft className={`w-5 h-7 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-pursuit-purple' : ''}`} strokeWidth={1} />
+              <ChevronLeft className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-pursuit-purple' : ''}`} strokeWidth={0.8} />
               {currentWeek > 1 && (
                 <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
               )}
@@ -884,11 +884,11 @@ function Dashboard() {
                   ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer' 
                   : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
               }`}
-              style={{ borderRadius: '7px' }}
+              style={{ borderRadius: '.85rem' }}
               onClick={() => navigateToWeek('next')}
               disabled={!currentDay?.week || currentWeek >= currentDay.week || slideDirection !== null}
             >
-              <ChevronRight className={`w-5 h-7 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-pursuit-purple' : ''}`} strokeWidth={1} />
+              <ChevronRight className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-pursuit-purple' : ''}`} strokeWidth={0.8} />
               {currentDay?.week && currentWeek < currentDay.week && (
                 <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
               )}

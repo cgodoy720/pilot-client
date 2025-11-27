@@ -32,9 +32,9 @@ const ArrowButton = ({
 
   // Chevrons use taller dimensions to appear longer
   const chevronIconSizes = {
-    sm: 'w-3.5 h-5',
-    md: 'w-5 h-7',
-    lg: 'w-[18px] h-[26px]'
+    sm: 'w-10 h-10',
+    md: 'w-10 h-10',
+    lg: 'w-10 h-10'
   };
 
   const Icon = useChevron ? ChevronRight : ArrowRight;

@@ -1213,31 +1213,31 @@ function PathfinderAdmin() {
     return (
       <div className="w-full h-full bg-gray-50 text-gray-900 overflow-y-auto p-6">
         <div className="max-w-full mx-auto bg-white rounded-lg border border-gray-200 p-8 text-center">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">You must be staff or admin to view this dashboard.</p>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2 font-proxima-bold">Access Denied</h2>
+          <p className="text-gray-600 font-proxima">You must be staff or admin to view this dashboard.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto p-6">
+    <div className="w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto p-6 font-proxima">
       <div className="max-w-full mx-auto">
         <div className="flex justify-between items-center mb-8 gap-4 flex-wrap">
           <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-semibold text-[#1a1a1a] m-0">Pathfinder Admin Dashboard</h1>
+            <h1 className="text-2xl font-semibold text-[#1a1a1a] m-0 font-proxima-bold">Pathfinder Admin Dashboard</h1>
             
             {/* Cohort Filter */}
             <div className="flex items-center gap-2">
-              <label className="font-medium text-[#1a1a1a] whitespace-nowrap">Filter by Cohort:</label>
+              <label className="font-medium text-[#1a1a1a] whitespace-nowrap font-proxima-bold">Filter by Cohort:</label>
               <Select value={cohortFilter} onValueChange={setCohortFilter}>
-                <SelectTrigger className="w-[200px] bg-white border-[#d0d0d0]">
+                <SelectTrigger className="w-[200px] bg-white border-[#d0d0d0] font-proxima">
                   <SelectValue placeholder="All Cohorts" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Cohorts</SelectItem>
+                <SelectContent className="font-proxima">
+                  <SelectItem value="all" className="font-proxima">All Cohorts</SelectItem>
                   {availableCohorts.map(cohort => (
-                    <SelectItem key={cohort} value={cohort}>{cohort}</SelectItem>
+                    <SelectItem key={cohort} value={cohort} className="font-proxima">{cohort}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1245,7 +1245,7 @@ function PathfinderAdmin() {
           </div>
           
           <Button 
-            className="px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] hover:bg-[#3333d1] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(66,66,234,0.3)]"
+            className="px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] hover:bg-[#3333d1] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(66,66,234,0.3)] font-proxima-bold"
             onClick={handleExport}
           >
             Export Data
@@ -1253,34 +1253,34 @@ function PathfinderAdmin() {
         </div>
 
         {error && (
-          <div className="p-4 bg-red-100 text-red-600 border border-red-200 rounded-md mb-6 font-medium">
+          <div className="p-4 bg-red-100 text-red-600 border border-red-200 rounded-md mb-6 font-medium font-proxima">
             {error}
           </div>
         )}
 
         {/* Tabs */}
         <Tabs value={view} onValueChange={setView} className="w-full">
-          <TabsList className="grid w-full grid-cols-7 mb-8">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="builders">Builders</TabsTrigger>
-            <TabsTrigger value="companies">Companies</TabsTrigger>
-            <TabsTrigger value="build-projects">Build Projects</TabsTrigger>
-            <TabsTrigger value="job-applications">Job Applications</TabsTrigger>
-            <TabsTrigger value="ceremonies">Ceremonies</TabsTrigger>
-            <TabsTrigger value="prds" className="relative">
+          <TabsList className="grid w-full grid-cols-8 mb-8">
+            <TabsTrigger value="overview" className="px-2 text-sm font-proxima">Overview</TabsTrigger>
+            <TabsTrigger value="builders" className="px-2 text-sm font-proxima">Builders</TabsTrigger>
+            <TabsTrigger value="companies" className="px-2 text-sm font-proxima">Companies</TabsTrigger>
+            <TabsTrigger value="build-projects" className="px-2 text-sm font-proxima">Build Projects</TabsTrigger>
+            <TabsTrigger value="job-applications" className="px-2 text-sm font-proxima">Job Applications</TabsTrigger>
+            <TabsTrigger value="ceremonies" className="px-2 text-sm font-proxima">Ceremonies</TabsTrigger>
+            <TabsTrigger value="prds" className="relative px-2 text-sm font-proxima">
               PRDs
               {pendingApprovals.length > 0 && (
-                <Badge className="ml-1 bg-red-500 text-white text-xs px-1.5 py-0.5">
+                <Badge className="ml-1 bg-red-500 text-white text-xs px-1.5 py-0.5 font-proxima">
                   {pendingApprovals.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="weekly-goals">Weekly Goals</TabsTrigger>
+            <TabsTrigger value="weekly-goals" className="px-2 text-sm font-proxima">Weekly Goals</TabsTrigger>
           </TabsList>
 
           {/* Overview View */}
           <TabsContent value="overview" className="mt-0">
-            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500">Loading Overview...</div></div>}>
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading Overview...</div></div>}>
               {overview && (
                 <OverviewTab
                   overview={overview}
@@ -1297,7 +1297,7 @@ function PathfinderAdmin() {
 
           {/* Builders View */}
           <TabsContent value="builders" className="mt-0">
-            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500">Loading Builders...</div></div>}>
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading Builders...</div></div>}>
               <BuildersTab
                 builders={builders}
                 builderSortConfig={builderSortConfig}
@@ -1310,7 +1310,7 @@ function PathfinderAdmin() {
 
           {/* Companies View */}
           <TabsContent value="companies" className="mt-0">
-            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500">Loading Companies...</div></div>}>
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading Companies...</div></div>}>
               <CompaniesTab
                 companies={companies}
                 companiesViewMode={companiesViewMode}
@@ -1322,7 +1322,7 @@ function PathfinderAdmin() {
 
           {/* PRDs View */}
           <TabsContent value="prds" className="mt-0">
-            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500">Loading PRDs...</div></div>}>
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading PRDs...</div></div>}>
               <PRDsTab
                 pendingApprovals={pendingApprovals}
                 approvedPRDs={approvedPRDs}
@@ -1347,7 +1347,7 @@ function PathfinderAdmin() {
 
           {/* Build Projects View */}
           <TabsContent value="build-projects" className="mt-0">
-            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500">Loading Projects...</div></div>}>
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading Projects...</div></div>}>
               <ProjectsTab
                 projects={projects}
                 projectsOverview={projectsOverview}
@@ -1367,7 +1367,7 @@ function PathfinderAdmin() {
 
           {/* Ceremonies View */}
           <TabsContent value="ceremonies" className="mt-0">
-            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500">Loading Ceremonies...</div></div>}>
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading Ceremonies...</div></div>}>
               <CeremoniesTab
                 ceremonies={ceremonies}
                 archivedCeremonies={archivedCeremonies}
@@ -1381,7 +1381,7 @@ function PathfinderAdmin() {
 
           {/* Job Applications View */}
           <TabsContent value="job-applications" className="mt-0">
-            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500">Loading Job Applications...</div></div>}>
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading Job Applications...</div></div>}>
               <JobApplicationsTab
                 jobApplications={jobApplications}
                 jobAppViewMode={jobAppViewMode}
@@ -1404,7 +1404,7 @@ function PathfinderAdmin() {
 
           {/* Weekly Goals View */}
           <TabsContent value="weekly-goals" className="mt-0">
-            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500">Loading Weekly Goals...</div></div>}>
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading Weekly Goals...</div></div>}>
               <WeeklyGoalsTab
                 weeklyGoals={weeklyGoals}
                 weeklyGoalsForm={weeklyGoalsForm}
