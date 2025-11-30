@@ -26,6 +26,21 @@ function DeliverablePanel({
     }
   };
 
+  // Create video schema for Loom submissions
+  const getVideoSchema = () => ({
+    fields: [
+      {
+        name: 'loomUrl',
+        label: 'Loom Video URL',
+        type: 'loom_url',
+        required: true,
+        placeholder: 'https://www.loom.com/share/...',
+        instructions: task.deliverable || 'Record a video to share your work. Make sure your video is set to "Anyone with the link can view".',
+        help: 'Paste the share link from your Loom video.'
+      }
+    ]
+  });
+
   const getSubmissionComponent = () => {
     const commonProps = {
       task,
@@ -44,7 +59,12 @@ function DeliverablePanel({
       return <StructuredSubmission {...commonProps} schema={task.deliverable_schema} />;
     }
 
-    // For all standard deliverable types (text, link, document, video), use FlexibleSubmission
+    // For video deliverable type, use StructuredSubmission with Loom schema
+    if (task.deliverable_type === 'video') {
+      return <StructuredSubmission {...commonProps} schema={getVideoSchema()} />;
+    }
+
+    // For all other standard deliverable types (text, link, document), use FlexibleSubmission
     // This gives builders the 3-option selector (Text, Google Drive Link, Video)
     return <FlexibleSubmission {...commonProps} />;
   };

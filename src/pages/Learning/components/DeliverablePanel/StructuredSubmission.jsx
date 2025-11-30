@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '../../../../components/ui/button';
 import { Textarea } from '../../../../components/ui/textarea';
 import { Input } from '../../../../components/ui/input';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Video, ExternalLink } from 'lucide-react';
 
 function StructuredSubmission({ task, schema, currentSubmission, isSubmitting, isLocked, onSubmit }) {
   const [formData, setFormData] = useState({});
@@ -14,6 +14,8 @@ function StructuredSubmission({ task, schema, currentSubmission, isSubmitting, i
     
     // Try to parse existing submission if it exists
     let existingData = {};
+    let plainTextContent = null;
+    
     if (currentSubmission?.content) {
       try {
         // If content is a JSON string, parse it
@@ -21,14 +23,23 @@ function StructuredSubmission({ task, schema, currentSubmission, isSubmitting, i
           ? JSON.parse(currentSubmission.content)
           : currentSubmission.content;
       } catch (e) {
-        // If parsing fails, treat as plain text
-        console.log('Could not parse submission content as JSON');
+        // If parsing fails, treat as plain text (e.g., a plain URL string)
+        console.log('Could not parse submission content as JSON, treating as plain text');
+        plainTextContent = currentSubmission.content;
       }
     }
     
     // Initialize each field from schema
     schema.fields.forEach(field => {
-      initialData[field.name] = existingData[field.name] || '';
+      if (existingData[field.name]) {
+        // Use parsed JSON data if available
+        initialData[field.name] = existingData[field.name];
+      } else if (plainTextContent && field.type === 'loom_url') {
+        // For loom_url fields, if we have plain text content that looks like a Loom URL, use it
+        initialData[field.name] = plainTextContent;
+      } else {
+        initialData[field.name] = '';
+      }
     });
     
     setFormData(initialData);
@@ -45,11 +56,45 @@ function StructuredSubmission({ task, schema, currentSubmission, isSubmitting, i
     }
   };
 
+  // Loom URL validation functions
+  const isValidLoomUrl = (url) => {
+    const loomPatterns = [
+      /^https:\/\/www\.loom\.com\/share\/[a-zA-Z0-9]+(\?.*)?$/,
+      /^https:\/\/loom\.com\/share\/[a-zA-Z0-9]+(\?.*)?$/,
+      /^https:\/\/www\.loom\.com\/embed\/[a-zA-Z0-9]+(\?.*)?$/,
+      /^https:\/\/loom\.com\/embed\/[a-zA-Z0-9]+(\?.*)?$/
+    ];
+    
+    return loomPatterns.some(pattern => pattern.test(url));
+  };
+
+  const getLoomEmbedUrl = (url) => {
+    if (!isValidLoomUrl(url)) return null;
+    
+    // Extract video ID from various Loom URL formats
+    const shareMatch = url.match(/loom\.com\/share\/([a-zA-Z0-9]+)/);
+    const embedMatch = url.match(/loom\.com\/embed\/([a-zA-Z0-9]+)/);
+    
+    const videoId = shareMatch?.[1] || embedMatch?.[1];
+    if (videoId) {
+      return `https://www.loom.com/embed/${videoId}`;
+    }
+    
+    return null;
+  };
+
   const validateForm = () => {
     // Check all required fields
     for (const field of schema.fields) {
       if (field.required && !formData[field.name]?.trim()) {
         return `Please fill in the "${field.label}" field`;
+      }
+      
+      // Special validation for Loom URLs
+      if (field.type === 'loom_url' && formData[field.name]?.trim()) {
+        if (!isValidLoomUrl(formData[field.name])) {
+          return `Please enter a valid Loom video URL (e.g., https://www.loom.com/share/...)`;
+        }
       }
     }
     return null;
@@ -84,6 +129,70 @@ function StructuredSubmission({ task, schema, currentSubmission, isSubmitting, i
           />
         );
       
+      case 'loom_url':
+        return (
+          <div className="space-y-3">
+            {/* Instructions for Loom URL */}
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Video className="w-4 h-4 text-blue-600" />
+                <h4 className="text-sm font-semibold text-blue-800 font-proxima">Record Your Video</h4>
+              </div>
+              <p className="text-xs text-blue-700 font-proxima mb-2">
+                {field.instructions || 'Record a video to share your work. No slides or preparation needed - just speak naturally about your solution.'}
+              </p>
+              <a 
+                href="https://www.loom.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-proxima"
+              >
+                <ExternalLink className="w-3 h-3" />
+                Need to record? Visit Loom.com
+              </a>
+            </div>
+            
+            {/* URL Input */}
+            <Input
+              type="url"
+              value={value}
+              onChange={(e) => handleChange(field.name, e.target.value)}
+              placeholder={field.placeholder || 'https://www.loom.com/share/...'}
+              disabled={isLocked || isSubmitting}
+              className="font-proxima"
+            />
+            
+            {/* Validation Error */}
+            {value && !isValidLoomUrl(value) && (
+              <p className="text-xs text-red-600 font-proxima">
+                Please enter a valid Loom video URL (e.g., https://www.loom.com/share/...)
+              </p>
+            )}
+            
+            {/* Video Preview */}
+            {value && isValidLoomUrl(value) && !isLocked && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium font-proxima text-carbon-black">
+                  Video Preview
+                </label>
+                <div className="relative w-full h-64 bg-gray-100 rounded-md overflow-hidden">
+                  <iframe
+                    src={getLoomEmbedUrl(value)}
+                    frameBorder="0"
+                    webkitallowfullscreen="true"
+                    mozallowfullscreen="true"
+                    allowFullScreen
+                    className="absolute inset-0 w-full h-full"
+                  />
+                </div>
+                <p className="text-xs text-carbon-black/60 font-proxima">
+                  Preview of your Loom video. Make sure it plays correctly before submitting.
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      
       case 'text':
       case 'url':
         return (
@@ -114,7 +223,17 @@ function StructuredSubmission({ task, schema, currentSubmission, isSubmitting, i
   const isFormComplete = () => {
     return schema.fields
       .filter(f => f.required)
-      .every(f => formData[f.name]?.trim());
+      .every(f => {
+        const value = formData[f.name];
+        
+        // Special validation for Loom URLs
+        if (f.type === 'loom_url') {
+          return value?.trim() && isValidLoomUrl(value);
+        }
+        
+        // For text fields, check if non-empty
+        return value?.trim();
+      });
   };
 
   return (
@@ -170,7 +289,7 @@ function StructuredSubmission({ task, schema, currentSubmission, isSubmitting, i
               Submitting...
             </>
           ) : (
-            `Submit ${task.deliverable || 'Deliverable'}`
+            `Submit ${task.deliverable_type || 'Deliverable'}`
           )}
         </Button>
       </div>
