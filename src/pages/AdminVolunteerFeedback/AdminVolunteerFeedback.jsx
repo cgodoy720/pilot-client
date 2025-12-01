@@ -1,6 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import './AdminVolunteerFeedback.css';
+import { ChevronDown } from 'lucide-react';
+import {
+    Accordion,
+    AccordionItem,
+    AccordionTrigger,
+    AccordionContent,
+} from '../../components/animate-ui/components/radix/accordion';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '../../components/ui/select';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
 
 function AdminVolunteerFeedback() {
     const { user, token } = useAuth();
@@ -8,6 +23,7 @@ function AdminVolunteerFeedback() {
     const [filteredFeedback, setFilteredFeedback] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [expandedRows, setExpandedRows] = useState([]);
     
     // Filter state
     const [selectedEventType, setSelectedEventType] = useState('');
@@ -100,175 +116,252 @@ function AdminVolunteerFeedback() {
         });
     };
 
+    const handleAccordionChange = (value) => {
+        setExpandedRows(value);
+    };
+
     // Check if user is admin or staff
     if (user?.role !== 'admin' && user?.role !== 'staff') {
         return (
-            <div className="admin-volunteer-feedback">
-                <div className="admin-volunteer-feedback__error">
-                    <h2>Access Denied</h2>
-                    <p>This page is only available to administrators and staff.</p>
+            <div className="min-h-screen bg-[#EFEFEF] p-8">
+                <div className="max-w-4xl mx-auto">
+                    <div className="bg-red-50 text-red-600 px-6 py-8 rounded-lg border border-red-200 text-center">
+                        <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+                        <p>This page is only available to administrators and staff.</p>
+                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="admin-volunteer-feedback">
-            <div className="admin-volunteer-feedback__header">
-                <h1>Volunteer Feedback Administration</h1>
-                <p>View and manage feedback from all volunteers across events.</p>
-            </div>
-
-            {/* Filters Section */}
-            <div className="admin-volunteer-feedback__filters">
-                <h2>Filters</h2>
-                <div className="admin-volunteer-feedback__filter-row">
-                    <div className="admin-volunteer-feedback__filter-group">
-                        <label htmlFor="event-type">Event Type:</label>
-                        <select
-                            id="event-type"
-                            value={selectedEventType}
-                            onChange={(e) => setSelectedEventType(e.target.value)}
-                            className="admin-volunteer-feedback__select"
-                        >
-                            <option value="">All Event Types</option>
-                            {eventTypes.map(type => (
-                                <option key={type} value={type}>{type}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="admin-volunteer-feedback__filter-group">
-                        <label htmlFor="start-date">Start Date:</label>
-                        <input
-                            type="date"
-                            id="start-date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="admin-volunteer-feedback__input"
-                            placeholder="Select start date"
-                        />
-                    </div>
-
-                    <div className="admin-volunteer-feedback__filter-group">
-                        <label htmlFor="end-date">End Date:</label>
-                        <input
-                            type="date"
-                            id="end-date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className="admin-volunteer-feedback__input"
-                            placeholder="Select end date"
-                        />
-                    </div>
-
-                    <div className="admin-volunteer-feedback__filter-group">
-                        <label htmlFor="volunteer-name">Volunteer Name:</label>
-                        <input
-                            type="text"
-                            id="volunteer-name"
-                            value={volunteerName}
-                            onChange={(e) => setVolunteerName(e.target.value)}
-                            className="admin-volunteer-feedback__input"
-                            placeholder="Search by name or email..."
-                        />
-                    </div>
-
-                    <button
-                        onClick={clearFilters}
-                        className="admin-volunteer-feedback__clear-btn"
-                    >
-                        Clear Filters
-                    </button>
-                </div>
-            </div>
-
-            {/* Results Summary */}
-            <div className="admin-volunteer-feedback__summary">
-                <p>
-                    Showing {filteredFeedback.length} of {feedback.length} feedback entries
+        <div className="min-h-screen bg-[#EFEFEF]">
+            {/* Header */}
+            <div className="border-b border-[#C8C8C8] px-10 py-4">
+                <h1 
+                    className="text-2xl font-normal"
+                    style={{
+                        background: 'linear-gradient(90deg, #1E1E1E 0%, #4242EA 55.29%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text',
+                    }}
+                >
+                    Volunteer Feedback Administration
+                </h1>
+                <p className="text-[#666666] mt-1">
+                    View and manage feedback from all volunteers across events.
                 </p>
             </div>
 
-            {/* Feedback Content */}
-            <div className="admin-volunteer-feedback__content">
-                {isLoading ? (
-                    <div className="admin-volunteer-feedback__loading">
-                        Loading volunteer feedback...
+            <div className="p-8 max-w-[1400px] mx-auto">
+                {/* Filters Section */}
+                <div className="bg-white rounded-lg border border-[#C8C8C8] p-6 mb-6">
+                    <h2 className="text-lg font-medium text-[#1E1E1E] mb-4">Filters</h2>
+                    <div className="flex flex-wrap gap-4 items-end">
+                        {/* Event Type */}
+                        <div className="flex flex-col gap-2 min-w-[180px]">
+                            <Label className="text-[#1E1E1E] font-medium text-sm">Event Type</Label>
+                            <Select value={selectedEventType} onValueChange={setSelectedEventType}>
+                                <SelectTrigger className="bg-white border-[#C8C8C8] text-[#1E1E1E]">
+                                    <SelectValue placeholder="All Event Types" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white border-[#C8C8C8]">
+                                    <SelectItem value="all" className="text-[#1E1E1E]">All Event Types</SelectItem>
+                                    {eventTypes.map(type => (
+                                        <SelectItem key={type} value={type} className="text-[#1E1E1E]">
+                                            {type}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Start Date */}
+                        <div className="flex flex-col gap-2 min-w-[160px]">
+                            <Label className="text-[#1E1E1E] font-medium text-sm">Start Date</Label>
+                            <Input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="bg-white border-[#C8C8C8] text-[#1E1E1E]"
+                            />
+                        </div>
+
+                        {/* End Date */}
+                        <div className="flex flex-col gap-2 min-w-[160px]">
+                            <Label className="text-[#1E1E1E] font-medium text-sm">End Date</Label>
+                            <Input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="bg-white border-[#C8C8C8] text-[#1E1E1E]"
+                            />
+                        </div>
+
+                        {/* Volunteer Name */}
+                        <div className="flex flex-col gap-2 min-w-[200px]">
+                            <Label className="text-[#1E1E1E] font-medium text-sm">Volunteer Name</Label>
+                            <Input
+                                type="text"
+                                value={volunteerName}
+                                onChange={(e) => setVolunteerName(e.target.value)}
+                                placeholder="Search by name or email..."
+                                className="bg-white border-[#C8C8C8] text-[#1E1E1E] placeholder:text-[#999999]"
+                            />
+                        </div>
+
+                        {/* Clear Filters Button */}
+                        <button
+                            onClick={clearFilters}
+                            className="group relative overflow-hidden inline-flex justify-center items-center px-6 py-2 h-10 bg-[#4242EA] border border-[#4242EA] rounded-md font-medium text-sm text-white cursor-pointer transition-colors duration-300"
+                        >
+                            <span className="relative z-10 transition-colors duration-300 group-hover:text-[#4242EA]">
+                                Clear Filters
+                            </span>
+                            <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+                        </button>
                     </div>
-                ) : error ? (
-                    <div className="admin-volunteer-feedback__error">
-                        {error}
-                    </div>
-                ) : filteredFeedback.length === 0 ? (
-                    <div className="admin-volunteer-feedback__empty">
-                        {feedback.length === 0 ? (
-                            <p>No volunteer feedback has been submitted yet.</p>
-                        ) : (
-                            <p>No feedback matches the current filters. Try adjusting your search criteria.</p>
-                        )}
-                    </div>
-                ) : (
-                    <div className="admin-volunteer-feedback__list">
-                        {filteredFeedback.map((item) => (
-                            <div key={item.feedback_id} className="admin-volunteer-feedback__item">
-                                <div className="admin-volunteer-feedback__item-header">
-                                    <div className="admin-volunteer-feedback__volunteer-info">
-                                        <h3>{item.first_name} {item.last_name}</h3>
-                                        <span className="admin-volunteer-feedback__email">{item.email}</span>
-                                    </div>
-                                    <div className="admin-volunteer-feedback__event-info">
-                                        <span className="admin-volunteer-feedback__event-type">
-                                            {item.feedback_type}
-                                        </span>
-                                        <span className="admin-volunteer-feedback__date">
-                                            {formatDate(item.feedback_date)}
-                                        </span>
-                                    </div>
-                                </div>
-                                
-                                <div className="admin-volunteer-feedback__content-section">
-                                    {item.overall_experience && (
-                                        <div className="admin-volunteer-feedback__question">
-                                            <h4>How was your experience overall?</h4>
-                                            <p>{item.overall_experience}</p>
-                                        </div>
-                                    )}
-                                    
-                                    {item.improvement_suggestions && (
-                                        <div className="admin-volunteer-feedback__question">
-                                            <h4>How could we improve going forward?</h4>
-                                            <p>{item.improvement_suggestions}</p>
-                                        </div>
-                                    )}
-                                    
-                                    {item.specific_feedback && (
-                                        <div className="admin-volunteer-feedback__question">
-                                            <h4>Do you have feedback to share on specific Builders or Fellows?</h4>
-                                            <p>{item.specific_feedback}</p>
-                                        </div>
-                                    )}
-                                    
-                                    {item.audio_recording_url && (
-                                        <div className="admin-volunteer-feedback__audio">
-                                            <h4>Audio Recording:</h4>
-                                            <audio controls>
-                                                <source src={item.audio_recording_url} type="audio/mpeg" />
-                                                Your browser does not support the audio element.
-                                            </audio>
-                                        </div>
-                                    )}
-                                </div>
-                                
-                                <div className="admin-volunteer-feedback__metadata">
-                                    <small>
-                                        Submitted: {formatDate(item.created_at)}
-                                    </small>
-                                </div>
+                </div>
+
+                {/* Results Summary */}
+                <div className="bg-[#4242EA]/10 border-l-4 border-[#4242EA] rounded-r-lg px-4 py-3 mb-6">
+                    <p className="text-[#1E1E1E] font-medium">
+                        Showing {filteredFeedback.length} of {feedback.length} feedback entries
+                    </p>
+                </div>
+
+                {/* Feedback Table */}
+                <div className="bg-white rounded-lg border border-[#C8C8C8] overflow-hidden">
+                    {isLoading ? (
+                        <div className="text-center py-12 text-[#666666]">
+                            Loading volunteer feedback...
+                        </div>
+                    ) : error ? (
+                        <div className="text-center py-12 text-red-600 bg-red-50">
+                            {error}
+                        </div>
+                    ) : filteredFeedback.length === 0 ? (
+                        <div className="text-center py-12 text-[#666666]">
+                            {feedback.length === 0 ? (
+                                <p>No volunteer feedback has been submitted yet.</p>
+                            ) : (
+                                <p>No feedback matches the current filters. Try adjusting your search criteria.</p>
+                            )}
+                        </div>
+                    ) : (
+                        <>
+                            {/* Table Header */}
+                            <div className="grid grid-cols-[40px_1fr_1fr_140px_100px_100px] gap-3 px-4 py-3 bg-[#F9F9F9] border-b border-[#C8C8C8]">
+                                <div></div>
+                                <div className="text-sm font-semibold text-[#1E1E1E]">Volunteer</div>
+                                <div className="text-sm font-semibold text-[#1E1E1E]">Email</div>
+                                <div className="text-sm font-semibold text-[#1E1E1E]">Event Type</div>
+                                <div className="text-sm font-semibold text-[#1E1E1E]">Event Date</div>
+                                <div className="text-sm font-semibold text-[#1E1E1E]">Submitted</div>
                             </div>
-                        ))}
-                    </div>
-                )}
+
+                            {/* Accordion Rows */}
+                            <Accordion 
+                                type="multiple" 
+                                value={expandedRows} 
+                                onValueChange={handleAccordionChange}
+                                className="divide-y divide-[#E3E3E3]"
+                            >
+                                {filteredFeedback.map((item, index) => (
+                                    <AccordionItem 
+                                        key={item.feedback_id} 
+                                        value={String(item.feedback_id)}
+                                        className={`border-0 ${index % 2 === 0 ? 'bg-white' : 'bg-[#F9F9F9]'}`}
+                                    >
+                                        <AccordionTrigger 
+                                            showArrow={false}
+                                            className="hover:no-underline hover:bg-[#EFEFEF] !py-0 px-4"
+                                        >
+                                            <div className="grid grid-cols-[40px_1fr_1fr_140px_100px_100px] gap-3 py-3 w-full items-center">
+                                                <div>
+                                                    <ChevronDown 
+                                                        className={`h-4 w-4 text-[#666666] transition-transform duration-200 ${
+                                                            expandedRows.includes(String(item.feedback_id)) ? 'rotate-180' : ''
+                                                        }`}
+                                                    />
+                                                </div>
+                                                <div className="text-sm text-[#1E1E1E] font-medium truncate">
+                                                    {item.first_name} {item.last_name}
+                                                </div>
+                                                <div className="text-sm text-[#666666] truncate">
+                                                    {item.email}
+                                                </div>
+                                                <div>
+                                                    <span className="inline-flex px-3 py-1 bg-[#4242EA] text-white text-xs font-medium rounded-full">
+                                                        {item.feedback_type}
+                                                    </span>
+                                                </div>
+                                                <div className="text-sm text-[#1E1E1E]">
+                                                    {formatDate(item.feedback_date)}
+                                                </div>
+                                                <div className="text-sm text-[#666666]">
+                                                    {formatDate(item.created_at)}
+                                                </div>
+                                            </div>
+                                        </AccordionTrigger>
+
+                                        <AccordionContent className="pb-0">
+                                            <div className={`px-6 py-4 border-t border-[#E3E3E3] ${index % 2 === 0 ? 'bg-[#F5F5F5]' : 'bg-[#EFEFEF]'}`}>
+                                                <div className="grid gap-4 max-w-4xl">
+                                                    {item.overall_experience && (
+                                                        <div>
+                                                            <h4 className="text-sm font-semibold text-[#1E1E1E] mb-2">
+                                                                How was your experience overall?
+                                                            </h4>
+                                                            <p className="text-[#1E1E1E] bg-white p-3 rounded-md border-l-4 border-[#4242EA]">
+                                                                {item.overall_experience}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {item.improvement_suggestions && (
+                                                        <div>
+                                                            <h4 className="text-sm font-semibold text-[#1E1E1E] mb-2">
+                                                                How could we improve going forward?
+                                                            </h4>
+                                                            <p className="text-[#1E1E1E] bg-white p-3 rounded-md border-l-4 border-[#4242EA]">
+                                                                {item.improvement_suggestions}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {item.specific_feedback && (
+                                                        <div>
+                                                            <h4 className="text-sm font-semibold text-[#1E1E1E] mb-2">
+                                                                Feedback on specific Builders or Fellows
+                                                            </h4>
+                                                            <p className="text-[#1E1E1E] bg-white p-3 rounded-md border-l-4 border-[#4242EA]">
+                                                                {item.specific_feedback}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {item.audio_recording_url && (
+                                                        <div>
+                                                            <h4 className="text-sm font-semibold text-[#1E1E1E] mb-2">
+                                                                Audio Recording
+                                                            </h4>
+                                                            <audio controls className="w-full max-w-md">
+                                                                <source src={item.audio_recording_url} type="audio/mpeg" />
+                                                                Your browser does not support the audio element.
+                                                            </audio>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                            </Accordion>
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );

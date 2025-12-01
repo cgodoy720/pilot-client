@@ -351,7 +351,9 @@ function App() {
         } />
         
         <Route path="/volunteer-feedback" element={
-          <VolunteerFeedback />
+          <Layout>
+            <VolunteerFeedback />
+          </Layout>
         } />
 
         {/* Form Builder routes (Admin/Staff only) */}

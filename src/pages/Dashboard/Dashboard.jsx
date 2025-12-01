@@ -440,10 +440,14 @@ function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <Button onClick={navigateToVolunteerFeedback}>
-              <BookOpen className="h-4 w-4 mr-2" />
-              Go to Volunteer Feedback
-            </Button>
+            <button 
+              className="group relative overflow-hidden inline-flex justify-center items-center px-6 py-2.5 bg-pursuit-purple border border-pursuit-purple rounded-full font-normal text-base leading-5 text-white cursor-pointer transition-colors duration-300"
+              onClick={navigateToVolunteerFeedback}
+            >
+              <BookOpen className="h-4 w-4 mr-2 relative z-10 transition-colors duration-300 group-hover:text-pursuit-purple" />
+              <span className="relative z-10 transition-colors duration-300 group-hover:text-pursuit-purple">Go to Volunteer Feedback</span>
+              <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+            </button>
           </CardContent>
         </Card>
       </div>
