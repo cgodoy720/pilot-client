@@ -247,7 +247,7 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
-        <Route path="/attendance-management" element={
+        <Route path="/admin-attendance-dashboard" element={
           <Layout>
             <AdminRoute>
               <AdminAttendanceDashboard />

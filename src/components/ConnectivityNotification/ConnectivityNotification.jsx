@@ -1,18 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Snackbar, 
-  Alert, 
-  AlertTitle,
-  Box,
-  Typography,
-  Button,
-  IconButton
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import WifiIcon from '@mui/icons-material/Wifi';
-import WifiOffIcon from '@mui/icons-material/WifiOff';
-import SyncIcon from '@mui/icons-material/Sync';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { X, Wifi, WifiOff, RefreshCw, CheckCircle } from 'lucide-react';
 import { useNetworkStatus } from '../../utils/networkStatus';
 import attendanceActionQueue from '../../utils/attendanceActionQueue';
 
@@ -23,19 +10,16 @@ const ConnectivityNotification = () => {
   const [processedActions, setProcessedActions] = useState(0);
 
   useEffect(() => {
-    // Handle online/offline status changes
     if (isOnline !== previousOnlineStatus) {
       if (isOnline && !previousOnlineStatus) {
-        // Just came back online
         setNotification({
           type: 'success',
           title: 'Connection Restored',
-          message: 'You\'re back online. Syncing queued actions...',
-          icon: <WifiIcon />,
+          message: "You're back online. Syncing queued actions...",
+          icon: <Wifi className="h-5 w-5" />,
           autoHideDuration: 4000
         });
         
-        // Process queued actions
         setTimeout(async () => {
           try {
             const results = await attendanceActionQueue.processQueue();
@@ -48,7 +32,7 @@ const ConnectivityNotification = () => {
                 type: 'success',
                 title: 'Actions Synced',
                 message: `Successfully processed ${successCount} queued action${successCount > 1 ? 's' : ''}`,
-                icon: <CheckCircleIcon />,
+                icon: <CheckCircle className="h-5 w-5" />,
                 autoHideDuration: 5000
               });
             }
@@ -58,7 +42,7 @@ const ConnectivityNotification = () => {
                 type: 'warning',
                 title: 'Some Actions Failed',
                 message: `${failureCount} action${failureCount > 1 ? 's' : ''} could not be processed. Check the queued actions panel.`,
-                icon: <SyncIcon />,
+                icon: <RefreshCw className="h-5 w-5" />,
                 autoHideDuration: 6000
               });
             }
@@ -68,12 +52,11 @@ const ConnectivityNotification = () => {
         }, 1000);
         
       } else if (!isOnline && previousOnlineStatus) {
-        // Just went offline
         setNotification({
           type: 'warning',
           title: 'Connection Lost',
-          message: 'You\'re now offline. Actions will be queued for when you reconnect.',
-          icon: <WifiOffIcon />,
+          message: "You're now offline. Actions will be queued for when you reconnect.",
+          icon: <WifiOff className="h-5 w-5" />,
           autoHideDuration: 5000
         });
       }
@@ -83,98 +66,68 @@ const ConnectivityNotification = () => {
   }, [isOnline, previousOnlineStatus]);
 
   useEffect(() => {
-    // Handle queued actions changes
     if (queuedActions > 0 && isOnline) {
       setNotification({
         type: 'info',
         title: 'Actions Queued',
         message: `${queuedActions} action${queuedActions > 1 ? 's' : ''} ready to sync`,
-        icon: <SyncIcon />,
+        icon: <RefreshCw className="h-5 w-5" />,
         autoHideDuration: 3000
       });
     }
   }, [queuedActions, isOnline]);
 
-  const handleClose = (event, reason) => {
-    if (reason === 'clickaway') {
-      return;
+  useEffect(() => {
+    if (notification?.autoHideDuration) {
+      const timer = setTimeout(() => setNotification(null), notification.autoHideDuration);
+      return () => clearTimeout(timer);
     }
-    setNotification(null);
-  };
+  }, [notification]);
+
+  const handleClose = () => setNotification(null);
 
   const handleRetryConnection = () => {
     networkStatus.checkConnectivity();
     setNotification(null);
   };
 
-  const getSeverity = (type) => {
+  const getColors = (type) => {
     switch (type) {
-      case 'success': return 'success';
-      case 'warning': return 'warning';
-      case 'error': return 'error';
-      default: return 'info';
+      case 'success': return 'bg-green-600 text-white';
+      case 'warning': return 'bg-amber-500 text-white';
+      case 'error': return 'bg-red-600 text-white';
+      default: return 'bg-blue-600 text-white';
     }
   };
 
-  if (!notification) {
-    return null;
-  }
+  if (!notification) return null;
 
   return (
-    <Snackbar
-      open={!!notification}
-      autoHideDuration={notification.autoHideDuration}
-      onClose={handleClose}
-      anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      sx={{ mt: 8 }}
-    >
-      <Alert
-        onClose={handleClose}
-        severity={getSeverity(notification.type)}
-        variant="filled"
-        icon={notification.icon}
-        sx={{ 
-          width: '100%',
-          '& .MuiAlert-message': {
-            width: '100%'
-          }
-        }}
-        action={
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {!isOnline && (
-              <Button
-                color="inherit"
-                size="small"
-                onClick={handleRetryConnection}
-                sx={{ 
-                  color: 'white',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)'
-                  }
-                }}
-              >
-                Retry
-              </Button>
-            )}
-            <IconButton
-              size="small"
-              aria-label="close"
-              color="inherit"
-              onClick={handleClose}
+    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top duration-300">
+      <div className={`flex items-start gap-3 px-4 py-3 rounded-lg shadow-lg min-w-[320px] max-w-md ${getColors(notification.type)}`}>
+        <div className="flex-shrink-0 mt-0.5">{notification.icon}</div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold">{notification.title}</p>
+          <p className="text-sm opacity-90">{notification.message}</p>
+        </div>
+        <div className="flex items-center gap-1">
+          {!isOnline && (
+            <button
+              onClick={handleRetryConnection}
+              className="px-2 py-1 text-sm font-medium hover:bg-white/20 rounded transition-colors"
             >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        }
-      >
-        <AlertTitle sx={{ color: 'white', fontWeight: 600 }}>
-          {notification.title}
-        </AlertTitle>
-        <Typography variant="body2" sx={{ color: 'white' }}>
-          {notification.message}
-        </Typography>
-      </Alert>
-    </Snackbar>
+              Retry
+            </button>
+          )}
+          <button
+            onClick={handleClose}
+            className="p-1 hover:bg-white/20 rounded transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 

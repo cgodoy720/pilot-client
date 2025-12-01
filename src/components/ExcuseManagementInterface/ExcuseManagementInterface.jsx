@@ -1,61 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Card, 
-  CardContent, 
-  Typography, 
-  Grid, 
-  Button,
-  Chip, 
-  CircularProgress,
-  Alert,
-  IconButton,
-  Tooltip,
+import { RefreshCw, ClipboardList, History, Plus, Pencil, CheckCircle, AlertTriangle, Info } from 'lucide-react';
+import { Card, CardContent } from '../ui/card';
+import { Badge } from '../ui/badge';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
+import {
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
+  TableHeader,
   TableRow,
-  Paper,
+} from '../ui/table';
+import {
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Tabs,
-  Tab,
-  Snackbar
-} from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import PendingIcon from '@mui/icons-material/Pending';
-import HistoryIcon from '@mui/icons-material/History';
-import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
 import { adminApi } from '../../services/adminApi';
 import { cachedAdminApi } from '../../services/cachedAdminApi';
 import { useAuth } from '../../context/AuthContext';
-import './ExcuseManagementInterface.css';
 
 const ExcuseManagementInterface = () => {
   const { token, user } = useAuth();
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState('unexcused');
   const [pendingData, setPendingData] = useState(null);
   const [historyData, setHistoryData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [selectedCohort, setSelectedCohort] = useState('');
+  const [selectedCohort, setSelectedCohort] = useState('all');
   
-  // Dialog states
   const [excuseDialogOpen, setExcuseDialogOpen] = useState(false);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [selectedBuilder, setSelectedBuilder] = useState(null);
@@ -73,23 +61,10 @@ const ExcuseManagementInterface = () => {
     staffNotes: ''
   });
 
-  const excuseReasons = [
-    'Sick',
-    'Personal',
-    'Work Conflict',
-    'Childcare',
-    'Transportation',
-    'Other'
-  ];
+  const excuseReasons = ['Sick', 'Personal', 'Work Conflict', 'Childcare', 'Transportation', 'Other'];
+  const cohorts = ['March 2025', 'September 2025', 'June 2025'];
 
-  const cohorts = [
-    'March 2025',
-    'September 2025',
-    'June 2025'
-  ];
-
-  // Filter builders by cohort
-  const filteredUnexcusedAbsences = selectedCohort 
+  const filteredUnexcusedAbsences = selectedCohort && selectedCohort !== 'all'
     ? pendingData?.unexcusedAbsences?.filter(user => user.cohort === selectedCohort) || []
     : pendingData?.unexcusedAbsences || [];
 
@@ -117,12 +92,7 @@ const ExcuseManagementInterface = () => {
     try {
       setLoading(true);
       setError(null);
-      
-      await Promise.all([
-        fetchPendingData(),
-        fetchHistoryData()
-      ]);
-      
+      await Promise.all([fetchPendingData(), fetchHistoryData()]);
       setLastUpdated(new Date());
     } catch (err) {
       console.error('Error fetching excuse data:', err);
@@ -134,45 +104,20 @@ const ExcuseManagementInterface = () => {
 
   useEffect(() => {
     fetchData();
-    
-    // Auto-refresh every 60 seconds
     const interval = setInterval(fetchData, 60000);
-    
     return () => clearInterval(interval);
   }, [token]);
 
-  const handleRefresh = () => {
-    fetchData();
-  };
-
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-  };
+  const handleRefresh = () => fetchData();
 
   const handleMarkExcused = (builder) => {
-    console.log('handleMarkExcused called with:', builder);
-    
     setSelectedBuilder(builder);
-    
-    // Pre-populate form based on data source
-    if (builder.excuseReason) {
-      // This is a pending excuse - pre-populate with existing data
-      setExcuseForm({
-        absenceDate: builder.absenceDate || '',
-        excuseReason: builder.excuseReason || '',
-        excuseDetails: builder.excuseDetails || '',
-        staffNotes: ''
-      });
-    } else {
-      // This is an unexcused absence - pre-populate with absence date
-      setExcuseForm({
-        absenceDate: builder.absenceDate || '',
-        excuseReason: '',
-        excuseDetails: '',
-        staffNotes: ''
-      });
-    }
-    
+    setExcuseForm({
+      absenceDate: builder.absenceDate || '',
+      excuseReason: builder.excuseReason || '',
+      excuseDetails: builder.excuseDetails || '',
+      staffNotes: ''
+    });
     setExcuseDialogOpen(true);
   };
 
@@ -190,49 +135,29 @@ const ExcuseManagementInterface = () => {
   const handleSubmitExcuse = async () => {
     try {
       setLoading(true);
-      setError(null); // Clear any previous errors
+      setError(null);
       
-      // Validate required fields
-      if (!selectedBuilder?.userId) {
-        throw new Error('Missing user ID');
-      }
-      if (!excuseForm.absenceDate) {
-        throw new Error('Please select an absence date');
-      }
-      if (!excuseForm.excuseReason) {
-        throw new Error('Please select an excuse reason');
-      }
+      if (!selectedBuilder?.userId) throw new Error('Missing user ID');
+      if (!excuseForm.absenceDate) throw new Error('Please select an absence date');
+      if (!excuseForm.excuseReason) throw new Error('Please select an excuse reason');
       
-      const excuseData = {
+      await adminApi.markBuilderExcused({
         userId: selectedBuilder.userId,
         absenceDate: excuseForm.absenceDate,
         excuseReason: excuseForm.excuseReason,
         excuseDetails: excuseForm.excuseDetails || '',
         staffNotes: excuseForm.staffNotes || ''
-      };
+      }, token);
       
-      // Submit the excuse
-      await adminApi.markBuilderExcused(excuseData, token);
-      
-      // Invalidate all attendance caches since excuse affects attendance rates
       cachedAdminApi.invalidateAllAttendanceCaches();
-      
-      // Refresh data first, then close dialog
       await fetchData();
       
-      // Show success message
-      setSuccessMessage(`Successfully approved excuse for ${selectedBuilder.firstName} ${selectedBuilder.lastName} on ${formatDate(excuseForm.absenceDate)}`);
+      setSuccessMessage(`Successfully approved excuse for ${selectedBuilder.firstName} ${selectedBuilder.lastName}`);
+      setTimeout(() => setSuccessMessage(null), 5000);
       
-      // Close dialog and reset form
       setExcuseDialogOpen(false);
       setSelectedBuilder(null);
-      setExcuseForm({
-        absenceDate: '',
-        excuseReason: '',
-        excuseDetails: '',
-        staffNotes: ''
-      });
-      
+      setExcuseForm({ absenceDate: '', excuseReason: '', excuseDetails: '', staffNotes: '' });
     } catch (err) {
       console.error('Error marking builder as excused:', err);
       setError(err.message);
@@ -244,37 +169,24 @@ const ExcuseManagementInterface = () => {
   const handleSubmitBulkExcuse = async () => {
     try {
       setLoading(true);
-      setError(null); // Clear any previous errors
+      setError(null);
       
-      const bulkData = {
+      await adminApi.bulkExcuseCohort({
         cohort: bulkForm.cohort,
         absenceDate: bulkForm.absenceDate,
         excuseReason: bulkForm.excuseReason,
         excuseDetails: bulkForm.excuseDetails,
         staffNotes: bulkForm.staffNotes
-      };
-
-      await adminApi.bulkExcuseCohort(bulkData, token);
+      }, token);
       
-      // Invalidate all attendance caches since bulk excuse affects attendance rates
       cachedAdminApi.invalidateAllAttendanceCaches();
-      
-      // Refresh data first, then close dialog
       await fetchData();
       
-      // Show success message
-      setSuccessMessage(`Successfully excused ${bulkForm.cohort} cohort for ${formatDate(bulkForm.absenceDate)}`);
+      setSuccessMessage(`Successfully excused ${bulkForm.cohort} cohort`);
+      setTimeout(() => setSuccessMessage(null), 5000);
       
-      // Close dialog and reset form
       setBulkDialogOpen(false);
-      setBulkForm({
-        cohort: '',
-        absenceDate: new Date().toISOString().split('T')[0],
-        excuseReason: '',
-        excuseDetails: '',
-        staffNotes: ''
-      });
-      
+      setBulkForm({ cohort: '', absenceDate: new Date().toISOString().split('T')[0], excuseReason: '', excuseDetails: '', staffNotes: '' });
     } catch (err) {
       console.error('Error performing bulk excuse:', err);
       setError(err.message);
@@ -286,564 +198,376 @@ const ExcuseManagementInterface = () => {
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString();
-    } catch (error) {
+      return new Date(dateString).toLocaleDateString();
+    } catch {
       return 'Invalid date';
     }
   };
 
   const getExcuseReasonColor = (reason) => {
     const colors = {
-      'Sick': 'error',
-      'Personal': 'warning',
-      'Work Conflict': 'info',
-      'Childcare': 'secondary',
-      'Transportation': 'info',
-      'Other': 'default'
+      'Sick': 'bg-red-100 text-red-700',
+      'Personal': 'bg-amber-100 text-amber-700',
+      'Work Conflict': 'bg-blue-100 text-blue-700',
+      'Childcare': 'bg-purple-100 text-purple-700',
+      'Transportation': 'bg-cyan-100 text-cyan-700',
+      'Other': 'bg-gray-100 text-gray-700'
     };
-    return colors[reason] || 'default';
+    return colors[reason] || 'bg-gray-100 text-gray-700';
   };
 
   if (loading && !pendingData && !historyData) {
     return (
-      <Box className="excuse-management-interface">
-        <Box className="excuse-management-interface__loading">
-          <CircularProgress />
-          <Typography variant="body1" sx={{ mt: 2 }}>
-            Loading excuse management data...
-          </Typography>
-        </Box>
-      </Box>
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="animate-spin w-8 h-8 border-4 border-[#4242EA] border-t-transparent rounded-full mb-4"></div>
+        <p className="text-[#666666]">Loading excuse management data...</p>
+      </div>
     );
   }
 
-  if (error) {
+  if (error && !pendingData && !historyData) {
     return (
-      <Box className="excuse-management-interface">
-        <Alert 
-          severity="error" 
-          action={
-            <IconButton color="inherit" size="small" onClick={handleRefresh}>
-              <RefreshIcon />
-            </IconButton>
-          }
-        >
-          Error loading excuse data: {error}
-        </Alert>
-      </Box>
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-600" />
+          <span className="text-red-600">Error loading excuse data: {error}</span>
+        </div>
+        <button onClick={handleRefresh} className="p-2 hover:bg-red-100 rounded-md transition-colors">
+          <RefreshCw className="h-4 w-4 text-red-600" />
+        </button>
+      </div>
     );
   }
 
   return (
-    <Box className="excuse-management-interface">
-      <Box className="excuse-management-interface__header">
-        <Box className="excuse-management-interface__title-section">
-          <AssignmentIcon className="excuse-management-interface__title-icon" />
-          <Typography variant="h5" component="h2" className="excuse-management-interface__title">
-            Excuse Management Interface
-          </Typography>
-        </Box>
-        <Box className="excuse-management-interface__actions">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <ClipboardList className="h-6 w-6 text-[#4242EA]" />
+          <h2 className="text-xl font-semibold text-[#1E1E1E]">Excuse Management Interface</h2>
+        </div>
+        <div className="flex items-center gap-3">
           {lastUpdated && (
-            <Typography 
-              variant="caption" 
-              sx={{ color: 'var(--color-text-secondary)' }}
-            >
-              Last updated: {lastUpdated.toLocaleTimeString()}
-            </Typography>
+            <span className="text-sm text-[#666666]">Updated: {lastUpdated.toLocaleTimeString()}</span>
           )}
-          <Button
-            variant="outlined"
-            startIcon={<AddIcon />}
+          <button
             onClick={handleBulkExcuse}
-            className="excuse-management-interface__bulk-excuse-button"
-            sx={{ 
-              mr: 1,
-              backgroundColor: '#ffffff',
-              color: '#1a1a1a',
-              border: '1px solid #d1d5db',
-              '&:hover': {
-                backgroundColor: '#f3f4f6', // gray on hover
-                color: '#1a1a1a',
-                border: '1px solid #d1d5db',
-              },
-              '&:active': {
-                backgroundColor: '#f3f4f6',
-                color: '#1a1a1a',
-              }
-            }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-[#C8C8C8] rounded-lg text-[#1E1E1E] text-sm font-medium hover:bg-[#F9F9F9] transition-colors"
           >
+            <Plus className="h-4 w-4" />
             Bulk Excuse
-          </Button>
-          <Tooltip title="Refresh data">
-            <IconButton onClick={handleRefresh} disabled={loading}>
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      </Box>
+          </button>
+          <button onClick={handleRefresh} disabled={loading} className="p-2 hover:bg-[#EFEFEF] rounded-md transition-colors disabled:opacity-50">
+            <RefreshCw className={`h-4 w-4 text-[#666666] ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
 
+      {/* Success Message */}
+      {successMessage && (
+        <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 border border-green-200">
+          <CheckCircle className="h-5 w-5 text-green-600" />
+          <span className="text-green-700">{successMessage}</span>
+        </div>
+      )}
 
-      <Box className="excuse-management-interface__tabs">
-        <Tabs value={activeTab} onChange={handleTabChange}>
-          <Tab 
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <AssignmentIcon />
-                Unexcused Absences
-              </Box>
-            } 
-          />
-          <Tab 
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <HistoryIcon />
-                Excuse History
-              </Box>
-            } 
-          />
-        </Tabs>
-      </Box>
+      {/* Error Message */}
+      {error && (
+        <div className="flex items-center gap-3 p-4 rounded-lg bg-red-50 border border-red-200">
+          <AlertTriangle className="h-5 w-5 text-red-600" />
+          <span className="text-red-700">{error}</span>
+        </div>
+      )}
 
-      {/* Unexcused Absences Tab */}
-      {activeTab === 0 && (
-        <Box className="excuse-management-interface__tab-content">
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="bg-white border border-[#C8C8C8]">
+          <TabsTrigger value="unexcused" className="flex items-center gap-2 data-[state=active]:bg-[#4242EA] data-[state=active]:text-white">
+            <ClipboardList className="h-4 w-4" />
+            Unexcused Absences
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2 data-[state=active]:bg-[#4242EA] data-[state=active]:text-white">
+            <History className="h-4 w-4" />
+            Excuse History
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Unexcused Absences Tab */}
+        <TabsContent value="unexcused" className="mt-4">
           {pendingData?.summary?.totalUnexcusedAbsences > 0 ? (
-            <Card className="excuse-management-interface__unexcused-card">
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Unexcused Absences
-                </Typography>
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
-                    mb: 2,
-                    color: 'var(--color-text-secondary)'
-                  }}
-                >
+            <Card className="bg-white border-[#C8C8C8]">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold text-[#1E1E1E] mb-2">Unexcused Absences</h3>
+                <p className="text-sm text-[#666666] mb-4">
                   Builders with unexcused absences in the last 7 days. Click "Add Excuse" to approve their absence.
-                </Typography>
+                </p>
                 
-                {/* Cohort Filter - Centered */}
-                <Box sx={{ 
-                  mb: 3, 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  gap: 2 
-                }}>
-                  <Typography variant="body1" sx={{ color: '#ffffff' }}>
-                    Filter by Cohort:
-                  </Typography>
-                  <Select
-                    size="small"
-                    value={selectedCohort}
-                    onChange={(e) => setSelectedCohort(e.target.value)}
-                    displayEmpty
-                    sx={{
-                      backgroundColor: '#ffffff',
-                      color: '#1a1a1a',
-                      minWidth: '200px',
-                      '& .MuiSelect-select': {
-                        color: '#1a1a1a'
-                      }
-                    }}
-                  >
-                    <MenuItem value="" sx={{ color: '#1a1a1a' }}>All Cohorts</MenuItem>
-                    <MenuItem value="March 2025" sx={{ color: '#1a1a1a' }}>March 2025</MenuItem>
-                    <MenuItem value="September 2025" sx={{ color: '#1a1a1a' }}>September 2025</MenuItem>
-                    <MenuItem value="June 2025" sx={{ color: '#1a1a1a' }}>June 2025</MenuItem>
+                {/* Cohort Filter */}
+                <div className="flex items-center justify-center gap-3 mb-6">
+                  <span className="text-sm text-[#1E1E1E]">Filter by Cohort:</span>
+                  <Select value={selectedCohort} onValueChange={setSelectedCohort}>
+                    <SelectTrigger className="w-[200px] bg-white border-[#C8C8C8]">
+                      <SelectValue placeholder="All Cohorts" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="all">All Cohorts</SelectItem>
+                      <SelectItem value="March 2025">March 2025</SelectItem>
+                      <SelectItem value="September 2025">September 2025</SelectItem>
+                      <SelectItem value="June 2025">June 2025</SelectItem>
+                    </SelectContent>
                   </Select>
-                </Box>
+                </div>
 
-                <Box className="excuse-management-interface__cards-grid">
-                  {filteredUnexcusedAbsences.flatMap((user, userIndex) => 
+                {/* Absence Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {filteredUnexcusedAbsences.flatMap((user, userIndex) =>
                     user.absences.map((absence, absenceIndex) => (
-                      <Card variant="outlined" className="excuse-management-interface__absence-card" key={`${userIndex}-${absenceIndex}`}>
-                        <CardContent>
-                          <Typography 
-                            variant="body2" 
-                            fontWeight="medium"
-                            sx={{ 
-                              color: '#1a1a1a',
-                              marginBottom: 'var(--spacing-xs)'
-                            }}
-                          >
-                            {user.firstName} {user.lastName}
-                          </Typography>
-                          <Typography 
-                            variant="caption" 
-                            sx={{ 
-                              color: '#4b5563',
-                              display: 'block',
-                              marginBottom: 'var(--spacing-xs)'
-                            }}
-                          >
-                            {user.cohort}
-                          </Typography>
-                          <Typography 
-                            variant="caption" 
-                            display="block"
-                            sx={{ 
-                              color: '#4b5563',
-                              marginBottom: 'var(--spacing-sm)'
-                            }}
-                          >
-                            {formatDate(absence.date)}
-                          </Typography>
-                          <Button
-                            size="small"
-                            startIcon={<AddIcon />}
+                      <Card key={`${userIndex}-${absenceIndex}`} className="bg-[#F9F9F9] border-[#E3E3E3]">
+                        <CardContent className="p-4">
+                          <p className="font-medium text-[#1E1E1E] mb-1">{user.firstName} {user.lastName}</p>
+                          <p className="text-sm text-[#666666] mb-1">{user.cohort}</p>
+                          <p className="text-sm text-[#666666] mb-3">{formatDate(absence.date)}</p>
+                          <button
                             onClick={() => handleMarkExcused({
                               userId: user.userId,
                               absenceDate: absence.date,
                               firstName: user.firstName,
                               lastName: user.lastName
                             })}
-                            className="excuse-management-interface__add-excuse-button"
-                            sx={{ 
-                              mt: 1,
-                              backgroundColor: '#6366f1', // purple/blue
-                              color: '#ffffff',
-                              border: 'none',
-                              '&:hover': {
-                                backgroundColor: '#5b21b6', // darker purple on hover
-                                color: '#ffffff',
-                              },
-                              '&:active': {
-                                backgroundColor: '#4c1d95', // even darker purple on click
-                                color: '#ffffff',
-                              }
-                            }}
-                            variant="contained"
+                            className="group relative overflow-hidden inline-flex items-center gap-2 px-4 py-2 bg-[#4242EA] border border-[#4242EA] rounded-full text-sm font-medium text-white transition-colors duration-300"
                           >
-                            Add Excuse
-                          </Button>
+                            <Plus className="h-4 w-4 relative z-10 transition-colors duration-300 group-hover:text-[#4242EA]" />
+                            <span className="relative z-10 transition-colors duration-300 group-hover:text-[#4242EA]">Add Excuse</span>
+                            <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+                          </button>
                         </CardContent>
                       </Card>
                     ))
                   )}
-                </Box>
+                </div>
               </CardContent>
             </Card>
           ) : (
-            <Card className="excuse-management-interface__empty-state">
-              <CardContent>
-                <CheckCircleIcon className="excuse-management-interface__empty-icon" />
-                <Typography 
-                  variant="h6" 
-                  sx={{ color: 'var(--color-text-secondary)' }}
-                >
-                  No Unexcused Absences
-                </Typography>
-                <Typography 
-                  variant="body2" 
-                  sx={{ color: 'var(--color-text-secondary)' }}
-                >
-                  All recent absences have been excused.
-                </Typography>
+            <Card className="bg-white border-[#C8C8C8]">
+              <CardContent className="p-12 text-center">
+                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-[#1E1E1E] mb-2">No Unexcused Absences</h3>
+                <p className="text-sm text-[#666666]">All recent absences have been excused.</p>
               </CardContent>
             </Card>
           )}
-        </Box>
-      )}
+        </TabsContent>
 
-      {/* History Tab */}
-      {activeTab === 1 && (
-        <Box className="excuse-management-interface__tab-content">
+        {/* History Tab */}
+        <TabsContent value="history" className="mt-4">
           {historyData?.excuses?.length > 0 ? (
-            <TableContainer component={Paper} className="excuse-management-interface__table">
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Builder</TableCell>
-                    <TableCell>Cohort</TableCell>
-                    <TableCell>Absence Date</TableCell>
-                    <TableCell>Reason</TableCell>
-                    <TableCell>Staff Notes</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Processed By</TableCell>
-                    <TableCell>Processed At</TableCell>
-                    <TableCell>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {historyData.excuses.map((excuse, index) => (
-                    <TableRow key={index}>
-                      <TableCell>
-                        <Box>
-                          <Typography 
-                            variant="body2" 
-                            sx={{ color: 'var(--color-text-primary)' }}
-                          >
-                            {excuse.firstName} {excuse.lastName}
-                          </Typography>
-                          <Typography 
-                            variant="caption" 
-                            sx={{ color: 'var(--color-text-secondary)' }}
-                          >
-                            {excuse.email}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>{excuse.cohort}</TableCell>
-                      <TableCell>{formatDate(excuse.absenceDate)}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={excuse.excuseReason}
-                          color={getExcuseReasonColor(excuse.excuseReason)}
-                          size="small"
-                          variant="outlined"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Typography
-                          variant="body2"
-                          sx={{ color: 'var(--color-text-secondary)' }}
-                        >
-                          {(excuse.excuseDetails || excuse.staffNotes) ? 'yes' : '—'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={excuse.status}
-                          color={excuse.status === 'approved' ? 'success' : excuse.status === 'denied' ? 'error' : 'warning'}
-                          size="small"
-                          variant="filled"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Typography 
-                          variant="body2" 
-                          sx={{ color: 'var(--color-text-secondary)' }}
-                        >
-                          {excuse.processedBy?.firstName} {excuse.processedBy?.lastName}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography 
-                          variant="body2" 
-                          sx={{ color: 'var(--color-text-secondary)' }}
-                        >
-                          {formatDate(excuse.processedAt)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <IconButton 
-                          size="small" 
-                          sx={{ color: 'var(--color-primary)' }}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Card className="bg-white border-[#C8C8C8]">
+              <CardContent className="p-6">
+                <div className="border border-[#C8C8C8] rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-[#F9F9F9]">
+                        <TableHead className="text-[#1E1E1E] font-semibold">Builder</TableHead>
+                        <TableHead className="text-[#1E1E1E] font-semibold">Cohort</TableHead>
+                        <TableHead className="text-[#1E1E1E] font-semibold">Absence Date</TableHead>
+                        <TableHead className="text-[#1E1E1E] font-semibold">Reason</TableHead>
+                        <TableHead className="text-[#1E1E1E] font-semibold">Status</TableHead>
+                        <TableHead className="text-[#1E1E1E] font-semibold">Processed By</TableHead>
+                        <TableHead className="text-[#1E1E1E] font-semibold">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {historyData.excuses.map((excuse, index) => (
+                        <TableRow key={index} className="border-b border-[#E3E3E3]">
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-[#1E1E1E]">{excuse.firstName} {excuse.lastName}</p>
+                              <p className="text-xs text-[#666666]">{excuse.email}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-[#1E1E1E]">{excuse.cohort}</TableCell>
+                          <TableCell className="text-[#666666]">{formatDate(excuse.absenceDate)}</TableCell>
+                          <TableCell>
+                            <Badge className={getExcuseReasonColor(excuse.excuseReason)}>{excuse.excuseReason}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={
+                              excuse.status === 'approved' ? 'bg-green-100 text-green-700' :
+                              excuse.status === 'denied' ? 'bg-red-100 text-red-700' :
+                              'bg-amber-100 text-amber-700'
+                            }>
+                              {excuse.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-[#666666]">
+                            {excuse.processedBy?.firstName} {excuse.processedBy?.lastName}
+                          </TableCell>
+                          <TableCell>
+                            <button className="p-1.5 hover:bg-[#EFEFEF] rounded-md transition-colors">
+                              <Pencil className="h-4 w-4 text-[#4242EA]" />
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
           ) : (
-            <Card className="excuse-management-interface__empty-state">
-              <CardContent>
-                <HistoryIcon className="excuse-management-interface__empty-icon" />
-                <Typography 
-                  variant="h6" 
-                  sx={{ color: 'var(--color-text-secondary)' }}
-                >
-                  No Excuse History
-                </Typography>
-                <Typography 
-                  variant="body2" 
-                  sx={{ color: 'var(--color-text-secondary)' }}
-                >
-                  No excuse records found.
-                </Typography>
+            <Card className="bg-white border-[#C8C8C8]">
+              <CardContent className="p-12 text-center">
+                <History className="h-12 w-12 text-[#666666] mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-[#1E1E1E] mb-2">No Excuse History</h3>
+                <p className="text-sm text-[#666666]">No excuse records found.</p>
               </CardContent>
             </Card>
           )}
-        </Box>
-      )}
+        </TabsContent>
+      </Tabs>
 
       {/* Mark Excused Dialog */}
-      <Dialog open={excuseDialogOpen} onClose={() => setExcuseDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {selectedBuilder?.excuseReason ? 'Update Excuse' : 'Mark Builder as Excused'}
-        </DialogTitle>
-        <DialogContent>
-          {selectedBuilder && (
-            <Box sx={{ mb: 2 }}>
-              <Typography 
-                variant="body2" 
-                sx={{ color: 'var(--color-text-secondary)' }}
-              >
+      <Dialog open={excuseDialogOpen} onOpenChange={setExcuseDialogOpen}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#1E1E1E]">
+              {selectedBuilder?.excuseReason ? 'Update Excuse' : 'Mark Builder as Excused'}
+            </DialogTitle>
+            {selectedBuilder && (
+              <DialogDescription className="text-[#666666]">
                 Builder: {selectedBuilder.firstName} {selectedBuilder.lastName}
-              </Typography>
-              {selectedBuilder.excuseReason && (
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
-                    mt: 1,
-                    color: 'var(--color-primary)'
-                  }}
-                >
-                  Current excuse: {selectedBuilder.excuseReason}
-                </Typography>
-              )}
-            </Box>
-          )}
-          
-          <TextField
-            fullWidth
-            margin="normal"
-            label="Absence Date"
-            type="date"
-            value={excuseForm.absenceDate}
-            onChange={(e) => setExcuseForm({ ...excuseForm, absenceDate: e.target.value })}
-            InputLabelProps={{
-              shrink: true,
-            }}
-            required
-          />
-          
-          <FormControl fullWidth margin="normal">
-            <InputLabel>Excuse Reason</InputLabel>
-            <Select
-              value={excuseForm.excuseReason}
-              onChange={(e) => setExcuseForm({ ...excuseForm, excuseReason: e.target.value })}
-              label="Excuse Reason"
+                {selectedBuilder.excuseReason && (
+                  <span className="block text-[#4242EA] mt-1">Current excuse: {selectedBuilder.excuseReason}</span>
+                )}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label className="text-[#1E1E1E]">Absence Date *</Label>
+              <Input
+                type="date"
+                value={excuseForm.absenceDate}
+                onChange={(e) => setExcuseForm({ ...excuseForm, absenceDate: e.target.value })}
+                className="mt-1 bg-white border-[#C8C8C8]"
+              />
+            </div>
+            <div>
+              <Label className="text-[#1E1E1E]">Excuse Reason *</Label>
+              <Select value={excuseForm.excuseReason} onValueChange={(v) => setExcuseForm({ ...excuseForm, excuseReason: v })}>
+                <SelectTrigger className="mt-1 bg-white border-[#C8C8C8]"><SelectValue placeholder="Select reason" /></SelectTrigger>
+                <SelectContent className="bg-white">
+                  {excuseReasons.map(reason => <SelectItem key={reason} value={reason}>{reason}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[#1E1E1E]">Excuse Details</Label>
+              <Textarea
+                value={excuseForm.excuseDetails}
+                onChange={(e) => setExcuseForm({ ...excuseForm, excuseDetails: e.target.value })}
+                className="mt-1 bg-white border-[#C8C8C8]"
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label className="text-[#1E1E1E]">Staff Notes</Label>
+              <Textarea
+                value={excuseForm.staffNotes}
+                onChange={(e) => setExcuseForm({ ...excuseForm, staffNotes: e.target.value })}
+                className="mt-1 bg-white border-[#C8C8C8]"
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setExcuseDialogOpen(false)} className="px-4 py-2 text-[#666666] hover:text-[#1E1E1E] transition-colors">
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmitExcuse}
+              disabled={!excuseForm.absenceDate || !excuseForm.excuseReason || loading}
+              className="group relative overflow-hidden inline-flex items-center px-6 py-2 bg-[#4242EA] border border-[#4242EA] rounded-full font-medium text-white transition-colors duration-300 disabled:opacity-50"
             >
-              {excuseReasons.map((reason) => (
-                <MenuItem key={reason} value={reason}>
-                  {reason}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          
-          <TextField
-            fullWidth
-            margin="normal"
-            label="Excuse Details"
-            multiline
-            rows={3}
-            value={excuseForm.excuseDetails}
-            onChange={(e) => setExcuseForm({ ...excuseForm, excuseDetails: e.target.value })}
-          />
-          
-          <TextField
-            fullWidth
-            margin="normal"
-            label="Staff Notes"
-            multiline
-            rows={2}
-            value={excuseForm.staffNotes}
-            onChange={(e) => setExcuseForm({ ...excuseForm, staffNotes: e.target.value })}
-          />
+              <span className="relative z-10 transition-colors duration-300 group-hover:text-[#4242EA]">
+                {selectedBuilder?.excuseReason ? 'Update Excuse' : 'Mark Excused'}
+              </span>
+              <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+            </button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setExcuseDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleSubmitExcuse} 
-            variant="contained" 
-            disabled={!excuseForm.absenceDate || !excuseForm.excuseReason || loading}
-          >
-            {selectedBuilder?.excuseReason ? 'Update Excuse' : 'Mark Excused'}
-          </Button>
-        </DialogActions>
       </Dialog>
 
       {/* Bulk Excuse Dialog */}
-      <Dialog open={bulkDialogOpen} onClose={() => setBulkDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Bulk Excuse for Cohort</DialogTitle>
-        <DialogContent>
-          <FormControl fullWidth margin="normal">
-            <InputLabel>Cohort</InputLabel>
-            <Select
-              value={bulkForm.cohort}
-              onChange={(e) => setBulkForm({ ...bulkForm, cohort: e.target.value })}
-              label="Cohort"
+      <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#1E1E1E]">Bulk Excuse for Cohort</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label className="text-[#1E1E1E]">Cohort *</Label>
+              <Select value={bulkForm.cohort} onValueChange={(v) => setBulkForm({ ...bulkForm, cohort: v })}>
+                <SelectTrigger className="mt-1 bg-white border-[#C8C8C8]"><SelectValue placeholder="Select cohort" /></SelectTrigger>
+                <SelectContent className="bg-white">
+                  {cohorts.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[#1E1E1E]">Absence Date *</Label>
+              <Input
+                type="date"
+                value={bulkForm.absenceDate}
+                onChange={(e) => setBulkForm({ ...bulkForm, absenceDate: e.target.value })}
+                className="mt-1 bg-white border-[#C8C8C8]"
+              />
+            </div>
+            <div>
+              <Label className="text-[#1E1E1E]">Excuse Reason *</Label>
+              <Select value={bulkForm.excuseReason} onValueChange={(v) => setBulkForm({ ...bulkForm, excuseReason: v })}>
+                <SelectTrigger className="mt-1 bg-white border-[#C8C8C8]"><SelectValue placeholder="Select reason" /></SelectTrigger>
+                <SelectContent className="bg-white">
+                  {excuseReasons.map(reason => <SelectItem key={reason} value={reason}>{reason}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[#1E1E1E]">Excuse Details</Label>
+              <Textarea
+                value={bulkForm.excuseDetails}
+                onChange={(e) => setBulkForm({ ...bulkForm, excuseDetails: e.target.value })}
+                className="mt-1 bg-white border-[#C8C8C8]"
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label className="text-[#1E1E1E]">Staff Notes</Label>
+              <Textarea
+                value={bulkForm.staffNotes}
+                onChange={(e) => setBulkForm({ ...bulkForm, staffNotes: e.target.value })}
+                className="mt-1 bg-white border-[#C8C8C8]"
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setBulkDialogOpen(false)} className="px-4 py-2 text-[#666666] hover:text-[#1E1E1E] transition-colors">
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmitBulkExcuse}
+              disabled={!bulkForm.cohort || !bulkForm.absenceDate || !bulkForm.excuseReason || loading}
+              className="group relative overflow-hidden inline-flex items-center px-6 py-2 bg-[#4242EA] border border-[#4242EA] rounded-full font-medium text-white transition-colors duration-300 disabled:opacity-50"
             >
-              {cohorts.map((cohort) => (
-                <MenuItem key={cohort} value={cohort}>
-                  {cohort}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          
-          <TextField
-            fullWidth
-            margin="normal"
-            label="Absence Date"
-            type="date"
-            value={bulkForm.absenceDate}
-            onChange={(e) => setBulkForm({ ...bulkForm, absenceDate: e.target.value })}
-            InputLabelProps={{ shrink: true }}
-          />
-          
-          <FormControl fullWidth margin="normal">
-            <InputLabel>Excuse Reason</InputLabel>
-            <Select
-              value={bulkForm.excuseReason}
-              onChange={(e) => setBulkForm({ ...bulkForm, excuseReason: e.target.value })}
-              label="Excuse Reason"
-            >
-              {excuseReasons.map((reason) => (
-                <MenuItem key={reason} value={reason}>
-                  {reason}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          
-          <TextField
-            fullWidth
-            margin="normal"
-            label="Excuse Details"
-            multiline
-            rows={3}
-            value={bulkForm.excuseDetails}
-            onChange={(e) => setBulkForm({ ...bulkForm, excuseDetails: e.target.value })}
-          />
-          
-          <TextField
-            fullWidth
-            margin="normal"
-            label="Staff Notes"
-            multiline
-            rows={2}
-            value={bulkForm.staffNotes}
-            onChange={(e) => setBulkForm({ ...bulkForm, staffNotes: e.target.value })}
-          />
+              <span className="relative z-10 transition-colors duration-300 group-hover:text-[#4242EA]">Bulk Excuse</span>
+              <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+            </button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setBulkDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleSubmitBulkExcuse} 
-            variant="contained" 
-            disabled={!bulkForm.cohort || !bulkForm.absenceDate || !bulkForm.excuseReason || loading}
-          >
-            Bulk Excuse
-          </Button>
-        </DialogActions>
       </Dialog>
-
-      {/* Success Notification */}
-      <Snackbar
-        open={!!successMessage}
-        autoHideDuration={6000}
-        onClose={() => setSuccessMessage(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert 
-          onClose={() => setSuccessMessage(null)} 
-          severity="success" 
-          sx={{ width: '100%' }}
-        >
-          {successMessage}
-        </Alert>
-      </Snackbar>
-    </Box>
+    </div>
   );
 };
 

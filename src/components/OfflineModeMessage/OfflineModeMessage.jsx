@@ -1,14 +1,6 @@
 import React from 'react';
-import { 
-  Alert, 
-  Box, 
-  Typography, 
-  Button,
-  Chip
-} from '@mui/material';
-import WifiOffIcon from '@mui/icons-material/WifiOff';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import CloudOffIcon from '@mui/icons-material/CloudOff';
+import { WifiOff, RefreshCw, CloudOff } from 'lucide-react';
+import { Badge } from '../ui/badge';
 import { useNetworkStatus } from '../../utils/networkStatus';
 
 const OfflineModeMessage = ({ 
@@ -32,71 +24,46 @@ const OfflineModeMessage = ({
   };
 
   return (
-    <Box sx={{ width: '100%' }}>
+    <div className="w-full">
       {/* Offline Alert */}
-      <Alert 
-        severity="warning" 
-        icon={<WifiOffIcon />}
-        sx={{ 
-          mb: 2,
-          '& .MuiAlert-message': {
-            width: '100%'
-          }
-        }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <Box>
-            <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
-              You're currently offline
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {queuedActions > 0 
-                ? `${queuedActions} action(s) will be synced when you reconnect.`
-                : 'Some features may be limited while offline.'
-              }
-            </Typography>
-          </Box>
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<RefreshIcon />}
-            onClick={handleRetry}
-            sx={{ ml: 2 }}
-          >
-            Retry
-          </Button>
-        </Box>
-      </Alert>
+      <div className="flex items-start gap-3 p-4 mb-4 rounded-lg bg-amber-50 border border-amber-200">
+        <WifiOff className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+        <div className="flex-1">
+          <p className="font-medium text-amber-800 mb-1">You're currently offline</p>
+          <p className="text-sm text-amber-700">
+            {queuedActions > 0 
+              ? `${queuedActions} action(s) will be synced when you reconnect.`
+              : 'Some features may be limited while offline.'
+            }
+          </p>
+        </div>
+        <button
+          onClick={handleRetry}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-amber-300 rounded-lg text-amber-700 text-sm font-medium hover:bg-amber-100 transition-colors"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Retry
+        </button>
+      </div>
 
       {/* Cached Data Indicator */}
       {showCachedData && cachedDataCount > 0 && (
-        <Alert 
-          severity="info" 
-          icon={<CloudOffIcon />}
-          sx={{ mb: 2 }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2">
-              Showing cached data from your last online session
-            </Typography>
-            <Chip 
-              label={`${cachedDataCount} items`} 
-              size="small" 
-              variant="outlined"
-            />
-          </Box>
-        </Alert>
+        <div className="flex items-center gap-3 p-4 mb-4 rounded-lg bg-blue-50 border border-blue-200">
+          <CloudOff className="h-5 w-5 text-blue-600 flex-shrink-0" />
+          <p className="text-sm text-blue-700 flex-1">
+            Showing cached data from your last online session
+          </p>
+          <Badge variant="outline" className="border-blue-300 text-blue-700">
+            {cachedDataCount} items
+          </Badge>
+        </div>
       )}
 
       {/* Offline Content */}
-      <Box sx={{ 
-        opacity: 0.7,
-        pointerEvents: 'none',
-        filter: 'grayscale(0.3)'
-      }}>
+      <div className="opacity-70 pointer-events-none grayscale-[0.3]">
         {children}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 

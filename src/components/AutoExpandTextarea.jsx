@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
-import { Send, Paperclip } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -9,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
+import ArrowButton from './ArrowButton/ArrowButton';
 
 // Available LLM models
 const LLM_MODELS = [
@@ -34,6 +34,7 @@ const AutoExpandTextarea = forwardRef(({
 }, ref) => {
   const textareaRef = useRef(null);
   const [localModel, setLocalModel] = useState(LLM_MODELS[0].value);
+  const [hasContent, setHasContent] = useState(false);
 
   // Auto-resize textarea based on content
   const handleResize = () => {
@@ -52,9 +53,11 @@ const AutoExpandTextarea = forwardRef(({
     }
   };
 
-  // Handle input changes for auto-resize
+  // Handle input changes for auto-resize and content tracking
   const handleInput = () => {
     handleResize();
+    const value = textareaRef.current?.value || '';
+    setHasContent(value.trim().length > 0);
   };
 
   // Initial resize on mount
@@ -88,6 +91,7 @@ const AutoExpandTextarea = forwardRef(({
       if (message.trim() && onSubmit) {
         onSubmit(message, localModel);
         textareaRef.current.value = '';
+        setHasContent(false);
         handleResize(); // Reset height after clearing
       }
     }
@@ -98,6 +102,7 @@ const AutoExpandTextarea = forwardRef(({
     if (message.trim() && onSubmit) {
       onSubmit(message, localModel);
       textareaRef.current.value = '';
+      setHasContent(false);
       handleResize(); // Reset height after clearing
     }
   };
@@ -165,15 +170,20 @@ const AutoExpandTextarea = forwardRef(({
               </Select>
             )}
 
-            {/* Send button */}
-            <Button
+            {/* Send button - ArrowButton with left-to-right fill animation */}
+            <ArrowButton
               onClick={handleSubmit}
-              disabled={disabled}
-              size="sm"
-              className="bg-pursuit-purple hover:bg-pursuit-purple/90 text-white p-2 h-8 w-8 rounded-md"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
+              disabled={disabled || !hasContent}
+              size="lg"
+              rotation={-90}
+              borderColor="#4242EA"
+              backgroundColor="#4242EA"
+              arrowColor="white"
+              hoverBackgroundColor="#EFEFEF"
+              hoverArrowColor="#4242EA"
+              className="w-[30px] h-[30px] disabled:opacity-50"
+              strokeWidth={1}
+            />
           </div>
         </div>
       </div>

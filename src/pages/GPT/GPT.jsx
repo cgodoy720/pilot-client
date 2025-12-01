@@ -1328,7 +1328,7 @@ function GPT() {
                         borderColor="#4242EA"
                         backgroundColor="#4242EA"
                         arrowColor="white"
-                        hoverBackgroundColor="white"
+                        hoverBackgroundColor="#EFEFEF"
                         hoverArrowColor="#4242EA"
                         className="w-[30px] h-[30px] disabled:opacity-50"
                         strokeWidth={1}
