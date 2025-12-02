@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flame, Ghost } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../../../components/ui/avatar';
 import { Badge } from '../../../components/ui/badge';
 import { Card, CardContent } from '../../../components/ui/card';
@@ -114,36 +114,16 @@ const AttendanceCalendar = ({
         {/* Left side: Circular Progress with Percentage */}
         <div className="flex items-center gap-2">
           <div className="flex-shrink-0">
-            <div className="relative w-12 h-12 flex items-center justify-center">
-              {/* Circular Progress Background */}
-              <svg className="w-12 h-12 transform -rotate-90" viewBox="0 0 48 48">
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="20"
-                  stroke="#E5E7EB"
-                  strokeWidth="3.5"
-                  fill="none"
-                />
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="20"
-                  stroke="#4242EA"
-                  strokeWidth="3.5"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeDasharray={`${2 * Math.PI * 20}`}
-                  strokeDashoffset={`${2 * Math.PI * 20 * (1 - attendanceStats.attendanceRate / 100)}`}
-                  className="transition-all duration-500"
-                />
-              </svg>
-              {/* Percentage Icon */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2C10.89 2 10 2.9 10 4C10 5.11 10.89 6 12 6C13.11 6 14 5.11 14 4C14 2.9 13.11 2 12 2ZM12 18C10.89 18 10 18.9 10 20C10 21.11 10.89 22 12 22C13.11 22 14 21.11 14 20C14 18.9 13.11 18 12 18ZM4.93 4.93L3.51 6.35L5.16 8L3.51 9.65L4.93 11.07L6.58 9.42L8.23 11.07L9.65 9.65L8 8L9.65 6.35L8.23 4.93L6.58 6.58L4.93 4.93ZM19.07 4.93L17.42 6.58L15.77 4.93L14.35 6.35L16 8L14.35 9.65L15.77 11.07L17.42 9.42L19.07 11.07L20.49 9.65L18.84 8L20.49 6.35L19.07 4.93Z" fill="#4242EA"/>
-                </svg>
-              </div>
+            {/* Attendance Badge - Circle */}
+            <div className="relative w-12 h-12">
+              {/* Circle Background */}
+              <div className="absolute inset-0 rounded-full bg-[#4242EA]"></div>
+              {/* Conditional Icon */}
+              {attendanceStats.attendanceRate >= 80 ? (
+                <Flame className="absolute inset-0 w-full h-full p-2.5" color="white" strokeWidth={2.5} />
+              ) : (
+                <Ghost className="absolute inset-0 w-full h-full p-2.5" color="white" strokeWidth={2.5} />
+              )}
             </div>
           </div>
           <div className="text-4xl font-bold text-[#1E1E1E]" style={{ fontFamily: 'var(--font-family-bold)' }}>

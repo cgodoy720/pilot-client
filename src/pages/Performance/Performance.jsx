@@ -222,7 +222,7 @@ const Performance = () => {
         <div className="w-px bg-[#C8C8C8]"></div>
         
         {/* Right Panel - Feedback Inbox (Full Space) */}
-        <div className="flex-1 px-10 flex flex-col bg-[#EFEFEF] overflow-y-auto performance-scrollbar">
+        <div className="flex-1 px-10 flex flex-col bg-[#EFEFEF] overflow-visible">
           <FeedbackInbox
             userId={user.user_id}
             month={selectedMonth}
