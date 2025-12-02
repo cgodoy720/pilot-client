@@ -240,12 +240,12 @@ const AttendanceCalendar = ({
                   )}
                 </div>
                 
-                {/* User Photo Background for Attended Days - Bottom 75%, zoomed out, top priority */}
-                {day.isClassDay && day.attendanceStatus && ['present', 'late', 'excused'].includes(day.attendanceStatus) && userPhoto && (
+                {/* Daily Photo Background for Attended Days - Uses check-in photo from that day */}
+                {day.isClassDay && day.attendanceStatus && ['present', 'late', 'excused'].includes(day.attendanceStatus) && (day.attendanceRecord?.photoUrl || userPhoto) && (
                   <div 
                     className="absolute bottom-0 left-0 right-0 rounded-b-[20px] bg-cover bg-no-repeat"
                     style={{
-                      backgroundImage: `url(${userPhoto})`,
+                      backgroundImage: `url(${day.attendanceRecord?.photoUrl || userPhoto})`,
                       backgroundSize: '120%',
                       backgroundPosition: 'top center',
                       height: '75%'
@@ -253,8 +253,8 @@ const AttendanceCalendar = ({
                   />
                 )}
                 
-                {/* Fallback for attended days without photo - Bottom 75% */}
-                {day.isClassDay && day.attendanceStatus && ['present', 'late', 'excused'].includes(day.attendanceStatus) && !userPhoto && (
+                {/* Fallback for attended days without any photo - Bottom 75% */}
+                {day.isClassDay && day.attendanceStatus && ['present', 'late', 'excused'].includes(day.attendanceStatus) && !day.attendanceRecord?.photoUrl && !userPhoto && (
                   <div className="absolute bottom-0 left-0 right-0 rounded-b-[20px] bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center" style={{ height: '75%' }}>
                     <span className="text-white text-2xl font-bold">
                       {formatUserInitials('User')}

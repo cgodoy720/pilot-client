@@ -258,6 +258,10 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-[#1F2937] font-proxima-bold">Inbox</h2>
+          <div className="flex items-center gap-2">
+            <div className="w-24 h-8 bg-gray-200 rounded-md animate-pulse" />
+            <div className="w-32 h-8 bg-gray-200 rounded-md animate-pulse" />
+          </div>
         </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
@@ -274,6 +278,10 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-[#1F2937] font-proxima-bold">Inbox</h2>
+          <div className="flex items-center gap-2">
+            <div className="w-24 h-8 bg-gray-200 rounded-md" />
+            <div className="w-32 h-8 bg-gray-200 rounded-md" />
+          </div>
         </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
@@ -294,12 +302,12 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex flex-col gap-3 mb-4">
+      {/* Header - Inbox title with dropdown and search inline */}
+      <div className="flex items-center justify-between mb-2">
         <h2 className="text-2xl font-bold text-[#1F2937] font-proxima-bold">Inbox</h2>
         <div className="flex items-center gap-2">
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-32 h-7 border-[#E5E7EB] bg-white text-xs">
+            <SelectTrigger className="w-24 h-8 border-[#E5E7EB] bg-white text-xs rounded-md">
               <SelectValue placeholder="All" />
             </SelectTrigger>
             <SelectContent>
@@ -310,30 +318,39 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
             </SelectContent>
           </Select>
           
-          <div className="relative flex-1">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-[#6B7280] h-3 w-3" />
+          <div className="relative">
             <Input
               type="text"
-              placeholder="Search..."
+              placeholder="Search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-7 h-7 border-[#E5E7EB] bg-white text-xs font-proxima"
+              className="w-32 h-8 pr-8 border-[#E5E7EB] bg-white text-xs font-proxima rounded-md"
             />
+            <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 text-[#6B7280] h-4 w-4" />
           </div>
         </div>
       </div>
 
-      {/* Table Header */}
-      <div className="grid grid-cols-[60px_80px_1fr_70px_70px] gap-3 p-3 mb-1">
-        <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider font-proxima">Date</div>
-        <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider font-proxima">Type</div>
-        <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider font-proxima">Activity</div>
-        <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider text-center font-proxima">Complete</div>
-        <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider text-center font-proxima">Feedback</div>
+      {/* Table Header - Sticky with shadow */}
+      <div className="sticky top-0 z-10 bg-[#EFEFEF] pt-1 pb-2 -mx-10 px-10 relative">
+        <div className="grid grid-cols-[60px_80px_1fr_70px_70px] gap-3 px-3">
+          <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider font-proxima">Date</div>
+          <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider font-proxima">Type</div>
+          <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider font-proxima">Activity</div>
+          <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider text-center font-proxima">Complete</div>
+          <div className="text-xs font-medium text-[#6B7280] uppercase tracking-wider text-center font-proxima">Feedback</div>
+        </div>
+        {/* Shadow line across full width - gradient fade */}
+        <div 
+          className="absolute -bottom-3 left-0 right-0 h-3 pointer-events-none"
+          style={{ 
+            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.05) 40%, transparent 100%)' 
+          }}
+        />
       </div>
 
       {/* Task List */}
-      <div className="flex-1 overflow-y-auto space-y-1 pb-6 performance-scrollbar">
+      <div className="flex-1 overflow-y-auto space-y-1 pb-6 performance-scrollbar pt-2">
         {filteredTasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-center space-y-2">
             <p className="text-[#6B7280] font-proxima">
@@ -411,7 +428,7 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
                       <div className="space-y-3">
                         {/* Positive Message */}
                         <div>
-                          <h3 className="text-base font-semibold text-[#4242EA] mb-1 font-proxima-bold">You're doing awesome!</h3>
+                          {/* <h3 className="text-base font-semibold text-[#4242EA] mb-1 font-proxima-bold">You're doing awesome!</h3> */}
                           <p className="text-[#6B7280] leading-relaxed text-sm font-proxima">
                             {task.feedback?.content || 'Great work on this assignment. Keep up the excellent progress!'}
                           </p>
@@ -474,7 +491,7 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
                         <div>
                           <h3 className="text-base font-semibold text-[#8B5CF6] mb-1 font-proxima-bold">Submitted!</h3>
                           <p className="text-[#6B7280] leading-relaxed text-sm font-proxima">
-                            Great job submitting this assignment. Feedback will be available soon.
+                            Great job completing this activity. Feedback will be available soon.
                           </p>
                         </div>
                       </div>
@@ -482,9 +499,9 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
                       // Show incomplete message (no feedback and no submission)
                       <div className="space-y-3">
                         <div>
-                          <h3 className="text-base font-semibold text-[#EC4899] mb-1 font-proxima-bold">This task needs your attention</h3>
+                          <h3 className="text-base font-semibold text-[#EC4899] mb-1 font-proxima-bold">This activity needs your attention</h3>
                           <p className="text-[#6B7280] leading-relaxed text-sm font-proxima">
-                            You haven't completed this assignment yet.
+                            You haven't completed this activity yet.
                           </p>
                         </div>
                         
