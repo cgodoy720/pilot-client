@@ -7,6 +7,9 @@
   padding: 0 !important;
   color: #1E1E1E !important;
   border: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
 }
 
 .missed-assignments-sidebar__header {
@@ -60,6 +63,9 @@
 
 .missed-assignments-sidebar__content {
   padding: 0 25px;
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 25px;
 }
 
 .missed-assignments-sidebar__subtitle {

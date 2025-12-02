@@ -124,12 +124,13 @@ const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, isPastDay = 
                 const completionStatus = taskCompletionMap[task.id];
                 const completed = completionStatus?.isComplete || false;
                 const requiresDeliverable = completionStatus?.requiresDeliverable || false;
+                const shouldAnalyze = completionStatus?.shouldAnalyze || false;
                 const isBreakTask = task.task_type === 'break';
                 
                 return (
                 <div key={task.id}>
                   <div className="flex items-start gap-2 py-2">
-                    {/* Task Checkbox - Three states based on completion and deliverable requirement */}
+                    {/* Task Checkbox - Three states based on completion and deliverable/analysis requirement */}
                     {/* Hide checkbox for break tasks */}
                     {!isBreakTask ? (
                     <div 
@@ -141,15 +142,15 @@ const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, isPastDay = 
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        // Completed: Purple | Incomplete Past Day with Deliverable: Pink | Incomplete (no deliverable or current day): White
+                        // Completed: Purple | Incomplete Past Day with Deliverable/Analysis: Pink | Incomplete (no deliverable/analysis or current day): White
                         background: completed 
                           ? 'var(--color-pursuit-purple)' 
-                          : (isPastDay && requiresDeliverable)
+                          : (isPastDay && (requiresDeliverable || shouldAnalyze))
                             ? 'var(--color-mastery-pink)' 
                             : 'white',
                         border: completed 
                           ? '1px solid var(--color-pursuit-purple)' 
-                          : (isPastDay && requiresDeliverable)
+                          : (isPastDay && (requiresDeliverable || shouldAnalyze))
                             ? '1px solid var(--color-mastery-pink)' 
                             : '1px solid white'
                       }}
@@ -168,8 +169,8 @@ const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, isPastDay = 
                         }}>
                           <polyline points="2.5,6 5.5,9 11.5,3" />
                         </svg>
-                      ) : (isPastDay && requiresDeliverable) ? (
-                        // Pink X for incomplete past day tasks WITH deliverables
+                      ) : (isPastDay && (requiresDeliverable || shouldAnalyze)) ? (
+                        // Pink X for incomplete past day tasks WITH deliverables or analysis
                         <svg viewBox="0 0 8 8" style={{
                           width: '8px',
                           height: '8px',
@@ -180,7 +181,7 @@ const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, isPastDay = 
                           <line x1="1" y1="1" x2="7" y2="7" />
                           <line x1="7" y1="1" x2="1" y2="7" />
                         </svg>
-                      ) : null /* White circle with no icon for incomplete tasks without deliverables */}
+                      ) : null /* White circle with no icon for incomplete tasks without deliverables/analysis */}
                     </div>
                     ) : (
                       // Empty spacer for break tasks to maintain alignment

@@ -702,7 +702,7 @@ function Dashboard() {
                                   <div className={`dashboard__task-checkbox ${
                                     isComplete 
                                       ? 'dashboard__task-checkbox--complete' 
-                                      : completionStatus?.requiresDeliverable 
+                                      : (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze)
                                         ? 'dashboard__task-checkbox--incomplete' 
                                         : 'dashboard__task-checkbox--empty'
                                   }`}>
@@ -710,7 +710,7 @@ function Dashboard() {
                                       <svg viewBox="0 0 14 14" className="dashboard__task-checkbox-check">
                                         <polyline points="2.5,6 5.5,9 11.5,3" />
                                       </svg>
-                                    ) : completionStatus?.requiresDeliverable ? (
+                                    ) : (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze) ? (
                                       <svg viewBox="0 0 8 8" className="dashboard__task-checkbox-x">
                                         <line x1="1" y1="1" x2="7" y2="7" />
                                         <line x1="7" y1="1" x2="1" y2="7" />
