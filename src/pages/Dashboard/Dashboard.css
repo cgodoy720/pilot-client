@@ -16,7 +16,7 @@
   width: 100%;
   max-width: 100%;
   min-height: 100vh;
-  padding: 0;
+  padding: 0 0 5px 0;
   box-sizing: border-box;
 }
 
@@ -784,7 +784,7 @@
   width: 100%;
   min-height: 1676px;
   background: var(--color-background);
-  padding: 0 20px;
+  padding: 0 20px 15px 20px;
 }
 
 .dashboard__mobile-divider-top {

@@ -324,6 +324,17 @@ function Dashboard() {
     return date < today;
   };
 
+  // Cutoff date for showing incomplete task indicators (11/1/2025)
+  const TASK_TRACKING_CUTOFF_DATE = new Date('2025-11-01');
+
+  // Check if date is on or after the cutoff date for task tracking
+  const isDateAfterCutoff = (dateString) => {
+    if (!dateString) return false;
+    const date = new Date(dateString);
+    date.setHours(0, 0, 0, 0);
+    return date >= TASK_TRACKING_CUTOFF_DATE;
+  };
+
   // Navigate to volunteer feedback
   const navigateToVolunteerFeedback = useCallback(() => {
     navigate('/volunteer-feedback');
@@ -541,7 +552,7 @@ function Dashboard() {
           <div className="dashboard__week-header items-end">
             <div className="dashboard__week-title">
               <span className="dashboard__week-label">
-                <span className="dashboard__week-level">L{currentLevel}</span>: Week {currentWeek}
+                <span className="dashboard__week-level">{currentLevel}</span>: Week {currentWeek}
               </span>
               <span 
                 className={`dashboard__week-subtitle ${
@@ -563,7 +574,7 @@ function Dashboard() {
                     ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer' 
                     : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
                 }`}
-                style={{ borderRadius: '.85rem' }}
+                style={{ borderRadius: '.5rem' }}
                 onClick={() => navigateToWeek('prev')}
                 disabled={currentWeek <= 1 || slideDirection !== null}
               >
@@ -616,7 +627,7 @@ function Dashboard() {
                     ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer' 
                     : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
                 }`}
-                style={{ borderRadius: '.85rem' }}
+                style={{ borderRadius: '.5rem' }}
                 onClick={() => navigateToWeek('next')}
                 disabled={!currentDay?.week || currentWeek >= currentDay.week || slideDirection !== null}
               >
@@ -690,7 +701,8 @@ function Dashboard() {
                           // NEW: Use completion map for all tasks (not just deliverables)
                           const completionStatus = taskCompletionMap[task.id];
                           const isComplete = completionStatus?.isComplete || false;
-                          const showTaskCheckbox = dayIsPast && !dayIsToday;
+                          // Only show checkbox for past days on or after 11/1/2025
+                          const showTaskCheckbox = dayIsPast && !dayIsToday && isDateAfterCutoff(day.day_date);
                           const isBreakTask = task.task_type === 'break';
                           
                           return (
@@ -822,7 +834,7 @@ function Dashboard() {
 
           {/* L1 Week 5 Title */}
           <div className="dashboard__mobile-week-title">
-            L{currentLevel}: Week {currentWeek} <br />
+            {currentLevel}: Week {currentWeek} <br />
             {weeklyGoal}
           </div>
 
@@ -837,7 +849,7 @@ function Dashboard() {
                   ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer' 
                   : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
               }`}
-              style={{ borderRadius: '.85rem' }}
+              style={{ borderRadius: '.5rem' }}
               onClick={() => navigateToWeek('prev')}
               disabled={currentWeek <= 1 || slideDirection !== null}
             >
@@ -888,7 +900,7 @@ function Dashboard() {
                   ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer' 
                   : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
               }`}
-              style={{ borderRadius: '.85rem' }}
+              style={{ borderRadius: '.5rem' }}
               onClick={() => navigateToWeek('next')}
               disabled={!currentDay?.week || currentWeek >= currentDay.week || slideDirection !== null}
             >
