@@ -28,9 +28,40 @@
   padding: 15px 20px;
   display: flex;
   flex-direction: row;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
   gap: 20px;
+}
+
+/* Left side - View Submission */
+.task-completion-bar__left {
+  display: flex;
+  align-items: center;
+}
+
+.task-completion-bar__view-submission {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  padding: 8px 14px;
+  color: #FFFFFF;
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.task-completion-bar__view-submission:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.task-completion-bar__view-submission-icon {
+  font-size: 14px;
 }
 
 /* Right side - Next Exercise */
@@ -73,9 +104,19 @@
     gap: 12px;
   }
 
+  .task-completion-bar__left {
+    width: 100%;
+    justify-content: center;
+  }
+
   .task-completion-bar__right {
     width: 100%;
     justify-content: center;
+  }
+
+  .task-completion-bar__view-submission {
+    font-size: 13px;
+    padding: 6px 12px;
   }
 
   .task-completion-bar__next-text {

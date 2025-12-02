@@ -1124,6 +1124,8 @@ function Learning() {
                   <TaskCompletionBar
                     onNextExercise={handleNextExercise}
                     isLastTask={currentTaskIndex === tasks.length - 1}
+                    showViewSubmission={['video', 'document', 'link', 'structured'].includes(tasks[currentTaskIndex]?.deliverable_type)}
+                    onViewSubmission={() => setIsDeliverableSidebarOpen(true)}
                   />
                 )}
               </div>
@@ -1312,6 +1314,8 @@ function Learning() {
                 <TaskCompletionBar
                   onNextExercise={handleNextExercise}
                   isLastTask={currentTaskIndex === tasks.length - 1}
+                  showViewSubmission={['video', 'document', 'link', 'structured'].includes(tasks[currentTaskIndex]?.deliverable_type)}
+                  onViewSubmission={() => setIsDeliverableSidebarOpen(true)}
                 />
               ) : (
               <AutoExpandTextarea
