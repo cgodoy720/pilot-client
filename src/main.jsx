@@ -19,6 +19,16 @@ import InfoSessions from './pages/InfoSessions/index.js'
 import Workshops from './pages/Workshops/index.js'
 import ProgramDetails from './pages/ProgramDetails/index.js'
 import Pledge from './pages/Pledge/index.js'
+import Onboarding from './pages/Onboarding/Onboarding.jsx'
+import OnboardingGuide from './pages/Onboarding/OnboardingGuide.jsx'
+import AttendancePolicy from './pages/Onboarding/AttendancePolicy.jsx'
+import PursuitEmail from './pages/Onboarding/PursuitEmail.jsx'
+import GoogleCalendar from './pages/Onboarding/GoogleCalendar.jsx'
+import Slack from './pages/Onboarding/Slack.jsx'
+import Kisi from './pages/Onboarding/Kisi.jsx'
+import BuildingInPublic from './pages/Onboarding/BuildingInPublic.jsx'
+import EngageTechNews from './pages/Onboarding/EngageTechNews.jsx'
+import AdditionalSystems from './pages/Onboarding/AdditionalSystems.jsx'
 import Unsubscribe from './pages/Unsubscribe/Unsubscribe.jsx'
 
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
@@ -80,6 +90,16 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/workshops" element={<Workshops />} />
           <Route path="/program-details" element={<ProgramDetails />} />
           <Route path="/pledge" element={<Pledge />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/onboarding/guide" element={<OnboardingGuide />} />
+          <Route path="/onboarding/attendance-policy" element={<AttendancePolicy />} />
+          <Route path="/onboarding/pursuit-email" element={<PursuitEmail />} />
+          <Route path="/onboarding/google-calendar" element={<GoogleCalendar />} />
+          <Route path="/onboarding/slack" element={<Slack />} />
+          <Route path="/onboarding/kisi" element={<Kisi />} />
+          <Route path="/onboarding/building-in-public" element={<BuildingInPublic />} />
+          <Route path="/onboarding/engage-tech-news" element={<EngageTechNews />} />
+          <Route path="/onboarding/additional-systems" element={<AdditionalSystems />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           
           {/* Protected builder routes */}

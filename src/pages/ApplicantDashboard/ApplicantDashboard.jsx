@@ -56,18 +56,19 @@ const SECTION_CONFIG = [
     lockedLabel: 'Invitation Required',
   },
   {
-    key: 'pledge',
-    label: 'Complete your Pledge',
-    description: 'Commit to the program expectations',
-    statusOptions: ['locked', 'not completed', 'completed'],
+    key: 'onboarding',
+    label: 'Complete Onboarding',
+    description: 'Set up systems',
+    statusOptions: ['locked', 'not completed', 'in progress', 'completed'],
     defaultStatus: 'locked',
     getButtonLabel: (status) => {
-      if (status === 'locked') return 'Workshop Required';
-      if (status === 'not completed') return 'Make Pledge';
-      if (status === 'completed') return 'Pledge Completed';
-      return 'Make Pledge';
+      if (status === 'locked') return 'Program Admission Required';
+      if (status === 'not completed') return 'Start Onboarding';
+      if (status === 'in progress') return 'Continue Onboarding';
+      if (status === 'completed') return 'View Onboarding Materials';
+      return 'Start Onboarding';
     },
-    buttonEnabled: (status) => status === 'not completed',
+    buttonEnabled: (status) => status === 'not completed' || status === 'in progress' || status === 'completed',
     lockedLabel: 'Program Admission Required',
   },
 ]
@@ -82,7 +83,7 @@ function ApplicantDashboard() {
     infoSession: 'not signed-up',
     application: 'not started',
     workshop: 'locked',
-    pledge: 'locked',
+    onboarding: 'locked',
   });
   const [sessionDetails, setSessionDetails] = useState(null);
   const [workshopDetails, setWorkshopDetails] = useState(null);
@@ -156,8 +157,8 @@ function ApplicantDashboard() {
         // Load workshop status
         await loadWorkshopStatus();
         
-        // Load pledge status (placeholder for now)
-        await loadPledgeStatus();
+        // Load onboarding status
+        await loadOnboardingStatus();
         
       } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -452,48 +453,77 @@ function ApplicantDashboard() {
     }
   };
 
-  const loadPledgeStatus = async () => {
+  const loadOnboardingStatus = async () => {
     try {
       // Check if applicant has been admitted to the program
       const stageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/stage`);
       
       if (stageResponse.ok) {
         const stageData = await stageResponse.json();
-        console.log('Dashboard: Applicant stage data for pledge:', stageData);
+        console.log('Dashboard: Applicant stage data for onboarding:', stageData);
         
-        // If program_admission_status is 'accepted', check pledge completion status
+        // If program_admission_status is 'accepted', check onboarding completion status
         if (stageData.program_admission_status === 'accepted') {
-          // Check if pledge has been completed
-          const pledgeResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/pledge/status/${currentApplicantId}`);
+          // Check localStorage for saved onboarding state
+          const savedState = localStorage.getItem(`onboarding-state-${currentApplicantId}`);
+          let allRequiredCompleted = false;
+          let hasProgress = false;
           
-          if (pledgeResponse.ok) {
-            const pledgeData = await pledgeResponse.json();
-            console.log('Dashboard: Pledge status data:', pledgeData);
-            
-            if (pledgeData.pledge_completed) {
-              setStatuses(prev => ({ ...prev, pledge: 'completed' }));
-              console.log('Dashboard: Pledge completed');
-            } else {
-              setStatuses(prev => ({ ...prev, pledge: 'not completed' }));
-              console.log('Dashboard: Pledge available but not completed');
+          if (savedState) {
+            try {
+              const saved = JSON.parse(savedState);
+              
+              // Check if onboarding is marked as completed
+              if (saved.completed) {
+                allRequiredCompleted = true;
+              } else {
+                // Check if any required tasks are completed
+                const completedRequiredTasks = saved.tasks?.filter(t => 
+                  t.is_required !== false && t.is_completed === true
+                ).length || 0;
+                const totalRequiredTasks = saved.tasks?.filter(t => 
+                  t.is_required !== false
+                ).length || 8;
+                
+                allRequiredCompleted = completedRequiredTasks >= totalRequiredTasks;
+                hasProgress = completedRequiredTasks > 0;
+              }
+            } catch (error) {
+              console.error('Error parsing saved onboarding state:', error);
             }
+          }
+          
+          // Also try to get status from API as fallback
+          const onboardingStatusResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/onboarding-status`);
+          if (onboardingStatusResponse.ok) {
+            const onboardingStatus = await onboardingStatusResponse.json();
+            const apiAllRequiredCompleted = onboardingStatus.completed_required_tasks >= onboardingStatus.required_tasks;
+            allRequiredCompleted = allRequiredCompleted || apiAllRequiredCompleted;
+            hasProgress = hasProgress || (onboardingStatus.completed_required_tasks > 0);
+          }
+          
+          if (allRequiredCompleted) {
+            setStatuses(prev => ({ ...prev, onboarding: 'completed' }));
+            console.log('Dashboard: Onboarding completed');
+          } else if (hasProgress) {
+            setStatuses(prev => ({ ...prev, onboarding: 'in progress' }));
+            console.log('Dashboard: Onboarding in progress');
           } else {
-            // If can't load pledge status, assume not completed but available
-            setStatuses(prev => ({ ...prev, pledge: 'not completed' }));
-            console.log('Dashboard: Pledge unlocked but status unknown');
+            setStatuses(prev => ({ ...prev, onboarding: 'not completed' }));
+            console.log('Dashboard: Onboarding available but not started');
           }
         } else {
-          setStatuses(prev => ({ ...prev, pledge: 'locked' }));
-          console.log('Dashboard: Pledge locked - applicant not yet admitted to program');
+          setStatuses(prev => ({ ...prev, onboarding: 'locked' }));
+          console.log('Dashboard: Onboarding locked - applicant not yet admitted to program');
         }
       } else {
-        // If we can't load stage data, keep pledge locked
-        setStatuses(prev => ({ ...prev, pledge: 'locked' }));
-        console.log('Dashboard: Pledge locked - could not load stage data');
+        // If we can't load stage data, keep onboarding locked
+        setStatuses(prev => ({ ...prev, onboarding: 'locked' }));
+        console.log('Dashboard: Onboarding locked - could not load stage data');
       }
     } catch (error) {
-      console.error('Error loading pledge status:', error);
-      setStatuses(prev => ({ ...prev, pledge: 'locked' }));
+      console.error('Error loading onboarding status:', error);
+      setStatuses(prev => ({ ...prev, onboarding: 'locked' }));
     }
   };
 
@@ -501,7 +531,7 @@ function ApplicantDashboard() {
     if (key === 'infoSession') return status === 'attended'
     if (key === 'application') return status === 'submitted'
     if (key === 'workshop') return status === 'attended'
-    if (key === 'pledge') return status === 'completed'
+    if (key === 'onboarding') return status === 'completed' || status === 'in progress'
     return false
   }
 
@@ -512,7 +542,7 @@ function ApplicantDashboard() {
 
   const isLocked = (key, status) => {
     if (key === 'workshop') return status === 'locked' // Workshop is locked only if status is 'locked'
-    if (key === 'pledge') return status === 'locked' // Pledge is locked until program admission
+    if (key === 'onboarding') return status === 'locked' // Onboarding is locked until program admission
     return false
   }
 
@@ -520,8 +550,8 @@ function ApplicantDashboard() {
     if (section.key === 'workshop') {
       return section.buttonEnabled(statuses.workshop, statuses.application)
     }
-    if (section.key === 'pledge') {
-      return section.buttonEnabled(statuses.pledge)
+    if (section.key === 'onboarding') {
+      return section.buttonEnabled(statuses.onboarding)
     }
     return section.buttonEnabled(statuses[section.key])
   }
@@ -913,10 +943,10 @@ function ApplicantDashboard() {
                     </div>
                   )}
                   
-                  {/* Locked state message for pledge */}
-                  {section.key === 'pledge' && locked && (
+                  {/* Locked state message for onboarding */}
+                  {section.key === 'onboarding' && locked && (
                     <div className="action-card__locked-message">
-                      Pledge will be available after you are admitted to the program.
+                      Onboarding will be available after you are admitted to the program.
                     </div>
                   )}
 
@@ -1131,179 +1161,16 @@ function ApplicantDashboard() {
                     </div>
                   )}
 
-                  {/* Pledge completed details with review buttons */}
-                  {section.key === 'pledge' && status === 'completed' && (
-                    <div className="pledge-review-buttons" style={{ 
-                      display: 'flex', 
-                      flexWrap: 'wrap', 
-                      gap: '10px', 
-                      justifyContent: 'center',
-                      margin: '15px 0'
+                  {/* Onboarding completed details */}
+                  {section.key === 'onboarding' && (status === 'completed' || status === 'in progress') && (
+                    <div style={{ 
+                      margin: '15px 0',
+                      textAlign: 'center',
+                      color: status === 'completed' ? '#48bb78' : '#666',
+                      fontWeight: '500'
                     }}>
-                        <button
-                          onClick={() => {
-                            // Show Pledge content modal
-                            const modal = document.createElement('div');
-                            modal.innerHTML = `
-                              <div class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
-                                <div style="background: var(--color-background-dark); padding: 30px; border-radius: 12px; max-width: 800px; max-height: 80vh; overflow-y: auto; margin: 20px;" onclick="event.stopPropagation()">
-                                  <h3 style="color: #4242ea; margin-bottom: 20px;">PURSUIT AI-Native Program Pledge</h3>
-                                  <div style="line-height: 1.6;">
-                                    <h4>Everyone in the AI-Native Program is a Builder</h4>
-                                    <p>The world is evolving at an unprecedented pace, driven by technology and innovation. By taking this pledge, you're committing not just to learn, but to drive your own transformation. You'll gain the skills to build powerful apps, harness the potential of AI, and position yourself as a leader in this rapidly changing digital age.</p>
-                                    <p>This is your opportunity to become not just a consumer of technology, but a creator—an AI-native who shapes the future. Let's embark on this journey together.</p>
-                                    
-                                    <h4>As a Builder in the Pursuit AI-native Program, I commit to embracing learning and building with passion, curiosity, and determination. I pledge to:</h4>
-                                    
-                                    <h4>Learning</h4>
-                                    <ul>
-                                      <li>Cultivate a growth mindset, and engage deeply with every aspect of the program, such as workshops, projects, and community events.</li>
-                                      <li>Drive my own learning through consistent practice and research.</li>
-                                      <li>Share my learning openly and teach others.</li>
-                                    </ul>
-                                    
-                                    <h4>Community</h4>
-                                    <ul>
-                                      <li>Foster a positive, inclusive, supportive community environment.</li>
-                                      <li>Uphold Pursuit's code of conduct</li>
-                                    </ul>
-                                    
-                                    <h4>Adapting</h4>
-                                    <ul>
-                                      <li>Embrace the uncertainty and fluidity of this ever-evolving program and the AI field itself.</li>
-                                      <li>Remain resilient in the face of challenges, demonstrating initiative to solve problems.</li>
-                                    </ul>
-                                    
-                                    <h4>Building</h4>
-                                    <ul>
-                                      <li>Consistently work on projects and apply my learning to real-world scenarios.</li>
-                                      <li>Be proactive in seeking opportunities to build and create.</li>
-                                      <li>Embrace a "building in public" approach to share my journey and contribute to the AI community.</li>
-                                    </ul>
-                                  </div>
-                                  <button onclick="this.closest('.modal-overlay').remove()" style="background: #4242ea; color: white; border: none; padding: 8px 16px; border-radius: 6px; margin-top: 20px; cursor: pointer;">Close</button>
-                                </div>
-                              </div>
-                            `;
-                            document.body.appendChild(modal);
-                          }}
-                          style={{
-                            background: 'rgba(66, 66, 234, 0.1)', 
-                            color: 'var(--color-primary)', 
-                            padding: '10px 16px', 
-                            border: '1px solid var(--color-primary)', 
-                            borderRadius: '8px', 
-                            fontSize: '0.85rem',
-                            fontWeight: '600',
-                            transition: 'all 0.2s',
-                            cursor: 'pointer',
-                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.target.style.transform = "translateY(-2px)";
-                            e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.transform = "translateY(0)";
-                            e.target.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
-                          }}
-                        >
-                          📜 Review Pledge
-                        </button>
-                        <button 
-                          onClick={() => {
-                            // Show Code of Conduct modal (we'll implement this)
-                            const modal = document.createElement('div');
-                            modal.innerHTML = `
-                              <div class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
-                                <div style="background: var(--color-background-dark); padding: 30px; border-radius: 12px; max-width: 600px; max-height: 80vh; overflow-y: auto; margin: 20px;" onclick="event.stopPropagation()">
-                                  <h3 style="color: #4242ea; margin-bottom: 20px;">Code of Conduct</h3>
-                                  <div style="line-height: 1.6;">
-                                    <p><strong>Mutual Respect:</strong> We foster an environment where everyone feels valued, heard, and respected, regardless of background, identity, or experience level.</p>
-                                    <p><strong>Collaborative Learning:</strong> We commit to learning together, sharing knowledge openly, and supporting each other's growth without judgment.</p>
-                                    <p><strong>Constructive Communication:</strong> We communicate thoughtfully and constructively, offering feedback that helps others improve while maintaining kindness and professionalism.</p>
-                                    <p><strong>Inclusive Participation:</strong> We actively work to include all voices and perspectives, ensuring that everyone has the opportunity to contribute and succeed.</p>
-                                    <p><strong>Accountability:</strong> We take responsibility for our actions, admit our mistakes, and work together to create solutions that benefit the entire community.</p>
-                                  </div>
-                                  <button onclick="this.closest('.modal-overlay').remove()" style="background: #4242ea; color: white; border: none; padding: 8px 16px; border-radius: 6px; margin-top: 20px; cursor: pointer;">Close</button>
-                                </div>
-                              </div>
-                            `;
-                            document.body.appendChild(modal);
-                          }}
-                          style={{
-                            background: 'rgba(108, 117, 125, 0.1)', 
-                            color: 'var(--color-secondary)', 
-                            padding: '10px 16px', 
-                            border: '1px solid var(--color-secondary)', 
-                            borderRadius: '8px', 
-                            fontSize: '0.85rem',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.target.style.transform = "translateY(-2px)";
-                            e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.transform = "translateY(0)";
-                            e.target.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
-                          }}
-                        >
-                          📋 Code of Conduct
-                        </button>
-                        <button 
-                          onClick={() => {
-                            // Show Program Details modal
-                            const modal = document.createElement('div');
-                            modal.innerHTML = `
-                              <div class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
-                                <div style="background: var(--color-background-dark); padding: 30px; border-radius: 12px; max-width: 700px; max-height: 80vh; overflow-y: auto; margin: 20px;" onclick="event.stopPropagation()">
-                                  <h3 style="color: #4242ea; margin-bottom: 20px;">AI-Native Program Details</h3>
-                                  <div style="line-height: 1.6;">
-                                    <h4>Program Overview</h4>
-                                    <p>The Pursuit AI-Native Program is a 7-month intensive program designed to empower individuals to become AI-natives, capable of securing good jobs and leading in the AI-driven future.</p>
-                                    <h4>Core Pillars</h4>
-                                    <ul>
-                                      <li><strong>AI-Powered Individual Learning:</strong> Utilizing AI tools for personalized learning pathways and skill development.</li>
-                                      <li><strong>Self-Driven, Active Learning Through Building:</strong> Focusing on practical application and project-based learning.</li>
-                                      <li><strong>Many-to-Many Learning and Teaching:</strong> Fostering a collaborative environment where participants learn from each other.</li>
-                                    </ul>
-                                    <h4>What You'll Build</h4>
-                                    <p>Throughout the program, you'll work on real-world AI projects, develop modern applications, and create solutions that demonstrate your AI-native capabilities.</p>
-                                  </div>
-                                  <button onclick="this.closest('.modal-overlay').remove()" style="background: #4242ea; color: white; border: none; padding: 8px 16px; border-radius: 6px; margin-top: 20px; cursor: pointer;">Close</button>
-                                </div>
-                              </div>
-                            `;
-                            document.body.appendChild(modal);
-                          }}
-                          style={{
-                            background: 'rgba(40, 167, 69, 0.1)', 
-                            color: '#28a745', 
-                            padding: '10px 16px', 
-                            border: '1px solid #28a745', 
-                            borderRadius: '8px', 
-                            fontSize: '0.85rem',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.target.style.transform = "translateY(-2px)";
-                            e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.transform = "translateY(0)";
-                            e.target.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
-                          }}
-                        >
-                          📚 Program Details
-                        </button>
-                      </div>
+                      {status === 'completed' ? '✓ All onboarding steps completed' : 'Onboarding in progress'}
+                    </div>
                   )}
                 </div>
                 
@@ -1351,7 +1218,7 @@ function ApplicantDashboard() {
                     <Link to={enabled ? (section.key === 'infoSession' ? '/info-sessions' : 
                             section.key === 'workshop' ? '/workshops' :
                             section.key === 'application' ? '/application-form' : 
-                            section.key === 'pledge' ? '/pledge' : '#') : '#'} 
+                            section.key === 'onboarding' ? '/onboarding' : '#') : '#'} 
                           className="action-card__button-link">
                       <button
                         style={getButtonStyle(
@@ -1361,7 +1228,7 @@ function ApplicantDashboard() {
                           section.key === 'application' && status === 'submitted',
                           (section.key === 'infoSession' && status === 'attended') || 
                           (section.key === 'workshop' && status === 'attended') ||
-                          (section.key === 'pledge' && status === 'completed')
+                          (section.key === 'onboarding' && (status === 'completed' || status === 'in progress'))
                         )}
                         disabled={!enabled}
                       >
