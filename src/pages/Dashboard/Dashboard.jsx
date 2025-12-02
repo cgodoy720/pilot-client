@@ -324,8 +324,8 @@ function Dashboard() {
     return date < today;
   };
 
-  // Cutoff date for showing incomplete task indicators (11/1/2025)
-  const TASK_TRACKING_CUTOFF_DATE = new Date('2025-11-01');
+  // Cutoff date for showing incomplete task indicators (12/1/2025)
+  const TASK_TRACKING_CUTOFF_DATE = new Date('2025-12-01');
 
   // Check if date is on or after the cutoff date for task tracking
   const isDateAfterCutoff = (dateString) => {
