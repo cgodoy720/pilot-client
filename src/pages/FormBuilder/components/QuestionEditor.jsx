@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import './QuestionEditor.css';
+import { ArrowUp, ArrowDown, Trash2, Plus, X } from 'lucide-react';
 
 const QuestionEditor = ({ 
   question, 
@@ -47,7 +46,7 @@ const QuestionEditor = ({
   const getTypeLabel = (type) => {
     const labels = {
       text: 'Text Input',
-      email: 'Email',
+      long_text: 'Long Text',
       multiple_choice: 'Multiple Choice',
       scale: 'Scale Rating',
       true_false: 'True/False'
@@ -56,50 +55,54 @@ const QuestionEditor = ({
   };
 
   return (
-    <div className="question-editor">
-      <div className="question-editor__header">
-        <h3 className="question-editor__title">
+    <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-3">
           Question {questionIndex + 1}
-          <span className="question-editor__type-badge">{getTypeLabel(question.type)}</span>
+          <span className="px-3 py-1 bg-[#4242ea]/10 text-[#4242ea] rounded-full text-xs font-semibold">
+            {getTypeLabel(question.type)}
+          </span>
         </h3>
-        <div className="question-editor__actions">
+        <div className="flex gap-2">
           <button
-            className="question-editor__move-btn"
             onClick={onMoveUp}
             disabled={questionIndex === 0}
             title="Move up"
+            className="w-8 h-8 border border-gray-300 rounded-lg bg-white text-gray-600 cursor-pointer transition-all duration-200 flex items-center justify-center hover:bg-gray-50 hover:border-[#4242ea] hover:text-[#4242ea] disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            ↑
+            <ArrowUp className="w-4 h-4" />
           </button>
           <button
-            className="question-editor__move-btn"
             onClick={onMoveDown}
             disabled={questionIndex === totalQuestions - 1}
             title="Move down"
+            className="w-8 h-8 border border-gray-300 rounded-lg bg-white text-gray-600 cursor-pointer transition-all duration-200 flex items-center justify-center hover:bg-gray-50 hover:border-[#4242ea] hover:text-[#4242ea] disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            ↓
+            <ArrowDown className="w-4 h-4" />
           </button>
           <button
-            className="question-editor__delete-btn"
             onClick={onDelete}
             title="Delete question"
+            className="w-8 h-8 border border-red-300 rounded-lg bg-white text-red-600 cursor-pointer transition-all duration-200 flex items-center justify-center hover:bg-red-50 hover:border-red-400"
           >
-            🗑️
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      <div className="question-editor__field">
-        <label className="question-editor__label">
-          Question Text <span className="question-editor__required">*</span>
+      {/* Question Text */}
+      <div className="mb-6">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Question Text <span className="text-red-500">*</span>
         </label>
         <textarea
-          className="question-editor__textarea"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base resize-vertical transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
           value={question.text}
           onChange={(e) => handleChange('text', e.target.value)}
           placeholder={
             question.type === 'text' ? "e.g., What is your name?" :
-            question.type === 'email' ? "e.g., What is your email address?" :
+            question.type === 'long_text' ? "e.g., Please describe your experience in detail." :
             question.type === 'multiple_choice' ? "e.g., What is your favorite color?" :
             question.type === 'scale' ? "e.g., How satisfied are you with our service?" :
             question.type === 'true_false' ? "e.g., Do you agree to the terms?" :
@@ -110,49 +113,54 @@ const QuestionEditor = ({
         />
       </div>
 
-      <div className="question-editor__field">
-        <label className="question-editor__label">Help Text (Optional)</label>
+      {/* Help Text */}
+      <div className="mb-6">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Help Text (Optional)</label>
         <input
           type="text"
-          className="question-editor__input"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
           value={question.help_text}
           onChange={(e) => handleChange('help_text', e.target.value)}
           placeholder="Add additional context or instructions for respondents..."
         />
       </div>
 
-      <div className="question-editor__field">
-        <label className="question-editor__checkbox-label">
+      {/* Required Checkbox */}
+      <div className="mb-6">
+        <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
             checked={question.required}
             onChange={(e) => handleChange('required', e.target.checked)}
+            className="w-4 h-4 accent-[#4242ea] cursor-pointer"
           />
-          <span>Required Question</span>
+          <span className="text-sm font-medium text-gray-700">Required Question</span>
         </label>
       </div>
 
       {/* Type-specific settings */}
-      {question.type === 'text' && (
-        <div className="question-editor__type-settings">
-          <h4 className="question-editor__subtitle">Text Settings</h4>
-          <div className="question-editor__field-group">
-            <div className="question-editor__field">
-              <label className="question-editor__label">Minimum Length</label>
+      {(question.type === 'text' || question.type === 'long_text') && (
+        <div className="pt-6 border-t border-gray-200">
+          <h4 className="text-sm font-semibold text-gray-700 mb-4">
+            {question.type === 'long_text' ? 'Long Text Settings' : 'Text Settings'}
+          </h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Length</label>
               <input
                 type="number"
-                className="question-editor__input question-editor__input--small"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                 value={question.validation?.min_length || ''}
                 onChange={(e) => handleValidationChange('min_length', parseInt(e.target.value) || null)}
                 min="0"
                 placeholder="No minimum"
               />
             </div>
-            <div className="question-editor__field">
-              <label className="question-editor__label">Maximum Length</label>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Maximum Length</label>
               <input
                 type="number"
-                className="question-editor__input question-editor__input--small"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                 value={question.validation?.max_length || ''}
                 onChange={(e) => handleValidationChange('max_length', parseInt(e.target.value) || null)}
                 min="0"
@@ -164,89 +172,91 @@ const QuestionEditor = ({
       )}
 
       {question.type === 'multiple_choice' && (
-        <div className="question-editor__type-settings">
-          <h4 className="question-editor__subtitle">Multiple Choice Options</h4>
-          <div className="question-editor__options-list">
+        <div className="pt-6 border-t border-gray-200">
+          <h4 className="text-sm font-semibold text-gray-700 mb-4">Multiple Choice Options</h4>
+          <div className="flex flex-col gap-3 mb-4">
             {question.options.map((option, index) => (
-              <div key={index} className="question-editor__option-item">
+              <div key={index} className="flex gap-2 items-center">
                 <input
                   type="text"
-                  className="question-editor__input"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                   value={option}
                   onChange={(e) => handleUpdateOption(index, e.target.value)}
                   placeholder={`Option ${index + 1}`}
                 />
                 <button
-                  className="question-editor__remove-option-btn"
                   onClick={() => handleRemoveOption(index)}
                   disabled={question.options.length <= 2}
                   title="Remove option"
+                  className="w-8 h-8 border border-red-300 rounded-lg bg-white text-red-600 cursor-pointer transition-all duration-200 flex items-center justify-center hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  ✕
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             ))}
           </div>
           <button
-            className="question-editor__add-option-btn"
             onClick={handleAddOption}
+            className="px-4 py-2 bg-white text-[#4242ea] border border-[#4242ea] rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 inline-flex items-center gap-2 hover:bg-[#4242ea]/5"
           >
-            + Add Option
+            <Plus className="w-4 h-4" />
+            Add Option
           </button>
-          <div className="question-editor__field">
-            <label className="question-editor__checkbox-label">
+          <div className="mt-4">
+            <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={question.multiple_select || false}
                 onChange={(e) => handleChange('multiple_select', e.target.checked)}
+                className="w-4 h-4 accent-[#4242ea] cursor-pointer"
               />
-              <span>Allow multiple selections</span>
+              <span className="text-sm font-medium text-gray-700">Allow multiple selections</span>
             </label>
           </div>
         </div>
       )}
 
       {question.type === 'scale' && (
-        <div className="question-editor__type-settings">
-          <h4 className="question-editor__subtitle">Scale Settings</h4>
-          <div className="question-editor__field-group">
-            <div className="question-editor__field">
-              <label className="question-editor__label">Minimum Value</label>
+        <div className="pt-6 border-t border-gray-200">
+          <h4 className="text-sm font-semibold text-gray-700 mb-4">Scale Settings</h4>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Value</label>
               <input
                 type="number"
-                className="question-editor__input question-editor__input--small"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                 value={question.scale_config?.min || 1}
                 onChange={(e) => handleScaleConfigChange('min', parseInt(e.target.value) || 1)}
                 min="0"
               />
             </div>
-            <div className="question-editor__field">
-              <label className="question-editor__label">Maximum Value</label>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Maximum Value</label>
               <input
                 type="number"
-                className="question-editor__input question-editor__input--small"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                 value={question.scale_config?.max || 5}
                 onChange={(e) => handleScaleConfigChange('max', parseInt(e.target.value) || 5)}
                 min="1"
               />
             </div>
           </div>
-          <div className="question-editor__field-group">
-            <div className="question-editor__field">
-              <label className="question-editor__label">Minimum Label (Optional)</label>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Label (Optional)</label>
               <input
                 type="text"
-                className="question-editor__input"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                 value={question.scale_config?.min_label || ''}
                 onChange={(e) => handleScaleConfigChange('min_label', e.target.value)}
                 placeholder="e.g., Not Satisfied"
               />
             </div>
-            <div className="question-editor__field">
-              <label className="question-editor__label">Maximum Label (Optional)</label>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Maximum Label (Optional)</label>
               <input
                 type="text"
-                className="question-editor__input"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                 value={question.scale_config?.max_label || ''}
                 onChange={(e) => handleScaleConfigChange('max_label', e.target.value)}
                 placeholder="e.g., Very Satisfied"
@@ -257,24 +267,24 @@ const QuestionEditor = ({
       )}
 
       {question.type === 'true_false' && (
-        <div className="question-editor__type-settings">
-          <h4 className="question-editor__subtitle">True/False Labels</h4>
-          <div className="question-editor__field-group">
-            <div className="question-editor__field">
-              <label className="question-editor__label">True Label</label>
+        <div className="pt-6 border-t border-gray-200">
+          <h4 className="text-sm font-semibold text-gray-700 mb-4">True/False Labels</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">True Label</label>
               <input
                 type="text"
-                className="question-editor__input"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                 value={question.true_label || 'True'}
                 onChange={(e) => handleChange('true_label', e.target.value)}
                 placeholder="True"
               />
             </div>
-            <div className="question-editor__field">
-              <label className="question-editor__label">False Label</label>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">False Label</label>
               <input
                 type="text"
-                className="question-editor__input"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                 value={question.false_label || 'False'}
                 onChange={(e) => handleChange('false_label', e.target.value)}
                 placeholder="False"
@@ -288,4 +298,3 @@ const QuestionEditor = ({
 };
 
 export default QuestionEditor;
-

@@ -2,7 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import './PathfinderNetworking.css';
+import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
+import { Badge } from '../../components/ui/badge';
 // MUI Icons
 import ComputerIcon from '@mui/icons-material/Computer';
 import HandshakeIcon from '@mui/icons-material/Handshake';
@@ -80,6 +86,13 @@ function PathfinderNetworking() {
 
   // Filter state
   const [filterType, setFilterType] = useState('all');
+  
+  // View state
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
+  
+  // Sort state
+  const [sortColumn, setSortColumn] = useState('date');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   useEffect(() => {
     fetchActivities();
@@ -542,33 +555,109 @@ function PathfinderNetworking() {
     ];
   };
 
+  // Sort handler
+  const handleSort = (column) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('desc');
+    }
+  };
+
+  // Filter activities
   const filteredActivities = filterType === 'all'
     ? activities
     : activities.filter(activity => activity.type === filterType);
 
-  if (isLoading) {
-    return <div className="pathfinder-networking__loading">Loading hustle activities...</div>;
-  }
+  // Sort activities
+  const sortedAndFilteredActivities = [...filteredActivities].sort((a, b) => {
+    let aValue, bValue;
+    
+    switch (sortColumn) {
+      case 'date':
+        aValue = new Date(a.date).getTime();
+        bValue = new Date(b.date).getTime();
+        break;
+      case 'type':
+        aValue = a.type || '';
+        bValue = b.type || '';
+        break;
+      case 'contact':
+        aValue = (a.contact_name || '').toLowerCase();
+        bValue = (b.contact_name || '').toLowerCase();
+        break;
+      case 'company':
+        aValue = (a.company || '').toLowerCase();
+        bValue = (b.company || '').toLowerCase();
+        break;
+      case 'outcome':
+        aValue = (a.outcome || '').toLowerCase();
+        bValue = (b.outcome || '').toLowerCase();
+        break;
+      default:
+        return 0;
+    }
+    
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   return (
-    <div className="pathfinder-networking">
-      <div className="pathfinder-networking__container">
-        <div className="pathfinder-networking__header">
-          <button 
-            className="pathfinder-networking__add-btn"
+    <div className="w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto p-6">
+      <div className="max-w-full mx-auto">
+        <div className="flex justify-start items-center mb-8 gap-4">
+          <Button 
+            className="px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] relative overflow-hidden flex-shrink-0 whitespace-nowrap hover:bg-[#3333d1] hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_6px_20px_rgba(66,66,234,0.4)] active:translate-y-0 active:scale-100 active:shadow-[0_2px_8px_rgba(66,66,234,0.2)]"
             onClick={() => setShowForm(!showForm)}
           >
             {showForm ? 'Cancel' : '+ New Activity'}
-          </button>
+          </Button>
           
           {/* Filter inline with button */}
-          <div className="pathfinder-networking__filters">
-            <label>Filter by Type:</label>
-            <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-              <option value="all">All Types</option>
-              <option value="digital">Digital</option>
-              <option value="irl">In Real Life</option>
-            </select>
+          <div className="flex items-center gap-2">
+            <label className="font-medium text-[#1a1a1a] whitespace-nowrap">Filter by Type:</label>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-[180px] bg-white border-[#d0d0d0]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="digital">Digital</SelectItem>
+                <SelectItem value="irl">In Real Life</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* View Toggle */}
+          <div className="flex border border-[#e0e0e0] rounded-md bg-white overflow-hidden ml-auto">
+            <Button
+              variant={viewMode === 'cards' ? 'default' : 'ghost'}
+              size="sm"
+              className={`px-3 py-2 rounded-none border-none transition-all duration-200 ${viewMode === 'cards' ? 'bg-[#4242ea] text-white' : 'bg-transparent text-[#666666] hover:bg-[#f5f5f5] hover:text-[#1a1a1a]'}`}
+              onClick={() => setViewMode('cards')}
+              title="Card View"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="2" y="2" width="3" height="12" fill="currentColor"/>
+                <rect x="6.5" y="2" width="3" height="8" fill="currentColor"/>
+                <rect x="11" y="2" width="3" height="10" fill="currentColor"/>
+              </svg>
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              className={`px-3 py-2 rounded-none border-none transition-all duration-200 ${viewMode === 'table' ? 'bg-[#4242ea] text-white' : 'bg-transparent text-[#666666] hover:bg-[#f5f5f5] hover:text-[#1a1a1a]'}`}
+              onClick={() => setViewMode('table')}
+              title="Table View"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="2" y="3" width="12" height="2" fill="currentColor"/>
+                <rect x="2" y="7" width="12" height="2" fill="currentColor"/>
+                <rect x="2" y="11" width="12" height="2" fill="currentColor"/>
+              </svg>
+            </Button>
           </div>
         </div>
 
@@ -579,156 +668,155 @@ function PathfinderNetworking() {
         )}
 
         {/* Add/Edit Form Modal */}
-        {showForm && (
-          <div className="pathfinder-networking__modal-overlay" onClick={resetForm}>
-            <div className="pathfinder-networking__modal" onClick={(e) => e.stopPropagation()}>
-              <div className="pathfinder-networking__modal-header">
-                <h2>{isEditing ? 'Edit Activity' : 'Add New Activity'}</h2>
-                
-                {/* Type selector buttons in header */}
-                <div className="pathfinder-networking__modal-type-selector">
-                  <button
-                    type="button"
-                    className={`pathfinder-networking__modal-type-btn ${formData.type === 'digital' ? 'pathfinder-networking__modal-type-btn--active' : ''}`}
-                    onClick={() => setFormData(prev => ({ ...prev, type: 'digital', subType: '', eventName: '', eventOrganizer: '' }))}
-                  >
-                    <ComputerIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                    Digital
-                  </button>
-                  <button
-                    type="button"
-                    className={`pathfinder-networking__modal-type-btn ${formData.type === 'irl' ? 'pathfinder-networking__modal-type-btn--active' : ''}`}
-                    onClick={() => setFormData(prev => ({ ...prev, type: 'irl', subType: '', direction: '' }))}
-                  >
-                    <HandshakeIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                    IRL
-                  </button>
-                </div>
-                
-                <button type="button" className="pathfinder-networking__modal-close" onClick={resetForm}>
-                  ×
-                </button>
-              </div>
-              <form onSubmit={handleSubmit} className="pathfinder-networking__form">
+        <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()}>
+          <DialogContent className="max-w-[1200px] p-0 flex flex-col max-h-[90vh] overflow-hidden">
+            <DialogHeader className="flex flex-row justify-between items-center p-6 border-b-2 border-[#e0e0e0] flex-shrink-0">
+              <DialogTitle className="m-0 text-[#1a1a1a] text-2xl font-semibold">
+                {isEditing ? 'Edit Activity' : 'Add New Activity'}
+              </DialogTitle>
               
-              <div className="pathfinder-networking__form-panels">
+              {/* Type selector buttons in header */}
+              <div className="flex gap-2 items-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={`px-4 py-2 bg-white border-2 border-[#e5e7eb] rounded-md text-sm font-medium cursor-pointer transition-all duration-200 flex items-center whitespace-nowrap text-[#4b5563] ${
+                    formData.type === 'digital' 
+                      ? 'bg-[#4242ea] text-white border-[#4242ea] hover:bg-[#3333d1] hover:border-[#3333d1]' 
+                      : 'hover:border-[#4242ea] hover:bg-[rgba(66,66,234,0.05)] hover:text-[#4242ea]'
+                  }`}
+                  onClick={() => setFormData(prev => ({ ...prev, type: 'digital', subType: '', eventName: '', eventOrganizer: '' }))}
+                >
+                  <ComputerIcon sx={{ fontSize: 16 }} className={formData.type === 'digital' ? 'text-white' : 'text-[#4b5563]'} />
+                  Digital
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={`px-4 py-2 bg-white border-2 border-[#e5e7eb] rounded-md text-sm font-medium cursor-pointer transition-all duration-200 flex items-center whitespace-nowrap text-[#4b5563] ${
+                    formData.type === 'irl' 
+                      ? 'bg-[#4242ea] text-white border-[#4242ea] hover:bg-[#3333d1] hover:border-[#3333d1]' 
+                      : 'hover:border-[#4242ea] hover:bg-[rgba(66,66,234,0.05)] hover:text-[#4242ea]'
+                  }`}
+                  onClick={() => setFormData(prev => ({ ...prev, type: 'irl', subType: '', direction: '' }))}
+                >
+                  <HandshakeIcon sx={{ fontSize: 16 }} className={formData.type === 'irl' ? 'text-white' : 'text-[#4b5563]'} />
+                  IRL
+                </Button>
+              </div>
+            </DialogHeader>
+            
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] flex-1 min-h-0">
                 {/* Left Panel - URL Quick Add */}
-                <div className="pathfinder-networking__form-panel pathfinder-networking__form-panel--left">
-                  <div className="pathfinder-networking__url-section">
-                    <h4><LinkIcon sx={{ fontSize: 18, mr: 0.5, verticalAlign: 'middle' }} />Quick Add from URL</h4>
+                <Card className="rounded-none border-none shadow-none bg-[#f9f9f9] border-r-2 border-[#e0e0e0] p-6 flex flex-col flex-shrink-0">
+                  <CardContent className="p-0">
+                    <div className="flex items-center gap-2 mb-4">
+                      <LinkIcon sx={{ fontSize: 18 }} />
+                      <h4 className="text-lg font-semibold text-[#1a1a1a]">Quick Add from URL</h4>
+                    </div>
                     {formData.type === 'digital' ? (
-                      <>
-                        <p className="pathfinder-networking__url-description">
+                      <div>
+                        <p className="text-sm text-[#666666] mb-4 leading-relaxed">
                           Paste a LinkedIn profile, X/Twitter post, or other URL to auto-fill details
                         </p>
-                        <div className="pathfinder-networking__form-group">
-                          <label>Paste URL</label>
-                          <textarea
-                            name="url"
-                            value={formData.url}
-                            onChange={handleUrlChange}
-                            placeholder="https://linkedin.com/in/john-smith or https://x.com/username/status/123"
-                            rows="5"
-                          />
-                          <button
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Paste URL</label>
+                            <textarea
+                              name="url"
+                              value={formData.url}
+                              onChange={handleUrlChange}
+                              placeholder="https://linkedin.com/in/john-smith or https://x.com/username/status/123"
+                              rows="5"
+                              className="w-full p-3 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                            />
+                          </div>
+                          <Button
                             type="button"
                             onClick={handleFetchDetails}
-                            className="pathfinder-networking__fetch-btn"
                             disabled={!formData.url || formData.url.trim() === '' || isParsingUrl}
+                            className="w-full bg-[#4242ea] text-white hover:bg-[#3333d1] disabled:opacity-50 flex items-center justify-center gap-2"
                           >
-                            {isParsingUrl ? (
-                              <>
-                                <AutoAwesomeIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                                Fetching Details...
-                              </>
-                            ) : (
-                              <>
-                                <AutoAwesomeIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                                Fetch Details
-                              </>
-                            )}
-                          </button>
+                            <AutoAwesomeIcon sx={{ fontSize: 16 }} />
+                            {isParsingUrl ? 'Fetching Details...' : 'Fetch Details'}
+                          </Button>
                           {parsedUrlData && parsedUrlData.parsed && (
-                            <span className="pathfinder-networking__url-hint pathfinder-networking__url-hint--success">
-                              <CheckCircleIcon sx={{ fontSize: 14, mr: 0.5 }} />
-                              Detected: {parsedUrlData.platform}
-                            </span>
+                            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                              <CheckCircleIcon sx={{ fontSize: 14 }} className="text-green-600" />
+                              <span className="text-sm text-green-700">Detected: {parsedUrlData.platform}</span>
+                            </div>
                           )}
                         </div>
-                        <div className="pathfinder-networking__url-examples">
-                          <strong>Supported:</strong>
-                          <ul>
-                            <li>LinkedIn profiles & posts</li>
-                            <li>X/Twitter profiles & tweets</li>
-                            <li>Company websites</li>
+                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                          <div className="text-sm text-[#1a1a1a] font-medium mb-2">Supported:</div>
+                          <ul className="text-xs text-[#666666] space-y-1">
+                            <li>• LinkedIn profiles & posts</li>
+                            <li>• X/Twitter profiles & tweets</li>
+                            <li>• Company websites</li>
                           </ul>
                         </div>
-                      </>
+                      </div>
                     ) : (
-                      <>
-                        <p className="pathfinder-networking__url-description">
+                      <div>
+                        <p className="text-sm text-[#666666] mb-4 leading-relaxed">
                           Paste an event website, LinkedIn event, or LinkedIn profile
                         </p>
-                        <div className="pathfinder-networking__form-group">
-                          <label>Paste URL</label>
-                          <textarea
-                            name="url"
-                            value={formData.url}
-                            onChange={handleUrlChange}
-                            placeholder="https://linkedin.com/events/... or https://eventbrite.com/e/..."
-                            rows="5"
-                          />
-                          <button
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Paste URL</label>
+                            <textarea
+                              name="url"
+                              value={formData.url}
+                              onChange={handleUrlChange}
+                              placeholder="https://linkedin.com/events/... or https://eventbrite.com/e/..."
+                              rows="5"
+                              className="w-full p-3 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                            />
+                          </div>
+                          <Button
                             type="button"
                             onClick={handleFetchDetails}
-                            className="pathfinder-networking__fetch-btn"
                             disabled={!formData.url || formData.url.trim() === '' || isParsingUrl}
+                            className="w-full bg-[#4242ea] text-white hover:bg-[#3333d1] disabled:opacity-50 flex items-center justify-center gap-2"
                           >
-                            {isParsingUrl ? (
-                              <>
-                                <AutoAwesomeIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                                Fetching Details...
-                              </>
-                            ) : (
-                              <>
-                                <AutoAwesomeIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                                Fetch Details
-                              </>
-                            )}
-                          </button>
+                            <AutoAwesomeIcon sx={{ fontSize: 16 }} />
+                            {isParsingUrl ? 'Fetching Details...' : 'Fetch Details'}
+                          </Button>
                           {parsedUrlData && parsedUrlData.parsed && (
-                            <span className="pathfinder-networking__url-hint pathfinder-networking__url-hint--success">
-                              <CheckCircleIcon sx={{ fontSize: 14, mr: 0.5 }} />
-                              Detected: {parsedUrlData.platform}
-                            </span>
+                            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                              <CheckCircleIcon sx={{ fontSize: 14 }} className="text-green-600" />
+                              <span className="text-sm text-green-700">Detected: {parsedUrlData.platform}</span>
+                            </div>
                           )}
                         </div>
-                        <div className="pathfinder-networking__url-examples">
-                          <strong>Supported:</strong>
-                          <ul>
-                            <li>LinkedIn events & profiles</li>
-                            <li>Eventbrite event pages</li>
-                            <li>Company event websites</li>
+                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                          <div className="text-sm text-[#1a1a1a] font-medium mb-2">Supported:</div>
+                          <ul className="text-xs text-[#666666] space-y-1">
+                            <li>• LinkedIn events & profiles</li>
+                            <li>• Eventbrite event pages</li>
+                            <li>• Company event websites</li>
                           </ul>
                         </div>
-                      </>
+                      </div>
                     )}
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
 
                 {/* Right Panel - Form Fields */}
-                <div className="pathfinder-networking__form-panel pathfinder-networking__form-panel--right">
+                <Card className="rounded-none border-none shadow-none bg-white p-6 flex flex-col overflow-y-auto min-h-0">
+                  <CardContent className="p-0">
                   {/* ===== DIGITAL ACTIVITY FIELDS ===== */}
                   {formData.type === 'digital' && (
-                    <>
+                    <div className="space-y-6">
                       {/* Channel/Medium & Date Row */}
-                      <div className="pathfinder-networking__form-row">
-                        <div>
-                          <div className="pathfinder-networking__form-group">
-                            <label>Channel/Medium *</label>
-                            <div className="pathfinder-networking__channel-options">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-6">
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-3">Channel/Medium *</label>
+                            <div className="space-y-2">
                               {getDigitalChannelOptions().map(option => (
-                                <label key={option.value} className="pathfinder-networking__channel-option">
+                                <label key={option.value} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#f5f5f5] transition-colors">
                                   <input
                                     type="radio"
                                     name="subType"
@@ -736,38 +824,41 @@ function PathfinderNetworking() {
                                     checked={formData.subType === option.value}
                                     onChange={handleInputChange}
                                     required
+                                    className="w-4 h-4 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-2"
                                   />
-                                  <span className="pathfinder-networking__channel-label">{option.label}</span>
+                                  <span className="text-sm text-[#1a1a1a]">{option.label}</span>
                                 </label>
                               ))}
                             </div>
                           </div>
 
                           {/* Direction */}
-                          <div className="pathfinder-networking__form-group">
-                            <label>Direction</label>
-                            <div className="pathfinder-networking__channel-options">
-                              <label className="pathfinder-networking__channel-option">
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-3">Direction</label>
+                            <div className="space-y-2">
+                              <label className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#f5f5f5] transition-colors">
                                 <input
                                   type="radio"
                                   name="direction"
                                   value="outbound"
                                   checked={formData.direction === 'outbound'}
                                   onChange={handleInputChange}
+                                  className="w-4 h-4 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-2"
                                 />
-                                <span className="pathfinder-networking__channel-label">
+                                <span className="text-sm text-[#1a1a1a]">
                                   Outbound (I reached out)
                                 </span>
                               </label>
-                              <label className="pathfinder-networking__channel-option">
+                              <label className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#f5f5f5] transition-colors">
                                 <input
                                   type="radio"
                                   name="direction"
                                   value="inbound"
                                   checked={formData.direction === 'inbound'}
                                   onChange={handleInputChange}
+                                  className="w-4 h-4 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-2"
                                 />
-                                <span className="pathfinder-networking__channel-label">
+                                <span className="text-sm text-[#1a1a1a]">
                                   Inbound (They reached out)
                                 </span>
                               </label>
@@ -775,34 +866,35 @@ function PathfinderNetworking() {
                           </div>
                         </div>
 
-                        <div>
-                          <div className="pathfinder-networking__form-group">
-                            <label>Date *</label>
-                            <input
+                        <div className="space-y-6">
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Date *</label>
+                            <Input
                               type="date"
                               name="date"
                               value={formData.date}
                               onChange={handleInputChange}
                               required
+                              className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                             />
                           </div>
 
                           {/* Link to Job */}
-                          <div className="pathfinder-networking__form-group">
-                            <label>Link to Job</label>
-                            <div className="pathfinder-networking__job-search">
-                              <input
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Link to Job</label>
+                            <div className="relative">
+                              <Input
                                 type="text"
                                 value={jobSearchQuery}
                                 onChange={(e) => setJobSearchQuery(e.target.value)}
                                 onFocus={() => jobSearchQuery && setShowJobDropdown(true)}
                                 placeholder="Search by job title or company..."
-                                className="pathfinder-networking__job-search-input"
+                                className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                               />
                               {selectedJob && (
                                 <button
                                   type="button"
-                                  className="pathfinder-networking__job-search-clear"
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#666666] hover:text-[#1a1a1a] text-lg font-bold leading-none"
                                   onClick={handleJobSearchClear}
                                   title="Clear selection"
                                 >
@@ -810,46 +902,47 @@ function PathfinderNetworking() {
                                 </button>
                               )}
                               {showJobDropdown && filteredJobs.length > 0 && (
-                                <div className="pathfinder-networking__job-dropdown">
+                                <div className="absolute z-10 w-full mt-1 bg-white border border-[#d0d0d0] rounded-md shadow-lg max-h-60 overflow-y-auto">
                                   {filteredJobs.map(job => (
                                     <div
                                       key={job.job_application_id}
-                                      className="pathfinder-networking__job-option"
+                                      className="p-3 cursor-pointer hover:bg-[#f5f5f5] border-b border-[#e0e0e0] last:border-b-0"
                                       onClick={() => handleJobSelect(job)}
                                     >
-                                      <div className="pathfinder-networking__job-title">{job.role_title}</div>
-                                      <div className="pathfinder-networking__job-company">{job.company_name}</div>
+                                      <div className="font-medium text-[#1a1a1a] text-sm">{job.role_title}</div>
+                                      <div className="text-xs text-[#666666] mt-1">{job.company_name}</div>
                                     </div>
                                   ))}
                                 </div>
                               )}
                               {showJobDropdown && jobSearchQuery && filteredJobs.length === 0 && (
-                                <div className="pathfinder-networking__job-dropdown">
-                                  <div className="pathfinder-networking__job-option pathfinder-networking__job-option--empty">
+                                <div className="absolute z-10 w-full mt-1 bg-white border border-[#d0d0d0] rounded-md shadow-lg">
+                                  <div className="p-3 text-sm text-[#666666] text-center">
                                     No jobs found matching "{jobSearchQuery}"
                                   </div>
                                 </div>
                               )}
                             </div>
-                            <p className="pathfinder-networking__hint">
+                            <p className="mt-2 text-xs text-[#666666]">
                               Connect this activity to a job application in your Job Tracker
                             </p>
                           </div>
 
                           {/* Connection Type */}
-                          <div className="pathfinder-networking__form-group">
-                            <label>Connection Type</label>
-                            <div className="pathfinder-networking__channel-options">
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-3">Connection Type</label>
+                            <div className="space-y-2">
                               {getConnectionTypeOptions(formData.type).map(option => (
-                                <label key={option.value} className="pathfinder-networking__channel-option">
+                                <label key={option.value} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#f5f5f5] transition-colors">
                                   <input
                                     type="radio"
                                     name="connectionStrength"
                                     value={option.value}
                                     checked={formData.connectionStrength === option.value}
                                     onChange={handleInputChange}
+                                    className="w-4 h-4 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-2"
                                   />
-                                  <span className="pathfinder-networking__channel-label">{option.label}</span>
+                                  <span className="text-sm text-[#1a1a1a]">{option.label}</span>
                                 </label>
                               ))}
                             </div>
@@ -858,124 +951,133 @@ function PathfinderNetworking() {
                       </div>
 
                       {/* Contact Name, Company & Email */}
-                      <div className="pathfinder-networking__form-row pathfinder-networking__form-row--three-cols pathfinder-networking__form-row--divider-top pathfinder-networking__form-row--divider-bottom">
-                        <div className="pathfinder-networking__form-group">
-                          <label>Contact Name</label>
-                          <input
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t border-[#e0e0e0] pb-6 border-b border-[#e0e0e0]">
+                        <div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Name</label>
+                          <Input
                             type="text"
                             name="contactName"
                             value={formData.contactName}
                             onChange={handleInputChange}
                             placeholder="John Smith"
+                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                           />
                         </div>
-                        <div className="pathfinder-networking__form-group">
-                          <label>Company</label>
-                          <input
+                        <div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Company</label>
+                          <Input
                             type="text"
                             name="company"
                             value={formData.company}
                             onChange={handleInputChange}
                             placeholder="Company name"
+                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                           />
                         </div>
-                        <div className="pathfinder-networking__form-group">
-                          <label>Contact Email</label>
-                          <input
+                        <div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Email</label>
+                          <Input
                             type="email"
                             name="contactEmail"
                             value={formData.contactEmail}
                             onChange={handleInputChange}
                             placeholder="email@example.com"
+                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                           />
                         </div>
                       </div>
 
                       {/* Outcome & Follow-up Date */}
-                      <div className="pathfinder-networking__form-row">
-                        <div className="pathfinder-networking__form-group">
-                          <label>Outcome</label>
-                          <select
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Outcome</label>
+                          <Select
                             name="outcome"
                             value={formData.outcome}
-                            onChange={handleInputChange}
+                            onValueChange={(value) => handleInputChange({ target: { name: 'outcome', value } })}
                           >
-                            <option value="pending">Pending</option>
-                            <option value="no_response">No Response</option>
-                            <option value="positive_response">Positive Response</option>
-                            <option value="led_to_conversation">Led to Conversation</option>
-                            <option value="led_to_referral">Led to Referral</option>
-                            <option value="led_to_interview">Led to Interview</option>
-                            <option value="not_relevant">Not Relevant</option>
-                          </select>
+                            <SelectTrigger className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent">
+                              <SelectValue placeholder="Select outcome" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="no_response">No Response</SelectItem>
+                              <SelectItem value="positive_response">Positive Response</SelectItem>
+                              <SelectItem value="led_to_conversation">Led to Conversation</SelectItem>
+                              <SelectItem value="led_to_referral">Led to Referral</SelectItem>
+                              <SelectItem value="led_to_interview">Led to Interview</SelectItem>
+                              <SelectItem value="not_relevant">Not Relevant</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                        <div className="pathfinder-networking__form-group">
-                          <label>Follow-up Date</label>
-                          <input
+                        <div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Follow-up Date</label>
+                          <Input
                             type="date"
                             name="followUpDate"
                             value={formData.followUpDate}
                             onChange={handleInputChange}
+                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                           />
                         </div>
                       </div>
-                    </>
+                    </div>
                   )}
 
                   {/* ===== IRL ACTIVITY FIELDS ===== */}
                   {formData.type === 'irl' && (
-                    <>
+                    <div className="space-y-6">
                       {/* Event Type & Date Row */}
-                      <div className="pathfinder-networking__form-row">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                          <div className="pathfinder-networking__form-group">
-                            <label>Event/Meeting Type *</label>
-                            <div className="pathfinder-networking__channel-options">
-                              {getIRLEventOptions().map(option => (
-                                <label key={option.value} className="pathfinder-networking__channel-option">
-                                  <input
-                                    type="radio"
-                                    name="subType"
-                                    value={option.value}
-                                    checked={formData.subType === option.value}
-                                    onChange={handleInputChange}
-                                    required
-                                  />
-                                  <span className="pathfinder-networking__channel-label">{option.label}</span>
-                                </label>
-                              ))}
-                            </div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-3">Event/Meeting Type *</label>
+                          <div className="space-y-2">
+                            {getIRLEventOptions().map(option => (
+                              <label key={option.value} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#f5f5f5] transition-colors">
+                                <input
+                                  type="radio"
+                                  name="subType"
+                                  value={option.value}
+                                  checked={formData.subType === option.value}
+                                  onChange={handleInputChange}
+                                  required
+                                  className="w-4 h-4 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-2"
+                                />
+                                <span className="text-sm text-[#1a1a1a]">{option.label}</span>
+                              </label>
+                            ))}
                           </div>
                         </div>
 
-                        <div>
-                          <div className="pathfinder-networking__form-group">
-                            <label>Date *</label>
-                            <input
+                        <div className="space-y-6">
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Date *</label>
+                            <Input
                               type="date"
                               name="date"
                               value={formData.date}
                               onChange={handleInputChange}
                               required
+                              className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                             />
                           </div>
 
                           {/* Link to Job */}
-                          <div className="pathfinder-networking__form-group">
-                            <label>Link to Job</label>
-                            <div className="pathfinder-networking__job-search">
-                              <input
+                          <div>
+                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Link to Job</label>
+                            <div className="relative">
+                              <Input
                                 type="text"
                                 value={jobSearchQuery}
                                 onChange={(e) => setJobSearchQuery(e.target.value)}
                                 onFocus={() => jobSearchQuery && setShowJobDropdown(true)}
                                 placeholder="Search by job title or company..."
-                                className="pathfinder-networking__job-search-input"
+                                className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                               />
                               {selectedJob && (
                                 <button
                                   type="button"
-                                  className="pathfinder-networking__job-search-clear"
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#666666] hover:text-[#1a1a1a] text-lg font-bold leading-none"
                                   onClick={handleJobSearchClear}
                                   title="Clear selection"
                                 >
@@ -983,28 +1085,28 @@ function PathfinderNetworking() {
                                 </button>
                               )}
                               {showJobDropdown && filteredJobs.length > 0 && (
-                                <div className="pathfinder-networking__job-dropdown">
+                                <div className="absolute z-10 w-full mt-1 bg-white border border-[#d0d0d0] rounded-md shadow-lg max-h-60 overflow-y-auto">
                                   {filteredJobs.map(job => (
                                     <div
                                       key={job.job_application_id}
-                                      className="pathfinder-networking__job-option"
+                                      className="p-3 cursor-pointer hover:bg-[#f5f5f5] border-b border-[#e0e0e0] last:border-b-0"
                                       onClick={() => handleJobSelect(job)}
                                     >
-                                      <div className="pathfinder-networking__job-title">{job.role_title}</div>
-                                      <div className="pathfinder-networking__job-company">{job.company_name}</div>
+                                      <div className="font-medium text-[#1a1a1a] text-sm">{job.role_title}</div>
+                                      <div className="text-xs text-[#666666] mt-1">{job.company_name}</div>
                                     </div>
                                   ))}
                                 </div>
                               )}
                               {showJobDropdown && jobSearchQuery && filteredJobs.length === 0 && (
-                                <div className="pathfinder-networking__job-dropdown">
-                                  <div className="pathfinder-networking__job-option pathfinder-networking__job-option--empty">
+                                <div className="absolute z-10 w-full mt-1 bg-white border border-[#d0d0d0] rounded-md shadow-lg">
+                                  <div className="p-3 text-sm text-[#666666] text-center">
                                     No jobs found matching "{jobSearchQuery}"
                                   </div>
                                 </div>
                               )}
                             </div>
-                            <p className="pathfinder-networking__hint">
+                            <p className="mt-2 text-xs text-[#666666]">
                               Connect this activity to a job application in your Job Tracker
                             </p>
                           </div>
@@ -1012,79 +1114,85 @@ function PathfinderNetworking() {
                       </div>
 
                       {/* Event/Location Name */}
-                      <div className="pathfinder-networking__form-group">
-                        <label>Event/Location Name *</label>
-                        <input
+                      <div>
+                        <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Event/Location Name *</label>
+                        <Input
                           type="text"
                           name="eventName"
                           value={formData.eventName}
                           onChange={handleInputChange}
                           placeholder="TechCrunch Disrupt, Blue Bottle Coffee, etc."
                           required
+                          className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                         />
                       </div>
 
                       {/* Event Organizer/Host */}
-                      <div className="pathfinder-networking__form-group">
-                        <label>Event Organizer/Host</label>
-                        <input
+                      <div>
+                        <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Event Organizer/Host</label>
+                        <Input
                           type="text"
                           name="eventOrganizer"
                           value={formData.eventOrganizer}
                           onChange={handleInputChange}
                           placeholder="Company or organization hosting the event"
+                          className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                         />
                       </div>
 
                       {/* Contact Name, Company & Email (Optional for IRL) */}
-                      <div className="pathfinder-networking__form-row pathfinder-networking__form-row--three-cols pathfinder-networking__form-row--divider-top">
-                        <div className="pathfinder-networking__form-group">
-                          <label>Contact Name</label>
-                          <input
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t border-[#e0e0e0]">
+                        <div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Name</label>
+                          <Input
                             type="text"
                             name="contactName"
                             value={formData.contactName}
                             onChange={handleInputChange}
                             placeholder="Person you met"
+                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                           />
                         </div>
-                        <div className="pathfinder-networking__form-group">
-                          <label>Their Company</label>
-                          <input
+                        <div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Their Company</label>
+                          <Input
                             type="text"
                             name="company"
                             value={formData.company}
                             onChange={handleInputChange}
                             placeholder="Their company"
+                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                           />
                         </div>
-                        <div className="pathfinder-networking__form-group">
-                          <label>Contact Email</label>
-                          <input
+                        <div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Email</label>
+                          <Input
                             type="email"
                             name="contactEmail"
                             value={formData.contactEmail}
                             onChange={handleInputChange}
                             placeholder="Collected later is fine"
+                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                           />
                         </div>
                       </div>
 
                       {/* Connection Type - Only show if there's a contact */}
                       {formData.contactName && (
-                        <div className="pathfinder-networking__form-group pathfinder-networking__form-row--divider-bottom">
-                          <label>Connection Type</label>
-                          <div className="pathfinder-networking__channel-options">
+                        <div className="pb-6 border-b border-[#e0e0e0]">
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-3">Connection Type</label>
+                          <div className="space-y-2">
                             {getConnectionTypeOptions(formData.type).map(option => (
-                              <label key={option.value} className="pathfinder-networking__channel-option">
+                              <label key={option.value} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#f5f5f5] transition-colors">
                                 <input
                                   type="radio"
                                   name="connectionStrength"
                                   value={option.value}
                                   checked={formData.connectionStrength === option.value}
                                   onChange={handleInputChange}
+                                  className="w-4 h-4 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-2"
                                 />
-                                <span className="pathfinder-networking__channel-label">{option.label}</span>
+                                <span className="text-sm text-[#1a1a1a]">{option.label}</span>
                               </label>
                             ))}
                           </div>
@@ -1092,188 +1200,310 @@ function PathfinderNetworking() {
                       )}
 
                       {/* Outcome & Follow-up Date */}
-                      <div className="pathfinder-networking__form-row">
-                        <div className="pathfinder-networking__form-group">
-                          <label>Outcome</label>
-                          <select
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Outcome</label>
+                          <Select
                             name="outcome"
                             value={formData.outcome}
-                            onChange={handleInputChange}
+                            onValueChange={(value) => handleInputChange({ target: { name: 'outcome', value } })}
                           >
-                            <option value="pending">Pending</option>
-                            <option value="no_response">No Response</option>
-                            <option value="positive_response">Positive Response</option>
-                            <option value="led_to_conversation">Led to Conversation</option>
-                            <option value="led_to_referral">Led to Referral</option>
-                            <option value="led_to_interview">Led to Interview</option>
-                            <option value="not_relevant">Not Relevant</option>
-                          </select>
+                            <SelectTrigger className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent">
+                              <SelectValue placeholder="Select outcome" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="no_response">No Response</SelectItem>
+                              <SelectItem value="positive_response">Positive Response</SelectItem>
+                              <SelectItem value="led_to_conversation">Led to Conversation</SelectItem>
+                              <SelectItem value="led_to_referral">Led to Referral</SelectItem>
+                              <SelectItem value="led_to_interview">Led to Interview</SelectItem>
+                              <SelectItem value="not_relevant">Not Relevant</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                        <div className="pathfinder-networking__form-group">
-                          <label>Follow-up Date</label>
-                          <input
+                        <div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Follow-up Date</label>
+                          <Input
                             type="date"
                             name="followUpDate"
                             value={formData.followUpDate}
                             onChange={handleInputChange}
+                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                           />
                         </div>
                       </div>
-                    </>
+                    </div>
                   )}
 
                   {/* ===== COMMON FIELDS ===== */}
-                  <div className="pathfinder-networking__form-group">
-                    <label>Notes</label>
+                  <div>
+                    <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Notes</label>
                     <textarea
                       name="notes"
                       value={formData.notes}
                       onChange={handleInputChange}
                       rows="4"
                       placeholder="Add details about the activity..."
+                      className="w-full p-3 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                     />
                   </div>
-
-              <div className="pathfinder-networking__form-actions">
-                <button type="submit" className="pathfinder-networking__submit-btn">
-                  {isEditing ? 'Update Activity' : 'Add Activity'}
-                </button>
-                <button 
-                  type="button" 
-                  className="pathfinder-networking__cancel-btn"
-                  onClick={resetForm}
-                >
+                  </CardContent>
+                </Card>
+              </div>
+              <DialogFooter className="flex justify-end p-6 border-t-2 border-[#e0e0e0] bg-white flex-shrink-0">
+                <Button type="button" variant="outline" onClick={resetForm}>
                   Cancel
-                </button>
-              </div>
-                </div>
-              </div>
+                </Button>
+                <Button type="submit">
+                  {isEditing ? 'Update Activity' : 'Add Activity'}
+                </Button>
+              </DialogFooter>
             </form>
-            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Activities View - Cards or Table */}
+        {viewMode === 'table' ? (
+          <div className="w-full overflow-x-auto bg-white rounded-lg border border-[#e0e0e0]">
+            {sortedAndFilteredActivities.length === 0 ? (
+              <div className="text-center p-8 text-[#666666]">
+                <p>No hustle activities yet. Click "+ New Activity" to add your first one!</p>
+              </div>
+            ) : (
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-[#e0e0e0] bg-[#f9f9f9]">
+                    <th 
+                      onClick={() => handleSort('date')} 
+                      className="px-4 py-3 text-left text-sm font-semibold text-[#1a1a1a] cursor-pointer hover:bg-[#f0f0f0] transition-colors"
+                    >
+                      Date
+                      {sortColumn === 'date' && (
+                        <span className="ml-1 text-[#4242ea]">
+                          {sortDirection === 'asc' ? ' ▲' : ' ▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th 
+                      onClick={() => handleSort('type')} 
+                      className="px-4 py-3 text-left text-sm font-semibold text-[#1a1a1a] cursor-pointer hover:bg-[#f0f0f0] transition-colors"
+                    >
+                      Type
+                      {sortColumn === 'type' && (
+                        <span className="ml-1 text-[#4242ea]">
+                          {sortDirection === 'asc' ? ' ▲' : ' ▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#1a1a1a]">Channel/Event</th>
+                    <th 
+                      onClick={() => handleSort('contact')} 
+                      className="px-4 py-3 text-left text-sm font-semibold text-[#1a1a1a] cursor-pointer hover:bg-[#f0f0f0] transition-colors"
+                    >
+                      Contact
+                      {sortColumn === 'contact' && (
+                        <span className="ml-1 text-[#4242ea]">
+                          {sortDirection === 'asc' ? ' ▲' : ' ▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th 
+                      onClick={() => handleSort('company')} 
+                      className="px-4 py-3 text-left text-sm font-semibold text-[#1a1a1a] cursor-pointer hover:bg-[#f0f0f0] transition-colors"
+                    >
+                      Company
+                      {sortColumn === 'company' && (
+                        <span className="ml-1 text-[#4242ea]">
+                          {sortDirection === 'asc' ? ' ▲' : ' ▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#1a1a1a]">Direction</th>
+                    <th 
+                      onClick={() => handleSort('outcome')} 
+                      className="px-4 py-3 text-left text-sm font-semibold text-[#1a1a1a] cursor-pointer hover:bg-[#f0f0f0] transition-colors"
+                    >
+                      Outcome
+                      {sortColumn === 'outcome' && (
+                        <span className="ml-1 text-[#4242ea]">
+                          {sortDirection === 'asc' ? ' ▲' : ' ▼'}
+                        </span>
+                      )}
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#1a1a1a]">Follow-up</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#1a1a1a]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedAndFilteredActivities.map(activity => (
+                    <tr key={activity.networking_activity_id} className="border-b border-[#e0e0e0] hover:bg-[#f9f9f9] transition-colors">
+                      <td className="px-4 py-3 text-sm text-[#1a1a1a]">
+                        {new Date(activity.date).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant="secondary" className="bg-[#4242ea] text-white text-xs">
+                          {getTypeLabel(activity.type)}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#1a1a1a]">
+                        {formatChannelText(activity.platform || activity.sub_type) || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#1a1a1a]">
+                        {activity.contact_name || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#1a1a1a]">
+                        {activity.company || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#1a1a1a] capitalize">
+                        {activity.direction || '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge 
+                          variant="secondary" 
+                          className={`text-xs ${
+                            activity.outcome === 'positive_response' || activity.outcome === 'led_to_conversation' || activity.outcome === 'led_to_referral' || activity.outcome === 'led_to_interview' ? 'bg-green-100 text-green-700' :
+                            activity.outcome === 'no_response' || activity.outcome === 'not_relevant' ? 'bg-red-100 text-red-700' :
+                            'bg-yellow-100 text-yellow-700'
+                          }`}
+                        >
+                          {activity.outcome ? activity.outcome.replace(/_/g, ' ') : 'pending'}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#1a1a1a]">
+                        {activity.follow_up_date ? new Date(activity.follow_up_date).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-3 text-xs hover:bg-blue-100 hover:text-blue-600"
+                            onClick={() => handleEdit(activity)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-3 text-xs hover:bg-red-100 hover:text-red-600"
+                            onClick={() => handleDelete(activity.networking_activity_id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        ) : (
+          <div className="w-full">
+            {sortedAndFilteredActivities.length === 0 ? (
+              <div className="text-center p-8 text-[#666666]">
+                <p>No hustle activities yet. Click "+ New Activity" to add your first one!</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {sortedAndFilteredActivities.map(activity => (
+                  <Card key={activity.networking_activity_id} className="bg-white border-[#e0e0e0] hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <Badge variant="secondary" className="bg-[#4242ea] text-white">
+                          {getTypeLabel(activity.type)}
+                        </Badge>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 hover:bg-blue-100 hover:text-blue-600"
+                            onClick={() => handleEdit(activity)}
+                          >
+                            ✏️
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600"
+                            onClick={() => handleDelete(activity.networking_activity_id)}
+                          >
+                            🗑️
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-[#666] font-medium">Channel/Event:</span>
+                          <span className="text-[#1a1a1a]">
+                            {formatChannelText(activity.platform || activity.sub_type) || '—'}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between">
+                          <span className="text-[#666] font-medium">Date:</span>
+                          <span className="text-[#1a1a1a]">
+                            {new Date(activity.date).toLocaleDateString()}
+                          </span>
+                        </div>
+                        
+                        {activity.contact_name && (
+                          <div className="flex justify-between">
+                            <span className="text-[#666] font-medium">Contact:</span>
+                            <span className="text-[#1a1a1a]">{activity.contact_name}</span>
+                          </div>
+                        )}
+                        
+                        {activity.company && (
+                          <div className="flex justify-between">
+                            <span className="text-[#666] font-medium">Company:</span>
+                            <span className="text-[#1a1a1a]">{activity.company}</span>
+                          </div>
+                        )}
+                        
+                        {activity.direction && (
+                          <div className="flex justify-between">
+                            <span className="text-[#666] font-medium">Direction:</span>
+                            <span className="text-[#1a1a1a] capitalize">{activity.direction}</span>
+                          </div>
+                        )}
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#666] font-medium">Outcome:</span>
+                          <Badge 
+                            variant="secondary" 
+                            className={`text-xs ${
+                              activity.outcome === 'positive_response' || activity.outcome === 'led_to_conversation' || activity.outcome === 'led_to_referral' || activity.outcome === 'led_to_interview' ? 'bg-green-100 text-green-700' :
+                              activity.outcome === 'no_response' || activity.outcome === 'not_relevant' ? 'bg-red-100 text-red-700' :
+                              'bg-yellow-100 text-yellow-700'
+                            }`}
+                          >
+                            {activity.outcome ? activity.outcome.replace(/_/g, ' ') : 'pending'}
+                          </Badge>
+                        </div>
+                        
+                        {activity.follow_up_date && (
+                          <div className="flex justify-between">
+                            <span className="text-[#666] font-medium">Follow-up:</span>
+                            <span className="text-[#1a1a1a] text-xs">
+                              {new Date(activity.follow_up_date).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
-
-        {/* Activities Table */}
-        <div className="pathfinder-networking__table-container">
-          {filteredActivities.length === 0 ? (
-            <div className="pathfinder-networking__empty">
-              <p>No hustle activities yet. Click "+ New Activity" to add your first one!</p>
-            </div>
-          ) : (
-            <table className="pathfinder-networking__table">
-              <thead>
-                <tr>
-                  <th>Activity Type</th>
-                  <th>Channel / Event</th>
-                  <th>Linked Job</th>
-                  <th>Date</th>
-                  <th>Contact / Company</th>
-                  <th>Direction</th>
-                  <th>Outcome</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredActivities.map(activity => (
-                  <tr key={activity.networking_activity_id}>
-                    <td>
-                      <span className="pathfinder-networking__type-badge">
-                        {getTypeLabel(activity.type)}
-                      </span>
-                    </td>
-                    <td>
-                      {formatChannelText(activity.platform || activity.sub_type) || <span className="pathfinder-networking__empty-cell">—</span>}
-                    </td>
-                    <td>
-                      {activity.linked_job_id ? (
-                        (() => {
-                          const linkedJob = availableJobs.find(job => job.job_application_id === activity.linked_job_id);
-                          return linkedJob ? (
-                            <div className="pathfinder-networking__linked-job">
-                              <div className="pathfinder-networking__linked-job-company">
-                                {linkedJob.company_name}
-                                <a 
-                                  href={`/pathfinder/applications?job=${linkedJob.job_application_id}`}
-                                  className="pathfinder-networking__job-link"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                  }}
-                                >
-                                  Link to Job
-                                </a>
-                              </div>
-                              <div className="pathfinder-networking__linked-job-role">
-                                {linkedJob.role_title}
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="pathfinder-networking__empty-cell">—</span>
-                          );
-                        })()
-                      ) : (
-                        <span className="pathfinder-networking__empty-cell">—</span>
-                      )}
-                    </td>
-                    <td>
-                      {new Date(activity.date).toLocaleDateString()}
-                      {activity.follow_up_date && (
-                        <div className="pathfinder-networking__followup-badge">
-                          Follow-up: {new Date(activity.follow_up_date).toLocaleDateString()}
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      {activity.contact_name && (
-                        <div className="pathfinder-networking__contact-name">
-                          {activity.contact_name}
-                        </div>
-                      )}
-                      {activity.company && (
-                        <div className="pathfinder-networking__company-name">
-                          {activity.company}
-                        </div>
-                      )}
-                      {!activity.contact_name && !activity.company && (
-                        <span className="pathfinder-networking__empty-cell">—</span>
-                      )}
-                    </td>
-                    <td>
-                      {activity.direction ? (
-                        <span style={{ textTransform: 'capitalize' }}>
-                          {activity.direction}
-                        </span>
-                      ) : (
-                        <span className="pathfinder-networking__empty-cell">—</span>
-                      )}
-                    </td>
-                    <td>
-                      <span 
-                        className={`pathfinder-networking__outcome-badge pathfinder-networking__outcome-badge--${activity.outcome}`}
-                      >
-                        {activity.outcome ? activity.outcome.replace(/_/g, ' ') : 'pending'}
-                      </span>
-                    </td>
-                    <td className="pathfinder-networking__table-actions">
-                      <button 
-                        onClick={() => handleEdit(activity)}
-                        className="pathfinder-networking__table-btn pathfinder-networking__table-btn--edit"
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(activity.networking_activity_id)}
-                        className="pathfinder-networking__table-btn pathfinder-networking__table-btn--delete"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
       </div>
+      
+      {/* Loading Curtain */}
+      <LoadingCurtain isLoading={isLoading} />
     </div>
   );
 }

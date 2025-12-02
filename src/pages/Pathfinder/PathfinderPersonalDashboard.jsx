@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
-import './PathfinderPersonalDashboard.css';
+import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
 
 function PathfinderPersonalDashboard() {
   const { token, user } = useAuth();
@@ -88,21 +90,21 @@ function PathfinderPersonalDashboard() {
     const explanationText = isPositive ? 'Up from last week' : 'Down from last week';
     
     return (
-      <div className={`pathfinder-personal-dashboard__trend ${!isPositive ? 'pathfinder-personal-dashboard__trend--negative' : ''}`}>
-        <div className="pathfinder-personal-dashboard__trend-main">
-          <span className="pathfinder-personal-dashboard__trend-arrow">{arrow}</span>
-          <span className="pathfinder-personal-dashboard__trend-percent">
+      <div className={`flex flex-col gap-0.5 ${!isPositive ? 'text-red-500' : 'text-green-600'}`}>
+        <div className="flex items-center gap-1.5 text-xs font-medium">
+          <span className="text-base">{arrow}</span>
+          <span>
             {trend.percentChange > 0 ? '+' : ''}{trend.percentChange}%
           </span>
           {fireTier > 0 && (
-            <span className={`pathfinder-personal-dashboard__fire-indicator pathfinder-personal-dashboard__fire-indicator--tier-${fireTier}`}>
+            <span className={`${fireTier === 3 ? 'animate-pulse' : ''}`}>
               {fireTier === 1 && '🔥'}
               {fireTier === 2 && '🔥🔥'}
               {fireTier === 3 && '🔥🔥🔥'}
             </span>
           )}
         </div>
-        <span className="pathfinder-personal-dashboard__trend-explanation">
+        <span className="text-[10px] text-[#999]">
           {explanationText}
         </span>
       </div>
@@ -322,9 +324,9 @@ function PathfinderPersonalDashboard() {
     if (!milestones || !milestones.milestones || milestones.milestones.length === 0) {
       return (
         <>
-          <h1 className="pathfinder-personal-dashboard__welcome-title">Welcome to Pathfinder</h1>
-          <h2>Welcome to your job search tracker</h2>
-          <p>Track applications, networking activities, and monitor your progress.</p>
+          <h1 className="m-0 mb-4 text-2xl font-bold text-[#1a1a1a] tracking-tight text-left">Welcome to Pathfinder</h1>
+          <h2 className="m-0 mb-2 text-xl font-bold text-[#1a1a1a]">Welcome to your job search tracker</h2>
+          <p className="m-0 text-base text-[#666666]">Track applications, networking activities, and monitor your progress.</p>
         </>
       );
     }
@@ -395,32 +397,14 @@ function PathfinderPersonalDashboard() {
       const actionButton = getActionButton(milestone.category);
       
       return (
-        <div key={index} className={`pathfinder-personal-dashboard__milestone-container ${showCelebration && index === 0 ? 'celebrating' : ''}`}>
-          {/* Share Buttons in Top Right */}
-          <div className="pathfinder-personal-dashboard__share-buttons pathfinder-personal-dashboard__share-buttons--top-right">
-            <button 
-              className="pathfinder-personal-dashboard__share-btn pathfinder-personal-dashboard__share-btn--twitter"
-              onClick={() => handleShare('twitter', milestone)}
-              title="Share on X (Twitter)"
-            >
-              𝕏
-            </button>
-            <button 
-              className="pathfinder-personal-dashboard__share-btn pathfinder-personal-dashboard__share-btn--linkedin"
-              onClick={() => handleShare('linkedin', milestone)}
-              title="Share on LinkedIn"
-            >
-              in
-            </button>
-          </div>
-          
-          <div className="pathfinder-personal-dashboard__milestone">
-            {emoji && <span className="pathfinder-personal-dashboard__milestone-icon">{emoji}</span>}
-            <div className="pathfinder-personal-dashboard__milestone-content">
-              <h2>{messageText}</h2>
-              <p>{milestone.subtext}</p>
+        <div key={index} className={`relative ${showCelebration && index === 0 ? 'celebrating' : ''}`}>
+          <div className="flex items-start gap-4 mb-4">
+            {emoji && <span className="text-4xl flex-shrink-0">{emoji}</span>}
+            <div className="flex-1 pr-20">
+              <h2 className="text-xl font-bold text-[#1a1a1a] mb-2 leading-tight">{messageText}</h2>
+              <p className="text-sm text-[#666666] mb-2 leading-relaxed">{milestone.subtext}</p>
               {milestone.achievedDate && (
-                <span className="pathfinder-personal-dashboard__milestone-date">
+                <span className="text-xs text-[#999999] font-medium">
                   Achieved on {new Date(milestone.achievedDate).toLocaleDateString('en-US', { 
                     month: 'long', 
                     day: 'numeric', 
@@ -429,25 +413,50 @@ function PathfinderPersonalDashboard() {
                 </span>
               )}
             </div>
+            {/* Share Buttons - Positioned in the right margin */}
+            <div className="absolute top-0 right-0 flex gap-1">
+              <Button 
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 rounded-full bg-black text-white hover:bg-gray-800 text-xs"
+                onClick={() => handleShare('twitter', milestone)}
+                title="Share on X (Twitter)"
+              >
+                𝕏
+              </Button>
+              <Button 
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 rounded-full bg-[#0077b5] text-white hover:bg-[#005885] text-xs font-bold"
+                onClick={() => handleShare('linkedin', milestone)}
+                title="Share on LinkedIn"
+              >
+                in
+              </Button>
+            </div>
           </div>
           
           {milestone.nextMilestone && (
-            <div className="pathfinder-personal-dashboard__next-goal">
-              <div className="pathfinder-personal-dashboard__next-goal-header">
-                <span className="pathfinder-personal-dashboard__next-goal-label">Next milestone:</span>
-                <div className="pathfinder-personal-dashboard__next-goal-cta">
-                  <span className="pathfinder-personal-dashboard__next-goal-target">
-                    {milestone.nextMilestone.threshold} {milestone.category}
-                  </span>
-                  <span className="pathfinder-personal-dashboard__next-goal-arrow">→</span>
-                  <Link 
-                    to={actionButton.to}
-                    state={actionButton.state}
-                    className="pathfinder-personal-dashboard__milestone-action-link"
-                  >
-                    {actionButton.label}
-                  </Link>
+            <div className="bg-[#f8f9fa] rounded-lg p-4 border border-[#e0e0e0]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-[#666666] uppercase tracking-wide">Next Milestone:</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-sm font-bold text-[#1a1a1a]">
+                      {milestone.nextMilestone.threshold} {milestone.category}
+                    </span>
+                    <span className="text-[#4242ea]">→</span>
+                  </div>
                 </div>
+                <Link 
+                  to={actionButton.to}
+                  state={actionButton.state}
+                  className="text-decoration-none"
+                >
+                  <Button size="sm" className="bg-[#4242ea] text-white hover:bg-[#3333d1] text-xs px-3 py-1.5">
+                    {actionButton.label}
+                  </Button>
+                </Link>
               </div>
             </div>
           )}
@@ -457,22 +466,22 @@ function PathfinderPersonalDashboard() {
     
     return (
       <>
-        <h1 className="pathfinder-personal-dashboard__welcome-title">Welcome to Pathfinder</h1>
+        <h1 className="text-2xl font-bold text-[#1a1a1a] mb-6 tracking-tight">Welcome to Pathfinder</h1>
         
         {/* Weekly Goals Card */}
         {weeklyGoals && (
-          <div className="pathfinder-personal-dashboard__weekly-goals">
-            <div className="pathfinder-personal-dashboard__weekly-goals-left">
-              <h3>This Week's Goals</h3>
-              <p className="pathfinder-personal-dashboard__weekly-goals-dates">
+          <div className="bg-[#f8f9fa] rounded-lg p-5 border border-[#e0e0e0] mb-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-bold text-[#1a1a1a] mb-1">This Week's Goals</h3>
+              <p className="text-sm text-[#666666] font-medium">
                 {new Date(weeklyGoals.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {' '}
                 {new Date(weeklyGoals.week_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </p>
               {weeklyGoals.message && (
-                <div className="pathfinder-personal-dashboard__weekly-goals-message">
-                  {weeklyGoals.created_by_first_name || 'Pursuit'} says:
+                <div className="mt-3 p-3 bg-white rounded border border-[#e0e0e0] text-sm">
+                  <span className="font-medium text-[#4242ea]">{weeklyGoals.created_by_first_name || 'Pursuit'} says:</span>
                   <br />
-                  "{weeklyGoals.message}"
+                  <span className="text-[#1a1a1a] italic">"{weeklyGoals.message}"</span>
                 </div>
               )}
             </div>
@@ -537,24 +546,31 @@ function PathfinderPersonalDashboard() {
           </div>
         )}
         
-        {milestonesToShow.map((milestone, index) => renderMilestoneCard(milestone, index))}
+        {/* Main Milestones Section */}
+        <div className="space-y-6 mt-6">
+          {milestonesToShow.map((milestone, index) => (
+            <div key={index} className="bg-white rounded-lg p-5 border border-[#e0e0e0] shadow-sm">
+              {renderMilestoneCard(milestone, index)}
+            </div>
+          ))}
+        </div>
         
         {/* Milestone History */}
         {milestones.milestones.length > 1 && (
-          <div className="pathfinder-personal-dashboard__milestone-history">
-            <span className="pathfinder-personal-dashboard__history-label">Recent Achievements:</span>
-            <div className="pathfinder-personal-dashboard__history-list">
+          <div className="mt-8 pt-6 border-t border-[#e0e0e0]">
+            <h4 className="text-sm font-semibold text-[#666666] uppercase tracking-wide mb-4">Recent Achievements:</h4>
+            <div className="space-y-3">
               {milestones.milestones.slice(1, 4).map((milestone, index) => (
-                <div key={index} className="pathfinder-personal-dashboard__history-item">
-                  <span className="pathfinder-personal-dashboard__history-icon">
+                <div key={index} className="flex items-start gap-3 p-3 bg-[#f8f9fa] rounded-lg border border-[#e0e0e0]">
+                  <span className="text-lg flex-shrink-0">
                     {milestone.message.match(/^([\u{1F300}-\u{1F9FF}])/u)?.[1] || '✓'}
                   </span>
-                  <div className="pathfinder-personal-dashboard__history-content">
-                    <span className="pathfinder-personal-dashboard__history-text">
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-[#1a1a1a] block leading-tight">
                       {milestone.message.replace(/^[\u{1F300}-\u{1F9FF}]\s*/u, '')}
                     </span>
                     {milestone.achievedDate && (
-                      <span className="pathfinder-personal-dashboard__history-date">
+                      <span className="text-xs text-[#666666] mt-1 block">
                         {new Date(milestone.achievedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </span>
                     )}
@@ -565,75 +581,76 @@ function PathfinderPersonalDashboard() {
           </div>
         )}
         
-        {/* Quick Actions and Streak Section */}
-        <div className="pathfinder-personal-dashboard__bottom-section">
-          {/* Streak Card */}
+        {/* Streak Section */}
         {milestones.currentStreak >= 2 && (
-          <div className="pathfinder-personal-dashboard__streak">
-            <span className="pathfinder-personal-dashboard__streak-icon">🔥</span>
-            <div className="pathfinder-personal-dashboard__streak-content">
-              <span className="pathfinder-personal-dashboard__streak-text">
-                {milestones.currentStreak} day streak!
-              </span>
-              <p className="pathfinder-personal-dashboard__streak-subtext">
-                Keep up the momentum!
-              </p>
+          <div className="mt-8 pt-6 border-t border-[#e0e0e0]">
+            <div className="bg-gradient-to-r from-orange-100 to-red-100 rounded-lg p-4 border border-orange-200">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🔥</span>
+                <div>
+                  <span className="text-lg font-bold text-[#1a1a1a] block">
+                    {milestones.currentStreak} day streak!
+                  </span>
+                  <p className="text-sm text-[#666666] m-0">
+                    Keep up the momentum!
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {/* Quick Actions */}
-        <div className="pathfinder-personal-dashboard__actions">
-          <h3>Quick Actions</h3>
-          <div className="pathfinder-personal-dashboard__action-cards">
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold text-[#1a1a1a] mb-4">Quick Actions</h3>
+          <div className="flex gap-3">
             <Link 
               to="/pathfinder/networking" 
               state={{ openForm: true }}
-              className="pathfinder-personal-dashboard__action-card"
+              className="flex-1"
             >
-              + Add Hustle
+              <Button className="w-full px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] hover:bg-[#3333d1] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(66,66,234,0.4)]">
+                + Add Hustle
+              </Button>
             </Link>
             <Link 
               to="/pathfinder/applications" 
               state={{ openModal: true }}
-              className="pathfinder-personal-dashboard__action-card"
+              className="flex-1"
             >
-              + Add Job
+              <Button className="w-full px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] hover:bg-[#3333d1] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(66,66,234,0.4)]">
+                + Add Job
+              </Button>
             </Link>
-            </div>
           </div>
         </div>
       </>
     );
   };
 
-  if (isLoading) {
-    return <div className="pathfinder-personal-dashboard__loading">Loading dashboard...</div>;
-  }
-
   return (
-    <div className="pathfinder-personal-dashboard">
+    <div className="w-full px-8 pb-8 text-[#1a1a1a]">
       {error && (
-        <div className="pathfinder-personal-dashboard__error">
+        <div className="p-4 bg-red-100 text-red-600 border border-red-200 rounded-md mb-6">
           {error}
         </div>
       )}
 
-      <div className="pathfinder-personal-dashboard__layout">
+      <div className="flex gap-6 items-stretch">
         {/* Left Side - Welcome Card */}
-        <div className="pathfinder-personal-dashboard__left">
-          <div className="pathfinder-personal-dashboard__welcome">
+        <div className="flex-[0_0_40%] flex flex-col">
+          <div className="h-auto p-4 bg-white rounded-lg border border-[rgba(66,66,234,0.2)] flex flex-col justify-start shadow-sm">
             {renderWelcomeContent()}
           </div>
         </div>
 
         {/* Right Side - All Stats and Actions */}
-        <div className="pathfinder-personal-dashboard__right">
+        <div className="flex-[0_0_60%] flex flex-col">
           {/* Networking Statistics */}
-          <div className="pathfinder-personal-dashboard__section">
-            <div className="pathfinder-personal-dashboard__section-header">
-              <h3>Hustle Tracker</h3>
-              <Link to="/pathfinder/networking" className="pathfinder-personal-dashboard__view-link">
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="m-0 text-xl font-semibold text-[#1a1a1a]">Hustle Tracker</h3>
+              <Link to="/pathfinder/networking" className="text-[#4242ea] no-underline font-semibold text-[0.95rem] transition-colors duration-200 hover:text-[#3333d1]">
                 View All →
               </Link>
             </div>
@@ -641,118 +658,130 @@ function PathfinderPersonalDashboard() {
             {/* Weekly Stats */}
             {networkingStats?.weekly && (
               <>
-                <div className="pathfinder-personal-dashboard__stats-period">
-                  <span className="pathfinder-personal-dashboard__period-label">This Week</span>
-                  <span className="pathfinder-personal-dashboard__period-dates">
+                <div className="flex items-baseline gap-2 mt-6 mb-2">
+                  <span className="text-xs font-bold text-[#666666] uppercase tracking-wide">This Week</span>
+                  <span className="text-[0.7rem] text-[#999999] font-medium opacity-70">
                     ({networkingStats.weekly.week_start_date && new Date(networkingStats.weekly.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {networkingStats.weekly.week_end_date && new Date(networkingStats.weekly.week_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
                   </span>
                 </div>
-                <div className="pathfinder-personal-dashboard__stats pathfinder-personal-dashboard__stats--weekly">
+                <div className="grid grid-cols-5 gap-4 overflow-visible mb-4">
                   {/* Combined Hustle Tracker Card */}
-                  <div className="pathfinder-personal-dashboard__stat-card pathfinder-personal-dashboard__stat-card--merged pathfinder-personal-dashboard__stat-card--weekly">
-                    <div className="pathfinder-personal-dashboard__stat-item">
-                    <div className="pathfinder-personal-dashboard__stat-label">Total Activities</div>
-                    <div className="pathfinder-personal-dashboard__stat-value">
+                  <Card className="flex-row items-center justify-between col-span-3 overflow-visible bg-white border-[#e0e0e0]">
+                    <CardContent className="p-6 flex items-center justify-between w-full gap-4">
+                    <div className="flex-1 flex flex-col items-start self-start text-left">
+                    <div className="text-sm font-medium text-[#1a1a1a] mb-1 text-left">Total Activities</div>
+                    <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
                       {networkingStats.weekly.total_activities || 0}
                     </div>
                     {networkingStats.weekly.trends && renderTrend(networkingStats.weekly.trends.totalActivities)}
                   </div>
-                    <div className="pathfinder-personal-dashboard__stat-divider"></div>
-                    <div className="pathfinder-personal-dashboard__stat-item">
-                      <div className="pathfinder-personal-dashboard__stat-label">Digital</div>
-                    <div className="pathfinder-personal-dashboard__stat-value">
+                    <div className="w-px self-stretch bg-[#d1d5db] my-0 mx-4"></div>
+                    <div className="flex-1 flex flex-col items-start self-start text-left">
+                      <div className="text-sm font-medium text-[#1a1a1a] mb-1 text-left">Digital</div>
+                    <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
                       {networkingStats.weekly.social_media_count || 0}
                     </div>
                     {networkingStats.weekly.trends && renderTrend(networkingStats.weekly.trends.socialMedia)}
                   </div>
-                    <div className="pathfinder-personal-dashboard__stat-divider"></div>
-                    <div className="pathfinder-personal-dashboard__stat-item">
-                      <div className="pathfinder-personal-dashboard__stat-label">IRL</div>
-                    <div className="pathfinder-personal-dashboard__stat-value">
+                    <div className="w-px self-stretch bg-[#d1d5db] my-0 mx-4"></div>
+                    <div className="flex-1 flex flex-col items-start self-start text-left">
+                      <div className="text-sm font-medium text-[#1a1a1a] mb-1 text-left">IRL</div>
+                    <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
                       {networkingStats.weekly.in_person_count || 0}
                     </div>
                     {networkingStats.weekly.trends && renderTrend(networkingStats.weekly.trends.inPerson)}
                   </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                   {/* Combined Build Tracker Card */}
-                  <Link to="/pathfinder/projects" className="pathfinder-personal-dashboard__stat-card pathfinder-personal-dashboard__stat-card--merged pathfinder-personal-dashboard__stat-card--weekly pathfinder-personal-dashboard__stat-card--builds pathfinder-personal-dashboard__stat-card--clickable">
-                    <div className="pathfinder-personal-dashboard__stat-item">
-                      <div className="pathfinder-personal-dashboard__stat-label">Builds in Progress</div>
-                    <div className="pathfinder-personal-dashboard__stat-value">
+                  <Link to="/pathfinder/projects" className="col-span-2 no-underline text-inherit">
+                  <Card className="flex-row items-center justify-between bg-white border-[#e0e0e0] h-full transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+                    <CardContent className="p-6 flex items-center justify-between w-full gap-4">
+                    <div className="flex-1 flex flex-col items-start self-start text-left">
+                      <div className="text-sm font-medium text-[#1a1a1a] mb-1 text-left">Builds in Progress</div>
+                    <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
                         {projectStats ? (parseInt(projectStats.planning_count || 0) + parseInt(projectStats.development_count || 0) + parseInt(projectStats.testing_count || 0)) : 0}
                       </div>
                       {projectStats && (
-                        <div className="pathfinder-personal-dashboard__stat-breakdown">
+                        <div className="flex flex-col gap-1 mt-2 text-xs text-[#666]">
                           <div>{projectStats.planning_count || 0} Planning</div>
                           <div>{projectStats.development_count || 0} In Development</div>
                           <div>{projectStats.testing_count || 0} Testing</div>
                         </div>
                       )}
                     </div>
-                    <div className="pathfinder-personal-dashboard__stat-divider"></div>
-                    <div className="pathfinder-personal-dashboard__stat-item">
-                      <div className="pathfinder-personal-dashboard__stat-label">Builds Completed</div>
-                      <div className="pathfinder-personal-dashboard__stat-value">
+                    <div className="w-px self-stretch bg-[#d1d5db] my-0 mx-4"></div>
+                    <div className="flex-1 flex flex-col items-start self-start text-left">
+                      <div className="text-sm font-medium text-[#1a1a1a] mb-1 text-left">Builds Completed</div>
+                      <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
                         {projectStats?.launch_count || 0}
                       </div>
                   </div>
+                    </CardContent>
+                  </Card>
                   </Link>
                 </div>
               </>
             )}
             
             {/* All-Time Stats */}
-            <div className="pathfinder-personal-dashboard__stats-period">
-              <span className="pathfinder-personal-dashboard__period-label">All Time</span>
+            <div className="flex items-baseline gap-2 mt-6 mb-2">
+              <span className="text-xs font-bold text-[#666666] uppercase tracking-wide">All Time</span>
             </div>
-            <div className="pathfinder-personal-dashboard__stats">
+            <div className="grid grid-cols-5 gap-4 overflow-visible">
               {/* Combined Hustle Tracker Card */}
-              <div className="pathfinder-personal-dashboard__stat-card pathfinder-personal-dashboard__stat-card--merged">
-                <div className="pathfinder-personal-dashboard__stat-item">
-                <div className="pathfinder-personal-dashboard__stat-label">Total Activities</div>
-                <div className="pathfinder-personal-dashboard__stat-value">
+              <Card className="flex-row items-center justify-between col-span-3 overflow-visible bg-white border-[#e0e0e0]">
+                <CardContent className="p-6 flex items-center justify-between w-full gap-4">
+                <div className="flex-1 flex flex-col items-start self-start text-left">
+                <div className="text-sm font-medium text-[#1a1a1a] mb-1 text-left">Total Activities</div>
+                <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
                   {networkingStats?.allTime?.total_activities || 0}
                 </div>
               </div>
-                <div className="pathfinder-personal-dashboard__stat-divider"></div>
-                <div className="pathfinder-personal-dashboard__stat-item">
-                  <div className="pathfinder-personal-dashboard__stat-label">Digital</div>
-                <div className="pathfinder-personal-dashboard__stat-value">
+                <div className="w-px self-stretch bg-[#d1d5db] my-0 mx-4"></div>
+                <div className="flex-1 flex flex-col items-start self-start text-left">
+                  <div className="text-sm font-medium text-[#1a1a1a] mb-1 text-left">Digital</div>
+                <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
                   {networkingStats?.allTime?.social_media_count || 0}
                 </div>
               </div>
-                <div className="pathfinder-personal-dashboard__stat-divider"></div>
-                <div className="pathfinder-personal-dashboard__stat-item">
-                  <div className="pathfinder-personal-dashboard__stat-label">IRL</div>
-                <div className="pathfinder-personal-dashboard__stat-value">
+                <div className="w-px self-stretch bg-[#d1d5db] my-0 mx-4"></div>
+                <div className="flex-1 flex flex-col items-start self-start text-left">
+                  <div className="text-sm font-medium text-[#1a1a1a] mb-1 text-left">IRL</div>
+                <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
                   {networkingStats?.allTime?.in_person_count || 0}
                   </div>
                 </div>
-              </div>
+                </CardContent>
+              </Card>
               {/* Combined Build Tracker Card */}
-              <Link to="/pathfinder/projects" className="pathfinder-personal-dashboard__stat-card pathfinder-personal-dashboard__stat-card--merged pathfinder-personal-dashboard__stat-card--builds pathfinder-personal-dashboard__stat-card--clickable">
-                <div className="pathfinder-personal-dashboard__stat-item">
-                  <div className="pathfinder-personal-dashboard__stat-label">Builds in Progress</div>
-                <div className="pathfinder-personal-dashboard__stat-value">
+              <Link to="/pathfinder/projects" className="col-span-2 no-underline text-inherit">
+              <Card className="flex-row items-center justify-between bg-white border-[#e0e0e0] h-full transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+                <CardContent className="p-6 flex items-center justify-between w-full gap-4">
+                <div className="flex-1 flex flex-col items-start self-start text-left">
+                  <div className="text-sm font-medium text-[#1a1a1a] mb-1 text-left">Builds in Progress</div>
+                <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
                     {projectStats ? (parseInt(projectStats.planning_count || 0) + parseInt(projectStats.development_count || 0) + parseInt(projectStats.testing_count || 0)) : 0}
                   </div>
                 </div>
-                <div className="pathfinder-personal-dashboard__stat-divider"></div>
-                <div className="pathfinder-personal-dashboard__stat-item">
-                  <div className="pathfinder-personal-dashboard__stat-label">Builds Completed</div>
-                  <div className="pathfinder-personal-dashboard__stat-value">
+                <div className="w-px self-stretch bg-[#d1d5db] my-0 mx-4"></div>
+                <div className="flex-1 flex flex-col items-start self-start text-left">
+                  <div className="text-sm font-medium text-[#1a1a1a] mb-1 text-left">Builds Completed</div>
+                  <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
                     {projectStats?.launch_count || 0}
                 </div>
               </div>
+                </CardContent>
+              </Card>
               </Link>
             </div>
           </div>
 
           {/* Application Statistics */}
-          <div className="pathfinder-personal-dashboard__section pathfinder-personal-dashboard__section--with-divider">
-            <div className="pathfinder-personal-dashboard__section-header">
-              <h3>Job Applications</h3>
-              <Link to="/pathfinder/applications" className="pathfinder-personal-dashboard__view-link">
+          <div className="mb-8 pt-8 border-t border-[rgba(66,66,234,0.15)]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="m-0 text-xl font-semibold text-[#1a1a1a]">Job Applications</h3>
+              <Link to="/pathfinder/applications" className="text-[#4242ea] no-underline font-semibold text-[0.95rem] transition-colors duration-200 hover:text-[#3333d1]">
                 View All →
               </Link>
             </div>
@@ -760,91 +789,114 @@ function PathfinderPersonalDashboard() {
             {/* Weekly Stats */}
             {applicationStats?.weekly && (
               <>
-                <div className="pathfinder-personal-dashboard__stats-period">
-                  <span className="pathfinder-personal-dashboard__period-label">This Week</span>
-                  <span className="pathfinder-personal-dashboard__period-dates">
+                <div className="flex items-baseline gap-2 mt-6 mb-2">
+                  <span className="text-xs font-bold text-[#666666] uppercase tracking-wide">This Week</span>
+                  <span className="text-[0.7rem] text-[#999999] font-medium opacity-70">
                     ({applicationStats.weekly.week_start_date && new Date(applicationStats.weekly.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {applicationStats.weekly.week_end_date && new Date(applicationStats.weekly.week_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
                   </span>
                 </div>
-                <div className="pathfinder-personal-dashboard__stats pathfinder-personal-dashboard__stats--weekly">
-                  <div className={`pathfinder-personal-dashboard__stat-card pathfinder-personal-dashboard__stat-card--weekly ${getFireTier(applicationStats.weekly.trends?.prospects) === 3 ? 'pathfinder-personal-dashboard__stat-card--fire-tier-3' : ''}`}>
-                    <div className="pathfinder-personal-dashboard__stat-label">Prospects</div>
-                    <div className="pathfinder-personal-dashboard__stat-value">
-                      {applicationStats.weekly.prospects || 0}
-                    </div>
-                    {applicationStats.weekly.trends && renderTrend(applicationStats.weekly.trends.prospects, getFireTier(applicationStats.weekly.trends.prospects))}
-                  </div>
-                  <div className={`pathfinder-personal-dashboard__stat-card pathfinder-personal-dashboard__stat-card--weekly ${getFireTier(applicationStats.weekly.trends?.totalApplications) === 3 ? 'pathfinder-personal-dashboard__stat-card--fire-tier-3' : ''}`}>
-                    <div className="pathfinder-personal-dashboard__stat-label">Total Applications</div>
-                    <div className="pathfinder-personal-dashboard__stat-value">
-                      {applicationStats.weekly.total_applications || 0}
-                    </div>
-                    {applicationStats.weekly.trends && renderTrend(applicationStats.weekly.trends.totalApplications, getFireTier(applicationStats.weekly.trends.totalApplications))}
-                  </div>
-                  <div className={`pathfinder-personal-dashboard__stat-card pathfinder-personal-dashboard__stat-card--weekly ${getFireTier(applicationStats.weekly.trends?.interviews) === 3 ? 'pathfinder-personal-dashboard__stat-card--fire-tier-3' : ''}`}>
-                    <div className="pathfinder-personal-dashboard__stat-label">Interviews</div>
-                    <div className="pathfinder-personal-dashboard__stat-value">
-                      {applicationStats.weekly.interview_count || 0}
-                    </div>
-                    {applicationStats.weekly.trends && renderTrend(applicationStats.weekly.trends.interviews, getFireTier(applicationStats.weekly.trends.interviews))}
-                  </div>
-                  <div className={`pathfinder-personal-dashboard__stat-card pathfinder-personal-dashboard__stat-card--weekly ${getFireTier(applicationStats.weekly.trends?.offers) === 3 ? 'pathfinder-personal-dashboard__stat-card--fire-tier-3' : ''}`}>
-                    <div className="pathfinder-personal-dashboard__stat-label">Offers</div>
-                    <div className="pathfinder-personal-dashboard__stat-value">
-                      {applicationStats.weekly.offer_count || 0}
-                    </div>
-                    {applicationStats.weekly.trends && renderTrend(applicationStats.weekly.trends.offers, getFireTier(applicationStats.weekly.trends.offers))}
-                  </div>
-                  <div className="pathfinder-personal-dashboard__stat-card pathfinder-personal-dashboard__stat-card--weekly">
-                    <div className="pathfinder-personal-dashboard__stat-label">Rejected</div>
-                    <div className="pathfinder-personal-dashboard__stat-value">
-                      {applicationStats.weekly.rejected_count || 0}
-                    </div>
-                    {applicationStats.weekly.trends && renderTrend(applicationStats.weekly.trends.rejected)}
-                  </div>
+                <div className="grid grid-cols-5 gap-4 overflow-visible mb-4">
+                  <Card className={`bg-white border-[#e0e0e0] transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${getFireTier(applicationStats.weekly.trends?.prospects) === 3 ? 'animate-pulse' : ''}`}>
+                    <CardContent className="p-4 text-left">
+                      <div className="text-sm font-medium text-[#1a1a1a] mb-1">Prospects</div>
+                      <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
+                        {applicationStats.weekly.prospects || 0}
+                      </div>
+                      {applicationStats.weekly.trends && renderTrend(applicationStats.weekly.trends.prospects, getFireTier(applicationStats.weekly.trends.prospects))}
+                    </CardContent>
+                  </Card>
+                  <Card className={`bg-white border-[#e0e0e0] transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${getFireTier(applicationStats.weekly.trends?.totalApplications) === 3 ? 'animate-pulse' : ''}`}>
+                    <CardContent className="p-4 text-left">
+                      <div className="text-sm font-medium text-[#1a1a1a] mb-1">Total Applications</div>
+                      <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
+                        {applicationStats.weekly.total_applications || 0}
+                      </div>
+                      {applicationStats.weekly.trends && renderTrend(applicationStats.weekly.trends.totalApplications, getFireTier(applicationStats.weekly.trends.totalApplications))}
+                    </CardContent>
+                  </Card>
+                  <Card className={`bg-white border-[#e0e0e0] transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${getFireTier(applicationStats.weekly.trends?.interviews) === 3 ? 'animate-pulse' : ''}`}>
+                    <CardContent className="p-4 text-left">
+                      <div className="text-sm font-medium text-[#1a1a1a] mb-1">Interviews</div>
+                      <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
+                        {applicationStats.weekly.interview_count || 0}
+                      </div>
+                      {applicationStats.weekly.trends && renderTrend(applicationStats.weekly.trends.interviews, getFireTier(applicationStats.weekly.trends.interviews))}
+                    </CardContent>
+                  </Card>
+                  <Card className={`bg-white border-[#e0e0e0] transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${getFireTier(applicationStats.weekly.trends?.offers) === 3 ? 'animate-pulse' : ''}`}>
+                    <CardContent className="p-4 text-left">
+                      <div className="text-sm font-medium text-[#1a1a1a] mb-1">Offers</div>
+                      <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
+                        {applicationStats.weekly.offer_count || 0}
+                      </div>
+                      {applicationStats.weekly.trends && renderTrend(applicationStats.weekly.trends.offers, getFireTier(applicationStats.weekly.trends.offers))}
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-white border-[#e0e0e0] transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+                    <CardContent className="p-4 text-left">
+                      <div className="text-sm font-medium text-[#1a1a1a] mb-1">Rejected</div>
+                      <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
+                        {applicationStats.weekly.rejected_count || 0}
+                      </div>
+                      {applicationStats.weekly.trends && renderTrend(applicationStats.weekly.trends.rejected)}
+                    </CardContent>
+                  </Card>
                 </div>
               </>
             )}
             
             {/* All-Time Stats */}
-            <div className="pathfinder-personal-dashboard__stats-period">
-              <span className="pathfinder-personal-dashboard__period-label">All Time</span>
+            <div className="flex items-baseline gap-2 mt-6 mb-2">
+              <span className="text-xs font-bold text-[#666666] uppercase tracking-wide">All Time</span>
             </div>
-            <div className="pathfinder-personal-dashboard__stats">
-              <div className="pathfinder-personal-dashboard__stat-card">
-                <div className="pathfinder-personal-dashboard__stat-label">Prospects</div>
-                <div className="pathfinder-personal-dashboard__stat-value">
-                  {applicationStats?.allTime?.prospects || 0}
-                </div>
-              </div>
-              <div className="pathfinder-personal-dashboard__stat-card">
-                <div className="pathfinder-personal-dashboard__stat-label">Total Applications</div>
-                <div className="pathfinder-personal-dashboard__stat-value">
-                  {applicationStats?.allTime?.total_applications || 0}
-                </div>
-              </div>
-              <div className="pathfinder-personal-dashboard__stat-card">
-                <div className="pathfinder-personal-dashboard__stat-label">Interviews</div>
-                <div className="pathfinder-personal-dashboard__stat-value">
-                  {applicationStats?.allTime?.interview_count || 0}
-                </div>
-              </div>
-              <div className="pathfinder-personal-dashboard__stat-card">
-                <div className="pathfinder-personal-dashboard__stat-label">Offers</div>
-                <div className="pathfinder-personal-dashboard__stat-value">
-                  {applicationStats?.allTime?.offer_count || 0}
-                </div>
-              </div>
-              <div className="pathfinder-personal-dashboard__stat-card">
-                <div className="pathfinder-personal-dashboard__stat-label">Rejected</div>
-                <div className="pathfinder-personal-dashboard__stat-value">
-                  {applicationStats?.allTime?.rejected_count || 0}
-                </div>
-              </div>
+            <div className="grid grid-cols-5 gap-4 overflow-visible">
+              <Card className="bg-white border-[#e0e0e0] transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+                <CardContent className="p-4 text-left">
+                  <div className="text-sm font-medium text-[#1a1a1a] mb-1">Prospects</div>
+                  <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
+                    {applicationStats?.allTime?.prospects || 0}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-white border-[#e0e0e0] transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+                <CardContent className="p-4 text-left">
+                  <div className="text-sm font-medium text-[#1a1a1a] mb-1">Total Applications</div>
+                  <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
+                    {applicationStats?.allTime?.total_applications || 0}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-white border-[#e0e0e0] transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+                <CardContent className="p-4 text-left">
+                  <div className="text-sm font-medium text-[#1a1a1a] mb-1">Interviews</div>
+                  <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
+                    {applicationStats?.allTime?.interview_count || 0}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-white border-[#e0e0e0] transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+                <CardContent className="p-4 text-left">
+                  <div className="text-sm font-medium text-[#1a1a1a] mb-1">Offers</div>
+                  <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
+                    {applicationStats?.allTime?.offer_count || 0}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-white border-[#e0e0e0] transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+                <CardContent className="p-4 text-left">
+                  <div className="text-sm font-medium text-[#1a1a1a] mb-1">Rejected</div>
+                  <div className="text-3xl font-bold text-[#1a1a1a] mb-1 leading-none">
+                    {applicationStats?.allTime?.rejected_count || 0}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Loading Curtain */}
+      <LoadingCurtain isLoading={isLoading} />
     </div>
   );
 }

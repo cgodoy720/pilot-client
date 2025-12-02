@@ -1,94 +1,385 @@
+/* Dashboard - Figma Design Implementation */
+/* Using BEM naming conventions */
+/* Font: Inter (Proxima Nova alternative) */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@font-face {
+  font-family: 'Proxima Nova';
+  src: url('./assets/fonts/Proxima Nova Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+
+@font-face {
+  font-family: "Proxima Nova Bold";
+  src: url("https://db.onlinewebfonts.com/t/72b6f2c9990bd3d37b8013a59ed78902.eot");
+  src: url("https://db.onlinewebfonts.com/t/72b6f2c9990bd3d37b8013a59ed78902.eot?#iefix")format("embedded-opentype"),
+  url("https://db.onlinewebfonts.com/t/72b6f2c9990bd3d37b8013a59ed78902.woff2")format("woff2"),
+  url("https://db.onlinewebfonts.com/t/72b6f2c9990bd3d37b8013a59ed78902.woff")format("woff"),
+  url("https://db.onlinewebfonts.com/t/72b6f2c9990bd3d37b8013a59ed78902.ttf")format("truetype"),
+  url("https://db.onlinewebfonts.com/t/72b6f2c9990bd3d37b8013a59ed78902.svg#Proxima Nova Bold")format("svg");
+}
+
+
+
+:root {
+  --color-pursuit-purple: #4242EA;
+  --color-carbon-black: #1E1E1E;
+  --color-stardust: #E3E3E3;
+  --color-background: #EFEFEF;
+  --color-white: #FFFFFF;
+  --color-divider: #C8C8C8;
+  --color-mastery-pink: #FF33FF;
+  --font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
+  --font-family-bold: 'Proxima Nova Bold', 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  @keyframes slide-in-from-right {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-in-from-left {
+    from {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-out-to-right {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  }
+
+  @keyframes slide-out-to-left {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes curtain-reveal {
+    0% {
+      clip-path: inset(0 0 0 0);
+    }
+    100% {
+      clip-path: inset(0 0 0 100%);
+    }
+  }
+
+  @keyframes fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  .animate-curtain-reveal {
+    position: relative;
+  }
+
+  .animate-curtain-reveal::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 50px;
+    width: calc(100vw - 50px);
+    height: 100vh;
+    background: linear-gradient(90deg, #4242EA 30.37%, #FFD3C2 144.24%);
+    z-index: 9999;
+    animation: curtain-reveal 2s ease-out forwards;
+    animation-delay: 1s;
+    pointer-events: none;
+  }
+
+  .animate-curtain-reveal::after {
+    content: 'LOADING';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: #FFFFFF;
+    z-index: 10000;
+    animation: fade-out 0.3s ease-out forwards;
+    animation-delay: 2.7s;
+    pointer-events: none;
+  }
+
+  @media (max-width: 768px) {
+    .animate-curtain-reveal::before {
+      left: 0;
+      width: 100vw;
+    }
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-from-right 0.4s ease-out;
+  }
+
+  .animate-slide-in-left {
+    animation: slide-in-from-left 0.4s ease-out;
+  }
+
+  .slide-in-from-right {
+    animation: slide-in-from-right 0.5s ease-out;
+  }
+
+  .slide-out-to-right {
+    animation: slide-out-to-right 0.3s ease-in;
+  }
+
+  .data-\[state\=open\]\:animate-in[data-state="open"] {
+    animation: fade-in 0.5s ease-out;
+  }
+
+  .data-\[state\=closed\]\:animate-out[data-state="closed"] {
+    animation: fade-out 0.3s ease-in;
+  }
+
+  .data-\[state\=closed\]\:slide-out-to-right[data-state="closed"] {
+    animation: slide-out-to-right 0.3s ease-in;
+  }
+
+  .data-\[state\=open\]\:slide-in-from-right[data-state="open"] {
+    animation: slide-in-from-right 0.5s ease-out;
+  }
+
+  /* Neural Network Animations */
+  @keyframes draw-connection {
+    0% {
+      stroke-dasharray: 0 100;
+      opacity: 0;
+    }
+    50% {
+      opacity: 0.6;
+    }
+    100% {
+      stroke-dasharray: 100 0;
+      opacity: 0.8;
+    }
+  }
+
+  @keyframes node-activate {
+    0% {
+      transform: scale(0);
+      opacity: 0;
+      filter: drop-shadow(0 0 0 transparent);
+    }
+    50% {
+      transform: scale(1.3);
+      filter: drop-shadow(0 0 8px #4242EA);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+      filter: drop-shadow(0 0 4px #4242EA);
+    }
+  }
+
+  @keyframes flow-data {
+    0% {
+      opacity: 0;
+      filter: drop-shadow(0 0 0 transparent);
+    }
+    50% {
+      opacity: 1;
+      filter: drop-shadow(0 0 6px #FFD3C2);
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes flash-sweep {
+    0% {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    50% {
+      opacity: 0.8;
+    }
+    100% {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  }
+
+  @keyframes neural-pulse {
+    0%, 100% {
+      box-shadow: 0 0 20px #4242EA;
+    }
+    50% {
+      box-shadow: 0 0 40px #4242EA, 0 0 60px #4242EA;
+    }
+  }
+
+  .animate-draw-connection {
+    animation: draw-connection 0.8s ease-out forwards;
+  }
+
+  .animate-node-activate {
+    animation: node-activate 0.6s ease-out forwards;
+  }
+
+  .animate-flow-data {
+    animation: flow-data 1s ease-in-out infinite;
+  }
+
+  .animate-flash-sweep {
+    animation: flash-sweep 0.7s ease-out forwards;
+  }
+
+  .animate-neural-pulse {
+    animation: neural-pulse 1s ease-in-out infinite;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.8s ease-out forwards;
+    opacity: 0;
+  }
+
+  .font-proxima-bold {
+    font-family: var(--font-family-bold);
+  }
+
+  .font-proxima {
+    font-family: var(--font-family);
+  }
+
+  /* Performance Page Scrollbar Styling */
+  .performance-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .performance-scrollbar::-webkit-scrollbar-track {
+    background: #EFEFEF;
+  }
+
+  .performance-scrollbar::-webkit-scrollbar-thumb {
+    background: #4242EA;
+    border-radius: 4px;
+  }
+
+  .performance-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #3535C7;
+  }
+
+  /* Firefox scrollbar styling */
+  .performance-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #4242EA #EFEFEF;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 94%;
+    --foreground: 0 0% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 12%;
+    --primary: 242 72% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 89%;
+    --secondary-foreground: 0 0% 12%;
+    --muted: 0 0% 89%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 0 0% 89%;
+    --accent-foreground: 0 0% 12%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 78%;
+    --input: 0 0% 78%;
+    --ring: 242 72% 59%;
+    --radius: 0.5rem;
+  }
+}
+
 * {
+  border-color: hsl(var(--border));
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  width: 100%;
-  background-color: #0a0f1e;
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-#root {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-}
-
-/* Remove ALL other styles - delete everything else */
-
-:root {
-  /* Color palette */
-  --color-primary: #4242ea;
-  --color-primary-hover: #5555ff;
-  --color-primary-dark: #3131d9; /* Darker shade for hover states */
-  --color-primary-rgb: 66, 66, 234; /* RGB values of primary color for rgba() */
-  --color-primary-transparent: rgba(66, 66, 234, 0.1); /* Transparent primary for backgrounds */
-  --color-primary-transparent-light: rgba(66, 66, 234, 0.05); /* Lighter transparent primary */
-  --color-error: #ff4f4f; /* Error/danger color */
-  --color-navbar: #1a1f2c;
-  --color-background-dark: #1a1f2c; /* Dark mode: dark navy */
-  --color-background-darker: #0a0f1e; /* Dark mode: darker navy */
-  --color-background-light: #242938; /* Dark mode: lighter navy */
-  --color-text-primary: #ffffff; /* Dark mode: white text */
-  --color-text-secondary: #a0a0a0; /* Dark mode: light gray text */
-  --color-text-muted: rgba(255, 255, 255, 0.5); /* Dark mode: muted white text */
-  --color-border: #2a2f3e; /* Dark mode: dark gray borders */
-  
-  /* Spacing */
-  --spacing-xs: 0.25rem;
-  --spacing-sm: 0.5rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 1.5rem;
-  --spacing-xl: 2rem;
-  
-  /* Transitions */
-  --transition-speed: 0.3s;
-}
-
 body {
-  margin: 0;
-  padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  background-color: #EFEFEF;
+  color: hsl(var(--foreground));
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--color-background-darker);
-  color: var(--color-text-primary);
-  overflow-x: hidden;
 }
 
-/* Hide scrollbars globally */
-*::-webkit-scrollbar {
-  display: none;
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
+/* Global Scrollbar Styling - Pursuit Purple */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #EFEFEF;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4242EA;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3535C7;
+}
+
+/* Firefox scrollbar styling */
 * {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
-
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
-}
-
-/* Loading screen */
-.loading-screen {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  width: 100%;
-  background-color: var(--color-background-dark);
-  color: var(--color-text-primary);
-  font-size: 1.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: #4242EA #EFEFEF;
 }

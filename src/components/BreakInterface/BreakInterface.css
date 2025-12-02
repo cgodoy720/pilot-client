@@ -1,0 +1,91 @@
+.break-interface {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg-light);
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.break-interface__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 600px;
+  text-align: center;
+}
+
+.break-interface__heading {
+  font-family: 'Proxima Nova', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--color-carbon-black);
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.break-interface__message {
+  font-family: 'Proxima Nova', sans-serif;
+  font-size: 1.125rem;
+  font-weight: 400;
+  color: var(--color-carbon-black);
+  margin-bottom: 2rem;
+  line-height: 1.6;
+  opacity: 0.8;
+}
+
+.break-interface__gif-container {
+  width: 100%;
+  max-width: 480px;
+  margin-bottom: 2rem;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.break-interface__gif {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.break-interface__hint {
+  font-family: 'Proxima Nova', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--color-carbon-black);
+  opacity: 0.6;
+  margin-top: 1rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .break-interface__heading {
+    font-size: 2rem;
+  }
+  
+  .break-interface__message {
+    font-size: 1rem;
+  }
+  
+  .break-interface__gif-container {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .break-interface {
+    padding: 1rem;
+  }
+  
+  .break-interface__heading {
+    font-size: 1.75rem;
+  }
+  
+  .break-interface__message {
+    font-size: 0.9375rem;
+  }
+}
+

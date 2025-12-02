@@ -1,26 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  CardActions,
-  Button,
-  Grid,
-  Alert,
-  Tabs,
-  Tab,
-  Container,
-  CircularProgress
-} from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import AssessmentIcon from '@mui/icons-material/Assessment';
-import GroupsIcon from '@mui/icons-material/Groups';
-import AnalyticsIcon from '@mui/icons-material/Analytics';
-import SchoolIcon from '@mui/icons-material/School';
-import GetAppIcon from '@mui/icons-material/GetApp';
+import { BarChart3, Users, TrendingUp, GraduationCap, Download, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { fetchUserStats } from '../../utils/statsApi';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/card';
 import CohortPerformanceDashboard from '../../components/CohortPerformanceDashboard/CohortPerformanceDashboard';
 import TodaysAttendanceOverview from '../../components/TodaysAttendanceOverview/TodaysAttendanceOverview';
 import ExcuseManagementInterface from '../../components/ExcuseManagementInterface/ExcuseManagementInterface';
@@ -31,12 +15,11 @@ import NetworkStatusIndicator from '../../components/NetworkStatusIndicator/Netw
 import OfflineModeMessage from '../../components/OfflineModeMessage/OfflineModeMessage';
 import QueuedActionsPanel from '../../components/QueuedActionsPanel/QueuedActionsPanel';
 import ConnectivityNotification from '../../components/ConnectivityNotification/ConnectivityNotification';
-import './AdminAttendanceDashboard.css';
 
 const AdminAttendanceDashboard = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -64,368 +47,271 @@ const AdminAttendanceDashboard = () => {
     }
   }, [token, isAdmin]);
 
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-  };
-
   if (!isAdmin) {
     return (
-      <Box className="admin-attendance-dashboard">
-        <Alert severity="error">
-          Access denied. Admin or staff privileges required.
-        </Alert>
-      </Box>
+      <div className="min-h-screen bg-[#EFEFEF] p-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-red-50 text-red-600 px-6 py-8 rounded-lg border border-red-200 text-center">
+            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+            <p>Admin or staff privileges required.</p>
+          </div>
+        </div>
+      </div>
     );
   }
 
-  const attendanceTools = [
+  const featureCards = [
+    {
+      id: 'todays-attendance',
+      tab: 'todays-attendance',
+      title: "Today's Attendance",
+      description: 'Real-time attendance tracking and daily overview',
+      icon: BarChart3,
+      gradient: 'from-[#667eea] to-[#764ba2]',
+      shadowColor: 'rgba(102, 126, 234, 0.4)'
+    },
+    {
+      id: 'cohort-performance',
+      tab: 'cohort-performance',
+      title: 'Cohort Performance',
+      description: 'Monitor attendance rates and trends by cohort',
+      icon: TrendingUp,
+      gradient: 'from-[#f093fb] to-[#f5576c]',
+      shadowColor: 'rgba(240, 147, 251, 0.4)'
+    },
+    {
+      id: 'excuse-management',
+      tab: 'excuse-management',
+      title: 'Excuse Management',
+      description: 'Manage excused absences and modifications',
+      icon: Users,
+      gradient: 'from-[#4facfe] to-[#00f2fe]',
+      shadowColor: 'rgba(79, 172, 254, 0.4)'
+    },
+    {
+      id: 'csv-export',
+      tab: 'csv-export',
+      title: 'CSV Export',
+      description: 'Export attendance data for analysis and reporting',
+      icon: Download,
+      gradient: 'from-[#43e97b] to-[#38f9d7]',
+      shadowColor: 'rgba(67, 233, 123, 0.4)'
+    }
+  ];
+
+  const externalTools = [
     {
       title: 'Main Admin Dashboard',
       description: 'Performance metrics, task analysis, and administrative tools.',
-      icon: <AnalyticsIcon sx={{ fontSize: 40 }} />,
+      icon: TrendingUp,
       path: '/admin',
-      color: '#1976d2'
+      color: '#4242EA'
     },
     {
       title: 'Admissions Dashboard',
       description: 'Manage applications, info sessions, and workshop registrations.',
-      icon: <GroupsIcon sx={{ fontSize: 40 }} />,
+      icon: Users,
       path: '/admissions-dashboard',
-      color: '#388e3c'
+      color: '#22C55E'
     },
     {
       title: 'Builder Check-in Site',
       description: 'Direct link to the builder-facing attendance check-in interface.',
-      icon: <SchoolIcon sx={{ fontSize: 40 }} />,
+      icon: GraduationCap,
       path: 'https://platform.pursuit.org/admin-dashboard',
-      color: '#f57c00',
+      color: '#F97316',
       external: true
     }
   ];
 
-
   return (
     <AdminDashboardErrorBoundary>
       <ConnectivityNotification />
-      <Box className="admin-attendance-dashboard">
-        <Container maxWidth="xl" sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 0 }}>
-        <Box className="admin-attendance-dashboard__header">
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h4" component="h1" className="admin-attendance-dashboard__title">
-              Admin Attendance Dashboard
-            </Typography>
-            <NetworkStatusIndicator />
-          </Box>
-        </Box>
-
-        {/* Navigation Tabs */}
-        <Box className="admin-attendance-dashboard__tabs-container" sx={{ mb: 1 }}>
-          <Tabs
-            value={activeTab}
-            onChange={handleTabChange}
-            className="admin-attendance-dashboard__tabs"
-            variant="scrollable"
-            scrollButtons="auto"
-            aria-label="Admin attendance dashboard tabs"
-          >
-            <Tab label="Overview" id="attendance-tab-0" aria-controls="attendance-tabpanel-0" />
-            <Tab label="Today's Attendance" id="attendance-tab-1" aria-controls="attendance-tabpanel-1" />
-            <Tab label="Cohort Performance" id="attendance-tab-2" aria-controls="attendance-tabpanel-2" />
-            <Tab label="Excuse Management" id="attendance-tab-3" aria-controls="attendance-tabpanel-3" />
-            <Tab label="CSV Export" id="attendance-tab-4" aria-controls="attendance-tabpanel-4" />
-            <Tab label="Other Tools" id="attendance-tab-5" aria-controls="attendance-tabpanel-5" />
-          </Tabs>
-        </Box>
-
-        {/* Queued Actions Panel */}
-        <QueuedActionsPanel />
-
-        {/* Tab Content */}
-        <Box
-          className="admin-attendance-dashboard__tab-content"
-          role="tabpanel"
-          id={`attendance-tabpanel-${activeTab}`}
-          aria-labelledby={`attendance-tab-${activeTab}`}
-          sx={{ flexGrow: 1 }}
-        >
-          {/* Overview Tab */}
-          {activeTab === 0 && (
-            <Box>
-              {/* Feature Cards Grid */}
-              <Grid container spacing={3} sx={{ mb: 4 }}>
-                {/* Today's Attendance Card */}
-                <Grid item xs={12} md={6} lg={3}>
-                  <Card
-                    sx={{
-                      height: '100%',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      color: 'white',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: '0 12px 24px rgba(102, 126, 234, 0.4)'
-                      }
-                    }}
-                    onClick={() => setActiveTab(1)}
-                  >
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                        <AssessmentIcon sx={{ fontSize: 40, opacity: 0.9 }} />
-                      </Box>
-                      <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                        Today's Attendance
-                      </Typography>
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                        Real-time attendance tracking and daily overview
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-
-                {/* Cohort Performance Card */}
-                <Grid item xs={12} md={6} lg={3}>
-                  <Card
-                    sx={{
-                      height: '100%',
-                      background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                      color: 'white',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: '0 12px 24px rgba(240, 147, 251, 0.4)'
-                      }
-                    }}
-                    onClick={() => setActiveTab(2)}
-                  >
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                        <AnalyticsIcon sx={{ fontSize: 40, opacity: 0.9 }} />
-                      </Box>
-                      <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                        Cohort Performance
-                      </Typography>
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                        Monitor attendance rates and trends by cohort
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-
-                {/* Excuse Management Card */}
-                <Grid item xs={12} md={6} lg={3}>
-                  <Card
-                    sx={{
-                      height: '100%',
-                      background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                      color: 'white',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: '0 12px 24px rgba(79, 172, 254, 0.4)'
-                      }
-                    }}
-                    onClick={() => setActiveTab(3)}
-                  >
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                        <GroupsIcon sx={{ fontSize: 40, opacity: 0.9 }} />
-                      </Box>
-                      <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                        Excuse Management
-                      </Typography>
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                        Manage excused absences and modifications
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-
-                {/* CSV Export Card */}
-                <Grid item xs={12} md={6} lg={3}>
-                  <Card
-                    sx={{
-                      height: '100%',
-                      background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-                      color: 'white',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: '0 12px 24px rgba(67, 233, 123, 0.4)'
-                      }
-                    }}
-                    onClick={() => setActiveTab(4)}
-                  >
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                        <GetAppIcon sx={{ fontSize: 40, opacity: 0.9 }} />
-                      </Box>
-                      <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                        CSV Export
-                      </Typography>
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                        Export attendance data for analysis and reporting
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              </Grid>
-
-              {/* Info Section */}
-              <Card
-                sx={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  mb: 3
+      <div className="min-h-screen bg-[#EFEFEF]">
+        {/* Header */}
+        <div className="border-b border-[#C8C8C8] px-10 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 
+                className="text-2xl font-normal"
+                style={{
+                  background: 'linear-gradient(90deg, #1E1E1E 0%, #4242EA 55.29%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
                 }}
               >
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                    <Box
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '8px',
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
+                Admin Attendance Dashboard
+              </h1>
+              <p className="text-[#666666] mt-1">
+                Comprehensive tools for tracking, managing, and analyzing builder attendance.
+              </p>
+            </div>
+            <NetworkStatusIndicator />
+          </div>
+        </div>
+
+        <div className="p-8 max-w-[1400px] mx-auto">
+          {/* Queued Actions Panel */}
+          <QueuedActionsPanel />
+
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="bg-white border border-[#C8C8C8] p-1 mb-6 flex-wrap h-auto gap-1">
+              <TabsTrigger 
+                value="overview" 
+                className="data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-[#1E1E1E]"
+              >
+                Overview
+              </TabsTrigger>
+              <TabsTrigger 
+                value="todays-attendance"
+                className="data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-[#1E1E1E]"
+              >
+                Today's Attendance
+              </TabsTrigger>
+              <TabsTrigger 
+                value="cohort-performance"
+                className="data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-[#1E1E1E]"
+              >
+                Cohort Performance
+              </TabsTrigger>
+              <TabsTrigger 
+                value="excuse-management"
+                className="data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-[#1E1E1E]"
+              >
+                Excuse Management
+              </TabsTrigger>
+              <TabsTrigger 
+                value="csv-export"
+                className="data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-[#1E1E1E]"
+              >
+                CSV Export
+              </TabsTrigger>
+              <TabsTrigger 
+                value="other-tools"
+                className="data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-[#1E1E1E]"
+              >
+                Other Tools
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Overview Tab */}
+            <TabsContent value="overview" className="mt-0">
+              {/* Feature Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                {featureCards.map((card) => {
+                  const Icon = card.icon;
+                  return (
+                    <div
+                      key={card.id}
+                      onClick={() => setActiveTab(card.tab)}
+                      className={`bg-gradient-to-br ${card.gradient} rounded-lg p-5 text-white cursor-pointer transition-all duration-300 hover:-translate-y-1`}
+                      style={{ 
+                        boxShadow: `0 4px 15px ${card.shadowColor}`,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.boxShadow = `0 12px 24px ${card.shadowColor}`;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.boxShadow = `0 4px 15px ${card.shadowColor}`;
                       }}
                     >
-                      <AssessmentIcon sx={{ color: 'white' }} />
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="h6" sx={{ color: '#FFFFFF', mb: 1, fontWeight: 600 }}>
+                      <Icon className="h-10 w-10 mb-3 opacity-90" />
+                      <h3 className="text-lg font-semibold mb-1">{card.title}</h3>
+                      <p className="text-sm opacity-90">{card.description}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Info Section */}
+              <Card className="bg-white/80 backdrop-blur border-[#C8C8C8]">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div 
+                      className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
+                    >
+                      <BarChart3 className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h2 className="text-lg font-semibold text-[#1E1E1E] mb-2">
                         Attendance Management Hub
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)', mb: 2 }}>
+                      </h2>
+                      <p className="text-[#666666] mb-4">
                         Comprehensive tools for tracking, managing, and analyzing builder attendance across all cohorts.
-                      </Typography>
-                      <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6} md={3}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: '#667eea' }} />
-                            <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>
-                              Real-time tracking
-                            </Typography>
-                          </Box>
-                        </Grid>
-                        <Grid item xs={12} sm={6} md={3}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: '#f5576c' }} />
-                            <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>
-                              Performance analytics
-                            </Typography>
-                          </Box>
-                        </Grid>
-                        <Grid item xs={12} sm={6} md={3}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: '#4facfe' }} />
-                            <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>
-                              Excuse workflow
-                            </Typography>
-                          </Box>
-                        </Grid>
-                        <Grid item xs={12} sm={6} md={3}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: '#43e97b' }} />
-                            <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>
-                              Data export
-                            </Typography>
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </Box>
-                  </Box>
+                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-[#667eea]" />
+                          <span className="text-sm text-[#1E1E1E]">Real-time tracking</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-[#f5576c]" />
+                          <span className="text-sm text-[#1E1E1E]">Performance analytics</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-[#4facfe]" />
+                          <span className="text-sm text-[#1E1E1E]">Excuse workflow</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-[#43e97b]" />
+                          <span className="text-sm text-[#1E1E1E]">Data export</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
-            </Box>
-          )}
+            </TabsContent>
 
-          {/* Today's Attendance Tab */}
-          {activeTab === 1 && (
-            <TabErrorBoundary tabName="Today's Attendance">
+            {/* Today's Attendance Tab */}
+            <TabsContent value="todays-attendance" className="mt-0">
+              <TabErrorBoundary tabName="Today's Attendance">
+                <OfflineModeMessage>
+                  <TodaysAttendanceOverview />
+                </OfflineModeMessage>
+              </TabErrorBoundary>
+            </TabsContent>
+
+            {/* Cohort Performance Tab */}
+            <TabsContent value="cohort-performance" className="mt-0">
+              <TabErrorBoundary tabName="Cohort Performance">
+                <OfflineModeMessage showCachedData={true} cachedDataCount={stats?.cohorts?.length || 0}>
+                  <CohortPerformanceDashboard />
+                </OfflineModeMessage>
+              </TabErrorBoundary>
+            </TabsContent>
+
+            {/* Excuse Management Tab */}
+            <TabsContent value="excuse-management" className="mt-0">
+              <TabErrorBoundary tabName="Excuse Management">
+                <OfflineModeMessage>
+                  <ExcuseManagementInterface />
+                </OfflineModeMessage>
+              </TabErrorBoundary>
+            </TabsContent>
+
+            {/* CSV Export Tab */}
+            <TabsContent value="csv-export" className="mt-0">
+              <TabErrorBoundary tabName="CSV Export">
+                <OfflineModeMessage>
+                  <CSVExport />
+                </OfflineModeMessage>
+              </TabErrorBoundary>
+            </TabsContent>
+
+            {/* Other Tools Tab */}
+            <TabsContent value="other-tools" className="mt-0">
               <OfflineModeMessage>
-                <TodaysAttendanceOverview />
-              </OfflineModeMessage>
-            </TabErrorBoundary>
-          )}
-
-          {/* Cohort Performance Tab */}
-          {activeTab === 2 && (
-            <TabErrorBoundary tabName="Cohort Performance">
-              <OfflineModeMessage showCachedData={true} cachedDataCount={stats?.cohorts?.length || 0}>
-                <CohortPerformanceDashboard />
-              </OfflineModeMessage>
-            </TabErrorBoundary>
-          )}
-
-          {/* Excuse Management Tab */}
-          {activeTab === 3 && (
-            <TabErrorBoundary tabName="Excuse Management">
-              <OfflineModeMessage>
-                <ExcuseManagementInterface />
-              </OfflineModeMessage>
-            </TabErrorBoundary>
-          )}
-
-          {/* CSV Export Tab */}
-          {activeTab === 4 && (
-            <TabErrorBoundary tabName="CSV Export">
-              <OfflineModeMessage>
-                <CSVExport />
-              </OfflineModeMessage>
-            </TabErrorBoundary>
-          )}
-
-          {/* Other Tools Tab */}
-          {activeTab === 5 && (
-            <OfflineModeMessage>
-              <Grid container spacing={3} className="admin-attendance-dashboard__tools-grid">
-                {attendanceTools.map((tool, index) => (
-                <Grid item xs={12} md={6} lg={4} key={index}>
-                  <Card
-                    className="admin-attendance-dashboard__tool-card"
-                    sx={{
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-                      '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: '0 8px 25px rgba(0,0,0,0.15)'
-                      }
-                    }}
-                  >
-                    <CardContent className="admin-attendance-dashboard__tool-content">
-                      <Box
-                        className="admin-attendance-dashboard__tool-icon"
-                        sx={{
-                          color: tool.color,
-                          marginBottom: 2,
-                          display: 'flex',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        {tool.icon}
-                      </Box>
-                      <Typography variant="h6" component="h2" className="admin-attendance-dashboard__tool-title">
-                        {tool.title}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" className="admin-attendance-dashboard__tool-description">
-                        {tool.description}
-                      </Typography>
-                    </CardContent>
-                    <CardActions className="admin-attendance-dashboard__tool-actions">
-                      <Button
-                        size="small"
-                        variant="contained"
-                        sx={{ backgroundColor: tool.color }}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {externalTools.map((tool, index) => {
+                    const Icon = tool.icon;
+                    return (
+                      <Card 
+                        key={index}
+                        className="bg-white border-[#C8C8C8] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer"
                         onClick={() => {
                           if (tool.external) {
                             window.open(tool.path, '_blank');
@@ -433,20 +319,46 @@ const AdminAttendanceDashboard = () => {
                             navigate(tool.path);
                           }
                         }}
-                        fullWidth
                       >
-                        {tool.external ? 'Open External' : 'Access'}
-                      </Button>
-                    </CardActions>
-                  </Card>
-                </Grid>
-              ))}
-              </Grid>
-            </OfflineModeMessage>
-          )}
-        </Box>
-        </Container>
-      </Box>
+                        <CardContent className="p-6 text-center">
+                          <div 
+                            className="w-12 h-12 rounded-lg mx-auto mb-4 flex items-center justify-center"
+                            style={{ backgroundColor: `${tool.color}20` }}
+                          >
+                            <Icon className="h-6 w-6" style={{ color: tool.color }} />
+                          </div>
+                          <h3 className="text-lg font-semibold text-[#1E1E1E] mb-2">
+                            {tool.title}
+                          </h3>
+                          <p className="text-sm text-[#666666] mb-4">
+                            {tool.description}
+                          </p>
+                          <button
+                            className="group relative overflow-hidden inline-flex justify-center items-center px-6 py-2 w-full border rounded-md font-medium text-sm text-white cursor-pointer transition-colors duration-300"
+                            style={{ backgroundColor: tool.color, borderColor: tool.color }}
+                          >
+                            <span className="relative z-10 transition-colors duration-300 group-hover:text-[#1E1E1E] flex items-center gap-2">
+                              {tool.external ? (
+                                <>
+                                  Open External
+                                  <ExternalLink className="h-4 w-4" />
+                                </>
+                              ) : (
+                                'Access'
+                              )}
+                            </span>
+                            <div className="absolute inset-0 bg-white -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+                          </button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </OfflineModeMessage>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </AdminDashboardErrorBoundary>
   );
 };

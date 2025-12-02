@@ -1,16 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  Card,
-  CardContent,
-  CircularProgress,
-  Alert
-} from '@mui/material';
-import {
-  Refresh as RefreshIcon
-} from '@mui/icons-material';
+import { Button } from '../../../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Alert, AlertDescription } from '../../../components/ui/alert';
+import { ScrollArea } from '../../../components/ui/scroll-area';
+import { RefreshCw } from 'lucide-react';
+import LoadingState from './shared/LoadingState';
 
 const StatusTab = ({ showNotification, reloadPrompts }) => {
   const [currentPrompt, setCurrentPrompt] = useState(null);
@@ -50,93 +44,78 @@ const StatusTab = ({ showNotification, reloadPrompts }) => {
   };
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingState count={2} />;
   }
 
   if (!currentPrompt) {
     return (
-      <Alert severity="error">
-        Failed to load current system prompt. Please try refreshing the page.
+      <Alert variant="destructive" className="bg-red-50 border-red-200">
+        <AlertDescription className="font-proxima text-red-800">
+          Failed to load current system prompt. Please try refreshing the page.
+        </AlertDescription>
       </Alert>
     );
   }
 
   return (
-    <div className="prompt-tab">
-      <div className="prompt-tab__header">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
-          <Typography variant="h5" gutterBottom sx={{ color: 'var(--color-text-primary)' }}>
+          <h2 className="font-proxima-bold text-2xl text-[#1E1E1E] mb-2">
             Current AI System Prompt
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'var(--color-text-secondary)' }}>
+          </h2>
+          <p className="font-proxima text-[#666]">
             This is the complete assembled prompt that gets sent to the AI API for a sample task.
-          </Typography>
+          </p>
         </div>
-        <div className="prompt-tab__actions">
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={handleReload}
-          >
-            Reload & Refresh
-          </Button>
-        </div>
+        <Button
+          onClick={handleReload}
+          variant="outline"
+          className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3]"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Reload & Refresh
+        </Button>
       </div>
 
-      <Card sx={{ mt: 2, backgroundColor: 'var(--color-background-darker)' }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ color: 'var(--color-text-primary)' }}>
+      {/* Current Assembled Prompt */}
+      <Card className="bg-white border-[#C8C8C8]">
+        <CardHeader>
+          <CardTitle className="font-proxima-bold text-[#1E1E1E]">
             Current Assembled System Prompt
-          </Typography>
-          <Typography variant="body2" sx={{ mb: 2, color: 'var(--color-text-secondary)' }}>
+          </CardTitle>
+          <CardDescription className="font-proxima text-[#666]">
             Generated: {new Date(currentPrompt.assembled_at).toLocaleString()}
-          </Typography>
-          
-          <Box 
-            sx={{ 
-              backgroundColor: '#1A1F2C', 
-              color: '#fff',
-              padding: 2,
-              borderRadius: 1,
-              maxHeight: '60vh',
-              overflow: 'auto',
-              fontFamily: 'monospace',
-              fontSize: '0.875rem',
-              lineHeight: 1.6,
-              whiteSpace: 'pre-wrap',
-              textAlign: 'left'
-            }}
-          >
-            {currentPrompt.complete_system_prompt}
-          </Box>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-[60vh] w-full rounded-lg">
+            <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
+              <pre className="font-mono text-sm text-[#1E1E1E] whitespace-pre-wrap leading-relaxed">
+                {currentPrompt.complete_system_prompt}
+              </pre>
+            </div>
+          </ScrollArea>
         </CardContent>
       </Card>
 
-      <Card sx={{ mt: 2, backgroundColor: 'var(--color-background-darker)' }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ color: 'var(--color-text-primary)' }}>
+      {/* Sample Task */}
+      <Card className="bg-white border-[#C8C8C8]">
+        <CardHeader>
+          <CardTitle className="font-proxima-bold text-[#1E1E1E]">
             Sample Task Used for Demo
-          </Typography>
-          <Typography variant="body2" sx={{ mb: 2, color: 'var(--color-text-secondary)' }}>
+          </CardTitle>
+          <CardDescription className="font-proxima text-[#666]">
             This sample task shows how variables are replaced in the prompt.
-          </Typography>
-          
-          <Box 
-            sx={{ 
-              backgroundColor: '#1A1F2C', 
-              padding: 2,
-              borderRadius: 1,
-              fontFamily: 'monospace',
-              fontSize: '0.875rem',
-              textAlign: 'left'
-            }}
-          >
-            <pre style={{ color: '#fff', margin: 0 }}>{JSON.stringify(currentPrompt.components.sample_task, null, 2)}</pre>
-          </Box>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
+            <pre className="font-mono text-sm text-[#1E1E1E] whitespace-pre-wrap">
+              {JSON.stringify(currentPrompt.components.sample_task, null, 2)}
+            </pre>
+          </div>
         </CardContent>
       </Card>
     </div>

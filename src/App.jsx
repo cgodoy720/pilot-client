@@ -15,6 +15,7 @@ import Content from './pages/Content';
 import FacilitatorView from './pages/FacilitatorView';
 import AdminPrompts from './pages/AdminPrompts';
 import Stats from './pages/Stats';
+import Performance from './pages/Performance/Performance';
 import Account from './pages/Account/Account';
 import Payment from './pages/Payment/Payment';
 import Assessment from './pages/Assessment/Assessment';
@@ -170,11 +171,11 @@ function App() {
       <Routes>
         {/* Builder routes (with layout) */}
         <Route path="/dashboard" element={
-          <Layout>
+          <ProtectedRoute>
             <Dashboard />
-          </Layout>
+          </ProtectedRoute>
         } />
-        <Route path="/gpt" element={
+        <Route path="/ai-chat" element={
           <Layout>
             <GPT />
           </Layout>
@@ -246,7 +247,7 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
-        <Route path="/attendance-management" element={
+        <Route path="/admin-attendance-dashboard" element={
           <Layout>
             <AdminRoute>
               <AdminAttendanceDashboard />
@@ -302,9 +303,10 @@ function App() {
             </WorkshopAdminRoute>
           </Layout>
         } />
-        <Route path="/stats" element={
+        <Route path="/stats" element={<Navigate to="/performance" replace />} />
+        <Route path="/performance" element={
           <Layout>
-            <Stats />
+            <Performance />
           </Layout>
         } />
         <Route path="/account" element={
@@ -349,39 +351,41 @@ function App() {
         } />
         
         <Route path="/volunteer-feedback" element={
-          <VolunteerFeedback />
+          <Layout>
+            <VolunteerFeedback />
+          </Layout>
         } />
 
         {/* Form Builder routes (Admin/Staff only) */}
-        <Route path="/dashboard/forms" element={
+        <Route path="/forms" element={
           <Layout>
             <AdminRoute>
               <FormBuilderDashboard />
             </AdminRoute>
           </Layout>
         } />
-        <Route path="/dashboard/forms/new" element={
+        <Route path="/forms/new" element={
           <Layout>
             <AdminRoute>
               <FormEditor />
             </AdminRoute>
           </Layout>
         } />
-        <Route path="/dashboard/forms/:formId/edit" element={
+        <Route path="/forms/:formId/edit" element={
           <Layout>
             <AdminRoute>
               <FormEditor />
             </AdminRoute>
           </Layout>
         } />
-        <Route path="/dashboard/forms/:formId/submissions" element={
+        <Route path="/forms/:formId/submissions" element={
           <Layout>
             <AdminRoute>
               <FormSubmissions />
             </AdminRoute>
           </Layout>
         } />
-        <Route path="/dashboard/forms/:formId/analytics" element={
+        <Route path="/forms/:formId/analytics" element={
           <Layout>
             <AdminRoute>
               <FormAnalytics />

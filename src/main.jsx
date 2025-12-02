@@ -28,6 +28,7 @@ import PublicFormContainer from './pages/PublicForm/PublicFormContainer.jsx'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { isAuthenticated } from './utils/attendanceAuth'
 import './utils/globalErrorHandler.js' // Install global auth error handler
+import 'animate.css'
 import './index.css'
 
 // Protected route component

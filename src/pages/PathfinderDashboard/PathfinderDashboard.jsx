@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import './PathfinderDashboard.css';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 
 function PathfinderDashboard() {
   const { user, token } = useAuth();
@@ -156,195 +160,163 @@ function PathfinderDashboard() {
   }
 
   return (
-    <div className="pathfinder-dashboard">
-      <div className="pathfinder-dashboard__container">
-        <div className="pathfinder-dashboard__header">
-          <h1 className="pathfinder-dashboard__title">Pathfinder Admin Dashboard</h1>
-          <button 
-            className="pathfinder-dashboard__export-btn"
+    <div className="w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto p-6">
+      <div className="max-w-full mx-auto">
+        <div className="flex justify-between items-center mb-8 gap-4 flex-wrap">
+          <h1 className="text-2xl font-semibold text-[#1a1a1a] m-0">Pathfinder Admin Dashboard</h1>
+          <Button 
+            className="px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] hover:bg-[#3333d1] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(66,66,234,0.3)]"
             onClick={handleExport}
           >
             Export Data
-          </button>
+          </Button>
         </div>
 
         {error && (
-          <div className="pathfinder-dashboard__message pathfinder-dashboard__message--error">
+          <div className="p-4 bg-red-100 text-red-600 border border-red-200 rounded-md mb-6 font-medium">
             {error}
           </div>
         )}
 
         {/* Filters */}
-        <div className="pathfinder-dashboard__filters">
-          <div className="pathfinder-dashboard__filter-group">
-            <label>Cohort:</label>
-            <input
+        <Card className="bg-white border-[#e0e0e0] p-6 mb-6">
+          <div className="flex items-center gap-4">
+            <label className="font-medium text-[#1a1a1a] whitespace-nowrap">Cohort:</label>
+            <Input
               type="text"
               value={cohortFilter}
               onChange={(e) => setCohortFilter(e.target.value)}
               placeholder="Filter by cohort..."
+              className="flex-1 max-w-[400px] bg-white border-[#d0d0d0] text-[#1a1a1a]"
             />
           </div>
-        </div>
+        </Card>
 
         {/* View Tabs */}
-        <div className="pathfinder-dashboard__tabs">
-          <button
-            className={view === 'overview' ? 'active' : ''}
+        <div className="flex gap-0 border-b-2 border-[#e0e0e0] bg-[#f5f5f5] mb-8">
+          <Button
+            variant="ghost"
+            className={`px-6 py-4 bg-transparent border-none border-b-[3px] text-base font-semibold transition-all duration-200 relative top-0.5 whitespace-nowrap rounded-none ${
+              view === 'overview' 
+                ? 'text-[#4242ea] border-b-[#4242ea] bg-[rgba(66,66,234,0.05)]' 
+                : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
+            }`}
             onClick={() => setView('overview')}
           >
             Overview
-          </button>
-          <button
-            className={view === 'builders' ? 'active' : ''}
+          </Button>
+          <Button
+            variant="ghost"
+            className={`px-6 py-4 bg-transparent border-none border-b-[3px] text-base font-semibold transition-all duration-200 relative top-0.5 whitespace-nowrap rounded-none ${
+              view === 'builders' 
+                ? 'text-[#4242ea] border-b-[#4242ea] bg-[rgba(66,66,234,0.05)]' 
+                : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
+            }`}
             onClick={() => setView('builders')}
           >
             Builders
-          </button>
-          <button
-            className={view === 'companies' ? 'active' : ''}
+          </Button>
+          <Button
+            variant="ghost"
+            className={`px-6 py-4 bg-transparent border-none border-b-[3px] text-base font-semibold transition-all duration-200 relative top-0.5 whitespace-nowrap rounded-none ${
+              view === 'companies' 
+                ? 'text-[#4242ea] border-b-[#4242ea] bg-[rgba(66,66,234,0.05)]' 
+                : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
+            }`}
             onClick={() => setView('companies')}
           >
             Companies
-          </button>
+          </Button>
         </div>
 
         {/* Overview View */}
         {view === 'overview' && overview && (
-          <div className="pathfinder-dashboard__overview">
-            <div className="pathfinder-dashboard__stats">
-              <div className="pathfinder-dashboard__stat-card">
-                <div className="pathfinder-dashboard__stat-value">{overview.active_builders}</div>
-                <div className="pathfinder-dashboard__stat-label">Active Builders</div>
-              </div>
-              <div className="pathfinder-dashboard__stat-card">
-                <div className="pathfinder-dashboard__stat-value">{overview.total_applications}</div>
-                <div className="pathfinder-dashboard__stat-label">Total Applications</div>
-              </div>
-              <div className="pathfinder-dashboard__stat-card">
-                <div className="pathfinder-dashboard__stat-value">{overview.total_interviews}</div>
-                <div className="pathfinder-dashboard__stat-label">Total Interviews</div>
-              </div>
-              <div className="pathfinder-dashboard__stat-card">
-                <div className="pathfinder-dashboard__stat-value">{overview.total_networking_activities}</div>
-                <div className="pathfinder-dashboard__stat-label">Networking Activities</div>
-              </div>
-              <div className="pathfinder-dashboard__stat-card">
-                <div className="pathfinder-dashboard__stat-value">{overview.total_offers}</div>
-                <div className="pathfinder-dashboard__stat-label">Offers</div>
-              </div>
-              <div className="pathfinder-dashboard__stat-card">
-                <div className="pathfinder-dashboard__stat-value">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Card className="bg-white border-[#e0e0e0] text-center">
+              <CardContent className="p-6">
+                <div className="text-3xl font-bold text-[#1a1a1a] mb-2">{overview.active_builders}</div>
+                <div className="text-sm text-[#666666]">Active Builders</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border-[#e0e0e0] text-center">
+              <CardContent className="p-6">
+                <div className="text-3xl font-bold text-[#1a1a1a] mb-2">{overview.total_applications}</div>
+                <div className="text-sm text-[#666666]">Total Applications</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border-[#e0e0e0] text-center">
+              <CardContent className="p-6">
+                <div className="text-3xl font-bold text-[#1a1a1a] mb-2">{overview.total_interviews}</div>
+                <div className="text-sm text-[#666666]">Total Interviews</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border-[#e0e0e0] text-center">
+              <CardContent className="p-6">
+                <div className="text-3xl font-bold text-[#1a1a1a] mb-2">{overview.total_networking_activities}</div>
+                <div className="text-sm text-[#666666]">Networking Activities</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border-[#e0e0e0] text-center">
+              <CardContent className="p-6">
+                <div className="text-3xl font-bold text-[#1a1a1a] mb-2">{overview.total_offers}</div>
+                <div className="text-sm text-[#666666]">Offers</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border-[#e0e0e0] text-center">
+              <CardContent className="p-6">
+                <div className="text-3xl font-bold text-[#1a1a1a] mb-2">
                   {overview.avg_applications_per_builder 
                     ? parseFloat(overview.avg_applications_per_builder).toFixed(1) 
                     : '0'}
                 </div>
-                <div className="pathfinder-dashboard__stat-label">Avg Apps per Builder</div>
-              </div>
-            </div>
+                <div className="text-sm text-[#666666]">Avg Apps per Builder</div>
+              </CardContent>
+            </Card>
           </div>
         )}
 
         {/* Builders View */}
         {view === 'builders' && (
-          <div className="pathfinder-dashboard__builders">
-            <div className="pathfinder-dashboard__builders-list">
-              <table className="pathfinder-dashboard__table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Cohort</th>
-                    <th>Applications</th>
-                    <th>Interviews</th>
-                    <th>Networking</th>
-                    <th>Offers</th>
-                    <th>Last Activity</th>
-                  </tr>
-                </thead>
-                <tbody>
+          <Card className="bg-white border-[#e0e0e0]">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Cohort</TableHead>
+                    <TableHead>Applications</TableHead>
+                    <TableHead>Interviews</TableHead>
+                    <TableHead>Networking</TableHead>
+                    <TableHead>Offers</TableHead>
+                    <TableHead>Last Activity</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {builders.map(builder => (
-                    <tr 
+                    <TableRow 
                       key={builder.builder_id}
                       onClick={() => handleBuilderClick(builder)}
-                      className="pathfinder-dashboard__table-row"
+                      className="cursor-pointer hover:bg-gray-50"
                     >
-                      <td>{builder.first_name} {builder.last_name}</td>
-                      <td>{builder.cohort || 'N/A'}</td>
-                      <td>{builder.application_count}</td>
-                      <td>{builder.interview_count}</td>
-                      <td>{builder.networking_count}</td>
-                      <td>{builder.offer_count}</td>
-                      <td>
+                      <TableCell>{builder.first_name} {builder.last_name}</TableCell>
+                      <TableCell>{builder.cohort || 'N/A'}</TableCell>
+                      <TableCell>{builder.application_count}</TableCell>
+                      <TableCell>{builder.interview_count}</TableCell>
+                      <TableCell>{builder.networking_count}</TableCell>
+                      <TableCell>{builder.offer_count}</TableCell>
+                      <TableCell>
                         {builder.last_application_date 
                           ? new Date(builder.last_application_date).toLocaleDateString()
                           : builder.last_networking_date
                           ? new Date(builder.last_networking_date).toLocaleDateString()
                           : 'N/A'}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Builder Details Modal */}
-            {selectedBuilder && builderDetails && (
-              <div className="pathfinder-dashboard__modal-overlay" onClick={() => setSelectedBuilder(null)}>
-                <div className="pathfinder-dashboard__modal" onClick={(e) => e.stopPropagation()}>
-                  <div className="pathfinder-dashboard__modal-header">
-                    <h2>{selectedBuilder.first_name} {selectedBuilder.last_name}</h2>
-                    <button onClick={() => setSelectedBuilder(null)}>×</button>
-                  </div>
-                  <div className="pathfinder-dashboard__modal-body">
-                    <div className="pathfinder-dashboard__modal-stats">
-                      <div>
-                        <strong>Applications:</strong> {builderDetails.stats.total_applications}
-                      </div>
-                      <div>
-                        <strong>Interviews:</strong> {builderDetails.stats.total_interviews}
-                      </div>
-                      <div>
-                        <strong>Networking:</strong> {builderDetails.stats.total_networking}
-                      </div>
-                      <div>
-                        <strong>Offers:</strong> {builderDetails.stats.offers}
-                      </div>
-                      <div>
-                        <strong>Rejections:</strong> {builderDetails.stats.rejections}
-                      </div>
-                    </div>
-
-                    <h3>Recent Applications</h3>
-                    <div className="pathfinder-dashboard__modal-list">
-                      {builderDetails.applications.slice(0, 5).map(app => (
-                        <div key={app.job_application_id} className="pathfinder-dashboard__modal-item">
-                          <strong>{app.company_name}</strong> - {app.role_title}
-                          <br />
-                          <span className="pathfinder-dashboard__modal-meta">
-                            Stage: {app.stage} | Applied: {new Date(app.date_applied).toLocaleDateString()}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <h3>Recent Networking</h3>
-                    <div className="pathfinder-dashboard__modal-list">
-                      {builderDetails.networking.slice(0, 5).map(activity => (
-                        <div key={activity.networking_activity_id} className="pathfinder-dashboard__modal-item">
-                          <strong>{activity.type}</strong>
-                          {activity.company && ` at ${activity.company}`}
-                          <br />
-                          <span className="pathfinder-dashboard__modal-meta">
-                            {new Date(activity.date).toLocaleDateString()}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         )}
 
         {/* Companies View */}
@@ -466,6 +438,64 @@ function PathfinderDashboard() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Builder Details Modal */}
+        {selectedBuilder && builderDetails && (
+          <div className="pathfinder-dashboard__modal-overlay" onClick={() => setSelectedBuilder(null)}>
+            <div className="pathfinder-dashboard__modal" onClick={(e) => e.stopPropagation()}>
+              <div className="pathfinder-dashboard__modal-header">
+                <h2>{selectedBuilder.first_name} {selectedBuilder.last_name}</h2>
+                <button onClick={() => setSelectedBuilder(null)}>×</button>
+              </div>
+              <div className="pathfinder-dashboard__modal-body">
+                <div className="pathfinder-dashboard__modal-stats">
+                  <div>
+                    <strong>Applications:</strong> {builderDetails.stats.total_applications}
+                  </div>
+                  <div>
+                    <strong>Interviews:</strong> {builderDetails.stats.total_interviews}
+                  </div>
+                  <div>
+                    <strong>Networking:</strong> {builderDetails.stats.total_networking}
+                  </div>
+                  <div>
+                    <strong>Offers:</strong> {builderDetails.stats.offers}
+                  </div>
+                  <div>
+                    <strong>Rejections:</strong> {builderDetails.stats.rejections}
+                  </div>
+                </div>
+
+                <h3>Recent Applications</h3>
+                <div className="pathfinder-dashboard__modal-list">
+                  {builderDetails.applications.slice(0, 5).map(app => (
+                    <div key={app.job_application_id} className="pathfinder-dashboard__modal-item">
+                      <strong>{app.company_name}</strong> - {app.role_title}
+                      <br />
+                      <span className="pathfinder-dashboard__modal-meta">
+                        Stage: {app.stage} | Applied: {new Date(app.date_applied).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <h3>Recent Networking</h3>
+                <div className="pathfinder-dashboard__modal-list">
+                  {builderDetails.networking.slice(0, 5).map(activity => (
+                    <div key={activity.networking_activity_id} className="pathfinder-dashboard__modal-item">
+                      <strong>{activity.type}</strong>
+                      {activity.company && ` at ${activity.company}`}
+                      <br />
+                      <span className="pathfinder-dashboard__modal-meta">
+                        {new Date(activity.date).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

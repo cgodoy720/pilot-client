@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { getPublicForm, submitForm, generateSessionId } from '../../services/formService';
 import FormQuestion from './components/FormQuestion';
 import ThankYouScreen from './components/ThankYouScreen';
 import FormClosed from './components/FormClosed';
+import { ChevronLeft, ChevronRight, ArrowRight, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '../../components/ui/alert';
 import logo from '../../assets/logo-full.png';
 import './PublicFormContainer.css';
 
@@ -21,6 +23,7 @@ const PublicFormContainer = () => {
   const [slideDirection, setSlideDirection] = useState('next');
   const [showWelcome, setShowWelcome] = useState(true);
   const [respondentEmail, setRespondentEmail] = useState('');
+  const [validationError, setValidationError] = useState(null);
 
   useEffect(() => {
     loadForm();
@@ -46,6 +49,11 @@ const PublicFormContainer = () => {
   };
 
   const handleAnswerChange = (questionId, answer, questionText) => {
+    // Clear validation error when user makes a change
+    if (validationError) {
+      setValidationError(null);
+    }
+    
     setResponses({
       ...responses,
       [questionId]: {
@@ -58,8 +66,8 @@ const PublicFormContainer = () => {
 
   const handleNext = () => {
     if (currentQuestionIndex < form.questions.length - 1) {
-      setSlideDirection('next');
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setSlideDirection('forward');
+      setTimeout(() => setCurrentQuestionIndex(currentQuestionIndex + 1), 50);
     } else {
       handleSubmit();
     }
@@ -67,8 +75,8 @@ const PublicFormContainer = () => {
 
   const handleBack = () => {
     if (currentQuestionIndex > 0) {
-      setSlideDirection('back');
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
+      setSlideDirection('backward');
+      setTimeout(() => setCurrentQuestionIndex(currentQuestionIndex - 1), 50);
     }
   };
 
@@ -86,22 +94,56 @@ const PublicFormContainer = () => {
     return true;
   };
 
-  const handleSubmit = async () => {
-    // Check required fields
-    const unansweredRequired = form.questions.filter(q => {
-      if (!q.required) return false;
-      const response = responses[q.question_id];
-      return !response || !response.answer;
-    });
-
-    if (unansweredRequired.length > 0) {
-      alert('Please answer all required questions');
-      return;
+  const validateResponses = () => {
+    // Check all questions for validation errors
+    for (const question of form.questions) {
+      const response = responses[question.question_id];
+      
+      // Check if required question is answered
+      if (question.required) {
+        if (!response || !response.answer) {
+          return `Question "${question.text}" is required.`;
+        }
+        
+        // Check for empty strings or empty arrays
+        if (typeof response.answer === 'string' && !response.answer.trim()) {
+          return `Question "${question.text}" is required.`;
+        }
+        if (Array.isArray(response.answer) && response.answer.length === 0) {
+          return `Question "${question.text}" requires at least one selection.`;
+        }
+      }
+      
+      // Validate text length constraints
+      if ((question.type === 'text' || question.type === 'long_text') && response?.answer) {
+        const answerLength = response.answer.length;
+        
+        if (question.validation?.min_length && answerLength < question.validation.min_length) {
+          return `Question "${question.text}" requires at least ${question.validation.min_length} characters. You have ${answerLength}.`;
+        }
+        
+        if (question.validation?.max_length && answerLength > question.validation.max_length) {
+          return `Question "${question.text}" can have at most ${question.validation.max_length} characters. You have ${answerLength}.`;
+        }
+      }
     }
-
+    
     // Check email if required
     if (form.settings.require_email && !respondentEmail) {
-      alert('Please provide your email address');
+      return 'Please provide your email address to submit the form.';
+    }
+    
+    return null;
+  };
+
+  const handleSubmit = async () => {
+    // Clear any previous errors
+    setValidationError(null);
+    
+    // Validate all responses
+    const error = validateResponses();
+    if (error) {
+      setValidationError(error);
       return;
     }
 
@@ -127,7 +169,7 @@ const PublicFormContainer = () => {
       }
     } catch (err) {
       console.error('Error submitting form:', err);
-      alert(err.response?.data?.error || 'Failed to submit form');
+      setValidationError(err.response?.data?.error || 'Failed to submit form. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -135,8 +177,8 @@ const PublicFormContainer = () => {
 
   if (loading) {
     return (
-      <div className="public-form__loading">
-        <div className="public-form__spinner"></div>
+      <div className="min-h-screen bg-[#4E4DED] flex flex-col items-center justify-center text-white">
+        <div className="w-15 h-15 border-4 border-white/30 border-t-white rounded-full animate-spin mb-6"></div>
         <p>Loading form...</p>
       </div>
     );
@@ -160,97 +202,129 @@ const PublicFormContainer = () => {
 
   if (showWelcome) {
     return (
-      <div className="public-form public-form--welcome">
-        <div className="public-form__welcome-container">
-          <div className="public-form__welcome-header">
-            <h1 className="public-form__welcome-title">Let's create your account</h1>
-          </div>
-          <h2 className="public-form__form-title">{form.title}</h2>
-          {form.description && (
-            <p className="public-form__welcome-description">{form.description}</p>
-          )}
-          {form.settings.require_email && (
-            <div className="public-form__email-input">
-              <input
-                type="email"
-                value={respondentEmail}
-                onChange={(e) => setRespondentEmail(e.target.value)}
-                placeholder="Enter your email"
-                required
-              />
+      <div className="min-h-screen relative flex flex-col bg-[#4E4DED]">
+        {/* Main Content - Centered */}
+        <div className="flex-1 flex flex-col items-center justify-center px-8">
+          <div className="w-full max-w-[660px]">
+            <div className="text-left mb-12">
+              <h2 className="text-white text-base md:text-lg font-bold mb-6">
+                {form.title}
+              </h2>
+              {form.description && (
+                <p className="text-white/70 text-sm md:text-base leading-tight mb-6">
+                  {form.description}
+                </p>
+              )}
             </div>
-          )}
-          <button 
-            className="public-form__start-btn"
-            onClick={handleStartForm}
-            disabled={form.settings.require_email && !respondentEmail}
-          >
-            Start
-          </button>
+            
+            {form.settings.require_email && (
+              <div className="mb-8">
+                <input
+                  type="email"
+                  value={respondentEmail}
+                  onChange={(e) => setRespondentEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                  className="w-full px-0 py-2 border-0 border-b border-white/30 bg-transparent text-white text-base md:text-lg placeholder:text-white/60 focus:border-white focus:ring-0 focus:outline-none rounded-none box-border transition-all"
+                />
+              </div>
+            )}
+
+            {/* Start Button matching navigation style */}
+            <div className="flex gap-2">
+              <button
+                onClick={handleStartForm}
+                disabled={form.settings.require_email && !respondentEmail}
+                className="w-8 h-8 bg-white text-[#4E4DED] hover:bg-gray-100 rounded-lg border border-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
-        <img src={logo} alt="Pursuit" className="public-form__logo" />
+
+        {/* Bottom Right Logo */}
+        <div className="absolute bottom-8 right-8">
+          <img src={logo} alt="Pursuit Logo" className="h-[71.93px] w-[280px]" />
+        </div>
       </div>
     );
   }
 
   const currentQuestion = form.questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / form.questions.length) * 100;
 
   return (
-    <div className="public-form">
-      {form.settings.show_progress && (
-        <div className="public-form__progress-bar">
-          <div 
-            className="public-form__progress-fill" 
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
-
-      <div className="public-form__header">
+    <div className="min-h-screen relative flex flex-col bg-[#4E4DED]">
+      {/* Top Left - Progress */}
+      <div className="absolute top-5 left-8">
         {form.settings.show_progress && (
-          <div className="public-form__progress-text">
-            <span className="public-form__progress-number">
-              {String(currentQuestionIndex + 1).padStart(2, '0')}
-            </span>
-            {' '}of{' '}
-            <span className="public-form__progress-total">
-              {String(form.questions.length).padStart(2, '0')}
-            </span>
-          </div>
+          <p className="text-white text-sm font-bold">
+            {String(currentQuestionIndex + 1).padStart(2, '0')} of {String(form.questions.length).padStart(2, '0')}
+          </p>
         )}
       </div>
 
-      <div className="public-form__container">
-        <FormQuestion
-          question={currentQuestion}
-          value={responses[currentQuestion.question_id]?.answer}
-          onChange={(answer) => handleAnswerChange(currentQuestion.question_id, answer, currentQuestion.text)}
-          slideDirection={slideDirection}
-        />
-
-        <div className="public-form__navigation">
-          {currentQuestionIndex > 0 && (
-            <button 
-              className="public-form__nav-btn public-form__nav-btn--back"
-              onClick={handleBack}
-              disabled={submitting}
-            >
-              ← 
-            </button>
+      {/* Main Content - Centered */}
+      <div className="flex-1 flex flex-col items-center justify-center px-8">
+        <div className="w-full max-w-2xl">
+          {/* Validation Error Alert */}
+          {validationError && (
+            <div className="mb-6">
+              <Alert variant="destructive" className="bg-red-900/20 border-red-500/50 text-white">
+                <AlertCircle className="h-4 w-4 text-white" />
+                <AlertDescription className="text-white">
+                  {validationError}
+                </AlertDescription>
+              </Alert>
+            </div>
           )}
-          
-          <button 
-            className="public-form__nav-btn public-form__nav-btn--next"
-            onClick={handleNext}
-            disabled={!isCurrentQuestionAnswered() || submitting}
-          >
-            →
-          </button>
+
+          <div className="mb-12">
+            {/* Question with slide animation - wrapped in overflow-hidden */}
+            <div className="overflow-hidden relative">
+              <div
+                key={`question-${currentQuestionIndex}`}
+                className={`transition-all duration-500 ease-in-out ${
+                  slideDirection === 'forward' 
+                    ? 'animate-slide-in-right' 
+                    : 'animate-slide-in-left'
+                }`}
+              >
+                <FormQuestion
+                  question={currentQuestion}
+                  value={responses[currentQuestion.question_id]?.answer}
+                  onChange={(answer) => handleAnswerChange(currentQuestion.question_id, answer, currentQuestion.text)}
+                  slideDirection={slideDirection}
+                  onEnter={handleNext}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation Arrows */}
+          <div className="flex gap-2">
+            <button
+              onClick={handleBack}
+              disabled={currentQuestionIndex === 0 || submitting}
+              className="w-8 h-8 border border-white text-white hover:bg-white/10 rounded-lg bg-transparent flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all p-0"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleNext}
+              disabled={!isCurrentQuestionAnswered() || submitting}
+              className="w-8 h-8 bg-white text-[#4E4DED] hover:bg-gray-100 rounded-lg border border-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all p-0"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
-      <img src={logo} alt="Pursuit" className="public-form__logo" />
+      {/* Bottom Right Logo */}
+      <div className="absolute bottom-8 right-8">
+        <img src={logo} alt="Pursuit Logo" className="h-[71.93px] w-[280px]" />
+      </div>
     </div>
   );
 };

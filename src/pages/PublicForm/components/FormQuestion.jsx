@@ -1,38 +1,36 @@
-import { useEffect, useState } from 'react';
-import './FormQuestion.css';
+const FormQuestion = ({ question, value, onChange, slideDirection, onEnter }) => {
 
-const FormQuestion = ({ question, value, onChange, slideDirection }) => {
-  const [animating, setAnimating] = useState(false);
-
-  useEffect(() => {
-    setAnimating(true);
-    const timer = setTimeout(() => setAnimating(false), 300);
-    return () => clearTimeout(timer);
-  }, [question.question_id]);
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && value && onEnter) {
+      onEnter();
+    }
+  };
 
   const renderInput = () => {
     switch (question.type) {
       case 'text':
         return (
           <textarea
-            className="form-question__textarea"
+            className="w-full px-0 py-1 border-0 border-b-2 border-white/60 bg-transparent text-white text-lg placeholder:text-white/40 focus:border-white focus:ring-0 focus:outline-none rounded-none resize-vertical min-h-[60px] box-border transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
+            onKeyPress={handleKeyPress}
             placeholder="Type your answer here..."
-            rows={4}
+            rows={2}
             maxLength={question.validation?.max_length}
             autoFocus
           />
         );
 
-      case 'email':
+      case 'long_text':
         return (
-          <input
-            type="email"
-            className="form-question__input"
+          <textarea
+            className="w-full px-0 py-1 border-0 border-b-2 border-white/60 bg-transparent text-white text-lg placeholder:text-white/40 focus:border-white focus:ring-0 focus:outline-none rounded-none resize-vertical min-h-[120px] box-border transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="your.email@example.com"
+            placeholder="Type your detailed answer here..."
+            rows={5}
+            maxLength={question.validation?.max_length}
             autoFocus
           />
         );
@@ -41,41 +39,82 @@ const FormQuestion = ({ question, value, onChange, slideDirection }) => {
         if (question.multiple_select) {
           const selectedValues = value || [];
           return (
-            <div className="form-question__options">
-              {question.options.map((option, index) => (
-                <label key={index} className="form-question__option">
-                  <input
-                    type="checkbox"
-                    checked={selectedValues.includes(option)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        onChange([...selectedValues, option]);
-                      } else {
+            <div className="flex flex-col md:flex-row gap-6 mb-16">
+              {question.options.map((option, index) => {
+                const isSelected = selectedValues.includes(option);
+                return (
+                  <div 
+                    key={index}
+                    onClick={() => {
+                      if (isSelected) {
                         onChange(selectedValues.filter(v => v !== option));
+                      } else {
+                        onChange([...selectedValues, option]);
                       }
                     }}
-                  />
-                  <span className="form-question__option-text">{option}</span>
-                  <span className="form-question__checkmark">✓</span>
-                </label>
-              ))}
+                    className={`group relative w-full md:w-[210px] min-h-[100px] border rounded-[20px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-center p-4 gap-3 cursor-pointer transition-all overflow-hidden ${
+                      isSelected 
+                        ? 'border-white bg-white' 
+                        : 'border-white/30 bg-transparent hover:border-white'
+                    }`}
+                  >
+                    {/* Hover fill animation */}
+                    {!isSelected && (
+                      <div className="absolute inset-0 bg-white -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
+                    )}
+                    
+                    <p className={`relative z-10 text-sm md:text-base leading-tight text-center transition-colors duration-300 ${
+                      isSelected 
+                        ? 'text-[#4E4DED]' 
+                        : 'text-white group-hover:text-[#4E4DED]'
+                    }`}>
+                      {option}
+                    </p>
+                    {isSelected && (
+                      <div className="relative z-10 w-6 h-6 rounded-full bg-[#4E4DED] flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">✓</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           );
         } else {
           return (
-            <div className="form-question__options">
-              {question.options.map((option, index) => (
-                <label key={index} className="form-question__option">
-                  <input
-                    type="radio"
-                    name={question.question_id}
-                    checked={value === option}
-                    onChange={() => onChange(option)}
-                  />
-                  <span className="form-question__option-text">{option}</span>
-                  <span className="form-question__radio-circle"></span>
-                </label>
-              ))}
+            <div className="flex flex-col md:flex-row gap-6 mb-16">
+              {question.options.map((option, index) => {
+                const isSelected = value === option;
+                return (
+                  <div 
+                    key={index}
+                    onClick={() => onChange(option)}
+                    className={`group relative w-full md:w-[210px] min-h-[100px] border rounded-[20px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-center p-4 gap-3 cursor-pointer transition-all overflow-hidden ${
+                      isSelected 
+                        ? 'border-white bg-white' 
+                        : 'border-white/30 bg-transparent hover:border-white'
+                    }`}
+                  >
+                    {/* Hover fill animation */}
+                    {!isSelected && (
+                      <div className="absolute inset-0 bg-white -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
+                    )}
+                    
+                    <p className={`relative z-10 text-sm md:text-base leading-tight text-center transition-colors duration-300 ${
+                      isSelected 
+                        ? 'text-[#4E4DED]' 
+                        : 'text-white group-hover:text-[#4E4DED]'
+                    }`}>
+                      {option}
+                    </p>
+                    {isSelected && (
+                      <div className="relative z-10 w-6 h-6 rounded-full bg-[#4E4DED] flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">✓</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           );
         }
@@ -86,27 +125,42 @@ const FormQuestion = ({ question, value, onChange, slideDirection }) => {
         const range = Array.from({ length: max - min + 1 }, (_, i) => min + i);
         
         return (
-          <div className="form-question__scale">
-            {question.scale_config?.min_label && (
-              <div className="form-question__scale-label form-question__scale-label--min">
-                {question.scale_config.min_label}
-              </div>
-            )}
-            <div className="form-question__scale-options">
+          <div className="flex flex-col gap-8 mb-16">
+            <div className="flex gap-4 justify-start flex-wrap">
               {range.map((num) => (
                 <button
                   key={num}
-                  className={`form-question__scale-btn ${value === num ? 'form-question__scale-btn--selected' : ''}`}
+                  className={`group relative w-16 h-16 rounded-[20px] border transition-all duration-300 flex items-center justify-center shadow-[4px_4px_40px_rgba(0,0,0,0.05)] overflow-hidden ${
+                    value === num
+                      ? 'border-white bg-white' 
+                      : 'border-white/30 bg-transparent hover:border-white'
+                  }`}
                   onClick={() => onChange(num)}
                   type="button"
                 >
+                  {/* Hover fill animation */}
+                  {value !== num && (
+                    <div className="absolute inset-0 bg-white -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
+                  )}
+                  
+                  <span className={`relative z-10 text-xl font-semibold transition-colors duration-300 ${
+                    value === num
+                      ? 'text-[#4E4DED]'
+                      : 'text-white group-hover:text-[#4E4DED]'
+                  }`}>
                   {num}
+                  </span>
                 </button>
               ))}
             </div>
-            {question.scale_config?.max_label && (
-              <div className="form-question__scale-label form-question__scale-label--max">
-                {question.scale_config.max_label}
+            {(question.scale_config?.min_label || question.scale_config?.max_label) && (
+              <div className="flex justify-between">
+                <div className="text-sm text-white/70">
+                  {question.scale_config?.min_label || ''}
+                </div>
+                <div className="text-sm text-white/70">
+                  {question.scale_config?.max_label || ''}
+                </div>
               </div>
             )}
           </div>
@@ -114,47 +168,85 @@ const FormQuestion = ({ question, value, onChange, slideDirection }) => {
 
       case 'true_false':
         return (
-          <div className="form-question__true-false">
-            <button
-              className={`form-question__true-false-btn ${value === true ? 'form-question__true-false-btn--selected' : ''}`}
+          <div className="flex flex-col md:flex-row gap-6 mb-16 justify-center items-center">
+            <div 
               onClick={() => onChange(true)}
-              type="button"
+              className={`group relative w-full md:w-[160px] min-h-[80px] border rounded-[20px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-center p-4 gap-3 cursor-pointer transition-all overflow-hidden ${
+                value === true 
+                  ? 'border-white bg-white' 
+                  : 'border-white/30 bg-transparent hover:border-white'
+              }`}
             >
-              {question.true_label || 'True'}
-            </button>
-            <button
-              className={`form-question__true-false-btn ${value === false ? 'form-question__true-false-btn--selected' : ''}`}
+              {/* Hover fill animation */}
+              {value !== true && (
+                <div className="absolute inset-0 bg-white -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
+              )}
+              
+              <p className={`relative z-10 text-sm md:text-base leading-tight text-center transition-colors duration-300 ${
+                value === true 
+                  ? 'text-[#4E4DED]' 
+                  : 'text-white group-hover:text-[#4E4DED]'
+              }`}>
+                {question.true_label || 'True'}
+              </p>
+              {value === true && (
+                <div className="relative z-10 w-6 h-6 rounded-full bg-[#4E4DED] flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">✓</span>
+                </div>
+              )}
+            </div>
+            <div 
               onClick={() => onChange(false)}
-              type="button"
+              className={`group relative w-full md:w-[160px] min-h-[80px] border rounded-[20px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-center p-4 gap-3 cursor-pointer transition-all overflow-hidden ${
+                value === false 
+                  ? 'border-white bg-white' 
+                  : 'border-white/30 bg-transparent hover:border-white'
+              }`}
             >
-              {question.false_label || 'False'}
-            </button>
+              {/* Hover fill animation */}
+              {value !== false && (
+                <div className="absolute inset-0 bg-white -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
+              )}
+              
+              <p className={`relative z-10 text-sm md:text-base leading-tight text-center transition-colors duration-300 ${
+                value === false 
+                  ? 'text-[#4E4DED]' 
+                  : 'text-white group-hover:text-[#4E4DED]'
+              }`}>
+                {question.false_label || 'False'}
+              </p>
+              {value === false && (
+                <div className="relative z-10 w-6 h-6 rounded-full bg-[#4E4DED] flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">✓</span>
+                </div>
+              )}
+            </div>
           </div>
         );
 
       default:
-        return <div>Unsupported question type</div>;
+        return <div className="text-white">Unsupported question type</div>;
     }
   };
 
   return (
-    <div className={`form-question ${animating ? `form-question--slide-${slideDirection}` : ''}`}>
-      <div className="form-question__header">
-        <h2 className="form-question__text">
-          {question.text}
-          {question.required && <span className="form-question__required">*</span>}
-        </h2>
-        {question.help_text && (
-          <p className="form-question__help-text">{question.help_text}</p>
-        )}
-      </div>
+    <div className="flex flex-col text-left">
+      <h2 className="text-white text-2xl md:text-3xl font-bold mb-8">
+        {question.text}
+        {question.required && <span className="text-[#FFFFCC] ml-1">*</span>}
+      </h2>
+      {question.help_text && (
+        <p className="text-white/70 text-sm md:text-base leading-tight mb-6">
+          {question.help_text}
+        </p>
+      )}
       
-      <div className="form-question__input-container">
+      <div className="flex flex-col">
         {renderInput()}
       </div>
 
-      {question.validation?.max_length && question.type === 'text' && (
-        <div className="form-question__char-count">
+      {question.validation?.max_length && (question.type === 'text' || question.type === 'long_text') && (
+        <div className="text-right text-sm text-white/50 mt-2">
           {(value || '').length} / {question.validation.max_length}
         </div>
       )}
@@ -163,4 +255,3 @@ const FormQuestion = ({ question, value, onChange, slideDirection }) => {
 };
 
 export default FormQuestion;
-

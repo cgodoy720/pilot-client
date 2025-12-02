@@ -4,22 +4,28 @@ import databaseService from '../../services/databaseService';
 import AddressAutocomplete from '../../components/AddressAutocomplete/AddressAutocomplete';
 import IneligibleModal from '../../components/IneligibleScreen/IneligibleScreen';
 import Swal from 'sweetalert2';
-import './ApplicationForm.css';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Textarea } from '../../components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Badge } from '../../components/ui/badge';
+import { Progress } from '../../components/ui/progress';
+import { AnimatedRadioGroup, AnimatedRadioItem } from '../../components/ui/animated-radio';
+import { AnimatedCheckbox } from '../../components/ui/animated-checkbox';
+import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 
 const ApplicationForm = () => {
   const navigate = useNavigate();
   const saveTimeoutRef = useRef(null);
 
-  // Handle logout
   const handleLogout = () => {
     localStorage.removeItem('user');
     navigate('/login');
   };
   
-  // Core state
   const [applicationQuestions, setApplicationQuestions] = useState([]);
   const [formData, setFormData] = useState({});
-  const [currentSection, setCurrentSection] = useState(-1); // Start at -1 for intro tab
+  const [currentSection, setCurrentSection] = useState(-1);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,17 +38,14 @@ const ApplicationForm = () => {
   const [isIneligible, setIsIneligible] = useState(false);
   const [eligibilityFailures, setEligibilityFailures] = useState([]);
 
-  // Initialize application
   useEffect(() => {
     const initializeApplication = async () => {
       try {
         setIsLoading(true);
         
-        // Fetch questions from database
         const questions = await databaseService.fetchApplicationQuestions();
         setApplicationQuestions(questions);
         
-        // Get user info - try localStorage first, then fallback
         const savedUser = localStorage.getItem('user');
         let email = 'jac@pursuit.org';
         let firstName = 'John';
@@ -59,14 +62,11 @@ const ApplicationForm = () => {
           }
         }
         
-        // Get or create applicant first
         const applicant = await databaseService.createOrGetApplicant(email, firstName, lastName);
         console.log('Applicant:', applicant);
         
-        // Check for existing applications for this applicant
         let existingApplication = null;
         try {
-          // Try to get existing in-progress application
           const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/applicant/${applicant.applicant_id}/application`, {
             headers: { 'Content-Type': 'application/json' }
           });
@@ -79,17 +79,14 @@ const ApplicationForm = () => {
           console.log('No existing application found, will create new one');
         }
         
-        // Create application only if none exists
         let application = existingApplication;
         if (!application) {
           console.log('Creating new application...');
-          // Set the current applicant on the service before creating application
           databaseService.currentApplicant = applicant;
           application = await databaseService.createApplication();
           console.log('Created new application:', application);
         }
         
-        // Check if application is ineligible and handle accordingly
         if (application && application.status === 'ineligible') {
           const wasResetForEditing = localStorage.getItem('eligibilityResetForEditing');
           const urlParams = new URLSearchParams(window.location.search);
@@ -109,7 +106,6 @@ const ApplicationForm = () => {
             console.log('🔄 RESET DEBUG: Starting reset process...');
             localStorage.removeItem('eligibilityResetForEditing');
             
-            // Clean up URL parameter
             if (resetFromUrl) {
               const url = new URL(window.location);
               url.searchParams.delete('resetEligibility');
@@ -117,13 +113,11 @@ const ApplicationForm = () => {
             }
             
             try {
-              // Reset the application status synchronously before proceeding
               console.log('🔄 RESET DEBUG: Calling resetEligibility...');
               const resetResult = await databaseService.resetEligibility(applicant.applicant_id);
               console.log('🔄 RESET DEBUG: Reset result:', resetResult);
               
               if (resetResult && resetResult.success) {
-                // Re-fetch the application to ensure we have the updated status
                 console.log('🔄 RESET DEBUG: Re-fetching application after reset...');
                 try {
                   const updatedApplication = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/applicant/${applicant.applicant_id}/application`, {
@@ -134,19 +128,15 @@ const ApplicationForm = () => {
                     application = await updatedApplication.json();
                     console.log('✅ RESET DEBUG: Re-fetched application:', application);
                   } else {
-                    // Fallback: just update the local object
                     application.status = 'in_progress';
                     console.log('⚠️ RESET DEBUG: Could not re-fetch, updating local object');
                   }
                 } catch (fetchError) {
                   console.warn('⚠️ RESET DEBUG: Error re-fetching application:', fetchError);
-                  // Fallback: just update the local object
                   application.status = 'in_progress';
                 }
                 
                 console.log('✅ RESET DEBUG: Application status after reset:', application.status);
-                
-                // Also update localStorage to reflect the change
                 localStorage.setItem('applicationStatus', 'in_progress');
               } else {
                 console.error('❌ RESET DEBUG: Reset result indicates failure:', resetResult);
@@ -159,7 +149,6 @@ const ApplicationForm = () => {
               return;
             }
           } else {
-            // Normal ineligible flow
             console.log('Application is marked as ineligible, redirecting to dashboard');
             localStorage.setItem('applicationStatus', 'ineligible');
             navigate('/apply');
@@ -168,8 +157,6 @@ const ApplicationForm = () => {
         }
         
         console.log('🔍 RESET DEBUG: After reset check, application status:', application?.status);
-
-        // Note: eligibilityResetForEditing is now handled above in the ineligible check
         
         const session = {
           applicant,
@@ -177,27 +164,22 @@ const ApplicationForm = () => {
         };
         setCurrentSession(session);
         
-        // Also set the application on the service for auto-save
         databaseService.currentApplication = application;
         
-        // Check for existing progress
         if (application?.application_id) {
           console.log('Loading form data for application:', application.application_id);
           const savedFormData = await databaseService.loadFormData(application.application_id);
           console.log('Loaded form data:', savedFormData);
           
           if (Object.keys(savedFormData).length > 0) {
-            // Automatically load saved data
             setFormData(savedFormData);
             
-            // Restore current section (including intro section -1)
             const savedSection = localStorage.getItem('applicationCurrentSection');
             if (savedSection) {
               const sectionIndex = parseInt(savedSection, 10);
               setCurrentSection(sectionIndex);
             }
             
-            // Restore question index for one-question mode
             const savedQuestionIndex = localStorage.getItem('applicationCurrentQuestionIndex');
             if (savedQuestionIndex) {
               setCurrentQuestionIndex(parseInt(savedQuestionIndex, 10));
@@ -220,7 +202,15 @@ const ApplicationForm = () => {
     initializeApplication();
   }, []);
 
-  // Load questions from backend
+  // Handle ineligible status redirect
+  useEffect(() => {
+    if (currentSession?.application?.status === 'ineligible') {
+      console.log('Application is ineligible, redirecting to dashboard');
+      localStorage.setItem('applicationStatus', 'ineligible');
+      navigate('/apply');
+    }
+  }, [currentSession?.application?.status, navigate]);
+
   useEffect(() => {
     const loadQuestions = async () => {
       try {
@@ -234,7 +224,6 @@ const ApplicationForm = () => {
     loadQuestions();
   }, []);
 
-  // Calculate progress
   useEffect(() => {
     if (applicationQuestions.length > 0) {
       const allQuestions = getAllRootQuestions();
@@ -249,16 +238,13 @@ const ApplicationForm = () => {
     }
   }, [formData, applicationQuestions]);
 
-  // Auto-save with debounce
   useEffect(() => {
     if (Object.keys(formData).length === 0 || !currentSession?.application?.application_id) return;
     
-    // Clear existing timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     
-    // Set new timeout for auto-save
     saveTimeoutRef.current = setTimeout(async () => {
       try {
         console.log('Auto-saving form data...', {
@@ -267,11 +253,9 @@ const ApplicationForm = () => {
           sessionExists: !!currentSession
         });
         
-        // Save to localStorage immediately
-          localStorage.setItem('applicationFormData', JSON.stringify(formData));
+        localStorage.setItem('applicationFormData', JSON.stringify(formData));
         console.log('Saved to localStorage');
         
-        // Save to database
         if (currentSession?.application?.application_id) {
           let savedCount = 0;
           for (const [questionId, value] of Object.entries(formData)) {
@@ -294,7 +278,7 @@ const ApplicationForm = () => {
       } catch (error) {
         console.error('Error auto-saving:', error);
       }
-    }, 1000); // 1 second debounce
+    }, 1000);
     
     return () => {
       if (saveTimeoutRef.current) {
@@ -303,15 +287,12 @@ const ApplicationForm = () => {
     };
   }, [formData, currentSession]);
 
-  // Initialize navigation when questions load
   useEffect(() => {
     if (applicationQuestions.length > 0) {
-      // Check if we need to navigate to eligibility section for editing
       const wasResetForEditing = localStorage.getItem('eligibilityResetForEditing');
       if (wasResetForEditing === 'true') {
         console.log('Navigating to eligibility section for editing');
         localStorage.removeItem('eligibilityResetForEditing');
-        // Find the eligibility section and navigate to it
         const eligibilitySection = applicationQuestions.findIndex(section => 
           section.id === 'your_eligibility'
         );
@@ -322,7 +303,6 @@ const ApplicationForm = () => {
           localStorage.setItem('applicationCurrentQuestionIndex', '0');
         }
       } else {
-        // Only initialize if we don't have a saved position or if the saved position is invalid
         const savedSection = localStorage.getItem('applicationCurrentSection');
         const savedQuestionIndex = localStorage.getItem('applicationCurrentQuestionIndex');
         
@@ -330,15 +310,12 @@ const ApplicationForm = () => {
           initializeNavigation();
         } else {
           const sectionIndex = parseInt(savedSection, 10);
-          // Handle intro section (-1) or validate normal sections
           if (sectionIndex === -1) {
             setCurrentSection(-1);
             setCurrentQuestionIndex(0);
           } else if (sectionIndex >= 0 && sectionIndex < applicationQuestions.length) {
-          // Ensure the saved position points to a root question
           ensureRootQuestionPosition();
           } else {
-            // Invalid saved position, initialize navigation
             initializeNavigation();
           }
         }
@@ -346,16 +323,13 @@ const ApplicationForm = () => {
     }
   }, [applicationQuestions]);
 
-  // Ensure we stay on root questions when navigation changes
   useEffect(() => {
     ensureRootQuestionPosition();
   }, [currentSection, currentQuestionIndex, applicationQuestions]);
 
-  // Handle input changes with immediate saving
   const handleInputChange = async (questionId, value) => {
     console.log(`Input changed: ${questionId} = ${value}`);
     
-    // Find if this question has any conditional children
     const currentSectionData = applicationQuestions.find(section => 
       section.questions && section.questions.find(q => q.id === questionId)
     );
@@ -365,14 +339,12 @@ const ApplicationForm = () => {
       [questionId]: value
     };
 
-    // If this question has conditional children, clear their values when parent changes
     if (currentSectionData) {
       const conditionalChildren = currentSectionData.questions.filter(q => 
         q.parentQuestionId === questionId
       );
       
       conditionalChildren.forEach(child => {
-        // Clear the child question's value
         console.log(`Clearing conditional question ${child.id} due to parent change`);
         updatedFormData[child.id] = '';
       });
@@ -380,7 +352,6 @@ const ApplicationForm = () => {
     
     setFormData(updatedFormData);
 
-    // Clear validation error for this field when user starts typing
     if (validationErrors[questionId]) {
       setValidationErrors(prev => {
         const newErrors = { ...prev };
@@ -388,21 +359,15 @@ const ApplicationForm = () => {
         return newErrors;
       });
     }
-
-        // Note: Eligibility checking moved to moveToNextQuestion() when leaving eligibility section
-    // This allows users to complete all questions before being checked
   };
 
-  // Validation functions
   const validateQuestion = (question) => {
-    // Skip validation for info cards
     if (question.type === 'info') return null;
     
     if (!question.required) return null;
     
     const value = formData[question.id];
     
-    // Check if value is empty or invalid
     if (!value || value === '' || 
         (Array.isArray(value) && value.length === 0) ||
         (typeof value === 'string' && value.trim() === '')) {
@@ -416,7 +381,6 @@ const ApplicationForm = () => {
     const currentQuestionGroup = getCurrentQuestions();
     const errors = {};
     
-    // Validate the root question
     if (currentQuestionGroup.rootQuestion) {
       const error = validateQuestion(currentQuestionGroup.rootQuestion);
       if (error) {
@@ -424,7 +388,6 @@ const ApplicationForm = () => {
       }
     }
     
-    // Validate all visible conditional questions
     currentQuestionGroup.conditionalQuestions.forEach(question => {
       const error = validateQuestion(question);
       if (error) {
@@ -449,13 +412,11 @@ const ApplicationForm = () => {
     return errors;
   };
 
-  // Check if section has any validation errors
   const sectionHasErrors = (sectionQuestions) => {
     const errors = validateSection(sectionQuestions);
     return Object.keys(errors).length > 0;
   };
 
-  // Check if conditional question should be shown
   const shouldShowQuestion = (question) => {
     if (!question.parentQuestionId) return true;
     
@@ -477,17 +438,14 @@ const ApplicationForm = () => {
     }
   };
 
-  // Get visible questions for current section
   const getVisibleQuestions = (sectionQuestions) => {
     return sectionQuestions.filter(shouldShowQuestion);
   };
 
-  // Get all root questions (non-conditional) flattened across all sections
   const getAllRootQuestions = () => {
     let allQuestions = [];
     applicationQuestions.forEach((section, sectionIndex) => {
       if (section.questions) {
-        // Only include root questions (non-conditional) in the main flow
         const rootQuestions = section.questions.filter(q => !q.parentQuestionId);
         const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
         
@@ -503,7 +461,6 @@ const ApplicationForm = () => {
     return allQuestions;
   };
 
-  // Get conditional questions for a specific parent question
   const getConditionalQuestionsForParent = (parentQuestionId, sectionQuestions) => {
     if (!sectionQuestions) return [];
     
@@ -512,27 +469,22 @@ const ApplicationForm = () => {
     );
   };
 
-  // Get current question group (parent + its visible conditional children)
   const getCurrentQuestions = () => {
     const allRootQuestions = getAllRootQuestions();
     
     if (allRootQuestions.length === 0) return { rootQuestion: null, conditionalQuestions: [] };
     
-    // Get the current root question
     const currentQuestionGlobalIndex = getCurrentQuestionGlobalIndex();
     if (currentQuestionGlobalIndex >= 0 && currentQuestionGlobalIndex < allRootQuestions.length) {
       const currentRootQuestion = allRootQuestions[currentQuestionGlobalIndex];
       
-      // Find the section this question belongs to
       const section = applicationQuestions[currentRootQuestion.sectionIndex];
       
-      // Get any conditional questions for this parent
       const conditionalQuestions = getConditionalQuestionsForParent(
         currentRootQuestion.id, 
         section.questions
       );
       
-      // Return the parent question with its conditional children
       return {
         rootQuestion: currentRootQuestion,
         conditionalQuestions: conditionalQuestions
@@ -542,13 +494,11 @@ const ApplicationForm = () => {
     return { rootQuestion: null, conditionalQuestions: [] };
   };
 
-  // Get the global index of the current root question
   const getCurrentQuestionGlobalIndex = () => {
     if (applicationQuestions.length === 0) return 0;
     
     let globalIndex = 0;
     
-    // Count root questions in previous sections
     for (let sectionIndex = 0; sectionIndex < currentSection; sectionIndex++) {
       if (applicationQuestions[sectionIndex]?.questions) {
         const rootQuestions = applicationQuestions[sectionIndex].questions.filter(q => !q.parentQuestionId);
@@ -557,12 +507,10 @@ const ApplicationForm = () => {
       }
     }
     
-    // Add the current question index within the current section (only for root questions)
     if (applicationQuestions[currentSection]?.questions) {
       const currentSectionQuestions = applicationQuestions[currentSection].questions;
       const currentQuestion = currentSectionQuestions[currentQuestionIndex];
       
-      // Only add to global index if the current question is a root question
       if (currentQuestion && !currentQuestion.parentQuestionId) {
         const rootQuestions = currentSectionQuestions.filter(q => !q.parentQuestionId);
         const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
@@ -577,11 +525,9 @@ const ApplicationForm = () => {
     return globalIndex;
   };
 
-  // Initialize navigation to first root question
   const initializeNavigation = () => {
     if (applicationQuestions.length === 0) return;
     
-    // Find the first section with root questions
     for (let sectionIndex = 0; sectionIndex < applicationQuestions.length; sectionIndex++) {
       const section = applicationQuestions[sectionIndex];
       if (section?.questions) {
@@ -589,7 +535,6 @@ const ApplicationForm = () => {
         const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
         
         if (visibleRootQuestions.length > 0) {
-          // Find the index of the first root question in the section's questions array
           const firstRootQuestion = visibleRootQuestions[0];
           const questionIndex = section.questions.findIndex(q => q.id === firstRootQuestion.id);
           
@@ -603,7 +548,6 @@ const ApplicationForm = () => {
     }
   };
 
-  // Ensure we're always on a root question when navigation changes
   const ensureRootQuestionPosition = () => {
     if (applicationQuestions.length === 0) return;
     
@@ -612,13 +556,11 @@ const ApplicationForm = () => {
     
     const currentQuestion = currentSectionData.questions[currentQuestionIndex];
     
-    // If current question is conditional, find the nearest root question
     if (currentQuestion?.parentQuestionId) {
       const rootQuestions = currentSectionData.questions.filter(q => !q.parentQuestionId);
       const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
       
       if (visibleRootQuestions.length > 0) {
-        // Move to the first root question in this section
         const firstRootQuestion = visibleRootQuestions[0];
         const questionIndex = currentSectionData.questions.findIndex(q => q.id === firstRootQuestion.id);
         
@@ -628,16 +570,13 @@ const ApplicationForm = () => {
     }
   };
 
-  // Navigation functions
   const handleNext = async () => {
-    // Validate current questions before proceeding
     const errors = validateCurrentQuestions();
     
     if (Object.keys(errors).length > 0) {
     setValidationErrors(errors);
       setShowValidation(true);
       
-      // Scroll to first error
       const firstErrorId = Object.keys(errors)[0];
       const errorElement = document.getElementById(firstErrorId);
       if (errorElement) {
@@ -645,10 +584,9 @@ const ApplicationForm = () => {
         errorElement.focus();
       }
       
-      return; // Don't proceed with navigation
+      return;
     }
 
-    // Clear any existing validation errors
     setValidationErrors({});
     setShowValidation(false);
 
@@ -671,7 +609,6 @@ const ApplicationForm = () => {
     console.log('All questions length:', allQuestions.length);
     
     if (currentGlobalIndex < allQuestions.length - 1) {
-      // Check if we're moving from eligibility section to next section
       const nextGlobalIndex = currentGlobalIndex + 1;
       const { sectionIndex: nextSectionIndex } = getLocalIndicesFromGlobal(nextGlobalIndex);
       
@@ -679,7 +616,6 @@ const ApplicationForm = () => {
       console.log('Current section index:', currentSection);
       console.log('Will move to different section:', nextSectionIndex !== currentSection);
       
-      // If we're currently in eligibility section and moving to a different section
       if (isEligibilitySection() && nextSectionIndex !== currentSection) {
         console.log('Moving from eligibility section to next section, checking eligibility...');
         console.log('Form data for eligibility check:', formData);
@@ -690,13 +626,11 @@ const ApplicationForm = () => {
         console.log('Eligibility check result:', isEligible);
         
         if (!isEligible) {
-          // User is not eligible, eligibility state will be set in checkEligibility
           console.log('User is not eligible, stopping navigation');
           return;
         }
       }
       
-      // Move to next question
       const { sectionIndex, questionIndex } = getLocalIndicesFromGlobal(nextGlobalIndex);
       
       console.log('Moving to section:', sectionIndex, 'question:', questionIndex);
@@ -714,7 +648,6 @@ const ApplicationForm = () => {
     const currentGlobalIndex = getCurrentQuestionGlobalIndex();
     
     if (currentGlobalIndex > 0) {
-      // Move to previous question
       const prevGlobalIndex = currentGlobalIndex - 1;
       const { sectionIndex, questionIndex } = getLocalIndicesFromGlobal(prevGlobalIndex);
       
@@ -725,7 +658,6 @@ const ApplicationForm = () => {
     }
   };
 
-  // Convert global question index to section and question indices (root questions only)
   const getLocalIndicesFromGlobal = (globalIndex) => {
     let currentGlobal = 0;
     
@@ -735,10 +667,8 @@ const ApplicationForm = () => {
         const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
         
         if (currentGlobal + visibleRootQuestions.length > globalIndex) {
-          // The target question is in this section
           const questionIndex = globalIndex - currentGlobal;
           
-          // Find the actual index of this root question within all questions in the section
           const targetRootQuestion = visibleRootQuestions[questionIndex];
           const actualQuestionIndex = applicationQuestions[sectionIndex].questions.findIndex(
             q => q.id === targetRootQuestion.id
@@ -751,26 +681,21 @@ const ApplicationForm = () => {
       }
     }
     
-    // Default to last section and question if not found
     return { sectionIndex: applicationQuestions.length - 1, questionIndex: 0 };
   };
 
-  // Navigate to first question of a specific section
   const navigateToSection = (targetSectionIndex) => {
-    // Handle intro section
     if (targetSectionIndex === -1) {
       console.log('Navigating to intro section');
       setCurrentSection(-1);
       setCurrentQuestionIndex(0);
       setShowValidation(false);
       setValidationErrors({});
-      // Save to localStorage
       localStorage.setItem('applicationCurrentSection', '-1');
       localStorage.setItem('applicationCurrentQuestionIndex', '0');
       return;
     }
     
-    // Calculate the global index of the first question in the target section
     let globalIndex = 0;
     
     for (let sectionIndex = 0; sectionIndex < targetSectionIndex; sectionIndex++) {
@@ -780,22 +705,18 @@ const ApplicationForm = () => {
       globalIndex += visibleRootQuestions.length;
     }
     
-    // Set current question to first question of the target section
     setCurrentQuestionIndex(globalIndex);
     setCurrentSection(targetSectionIndex);
     
-    // Save to localStorage
     localStorage.setItem('applicationCurrentQuestionIndex', globalIndex.toString());
     localStorage.setItem('applicationCurrentSection', targetSectionIndex.toString());
   };
 
-  // Submit application
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     
     try {
-      // Validate entire form before submission
       let allErrors = {};
       
       applicationQuestions.forEach(section => {
@@ -808,7 +729,6 @@ const ApplicationForm = () => {
         setShowValidation(true);
         setIsSubmitting(false);
         
-        // Find the first section with errors
         let errorSectionIndex = -1;
         for (let i = 0; i < applicationQuestions.length; i++) {
           const sectionQuestions = getVisibleQuestions(applicationQuestions[i].questions);
@@ -823,7 +743,6 @@ const ApplicationForm = () => {
           setCurrentSection(errorSectionIndex);
           localStorage.setItem('applicationCurrentSection', errorSectionIndex.toString());
           
-          // Scroll to first error after a brief delay
           setTimeout(() => {
             const firstErrorId = Object.keys(allErrors)[0];
             const errorElement = document.getElementById(firstErrorId);
@@ -839,8 +758,6 @@ const ApplicationForm = () => {
           title: 'Incomplete Application',
           text: `Please complete all required fields. Found ${Object.keys(allErrors).length} missing required field(s).`,
           confirmButtonColor: '#4242ea',
-          background: 'var(--color-background-dark)',
-          color: 'var(--color-text-primary)',
           confirmButtonText: 'OK, I\'ll complete them'
         });
         return;
@@ -851,7 +768,6 @@ const ApplicationForm = () => {
         const result = await databaseService.submitApplication(currentSession.application.application_id);
         console.log('✅ Submission result:', result);
         
-        // Clear saved data
         localStorage.removeItem('applicationFormData');
         localStorage.removeItem('applicationCurrentSection');
         localStorage.removeItem('applicationCurrentQuestionIndex');
@@ -869,15 +785,12 @@ const ApplicationForm = () => {
           `,
           confirmButtonText: 'Continue to Dashboard',
           confirmButtonColor: '#4242ea',
-          background: 'var(--color-background-dark)',
-          color: 'var(--color-text-primary)',
           timer: 5000,
           timerProgressBar: true,
           showClass: {
             popup: 'animate__animated animate__bounceIn'
           }
         });
-        // Force reload the page to refresh dashboard with updated data
         window.location.href = '/apply';
       } else {
         throw new Error('No active application session');
@@ -889,8 +802,6 @@ const ApplicationForm = () => {
         title: 'Submission Failed',
         text: 'Error submitting application. Please try again.',
         confirmButtonColor: '#4242ea',
-        background: 'var(--color-background-dark)',
-        color: 'var(--color-text-primary)',
         confirmButtonText: 'Try Again'
       });
     } finally {
@@ -898,13 +809,11 @@ const ApplicationForm = () => {
     }
   };
 
-  // Check if current section is the eligibility section (section ID 'your_eligibility')
   const isEligibilitySection = () => {
     if (!applicationQuestions[currentSection]) return false;
     return applicationQuestions[currentSection].id === 'your_eligibility';
   };
 
-  // Check eligibility
   const checkEligibility = async () => {
     try {
       console.log('=== checkEligibility DEBUG ===');
@@ -914,7 +823,7 @@ const ApplicationForm = () => {
       
       if (!currentSession?.applicant?.applicant_id) {
         console.warn('No applicant ID available for eligibility check');
-        return true; // Allow to continue if we can't check
+        return true;
       }
 
       console.log('Calling databaseService.checkEligibility...');
@@ -932,7 +841,6 @@ const ApplicationForm = () => {
         setIsIneligible(true);
         setEligibilityFailures(eligibilityResults.failedCriteria || []);
         
-        // Set application status to ineligible
         localStorage.setItem('applicationStatus', 'ineligible');
         
         return false;
@@ -942,50 +850,49 @@ const ApplicationForm = () => {
       return true;
     } catch (error) {
       console.error('Error checking eligibility:', error);
-      // On error, allow user to continue rather than block them
       return true;
     }
   };
 
-  // Handle modal close - navigate back to dashboard
   const handleIneligibleModalClose = () => {
     setIsIneligible(false);
     navigate('/apply');
   };
 
-  // Handle starting the application from intro
   const handleBeginApplication = () => {
     setCurrentSection(0);
     setCurrentQuestionIndex(0);
   };
 
-  // Helper function to render question label with inline links
   const renderQuestionLabel = (question) => {
     if (question.link && question.link.replaceInLabel) {
-      // Replace the link text in the label with an actual clickable link
       const parts = question.label.split(question.link.text);
       
       return (
         <>
-          {parts[0]?.trimEnd() || ''}
+          {parts[0] || ''}
           <a 
             href={question.link.url} 
             target="_blank" 
             rel="noopener noreferrer"
-            style={{ color: 'var(--color-primary)', textDecoration: 'none' }}
+            className="text-[#4242EA] hover:text-[#3535D1] underline"
           >
             {question.link.text}
           </a>
-          {parts[1]?.trimStart() || ''}
+          {parts[1] || ''}
         </>
       );
     } else {
-      // Regular label + separate link
       return (
         <>
           {question.label}
           {question.link && (
-            <a href={question.link.url} target="_blank" rel="noopener noreferrer">
+            <a 
+              href={question.link.url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-[#4242EA] hover:text-[#3535D1] underline ml-1"
+            >
               {question.link.text}
             </a>
           )}
@@ -994,18 +901,9 @@ const ApplicationForm = () => {
     }
   };
 
-  // Render different input types
   const renderQuestion = (question) => {
     const hasError = showValidation && validationErrors[question.id];
-    const commonProps = {
-      id: question.id,
-      value: formData[question.id] || '',
-      onChange: (e) => handleInputChange(question.id, e.target.value),
-      required: question.required,
-      className: `application-form__input ${hasError ? 'application-form__input--error' : ''}`
-    };
 
-    // Address question with Google Maps
     if (question.label && question.label.toLowerCase().includes('address')) {
       return (
         <AddressAutocomplete
@@ -1013,7 +911,7 @@ const ApplicationForm = () => {
           onChange={(value) => handleInputChange(question.id, value)}
           placeholder="Enter your address"
           required={question.required}
-          className={hasError ? 'application-form__input--error' : ''}
+          className={hasError ? 'border-red-500' : ''}
         />
       );
     }
@@ -1021,28 +919,31 @@ const ApplicationForm = () => {
     switch (question.type) {
       case 'textarea':
       return (
-        <div className="application-form__long-text-container">
-          <textarea
-            {...commonProps}
+        <div className="space-y-2">
+          <Textarea
+            id={question.id}
+            value={formData[question.id] || ''}
+            onChange={(e) => handleInputChange(question.id, e.target.value)}
+            required={question.required}
             rows={12}
-            className={`application-form__input application-form__long-text-input ${hasError ? 'application-form__input--error' : ''}`}
+            className={`resize-none text-[#1E1E1E] bg-white border-[#C8C8C8] ${hasError ? 'border-red-500' : ''}`}
               placeholder={question.placeholder || "Please provide your response..."}
               maxLength={2000}
           />
-            <div className="application-form__long-text-counter">
+            <div className="text-sm text-[#666] text-right">
               {(formData[question.id] || '').length} / 2000 characters
           </div>
         </div>
       );
       
       case 'radio':
-        // Use dropdown if more than 6 options, otherwise use radio buttons
         if (question.options && question.options.length > 6) {
           return (
             <select
-              {...commonProps}
+              id={question.id}
               value={formData[question.id] || ''}
               onChange={(e) => handleInputChange(question.id, e.target.value)}
+              className={`w-full px-3 py-2 border rounded-lg bg-white text-[#1E1E1E] focus:outline-none focus:ring-2 focus:ring-[#4242EA] ${hasError ? 'border-red-500' : 'border-[#C8C8C8]'}`}
             >
               <option value="">Please select...</option>
               {question.options.map(option => (
@@ -1052,164 +953,202 @@ const ApplicationForm = () => {
         );
         } else {
           return (
-            <div className="application-form__radio-group">
+            <AnimatedRadioGroup
+              value={formData[question.id] || ''}
+              onValueChange={(value) => handleInputChange(question.id, value)}
+              className="space-y-3"
+            >
               {question.options && question.options.map(option => (
-                <label key={option} className="application-form__radio-option">
-                  <input
-                    type="radio"
-                    name={question.id}
-                    value={option}
-                    checked={formData[question.id] === option}
-              onChange={(e) => handleInputChange(question.id, e.target.value)}
-              required={question.required}
-                  />
+                <AnimatedRadioItem key={option} value={option}>
                   {option}
-                </label>
+                </AnimatedRadioItem>
               ))}
-            </div>
+            </AnimatedRadioGroup>
           );
         }
 
       case 'checkbox':
         return (
-          <div className={`application-form__checkbox-group ${hasError ? 'application-form__checkbox-group--error' : ''}`}>
+          <div className={`space-y-3 ${hasError ? 'border border-red-500 rounded-lg p-3' : ''}`}>
             {question.options && question.options.map(option => (
-              <label key={option} className="application-form__checkbox-option">
-                <input
-                  type="checkbox"
-                  name={question.id}
-                  value={option}
-                  checked={formData[question.id]?.includes(option) || false}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    const checked = e.target.checked;
-                    const currentOptions = formData[question.id] || [];
-                    let newValue;
-                    if (checked) {
-                      newValue = [...currentOptions, value];
-                    } else {
-                      newValue = currentOptions.filter(item => item !== value);
-                    }
-                    handleInputChange(question.id, newValue);
-                  }}
-                  required={question.required}
-                />
+              <AnimatedCheckbox
+                key={option}
+                checked={formData[question.id]?.includes(option) || false}
+                onCheckedChange={(checked) => {
+                  const currentOptions = formData[question.id] || [];
+                  let newValue;
+                  if (checked) {
+                    newValue = [...currentOptions, option];
+                  } else {
+                    newValue = currentOptions.filter(item => item !== option);
+                  }
+                  handleInputChange(question.id, newValue);
+                }}
+              >
                 {option}
-              </label>
+              </AnimatedCheckbox>
             ))}
           </div>
         );
 
       case 'select':
         return (
-          <div className="application-form__radio-group">
+          <AnimatedRadioGroup
+            value={formData[question.id] || ''}
+            onValueChange={(value) => handleInputChange(question.id, value)}
+            className="space-y-3"
+          >
             {question.options && question.options.map(option => (
-              <label key={option} className="application-form__radio-option">
-                <input
-                  type="radio"
-                  name={question.id}
-                  value={option}
-                  checked={formData[question.id] === option}
-                  onChange={(e) => handleInputChange(question.id, e.target.value)}
-                  required={question.required}
-                />
+              <AnimatedRadioItem key={option} value={option}>
                 {option}
-              </label>
+              </AnimatedRadioItem>
             ))}
-          </div>
+          </AnimatedRadioGroup>
         );
 
       case 'date':
         return (
-          <input
-            {...commonProps}
+          <Input
+            id={question.id}
             type="date"
+            value={formData[question.id] || ''}
+            onChange={(e) => handleInputChange(question.id, e.target.value)}
+            required={question.required}
+            className={`text-[#1E1E1E] bg-white border-[#C8C8C8] ${hasError ? 'border-red-500' : ''}`}
           />
         );
 
       case 'email':
         return (
-          <input
-            {...commonProps}
+          <Input
+            id={question.id}
             type="email"
+            value={formData[question.id] || ''}
+            onChange={(e) => handleInputChange(question.id, e.target.value)}
+            required={question.required}
             placeholder="your@email.com"
+            className={`text-[#1E1E1E] bg-white border-[#C8C8C8] ${hasError ? 'border-red-500' : ''}`}
           />
         );
 
       case 'tel':
         return (
-          <input
-            {...commonProps}
+          <Input
+            id={question.id}
             type="tel"
+            value={formData[question.id] || ''}
+            onChange={(e) => handleInputChange(question.id, e.target.value)}
+            required={question.required}
             placeholder="(555) 123-4567"
+            className={`text-[#1E1E1E] bg-white border-[#C8C8C8] ${hasError ? 'border-red-500' : ''}`}
           />
         );
 
       case 'number':
         return (
-          <input
-            {...commonProps}
+          <Input
+            id={question.id}
             type="number"
+            value={formData[question.id] || ''}
+            onChange={(e) => handleInputChange(question.id, e.target.value)}
+            required={question.required}
             placeholder="Enter a number"
+            className={`text-[#1E1E1E] bg-white border-[#C8C8C8] ${hasError ? 'border-red-500' : ''}`}
           />
         );
 
       case 'info':
-        // For info cards - display content without input fields
         return (
-          <div className="application-form__info-card">
-            <div className="application-form__info-card-content">
-              {question.label.split('\n').map((line, index) => (
-                <p key={index}>{line}</p>
-              ))}
-            </div>
-          </div>
+          <Card className="bg-blue-50 border-blue-200">
+            <CardContent className="p-6 space-y-4">
+              {question.label.split('\n').map((line, index) => {
+                const trimmedLine = line.trim();
+                
+                // Skip empty lines but add spacing
+                if (!trimmedLine) {
+                  return null;
+                }
+                
+                // Check if line looks like a header (short, no punctuation at end, or has colon)
+                const isHeader = (
+                  trimmedLine.endsWith(':') ||
+                  (trimmedLine.length < 50 && !trimmedLine.endsWith('.') && !trimmedLine.endsWith('?') && !trimmedLine.endsWith('!'))
+                );
+                
+                // Check if line starts with a number or bullet
+                const isListItem = /^(\d+[\.\):]|\-|\•|\*)\s/.test(trimmedLine);
+                
+                if (isHeader && !isListItem) {
+                  return (
+                    <h4 key={index} className="text-lg font-bold text-[#1E1E1E] mt-2">
+                      {trimmedLine}
+                    </h4>
+                  );
+                }
+                
+                if (isListItem) {
+                  return (
+                    <p key={index} className="text-[#1E1E1E] leading-relaxed pl-4">
+                      {trimmedLine}
+                    </p>
+                  );
+                }
+                
+                return (
+                  <p key={index} className="text-[#1E1E1E] leading-relaxed">
+                    {trimmedLine}
+                  </p>
+                );
+              })}
+            </CardContent>
+          </Card>
         );
 
       default:
         return (
-          <input
-            {...commonProps}
+          <Input
+            id={question.id}
             type="text"
+            value={formData[question.id] || ''}
+            onChange={(e) => handleInputChange(question.id, e.target.value)}
+            required={question.required}
             placeholder={question.placeholder || "Enter your response"}
+            className={`text-[#1E1E1E] bg-white border-[#C8C8C8] ${hasError ? 'border-red-500' : ''}`}
           />
         );
     }
   };
 
-  // Loading state
   if (isLoading) {
   return (
-    <div className="admissions-dashboard">
-        <div className="application-form__loading-state">
-          <h2>Loading Application...</h2>
-          <p>Please wait while we prepare your application form.</p>
+    <div className="min-h-screen flex items-center justify-center bg-[#EFEFEF]">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-[#1E1E1E] mb-2">Loading Application...</h2>
+          <p className="text-[#666]">Please wait while we prepare your application form.</p>
         </div>
       </div>
     );
   }
 
-  // Error state
   if (error) {
     return (
-      <div className="admissions-dashboard">
-        <div className="application-form__error-state">
-          <h2>Error Loading Application</h2>
-          <p>{error}</p>
-          <button onClick={() => window.location.reload()}>Retry</button>
+      <div className="min-h-screen flex items-center justify-center bg-[#EFEFEF]">
+        <div className="text-center max-w-md">
+          <h2 className="text-2xl font-bold text-[#1E1E1E] mb-4">Error Loading Application</h2>
+          <p className="text-[#666] mb-6">{error}</p>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
         </div>
       </div>
     );
   }
 
-  // No questions available
   if (applicationQuestions.length === 0) {
     return (
-      <div className="admissions-dashboard">
-        <div className="application-form__error-state">
-          <h2>No Questions Available</h2>
-          <p>There are no application questions available at this time.</p>
-          <button onClick={() => navigate('/apply')}>Back to Dashboard</button>
+      <div className="min-h-screen flex items-center justify-center bg-[#EFEFEF]">
+        <div className="text-center max-w-md">
+          <h2 className="text-2xl font-bold text-[#1E1E1E] mb-4">No Questions Available</h2>
+          <p className="text-[#666] mb-6">There are no application questions available at this time.</p>
+          <Button onClick={() => navigate('/apply')}>Back to Dashboard</Button>
         </div>
       </div>
     );
@@ -1218,7 +1157,6 @@ const ApplicationForm = () => {
   const currentQuestions = getCurrentQuestions();
   const currentSectionData = applicationQuestions[currentSection];
 
-  // Get completed questions count for a specific section (only root questions)
   const getCompletedQuestionsInSection = (sectionQuestions) => {
     const rootQuestions = sectionQuestions.filter(q => !q.parentQuestionId);
     const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
@@ -1229,7 +1167,6 @@ const ApplicationForm = () => {
     }).length;
   };
 
-  // Get current question info within its section (only count root questions)
   const getCurrentQuestionInfo = () => {
     const currentQuestionGroup = getCurrentQuestions();
     
@@ -1242,7 +1179,6 @@ const ApplicationForm = () => {
     const rootQuestions = sectionQuestions.filter(q => !q.parentQuestionId);
     const visibleRootQuestions = rootQuestions.filter(shouldShowQuestion);
     
-    // Find the position of the current question within the visible root questions
     const questionPosition = visibleRootQuestions.findIndex(q => q.id === currentQuestion.id) + 1;
     
     return {
@@ -1252,67 +1188,58 @@ const ApplicationForm = () => {
     };
   };
 
-  // Check if user is ineligible and redirect
-  if (currentSession?.application?.status === 'ineligible') {
-    console.log('Application is ineligible, redirecting to dashboard');
-    localStorage.setItem('applicationStatus', 'ineligible');
-    navigate('/apply');
-    return null;
-  }
-
-
-
   return (
-    <div className="admissions-dashboard">
+    <div className="min-h-screen bg-[#EFEFEF] font-sans">
       {/* Top Bar */}
-      <div className="admissions-dashboard__topbar">
-        <div className="admissions-dashboard__topbar-left">
-          <div className="admissions-dashboard__logo-section">
-            <img src="/logo-full.png" alt="Pursuit Logo" className="admissions-dashboard__logo-full" />
-          </div>
+      <div className="bg-white border-b border-[#C8C8C8] px-4 md:px-8 py-2">
+        <div className="max-w-[1400px] mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-3 md:gap-5">
+            <img 
+              src="/logo-full.png" 
+              alt="Pursuit Logo" 
+              className="h-8 md:h-10 object-contain"
+              style={{ filter: 'invert(1)' }}
+            />
           {currentSession && (
-          <div className="admissions-dashboard__welcome-text">
+          <div className="text-base md:text-lg font-semibold text-[#1E1E1E]">
               Welcome, {currentSession.applicant.first_name}
           </div>
           )}
         </div>
-        <div className="admissions-dashboard__topbar-right">
-          <button 
+          <div className="flex items-center gap-2 md:gap-4">
+          <Button 
             onClick={() => navigate('/apply')} 
-            className="admissions-dashboard__button--secondary"
+              variant="outline"
+              className="border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white"
           >
-            ← Back to Dashboard
-          </button>
-          <button 
+              ← Back to Dashboard
+          </Button>
+          <Button 
             onClick={handleLogout}
-            className="admissions-dashboard__button--primary"
+              variant="outline"
+              className="border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white"
           >
             Log Out
-          </button>
+          </Button>
         </div>
       </div>
+      </div>
 
-      {/* Main Content - Single Column Layout */}
-      <div className="application-form__main">
-        {/* Form Content - Full Width */}
-        <div className="application-form__column">
-          {/* Section Navigation - Moved here from left sidebar */}
-          <div className="section-nav">
-            {/* Intro Tab */}
-            <div 
-              className={`section-nav__item ${currentSection === -1 ? 'section-nav__item--active' : ''}`}
+      {/* Main Content */}
+      <div className="max-w-[1200px] mx-auto px-8 py-8">
+          {/* Section Navigation */}
+          <div className="mb-8 flex gap-2 overflow-x-auto pb-2">
+            <button 
+              className={`px-4 py-2 rounded-lg font-semibold whitespace-nowrap transition-colors ${
+                currentSection === -1 
+                  ? 'bg-[#4242EA] text-white' 
+                  : 'bg-white text-[#666] hover:bg-gray-50 border border-[#C8C8C8]'
+              }`}
               onClick={() => navigateToSection(-1)}
-              style={{ cursor: 'pointer' }}
             >
-              <span className="section-nav__title">
-                0. INTRODUCTION
-              </span>
-              <span className="section-nav__progress">
-                
-              </span>
-        </div>
+              0. INTRODUCTION
+            </button>
 
-            {/* Form Section Tabs */}
             {applicationQuestions.map((section, index) => {
               const sectionQuestions = section.questions || [];
               const rootQuestions = sectionQuestions.filter(q => !q.parentQuestionId);
@@ -1321,128 +1248,173 @@ const ApplicationForm = () => {
               const totalCount = visibleRootQuestions.length;
               
               return (
-                <div 
+                <button
                   key={section.id} 
-                  className={`section-nav__item ${index === currentSection ? 'section-nav__item--active' : ''}`}
+                  className={`px-4 py-2 rounded-lg font-semibold whitespace-nowrap transition-colors ${
+                    index === currentSection
+                      ? 'bg-[#4242EA] text-white'
+                      : 'bg-white text-[#666] hover:bg-gray-50 border border-[#C8C8C8]'
+                  }`}
                   onClick={() => navigateToSection(index)}
-                  style={{ cursor: 'pointer' }}
                 >
-                  <span className="section-nav__title">
-                    {index + 1}. {section.title}
-                  </span>
-                  <span className="section-nav__progress">
-                    {completedCount} / {totalCount}
-                  </span>
-                </div>
+                  <div>{index + 1}. {section.title}</div>
+                  <div className="text-xs mt-1 opacity-80">{completedCount} / {totalCount}</div>
+                </button>
               );
             })}
             </div>
 
-          <div className="application-form">
-            {/* Show intro content when on intro tab */}
+          <div>
             {currentSection === -1 ? (
-              <div className="application-form__intro-tab">
-                <div className="application-form__intro-tab-content">
-                  <h2 className="application-form__intro-tab-title">Welcome to the Pursuit Application!</h2>
-                  
-                  <div className="application-form__intro-tab-description">
-                    <p className="first-paragraph">
+              <Card className="shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-3xl font-bold text-[#1E1E1E]">Welcome to the Pursuit Application!</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <p className="text-lg leading-relaxed text-[#1E1E1E]">
                       We're excited you're here. Applications for our next cohort launching on <strong>March 14th</strong> close <strong>February 15th</strong>, so now's the time to share your story.
-                    </p>
+                  </p>
 
-                    <h3 style={{ marginTop: '2rem', marginBottom: '1rem', fontSize: '1.3rem', fontWeight: '600' }}>
-                      When filling out your application, keep these things in mind:
-                    </h3>
+                    <div>
+                      <h3 className="text-xl font-bold text-[#1E1E1E] mb-4">When filling out your application, keep these things in mind:</h3>
                     
-                    <ul style={{ listStyle: 'none', padding: 0, marginBottom: '1.5rem' }}>
-                      <li style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
-                        <strong>Take your time.</strong> Go beyond one-word answers—help us get to know you by sharing your whole story.
+                    <ul className="space-y-3">
+                      <li className="flex items-start gap-3">
+                        <div className="h-6 w-6 rounded-full bg-[#4242EA] text-white flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Check className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <strong>Take your time.</strong> Go beyond one-word answers—help us get to know you by sharing your whole story.
+                        </div>
                       </li>
-                      <li style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
-                        <strong>Be honest.</strong> No tech experience? That's okay! We care more about your drive and why you're excited to learn.
+                      <li className="flex items-start gap-3">
+                        <div className="h-6 w-6 rounded-full bg-[#4242EA] text-white flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Check className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <strong>Be honest.</strong> No tech experience? That's okay! We care more about your drive and why you're excited to learn.
+                        </div>
                       </li>
-                      <li style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
-                        <strong>Show curiosity.</strong> Tell us how you think, how you ask questions, and how you approach new challenges.
+                      <li className="flex items-start gap-3">
+                        <div className="h-6 w-6 rounded-full bg-[#4242EA] text-white flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Check className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <strong>Show curiosity.</strong> Tell us how you think, how you ask questions, and how you approach new challenges.
+                        </div>
                       </li>
                     </ul>
+                  </div>
 
-                    <p style={{ marginBottom: '2rem' }}>
+                  <p className="text-lg text-[#1E1E1E]">
                       This is your chance to help us understand not just where you've been, but where you want to go.
-                    </p>
+                  </p>
 
-                    <div style={{ background: 'rgba(66, 66, 234, 0.1)', border: '1px solid rgba(66, 66, 234, 0.3)', borderRadius: '8px', padding: '1.5rem', marginBottom: '2rem' }}>
-                      <h3 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.2rem', fontWeight: '600' }}>
+                    <Card className="bg-blue-50 border-blue-200">
+                      <CardContent className="p-6">
+                        <h3 className="text-lg font-bold text-[#1E1E1E] mb-3">
                         Reminder that to be considered for workshops, you must:
                       </h3>
-                      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                        <li style={{ marginBottom: '0.5rem' }}>✓ Complete an application in full.</li>
-                        <li style={{ marginBottom: '0.5rem' }}>✓ Meet all eligibility requirements (see below).</li>
-                        <li style={{ marginBottom: '0.5rem' }}>✓ Attend an information session before the deadline.</li>
+                      <ul className="space-y-2">
+                          <li className="flex items-center gap-2">
+                            <Check className="h-5 w-5 text-blue-600" />
+                          <span>Complete an application in full.</span>
+                        </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="h-5 w-5 text-blue-600" />
+                          <span>Meet all eligibility requirements (see below).</span>
+                        </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="h-5 w-5 text-blue-600" />
+                          <span>Attend an information session before the deadline.</span>
+                        </li>
+                      </ul>
+                      </CardContent>
+                    </Card>
+
+                    <details className="border border-[#C8C8C8] rounded-lg p-4">
+                      <summary className="cursor-pointer font-bold text-lg text-[#1E1E1E]">
+                      Eligibility Requirements
+                    </summary>
+                      <div className="mt-4 space-y-2 text-[#1E1E1E]">
+                      <p>Applicants must meet all of the following:</p>
+                      <ul className="list-disc list-inside space-y-1 ml-4">
+                        <li>Annual salary/income is less than $45,000</li>
+                        <li>18 years or older</li>
+                        <li>Proficient in English (speaking and writing)</li>
+                        <li>Eligible to work in the U.S.</li>
+                        <li>Able to commit to the full in-person schedule</li>
+                        <li>Committed to participating for the full length of the program</li>
                       </ul>
                     </div>
+                  </details>
 
-                    <details style={{ marginBottom: '1.5rem', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '1rem' }}>
-                      <summary style={{ cursor: 'pointer', fontWeight: '600', fontSize: '1.1rem', marginBottom: '0.5rem' }}>
-                        Eligibility Requirements
-                      </summary>
-                      <div style={{ paddingTop: '1rem', lineHeight: '1.6' }}>
-                        <p>Applicants must meet all of the following:</p>
-                        <ul>
-                          <li>Annual salary/income is less than $45,000</li>
-                          <li>18 years or older</li>
-                          <li>Proficient in English (speaking and writing)</li>
-                          <li>Eligible to work in the U.S.</li>
-                          <li>Able to commit to the full in-person schedule</li>
-                          <li>Committed to participating for the full length of the program</li>
-                        </ul>
+                    <details className="border border-[#C8C8C8] rounded-lg p-4">
+                      <summary className="cursor-pointer font-bold text-lg text-[#1E1E1E]">
+                      FAQs
+                    </summary>
+                      <div className="mt-4 space-y-4 text-[#1E1E1E]">
+                        <div>
+                        <h4 className="font-semibold mb-1">Do I need to attend an info session?</h4>
+                        <p>Yes, attendance is required to be considered.</p>
+                        </div>
+                        
+                        <div>
+                        <h4 className="font-semibold mb-1">What if I want to learn more?</h4>
+                          <p>Visit our <a href="https://www.pursuit.org" target="_blank" rel="noopener noreferrer" className="text-[#4242EA] hover:text-[#3535D1] underline">website here</a>!</p>
+                        </div>
+                        
+                        <div>
+                        <h4 className="font-semibold mb-1">I have more questions. Who do I contact?</h4>
+                          <p>Please reach out to us at: <a href="mailto:admissions@pursuit.org" className="text-[#4242EA] hover:text-[#3535D1] underline">admissions@pursuit.org</a></p>
+                        </div>
                       </div>
                     </details>
-
-                    <details style={{ marginBottom: '2rem', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '1rem' }}>
-                      <summary style={{ cursor: 'pointer', fontWeight: '600', fontSize: '1.1rem', marginBottom: '0.5rem' }}>
-                        FAQs
-                      </summary>
-                      <div style={{ paddingTop: '1rem', lineHeight: '1.6' }}>
-                        <h4 style={{ marginTop: 0, marginBottom: '0.5rem' }}>Do I need to attend an info session?</h4>
-                        <p style={{ marginBottom: '1.5rem' }}>Yes, attendance is required to be considered.</p>
-                        
-                        <h4 style={{ marginBottom: '0.5rem' }}>What if I want to learn more?</h4>
-                        <p style={{ marginBottom: '1.5rem' }}>Visit our <a href="https://www.pursuit.org" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>website here</a>!</p>
-                        
-                        <h4 style={{ marginBottom: '0.5rem' }}>I have more questions. Who do I contact?</h4>
-                        <p style={{ margin: 0 }}>Please reach out to us at: <a href="mailto:admissions@pursuit.org" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>admissions@pursuit.org</a></p>
-                      </div>
-                    </details>
-                  </div>
                   
-                  <div className="application-form__intro-tab-actions">
-                    <button 
+                  <div className="pt-4">
+                    <Button 
                       onClick={handleBeginApplication}
-                      className="application-form__intro-button"
-                      type="button"
+                      className="w-full bg-[#4242EA] hover:bg-[#3535D1] text-white py-6 text-lg"
                     >
                       Begin Application
-                    </button>
+                    </Button>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ) : (
             <form onSubmit={handleSubmit}>
-              <div className="application-form__form-section">
-                  <h2 className="application-form__form-section-title">
+                <Card className="shadow-lg mb-6">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                  <CardTitle className="text-2xl font-bold text-[#1E1E1E]">
                   {(() => {
                     const questionInfo = getCurrentQuestionInfo();
                     return (
                       <>
                         {questionInfo.sectionName}
-                          <span className="application-form__question-counter">
-                          Question {questionInfo.questionNumber} of {questionInfo.totalInSection}
-                        </span>
                       </>
                     );
                   })()}
-                </h2>
+                </CardTitle>
+                        <Badge variant="secondary" className="mt-2">
+                          Question {(() => {
+                            const questionInfo = getCurrentQuestionInfo();
+                            return `${questionInfo.questionNumber} of ${questionInfo.totalInSection}`;
+                          })()}
+                        </Badge>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-[#666] mb-2">Overall Progress</div>
+                        <div className="flex items-center gap-2">
+                          <Progress value={progress} className="w-32" />
+                          <span className="text-sm font-semibold text-[#1E1E1E]">{progress}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
                 
+                  <CardContent className="space-y-6">
                 {(() => {
                   const currentQuestionGroup = getCurrentQuestions();
                   
@@ -1452,57 +1424,53 @@ const ApplicationForm = () => {
 
                   return (
                     <>
-                      {/* Root Question */}
                       {currentQuestionGroup.rootQuestion.type === 'info' ? (
-                        // Special handling for info cards - no labels or form structure
-                        <div key={currentQuestionGroup.rootQuestion.id} className="application-form__question-group application-form__question-group--info">
+                          <div key={currentQuestionGroup.rootQuestion.id}>
                           {renderQuestion(currentQuestionGroup.rootQuestion)}
                         </div>
                       ) : (
                         <div 
                           key={currentQuestionGroup.rootQuestion.id} 
-                          className="application-form__question-group application-form__question-group--root"
+                            className="space-y-3"
                         >
-                          <label htmlFor={currentQuestionGroup.rootQuestion.id} className="application-form__question-label">
+                            <label htmlFor={currentQuestionGroup.rootQuestion.id} className="block text-lg font-semibold text-[#1E1E1E]">
                             {renderQuestionLabel(currentQuestionGroup.rootQuestion)}
                             {currentQuestionGroup.rootQuestion.required ? (
-                              <span className="application-form__question-required">*</span>
+                                <span className="text-red-600 ml-1">*</span>
                             ) : (
-                              <span className="application-form__question-optional">(optional)</span>
+                                <span className="text-[#666] text-sm font-normal ml-2">(optional)</span>
                             )}
                           </label>
                           {renderQuestion(currentQuestionGroup.rootQuestion)}
                           {showValidation && validationErrors[currentQuestionGroup.rootQuestion.id] && (
-                            <div className="application-form__validation-error">
+                              <div className="text-red-600 text-sm mt-1">
                               {validationErrors[currentQuestionGroup.rootQuestion.id]}
                             </div>
                           )}
                         </div>
                       )}
 
-                      {/* Conditional Questions */}
                       {currentQuestionGroup.conditionalQuestions.map((question) => (
                         question.type === 'info' ? (
-                          // Special handling for info cards - no labels or form structure
-                          <div key={question.id} className="application-form__question-group application-form__question-group--info">
+                            <div key={question.id}>
                             {renderQuestion(question)}
                           </div>
                         ) : (
                           <div 
                             key={question.id} 
-                            className="application-form__question-group application-form__question-group--conditional"
+                              className="space-y-3 pl-6 border-l-4 border-blue-200"
                           >
-                            <label htmlFor={question.id} className="application-form__question-label">
+                              <label htmlFor={question.id} className="block text-lg font-semibold text-[#1E1E1E]">
                               {renderQuestionLabel(question)}
                               {question.required ? (
-                                <span className="application-form__question-required">*</span>
+                                  <span className="text-red-600 ml-1">*</span>
                               ) : (
-                                <span className="application-form__question-optional">(optional)</span>
+                                  <span className="text-[#666] text-sm font-normal ml-2">(optional)</span>
                               )}
                             </label>
                             {renderQuestion(question)}
                             {showValidation && validationErrors[question.id] && (
-                              <div className="application-form__validation-error">
+                                <div className="text-red-600 text-sm mt-1">
                                 {validationErrors[question.id]}
                               </div>
                             )}
@@ -1512,19 +1480,24 @@ const ApplicationForm = () => {
                     </>
                   );
                 })()}
-              </div>
+                  </CardContent>
+                </Card>
               
               {/* Navigation */}
-              <div className="application-form__navigation">
+                <div className="flex justify-between items-center gap-4">
                 {getCurrentQuestionGlobalIndex() > 0 && (
-                  <button
+                  <Button
                     type="button"
                     onClick={handlePrevious}
-                    className="application-form__nav-button application-form__nav-button--previous"
+                      variant="outline"
+                      className="border-[#C8C8C8]"
                   >
+                      <ChevronLeft className="h-4 w-4 mr-2" />
                     Previous
-                  </button>
+                  </Button>
                 )}
+                
+                  <div className="flex-1" />
                 
                 {(() => {
                   const currentIdx = getCurrentQuestionGlobalIndex();
@@ -1534,32 +1507,32 @@ const ApplicationForm = () => {
                   console.log(`Question ${currentIdx + 1} of ${totalQ} - Button: ${isLast ? 'SUBMIT' : 'NEXT'}`);
                   
                   return isLast ? (
-                    <button
+                    <Button
                       type="submit"
                       disabled={isSubmitting}
-                      className="application-form__nav-button application-form__nav-button--submit"
+                        className="bg-green-600 hover:bg-green-700 text-white px-8"
                     >
                       {isSubmitting ? 'Submitting...' : 'Submit Application'}
-                    </button>
+                    </Button>
                   ) : (
-                    <button
+                    <Button
                       type="button"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         handleNext();
                       }}
-                      className="application-form__nav-button application-form__nav-button--next"
+                        className="bg-[#4242EA] hover:bg-[#3535D1] text-white px-8"
                     >
                       Next
-                    </button>
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                    </Button>
                   );
                 })()}
             </div>
           </form>
             )}
           </div>
-        </div>
       </div>
       
       {/* Ineligible Modal */}
@@ -1572,4 +1545,4 @@ const ApplicationForm = () => {
   );
 };
 
-export default ApplicationForm; 
+export default ApplicationForm;

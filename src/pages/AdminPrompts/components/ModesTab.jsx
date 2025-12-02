@@ -1,27 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  IconButton,
-  Chip,
-  CircularProgress,
-  Tabs,
-  Tab
-} from '@mui/material';
-import Swal from 'sweetalert2';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Star as StarIcon,
-  StarBorder as StarBorderIcon
-} from '@mui/icons-material';
+import { Button } from '../../../components/ui/button';
+import { Badge } from '../../../components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
+import { ScrollArea } from '../../../components/ui/scroll-area';
+import { Plus, Edit, Trash2, Star } from 'lucide-react';
+import PromptFormDialog from './shared/PromptFormDialog';
+import LoadingState from './shared/LoadingState';
+import EmptyState from './shared/EmptyState';
+import DeleteConfirmDialog from './shared/DeleteConfirmDialog';
 
 const ModesTab = ({ showNotification, reloadPrompts }) => {
   const [modes, setModes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedModeTab, setSelectedModeTab] = useState(0);
+  const [selectedModeId, setSelectedModeId] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingMode, setEditingMode] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, mode: null });
 
   useEffect(() => {
     fetchModes();
@@ -40,6 +35,9 @@ const ModesTab = ({ showNotification, reloadPrompts }) => {
       if (response.ok) {
         const data = await response.json();
         setModes(data.modes || []);
+        if (data.modes.length > 0 && !selectedModeId) {
+          setSelectedModeId(data.modes[0].id);
+        }
       } else {
         throw new Error('Failed to fetch modes');
       }
@@ -51,235 +49,83 @@ const ModesTab = ({ showNotification, reloadPrompts }) => {
     }
   };
 
-  const handleCreate = async () => {
-    const { value: formData } = await Swal.fire({
-      title: 'Create New Mode',
-      html: `
-        <div style="text-align: left;">
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Name (ID) *</label>
-            <input id="swal-name" class="swal2-input" placeholder="e.g., coach_only, technical_assistant" 
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; height: 32px; font-size: 0.85rem; padding: 0.25rem 0.5rem;">
-            <small style="color: #888; font-size: 0.75rem;">Unique identifier used in code (lowercase, underscores)</small>
-          </div>
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Display Name</label>
-            <input id="swal-display-name" class="swal2-input" placeholder="e.g., Coach Only, Technical Assistant"
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; height: 32px; font-size: 0.85rem; padding: 0.25rem 0.5rem;">
-            <small style="color: #888; font-size: 0.75rem;">Human-readable name for the mode</small>
-          </div>
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Description</label>
-            <input id="swal-description" class="swal2-input" placeholder="Brief description of when to use this mode"
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; height: 32px; font-size: 0.85rem; padding: 0.25rem 0.5rem;">
-            <small style="color: #888; font-size: 0.75rem;">Brief description of the mode's behavior and when to use it</small>
-          </div>
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Content *</label>
-            <textarea id="swal-content" placeholder="Enter the mode behavioral instructions..." rows="8"
-                      style="width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; padding: 0.5rem; border-radius: 4px; font-family: Monaco, monospace; font-size: 0.9rem; resize: vertical;"></textarea>
-          </div>
-          <div style="margin-bottom: 0.5rem;">
-            <label style="display: flex; align-items: center; color: #fff; cursor: pointer; font-size: 0.85rem;">
-              <input type="checkbox" id="swal-default" style="margin-right: 0.5rem;">
-              Set as default mode
-            </label>
-          </div>
-        </div>
-      `,
-      background: '#2a2d3e',
-      color: '#fff',
-      showCancelButton: true,
-      confirmButtonText: 'Create Mode',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#4242ea',
-      cancelButtonColor: '#666',
-      width: '600px',
-      preConfirm: () => {
-        const name = document.getElementById('swal-name').value;
-        const displayName = document.getElementById('swal-display-name').value;
-        const description = document.getElementById('swal-description').value;
-        const content = document.getElementById('swal-content').value;
-        const isDefault = document.getElementById('swal-default').checked;
-
-        if (!name.trim()) {
-          Swal.showValidationMessage('Name is required');
-          return false;
-        }
-        if (!content.trim()) {
-          Swal.showValidationMessage('Content is required');
-          return false;
-        }
-
-        return {
-          name: name.trim(),
-          display_name: displayName.trim(),
-          description: description.trim(),
-          content: content.trim(),
-          is_default: isDefault
-        };
-      }
-    });
-
-    if (formData) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/prompts/modes`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(formData)
-        });
-
-        if (response.ok) {
-          showNotification('Mode created successfully');
-          await fetchModes();
-          await reloadPrompts();
-        } else {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to create mode');
-        }
-      } catch (error) {
-        console.error('Error creating mode:', error);
-        showNotification(`Failed to create mode: ${error.message}`, 'error');
-      }
+  const formFields = [
+    {
+      name: 'name',
+      label: 'Name (ID)',
+      type: 'text',
+      required: true,
+      placeholder: 'e.g., coach_only, technical_assistant',
+      helpText: 'Unique identifier used in code (lowercase, underscores)'
+    },
+    {
+      name: 'display_name',
+      label: 'Display Name',
+      type: 'text',
+      placeholder: 'e.g., Coach Only, Technical Assistant',
+      helpText: 'Human-readable name for the mode'
+    },
+    {
+      name: 'description',
+      label: 'Description',
+      type: 'text',
+      placeholder: 'Brief description of when to use this mode',
+      helpText: 'Brief description of the mode\'s behavior and when to use it'
+    },
+    {
+      name: 'content',
+      label: 'Content',
+      type: 'textarea',
+      required: true,
+      rows: 10,
+      placeholder: 'Enter the mode behavioral instructions...',
+      helpText: 'The behavioral guidelines for this mode'
+    },
+    {
+      name: 'is_default',
+      label: 'Set as default mode',
+      type: 'checkbox',
+      defaultValue: false
     }
+  ];
+
+  const handleCreate = () => {
+    setEditingMode(null);
+    setDialogOpen(true);
   };
 
-  const handleEdit = async (mode) => {
-    const { value: formData } = await Swal.fire({
-      title: 'Edit Mode',
-      html: `
-        <div style="text-align: left;">
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Name (ID) *</label>
-            <input id="swal-name" class="swal2-input" value="${mode.name}" 
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; height: 32px; font-size: 0.85rem; padding: 0.25rem 0.5rem;">
-            <small style="color: #888; font-size: 0.75rem;">Unique identifier used in code (lowercase, underscores)</small>
-          </div>
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Display Name</label>
-            <input id="swal-display-name" class="swal2-input" value="${mode.display_name || ''}"
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; height: 32px; font-size: 0.85rem; padding: 0.25rem 0.5rem;">
-            <small style="color: #888; font-size: 0.75rem;">Human-readable name for the mode</small>
-          </div>
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Description</label>
-            <input id="swal-description" class="swal2-input" value="${mode.description || ''}"
-                   style="margin: 0; width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; height: 32px; font-size: 0.85rem; padding: 0.25rem 0.5rem;">
-            <small style="color: #888; font-size: 0.75rem;">Brief description of the mode's behavior and when to use it</small>
-          </div>
-          <div style="margin-bottom: 0.75rem;">
-            <label style="display: block; margin-bottom: 0.25rem; color: #fff; font-weight: 500; font-size: 0.85rem;">Content *</label>
-            <textarea id="swal-content" rows="8"
-                      style="width: 100%; background: #1A1F2C; border: 1px solid #444; color: #fff; padding: 0.5rem; border-radius: 4px; font-family: Monaco, monospace; font-size: 0.9rem; resize: vertical;">${mode.content}</textarea>
-          </div>
-          <div style="margin-bottom: 0.5rem;">
-            <label style="display: flex; align-items: center; color: #fff; cursor: pointer; font-size: 0.85rem;">
-              <input type="checkbox" id="swal-default" ${mode.is_default ? 'checked' : ''} style="margin-right: 0.5rem;">
-              Set as default mode
-            </label>
-          </div>
-        </div>
-      `,
-      background: '#2a2d3e',
-      color: '#fff',
-      showCancelButton: true,
-      confirmButtonText: 'Update Mode',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#4242ea',
-      cancelButtonColor: '#666',
-      width: '600px',
-      preConfirm: () => {
-        const name = document.getElementById('swal-name').value;
-        const displayName = document.getElementById('swal-display-name').value;
-        const description = document.getElementById('swal-description').value;
-        const content = document.getElementById('swal-content').value;
-        const isDefault = document.getElementById('swal-default').checked;
-
-        if (!name.trim()) {
-          Swal.showValidationMessage('Name is required');
-          return false;
-        }
-        if (!content.trim()) {
-          Swal.showValidationMessage('Content is required');
-          return false;
-        }
-
-        return {
-          name: name.trim(),
-          display_name: displayName.trim(),
-          description: description.trim(),
-          content: content.trim(),
-          is_default: isDefault
-        };
-      }
-    });
-
-    if (formData) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/prompts/modes/${mode.id}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(formData)
-        });
-
-        if (response.ok) {
-          showNotification('Mode updated successfully');
-          await fetchModes();
-          await reloadPrompts();
-        } else {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to update mode');
-        }
-      } catch (error) {
-        console.error('Error updating mode:', error);
-        showNotification(`Failed to update mode: ${error.message}`, 'error');
-      }
-    }
+  const handleEdit = (mode) => {
+    setEditingMode(mode);
+    setDialogOpen(true);
   };
 
-  const handleDelete = async (mode) => {
-    const result = await Swal.fire({
-      title: 'Delete Mode',
-      text: `Are you sure you want to delete the "${mode.display_name || mode.name}" mode? This action cannot be undone.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#666',
-      confirmButtonText: 'Yes, delete it!',
-      background: '#2a2d3e',
-      color: '#fff'
-    });
+  const handleDelete = (mode) => {
+    setDeleteDialog({ open: true, mode });
+  };
 
-    if (result.isConfirmed) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/prompts/modes/${mode.id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          showNotification('Mode deleted successfully');
-          await fetchModes();
-          await reloadPrompts();
-        } else {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to delete mode');
+  const confirmDelete = async () => {
+    const mode = deleteDialog.mode;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/prompts/modes/${mode.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      } catch (error) {
-        console.error('Error deleting mode:', error);
-        showNotification(`Failed to delete mode: ${error.message}`, 'error');
+      });
+
+      if (response.ok) {
+        showNotification('Mode deleted successfully');
+        fetchModes();
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete mode');
       }
+    } catch (error) {
+      console.error('Error deleting mode:', error);
+      showNotification(error.message, 'error');
+    } finally {
+      setDeleteDialog({ open: false, mode: null });
     }
   };
 
@@ -295,162 +141,237 @@ const ModesTab = ({ showNotification, reloadPrompts }) => {
 
       if (response.ok) {
         showNotification(`"${mode.display_name || mode.name}" set as default mode`);
-        await fetchModes();
-        await reloadPrompts();
+        fetchModes();
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to set default mode');
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to set default');
       }
     } catch (error) {
-      console.error('Error setting default mode:', error);
-      showNotification(`Failed to set default mode: ${error.message}`, 'error');
+      console.error('Error setting default:', error);
+      showNotification(error.message, 'error');
     }
   };
 
-  const handleModeTabChange = (event, newValue) => {
-    setSelectedModeTab(newValue);
+  const handleSubmit = async (formData) => {
+    try {
+      const token = localStorage.getItem('token');
+      const url = editingMode
+        ? `${import.meta.env.VITE_API_URL}/api/admin/prompts/modes/${editingMode.id}`
+        : `${import.meta.env.VITE_API_URL}/api/admin/prompts/modes`;
+      
+      const response = await fetch(url, {
+        method: editingMode ? 'PUT' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        showNotification(`Mode ${editingMode ? 'updated' : 'created'} successfully`);
+        setDialogOpen(false);
+        fetchModes();
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || `Failed to ${editingMode ? 'update' : 'create'} mode`);
+      }
+    } catch (error) {
+      console.error('Error saving mode:', error);
+      showNotification(error.message, 'error');
+    }
   };
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingState count={2} />;
   }
 
-  const currentMode = modes[selectedModeTab];
-
-  return (
-    <div className="prompt-tab">
-      <div className="prompt-tab__header">
-        <div>
-          <Typography variant="h5" gutterBottom>
-            AI Helper Modes
-          </Typography>
-          <Typography variant="body2" color="textSecondary">
-            Manage AI behavior modes that determine how the AI responds to students (coach_only, technical_assistant, research_partner).
-          </Typography>
-        </div>
-        <div className="prompt-tab__actions">
+  if (modes.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-start gap-4 flex-wrap">
+          <div>
+            <h2 className="font-proxima-bold text-2xl text-[#1E1E1E] mb-2">
+              AI Modes
+            </h2>
+            <p className="font-proxima text-[#666]">
+              Different operational modes that control specific AI behaviors and constraints.
+            </p>
+          </div>
           <Button
-            variant="contained"
-            startIcon={<AddIcon />}
             onClick={handleCreate}
+            className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
           >
+            <Plus className="h-4 w-4 mr-2" />
             Create Mode
           </Button>
         </div>
+
+        <EmptyState
+          icon="⚙️"
+          title="No modes found"
+          description="Create your first AI mode to get started."
+          actionLabel="Create Mode"
+          onAction={handleCreate}
+        />
+
+        <PromptFormDialog
+          open={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+          onSubmit={handleSubmit}
+          title="Create Mode"
+          confirmText="Create"
+          initialData={{}}
+          fields={formFields}
+        />
+      </div>
+    );
+  }
+
+  const currentMode = modes.find(m => m.id === selectedModeId) || modes[0];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-start gap-4 flex-wrap">
+        <div>
+          <h2 className="font-proxima-bold text-2xl text-[#1E1E1E] mb-2">
+            AI Modes
+          </h2>
+          <p className="font-proxima text-[#666]">
+            Different operational modes that control specific AI behaviors and constraints.
+          </p>
+        </div>
+        <Button
+          onClick={handleCreate}
+          className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Create Mode
+        </Button>
       </div>
 
-      {modes.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state__icon">🎯</div>
-          <Typography variant="h6" gutterBottom>
-            No modes found
-          </Typography>
-          <Typography variant="body2" color="textSecondary">
-            Create your first AI mode to get started.
-          </Typography>
-        </div>
-      ) : (
-        <div className="modes-tab-container">
-          {/* Sub-navigation tabs */}
-          <div className="modes-sub-tabs">
-            <Tabs
-              value={selectedModeTab}
-              onChange={handleModeTabChange}
-              variant="scrollable"
-              scrollButtons="auto"
-              className="modes-sub-tabs__tabs"
+      {/* Modes Tabs */}
+      <Tabs value={selectedModeId?.toString()} onValueChange={(val) => setSelectedModeId(parseInt(val))}>
+        <TabsList className="bg-white border border-[#C8C8C8] p-1 h-auto flex-wrap justify-start">
+          {modes.map((mode) => (
+            <TabsTrigger
+              key={mode.id}
+              value={mode.id.toString()}
+              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
             >
-              {modes.map((mode, index) => (
-                <Tab
-                  key={mode.id}
-                  label={
-                    <div className="mode-tab-label">
-                      <span>{mode.display_name || mode.name}</span>
+              <span className="truncate max-w-[150px]">
+                {mode.display_name || mode.name}
+              </span>
+              {mode.is_default && (
+                <Badge className="ml-1 bg-[#FFD3C2] text-[#1E1E1E] hover:bg-[#FFD3C2] h-4 text-[10px] px-1">
+                  Default
+                </Badge>
+              )}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        {modes.map((mode) => (
+          <TabsContent key={mode.id} value={mode.id.toString()} className="m-0 mt-6">
+            <Card className="bg-white border-[#C8C8C8]">
+              <CardHeader>
+                <div className="flex justify-between items-start gap-4">
+                  <div className="flex-1">
+                    <CardTitle className="font-proxima-bold text-[#1E1E1E] flex items-center gap-2 flex-wrap">
+                      {mode.display_name || mode.name}
                       {mode.is_default && (
-                        <Chip
-                          label="Default"
-                          size="small"
-                          color="primary"
-                          sx={{ ml: 0.5, fontSize: '0.65rem', height: '16px' }}
-                        />
+                        <Badge className="bg-[#4242EA] text-white hover:bg-[#3535D1]">
+                          Default
+                        </Badge>
                       )}
-                    </div>
-                  }
-                />
-              ))}
-            </Tabs>
-          </div>
-
-          {/* Current mode content */}
-          {currentMode && (
-            <div className="mode-content">
-              <div className="mode-content__header">
-                <div className="mode-content__title">
-                  <Typography variant="h6" component="h3">
-                    {currentMode.display_name || currentMode.name}
-                    {currentMode.is_default && (
-                      <Chip
-                        label="Default"
-                        size="small"
-                        color="primary"
-                        sx={{ ml: 1 }}
-                      />
+                    </CardTitle>
+                    <CardDescription className="font-proxima text-[#666] mt-1">
+                      ID: {mode.name}
+                    </CardDescription>
+                    {mode.description && (
+                      <CardDescription className="font-proxima text-[#666]">
+                        {mode.description}
+                      </CardDescription>
                     )}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    ID: {currentMode.name}
-                  </Typography>
-                  {currentMode.description && (
-                    <Typography variant="body2" color="textSecondary">
-                      {currentMode.description}
-                    </Typography>
-                  )}
-                </div>
-                <div className="mode-content__actions">
-                  <IconButton
-                    size="small"
-                    onClick={() => handleSetDefault(currentMode)}
-                    disabled={currentMode.is_default}
-                    title={currentMode.is_default ? 'This is the default' : 'Set as default'}
-                  >
-                    {currentMode.is_default ? <StarIcon color="primary" /> : <StarBorderIcon />}
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleEdit(currentMode)}
-                    title="Edit"
-                  >
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleDelete(currentMode)}
-                    disabled={currentMode.is_default}
-                    title={currentMode.is_default ? 'Cannot delete default mode' : 'Delete'}
-                    color="error"
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </div>
-              </div>
+                  </div>
 
-              <div className="mode-content__body">
-                <div className="mode-content__text">
-                  {currentMode.content}
+                  <div className="flex gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleSetDefault(mode)}
+                      disabled={mode.is_default}
+                      className={`h-8 w-8 ${
+                        mode.is_default 
+                          ? 'text-[#4242EA]' 
+                          : 'text-[#666] hover:text-[#4242EA]'
+                      }`}
+                      title={mode.is_default ? 'This is the default' : 'Set as default'}
+                    >
+                      <Star className={`h-4 w-4 ${mode.is_default ? 'fill-current' : ''}`} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(mode)}
+                      className="h-8 w-8 text-[#666] hover:text-[#4242EA]"
+                      title="Edit"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(mode)}
+                      disabled={mode.is_default}
+                      className="h-8 w-8 text-[#666] hover:text-red-600 disabled:opacity-30"
+                      title={mode.is_default ? 'Cannot delete default mode' : 'Delete'}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                
-                <div className="mode-content__meta">
-                  <span>Last updated: {new Date(currentMode.updated_at).toLocaleString()}</span>
+              </CardHeader>
+
+              <CardContent>
+                <ScrollArea className="h-[50vh] w-full rounded-lg">
+                  <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
+                    <pre className="font-mono text-sm text-[#1E1E1E] whitespace-pre-wrap leading-relaxed">
+                      {mode.content}
+                    </pre>
+                  </div>
+                </ScrollArea>
+
+                <div className="mt-3 text-xs text-[#666] font-proxima">
+                  Last updated: {new Date(mode.updated_at).toLocaleString()}
                 </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        ))}
+      </Tabs>
+
+      {/* Form Dialog */}
+      <PromptFormDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onSubmit={handleSubmit}
+        title={editingMode ? 'Edit Mode' : 'Create Mode'}
+        confirmText={editingMode ? 'Update' : 'Create'}
+        initialData={editingMode || {}}
+        fields={formFields}
+      />
+
+      {/* Delete Confirmation */}
+      <DeleteConfirmDialog
+        open={deleteDialog.open}
+        onClose={() => setDeleteDialog({ open: false, mode: null })}
+        onConfirm={confirmDelete}
+        title="Delete Mode?"
+        itemName={deleteDialog.mode?.display_name || deleteDialog.mode?.name}
+        description="This action cannot be undone."
+      />
     </div>
   );
 };

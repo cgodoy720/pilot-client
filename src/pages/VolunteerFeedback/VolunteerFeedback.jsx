@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import FeedbackHeader from '../../components/FeedbackHeader/FeedbackHeader';
 import FeedbackModal from './FeedbackModal';
 import FeedbackList from './FeedbackList';
 import './VolunteerFeedback.css';
@@ -73,7 +72,6 @@ function VolunteerFeedback() {
         console.log('🔍 Access denied - user is not a volunteer');
         return (
             <div className="volunteer-feedback-page">
-                <FeedbackHeader />
                 <div className="volunteer-feedback">
                     <div className="volunteer-feedback__error">
                         <h2>Access Denied</h2>
@@ -90,7 +88,6 @@ function VolunteerFeedback() {
     
     return (
         <div className="volunteer-feedback-page">
-            <FeedbackHeader />
             <div className="volunteer-feedback">
                 <div className="volunteer-feedback__header">
                     <h1>Volunteer Feedback</h1>
@@ -100,10 +97,11 @@ function VolunteerFeedback() {
                 {/* Action Section */}
                 <div className="volunteer-feedback__actions">
                     <button 
-                        className="volunteer-feedback__record-button"
+                        className="group relative overflow-hidden inline-flex justify-center items-center px-8 py-3 bg-[#4242EA] border border-[#4242EA] rounded-full font-normal text-base text-white cursor-pointer transition-colors duration-300"
                         onClick={() => setIsModalOpen(true)}
                     >
-                        📝 Record Feedback
+                        <span className="relative z-10 transition-colors duration-300 group-hover:text-[#4242EA]">📝 Record Feedback</span>
+                        <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
                     </button>
                 </div>
 

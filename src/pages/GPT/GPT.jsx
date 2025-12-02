@@ -1,52 +1,99 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './GPT.css';
-import { FaPlus, FaChevronLeft, FaFileAlt, FaVideo, FaLink, FaTimes, FaCog } from 'react-icons/fa';
-import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getThreads, getThreadMessages, createThread, sendMessageToGPT } from '../../utils/api';
 import SummaryModal from '../../components/SummaryModal/SummaryModal';
+import ReactMarkdown from 'react-markdown';
+import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
+
+// New Components
+import GPTTopBar from './components/GPTTopBar';
+import ChatTray from './components/ChatTray';
+import MessageBubble from './components/MessageBubble';
+import ProcessingOverlay from './components/ProcessingOverlay';
+import ArrowButton from '../../components/ArrowButton/ArrowButton';
+
+// Shadcn UI Components
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '../../components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
 
 function GPT() {
   const { token, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [threads, setThreads] = useState([]);
-  const [activeThread, setActiveThread] = useState(null); // Start with no active thread
+  const [activeThread, setActiveThread] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isAiThinking, setIsAiThinking] = useState(false);
-  const [sidebarVisible, setSidebarVisible] = useState(true);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   
   // Summary-related state
   const [currentThreadSummary, setCurrentThreadSummary] = useState(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
-  const [summaryThreadId, setSummaryThreadId] = useState(null); // Track which thread the summary belongs to
-  const [summaryLoading, setSummaryLoading] = useState(false); // Track if we're fetching summary
-  const [modalSummaryData, setModalSummaryData] = useState(null); // Summary data for the modal
+  const [summaryThreadId, setSummaryThreadId] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [modalSummaryData, setModalSummaryData] = useState(null);
   
   // Model selection state
   const [selectedModel, setSelectedModel] = useState('anthropic/claude-sonnet-4.5');
-  const [showModelSelector, setShowModelSelector] = useState(false);
+  
+  // Available LLM models - matches Learning page
+  const LLM_MODELS = [
+    { value: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', description: 'Advanced reasoning' },
+    { value: 'anthropic/claude-haiku-4.5', label: 'Claude Haiku 4.5', description: 'Fast & efficient' },
+    { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini', description: 'Quick responses' },
+    { value: 'google/gemini-2.5-flash-lite', label: 'Gemini Flash 2.5 Lite', description: 'Fast & efficient' },
+    { value: 'deepseek/deepseek-chat', label: 'DeepSeek Chat', description: 'Code specialist' },
+    { value: 'x-ai/grok-4-fast', label: 'Grok 4 Fast', description: 'Fast reasoning' }
+  ];
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showThreadDropdown, setShowThreadDropdown] = useState(false);
   
   // Enhanced content management state
-  const [contentSources, setContentSources] = useState({}); // Store multiple content sources per thread
-  const [showUploadDropdown, setShowUploadDropdown] = useState(false);
+  const [contentSources, setContentSources] = useState({});
   const [isProcessingUpload, setIsProcessingUpload] = useState(false);
-  const [processingFileName, setProcessingFileName] = useState(''); // Track what's being processed
-  const [processingUrl, setProcessingUrl] = useState(''); // Track URL being processed
-  const [processingStep, setProcessingStep] = useState(''); // Track current processing step
+  const [processingFileName, setProcessingFileName] = useState('');
+  const [processingUrl, setProcessingUrl] = useState('');
+  const [processingStep, setProcessingStep] = useState('');
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   
-  const textareaRef = useRef(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
-  const uploadDropdownRef = useRef(null);
-  const modelSelectorRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const fetchThreadsAbortControllerRef = useRef(null);
+  const fetchMessagesAbortControllerRef = useRef(null);
+  const textareaRef = useRef(null);
 
   // Check if user is inactive (in historical access mode)
   const isInactiveUser = user && user.active === false;
@@ -56,6 +103,22 @@ function GPT() {
   const summaryUrl = searchParams.get('summaryUrl');
   const summaryTitle = searchParams.get('summaryTitle'); 
   const summaryData = searchParams.get('summaryData');
+  const waitingForResponse = searchParams.get('waitingForResponse') === 'true';
+
+  // Cleanup: abort any pending requests when component unmounts
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (fetchThreadsAbortControllerRef.current) {
+        fetchThreadsAbortControllerRef.current.abort();
+      }
+      if (fetchMessagesAbortControllerRef.current) {
+        fetchMessagesAbortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Fetch threads on component mount
   useEffect(() => {
@@ -68,31 +131,24 @@ function GPT() {
   useEffect(() => {
     if (summaryUrl && summaryTitle && summaryData) {
       try {
-        // Parse the summary data from URL parameter
         const parsedSummaryData = JSON.parse(decodeURIComponent(summaryData));
-        
-        // Set up the summary for the current thread
         setCurrentThreadSummary({
           url: summaryUrl,
           title: summaryTitle,
           ...parsedSummaryData
         });
         
-        // Wait for threadIdFromUrl to be processed, then set the summary thread ID
         if (threadIdFromUrl) {
           setSummaryThreadId(threadIdFromUrl);
         }
         
-        // Clean up URL parameters
         const newSearchParams = new URLSearchParams(searchParams);
         newSearchParams.delete('summaryUrl');
         newSearchParams.delete('summaryTitle');
         newSearchParams.delete('summaryData');
         setSearchParams(newSearchParams, { replace: true });
-        
       } catch (error) {
         console.error('Error parsing summary data from URL:', error);
-        // Clean up invalid parameters
         const newSearchParams = new URLSearchParams(searchParams);
         newSearchParams.delete('summaryUrl');
         newSearchParams.delete('summaryTitle');
@@ -102,27 +158,34 @@ function GPT() {
     }
   }, [summaryUrl, summaryTitle, summaryData, searchParams, setSearchParams, threadIdFromUrl]);
 
+  // Handle waitingForResponse parameter - show preloader immediately
+  useEffect(() => {
+    if (waitingForResponse) {
+      setIsAiThinking(true);
+      // Clear the URL parameter
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('waitingForResponse');
+      setSearchParams(newSearchParams, { replace: true });
+    }
+  }, [waitingForResponse, searchParams, setSearchParams]);
+
   // Handle threadId URL parameter
   useEffect(() => {
     if (threadIdFromUrl && threads.length > 0) {
-      // Check if the thread exists in our threads list
       const targetThread = threads.find(thread => 
         String(getThreadId(thread)) === String(threadIdFromUrl)
       );
       
       if (targetThread) {
         setActiveThread(getThreadId(targetThread));
-        // Remove the threadId from URL after loading
         const newSearchParams = new URLSearchParams(searchParams);
         newSearchParams.delete('threadId');
         setSearchParams(newSearchParams, { replace: true });
         
-        // If we have summary data waiting, associate it with this thread
         if (currentThreadSummary && !summaryThreadId) {
           setSummaryThreadId(getThreadId(targetThread));
         }
       } else {
-        // Thread not found, clear the parameter
         const newSearchParams = new URLSearchParams(searchParams);
         newSearchParams.delete('threadId');
         setSearchParams(newSearchParams, { replace: true });
@@ -140,15 +203,35 @@ function GPT() {
     }
   }, [activeThread, token]);
 
+  // Poll for new messages when waiting for AI response
+  useEffect(() => {
+    if (!isAiThinking || !activeThread || !token) return;
+
+    let pollCount = 0;
+    const maxPolls = 30; // Stop polling after 60 seconds (30 * 2s)
+
+    const pollInterval = setInterval(() => {
+      pollCount++;
+      if (pollCount >= maxPolls) {
+        clearInterval(pollInterval);
+        setIsAiThinking(false); // Stop showing preloader after timeout
+        return;
+      }
+      
+      // Fetch messages to check if AI has responded (pass isPolling=true to prevent clearing messages)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      fetchMessages(activeThread, true);
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [isAiThinking, activeThread, token]);
+
   // Clear summary data when switching to a thread without summary
   useEffect(() => {
     if (activeThread && summaryThreadId && String(activeThread) !== String(summaryThreadId)) {
-      // User switched to a different thread, clear summary data
       setCurrentThreadSummary(null);
       setSummaryThreadId(null);
     }
-    
-    // Clear modal summary data when switching threads
     setModalSummaryData(null);
   }, [activeThread, summaryThreadId]);
 
@@ -159,49 +242,139 @@ function GPT() {
     }
   }, [messages]);
 
+  // Auto-focus input when messages load after thread selection
+  useEffect(() => {
+    if (!isLoading && !isInitialLoad && activeThread && messages.length > 0 && textareaRef.current && !isInactiveUser) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 200);
+    }
+  }, [isLoading, isInitialLoad, activeThread, messages.length, isInactiveUser]);
+
+  // Auto-focus input when AI response arrives
+  useEffect(() => {
+    if (messages.length > 0 && !isAiThinking && !isSending && textareaRef.current && !isInactiveUser) {
+      const lastMessage = messages[messages.length - 1];
+      const lastMessageRole = lastMessage.message_role || lastMessage.role;
+      // Focus when last message is from AI/assistant
+      if (lastMessageRole === 'assistant' || lastMessageRole === 'ai') {
+        // Small delay to ensure DOM is ready and user can see the response
+        setTimeout(() => {
+          textareaRef.current?.focus();
+        }, 300);
+      }
+    }
+  }, [messages, isAiThinking, isSending, isInactiveUser]);
+
+  // Auto-resize textarea based on content
+  const handleTextareaResize = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      // Reset height to auto to get the correct scrollHeight
+      textarea.style.height = 'auto';
+      
+      // Calculate new height (min 1 row, max 5 rows)
+      const lineHeight = 26; // matches text-[18px] leading-[26px]
+      const minHeight = lineHeight; // 1 row minimum
+      const maxHeight = lineHeight * 5; // 5 rows maximum
+      
+      const newHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
+      textarea.style.height = `${newHeight}px`;
+    }
+  };
+
+  // Initial resize on mount
+  useEffect(() => {
+    handleTextareaResize();
+  }, []);
+
   const fetchThreads = async () => {
+    // Abort any pending fetch threads request
+    if (fetchThreadsAbortControllerRef.current) {
+      fetchThreadsAbortControllerRef.current.abort();
+    }
+    
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    fetchThreadsAbortControllerRef.current = abortController;
+    
     try {
       setIsLoading(true);
-      const data = await getThreads(token);
+      const data = await getThreads(token, abortController.signal);
       
-      // Check the structure of the response and adapt accordingly
+      // Check if this request was aborted
+      if (abortController.signal.aborted) {
+        return;
+      }
+      
       const threadsArray = Array.isArray(data) ? data : 
                           data.threads ? data.threads : 
                           data.data ? data.data : [];
       
       setThreads(threadsArray);
-      
-      // Remove the automatic selection of the first thread
-      // Only set active thread if we're refreshing threads after creating a new one
-      // This will be handled by the handleCreateThread function instead
-      
       setError('');
     } catch (err) {
+      // Ignore abort errors
+      if (err.name === 'AbortError') {
+        return;
+      }
       console.error('Error fetching threads:', err);
       setError('Failed to load conversations. Please try again.');
     } finally {
-      setIsLoading(false);
+      // Only update loading state if not aborted
+      if (!abortController.signal.aborted) {
+        setIsLoading(false);
+        setIsInitialLoad(false);
+      }
     }
   };
 
-  const fetchMessages = async (threadId) => {
+  const fetchMessages = async (threadId, isPolling = false) => {
+    // Abort any pending fetch messages request
+    if (fetchMessagesAbortControllerRef.current) {
+      fetchMessagesAbortControllerRef.current.abort();
+    }
+    
+    // CRITICAL: Also abort any pending send message request when switching threads
+    if (abortControllerRef.current && !isPolling) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Only reset AI thinking state when switching threads (not when polling)
+    if (!isPolling) {
+    setIsAiThinking(false);
+    setIsSending(false);
+    }
+    
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    fetchMessagesAbortControllerRef.current = abortController;
+    
+    // Only clear messages when switching threads, not when polling
+    if (!isPolling) {
+    setMessages([]);
+    }
+    
     try {
       setIsLoading(true);
-      const data = await getThreadMessages(threadId, token);
+      const data = await getThreadMessages(threadId, token, abortController.signal);
       
-      // The API returns an array of messages directly
+      // Check if this request was aborted
+      if (abortController.signal.aborted) {
+        return;
+      }
+      
       let messagesArray = Array.isArray(data) ? data : 
                          data.messages ? data.messages : 
                          data.data ? data.data : [];
       
-      // Sort messages by created_at timestamp if available
       if (messagesArray.length > 0 && messagesArray[0].created_at) {
         messagesArray = [...messagesArray].sort((a, b) => 
           new Date(a.created_at) - new Date(b.created_at)
         );
       }
       
-      // Add message_id if not present (using timestamp or index as fallback)
       messagesArray = messagesArray.map((message, index) => {
         if (!message.message_id && !message.id) {
           return {
@@ -212,22 +385,71 @@ function GPT() {
         return message;
       });
       
+      // When polling, only update messages if they've actually changed (to prevent flashing)
+      if (isPolling) {
+        // Compare message count and last message ID to avoid unnecessary updates
+        const currentLastMessageId = messages.length > 0 ? getMessageId(messages[messages.length - 1]) : null;
+        const newLastMessageId = messagesArray.length > 0 ? getMessageId(messagesArray[messagesArray.length - 1]) : null;
+        
+        // Only update if messages actually changed
+        if (currentLastMessageId !== newLastMessageId || messages.length !== messagesArray.length) {
+          setMessages(messagesArray);
+          
+          // Update isAiThinking based on last message role
+          if (messagesArray.length > 0) {
+            const lastMessage = messagesArray[messagesArray.length - 1];
+            const lastMessageRole = getMessageRole(lastMessage);
+            setIsAiThinking(lastMessageRole === 'user');
+          }
+        }
+      } else {
       setMessages(messagesArray);
       setError('');
+        
+        // Check if we're waiting for an AI response (last message is from user)
+        if (messagesArray.length > 0) {
+          const lastMessage = messagesArray[messagesArray.length - 1];
+          const lastMessageRole = getMessageRole(lastMessage);
+          setIsAiThinking(lastMessageRole === 'user');
+        }
+      }
+      
+      if (!isPolling) {
+        setError('');
+      }
     } catch (err) {
+      // Ignore abort errors
+      if (err.name === 'AbortError') {
+        return;
+      }
       console.error('Error fetching messages:', err);
       setError('Failed to load messages. Please try again.');
     } finally {
+      // Only update loading state if not aborted
+      if (!abortController.signal.aborted) {
       setIsLoading(false);
+      }
     }
   };
 
-  const handleThreadClick = (threadId) => {
+  const handleThreadSelect = (threadId) => {
+    // Abort any ongoing operations when switching threads
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    if (fetchMessagesAbortControllerRef.current) {
+      fetchMessagesAbortControllerRef.current.abort();
+    }
+    
+    // Reset states
+    setIsAiThinking(false);
+    setIsSending(false);
+    setError('');
+    
     setActiveThread(threadId);
   };
 
   const handleCreateThread = async () => {
-    // Prevent inactive users from creating new threads
     if (isInactiveUser) {
       setError('You are in historical access mode and cannot create new conversations.');
       return;
@@ -236,14 +458,10 @@ function GPT() {
     try {
       setIsLoading(true);
       const data = await createThread(null, token);
-      
-      // Adapt to your API's response structure
       const newThread = data.thread || data.data || data;
       
       if (newThread) {
-        // Adapt to your API's thread ID field name
         const threadIdField = newThread.thread_id ? 'thread_id' : 'id';
-        
         setThreads(prev => [newThread, ...prev]);
         setActiveThread(newThread[threadIdField]);
         setMessages([]);
@@ -260,21 +478,59 @@ function GPT() {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !activeThread || isSending) return;
+    if (!newMessage.trim() || isSending) return;
 
-    // Prevent inactive users from sending messages
     if (isInactiveUser) {
       setError('You are in historical access mode and cannot send new messages.');
       return;
     }
 
-    const messageToSend = newMessage;
-    
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+    // If no active thread, create one first
+    if (!activeThread) {
+      try {
+        setIsLoading(true);
+        const data = await createThread(null, token);
+        const newThread = data.thread || data.data || data;
+        
+        if (newThread) {
+          const threadIdField = newThread.thread_id ? 'thread_id' : 'id';
+          const newThreadId = newThread[threadIdField];
+          setThreads(prev => [newThread, ...prev]);
+          // Don't set activeThread yet - we'll do it after sending the message
+          // This prevents the useEffect from trying to fetch messages while we're sending
+          setMessages([]);
+          
+          // Now send the message to the new thread
+          await sendMessageToNewThread(newThreadId);
+          
+          // Now set the active thread after message is sent
+          setActiveThread(newThreadId);
+        }
+        setError('');
+      } catch (err) {
+        console.error('Error creating thread:', err);
+        setError('Failed to create new conversation. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Send to existing thread
+    await sendMessageToExistingThread();
+  };
+
+  const sendMessageToNewThread = async (threadId) => {
+    // Abort any pending send message request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
     
-    // Add user message to UI immediately
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
+    const messageToSend = newMessage;
     const tempUserMessageId = Date.now();
     const tempUserMessage = {
       message_id: tempUserMessageId,
@@ -285,313 +541,127 @@ function GPT() {
     
     setMessages(prevMessages => [...prevMessages, tempUserMessage]);
     setNewMessage('');
+    handleTextareaResize(); // Reset height after clearing
     setIsSending(true);
     setIsAiThinking(true);
 
     try {
-      // Check if this is the first message in the thread
+      const response = await sendMessageToGPT(messageToSend, threadId, token, selectedModel, abortController.signal);
+      
+      // Check if this request was aborted
+      if (abortController.signal.aborted) {
+        return;
+      }
+      
+      setTimeout(() => {
+        fetchThreads();
+      }, 1000);
+      
+      if (response && response.reply) {
+        setMessages(prevMessages => [
+          ...prevMessages.filter(msg => msg.message_id !== tempUserMessageId),
+          tempUserMessage,
+          response.reply
+        ]);
+      } else {
+        await fetchMessages(threadId);
+      }
+      
+      setError('');
+    } catch (err) {
+      // Ignore abort errors
+      if (err.name === 'AbortError') {
+        return;
+      }
+      console.error('Error sending message:', err);
+      setError('Failed to send message. Please try again.');
+      setMessages(prevMessages => 
+        prevMessages.filter(msg => msg.message_id !== tempUserMessageId)
+      );
+    } finally {
+      // Only update state if not aborted
+      if (!abortController.signal.aborted) {
+      setIsSending(false);
+      setIsAiThinking(false);
+      }
+    }
+  };
+
+  const sendMessageToExistingThread = async () => {
+    // Abort any pending send message request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
+    const messageToSend = newMessage;
+    const tempUserMessageId = Date.now();
+    const tempUserMessage = {
+      message_id: tempUserMessageId,
+      content: messageToSend,
+      message_role: 'user',
+      created_at: new Date().toISOString()
+    };
+    
+    setMessages(prevMessages => [...prevMessages, tempUserMessage]);
+    setNewMessage('');
+    handleTextareaResize(); // Reset height after clearing
+    setIsSending(true);
+    setIsAiThinking(true);
+
+    try {
       const isFirstMessage = messages.length === 0;
+      const response = await sendMessageToGPT(messageToSend, activeThread, token, selectedModel, abortController.signal);
       
-      // Send message to API with selected model
-      const response = await sendMessageToGPT(messageToSend, activeThread, token, selectedModel);
+      // Check if this request was aborted
+      if (abortController.signal.aborted) {
+        return;
+      }
       
-      // If this is the first message, refresh threads to get updated titles
       if (isFirstMessage) {
         setTimeout(() => {
           fetchThreads();
         }, 1000);
       }
       
-      // The API returns a single reply message in the 'reply' field
       if (response && response.reply) {
-        // Add the assistant's reply to the messages
         setMessages(prevMessages => [
           ...prevMessages.filter(msg => msg.message_id !== tempUserMessageId),
-          // Add the confirmed user message from the server if available, otherwise keep the temp one
           tempUserMessage,
-          // Add the assistant's reply
           response.reply
         ]);
       } else {
-        // If the response doesn't contain a reply, fetch all messages to ensure we have the latest state
         await fetchMessages(activeThread);
       }
       
       setError('');
     } catch (err) {
+      // Ignore abort errors
+      if (err.name === 'AbortError') {
+        return;
+      }
       console.error('Error sending message:', err);
       setError('Failed to send message. Please try again.');
-      
-      // Remove the temporary user message if there was an error
       setMessages(prevMessages => 
         prevMessages.filter(msg => msg.message_id !== tempUserMessageId)
       );
     } finally {
+      // Only update state if not aborted
+      if (!abortController.signal.aborted) {
       setIsSending(false);
       setIsAiThinking(false);
-    }
-  };
-
-  const formatMessageContent = (content) => {
-    const parts = content.split(/(```[\s\S]*?```)/);
-    
-    return parts.map((part, index) => {
-      if (part.startsWith('```')) {
-        // Extract language and code
-        const match = part.match(/```(\w+)?\n?([\s\S]*?)```/);
-        const language = match?.[1] || '';
-        const code = match?.[2] || '';
-        
-        return (
-          <pre key={index} className="code-block">
-            {language && <div className="code-language">{language}</div>}
-            <code>{code}</code>
-          </pre>
-        );
-      }
-      return (
-        <ReactMarkdown 
-          key={index}
-          components={{
-            p: ({node, children, ...props}) => (
-              <p className="markdown-paragraph" {...props}>{children}</p>
-            ),
-            h1: ({node, children, ...props}) => (
-              <h1 className="markdown-heading" {...props}>{children}</h1>
-            ),
-            h2: ({node, children, ...props}) => (
-              <h2 className="markdown-heading" {...props}>{children}</h2>
-            ),
-            h3: ({node, children, ...props}) => (
-              <h3 className="markdown-heading" {...props}>{children}</h3>
-            ),
-            ul: ({node, children, ...props}) => (
-              <ul className="markdown-list" {...props}>{children}</ul>
-            ),
-            ol: ({node, children, ...props}) => (
-              <ol className="markdown-list" {...props}>{children}</ol>
-            ),
-            li: ({node, children, ...props}) => (
-              <li className="markdown-list-item" {...props}>{children}</li>
-            ),
-            a: ({node, children, ...props}) => (
-              <a className="markdown-link" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
-            ),
-            blockquote: ({node, children, ...props}) => (
-              <blockquote className="markdown-blockquote" {...props}>{children}</blockquote>
-            ),
-            table: ({node, children, ...props}) => (
-              <table className="markdown-table" {...props}>{children}</table>
-            ),
-            code: ({node, inline, className, children, ...props}) => {
-              if (inline) {
-                return (
-                  <code className="inline-code" {...props}>
-                    {children}
-                  </code>
-                );
-              }
-              return (
-                <code {...props}>
-                  {children}
-                </code>
-              );
-            }
-          }}
-        >
-          {part}
-        </ReactMarkdown>
-      );
-    });
-  };
-
-  // Helper function to get thread title
-  const getThreadTitle = (thread) => {
-    // Adapt to your API's title field name
-    return thread.title || thread.name || 'New Conversation';
-  };
-
-  // Helper function to get thread ID
-  const getThreadId = (thread) => {
-    // Adapt to your API's thread ID field name
-    return thread.thread_id || thread.id;
-  };
-
-  // Helper function to get message ID
-  const getMessageId = (message) => {
-    // Adapt to your API's message ID field name
-    return message.message_id || message.id || message.created_at;
-  };
-
-  // Helper function to get message role
-  const getMessageRole = (message) => {
-    // Adapt to your API's role field name
-    return message.message_role || message.role;
-  };
-
-  // Helper function to check if current thread is an article discussion
-  const isArticleDiscussionThread = () => {
-    if (!activeThread || !threads.length) return false;
-    
-    const currentThread = threads.find(thread => getThreadId(thread) === activeThread);
-    if (!currentThread) return false;
-    
-    // Check if thread title indicates it's an article discussion
-    const threadTitle = getThreadTitle(currentThread);
-    return threadTitle && threadTitle.startsWith('Discussion: ');
-  };
-
-  // Helper function to extract article info from thread messages
-  const getArticleInfoFromThread = () => {
-    if (!messages.length) return null;
-    
-    // Look for the assistant's welcome message that contains article info
-    const welcomeMessage = messages.find(msg => 
-      getMessageRole(msg) === 'assistant' && 
-      msg.content && 
-      msg.content.includes('**Article:**') &&
-      msg.content.includes('**URL:**')
-    );
-    
-    if (welcomeMessage) {
-      // Extract URL and title from the welcome message
-      const urlMatch = welcomeMessage.content.match(/\*\*URL:\*\* (.+)/);
-      const titleMatch = welcomeMessage.content.match(/\*\*Article:\*\* (.+)/);
-      
-      if (urlMatch && titleMatch) {
-        return {
-          url: urlMatch[1].trim(),
-          title: titleMatch[1].trim()
-        };
       }
     }
-    
-    return null;
   };
 
-  // Helper function to check if we should show summary button
-  const shouldShowSummaryButton = () => {
-    // Show if we have summary data for current thread
-    if (currentThreadSummary && String(activeThread) === String(summaryThreadId)) {
-      return true;
-    }
-    
-    // Show if current thread is an article discussion (even without summary data)
-    if (isArticleDiscussionThread() && getArticleInfoFromThread()) {
-      return true;
-    }
-    
-    return false;
-  };
-
-  // Helper function to get current article info (from summary or thread)
-  const getCurrentArticleInfo = () => {
-    // First check if we have summary data
-    if (currentThreadSummary && String(activeThread) === String(summaryThreadId)) {
-      return currentThreadSummary;
-    }
-    
-    // Otherwise try to extract from thread messages
-    return getArticleInfoFromThread();
-  };
-
-  // Helper function to get summary data for modal (prioritizes modal-specific data)
-  const getSummaryDataForModal = () => {
-    // First check if we have modal-specific summary data
-    if (modalSummaryData) {
-      return modalSummaryData;
-    }
-    
-    // Fall back to current article info
-    return getCurrentArticleInfo();
-  };
-
-  // Helper function to check if the summary is for a YouTube video
-  const isYouTubeVideo = (url) => {
-    if (!url) return false;
-    return url.includes('youtube.com/watch') || 
-           url.includes('youtu.be/') || 
-           url.includes('youtube.com/embed') ||
-           url.includes('youtube.com/v/');
-  };
-
-  // Helper function to open full summary modal
-  const openSummaryModal = async () => {
-    const articleInfo = getCurrentArticleInfo();
-    if (!articleInfo) return;
-    
-    // If we already have summary data, just show the modal
-    if (articleInfo.summary) {
-      setModalSummaryData(articleInfo);
-      setShowSummaryModal(true);
-      return;
-    }
-    
-    // If we don't have summary data, try to fetch it
-    if (articleInfo.url && articleInfo.title) {
-      // Check if user is active
-      if (!user?.active) {
-        setError('You have historical access only and cannot generate summaries.');
-        return;
-      }
-      
-      setSummaryLoading(true);
-      setShowSummaryModal(true); // Show modal with loading state
-      
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/resources/summarize`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ 
-            url: articleInfo.url, 
-            title: articleInfo.title 
-          })
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.details || errorData.error || 'Failed to generate summary');
-        }
-        
-        const summaryData = await response.json();
-        
-        // Set modal summary data for display
-        setModalSummaryData({
-          url: articleInfo.url,
-          title: articleInfo.title,
-          summary: summaryData.summary,
-          cached: summaryData.cached
-        });
-        
-        // Also update the current thread summary if this is from URL parameters
-        if (String(activeThread) === String(summaryThreadId)) {
-          setCurrentThreadSummary({
-            ...currentThreadSummary,
-            summary: summaryData.summary,
-            cached: summaryData.cached
-          });
-        }
-        
-      } catch (error) {
-        console.error('Error fetching summary:', error);
-        setError(`Failed to load summary: ${error.message}`);
-      } finally {
-        setSummaryLoading(false);
-      }
-    } else {
-      // Just show modal even without summary data
-      setShowSummaryModal(true);
-    }
-  };
-
-  // Helper function to close summary modal
-  const closeSummaryModal = () => {
-    setShowSummaryModal(false);
-    setModalSummaryData(null); // Clear modal-specific data
-  };
+  // Helper functions
+  const getThreadId = (thread) => thread.thread_id || thread.id;
+  const getThreadTitle = (thread) => thread.title || thread.name || 'New Conversation';
+  const getMessageId = (message) => message.message_id || message.id || message.created_at;
+  const getMessageRole = (message) => message.message_role || message.role;
 
   // Upload handling functions
   const handleFileUpload = async (file) => {
@@ -605,8 +675,7 @@ function GPT() {
       return;
     }
 
-    // Add file size validation (50MB limit)
-    const maxFileSize = 50 * 1024 * 1024; // 50MB in bytes
+    const maxFileSize = 50 * 1024 * 1024;
     if (file.size > maxFileSize) {
       setError(`File size too large. Please upload files smaller than 50MB. Your file is ${(file.size / (1024 * 1024)).toFixed(1)}MB.`);
       return;
@@ -615,7 +684,6 @@ function GPT() {
     setIsProcessingUpload(true);
     setProcessingFileName(file.name);
     setProcessingStep('Uploading file...');
-    setShowUploadDropdown(false);
 
     try {
       const formData = new FormData();
@@ -634,21 +702,14 @@ function GPT() {
 
       if (!response.ok) {
         let errorMessage = 'Failed to process file';
-        
         try {
-          // Try to parse as JSON first
           const errorData = await response.json();
           errorMessage = errorData.details || errorData.error || `Server error: ${response.status}`;
         } catch (parseError) {
-          // If JSON parsing fails, it might be an HTML error page
-          const textResponse = await response.text();
-          
           if (response.status === 500) {
-            if (file.size > 10 * 1024 * 1024) { // 10MB
-              errorMessage = `File too large or complex to process. Try uploading a smaller file or splitting large documents into sections.`;
-            } else {
-              errorMessage = `Server error while processing file. The file might be corrupted or in an unsupported format.`;
-            }
+            errorMessage = file.size > 10 * 1024 * 1024 
+              ? `File too large or complex to process. Try uploading a smaller file or splitting large documents into sections.`
+              : `Server error while processing file. The file might be corrupted or in an unsupported format.`;
           } else if (response.status === 413) {
             errorMessage = `File too large. Please upload files smaller than 50MB.`;
           } else if (response.status === 415) {
@@ -656,10 +717,7 @@ function GPT() {
           } else {
             errorMessage = `Server error (${response.status}). Please try again or contact support if the problem persists.`;
           }
-          
-          console.error('Server returned non-JSON response:', textResponse.substring(0, 200));
         }
-        
         throw new Error(errorMessage);
       }
 
@@ -668,10 +726,8 @@ function GPT() {
 
       setProcessingStep('Finalizing...');
       
-      // Add a hidden system message for AI context (not visible to user)
       const hiddenSummaryMessage = `File uploaded: ${file.name}\nSummary: ${summaryData.summary}`;
       
-      // Send the summary to the backend as a system message for AI context
       try {
         await fetch(`${import.meta.env.VITE_API_URL}/api/chat/messages`, {
           method: 'POST',
@@ -682,17 +738,16 @@ function GPT() {
           body: JSON.stringify({
             content: hiddenSummaryMessage,
             threadId: activeThread,
-            messageType: 'system_content_summary' // Special type for system messages
+            messageType: 'system_content_summary'
           })
         });
       } catch (err) {
         console.warn('Failed to send system message, continuing anyway:', err);
       }
 
-      // Add content source as a special message-like component (UI only, not stored as message)
       const contentSourceMessage = {
         message_id: Date.now(),
-        content: null, // No content, this is a special component
+        content: null,
         message_role: 'content_source',
         created_at: new Date().toISOString(),
         contentSource: {
@@ -707,14 +762,11 @@ function GPT() {
       };
 
       setMessages(prevMessages => [...prevMessages, contentSourceMessage]);
-
-      // Store the file summary in content sources for reference
       setContentSources(prev => ({
         ...prev,
         [activeThread]: [...(prev[activeThread] || []), contentSourceMessage.contentSource]
       }));
 
-      // Refresh threads to update title (especially for new threads)
       setTimeout(() => {
         fetchThreads();
       }, 1000);
@@ -746,7 +798,6 @@ function GPT() {
     setProcessingUrl(urlInput);
     setProcessingStep('Analyzing URL...');
     setShowUrlInput(false);
-    setShowUploadDropdown(false);
 
     try {
       setProcessingStep('Extracting content...');
@@ -762,15 +813,10 @@ function GPT() {
 
       if (!response.ok) {
         let errorMessage = 'Failed to process URL';
-        
         try {
-          // Try to parse as JSON first
           const errorData = await response.json();
           errorMessage = errorData.details || errorData.error || `Server error: ${response.status}`;
         } catch (parseError) {
-          // If JSON parsing fails, it might be an HTML error page
-          const textResponse = await response.text();
-          
           if (response.status === 500) {
             errorMessage = `Server error while processing URL. The content might be too large, restricted, or in an unsupported format.`;
           } else if (response.status === 404) {
@@ -780,10 +826,7 @@ function GPT() {
           } else {
             errorMessage = `Server error (${response.status}). Please try again or contact support if the problem persists.`;
           }
-          
-          console.error('Server returned non-JSON response:', textResponse.substring(0, 200));
         }
-        
         throw new Error(errorMessage);
       }
 
@@ -792,12 +835,10 @@ function GPT() {
 
       setProcessingStep('Finalizing...');
       
-      // Add a hidden system message for AI context
       const isVideo = urlInput.includes('youtube.com') || urlInput.includes('youtu.be');
       const type = isVideo ? 'Video' : 'Article';
       const hiddenSummaryMessage = `${type} processed: ${summaryData.title}\nURL: ${urlInput}\nSummary: ${summaryData.summary}`;
       
-      // Send the summary to the backend as a system message for AI context
       try {
         await fetch(`${import.meta.env.VITE_API_URL}/api/chat/messages`, {
           method: 'POST',
@@ -815,7 +856,6 @@ function GPT() {
         console.warn('Failed to send system message, continuing anyway:', err);
       }
 
-      // Add content source as a special message-like component
       const contentSourceMessage = {
         message_id: Date.now(),
         content: null,
@@ -834,8 +874,6 @@ function GPT() {
       };
 
       setMessages(prevMessages => [...prevMessages, contentSourceMessage]);
-
-      // Store the URL summary in content sources for reference
       setContentSources(prev => ({
         ...prev,
         [activeThread]: [...(prev[activeThread] || []), contentSourceMessage.contentSource]
@@ -843,7 +881,6 @@ function GPT() {
 
       setUrlInput('');
 
-      // Refresh threads to update title (especially for new threads)
       setTimeout(() => {
         fetchThreads();
       }, 1000);
@@ -863,50 +900,9 @@ function GPT() {
     if (file) {
       handleFileUpload(file);
     }
-    // Reset file input
     e.target.value = '';
   };
 
-  const toggleUploadDropdown = () => {
-    setShowUploadDropdown(!showUploadDropdown);
-    setShowUrlInput(false);
-  };
-
-  const openFileDialog = () => {
-    setShowUploadDropdown(false);
-    fileInputRef.current?.click();
-  };
-
-  const openUrlInput = () => {
-    setShowUrlInput(true);
-    setShowUploadDropdown(false);
-  };
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (uploadDropdownRef.current && !uploadDropdownRef.current.contains(event.target)) {
-        setShowUploadDropdown(false);
-        setShowUrlInput(false);
-      }
-      
-      if (modelSelectorRef.current && !modelSelectorRef.current.contains(event.target)) {
-        setShowModelSelector(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  // Function to get current content sources for active thread
-  const getCurrentContentSources = () => {
-    return contentSources[activeThread] || [];
-  };
-
-  // Function to show summary for a specific content source
   const showContentSummary = (source) => {
     setModalSummaryData({
       title: source.type === 'file' ? `File Summary: ${source.fileName}` : source.title,
@@ -918,496 +914,532 @@ function GPT() {
     setShowSummaryModal(true);
   };
 
+  const closeSummaryModal = () => {
+    setShowSummaryModal(false);
+    setModalSummaryData(null);
+  };
+
+  // Filter threads based on search query
+  const filteredThreads = threads.filter(thread => {
+    const title = getThreadTitle(thread).toLowerCase();
+    const query = searchQuery.toLowerCase();
+    return title.includes(query);
+  });
+
   return (
-    <div className="gpt">
+    <div className="gpt h-screen bg-bg-light flex flex-col">
+      {/* Historical Access Banner */}
       {isInactiveUser && (
-        <div className="historical-access-banner">
-          <p>Historical access mode: View past conversations only.</p>
+        <div className="bg-carbon-black/80 text-gray-300 py-3 px-4 text-center text-sm font-proxima">
+          Historical access mode: View past conversations only.
         </div>
       )}
-      <div className="gpt__content">
-        <div className="gpt__chat-container">
-          <div className={`gpt__sidebar ${!sidebarVisible ? 'gpt__sidebar--collapsed' : ''}`}>
-            <div className="gpt__sidebar-header">
-              <h3 className="gpt__sidebar-title">Conversations</h3>
-              <div className="gpt__sidebar-actions">
-                <button 
-                  className="gpt__new-thread-btn"
-                  onClick={handleCreateThread}
-                  title={isInactiveUser ? "Cannot create new conversations in historical access mode" : "New Conversation"}
-                  disabled={isLoading || isInactiveUser}
-                >
-                  <FaPlus size={14} />
-                </button>
-                {sidebarVisible && (
-                  <button
-                    className="gpt__toggle-sidebar-btn"
-                    onClick={() => setSidebarVisible(false)}
-                    title="Hide sidebar"
-                  >
-                    <FaChevronLeft size={14} />
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            {error && <div className="gpt__error">{error}</div>}
-            
-            <div className="gpt__threads-list">
-              {isLoading && threads.length === 0 ? (
-                <div className="gpt__loading">Loading conversations...</div>
-              ) : threads.length === 0 ? (
-                <div className="gpt__empty-threads">No conversations yet</div>
-              ) : (
-                threads.map((thread) => (
-                  <div 
-                    key={getThreadId(thread)}
-                    className={`gpt__thread-item ${activeThread === getThreadId(thread) ? 'gpt__thread-item--active' : ''}`}
-                    onClick={() => handleThreadClick(getThreadId(thread))}
-                  >
-                    {getThreadTitle(thread)}
-                  </div>
-                ))
-              )}
+
+      {/* Top Bar with Search */}
+      <div className="h-[45px] bg-bg-light border-b border-divider flex items-center justify-center px-[25px]">
+        <div className="relative">
+          <div className="flex items-center justify-center bg-white rounded-lg h-[32px] w-[672px] px-[10px] py-1">
+            <div className="flex items-center justify-between w-full px-[7px]">
+              <svg className="w-5 h-5 text-divider mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8" strokeWidth="1.5" />
+                <path d="M21 21l-4.35-4.35" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Browse chat history or search by keyword"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setShowThreadDropdown(true)}
+                className="flex-1 text-[18px] leading-[26px] font-proxima font-normal text-carbon-black bg-transparent border-none outline-none placeholder:text-divider"
+              />
+              <button
+                onClick={handleCreateThread}
+                disabled={isInactiveUser || isLoading}
+                className="ml-2 text-gray-400 hover:text-pursuit-purple disabled:opacity-50 transition-colors"
+                title="New conversation"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 4v16m8-8H4" strokeWidth="1" strokeLinecap="round" />
+                </svg>
+              </button>
             </div>
           </div>
-          <div className="gpt__chat-panel">
-            {!sidebarVisible && (
-              <button
-                className="gpt__toggle-sidebar-btn"
-                onClick={() => setSidebarVisible(true)}
-                title="Show sidebar"
-              >
-                <FaChevronLeft size={14} style={{ transform: 'rotate(180deg)' }} />
-              </button>
-            )}
-            
-            {/* Summary button for article discussions */}
-            {shouldShowSummaryButton() && (
-              <div className="gpt__chat-header">
-                <div className="gpt__summary-controls">
-                  <button
-                    className="gpt__summary-btn"
-                    onClick={openSummaryModal}
-                    title="View article/video summary"
-                  >
-                    {isYouTubeVideo(getCurrentArticleInfo()?.url) ? <FaVideo /> : <FaFileAlt />}
-                    <span>
-                      View {isYouTubeVideo(getCurrentArticleInfo()?.url) ? 'Video' : 'Article'} Summary
-                    </span>
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            {!activeThread ? (
-              <div className="gpt__empty-state">
-                <h3 className="gpt__empty-state-title">Welcome to your personal AI assistant!</h3>
-                <p className="gpt__empty-state-text">
-                  {isInactiveUser 
-                    ? "You can view your past conversations, but cannot create new ones in historical access mode." 
-                    : "Start a new conversation or select an existing thread from the sidebar"}
-                </p>
-                {!isInactiveUser && (
-                  <button 
-                    className="gpt__empty-state-btn" 
-                    onClick={handleCreateThread}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Creating...' : 'New Conversation'}
-                  </button>
+          
+          {/* Thread Dropdown */}
+          {showThreadDropdown && (searchQuery || threads.length > 0) && (
+            <>
+              <div 
+                className="fixed inset-0 z-30" 
+                onClick={() => {
+                  setShowThreadDropdown(false);
+                  setSearchQuery('');
+                }}
+              />
+              <div className="absolute top-full left-0 mt-1 w-[672px] max-h-[400px] bg-white rounded-lg shadow-lg overflow-y-auto z-40">
+                {searchQuery && (
+                  <div className="px-4 py-2 text-sm text-gray-500 border-b border-divider">
+                    {filteredThreads.length === 0 ? 'No results found' : 
+                     filteredThreads.length === 1 ? '1 result' : 
+                     `${filteredThreads.length} results`}
+                  </div>
                 )}
+                {!searchQuery && (
+                  <div className="px-4 py-2 text-sm font-semibold text-gray-700 border-b border-divider">
+                    All Chats
+                  </div>
+                )}
+                {(searchQuery ? filteredThreads : threads).map((thread) => {
+                  const threadId = getThreadId(thread);
+                  const isActive = activeThread === threadId;
+                  return (
+                    <button
+                      key={threadId}
+                      onClick={() => {
+                        handleThreadSelect(threadId);
+                        setShowThreadDropdown(false);
+                        setSearchQuery('');
+                      }}
+                      className={`w-full px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
+                        isActive ? 'bg-pursuit-purple text-white hover:bg-pursuit-purple' : 'text-carbon-black'
+                      }`}
+                    >
+                      <div className="font-proxima text-base truncate">
+                        {getThreadTitle(thread)}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Chat Interface */}
+        <div className="flex-1 flex flex-col relative overflow-hidden">
+          {/* Empty State or Messages Area */}
+          <div className="flex-1 overflow-y-auto py-8 px-6" style={{ paddingBottom: '180px' }}>
+            {!activeThread && messages.length === 0 ? (
+              <div className="max-w-2xl mx-auto pt-[50px]">
+                <h2 className="text-[18px] leading-[26px] font-proxima font-normal text-black mb-6">
+                  What can we build together?
+                </h2>
+                <img 
+                  src="/preloader-still.gif" 
+                  alt="Pursuit" 
+                  className="w-[60px] h-[60px]"
+                />
               </div>
             ) : (
-              <>
-                {/* Processing Overlay - moved outside message conditional to always show when processing */}
-                {isProcessingUpload && (
-                  <div className="gpt__processing-overlay">
-                    <div className="gpt__processing-content">
-                      <div className="gpt__processing-spinner">
-                        <div className="gpt__spinner"></div>
-                      </div>
-                      <div className="gpt__processing-text">
-                        <h4>Processing Content</h4>
-                        <p className="gpt__processing-step">{processingStep}</p>
-                        {processingFileName && (
-                          <p className="gpt__processing-file">File: {processingFileName}</p>
-                        )}
-                        {processingUrl && (
-                          <p className="gpt__processing-url">URL: {processingUrl}</p>
-                        )}
-                      </div>
-                    </div>
+              <div className="max-w-2xl mx-auto">
+                {messages.length === 0 ? (
+                  <div className="text-center">
+                    <p className="text-gray-500 font-proxima">
+                      {isInactiveUser 
+                        ? 'This conversation has no messages.'
+                        : 'No messages yet. Start the conversation below.'}
+                    </p>
                   </div>
-                )}
-                
-                <div className="gpt__messages">
-                  {isLoading && messages.length === 0 ? (
-                    <div className="gpt__loading-messages">Loading messages...</div>
-                  ) : messages.length === 0 ? (
-                    <div className="gpt__empty-messages">
-                      <p>
-                        {isInactiveUser 
-                          ? "This conversation has no messages."
-                          : "No messages yet. Start the conversation by sending a message below."}
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Regular messages */}
-                      {messages.map((message) => {
-                        // Handle system_content_summary messages to recreate content source cards
-                        if (getMessageRole(message) === 'system_content_summary') {
-                          const content = message.content;
-                          
-                          // Parse the content to extract info
-                          let source = {};
-                          
-                          if (content.startsWith('File uploaded:')) {
-                            // Parse file format: "File uploaded: filename\nSummary: summary"
-                            const lines = content.split('\n');
-                            const fileName = lines[0].replace('File uploaded: ', '');
-                            const summary = lines.slice(1).join('\n').replace('Summary: ', '');
-                            
-                            source = {
-                              id: getMessageId(message),
-                              type: 'file',
-                              fileName: fileName,
-                              title: `${fileName} Summary`,
-                              summary: summary,
-                              contentType: 'document',
-                              processedAt: message.created_at
-                            };
-                          } else if (content.includes(' processed:')) {
-                            // Parse URL format: "Video/Article processed: title\nURL: url\nSummary: summary"
-                            const lines = content.split('\n');
-                            const firstLine = lines[0];
-                            const isVideo = firstLine.startsWith('Video processed:');
-                            const title = firstLine.replace(/^(Video|Article) processed: /, '');
-                            const url = lines.find(line => line.startsWith('URL: '))?.replace('URL: ', '');
-                            const summary = lines.slice(lines.findIndex(line => line.startsWith('Summary: '))).join('\n').replace('Summary: ', '');
-                            
-                            source = {
-                              id: getMessageId(message),
-                              type: 'url',
-                              title: title,
-                              summary: summary,
-                              url: url,
-                              contentType: isVideo ? 'video' : 'article',
-                              processedAt: message.created_at
-                            };
-                          }
-                          
-                          // Only render if we successfully parsed the content
-                          if (source.summary) {
-                            const isVideo = source.contentType === 'video';
-                            const icon = source.type === 'file' ? '📄' : (isVideo ? '🎥' : '📰');
-                            
-                            return (
-                              <div key={getMessageId(message)} className="gpt__message gpt__message--content-source">
-                                <div className="gpt__content-source-card">
-                                  <div className="gpt__content-source-header">
-                                    <span className="gpt__content-source-icon-large">{icon}</span>
-                                    <div className="gpt__content-source-info">
-                                      <div className="gpt__content-source-type-title">
-                                        <span className="gpt__content-source-type">{source.contentType}</span>
-                                        <h4 className="gpt__content-source-title">
-                                          {source.type === 'file' ? source.fileName : source.title}
-                                        </h4>
-                                      </div>
-                                      {source.url && (
-                                        <a 
-                                          href={source.url} 
-                                          target="_blank" 
-                                          rel="noopener noreferrer"
-                                          className="gpt__content-source-link"
-                                        >
-                                          View original →
-                                        </a>
-                                      )}
-                                    </div>
-                                    <button
-                                      className="gpt__view-summary-btn"
-                                      onClick={() => showContentSummary(source)}
-                                      title="View summary"
-                                    >
-                                      View Summary
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          }
-                          
-                          // If parsing failed, don't render anything (hide the system message)
-                          return null;
-                        }
-                        
-                        // Handle content source messages specially (keep existing logic for new uploads)
-                        if (getMessageRole(message) === 'content_source' && message.contentSource) {
-                          const source = message.contentSource;
-                          const isVideo = source.contentType === 'video';
-                          const icon = source.type === 'file' ? '📄' : (isVideo ? '🎥' : '📰');
-                          
-                          return (
-                            <div key={getMessageId(message)} className="gpt__message gpt__message--content-source">
-                              <div className="gpt__content-source-card">
-                                <div className="gpt__content-source-header">
-                                  <span className="gpt__content-source-icon-large">{icon}</span>
-                                  <div className="gpt__content-source-info">
-                                    <div className="gpt__content-source-type-title">
-                                      <span className="gpt__content-source-type">{source.contentType}</span>
-                                      <h4 className="gpt__content-source-title">
-                                        {source.type === 'file' ? source.fileName : source.title}
-                                      </h4>
-                                    </div>
-                                    {source.url && (
-                                      <a 
-                                        href={source.url} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="gpt__content-source-link"
-                                      >
-                                        View original →
-                                      </a>
-                                    )}
-                                  </div>
-                                  <button
-                                    className="gpt__view-summary-btn"
-                                    onClick={() => showContentSummary(source)}
-                                    title="View summary"
-                                  >
-                                    View Summary
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        }
-                        
-                        // Regular messages
+                ) : (
+                  <>
+                    {messages.map((message, index) => {
+                      const role = getMessageRole(message);
+                      
+                      // Handle content source messages with MessageBubble component
+                      if (role === 'content_source' || role === 'system_content_summary') {
                         return (
-                          <div 
-                            key={getMessageId(message)} 
-                            className={`gpt__message ${getMessageRole(message) === 'user' ? 'gpt__message--user' : 'gpt__message--assistant'}`}
-                          >
-                            <div className="gpt__message-content">
-                              {formatMessageContent(message.content)}
-                            </div>
-                          </div>
+                      <MessageBubble
+                        key={getMessageId(message)}
+                        message={message}
+                        onContentSummary={showContentSummary}
+                        getMessageRole={getMessageRole}
+                        getMessageId={getMessageId}
+                      />
                         );
-                      }).filter(Boolean)}
-                      {isAiThinking && (
-                        <div className="gpt__message gpt__message--assistant">
-                          <div className="gpt__message-content gpt__message-content--thinking">
-                            <div className="gpt__typing-indicator">
-                              <span></span>
-                              <span></span>
-                              <span></span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      <div ref={messagesEndRef} />
-                    </>
-                  )}
-                </div>
-                
-                <form className="gpt__input-form" onSubmit={handleSendMessage}>
-                  {/* Model Selector */}
-                  <div className="gpt__model-selector-container" ref={modelSelectorRef}>
-                    <button
-                      type="button"
-                      className={`gpt__model-selector-btn ${showModelSelector ? 'gpt__model-selector-btn--active' : ''}`}
-                      onClick={() => setShowModelSelector(!showModelSelector)}
-                      disabled={!activeThread || isProcessingUpload || isLoading || isInactiveUser}
-                      title={isInactiveUser ? "Cannot change model in historical access mode" : "Select AI model"}
-                    >
-                      <FaCog size={16} />
-                    </button>
-                    
-                    {/* Model Dropdown */}
-                    {showModelSelector && (
-                      <div className="gpt__model-dropdown">
-                        <div className="gpt__model-dropdown-header">Select AI Model</div>
-                        <div className="gpt__model-options">
-                          <button
-                            type="button"
-                            className={`gpt__model-option ${selectedModel === 'anthropic/claude-3.7-sonnet' ? 'gpt__model-option--selected' : ''}`}
-                            onClick={() => {
-                              setSelectedModel('anthropic/claude-3.7-sonnet');
-                              setShowModelSelector(false);
-                            }}
-                          >
-                            Claude 3.7 Sonnet (Default)
-                          </button>
-                          <button
-                            type="button"
-                            className={`gpt__model-option ${selectedModel === 'anthropic/claude-3.5-sonnet' ? 'gpt__model-option--selected' : ''}`}
-                            onClick={() => {
-                              setSelectedModel('anthropic/claude-3.5-sonnet');
-                              setShowModelSelector(false);
-                            }}
-                          >
-                            Claude 3.5 Sonnet
-                          </button>
-                          <button
-                            type="button"
-                            className={`gpt__model-option ${selectedModel === 'openai/gpt-4o' ? 'gpt__model-option--selected' : ''}`}
-                            onClick={() => {
-                              setSelectedModel('openai/gpt-4o');
-                              setShowModelSelector(false);
-                            }}
-                          >
-                            GPT-4o
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Upload Controls */}
-                  <div className="gpt__upload-container" ref={uploadDropdownRef}>
-                    <button
-                      type="button"
-                      className={`gpt__upload-btn ${showUploadDropdown ? 'gpt__upload-btn--active' : ''}`}
-                      onClick={toggleUploadDropdown}
-                      disabled={!activeThread || isProcessingUpload || isLoading || isInactiveUser}
-                      title={isInactiveUser ? "Cannot upload in historical access mode" : "Upload file or add URL for AI to summarize and discuss"}
-                    >
-                      <FaPlus size={16} />
-                    </button>
-                    
-                    {/* Upload Dropdown */}
-                    {showUploadDropdown && (
-                      <div className="gpt__upload-dropdown">
-                        <button
-                          type="button"
-                          className="gpt__upload-option"
-                          onClick={openFileDialog}
-                          disabled={isProcessingUpload}
-                        >
-                          <FaFileAlt size={14} />
-                          <span>Upload File</span>
-                          <small>PDF, TXT, MD, DOCX</small>
-                        </button>
-                        <button
-                          type="button"
-                          className="gpt__upload-option"
-                          onClick={openUrlInput}
-                          disabled={isProcessingUpload}
-                        >
-                          <FaLink size={14} />
-                          <span>Add URL</span>
-                          <small>Google Docs, Articles, YouTube Videos</small>
-                        </button>
-                      </div>
-                    )}
-                    
-                    {/* URL Input */}
-                    {showUrlInput && (
-                      <div className="gpt__url-input-container">
-                        <input
-                          type="url"
-                          value={urlInput}
-                          onChange={(e) => setUrlInput(e.target.value)}
-                          placeholder="Enter URL (Google Docs, article, video...)"
-                          className="gpt__url-input"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleUrlSubmit();
-                            } else if (e.key === 'Escape') {
-                              setShowUrlInput(false);
-                              setUrlInput('');
-                            }
-                          }}
-                          autoFocus
-                        />
-                        <div className="gpt__url-actions">
-                          <button
-                            type="button"
-                            className="gpt__url-submit"
-                            onClick={handleUrlSubmit}
-                            disabled={!urlInput.trim() || isProcessingUpload}
-                          >
-                            Summarize
-                          </button>
-                          <button
-                            type="button"
-                            className="gpt__url-cancel"
-                            onClick={() => {
-                              setShowUrlInput(false);
-                              setUrlInput('');
-                            }}
-                          >
-                            <FaTimes size={12} />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Hidden File Input */}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,.txt,.md,.docx"
-                    onChange={handleFileInputChange}
-                    style={{ display: 'none' }}
-                  />
-                  
-                  <textarea
-                    ref={textareaRef}
-                    rows="1"
-                    value={newMessage}
-                    onChange={(e) => {
-                      setNewMessage(e.target.value);
-                      e.target.style.height = 'auto';
-                      e.target.style.height = e.target.scrollHeight + 'px';
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage(e);
                       }
-                    }}
-                    placeholder={isInactiveUser ? "Historical access mode - cannot send messages" : isSending ? "Sending..." : "Type your message..."}
-                    disabled={!activeThread || isSending || isLoading || isInactiveUser}
-                    className={`gpt__input ${isInactiveUser ? 'gpt__input--disabled' : ''}`}
-                  />
-                  <button 
-                    type="submit"
-                    disabled={!activeThread || !newMessage.trim() || isSending || isLoading || isInactiveUser}
-                    className={`gpt__send-btn ${isInactiveUser ? 'gpt__send-btn--disabled' : ''}`}
-                  >
-                    {isInactiveUser ? "Historical" : isSending ? "Sending..." : "Send"}
-                  </button>
-                </form>
-              </>
+                      
+                      return (
+                        <div key={getMessageId(message) || index} className="mb-6">
+                          {role === 'user' ? (
+                            // User message with avatar inside - matches Learning page
+                            <div className="bg-stardust rounded-lg px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+                                  <span className="text-pursuit-purple text-sm font-proxima font-semibold">
+                                    {user?.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
+                                  </span>
+                                </div>
+                                <div className="flex-1 text-carbon-black leading-relaxed text-base font-proxima">
+                                  {message.content}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            // AI/System message (no avatar) - matches Learning page
+                            <div className="text-carbon-black leading-relaxed text-base">
+                              <ReactMarkdown
+                                components={{
+                                  p: ({ node, children, ...props }) => (
+                                    <p className="mb-4" {...props}>{children}</p>
+                                  ),
+                                  h1: ({ node, children, ...props }) => (
+                                    <h1 className="text-xl font-semibold mt-6 mb-4 first:mt-0 text-carbon-black" {...props}>{children}</h1>
+                                  ),
+                                  h2: ({ node, children, ...props }) => (
+                                    <h2 className="text-lg font-semibold mt-5 mb-3 first:mt-0 text-carbon-black" {...props}>{children}</h2>
+                                  ),
+                                  h3: ({ node, children, ...props }) => (
+                                    <h3 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-carbon-black" {...props}>{children}</h3>
+                                  ),
+                                  ul: ({ node, children, ...props }) => (
+                                    <ul className="list-disc pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ul>
+                                  ),
+                                  ol: ({ node, children, ...props }) => (
+                                    <ol className="list-decimal pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ol>
+                                  ),
+                                  li: ({ node, children, ...props }) => (
+                                    <li className="text-carbon-black" {...props}>{children}</li>
+                                  ),
+                                  a: ({ node, children, ...props }) => (
+                                    <a className="text-blue-500 hover:underline break-all" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+                                  ),
+                                  code: ({ node, inline, className, children, ...props }) => {
+                                    if (inline) {
+                                      return (
+                                        <code
+                                          className="px-1.5 py-0.5 rounded text-sm font-mono bg-gray-200 text-carbon-black"
+                                          {...props}
+                                        >
+                                          {children}
+                                        </code>
+                                      );
+                                    }
+                                    return (
+                                      <code className="block" {...props}>
+                                        {children}
+                                      </code>
+                                    );
+                                  },
+                                  pre: ({ node, children, ...props }) => (
+                                    <pre
+                                      className="p-4 rounded-lg my-4 overflow-x-auto text-sm font-mono bg-gray-100 text-carbon-black"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </pre>
+                                  ),
+                                  blockquote: ({ node, children, ...props }) => (
+                                    <blockquote
+                                      className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-700"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </blockquote>
+                                  ),
+                                  strong: ({ node, children, ...props }) => (
+                                    <strong className="font-semibold text-carbon-black" {...props}>{children}</strong>
+                                  ),
+                                  em: ({ node, children, ...props }) => (
+                                    <em className="italic text-carbon-black" {...props}>{children}</em>
+                                  ),
+                                }}
+                              >
+                                {(() => {
+                                  // Preprocess content to convert bullet points and URLs to markdown
+                                  let processedContent = message.content;
+                                  
+                                  // Step 0: Strip all ** (bold markdown) from the content BEFORE processing
+                                  // This prevents ** from appearing in link text or anywhere else
+                                  processedContent = processedContent.replace(/\*\*/g, '');
+                                  
+                                  // Step 1: Convert URLs to markdown links FIRST (before any text manipulation)
+                                  // Pattern: "Title (Type): Description URL" - structured resource links
+                                  processedContent = processedContent.replace(
+                                    /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
+                                    '[$1 ($2)]($4): $3'
+                                  );
+                                  
+                                  // Fallback: Convert any remaining bare URLs to clickable links
+                                  processedContent = processedContent.replace(
+                                    /(?<!\()(?<!]\()https?:\/\/[^\s)]+/g,
+                                    (url) => `[${url}](${url})`
+                                  );
+                                  
+                                  // Step 2: Handle inline "Resources:" section - convert to proper bulleted list
+                                  // Match "Resources: - Item1 - Item2" pattern and split into list
+                                  processedContent = processedContent.replace(
+                                    /Resources:\s*-\s*(.+?)(?=\n\n|$)/gis,
+                                    (match, resourcesText) => {
+                                      // Split by " - " pattern that precedes a markdown link [
+                                      const items = resourcesText.split(/\s+-\s+(?=\[)/);
+                                      
+                                      // Format each item as a bullet
+                                      const formattedItems = items
+                                        .map(item => item.trim())
+                                        .filter(item => item.length > 0)
+                                        .map(item => `- ${item}`)
+                                        .join('\n');
+                                      
+                                      return `**Resources:**\n\n${formattedItems}`;
+                                    }
+                                  );
+                                  
+                                  // Step 3: Convert bullet points to markdown (preserves links)
+                                  processedContent = processedContent.replace(/^•\s+/gm, '- ');
+                                  processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
+                                  
+                                  // Step 4: Convert numbered lists
+                                  processedContent = processedContent.replace(/^(\d+)\.\s+/gm, '$1. ');
+                                  
+                                  // Step 5: Format section headers (exclude Resources: which is already bold)
+                                  processedContent = processedContent.replace(
+                                    /\n\n(?!\*\*Resources:\*\*)([A-Z][^:\n]+:)(?!\s*\n\n-)/g,
+                                    '\n\n## $1'
+                                  );
+                                  
+                                  return processedContent;
+                                })()}
+                              </ReactMarkdown>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    
+                    {isAiThinking && (
+                      <div className="mb-6">
+                        <img 
+                          src="/preloader.gif" 
+                          alt="Loading..." 
+                          className="w-8 h-8"
+                        />
+                      </div>
+                    )}
+                    
+                    <div ref={messagesEndRef} />
+                  </>
+                )}
+              </div>
             )}
+          </div>
+
+          {/* Chat Input - Absolute positioned at bottom of chat interface */}
+          <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
+            <div className="pointer-events-auto max-w-2xl mx-auto">
+              {/* Chat Tray */}
+              <div className="bg-stardust rounded-[20px] p-[10px_15px] shadow-[4px_4px_10px_rgba(0,0,0,0.15)] flex flex-col gap-[10px]">
+                {/* Input Area */}
+                <div className="flex flex-col gap-2">
+                  {/* Text Input */}
+                  <div className="bg-white rounded-lg px-[11px] py-1 flex items-center">
+                    <textarea
+                      ref={textareaRef}
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onInput={handleTextareaResize}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(e);
+                        }
+                      }}
+                      placeholder="Ask me anything..."
+                      disabled={isInactiveUser || isSending || isLoading}
+                      className="flex-1 text-[18px] leading-[26px] font-proxima font-normal text-black bg-transparent border-none outline-none placeholder:text-black disabled:opacity-50 resize-none overflow-hidden"
+                      style={{ height: 'auto', minHeight: '26px' }}
+                    />
+                  </div>
+                  
+                  {/* Controls Row */}
+                  <div className="flex items-center justify-between">
+                    {/* Left side - Hidden buttons */}
+                    <div className="w-[82px]" />
+                    
+                    {/* Right side - LLM dropdown, Upload, Send */}
+                    <div className="flex items-center gap-[6px]">
+                      {/* LLM Dropdown - matches Learning page styling */}
+                      <Select value={selectedModel} onValueChange={setSelectedModel}>
+                        <SelectTrigger className="bg-bg-light border-0 rounded-md px-3 py-1.5 text-xs h-auto w-auto font-proxima focus:ring-0 focus:ring-offset-0">
+                          <SelectValue>
+                            {LLM_MODELS.find(model => model.value === selectedModel)?.label}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LLM_MODELS.map(model => (
+                            <SelectItem key={model.value} value={model.value} className="text-xs font-proxima">
+                              <div className="flex flex-col">
+                                <span>{model.label}</span>
+                                <span className="text-xs text-gray-500">{model.description}</span>
+                        </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      {/* Upload Button with Dropdown */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                      <button
+                        onClick={() => {
+                          if (!activeThread) {
+                            handleCreateThread();
+                          }
+                        }}
+                        disabled={isInactiveUser || isProcessingUpload}
+                        className="w-[30px] h-[30px] bg-bg-light rounded-lg flex items-center justify-center disabled:opacity-50"
+                      >
+                        <svg className="w-[14px] h-[14px] text-carbon-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" side="top" className="w-48">
+                          <DropdownMenuItem 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span>Upload File</span>
+                            <span className="text-xs text-gray-500 ml-auto">PDF, TXT, MD, DOCX</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => setShowUrlInput(true)}
+                            className="flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                            <span>Add URL</span>
+                            <span className="text-xs text-gray-500 ml-auto">Article, YouTube, etc.</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      
+                      {/* Send Button */}
+                      <ArrowButton
+                        onClick={handleSendMessage}
+                        disabled={!newMessage.trim() || isInactiveUser || isSending || isLoading}
+                        size="lg"
+                        rotation={-90}
+                        borderColor="#4242EA"
+                        backgroundColor="#4242EA"
+                        arrowColor="white"
+                        hoverBackgroundColor="#EFEFEF"
+                        hoverArrowColor="#4242EA"
+                        className="w-[30px] h-[30px] disabled:opacity-50"
+                        strokeWidth={1}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-      
+
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.txt,.md,.docx"
+        onChange={handleFileInputChange}
+        style={{ display: 'none' }}
+      />
+
+      {/* Processing Overlay */}
+      <ProcessingOverlay
+        isProcessing={isProcessingUpload}
+        processingStep={processingStep}
+        processingFileName={processingFileName}
+        processingUrl={processingUrl}
+      />
+
       {/* Summary Modal */}
-      {(getCurrentArticleInfo() || modalSummaryData) && (
+      {modalSummaryData && (
         <SummaryModal
           isOpen={showSummaryModal}
           onClose={closeSummaryModal}
-          summary={getSummaryDataForModal()?.summary}
-          title={getSummaryDataForModal()?.title}
-          url={getSummaryDataForModal()?.url}
-          cached={getSummaryDataForModal()?.cached}
+          summary={modalSummaryData.summary}
+          title={modalSummaryData.title}
+          url={modalSummaryData.url}
+          cached={modalSummaryData.cached}
           loading={summaryLoading}
           error={null}
-          sourceInfo={getSummaryDataForModal()?.sourceInfo}
-          contentType={getSummaryDataForModal()?.contentType}
-          isAnalysis={getSummaryDataForModal()?.isAnalysis || false}
+          sourceInfo={modalSummaryData.sourceInfo}
+          contentType={modalSummaryData.contentType}
+          isAnalysis={modalSummaryData.isAnalysis || false}
         />
       )}
+
+      {/* Error Display */}
+      {error && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-md z-50">
+          <p className="font-proxima text-sm">{error}</p>
+          <button
+            onClick={() => setError('')}
+            className="absolute top-1 right-1 text-red-700 hover:text-red-900"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* URL Input Dialog */}
+      <Dialog open={showUrlInput} onOpenChange={setShowUrlInput}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add URL</DialogTitle>
+            <DialogDescription>
+              Enter a URL to analyze and summarize content from articles, YouTube videos, Google Docs, and more.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="url-input">URL</Label>
+              <Input
+                id="url-input"
+              type="url"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="https://example.com/article"
+              onKeyDown={(e) => {
+                  if (e.key === 'Enter' && urlInput.trim() && !isProcessingUpload) {
+                  handleUrlSubmit();
+                }
+              }}
+              autoFocus
+            />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <button
+                onClick={() => setUrlInput('')}
+                className="px-4 py-2 border border-divider rounded-md font-proxima text-sm hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+            </DialogClose>
+              <button
+                onClick={handleUrlSubmit}
+                disabled={!urlInput.trim() || isProcessingUpload}
+                className="px-4 py-2 bg-pursuit-purple text-white rounded-md font-proxima text-sm hover:bg-pursuit-purple/90 disabled:opacity-50"
+              >
+                Summarize
+              </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Loading Curtain */}
+      <LoadingCurtain isLoading={isInitialLoad} />
     </div>
   );
 }
 
-export default GPT; 
+export default GPT;

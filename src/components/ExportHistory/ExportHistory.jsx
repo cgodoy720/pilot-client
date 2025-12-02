@@ -1,43 +1,27 @@
 import React, { useState, useEffect } from 'react';
+import { History, RefreshCw, Filter, CheckCircle, AlertTriangle, Info, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Card, CardContent } from '../ui/card';
+import { Badge } from '../ui/badge';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
+import {
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
+  TableHeader,
   TableRow,
-  Paper,
-  Chip,
-  IconButton,
-  Tooltip,
-  Button,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Grid,
-  Alert,
-  CircularProgress,
-  Pagination,
-  Divider
-} from '@mui/material';
-import {
-  History as HistoryIcon,
-  Download as DownloadIcon,
-  Error as ErrorIcon,
-  CheckCircle as CheckCircleIcon,
-  Refresh as RefreshIcon,
-  FilterList as FilterIcon
-} from '@mui/icons-material';
+} from '../ui/table';
 import { adminApi } from '../../services/adminApi';
 import { useAuth } from '../../context/AuthContext';
 import { getErrorMessage } from '../../utils/retryUtils';
-import './ExportHistory.css';
 
 const ExportHistory = () => {
   const { user } = useAuth();
@@ -66,7 +50,6 @@ const ExportHistory = () => {
         ...filterParams
       };
 
-      // Use admin endpoint if user is admin, otherwise use user endpoint
       const response = user.role === 'admin' 
         ? await adminApi.getAllCsvExportHistory(params)
         : await adminApi.getCsvExportHistory(params);
@@ -87,15 +70,12 @@ const ExportHistory = () => {
     fetchHistory();
   }, []);
 
-  const handlePageChange = (event, newPage) => {
+  const handlePageChange = (newPage) => {
     fetchHistory(newPage, filters);
   };
 
   const handleFilterChange = (field, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFilters(prev => ({ ...prev, [field]: value }));
   };
 
   const handleApplyFilters = () => {
@@ -105,16 +85,11 @@ const ExportHistory = () => {
     if (filters.successStatus !== 'all') {
       filterParams.successStatus = filters.successStatus === 'success';
     }
-    
     fetchHistory(1, filterParams);
   };
 
   const handleClearFilters = () => {
-    setFilters({
-      startDate: '',
-      endDate: '',
-      successStatus: 'all'
-    });
+    setFilters({ startDate: '', endDate: '', successStatus: 'all' });
     fetchHistory(1, {});
   };
 
@@ -129,227 +104,182 @@ const ExportHistory = () => {
     return new Date(dateString).toLocaleString();
   };
 
-  const getStatusChip = (success, errorMessage) => {
-    if (success) {
-      return <Chip icon={<CheckCircleIcon />} label="Success" color="success" size="small" />;
-    } else {
-      return (
-        <Tooltip title={errorMessage || 'Export failed'}>
-          <Chip icon={<ErrorIcon />} label="Failed" color="error" size="small" />
-        </Tooltip>
-      );
-    }
-  };
-
   if (loading && history.length === 0) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
-        <CircularProgress />
-      </Box>
+      <div className="flex justify-center items-center min-h-[200px]">
+        <div className="animate-spin w-8 h-8 border-4 border-[#4242EA] border-t-transparent rounded-full"></div>
+      </div>
     );
   }
 
   return (
-    <Box className="export-history">
-      <Card>
-        <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <HistoryIcon />
-              <h2
-                className="export-history-header-force-black"
-                style={{
-                  color: '#000000',
-                  fontWeight: 600,
-                  fontSize: '1.25rem',
-                  margin: 0,
-                  padding: 0,
-                  lineHeight: 1.6,
-                  fontFamily: '-apple-system, "system-ui", "Segoe UI", Roboto, Oxygen, sans-serif'
-                }}
-              >
-                Export History
-              </h2>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<FilterIcon />}
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                {showFilters ? 'Hide Filters' : 'Show Filters'}
-              </Button>
-              <IconButton
-                size="small"
-                onClick={() => fetchHistory(page, filters)}
-                disabled={loading}
-              >
-                <RefreshIcon />
-              </IconButton>
-            </Box>
-          </Box>
+    <Card className="bg-white border-[#C8C8C8]">
+      <CardContent className="p-6">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <History className="h-5 w-5 text-[#4242EA]" />
+            <h2 className="text-xl font-semibold text-[#1E1E1E]">Export History</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#C8C8C8] rounded-lg text-sm text-[#666666] hover:bg-[#F9F9F9] transition-colors"
+            >
+              <Filter className="h-4 w-4" />
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
+            </button>
+            <button
+              onClick={() => fetchHistory(page, filters)}
+              disabled={loading}
+              className="p-2 hover:bg-[#EFEFEF] rounded-md transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 text-[#666666] ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+        {/* Error */}
+        {error && (
+          <div className="flex items-center gap-2 p-3 mb-4 rounded-lg bg-red-50 border border-red-200">
+            <AlertTriangle className="h-5 w-5 text-red-600" />
+            <span className="text-red-600">{error}</span>
+          </div>
+        )}
 
-          {/* Filters */}
-          {showFilters && (
-            <Card variant="outlined" sx={{ mb: 2 }}>
-              <CardContent>
-                <Typography variant="subtitle2" gutterBottom>
-                  Filter Export History
-                </Typography>
-                <Grid container spacing={2} alignItems="center">
-                  <Grid item xs={12} sm={3}>
-                    <TextField
-                      label="Start Date"
-                      type="date"
-                      size="small"
-                      value={filters.startDate}
-                      onChange={(e) => handleFilterChange('startDate', e.target.value)}
-                      InputLabelProps={{ shrink: true }}
-                      fullWidth
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={3}>
-                    <TextField
-                      label="End Date"
-                      type="date"
-                      size="small"
-                      value={filters.endDate}
-                      onChange={(e) => handleFilterChange('endDate', e.target.value)}
-                      InputLabelProps={{ shrink: true }}
-                      fullWidth
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={3}>
-                    <FormControl size="small" fullWidth>
-                      <InputLabel>Status</InputLabel>
-                      <Select
-                        value={filters.successStatus}
-                        label="Status"
-                        onChange={(e) => handleFilterChange('successStatus', e.target.value)}
-                      >
-                        <MenuItem value="all">All</MenuItem>
-                        <MenuItem value="success">Success</MenuItem>
-                        <MenuItem value="failed">Failed</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} sm={3}>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Button
-                        variant="contained"
-                        size="small"
-                        onClick={handleApplyFilters}
-                        disabled={loading}
-                      >
-                        Apply
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={handleClearFilters}
-                        disabled={loading}
-                      >
-                        Clear
-                      </Button>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* History Table */}
-          {history.length === 0 ? (
-            <Alert severity="info">
-              No export history found. Start by exporting some attendance data.
-            </Alert>
-          ) : (
-            <>
-              <TableContainer component={Paper} variant="outlined">
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Date/Time</TableCell>
-                      <TableCell>User</TableCell>
-                      <TableCell>Date Range</TableCell>
-                      <TableCell>Cohort</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>File Size</TableCell>
-                      <TableCell>Rows</TableCell>
-                      <TableCell>Processing Time</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {history.map((record) => (
-                      <TableRow key={record.log_id}>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {formatDate(record.export_timestamp)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {record.user_name}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {record.export_start_date} to {record.export_end_date}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {record.cohort_filter || 'All Cohorts'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          {getStatusChip(record.success_status, record.error_message)}
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {formatFileSize(record.file_size_bytes)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {record.row_count || 'N/A'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {record.processing_time_ms ? `${record.processing_time_ms}ms` : 'N/A'}
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                  <Pagination
-                    count={totalPages}
-                    page={page}
-                    onChange={handlePageChange}
-                    color="primary"
-                    disabled={loading}
+        {/* Filters */}
+        {showFilters && (
+          <Card className="mb-4 bg-[#F9F9F9] border-[#E3E3E3]">
+            <CardContent className="p-4">
+              <p className="text-sm font-medium text-[#1E1E1E] mb-3">Filter Export History</p>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+                <div>
+                  <Label className="text-[#666666] text-xs">Start Date</Label>
+                  <Input
+                    type="date"
+                    value={filters.startDate}
+                    onChange={(e) => handleFilterChange('startDate', e.target.value)}
+                    className="mt-1 bg-white border-[#C8C8C8]"
                   />
-                </Box>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
-    </Box>
+                </div>
+                <div>
+                  <Label className="text-[#666666] text-xs">End Date</Label>
+                  <Input
+                    type="date"
+                    value={filters.endDate}
+                    onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                    className="mt-1 bg-white border-[#C8C8C8]"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[#666666] text-xs">Status</Label>
+                  <Select value={filters.successStatus} onValueChange={(v) => handleFilterChange('successStatus', v)}>
+                    <SelectTrigger className="mt-1 bg-white border-[#C8C8C8]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="success">Success</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleApplyFilters}
+                    disabled={loading}
+                    className="px-4 py-2 bg-[#4242EA] text-white text-sm rounded-lg hover:bg-[#3636c4] transition-colors disabled:opacity-50"
+                  >
+                    Apply
+                  </button>
+                  <button
+                    onClick={handleClearFilters}
+                    disabled={loading}
+                    className="px-4 py-2 border border-[#C8C8C8] text-[#666666] text-sm rounded-lg hover:bg-white transition-colors disabled:opacity-50"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Table */}
+        {history.length === 0 ? (
+          <div className="flex items-center gap-2 p-4 rounded-lg bg-blue-50 border border-blue-200">
+            <Info className="h-5 w-5 text-blue-600" />
+            <span className="text-blue-600">No export history found. Start by exporting some attendance data.</span>
+          </div>
+        ) : (
+          <>
+            <div className="border border-[#C8C8C8] rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-[#F9F9F9]">
+                    <TableHead className="text-[#1E1E1E] font-semibold">Date/Time</TableHead>
+                    <TableHead className="text-[#1E1E1E] font-semibold">User</TableHead>
+                    <TableHead className="text-[#1E1E1E] font-semibold">Date Range</TableHead>
+                    <TableHead className="text-[#1E1E1E] font-semibold">Cohort</TableHead>
+                    <TableHead className="text-[#1E1E1E] font-semibold">Status</TableHead>
+                    <TableHead className="text-[#1E1E1E] font-semibold">Size</TableHead>
+                    <TableHead className="text-[#1E1E1E] font-semibold">Rows</TableHead>
+                    <TableHead className="text-[#1E1E1E] font-semibold">Time</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {history.map((record) => (
+                    <TableRow key={record.log_id} className="border-b border-[#E3E3E3]">
+                      <TableCell className="text-[#1E1E1E] text-sm">{formatDate(record.export_timestamp)}</TableCell>
+                      <TableCell className="text-[#666666] text-sm">{record.user_name}</TableCell>
+                      <TableCell className="text-[#666666] text-sm">{record.export_start_date} to {record.export_end_date}</TableCell>
+                      <TableCell className="text-[#666666] text-sm">{record.cohort_filter || 'All Cohorts'}</TableCell>
+                      <TableCell>
+                        {record.success_status ? (
+                          <Badge className="bg-green-100 text-green-700">
+                            <CheckCircle className="h-3 w-3 mr-1" /> Success
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-red-100 text-red-700" title={record.error_message || 'Export failed'}>
+                            <AlertTriangle className="h-3 w-3 mr-1" /> Failed
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-[#666666] text-sm">{formatFileSize(record.file_size_bytes)}</TableCell>
+                      <TableCell className="text-[#666666] text-sm">{record.row_count || 'N/A'}</TableCell>
+                      <TableCell className="text-[#666666] text-sm">{record.processing_time_ms ? `${record.processing_time_ms}ms` : 'N/A'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-4">
+                <button
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page === 1 || loading}
+                  className="p-2 hover:bg-[#EFEFEF] rounded-md transition-colors disabled:opacity-50"
+                >
+                  <ChevronLeft className="h-4 w-4 text-[#666666]" />
+                </button>
+                <span className="text-sm text-[#666666]">
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={page === totalPages || loading}
+                  className="p-2 hover:bg-[#EFEFEF] rounded-md transition-colors disabled:opacity-50"
+                >
+                  <ChevronRight className="h-4 w-4 text-[#666666]" />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

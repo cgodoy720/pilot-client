@@ -1,39 +1,38 @@
-import './FormPreview.css';
-
 const FormPreview = ({ title, description, questions, settings }) => {
   const renderQuestionPreview = (question, index) => {
     switch (question.type) {
       case 'text':
         return (
           <textarea
-            className="form-preview__input form-preview__textarea"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base resize-vertical opacity-60"
             placeholder="Your answer..."
             disabled
             rows={3}
           />
         );
 
-      case 'email':
+      case 'long_text':
         return (
-          <input
-            type="email"
-            className="form-preview__input"
-            placeholder="your.email@example.com"
+          <textarea
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base resize-vertical opacity-60"
+            placeholder="Your detailed answer..."
             disabled
+            rows={6}
           />
         );
 
       case 'multiple_choice':
         return (
-          <div className="form-preview__options">
+          <div className="flex flex-col gap-3">
             {question.options.map((option, i) => (
-              <label key={i} className="form-preview__option">
+              <label key={i} className="flex items-center gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg cursor-not-allowed opacity-60">
                 <input
                   type={question.multiple_select ? 'checkbox' : 'radio'}
                   name={`question-${index}`}
                   disabled
+                  className="w-4 h-4"
                 />
-                <span>{option}</span>
+                <span className="text-gray-800">{option}</span>
               </label>
             ))}
           </div>
@@ -45,43 +44,31 @@ const FormPreview = ({ title, description, questions, settings }) => {
         const range = Array.from({ length: max - min + 1 }, (_, i) => min + i);
         
         return (
-          <div className="form-preview__scale">
-            {question.scale_config?.min_label && (
-              <span className="form-preview__scale-label">
-                {question.scale_config.min_label}
-              </span>
-            )}
-            <div className="form-preview__scale-options">
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-3 justify-center flex-wrap">
               {range.map((value) => (
-                <label key={value} className="form-preview__scale-option">
-                  <input
-                    type="radio"
-                    name={`question-${index}`}
-                    value={value}
-                    disabled
-                  />
-                  <span className="form-preview__scale-value">{value}</span>
+                <label key={value} className="flex items-center justify-center w-12 h-12 border-2 border-gray-300 rounded-lg bg-gray-50 text-lg font-semibold text-gray-600 cursor-not-allowed opacity-60">
+                  {value}
                 </label>
               ))}
             </div>
-            {question.scale_config?.max_label && (
-              <span className="form-preview__scale-label">
-                {question.scale_config.max_label}
-              </span>
+            {(question.scale_config?.min_label || question.scale_config?.max_label) && (
+              <div className="flex justify-between text-sm text-gray-500 italic">
+                <span>{question.scale_config?.min_label || ''}</span>
+                <span>{question.scale_config?.max_label || ''}</span>
+              </div>
             )}
           </div>
         );
 
       case 'true_false':
         return (
-          <div className="form-preview__options">
-            <label className="form-preview__option">
-              <input type="radio" name={`question-${index}`} disabled />
-              <span>{question.true_label || 'True'}</span>
+          <div className="grid grid-cols-2 gap-4">
+            <label className="flex items-center justify-center px-6 py-4 border-2 border-gray-300 rounded-lg bg-gray-50 text-lg font-semibold text-gray-600 cursor-not-allowed opacity-60">
+              {question.true_label || 'True'}
             </label>
-            <label className="form-preview__option">
-              <input type="radio" name={`question-${index}`} disabled />
-              <span>{question.false_label || 'False'}</span>
+            <label className="flex items-center justify-center px-6 py-4 border-2 border-gray-300 rounded-lg bg-gray-50 text-lg font-semibold text-gray-600 cursor-not-allowed opacity-60">
+              {question.false_label || 'False'}
             </label>
           </div>
         );
@@ -92,36 +79,40 @@ const FormPreview = ({ title, description, questions, settings }) => {
   };
 
   return (
-    <div className="form-preview">
-      <div className="form-preview__container">
-        <div className="form-preview__header">
-          <h2 className="form-preview__title">{title || 'Untitled Form'}</h2>
+    <div className="max-w-3xl mx-auto">
+      <div className="bg-white border border-gray-200 rounded-lg p-8 shadow-sm">
+        {/* Header */}
+        <div className="mb-8 pb-6 border-b border-gray-200">
+          <h2 className="text-3xl font-bold text-gray-800 mb-3">
+            {title || 'Untitled Form'}
+          </h2>
           {description && (
-            <p className="form-preview__description">{description}</p>
+            <p className="text-base text-gray-600 leading-relaxed">{description}</p>
           )}
         </div>
 
+        {/* Questions */}
         {questions.length === 0 ? (
-          <div className="form-preview__empty">
-            <p>No questions added yet</p>
-            <p className="form-preview__empty-hint">Switch to the Questions tab to add questions</p>
+          <div className="text-center py-12">
+            <p className="text-gray-500 mb-2">No questions added yet</p>
+            <p className="text-sm text-gray-400">Switch to the Questions tab to add questions</p>
           </div>
         ) : (
-          <div className="form-preview__questions">
+          <div className="flex flex-col gap-8">
             {questions.map((question, index) => (
-              <div key={question.question_id} className="form-preview__question">
-                <div className="form-preview__question-header">
-                  <h3 className="form-preview__question-text">
-                    {question.text || 'Untitled Question'}
+              <div key={question.question_id} className="pb-6 border-b border-gray-100 last:border-0">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                    {index + 1}. {question.text || 'Untitled Question'}
                     {question.required && (
-                      <span className="form-preview__required">*</span>
+                      <span className="text-red-500 ml-1">*</span>
                     )}
                   </h3>
                   {question.help_text && (
-                    <p className="form-preview__help-text">{question.help_text}</p>
+                    <p className="text-sm text-gray-600">{question.help_text}</p>
                   )}
                 </div>
-                <div className="form-preview__question-input">
+                <div>
                   {renderQuestionPreview(question, index)}
                 </div>
               </div>
@@ -129,16 +120,22 @@ const FormPreview = ({ title, description, questions, settings }) => {
           </div>
         )}
 
+        {/* Submit Button */}
         {questions.length > 0 && (
-          <div className="form-preview__footer">
-            <button className="form-preview__submit-btn" disabled>
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <button 
+              disabled
+              className="w-full px-6 py-4 bg-gray-300 text-gray-500 border-none rounded-lg text-lg font-semibold cursor-not-allowed"
+            >
               Submit
             </button>
           </div>
         )}
 
-        <div className="form-preview__notice">
-          ℹ️ This is a preview. The actual form will show one question at a time.
+        {/* Notice */}
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 flex items-start gap-2">
+          <span>ℹ️</span>
+          <span>This is a preview. The actual form will show one question at a time with slide animations.</span>
         </div>
       </div>
     </div>
@@ -146,4 +143,3 @@ const FormPreview = ({ title, description, questions, settings }) => {
 };
 
 export default FormPreview;
-

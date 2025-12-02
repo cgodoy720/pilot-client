@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import NotesModal from '../../components/NotesModal';
+import NotesSidebar from '../../components/NotesSidebar';
 import BulkActionsModal from '../../components/BulkActionsModal';
 import Swal from 'sweetalert2';
 import './ApplicationDetail.css';
@@ -177,11 +177,11 @@ const ApplicationDetail = () => {
     }, [applicationId, token]);
 
     // Handle notes modal
-    const openNotesModal = () => {
+    const openNotesSidebar = () => {
         setNotesModalOpen(true);
     };
 
-    const closeNotesModal = () => {
+    const closeNotesSidebar = () => {
         setNotesModalOpen(false);
     };
 
@@ -540,7 +540,7 @@ const ApplicationDetail = () => {
                             <div className="application-detail__action-buttons">
                                 <button
                                     className="application-detail__notes-btn application-detail__notes-btn--header"
-                                    onClick={openNotesModal}
+                                    onClick={openNotesSidebar}
                                 >
                                     📝 Notes
                                 </button>
@@ -1241,9 +1241,9 @@ const ApplicationDetail = () => {
             )}
 
             {/* Notes Modal */}
-            <NotesModal
+            <NotesSidebar
                 isOpen={notesModalOpen}
-                onClose={closeNotesModal}
+                onClose={closeNotesSidebar}
                 applicantId={applicant?.applicant_id}
                 applicantName={`${applicant?.first_name} ${applicant?.last_name}`}
             />
