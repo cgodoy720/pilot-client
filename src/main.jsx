@@ -20,6 +20,7 @@ import Workshops from './pages/Workshops/index.js'
 import ProgramDetails from './pages/ProgramDetails/index.js'
 import PaymentTerms from './pages/PaymentTerms/index.js'
 import Pledge from './pages/Pledge/index.js'
+import Onboarding from './pages/Onboarding/Onboarding.jsx'
 import Unsubscribe from './pages/Unsubscribe/Unsubscribe.jsx'
 
 // Public form pages
@@ -86,6 +87,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/program-details" element={<ProgramDetails />} />
           <Route path="/payment-terms" element={<PaymentTerms />} />
           <Route path="/pledge" element={<Pledge />} />
+          <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           
           {/* Public form routes (no auth required) */}
