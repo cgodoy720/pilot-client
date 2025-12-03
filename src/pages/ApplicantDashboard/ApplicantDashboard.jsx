@@ -88,6 +88,7 @@ function ApplicantDashboard() {
   const [workshopDetails, setWorkshopDetails] = useState(null);
   const [applicantStage, setApplicantStage] = useState(null);
   const [applicationProgress, setApplicationProgress] = useState(null);
+  const [onboardingStatus, setOnboardingStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -142,6 +143,7 @@ function ApplicantDashboard() {
         await loadApplicationStatus();
         await loadWorkshopStatus();
         await loadPledgeStatus();
+        await loadOnboardingStatus();
       } catch (error) {
         console.error('Error loading dashboard data:', error);
       } finally {
@@ -397,11 +399,28 @@ function ApplicantDashboard() {
     }
   };
 
+  const loadOnboardingStatus = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/onboarding/status/${currentApplicantId}`);
+      
+      if (response.ok) {
+        const statusData = await response.json();
+        setOnboardingStatus(statusData);
+      } else {
+        setOnboardingStatus(null);
+      }
+    } catch (error) {
+      console.error('Error loading onboarding status:', error);
+      setOnboardingStatus(null);
+    }
+  };
+
   const isComplete = (key, status) => {
     if (key === 'infoSession') return status === 'attended'
     if (key === 'application') return status === 'submitted'
     if (key === 'workshop') return status === 'attended'
     if (key === 'pledge') return status === 'completed'
+    if (key === 'onboarding') return onboardingStatus?.all_required_completed || false
     return false
   }
 
@@ -413,6 +432,7 @@ function ApplicantDashboard() {
   const isLocked = (key, status) => {
     if (key === 'workshop') return status === 'locked'
     if (key === 'pledge') return status === 'locked'
+    if (key === 'onboarding') return false // Onboarding is never locked if it's shown
     return false
   }
 
@@ -431,6 +451,35 @@ function ApplicantDashboard() {
       return `${applicationProgress.completedSections}/${applicationProgress.totalSections} sections complete`;
     }
     return '0/5 sections complete';
+  };
+
+  // Determine which sections to show based on current state
+  const getSectionsToDisplay = () => {
+    // Show onboarding card instead of pledge card if eligible
+    const showOnboarding = statuses.pledge === 'completed' && 
+                           applicantStage?.program_admission_status === 'accepted';
+
+    if (showOnboarding) {
+      // Replace pledge section with onboarding section
+      return [
+        ...SECTION_CONFIG.slice(0, 3), // Keep first 3 sections (info, application, workshop)
+        {
+          key: 'onboarding',
+          label: 'Complete Onboarding',
+          description: 'Complete the required onboarding tasks to create your builder account and start the program.',
+          statusOptions: ['not started', 'in progress', 'completed'],
+          defaultStatus: 'not started',
+          getButtonLabel: (status) => {
+            if (onboardingStatus?.all_required_completed) return 'Create Builder Account';
+            return 'Start Onboarding';
+          },
+          buttonEnabled: (status) => true,
+        }
+      ];
+    }
+
+    // Show default sections (including pledge)
+    return SECTION_CONFIG;
   };
 
   const handleLogout = () => {
@@ -647,7 +696,7 @@ function ApplicantDashboard() {
       <div className="px-4 md:px-8 pb-6">
         <div className="max-w-[1400px] mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {SECTION_CONFIG.map((section, index) => {
+            {getSectionsToDisplay().map((section, index) => {
               const status = statuses[section.key];
               const complete = isComplete(section.key, status);
               const ineligible = isIneligible(section.key, status);
@@ -914,6 +963,26 @@ function ApplicantDashboard() {
                       </div>
                     )}
 
+                    {/* Onboarding progress */}
+                    {section.key === 'onboarding' && onboardingStatus && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-blue-500">📋</span>
+                          <div>
+                            <div className="text-sm font-semibold text-blue-900">Onboarding Progress</div>
+                            <div className="text-sm text-blue-700">
+                              {onboardingStatus.completed_required_tasks} of {onboardingStatus.required_tasks} tasks completed
+                            </div>
+                          </div>
+                        </div>
+                        {onboardingStatus.all_required_completed && (
+                          <div className="mt-2 text-center bg-green-100 text-green-700 rounded-lg py-1 px-2 text-sm font-semibold">
+                            ✅ Ready to Create Builder Account
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Action Button */}
                     <div className="pt-2">
                       {ineligible && section.key === 'application' ? (
@@ -939,7 +1008,8 @@ function ApplicantDashboard() {
                           section.key === 'infoSession' ? '/info-sessions' : 
                           section.key === 'workshop' ? '/workshops' :
                           section.key === 'application' ? '/application-form' : 
-                          section.key === 'pledge' ? '/pledge' : '#'
+                          section.key === 'pledge' ? '/pledge' :
+                          section.key === 'onboarding' ? '/onboarding' : '#'
                         ) : '#'}>
                           <button
                             disabled={!enabled}

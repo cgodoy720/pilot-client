@@ -468,15 +468,27 @@ const WorkshopsTab = ({
                 className="font-proxima"
               />
             </div>
-            <div className="space-y-2">
-              <Label className="font-proxima-bold">Date & Time</Label>
-              <Input
-                type="datetime-local"
-                value={workshopForm.start_time}
-                onChange={(e) => setWorkshopForm({ ...workshopForm, start_time: e.target.value })}
-                required
-                className="font-proxima"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="font-proxima-bold">Start Time</Label>
+                <Input
+                  type="datetime-local"
+                  value={workshopForm.start_time}
+                  onChange={(e) => setWorkshopForm({ ...workshopForm, start_time: e.target.value })}
+                  required
+                  className="font-proxima"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="font-proxima-bold">End Time</Label>
+                <Input
+                  type="datetime-local"
+                  value={workshopForm.end_time}
+                  onChange={(e) => setWorkshopForm({ ...workshopForm, end_time: e.target.value })}
+                  required
+                  className="font-proxima"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label className="font-proxima-bold">Location</Label>
