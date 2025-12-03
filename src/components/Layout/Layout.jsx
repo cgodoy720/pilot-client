@@ -100,7 +100,7 @@ const Layout = ({ children }) => {
           
           <Link to="/payment" className={`layout__nav-item ${location.pathname === '/payment' ? 'layout__nav-item--active' : ''}`}>
             <PaymentIcon className="layout__nav-icon" />
-            {isExpanded && <span className="layout__nav-text">Payment</span>}
+            {isExpanded && <span className="layout__nav-text">Financial Planning</span>}
           </Link>
           
           {isAdmin && (
@@ -120,6 +120,10 @@ const Layout = ({ children }) => {
               <Link to="/facilitator-view" className={`layout__nav-item ${location.pathname === '/facilitator-view' ? 'layout__nav-item--active' : ''}`}>
                 <PersonIcon className="layout__nav-icon" />
                 {isExpanded && <span className="layout__nav-text">Facilitator View</span>}
+              </Link>
+              <Link to="/payment-admin" className={`layout__nav-item ${location.pathname === '/payment-admin' ? 'layout__nav-item--active' : ''}`}>
+                <PaymentIcon className="layout__nav-icon" />
+                {isExpanded && <span className="layout__nav-text">Admin Payments View</span>}
               </Link>
             </>
           )}

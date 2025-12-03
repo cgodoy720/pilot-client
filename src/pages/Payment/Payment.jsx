@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { getContractVersion, calculateTieredPercentage } from '../../utils/contractVersions';
 import './Payment.css';
 
 const Payment = () => {
@@ -43,16 +44,35 @@ const Payment = () => {
     employmentType: 'full-time'
   });
 
-  // Bond Invoice Calculator states
+  // Invoice Calculator states
   const [monthlyIncome, setMonthlyIncome] = useState('');
 
-  // Calculated values
+  // Get user's contract version from uploaded Good Job Agreement
+  const contractVersion = uploadedFiles.goodJobAgreement?.contractVersion || null;
+  const versionConfig = getContractVersion(contractVersion);
+
+  // Calculated values based on contract version
   const annualizedIncome = monthlyIncome ? parseFloat(monthlyIncome) * 12 : 0;
-  const paymentPercentage = monthlyIncome && parseFloat(monthlyIncome) >= 7083 ? 15 : 0;
-  const monthlyPayment = monthlyIncome && parseFloat(monthlyIncome) >= 7083 ? parseFloat(monthlyIncome) * 0.15 : 0;
+  
+  // Calculate income share percentage (handles tiered and flat rates)
+  let incomeSharePercentage = 0;
+  if (monthlyIncome && versionConfig) {
+    if (versionConfig.isTiered) {
+      incomeSharePercentage = calculateTieredPercentage(versionConfig, annualizedIncome);
+    } else {
+      // Check threshold for flat rate contracts
+      const threshold = versionConfig.monthlyThreshold || versionConfig.annualThreshold / 12;
+      if (parseFloat(monthlyIncome) >= threshold) {
+        incomeSharePercentage = versionConfig.incomeSharePercentage || 0;
+      }
+    }
+  }
+  
+  const monthlyPayment = monthlyIncome && incomeSharePercentage > 0 
+    ? parseFloat(monthlyIncome) * (incomeSharePercentage / 100) 
+    : 0;
 
   // File input refs
-  const goodJobAgreementRef = useRef(null);
   const employmentContractRef = useRef(null);
 
   // Load existing data on component mount
@@ -156,9 +176,7 @@ const Payment = () => {
   };
 
   const openFileDialog = (type) => {
-    if (type === 'goodJobAgreement') {
-      goodJobAgreementRef?.current?.click();
-    } else if (type === 'employmentContract') {
+    if (type === 'employmentContract') {
       employmentContractRef?.current?.click();
     }
   };
@@ -306,7 +324,7 @@ const Payment = () => {
     <div className="payment">
       <div className="payment__container">
         <div className="payment__header">
-          <h1 className="payment__title">Good Job Agreement</h1>
+          <h1 className="payment__title">Financial Planning</h1>
           <p className="payment__subtitle">Manage your payment and employment information.</p>
         </div>
 
@@ -322,14 +340,39 @@ const Payment = () => {
               <div className="payment__document-header">
                 <h3 className="payment__document-title">Good Job Agreement</h3>
               </div>
-              <div className="payment__document-actions">
-                <button
-                  onClick={openGjaModal}
-                  className="payment__button payment__button--primary"
-                >
-                  View Good Job Agreement
-                </button>
-              </div>
+              {uploadedFiles.goodJobAgreement ? (
+                <>
+                  <div className="payment__document-actions">
+                    <button
+                      onClick={openGjaModal}
+                      className="payment__button payment__button--primary"
+                    >
+                      View Your Signed Agreement
+                    </button>
+                  </div>
+                  <div className="payment__file-info">
+                    <span className="payment__file-name">✓ Your signed agreement is on file</span>
+                    {uploadedFiles.goodJobAgreement.uploadedAt && (
+                      <span className="payment__file-date">
+                        Uploaded: {new Date(uploadedFiles.goodJobAgreement.uploadedAt).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="payment__document-actions">
+                    <button
+                      onClick={openGjaModal}
+                      className="payment__button payment__button--primary"
+                    >
+                      View Template Agreement
+                    </button>
+                  </div>
+                  <p className="payment__document-status-message">Your signed agreement will appear here once it's been uploaded.</p>
+                </>
+              )}
+              <p className="payment__document-note">Please note that your Good Job Agreement does not take effect until you start L2.</p>
             </div>
 
             {/* Good Job Agreement FAQs */}
@@ -383,9 +426,9 @@ const Payment = () => {
           </div>
         </div>
 
-        {/* Bond Invoice Calculator Section */}
+        {/* Invoice Calculator Section */}
         <div className="payment__section">
-          <h2 className="payment__section-title">Bond Invoice Calculator</h2>
+          <h2 className="payment__section-title">Invoice Calculator</h2>
           <div className="payment__calculator-card">
             <div className="payment__calculator-content">
               <div className="payment__calculator-input">
@@ -401,15 +444,15 @@ const Payment = () => {
               </div>
               
               <div className="payment__calculator-results">
-                <div className="payment__result-item">
+                <div className="payment__result-item payment__result-item--highlighted">
                   <span className="payment__result-label">Annualized Income:</span>
                   <span className="payment__result-value">${annualizedIncome.toLocaleString()}</span>
                 </div>
-                <div className="payment__result-item">
+                <div className="payment__result-item payment__result-item--highlighted">
                   <span className="payment__result-label">Percentage Owed:</span>
-                  <span className="payment__result-value">{paymentPercentage}%</span>
+                  <span className="payment__result-value">{incomeSharePercentage}%</span>
                 </div>
-                <div className="payment__result-item">
+                <div className="payment__result-item payment__result-item--highlighted">
                   <span className="payment__result-label">Monthly Payment:</span>
                   <span className="payment__result-value">${monthlyPayment.toLocaleString()}</span>
                 </div>
@@ -420,8 +463,23 @@ const Payment = () => {
               <div className="payment__info-section">
                 <h5>Payment Percentage</h5>
                 <div className="payment__info-content">
-                  <p>If your income in one calendar month is <strong>less than $7,083</strong>, representing an annualized income of <strong>less than $85,000</strong>, then you owe <strong>0%</strong>.</p>
-                  <p>If your income is <strong>equal to or greater than $7,083</strong>, representing an annualized income of <strong>equal to or greater than $85,000</strong>, then your income percentage owed is <strong>15%</strong>.</p>
+                  {versionConfig?.isTiered ? (
+                    <>
+                      <p>Your contract uses a <strong>tiered income share percentage</strong>:</p>
+                      <ul>
+                        <li><strong>$50,000 - $60,000:</strong> {versionConfig.tiers.find(t => t.min === 50000)?.percentage}%</li>
+                        <li><strong>$60,000 - $70,000:</strong> {versionConfig.tiers.find(t => t.min === 60000)?.percentage}%</li>
+                        <li><strong>$70,000+:</strong> {versionConfig.tiers.find(t => t.min === 70000)?.percentage}%</li>
+                      </ul>
+                    </>
+                  ) : versionConfig?.monthlyThreshold || versionConfig?.annualThreshold ? (
+                    <>
+                      <p>If your income in one calendar month is <strong>less than ${versionConfig.monthlyThreshold ? `$${versionConfig.monthlyThreshold.toLocaleString()}` : `$${(versionConfig.annualThreshold / 12).toLocaleString()}`}</strong>, representing an annualized income of <strong>less than ${versionConfig.annualThreshold ? `$${versionConfig.annualThreshold.toLocaleString()}` : `$${(versionConfig.monthlyThreshold * 12).toLocaleString()}`}</strong>, then you owe <strong>0%</strong>.</p>
+                      <p>If your income is <strong>equal to or greater than ${versionConfig.monthlyThreshold ? `$${versionConfig.monthlyThreshold.toLocaleString()}` : `$${(versionConfig.annualThreshold / 12).toLocaleString()}`}</strong>, representing an annualized income of <strong>equal to or greater than ${versionConfig.annualThreshold ? `$${versionConfig.annualThreshold.toLocaleString()}` : `$${(versionConfig.monthlyThreshold * 12).toLocaleString()}`}</strong>, then your income percentage owed is <strong>{versionConfig.incomeSharePercentage}%</strong>.</p>
+                    </>
+                  ) : (
+                    <p>Based on your contract version ({versionConfig?.name || 'Unknown'}), your income share percentage is <strong>{versionConfig?.incomeSharePercentage || 0}%</strong>.</p>
+                  )}
                 </div>
               </div>
 
@@ -434,18 +492,26 @@ const Payment = () => {
                     <div className="payment__conditions-cell">Payment Term</div>
                     <div className="payment__conditions-or-cell">OR</div>
                     <div className="payment__conditions-cell">Payment Cap</div>
-                    <div className="payment__conditions-or-cell">OR</div>
-                    <div className="payment__conditions-cell">Payment Period</div>
+                    {versionConfig?.coveredPeriod && (
+                      <>
+                        <div className="payment__conditions-or-cell">OR</div>
+                        <div className="payment__conditions-cell">Payment Period</div>
+                      </>
+                    )}
                   </div>
                   <div className="payment__conditions-row">
-                    <div className="payment__conditions-cell">36 Payments</div>
-                    <div className="payment__conditions-cell">$55,000</div>
-                    <div className="payment__conditions-cell">5 Years</div>
+                    <div className="payment__conditions-cell">{versionConfig?.maxPayments || 36} Payments</div>
+                    <div className="payment__conditions-cell">${versionConfig?.maxPaymentAmount ? versionConfig.maxPaymentAmount.toLocaleString() : '55,000'}</div>
+                    {versionConfig?.coveredPeriod && (
+                      <div className="payment__conditions-cell">{Math.round(versionConfig.coveredPeriod / 12)} Years</div>
+                    )}
                   </div>
                   <div className="payment__conditions-explanations-row">
                     <div className="payment__conditions-cell">Payments end after you have made this many monthly payments,</div>
                     <div className="payment__conditions-cell">Payments end when you have paid this amount in total,</div>
-                    <div className="payment__conditions-cell">Payments end this many years after the Program Launch Date even if you've made no payments.</div>
+                    {versionConfig?.coveredPeriod && (
+                      <div className="payment__conditions-cell">Payments end this many years after the Program Launch Date even if you've made no payments.</div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -570,7 +636,7 @@ const Payment = () => {
         <div className="payment__modal-overlay" onClick={() => setIsGjaModalOpen(false)}>
           <div className="payment__modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="payment__modal-header">
-              <h3>Good Job Agreement</h3>
+              <h3>{uploadedFiles.goodJobAgreement ? 'Your Signed Good Job Agreement' : 'Good Job Agreement Template'}</h3>
               <button
                 className="payment__modal-close"
                 onClick={() => setIsGjaModalOpen(false)}
