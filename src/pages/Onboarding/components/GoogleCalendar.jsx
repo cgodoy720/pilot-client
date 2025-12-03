@@ -66,11 +66,28 @@ function GoogleCalendar({ task, onComplete }) {
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
             <h4 className="font-semibold text-blue-900 mb-2">Pin Your Calendar:</h4>
-            <p className="text-blue-800 text-sm">
+            <p className="text-blue-800 text-sm mb-4">
               You'll use Google Calendar a lot, so make it easy to access! Pin the Google Calendar tab in Chrome so it shows up as a small icon at the top of your browser. This way, you can always see your schedule with one click.
             </p>
+            <img 
+              src="/onboarding/chrome-tabs.png" 
+              alt="Chrome browser tabs showing how to pin Google Calendar" 
+              className="max-w-xl w-full mx-auto rounded-lg border border-blue-200 shadow-sm"
+            />
+          </div>
+
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h4 className="font-semibold text-green-900 mb-2">Sync Chrome Across Devices:</h4>
+            <p className="text-green-800 text-sm mb-4">
+              Sign into Chrome with your Pursuit email to keep your pinned tabs, bookmarks, and settings synced across all your devices. This way, your calendar will always be a click away!
+            </p>
+            <img 
+              src="/onboarding/sync-chrome.png" 
+              alt="Chrome sync settings to keep your tabs and bookmarks across devices" 
+              className="max-w-sm w-full mx-auto rounded-lg border border-green-200 shadow-sm"
+            />
           </div>
         </div>
 
@@ -137,12 +154,20 @@ function GoogleCalendar({ task, onComplete }) {
 
         <div className="bg-[#F8F9FA] border border-[#E5E7EB] rounded-xl p-6 mb-6">
           <h3 className="text-xl font-semibold text-[#1E1E1E] mb-3">How to view someone's calendar:</h3>
-          <ol className="space-y-2 text-[#666]">
+          <ol className="space-y-2 text-[#666] mb-4">
             <li>1. Look for the search area above where your calendars are listed</li>
             <li>2. Type in the person's name or email address</li>
             <li>3. Select the right person from the results</li>
             <li>4. Their calendar will appear alongside yours so you can see their availability</li>
           </ol>
+          <div className="bg-white border border-[#E5E7EB] rounded-lg p-4">
+            <p className="text-sm text-[#666] mb-3">Here's what the "Meet with" feature looks like:</p>
+            <img 
+              src="/onboarding/google-calender-meet-with.png" 
+              alt="Google Calendar Meet With feature for viewing others' availability" 
+              className="max-w-xl w-full mx-auto rounded-lg border border-[#E5E7EB] shadow-sm"
+            />
+          </div>
         </div>
 
         <div className="bg-purple-50 border border-purple-200 rounded-xl p-6">

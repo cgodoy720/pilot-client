@@ -151,6 +151,14 @@ function SlackSetup({ task, onComplete }) {
             </h3>
             <p className="text-[#666] mb-3">Direct messages are private conversations between you and one or more people. They're great for quick, casual chats.</p>
             
+            <div className="bg-white border border-[#E5E7EB] rounded-lg p-4 mb-4">
+              <img 
+                src="/onboarding/slack-direct-messages.png" 
+                alt="Slack Direct Messages interface showing how to send private messages" 
+                className="max-w-2xl w-full mx-auto rounded-lg border border-[#E5E7EB] shadow-sm"
+              />
+            </div>
+            
             <div className="bg-white border border-[#E5E7EB] rounded-lg p-4">
               <h4 className="font-semibold text-[#1E1E1E] mb-2">To start a direct message:</h4>
               <ol className="space-y-1 text-[#666]">
@@ -160,6 +168,65 @@ function SlackSetup({ task, onComplete }) {
               </ol>
               <p className="text-[#666] mt-3">
                 <strong>Try it:</strong> Say hello to Slackbot! It's Slack's helpful robot. Send it a message and see if it responds!
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-[#F8F9FA] border border-[#E5E7EB] rounded-xl p-6">
+            <h3 className="text-xl font-semibold text-[#1E1E1E] mb-3 flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              3. Threads
+            </h3>
+            <p className="text-[#666] mb-3">Threads keep conversations organized. Instead of cluttering a channel with back-and-forth messages, you can reply directly to a specific message.</p>
+            
+            <div className="bg-white border border-[#E5E7EB] rounded-lg p-4 mb-4">
+              <img 
+                src="/onboarding/slack-threads.png" 
+                alt="Slack threads showing organized conversations" 
+                className="max-w-md w-full mx-auto rounded-lg border border-[#E5E7EB] shadow-sm"
+              />
+            </div>
+            
+            <div className="bg-white border border-[#E5E7EB] rounded-lg p-4 mb-4">
+              <h4 className="font-semibold text-[#1E1E1E] mb-2">How to reply in a thread:</h4>
+              <ol className="space-y-1 text-[#666]">
+                <li>1. Hover over the message you want to reply to</li>
+                <li>2. Click the speech bubble icon (or "Reply in thread")</li>
+                <li>3. Type your response in the thread panel</li>
+              </ol>
+            </div>
+
+            <div className="bg-white border border-[#E5E7EB] rounded-lg p-4">
+              <p className="text-sm text-[#666] mb-3">Here's what replying in a thread looks like:</p>
+              <img 
+                src="/onboarding/slack-reply-threads.png" 
+                alt="How to reply in Slack threads" 
+                className="max-w-md w-full mx-auto rounded-lg border border-[#E5E7EB] shadow-sm"
+              />
+            </div>
+          </div>
+
+          <div className="bg-[#F8F9FA] border border-[#E5E7EB] rounded-xl p-6">
+            <h3 className="text-xl font-semibold text-[#1E1E1E] mb-3">4. Reactions (Emoji)</h3>
+            <p className="text-[#666] mb-3">Reactions are a quick way to respond to messages without typing. Use them to show you've seen something, agree, or express how you feel!</p>
+            
+            <div className="bg-white border border-[#E5E7EB] rounded-lg p-4 mb-4">
+              <img 
+                src="/onboarding/slack-reactions.png" 
+                alt="Slack reactions showing emoji responses to messages" 
+                className="max-w-sm w-full mx-auto rounded-lg border border-[#E5E7EB] shadow-sm"
+              />
+            </div>
+            
+            <div className="bg-white border border-[#E5E7EB] rounded-lg p-4">
+              <h4 className="font-semibold text-[#1E1E1E] mb-2">To add a reaction:</h4>
+              <ol className="space-y-1 text-[#666]">
+                <li>1. Hover over any message</li>
+                <li>2. Click the emoji icon (smiley face)</li>
+                <li>3. Pick an emoji to react with</li>
+              </ol>
+              <p className="text-[#666] mt-3">
+                <strong>Common reactions:</strong> ✅ (done/agree), 👀 (looking into it), 👍 (thumbs up), 🙏 (thank you)
               </p>
             </div>
           </div>

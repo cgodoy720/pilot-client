@@ -53,29 +53,22 @@ function KisiSetup({ task, onComplete }) {
               <p className="text-[#666]">The home screen should look like this:</p>
               
               <div className="bg-white border border-[#E5E7EB] rounded-lg p-4 text-center">
-                <div className="bg-gray-100 rounded-lg p-8 mb-4">
-                  <Smartphone className="h-12 w-12 mx-auto text-gray-500 mb-2" />
-                  <p className="text-sm text-gray-600">Kisi Home Screen</p>
-                </div>
+                <img 
+                  src="/onboarding/kisi-homescreen.png" 
+                  alt="Kisi app home screen showing Pursuit organization" 
+                  className="max-w-[280px] w-full mx-auto rounded-lg border border-[#E5E7EB] shadow-sm mb-4"
+                />
                 <p className="text-sm text-[#666]">Click on Pursuit to access the office controls</p>
               </div>
 
               <p className="text-[#666]">You will see a screen that looks like this:</p>
               
               <div className="bg-white border border-[#E5E7EB] rounded-lg p-4">
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 mb-4">
-                  <h4 className="font-semibold text-purple-900 mb-3">Pursuit Office Access</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between bg-white border border-purple-200 rounded-lg p-3">
-                      <span className="text-purple-800">Main Entrance</span>
-                      <Lock className="h-5 w-5 text-purple-600" />
-                    </div>
-                    <div className="flex items-center justify-between bg-white border border-purple-200 rounded-lg p-3">
-                      <span className="text-purple-800">Office Door</span>
-                      <Lock className="h-5 w-5 text-purple-600" />
-                    </div>
-                  </div>
-                </div>
+                <img 
+                  src="/onboarding/kisi.png" 
+                  alt="Kisi app showing Pursuit office door controls" 
+                  className="max-w-[280px] w-full mx-auto rounded-lg border border-[#E5E7EB] shadow-sm mb-4"
+                />
 
                 <ol className="space-y-2 text-[#666]">
                   <li>1. Click on the door you'd like to unlock.</li>
