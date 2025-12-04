@@ -27,6 +27,13 @@ import VolunteerFeedback from './pages/VolunteerFeedback/VolunteerFeedback';
 import AdminVolunteerFeedback from './pages/AdminVolunteerFeedback';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
 
+// Volunteer Management pages
+import VolunteerCheckIn from './pages/VolunteerCheckIn/VolunteerCheckIn';
+import VolunteerAttendance from './pages/VolunteerAttendance/VolunteerAttendance';
+import VolunteerRoster from './pages/VolunteerRoster/VolunteerRoster';
+import VolunteerList from './pages/VolunteerList/VolunteerList';
+import MySchedule from './pages/MySchedule/MySchedule';
+
 // Pathfinder pages
 import Pathfinder from './pages/Pathfinder';
 import PathfinderPersonalDashboard from './pages/Pathfinder/PathfinderPersonalDashboard';
@@ -353,6 +360,43 @@ function App() {
         <Route path="/volunteer-feedback" element={
           <Layout>
             <VolunteerFeedback />
+          </Layout>
+        } />
+
+        {/* Volunteer Management routes */}
+        <Route path="/volunteer-checkin" element={
+          <Layout>
+            <VolunteerCheckIn />
+          </Layout>
+        } />
+        <Route path="/volunteer-attendance" element={
+          <Layout>
+            <AdminRoute>
+              <VolunteerAttendance />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/volunteer-roster" element={
+          <Layout>
+            <AdminRoute>
+              <VolunteerRoster />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/volunteer-list" element={
+          <Layout>
+            <AdminRoute>
+              <VolunteerList />
+            </AdminRoute>
+          </Layout>
+        } />
+
+        {/* Volunteer Self-Service Schedule (for volunteer role) */}
+        <Route path="/my-schedule" element={
+          <Layout>
+            <ProtectedRoute>
+              <MySchedule />
+            </ProtectedRoute>
           </Layout>
         } />
 
