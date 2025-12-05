@@ -50,7 +50,6 @@ function OnboardingWizard({ user, applicantId, onComplete }) {
       if (tasksResponse.ok) {
         const tasksData = await tasksResponse.json();
         setTasks(tasksData);
-        console.log('Loaded tasks:', tasksData);
       } else {
         console.error('Failed to load tasks, status:', tasksResponse.status);
         // If backend isn't ready, create placeholder tasks
@@ -136,6 +135,27 @@ function OnboardingWizard({ user, applicantId, onComplete }) {
       return;
     }
 
+    // Optimistically update local state immediately for better UX
+    const updatedTasks = tasks.map(task => 
+      task.task_id === taskId 
+        ? { ...task, is_completed: isCompleted, completed_at: isCompleted ? new Date().toISOString() : null }
+        : task
+    );
+    setTasks(updatedTasks);
+    
+    // Update completion status locally
+    const completedCount = updatedTasks.filter(t => t.is_completed).length;
+    const requiredCount = updatedTasks.filter(t => t.is_required).length;
+    const completedRequiredCount = updatedTasks.filter(t => t.is_completed && t.is_required).length;
+    
+    setCompletionStatus(prev => ({
+      ...prev,
+      completed_tasks: completedCount,
+      completed_required_tasks: completedRequiredCount,
+      all_required_completed: completedRequiredCount === requiredCount
+    }));
+
+    // Then sync with backend (fire and forget, with error handling)
     try {
       const url = `${import.meta.env.VITE_API_URL}/api/onboarding/tasks/${taskId}/complete`;
       
@@ -162,36 +182,26 @@ function OnboardingWizard({ user, applicantId, onComplete }) {
           throw new Error('Failed to mark task as incomplete');
         }
       }
-      
-      // Reload data to get updated status
-      await loadOnboardingData();
     } catch (error) {
-      console.error('Error updating task completion:', error);
+      console.error('Error syncing task completion with backend:', error);
       
-      // If backend isn't ready, update local state for preview
-      if (error.message.includes('Failed to fetch') || error.message.includes('500')) {
-        const updatedTasks = tasks.map(task => 
-          task.task_id === taskId 
-            ? { ...task, is_completed: isCompleted }
-            : task
-        );
-        setTasks(updatedTasks);
+      // Only show error and revert if it's a real backend error (not network/500)
+      if (!error.message.includes('Failed to fetch') && !error.message.includes('500')) {
+        // Revert the optimistic update on error
+        setTasks(tasks);
         
-        // Update completion status locally
-        const completedCount = updatedTasks.filter(t => t.is_completed).length;
-        const requiredCount = updatedTasks.filter(t => t.is_required).length;
-        const completedRequiredCount = updatedTasks.filter(t => t.is_completed && t.is_required).length;
+        // Revert completion status
+        const revertedCompletedCount = tasks.filter(t => t.is_completed).length;
+        const revertedRequiredCount = tasks.filter(t => t.is_required).length;
+        const revertedCompletedRequiredCount = tasks.filter(t => t.is_completed && t.is_required).length;
         
-        setCompletionStatus({
-          total_tasks: updatedTasks.length,
-          required_tasks: requiredCount,
-          completed_tasks: completedCount,
-          completed_required_tasks: completedRequiredCount,
-          all_required_completed: completedRequiredCount === requiredCount
-        });
+        setCompletionStatus(prev => ({
+          ...prev,
+          completed_tasks: revertedCompletedCount,
+          completed_required_tasks: revertedCompletedRequiredCount,
+          all_required_completed: revertedCompletedRequiredCount === revertedRequiredCount
+        }));
         
-        console.log('Updated task completion locally (backend not ready)');
-      } else {
         Swal.fire({
           icon: 'error',
           title: 'Error',
@@ -199,6 +209,7 @@ function OnboardingWizard({ user, applicantId, onComplete }) {
           confirmButtonColor: '#4242ea'
         });
       }
+      // If backend isn't ready (network error or 500), just keep the local state
     }
   };
 
@@ -275,11 +286,6 @@ function OnboardingWizard({ user, applicantId, onComplete }) {
 
   const currentTask = getTaskForStep(currentStep);
   const CurrentStepComponent = STEP_COMPONENTS[currentStep]?.component;
-
-  // Debug logging
-  console.log('Current step:', currentStep);
-  console.log('Current task:', currentTask);
-  console.log('Tasks count:', tasks.length);
 
   const isAllRequiredCompleted = completionStatus?.all_required_completed || false;
   const completedCount = completionStatus?.completed_required_tasks || 0;
