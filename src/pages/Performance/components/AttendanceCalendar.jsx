@@ -33,12 +33,15 @@ const AttendanceCalendar = ({
 
   // Calculate attendance statistics based on actual attendance data
   const attendanceStats = useMemo(() => {
-    // Use the attendance data directly since it's already filtered by curriculum
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    
+    // Filter to only include days up to and including today (exclude future days)
     const classAttendance = attendanceData.filter(record => {
       const recordDate = new Date(record.date);
       const recordMonth = recordDate.getMonth();
       const recordYear = recordDate.getFullYear();
-      return recordMonth === month && recordYear === year;
+      return recordMonth === month && recordYear === year && recordDate <= today;
     });
     
     const present = classAttendance.filter(r => r.status === 'present').length;

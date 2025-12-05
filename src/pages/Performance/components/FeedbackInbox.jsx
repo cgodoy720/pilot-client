@@ -213,6 +213,15 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
     }
   };
 
+  const isFutureTask = (dateStr) => {
+    if (!dateStr) return false;
+    const taskDate = new Date(dateStr);
+    taskDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return taskDate > today;
+  };
+
   const getScoreColor = (score) => {
     // Always return blue for any score (matching the Figma design)
     return '#4285f4'; // Google blue - matches the image
@@ -377,6 +386,7 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
                 key={task.task_id} 
                 value={String(task.task_id)}
                 className="border-0"
+                disabled={isFutureTask(task.day_date)}
               >
                 <Card className="border border-[#E5E7EB] hover:bg-[#F9FAFB] transition-colors bg-white rounded-[6px] mb-1">
                   <AccordionTrigger 
