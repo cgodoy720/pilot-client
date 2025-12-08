@@ -116,7 +116,7 @@ const InfoSessionsTab = ({
   const handleToggleEventActive = async (eventId) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/admissions/info-sessions/${eventId}/toggle-active`,
+        `${import.meta.env.VITE_API_URL}/api/admissions/events/${eventId}/toggle-active`,
         {
           method: 'PUT',
           headers: { Authorization: `Bearer ${token}` }
@@ -147,39 +147,34 @@ const InfoSessionsTab = ({
     setInfoSessionModalOpen(true);
   };
 
-  // Helper to format timestamp for datetime-local input
-  const formatDateTimeForInput = (timestamp) => {
-    if (!timestamp) return '';
-    try {
-      const date = new Date(timestamp);
-      if (isNaN(date.getTime())) return '';
-      // Format as YYYY-MM-DDTHH:MM for datetime-local input
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      return `${year}-${month}-${day}T${hours}:${minutes}`;
-    } catch {
-      return '';
-    }
-  };
-
   // Open edit modal
   const openEditModal = (session) => {
     setEditingInfoSession(session);
     
-    // Use the full start_time timestamp if available, otherwise combine event_date + event_time
-    const startTimeValue = session.start_time 
-      ? formatDateTimeForInput(session.start_time)
-      : session.event_date 
-        ? `${session.event_date.split('T')[0]}T${session.event_time?.substring(0, 5) || '00:00'}` 
-        : '';
-    
-    // Use the full end_time timestamp if available
-    const endTimeValue = session.end_time 
-      ? formatDateTimeForInput(session.end_time)
+    // Extract date part (handles both "2025-11-03" and "2025-11-03T00:00:00" formats)
+    const datePart = session.event_date 
+      ? (session.event_date.includes('T') ? session.event_date.split('T')[0] : session.event_date)
       : '';
+    
+    // Extract time part from event_time (e.g., "17:00:00" -> "17:00")
+    const startTimePart = session.event_time ? session.event_time.substring(0, 5) : '';
+    
+    // For end_time, extract from the timestamp (e.g., "2025-11-03T18:00:00" -> "18:00")
+    let endTimePart = '';
+    if (session.end_time) {
+      const endTimeStr = String(session.end_time);
+      if (endTimeStr.includes('T')) {
+        // Format: "2025-11-03T18:00:00" - extract the time part
+        endTimePart = endTimeStr.split('T')[1]?.substring(0, 5) || '';
+      } else if (endTimeStr.includes(':')) {
+        // Format: "18:00:00" - already just time
+        endTimePart = endTimeStr.substring(0, 5);
+      }
+    }
+    
+    // Construct datetime-local values (format: "2025-11-03T17:00")
+    const startTimeValue = datePart && startTimePart ? `${datePart}T${startTimePart}` : '';
+    const endTimeValue = datePart && endTimePart ? `${datePart}T${endTimePart}` : '';
     
     setInfoSessionForm({
       title: session.event_name || '',
