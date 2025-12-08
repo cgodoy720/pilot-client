@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '../../../../components/ui/table';
 import { formatEventTime, isEventPast, formatEventDate, sortEventsByDate, getStatusBadgeClasses, formatStatus } from '../shared/utils';
+import Swal from 'sweetalert2';
 
 const InfoSessionsTab = ({
   loading,
@@ -146,14 +147,45 @@ const InfoSessionsTab = ({
     setInfoSessionModalOpen(true);
   };
 
+  // Helper to format timestamp for datetime-local input
+  const formatDateTimeForInput = (timestamp) => {
+    if (!timestamp) return '';
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return '';
+      // Format as YYYY-MM-DDTHH:MM for datetime-local input
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    } catch {
+      return '';
+    }
+  };
+
   // Open edit modal
   const openEditModal = (session) => {
     setEditingInfoSession(session);
+    
+    // Use the full start_time timestamp if available, otherwise combine event_date + event_time
+    const startTimeValue = session.start_time 
+      ? formatDateTimeForInput(session.start_time)
+      : session.event_date 
+        ? `${session.event_date.split('T')[0]}T${session.event_time?.substring(0, 5) || '00:00'}` 
+        : '';
+    
+    // Use the full end_time timestamp if available
+    const endTimeValue = session.end_time 
+      ? formatDateTimeForInput(session.end_time)
+      : '';
+    
     setInfoSessionForm({
       title: session.event_name || '',
       description: session.description || '',
-      start_time: session.event_date ? `${session.event_date.split('T')[0]}T${session.event_time?.substring(0, 5) || '00:00'}` : '',
-      end_time: '',
+      start_time: startTimeValue,
+      end_time: endTimeValue,
       location: session.location || '',
       capacity: session.capacity || 50,
       is_online: session.is_online || false,
@@ -184,9 +216,29 @@ const InfoSessionsTab = ({
       if (response.ok) {
         setInfoSessionModalOpen(false);
         fetchInfoSessions();
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: editingInfoSession ? 'Info session updated successfully' : 'Info session created successfully',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || 'Failed to save info session';
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: errorMessage
+        });
       }
     } catch (error) {
       console.error('Error saving info session:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'An unexpected error occurred while saving the info session'
+      });
     } finally {
       setInfoSessionSubmitting(false);
     }
@@ -440,11 +492,21 @@ const InfoSessionsTab = ({
               />
             </div>
             <div className="space-y-2">
-              <Label className="font-proxima-bold">Date & Time</Label>
+              <Label className="font-proxima-bold">Start Time</Label>
               <Input
                 type="datetime-local"
                 value={infoSessionForm.start_time}
                 onChange={(e) => setInfoSessionForm({ ...infoSessionForm, start_time: e.target.value })}
+                required
+                className="font-proxima"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-proxima-bold">End Time</Label>
+              <Input
+                type="datetime-local"
+                value={infoSessionForm.end_time}
+                onChange={(e) => setInfoSessionForm({ ...infoSessionForm, end_time: e.target.value })}
                 required
                 className="font-proxima"
               />
