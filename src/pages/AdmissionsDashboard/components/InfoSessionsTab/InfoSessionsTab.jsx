@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '../../../../components/ui/table';
 import { formatEventTime, isEventPast, formatEventDate, sortEventsByDate, getStatusBadgeClasses, formatStatus } from '../shared/utils';
+import Swal from 'sweetalert2';
 
 const InfoSessionsTab = ({
   loading,
@@ -115,7 +116,7 @@ const InfoSessionsTab = ({
   const handleToggleEventActive = async (eventId) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/admissions/info-sessions/${eventId}/toggle-active`,
+        `${import.meta.env.VITE_API_URL}/api/admissions/events/${eventId}/toggle-active`,
         {
           method: 'PUT',
           headers: { Authorization: `Bearer ${token}` }
@@ -149,11 +150,37 @@ const InfoSessionsTab = ({
   // Open edit modal
   const openEditModal = (session) => {
     setEditingInfoSession(session);
+    
+    // Extract date part (handles both "2025-11-03" and "2025-11-03T00:00:00" formats)
+    const datePart = session.event_date 
+      ? (session.event_date.includes('T') ? session.event_date.split('T')[0] : session.event_date)
+      : '';
+    
+    // Extract time part from event_time (e.g., "17:00:00" -> "17:00")
+    const startTimePart = session.event_time ? session.event_time.substring(0, 5) : '';
+    
+    // For end_time, extract from the timestamp (e.g., "2025-11-03T18:00:00" -> "18:00")
+    let endTimePart = '';
+    if (session.end_time) {
+      const endTimeStr = String(session.end_time);
+      if (endTimeStr.includes('T')) {
+        // Format: "2025-11-03T18:00:00" - extract the time part
+        endTimePart = endTimeStr.split('T')[1]?.substring(0, 5) || '';
+      } else if (endTimeStr.includes(':')) {
+        // Format: "18:00:00" - already just time
+        endTimePart = endTimeStr.substring(0, 5);
+      }
+    }
+    
+    // Construct datetime-local values (format: "2025-11-03T17:00")
+    const startTimeValue = datePart && startTimePart ? `${datePart}T${startTimePart}` : '';
+    const endTimeValue = datePart && endTimePart ? `${datePart}T${endTimePart}` : '';
+    
     setInfoSessionForm({
       title: session.event_name || '',
       description: session.description || '',
-      start_time: session.event_date ? `${session.event_date.split('T')[0]}T${session.event_time?.substring(0, 5) || '00:00'}` : '',
-      end_time: '',
+      start_time: startTimeValue,
+      end_time: endTimeValue,
       location: session.location || '',
       capacity: session.capacity || 50,
       is_online: session.is_online || false,
@@ -184,9 +211,29 @@ const InfoSessionsTab = ({
       if (response.ok) {
         setInfoSessionModalOpen(false);
         fetchInfoSessions();
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: editingInfoSession ? 'Info session updated successfully' : 'Info session created successfully',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || 'Failed to save info session';
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: errorMessage
+        });
       }
     } catch (error) {
       console.error('Error saving info session:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'An unexpected error occurred while saving the info session'
+      });
     } finally {
       setInfoSessionSubmitting(false);
     }
@@ -440,11 +487,21 @@ const InfoSessionsTab = ({
               />
             </div>
             <div className="space-y-2">
-              <Label className="font-proxima-bold">Date & Time</Label>
+              <Label className="font-proxima-bold">Start Time</Label>
               <Input
                 type="datetime-local"
                 value={infoSessionForm.start_time}
                 onChange={(e) => setInfoSessionForm({ ...infoSessionForm, start_time: e.target.value })}
+                required
+                className="font-proxima"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-proxima-bold">End Time</Label>
+              <Input
+                type="datetime-local"
+                value={infoSessionForm.end_time}
+                onChange={(e) => setInfoSessionForm({ ...infoSessionForm, end_time: e.target.value })}
                 required
                 className="font-proxima"
               />
