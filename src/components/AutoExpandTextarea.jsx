@@ -17,7 +17,8 @@ const LLM_MODELS = [
   { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini', description: 'Quick responses' },
   { value: 'google/gemini-2.5-flash-lite', label: 'Gemini Flash 2.5 Lite', description: 'Fast & efficient' },
   { value: 'deepseek/deepseek-chat', label: 'DeepSeek Chat', description: 'Code specialist' },
-  { value: 'x-ai/grok-4-fast', label: 'Grok 4 Fast', description: 'Fast reasoning' }
+  { value: 'x-ai/grok-4-fast', label: 'Grok 4 Fast', description: 'Fast reasoning' },
+  { value: 'moonshotai/kimi-k2-0905', label: 'Kimi K2', description: 'Opensource model' }
 ];
 
 const AutoExpandTextarea = forwardRef(({ 
