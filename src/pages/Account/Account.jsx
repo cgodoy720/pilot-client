@@ -4,8 +4,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../../components/ui/avatar';
-import { Textarea } from '../../components/ui/textarea';
-import { CheckCircle2, AlertCircle, Github, ArrowRight, RefreshCw, User, Sparkles, Save, Linkedin, Undo2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Github, ArrowRight } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 function Account() {
@@ -18,19 +17,6 @@ function Account() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
 
-  // Lookbook profile state
-  const [lookbookPhoto, setLookbookPhoto] = useState(null);
-  const [lookbookBio, setLookbookBio] = useState('');
-  const [linkedinUrl, setLinkedinUrl] = useState('');
-  const [githubUrl, setGithubUrl] = useState('');
-  const [originalBio, setOriginalBio] = useState('');
-  const [originalLinkedinUrl, setOriginalLinkedinUrl] = useState('');
-  const [originalGithubUrl, setOriginalGithubUrl] = useState('');
-  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [isEnhancingBio, setIsEnhancingBio] = useState(false);
-  const [hasLookbookProfile, setHasLookbookProfile] = useState(false);
-  const [preEnhanceBio, setPreEnhanceBio] = useState(null); // For undo functionality
 
   // GitHub integration state
   const [githubConnected, setGithubConnected] = useState(false);
@@ -42,7 +28,6 @@ function Account() {
       setFirstName(user.firstName || user.first_name || '');
       setLastName(user.lastName || user.last_name || '');
       checkGitHubConnection();
-      fetchLookbookProfile();
     }
   }, [user]);
 
@@ -61,43 +46,6 @@ function Account() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
-
-  const fetchLookbookProfile = async () => {
-    setIsLoadingProfile(true);
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/lookbook-profile`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data && Object.keys(data.data).length > 0) {
-          setHasLookbookProfile(true);
-          if (data.data.photo_url) {
-            setLookbookPhoto(data.data.photo_url);
-          }
-          const bio = data.data.bio || '';
-          const linkedin = data.data.linkedin_url || '';
-          const github = data.data.github_url || '';
-          
-          setLookbookBio(bio);
-          setOriginalBio(bio);
-          setLinkedinUrl(linkedin);
-          setOriginalLinkedinUrl(linkedin);
-          setGithubUrl(github);
-          setOriginalGithubUrl(github);
-        } else {
-          setHasLookbookProfile(false);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching lookbook profile:', err);
-    } finally {
-      setIsLoadingProfile(false);
-    }
-  };
 
   const checkGitHubConnection = async () => {
     try {
@@ -159,92 +107,6 @@ function Account() {
       setError('Failed to update profile. Please try again.');
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handleSaveLookbookProfile = async () => {
-    setIsSavingProfile(true);
-    setError('');
-    setMessage('');
-
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/lookbook-profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          bio: lookbookBio,
-          linkedin_url: linkedinUrl,
-          github_url: githubUrl
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update profile');
-      }
-
-      setOriginalBio(lookbookBio);
-      setOriginalLinkedinUrl(linkedinUrl);
-      setOriginalGithubUrl(githubUrl);
-      setMessage('Profile updated successfully!');
-      setTimeout(() => setMessage(''), 3000);
-    } catch (err) {
-      console.error('Error saving lookbook profile:', err);
-      setError(err.message || 'Failed to save profile. Please try again.');
-    } finally {
-      setIsSavingProfile(false);
-    }
-  };
-
-  const handleEnhanceBio = async () => {
-    if (!lookbookBio.trim()) {
-      setError('Please write something in your bio first.');
-      return;
-    }
-
-    setIsEnhancingBio(true);
-    setError('');
-    setMessage('');
-
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/enhance-bio`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ bio: lookbookBio })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to enhance bio');
-      }
-
-      const data = await response.json();
-      if (data.success && data.enhanced) {
-        setPreEnhanceBio(lookbookBio); // Save for undo
-        setLookbookBio(data.enhanced);
-        setMessage('Bio enhanced! Click "Undo" to restore your original.');
-        setTimeout(() => setMessage(''), 5000);
-      }
-    } catch (err) {
-      console.error('Error enhancing bio:', err);
-      setError('Failed to enhance bio. Please try again.');
-    } finally {
-      setIsEnhancingBio(false);
-    }
-  };
-
-  const handleUndoEnhance = () => {
-    if (preEnhanceBio !== null) {
-      setLookbookBio(preEnhanceBio);
-      setPreEnhanceBio(null);
-      setMessage('Bio restored to your original version.');
-      setTimeout(() => setMessage(''), 3000);
     }
   };
 
@@ -384,6 +246,12 @@ function Account() {
   // Get user's display name
   const displayName = firstName || user?.firstName || user?.first_name || 'User';
   
+  // Get possessive form of the name (e.g., "Carlos'" or "John's")
+  const getPossessiveName = () => {
+    const name = displayName;
+    return name.endsWith('s') ? `${name}'` : `${name}'s`;
+  };
+  
   // Get user roles for access badges
   const getUserRoles = () => {
     const roles = [];
@@ -399,12 +267,6 @@ function Account() {
     const last = (lastName || user?.lastName || user?.last_name || '')[0] || '';
     return (first + last).toUpperCase() || 'U';
   };
-
-  // Check if lookbook profile has unsaved changes
-  const profileHasChanges = 
-    lookbookBio !== originalBio || 
-    linkedinUrl !== originalLinkedinUrl || 
-    githubUrl !== originalGithubUrl;
 
   return (
     <div className="w-full h-full bg-[#EFEFEF] overflow-y-auto">
@@ -430,9 +292,7 @@ function Account() {
       <div className="flex items-center h-[45px] px-10 mb-4 border-b border-[#C8C8C8]">
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
-            {lookbookPhoto ? (
-              <AvatarImage src={lookbookPhoto} alt="Profile" />
-            ) : githubUser?.avatar_url ? (
+            {githubUser?.avatar_url ? (
               <AvatarImage src={githubUser.avatar_url} alt="Profile" />
             ) : null}
             <AvatarFallback className="bg-[#4242EA] text-white text-sm font-medium">
@@ -448,17 +308,17 @@ function Account() {
               backgroundClip: 'text'
             }}
           >
-            {displayName}'s Profile
+            {getPossessiveName()} Profile
           </h1>
         </div>
       </div>
 
-      {/* Three-Column Layout */}
+      {/* Two-Column Layout */}
       <div className="px-10 pb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-0">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
           
           {/* LEFT COLUMN - Account */}
-          <div className="space-y-6 pr-6 lg:border-r lg:border-[#C8C8C8]">
+          <div className="space-y-6 pr-6">
             <div className="flex items-baseline justify-between">
               <h2 className="text-2xl font-semibold text-[#1E1E1E]">Account</h2>
               <span className="text-sm text-[#666666]">{user?.email}</span>
@@ -547,155 +407,8 @@ function Account() {
             </div>
           </div>
 
-          {/* MIDDLE COLUMN - Personal */}
-          <div className="space-y-6 px-6 lg:border-r lg:border-[#C8C8C8]">
-            <h2 className="text-2xl font-semibold text-[#1E1E1E]">Personal</h2>
-            
-            {/* Profile Photo */}
-            <div className="flex justify-center">
-              <div className="relative w-full max-w-[280px]">
-                <div className="aspect-[3/4] w-full bg-[#E3E3E3] rounded-lg overflow-hidden">
-                {isLoadingProfile ? (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <RefreshCw className="h-8 w-8 text-[#999999] animate-spin" />
-                  </div>
-                ) : lookbookPhoto ? (
-                  <img 
-                    src={lookbookPhoto} 
-                    alt="Profile" 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-[#999999]">
-                    <User className="h-16 w-16 mb-2" />
-                    <span className="text-sm">No photo uploaded</span>
-                  </div>
-                )}
-              </div>
-                {/* Refresh button */}
-                <button 
-                  onClick={fetchLookbookProfile}
-                  className="absolute bottom-3 right-3 p-2 bg-white/90 rounded-full shadow-sm hover:bg-white transition-colors border border-[#E3E3E3]"
-                  title="Refresh profile"
-                >
-                  <RefreshCw className={`h-4 w-4 text-[#666666] ${isLoadingProfile ? 'animate-spin' : ''}`} />
-                </button>
-              </div>
-            </div>
-
-            {/* Lookbook Profile Section */}
-            {hasLookbookProfile ? (
-              <div className="space-y-4">
-                {/* Bio */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-[#1E1E1E]">Bio</h3>
-                    {profileHasChanges && (
-                      <span className="text-xs text-[#4242EA]">Unsaved changes</span>
-                    )}
-                  </div>
-                  <Textarea
-                    value={lookbookBio}
-                    onChange={(e) => setLookbookBio(e.target.value)}
-                    placeholder="Write a brief professional bio about yourself..."
-                    className="min-h-[100px] border-[#C8C8C8] focus:border-[#4242EA] focus:ring-[#4242EA] resize-none"
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleEnhanceBio}
-                      disabled={isEnhancingBio || !lookbookBio.trim()}
-                      variant="outline"
-                      size="sm"
-                      className="border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA]/5"
-                    >
-                      {isEnhancingBio ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          Enhancing...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Enhance with AI
-                        </>
-                      )}
-                    </Button>
-                    {preEnhanceBio !== null && (
-                      <Button
-                        onClick={handleUndoEnhance}
-                        variant="outline"
-                        size="sm"
-                        className="border-[#C8C8C8] text-[#666666] hover:bg-[#EFEFEF]"
-                      >
-                        <Undo2 className="h-4 w-4 mr-2" />
-                        Undo
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                {/* LinkedIn URL */}
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-[#1E1E1E]">LinkedIn</h3>
-                  <div className="flex items-center gap-2">
-                    <Linkedin className="h-4 w-4 text-[#0A66C2]" />
-                    <Input
-                      type="url"
-                      value={linkedinUrl}
-                      onChange={(e) => setLinkedinUrl(e.target.value)}
-                      placeholder="https://linkedin.com/in/username"
-                      className="border-[#C8C8C8] focus:border-[#4242EA] focus:ring-[#4242EA]"
-                    />
-                  </div>
-                </div>
-
-                {/* GitHub URL */}
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-[#1E1E1E]">GitHub</h3>
-                  <div className="flex items-center gap-2">
-                    <Github className="h-4 w-4 text-[#1E1E1E]" />
-                    <Input
-                      type="url"
-                      value={githubUrl}
-                      onChange={(e) => setGithubUrl(e.target.value)}
-                      placeholder="https://github.com/username"
-                      className="border-[#C8C8C8] focus:border-[#4242EA] focus:ring-[#4242EA]"
-                    />
-                  </div>
-                </div>
-
-                {/* Save Button */}
-                {profileHasChanges && (
-                  <Button
-                    onClick={handleSaveLookbookProfile}
-                    disabled={isSavingProfile}
-                    className="bg-[#4242EA] hover:bg-[#3535C7] text-white"
-                  >
-                    {isSavingProfile ? (
-                      <>
-                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        Save Profile
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div className="p-4 rounded-lg bg-[#FFF9E6] border border-[#F5D76E] text-[#8B7355]">
-                <p className="text-sm">
-                  Your Lookbook profile hasn't been set up yet. Please contact an admin to create your profile, then you can edit your bio and links here.
-                </p>
-              </div>
-            )}
-          </div>
-
           {/* RIGHT COLUMN - Integrations */}
-          <div className="space-y-6 pl-6">
+          <div className="space-y-6 pl-6 lg:border-l lg:border-[#C8C8C8]">
             <h2 className="text-2xl font-semibold text-[#1E1E1E]">Integrations</h2>
             
             {/* External Apps */}
