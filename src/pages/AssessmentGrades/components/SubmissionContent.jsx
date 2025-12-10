@@ -45,8 +45,10 @@ const SubmissionContent = ({
     );
   }
 
+  // Task submissions have a different structure - submission_data contains everything
   const submissionData = submission.submission_data || {};
-  const conversationData = submission.llm_conversation_data || {};
+  // For task submissions, conversation data might be embedded or separate
+  const conversationData = submissionData.llm_conversation_data || submissionData.conversation || {};
 
   if (currentTabType === 'technical') {
     return (

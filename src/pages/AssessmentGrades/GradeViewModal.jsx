@@ -37,8 +37,13 @@ const GradeViewModal = ({
   const [showCode, setShowCode] = useState(true);
   const [websitePreview, setWebsitePreview] = useState('');
   
-  // Assessment types mapping from BigQuery to our display names
+  // Assessment types mapping - now direct from task submissions
   const assessmentTypeMapping = {
+    'business': 'business',
+    'technical': 'technical', 
+    'professional': 'professional',
+    'self': 'self',
+    // Legacy mappings for backward compatibility
     'quiz': 'self',
     'knowledge_assessment': 'self',
     'project': 'technical', 
@@ -193,6 +198,16 @@ const GradeViewModal = ({
     acc[mappedType].push(analysis);
     return acc;
   }, {});
+
+  // Group user submissions by assessment type for easier access
+  const submissionsByType = userSubmissions.reduce((acc, submission) => {
+    const type = submission.assessment_type || 'unknown';
+    if (!acc[type]) {
+      acc[type] = [];
+    }
+    acc[type].push(submission);
+    return acc;
+  }, {});
   
   // Create tabs: Overview + individual assessment types
   const availableTabs = ['overview', ...assessmentTypes];
@@ -337,21 +352,29 @@ const GradeViewModal = ({
                       {/* Detailed Feedback Section */}
                       <div className="space-y-6">
                         <h3 className="text-xl font-bold">Detailed Feedback by Assessment</h3>
-                        {comprehensiveAnalysis.length > 0 ? (
+                        {userSubmissions.length > 0 ? (
                           <div className="space-y-6">
-                            {Object.entries(analysisByType).map(([type, analyses]) => {
-                              const latestAnalysis = analyses[0];
+                            {/* Show submissions by assessment type */}
+                            {Object.entries(submissionsByType).map(([type, submissions]) => {
+                              const latestSubmission = submissions[0]; // Most recent submission
+                              const latestAnalysis = analysisByType[type]?.[0]; // Most recent analysis if available
+                              
                               return (
                                 <div key={type} className="bg-card border border-border rounded-lg p-6">
                                   <div className="flex items-center justify-between mb-4">
                                     <h4 className="text-lg font-semibold">
                                       {type.charAt(0).toUpperCase() + type.slice(1)} Assessment
                                     </h4>
-                                    {latestAnalysis && (
-                                      <span className="font-semibold text-primary">
-                                        Score: {(latestAnalysis.overall_score * 100).toFixed(1)}%
+                                    <div className="flex items-center gap-4">
+                                      {latestAnalysis && (
+                                        <span className="font-semibold text-primary">
+                                          Score: {(latestAnalysis.overall_score * 100).toFixed(1)}%
+                                        </span>
+                                      )}
+                                      <span className="text-sm text-muted-foreground">
+                                        {submissions.length} submission{submissions.length !== 1 ? 's' : ''}
                                       </span>
-                                    )}
+                                    </div>
                                   </div>
                                   {latestAnalysis ? (
                                     <div className="space-y-4">
