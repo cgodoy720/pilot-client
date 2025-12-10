@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,20 @@ const MassEmailModal = ({
   const [previews, setPreviews] = useState([]);
   const [loadingPreviews, setLoadingPreviews] = useState(false);
   const [showPreviews, setShowPreviews] = useState(false);
+
+  // Filter assessment grades to only show selected users
+  const selectedGrades = useMemo(() => {
+    const selectedSet = new Set(selectedUsers);
+    return assessmentGrades.filter(grade => selectedSet.has(grade.user_id));
+  }, [selectedUsers, assessmentGrades]);
+
+  // Reset previews when modal opens or selected users change
+  useEffect(() => {
+    if (isOpen) {
+      setPreviews([]);
+      setShowPreviews(false);
+    }
+  }, [isOpen, selectedUsers]);
 
   const handlePreviewEmails = async () => {
     try {
@@ -239,17 +253,17 @@ const MassEmailModal = ({
           {/* Recipients */}
           <div className="space-y-2">
             <Label className="text-base font-semibold">
-              Recipients ({selectedUsers.length} users):
+              Recipients ({selectedGrades.length} users):
             </Label>
             <div className="bg-muted/50 border border-border rounded-lg p-4 max-h-32 overflow-y-auto">
-              {assessmentGrades.slice(0, 5).map(grade => (
+              {selectedGrades.slice(0, 5).map(grade => (
                 <div key={grade.user_id} className="text-sm py-1 text-muted-foreground">
                   {grade.user_first_name} {grade.user_last_name} ({grade.user_email})
                 </div>
               ))}
-              {assessmentGrades.length > 5 && (
+              {selectedGrades.length > 5 && (
                 <div className="text-sm py-1 text-muted-foreground italic">
-                  ... and {assessmentGrades.length - 5} more
+                  ... and {selectedGrades.length - 5} more
                 </div>
               )}
             </div>
