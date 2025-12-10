@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Settings, Award, Users, Bug, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench } from 'lucide-react';
+import { LogOut, Settings, Award, Users, Bug, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench, ChevronDown, ChevronRight, Heart, ClipboardList, UserCheck, ListChecks } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import LoadingCurtain from '../LoadingCurtain/LoadingCurtain';
 import { cn } from '../../lib/utils';
@@ -10,6 +10,7 @@ const Layout = ({ children, isLoading = false }) => {
   const [isNavbarHovered, setIsNavbarHovered] = useState(false);
   const [isMobileNavbarOpen, setIsMobileNavbarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isVolunteersExpanded, setIsVolunteersExpanded] = useState(false);
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,6 +39,13 @@ const Layout = ({ children, isLoading = false }) => {
 
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Auto-expand Volunteers section when on a volunteer page
+  useEffect(() => {
+    if (location.pathname.includes('volunteer')) {
+      setIsVolunteersExpanded(true);
+    }
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -254,9 +262,9 @@ const Layout = ({ children, isLoading = false }) => {
           </svg>
         ), 'Calendar', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)}
         
-        {/* Pathfinder - NEW from dev */}
-        {renderNavLink('/pathfinder/dashboard', <ArrowRight className="h-4 w-4 text-[#E3E3E3]" />, 'Pathfinder', 
-          !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant,
+        {/* Pathfinder - NEW from dev (hidden for volunteers) */}
+        {renderNavLink('/pathfinder/dashboard', <ArrowRight className="h-4 w-4 text-[#E3E3E3]" />, 'Pathfinder',
+          !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant && !isVolunteer,
           () => location.pathname.startsWith('/pathfinder')
         )}
         
@@ -265,12 +273,12 @@ const Layout = ({ children, isLoading = false }) => {
           (user?.role === 'admin' || user?.role === 'staff')
         )}
         
-        {/* My Performance - Show for fellows, admin, and staff; Hide for workshop participants, workshop admins, and applicants */}
+        {/* My Performance - Show for fellows, admin, and staff; Hide for workshop participants, workshop admins, applicants, and volunteers */}
         {renderNavLink('/performance', (
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-        ), 'Performance', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)}
+        ), 'Performance', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant && !isVolunteer)}
         
         {/* Assessment - Show for fellows, admin, and staff; Hide for workshop participants, workshop admins, and applicants */}
         {/* {renderNavLink('/assessment', (
@@ -321,13 +329,96 @@ const Layout = ({ children, isLoading = false }) => {
           user?.role === 'admin' || user?.role === 'staff'
         )}
         
-        {/* Volunteer Feedback */}
-        {renderNavLink(
-          user?.role === 'volunteer' ? '/volunteer-feedback' : '/admin-volunteer-feedback',
-          <MessageCircle className="h-4 w-4 text-[#E3E3E3]" />,
-          'Volunteer Feedback',
-          user?.role === 'volunteer' || user?.role === 'admin' || user?.role === 'staff',
-          () => location.pathname === '/volunteer-feedback' || location.pathname === '/admin-volunteer-feedback'
+        {/* Volunteers Section - Collapsible */}
+        {(user?.role === 'volunteer' || user?.role === 'admin' || user?.role === 'staff') && (
+          <>
+            {/* Volunteers Header (Collapsible) */}
+            {((isMobile && isMobileNavbarOpen) || !isMobile) && (
+              <button
+                onClick={() => setIsVolunteersExpanded(!isVolunteersExpanded)}
+                className={cn(
+                  "relative flex items-center w-full",
+                  isMobile ? "h-[53px]" : "h-[44px]",
+                  location.pathname.includes('volunteer') ? "bg-[#4242EA]/50" : "hover:bg-white/10"
+                )}
+              >
+                <div className={cn(
+                  "absolute left-0 top-0 flex items-center justify-center",
+                  isMobile ? "w-[60px] h-[53px]" : "w-[50px] h-[44px]"
+                )}>
+                  <Heart className="h-4 w-4 text-[#E3E3E3]" />
+                </div>
+                <div className={cn(
+                  "flex items-center justify-between flex-1 transition-all duration-300 ease-in-out",
+                  isMobile
+                    ? "ml-[60px] pr-4"
+                    : isNavbarHovered
+                      ? "ml-[50px] pr-4 opacity-100"
+                      : "ml-[50px] opacity-0 w-0 overflow-hidden"
+                )}>
+                  <span className="text-white text-sm font-medium whitespace-nowrap">Volunteers</span>
+                  {(isMobile || isNavbarHovered) && (
+                    isVolunteersExpanded
+                      ? <ChevronDown className="h-4 w-4 text-[#E3E3E3]" />
+                      : <ChevronRight className="h-4 w-4 text-[#E3E3E3]" />
+                  )}
+                </div>
+              </button>
+            )}
+
+            {/* Volunteer Sub-items */}
+            {isVolunteersExpanded && (
+              <div className={cn(
+                "flex flex-col",
+                isMobile ? "pl-4" : isNavbarHovered ? "pl-3" : "pl-0"
+              )}>
+                {/* My Schedule - Volunteer self-service view */}
+                {user?.role === 'volunteer' && renderNavLink(
+                  '/my-schedule',
+                  <CalendarIcon className="h-4 w-4 text-[#E3E3E3]" />,
+                  'My Schedule',
+                  true,
+                  () => location.pathname === '/my-schedule'
+                )}
+
+                {/* Volunteer List - Admin/Staff only */}
+                {(user?.role === 'admin' || user?.role === 'staff') && renderNavLink(
+                  '/volunteer-list',
+                  <ListChecks className="h-4 w-4 text-[#E3E3E3]" />,
+                  'List',
+                  true,
+                  () => location.pathname === '/volunteer-list'
+                )}
+
+                {/* Volunteer Calendar - Admin/Staff only */}
+                {(user?.role === 'admin' || user?.role === 'staff') && renderNavLink(
+                  '/volunteer-roster',
+                  <ClipboardList className="h-4 w-4 text-[#E3E3E3]" />,
+                  'Calendar',
+                  true,
+                  () => location.pathname === '/volunteer-roster'
+                )}
+
+                {/* Volunteer Attendance - Admin/Staff only */}
+                {(user?.role === 'admin' || user?.role === 'staff') && renderNavLink(
+                  '/volunteer-attendance',
+                  <UserCheck className="h-4 w-4 text-[#E3E3E3]" />,
+                  'Attendance',
+                  true,
+                  () => location.pathname === '/volunteer-attendance'
+                )}
+
+                {/* Volunteer Feedback */}
+                {renderNavLink(
+                  user?.role === 'volunteer' ? '/volunteer-feedback' : '/admin-volunteer-feedback',
+                  <MessageCircle className="h-4 w-4 text-[#E3E3E3]" />,
+                  'Feedback',
+                  true,
+                  () => location.pathname === '/volunteer-feedback' || location.pathname === '/admin-volunteer-feedback'
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {/* Spacer to push profile and logout to bottom */}

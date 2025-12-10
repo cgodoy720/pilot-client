@@ -8,7 +8,7 @@ import ArrowButton from '../../components/ArrowButton/ArrowButton';
 import logoFull from '../../assets/logo-full.png';
 
 const Signup = () => {
-  const [userType, setUserType] = useState(''); // 'builder', 'applicant', or 'workshop'
+  const [userType, setUserType] = useState(''); // 'builder', 'applicant', 'workshop', or 'volunteer'
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -108,11 +108,37 @@ const Signup = () => {
 
         const data = await response.json();
 
+      if (response.ok) {
+        setRegistrationComplete(true);
+        setSuccessMessage('Workshop account created successfully! Please check your email to verify your account before logging in.');
+      } else {
+        setError(data.error || 'Failed to create workshop account');
+      }
+      } else if (userType === 'volunteer') {
+        // Create volunteer account
+        endpoint = `${import.meta.env.VITE_API_URL}/api/volunteers/signup`;
+        requestBody = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password
+        };
+
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        const data = await response.json();
+
         if (response.ok) {
           setRegistrationComplete(true);
-          setSuccessMessage('Workshop account created successfully! Please check your email to verify your account before logging in.');
+          setSuccessMessage(data.message || 'Volunteer account created successfully! Please check your email to verify your account before logging in.');
         } else {
-          setError(data.error || 'Failed to create workshop account');
+          setError(data.error || 'Failed to create volunteer account');
         }
       }
     } catch (err) {
@@ -135,8 +161,8 @@ const Signup = () => {
     return null;
   }
 
-  // Show MultiStepForm for builder, applicant and workshop signups
-  if ((userType === 'builder' || userType === 'applicant' || userType === 'workshop') && !registrationComplete) {
+  // Show MultiStepForm for builder, applicant, workshop and volunteer signups
+  if ((userType === 'builder' || userType === 'applicant' || userType === 'workshop' || userType === 'volunteer') && !registrationComplete) {
     return (
       <MultiStepForm 
         userType={userType} 
@@ -295,17 +321,36 @@ const Signup = () => {
             </div>
 
             {/* Workshop Card */}
-            <div className="w-full md:w-[211px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
+            <div className="w-full md:w-[160px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
               <div className="flex flex-col items-center gap-4 w-full flex-1">
                 <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
                   Workshop
                 </h3>
                 <p className="text-white text-sm md:text-base font-proxima leading-tight text-center w-full flex-1">
-                  For workshop participants with an access code from your organization
+                  For workshop participants with an access code
                 </p>
               </div>
               <Button
                 onClick={() => handleUserTypeSelect('workshop')}
+                variant="outline"
+                className="border-white text-white hover:bg-white hover:text-pursuit-purple rounded-full px-5 py-1.5 text-sm font-proxima h-auto bg-transparent w-auto"
+              >
+                Select
+              </Button>
+            </div>
+
+            {/* Volunteer Card */}
+            <div className="w-full md:w-[160px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
+              <div className="flex flex-col items-center gap-4 w-full flex-1">
+                <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
+                  Volunteer
+                </h3>
+                <p className="text-white text-sm md:text-base font-proxima leading-tight text-center w-full flex-1">
+                  For volunteers supporting Pursuit Builders
+                </p>
+              </div>
+              <Button
+                onClick={() => handleUserTypeSelect('volunteer')}
                 variant="outline"
                 className="border-white text-white hover:bg-white hover:text-pursuit-purple rounded-full px-5 py-1.5 text-sm font-proxima h-auto bg-transparent w-auto"
               >

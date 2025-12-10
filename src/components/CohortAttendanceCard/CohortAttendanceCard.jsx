@@ -73,6 +73,9 @@ const CohortAttendanceCard = ({
               </div>
               <div className="thumbnail-info">
                 <p className="attendee-name">
+                  {attendee.userType === 'volunteer' && (
+                    <span className="volunteer-badge" title="Volunteer">🤝</span>
+                  )}
                   {attendee.firstName || 'Unknown'} {attendee.lastName || 'Unknown'}
                 </p>
                 <p className="check-in-time">
