@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Settings, Award, Users, Bug, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench, ChevronDown, ChevronRight, Heart, ClipboardList, UserCheck, ListChecks } from 'lucide-react';
+import { X, Calendar as CalendarIcon, ChevronDown, ChevronRight, Heart } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import LoadingCurtain from '../LoadingCurtain/LoadingCurtain';
 import { cn } from '../../lib/utils';
@@ -14,19 +15,6 @@ const Layout = ({ children, isLoading = false }) => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  
-  // Check if user has active status (from dev)
-  const isActive = user?.active !== false;
-  // Check if user is volunteer (from dev)
-  const isVolunteer = user?.role === 'volunteer';
-  // Check if on Pathfinder pages for light mode styling (from dev)
-  const isPathfinderPage = location.pathname.startsWith('/pathfinder');
-  // Check if user is workshop admin (from dev)
-  const isWorkshopAdmin = user?.role === 'workshop_admin';
-  // Check if user is a workshop participant (from dev)
-  const isWorkshopParticipant = user?.role === 'workshop_participant';
-  // Check if user is an applicant (from dev)
-  const isApplicant = user?.role === 'applicant';
   
   // Detect mobile vs desktop
   useEffect(() => {

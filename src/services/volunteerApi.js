@@ -74,6 +74,19 @@ export const getVolunteersByCohort = async (cohortName, token) => {
 };
 
 /**
+ * Get curriculum headlines for the volunteer calendar
+ */
+export const getVolunteerCalendar = async (token, { cohort, startDate, endDate } = {}) => {
+    const params = new URLSearchParams();
+    if (cohort) params.append('cohort', cohort);
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return fetchWithToken(`${API_URL}/api/volunteers/calendar${query}`, token);
+};
+
+/**
  * Assign volunteer to cohort
  */
 export const assignVolunteerToCohort = async (userId, cohortName, notes, token) => {
@@ -415,6 +428,7 @@ export default {
     updateVolunteerStatus,
     // Feedback
     getFeedbackByUserId,
+    getVolunteerCalendar,
     // Slots
     getSlotsByDateRange,
     getWeeklyRoster,
