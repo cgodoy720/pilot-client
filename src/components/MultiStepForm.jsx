@@ -45,6 +45,14 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
         { id: 'password', label: 'Create a password', type: 'password', placeholder: 'Type your answer here...' },
         { id: 'confirmPassword', label: 'Confirm your password', type: 'password', placeholder: 'Type your answer here...' },
       ];
+    } else if (userType === 'volunteer') {
+      return [
+        { id: 'firstName', label: 'What is your first name?', type: 'text', placeholder: 'Type your answer here...' },
+        { id: 'lastName', label: 'What is your last name?', type: 'text', placeholder: 'Type your answer here...' },
+        { id: 'email', label: 'What is your email address?', type: 'email', placeholder: 'Type your answer here...' },
+        { id: 'password', label: 'Create a password', type: 'password', placeholder: 'Type your answer here...' },
+        { id: 'confirmPassword', label: 'Confirm your password', type: 'password', placeholder: 'Type your answer here...' },
+      ];
     }
     return [];
   };
