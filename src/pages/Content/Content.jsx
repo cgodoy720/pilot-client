@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import JSONGenerator from './JSONGenerator/JSONGenerator';
 import SessionTester from './SessionTester/SessionTester';
 import FacilitatorNotesGenerator from './FacilitatorNotesGenerator/FacilitatorNotesGenerator';
+import CurriculumEditor from './CurriculumEditor';
 import './Content.css';
 
 const Content = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  // Check if user has access to curriculum editor
+  const canAccessCurriculumEditor = user?.role === 'staff' || user?.role === 'admin' || user?.role === 'volunteer';
   
   // Shared state for data continuity between tabs
   const [sharedData, setSharedData] = useState({
@@ -26,6 +32,8 @@ const Content = () => {
       return 'session-tester';
     } else if (location.pathname.includes('/content/facilitator-notes')) {
       return 'facilitator-notes';
+    } else if (location.pathname.includes('/content/curriculum-editor')) {
+      return 'curriculum-editor';
     }
     return 'json-generator'; // default
   };
@@ -52,6 +60,8 @@ const Content = () => {
       navigate('/content/facilitator-notes');
     } else if (tab === 'session-tester') {
       navigate('/content/session-tester');
+    } else if (tab === 'curriculum-editor') {
+      navigate('/content/curriculum-editor');
     } else {
       navigate('/content');
     }
@@ -87,6 +97,15 @@ const Content = () => {
             <span className="content-generation__tab-number">3</span>
             Facilitator Notes
           </button>
+          {canAccessCurriculumEditor && (
+            <button
+              className={`content-generation__tab ${activeTab === 'curriculum-editor' ? 'content-generation__tab--active' : ''}`}
+              onClick={() => handleTabChange('curriculum-editor')}
+            >
+              <span className="content-generation__tab-number">4</span>
+              Curriculum Editor
+            </button>
+          )}
         </div>
       </div>
 
@@ -108,6 +127,9 @@ const Content = () => {
             sharedData={sharedData}
             updateSharedData={updateSharedData}
           />
+        )}
+        {activeTab === 'curriculum-editor' && canAccessCurriculumEditor && (
+          <CurriculumEditor />
         )}
       </div>
     </div>
