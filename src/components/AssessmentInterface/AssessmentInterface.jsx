@@ -658,7 +658,6 @@ function AssessmentInterface({
           <div className="space-y-4 text-carbon-black font-proxima">
             {/* Assessment Info */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="font-semibold text-lg mb-2">{assessmentData?.assessment_name}</h3>
               <p className="text-sm text-carbon-black/70">
                 {assessmentData?.assessment_type?.charAt(0).toUpperCase() + assessmentData?.assessment_type?.slice(1)} Assessment
                 {assessmentData?.assessment_period && ` • ${assessmentData?.assessment_period}`}

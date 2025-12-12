@@ -28,7 +28,7 @@ function TaskCompletionBar({ onNextExercise, isLastTask = false, showViewSubmiss
             </div>
           ) : (
             <>
-              <span className="task-completion-bar__next-text">Next Exercise</span>
+              <span className="task-completion-bar__next-text">Next Activity</span>
               <ArrowButton
                 onClick={onNextExercise}
                 borderColor="white"
