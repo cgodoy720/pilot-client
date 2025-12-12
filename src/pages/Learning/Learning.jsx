@@ -59,6 +59,8 @@ function Learning() {
   // New state for daily overview vs activity interface
   const [showDailyOverview, setShowDailyOverview] = useState(true);
   const [isDeliverableSidebarOpen, setIsDeliverableSidebarOpen] = useState(false);
+  const [isAssessmentPanelOpen, setIsAssessmentPanelOpen] = useState(false);
+  const [currentAssessmentType, setCurrentAssessmentType] = useState(null);
   
   // Submission tracking state
   const [taskSubmissions, setTaskSubmissions] = useState({});
@@ -377,6 +379,7 @@ function Learning() {
     
     // Reset task completion state when switching tasks
     setIsTaskComplete(false);
+    setCurrentAssessmentType(null); // Reset assessment type for new task
     
     try {
       // Fetch both conversation history and submission in parallel
@@ -1115,6 +1118,9 @@ function Learning() {
               onComplete={handleAssessmentComplete}
               isCompleted={taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete || false}
               isLastTask={currentTaskIndex === tasks.length - 1}
+              externalPanelOpen={isAssessmentPanelOpen}
+              onExternalPanelOpenChange={setIsAssessmentPanelOpen}
+              onAssessmentTypeLoaded={setCurrentAssessmentType}
             />
             
             {/* Assessment Task Completion Bar - Same as chat interface */}
@@ -1124,8 +1130,8 @@ function Learning() {
                   <TaskCompletionBar
                     onNextExercise={handleNextExercise}
                     isLastTask={currentTaskIndex === tasks.length - 1}
-                    showViewSubmission={['video', 'document', 'link', 'structured'].includes(tasks[currentTaskIndex]?.deliverable_type)}
-                    onViewSubmission={() => setIsDeliverableSidebarOpen(true)}
+                    showViewSubmission={currentAssessmentType !== 'self'}
+                    onViewSubmission={() => setIsAssessmentPanelOpen(true)}
                   />
                 )}
               </div>

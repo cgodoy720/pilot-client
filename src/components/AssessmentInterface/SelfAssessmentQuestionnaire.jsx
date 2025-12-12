@@ -602,52 +602,54 @@ const SelfAssessmentQuestionnaire = ({
         )}
       </div>
 
-      {/* Navigation */}
-      <div className="self-assessment-questionnaire__navigation">
-        <ArrowButton
-          onClick={() => handleQuestionChange('prev')}
-          disabled={currentQuestionIndex === 0 || isSubmitting || isCompleted}
-          borderColor="#4242EA"
-          backgroundColor="var(--color-bg-light)"
-          arrowColor="#4242EA"
-          hoverBackgroundColor="#4242EA"
-          hoverArrowColor="white"
-          size="lg"
-          rotation={180}
-          useChevron={true}
-          strokeWidth={1}
-          className="self-assessment-questionnaire__nav-button"
-        />
-        
-        {currentQuestionIndex === totalQuestions - 1 ? (
-          <button
-            type="button"
-            className="self-assessment-questionnaire__nav-button self-assessment-questionnaire__nav-button--submit"
-            onClick={handleSubmit}
-            disabled={isSubmitting || isCompleted || !isAssessmentComplete()}
-          >
-            {isSubmitting ? (
-              <FaSpinner className="self-assessment-questionnaire__nav-button-icon--spinning" />
-            ) : (
-              <FaCheckCircle />
-            )}
-          </button>
-        ) : (
+      {/* Navigation - Hidden when assessment is complete */}
+      {!isCompleted && (
+        <div className="self-assessment-questionnaire__navigation">
           <ArrowButton
-            onClick={() => handleQuestionChange('next')}
-            disabled={isSubmitting || isCompleted}
+            onClick={() => handleQuestionChange('prev')}
+            disabled={currentQuestionIndex === 0 || isSubmitting}
             borderColor="#4242EA"
             backgroundColor="var(--color-bg-light)"
             arrowColor="#4242EA"
             hoverBackgroundColor="#4242EA"
             hoverArrowColor="white"
             size="lg"
+            rotation={180}
             useChevron={true}
             strokeWidth={1}
             className="self-assessment-questionnaire__nav-button"
           />
-        )}
-      </div>
+          
+          {currentQuestionIndex === totalQuestions - 1 ? (
+            <button
+              type="button"
+              className="self-assessment-questionnaire__nav-button self-assessment-questionnaire__nav-button--submit"
+              onClick={handleSubmit}
+              disabled={isSubmitting || !isAssessmentComplete()}
+            >
+              {isSubmitting ? (
+                <FaSpinner className="self-assessment-questionnaire__nav-button-icon--spinning" />
+              ) : (
+                <FaCheckCircle />
+              )}
+            </button>
+          ) : (
+            <ArrowButton
+              onClick={() => handleQuestionChange('next')}
+              disabled={isSubmitting}
+              borderColor="#4242EA"
+              backgroundColor="var(--color-bg-light)"
+              arrowColor="#4242EA"
+              hoverBackgroundColor="#4242EA"
+              hoverArrowColor="white"
+              size="lg"
+              useChevron={true}
+              strokeWidth={1}
+              className="self-assessment-questionnaire__nav-button"
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 };
