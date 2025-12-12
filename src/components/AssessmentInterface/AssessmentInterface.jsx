@@ -21,7 +21,10 @@ function AssessmentInterface({
   cohort,
   onComplete,
   isCompleted = false,
-  isLastTask = false
+  isLastTask = false,
+  externalPanelOpen = false,
+  onExternalPanelOpenChange = null,
+  onAssessmentTypeLoaded = null
 }) {
   const { token, user } = useAuth();
   const [assessmentData, setAssessmentData] = useState(null);
@@ -38,6 +41,24 @@ function AssessmentInterface({
   // UI state
   const [showDeliverablePanel, setShowDeliverablePanel] = useState(false);
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
+  
+  // Draft form data - persists when sidebar closes (cleared on successful submission)
+  const [draftFormData, setDraftFormData] = useState(null);
+  
+  // Sync external panel state with internal state
+  useEffect(() => {
+    if (externalPanelOpen && !showDeliverablePanel) {
+      setShowDeliverablePanel(true);
+    }
+  }, [externalPanelOpen]);
+  
+  // Handle panel close - notify parent if external control is used
+  const handlePanelClose = () => {
+    setShowDeliverablePanel(false);
+    if (onExternalPanelOpenChange) {
+      onExternalPanelOpenChange(false);
+    }
+  };
   
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -120,6 +141,11 @@ function AssessmentInterface({
 
       setAssessmentData(assessmentData.assessment);
       setCurrentSubmission(assessmentData.submission);
+      
+      // Report assessment type to parent (for showing/hiding View Submission button)
+      if (onAssessmentTypeLoaded) {
+        onAssessmentTypeLoaded(assessmentData.assessment?.assessment_type);
+      }
 
       // Handle conversation data
       if (conversationResponse && conversationResponse.ok) {
@@ -322,6 +348,7 @@ function AssessmentInterface({
       console.log('✅ Assessment submission successful:', submission);
 
       setCurrentSubmission(submission.submission);
+      setDraftFormData(null); // Clear draft data after successful submission
       
       toast.success("Assessment submitted successfully!", {
         duration: 4000,
@@ -638,8 +665,10 @@ function AssessmentInterface({
           assessmentType={assessmentData.assessment_type}
           assessmentName={assessmentData.assessment_name}
           currentSubmission={currentSubmission}
+          draftFormData={draftFormData}
+          onDraftUpdate={setDraftFormData}
           isOpen={showDeliverablePanel}
-          onClose={() => setShowDeliverablePanel(false)}
+          onClose={handlePanelClose}
           onSubmit={handleAssessmentSubmit}
           isLocked={!isActive || (currentSubmission?.status === 'submitted' && !currentSubmission?.resubmission_allowed)}
         />

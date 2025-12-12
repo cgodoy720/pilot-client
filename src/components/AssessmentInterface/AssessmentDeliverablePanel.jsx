@@ -10,6 +10,8 @@ function AssessmentDeliverablePanel({
   assessmentType,
   assessmentName,
   currentSubmission,
+  draftFormData,
+  onDraftUpdate,
   isOpen,
   onClose,
   onSubmit,
@@ -147,6 +149,8 @@ function AssessmentDeliverablePanel({
             task={mockTask}
             schema={getAssessmentSchema()}
             currentSubmission={currentSubmission}
+            draftFormData={draftFormData}
+            onDraftUpdate={onDraftUpdate}
             isSubmitting={isSubmitting}
             isLocked={isLocked}
             onSubmit={handleSubmit}
