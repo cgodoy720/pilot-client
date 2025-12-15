@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Settings, Award, Users, Bug, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench } from 'lucide-react';
+import { LogOut, Settings, Award, Users, Bug, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench, Target } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import LoadingCurtain from '../LoadingCurtain/LoadingCurtain';
 import { cn } from '../../lib/utils';
@@ -318,6 +318,11 @@ const Layout = ({ children, isLoading = false }) => {
         
         {/* Admin Attendance Dashboard - NEW from dev */}
         {renderNavLink('/admin-attendance-dashboard', <CalendarIcon className="h-4 w-4 text-[#E3E3E3]" />, 'Attendance Admin', 
+          user?.role === 'admin' || user?.role === 'staff'
+        )}
+        
+        {/* Sales Tracker */}
+        {renderNavLink('/sales-tracker', <Target className="h-4 w-4 text-[#E3E3E3]" />, 'Sputnik', 
           user?.role === 'admin' || user?.role === 'staff'
         )}
         

@@ -44,6 +44,9 @@ import FormEditor from './pages/FormBuilder/FormEditor';
 import FormSubmissions from './pages/FormBuilder/FormSubmissions';
 import FormAnalytics from './pages/FormBuilder/FormAnalytics';
 
+// Sales Tracker pages
+import SalesTracker from './pages/SalesTracker/SalesTracker';
+
 import { useAuth } from './context/AuthContext';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
@@ -389,6 +392,15 @@ function App() {
           <Layout>
             <AdminRoute>
               <FormAnalytics />
+            </AdminRoute>
+          </Layout>
+        } />
+
+        {/* Sales Tracker routes (Admin/Staff only) */}
+        <Route path="/sales-tracker" element={
+          <Layout>
+            <AdminRoute>
+              <SalesTracker />
             </AdminRoute>
           </Layout>
         } />
