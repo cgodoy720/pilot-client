@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../../../../context/AuthContext';
 import {
   Dialog,
   DialogContent,
@@ -9,21 +10,57 @@ import {
 import { Card, CardContent, CardHeader } from '../../../../../components/ui/card';
 import { Button } from '../../../../../components/ui/button';
 import { Badge } from '../../../../../components/ui/badge';
-import { Clock, RotateCcw } from 'lucide-react';
+import { Clock, RotateCcw, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const FieldHistoryDialog = ({ 
   open, 
   onOpenChange, 
   fieldName,
-  taskId,
+  entityType = 'task',
+  entityId,
   onRevert,
   canEdit = true 
 }) => {
+  const { token } = useAuth();
   const [isReverting, setIsReverting] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // Mock history data - will be replaced with real API call in Phase 2
-  const mockHistory = [
+  // Fetch real history data when dialog opens
+  useEffect(() => {
+    if (open && entityId && fieldName) {
+      fetchHistory();
+    }
+  }, [open, entityId, fieldName]);
+
+  const fetchHistory = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/curriculum/history/${entityType}/${entityId}?fieldName=${fieldName}`,
+        {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setHistory(data);
+      } else {
+        console.error('Failed to fetch history');
+        setHistory([]);
+      }
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      setHistory([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fallback to mock data if no real history
+  const displayHistory = history.length > 0 ? history : [
     {
       id: 1,
       changed_by_name: 'Sarah Johnson',
@@ -70,15 +107,18 @@ const FieldHistoryDialog = ({
   };
 
   const handleRevert = async (change) => {
-    if (!window.confirm(`Are you sure you want to revert "${fieldName}" to the selected value?`)) {
+    if (!window.confirm(`Are you sure you want to revert "${formatFieldName(fieldName)}" to the previous value?`)) {
       return;
     }
 
     setIsReverting(true);
     try {
-      await onRevert?.(fieldName, change.old_value);
-      toast.success(`Reverted ${fieldName} successfully`);
-      onOpenChange(false);
+      await onRevert?.(entityType, entityId, fieldName, change.old_value);
+      toast.success(`Reverted ${formatFieldName(fieldName)} successfully`);
+      
+      // Refresh history to show new revert entry
+      await fetchHistory();
+      
     } catch (error) {
       toast.error('Failed to revert change');
       console.error('Error reverting:', error);
@@ -107,7 +147,12 @@ const FieldHistoryDialog = ({
         </DialogHeader>
 
         <div className="space-y-3 py-4">
-          {mockHistory.length === 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 text-[#4242EA] animate-spin mb-3" />
+              <p className="text-[#666] font-proxima">Loading history...</p>
+            </div>
+          ) : displayHistory.length === 0 ? (
             <div className="text-center py-8">
               <Clock className="h-12 w-12 text-[#C8C8C8] mx-auto mb-3" />
               <p className="text-[#666] font-proxima">No change history available</p>
@@ -116,7 +161,7 @@ const FieldHistoryDialog = ({
               </p>
             </div>
           ) : (
-            mockHistory.map((change, index) => (
+            displayHistory.map((change, index) => (
               <Card key={change.id} className="border-[#E3E3E3]">
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start">

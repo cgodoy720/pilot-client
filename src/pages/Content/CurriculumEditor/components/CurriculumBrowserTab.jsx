@@ -37,6 +37,8 @@ const CurriculumBrowserTab = () => {
   const [moveTaskDialogOpen, setMoveTaskDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedField, setSelectedField] = useState('');
+  const [selectedEntityType, setSelectedEntityType] = useState('task');
+  const [selectedEntityId, setSelectedEntityId] = useState(null);
 
   // Permission check
   const canEdit = user?.role === 'staff' || user?.role === 'admin';
@@ -220,54 +222,171 @@ const CurriculumBrowserTab = () => {
     setHistoryDialogOpen(true);
   };
 
-  const handleViewFieldHistory = (fieldName) => {
+  const handleViewFieldHistory = (fieldName, entityType = 'task', entityId = null) => {
     setSelectedField(fieldName);
+    setSelectedEntityType(entityType);
+    setSelectedEntityId(entityId || selectedTask?.id);
     setHistoryDialogOpen(true);
   };
 
   const handleSaveTask = async (taskId, formData) => {
-    // This will be implemented in Phase 2 with actual API
-    // For now, just simulate success
-    console.log('Saving task:', taskId, formData);
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Refresh tasks after save
-    await fetchDayTasks();
+    try {
+      // Prepare task updates
+      const taskUpdates = {
+        task_title: formData.task_title,
+        task_description: formData.task_description,
+        intro: formData.intro,
+        questions: formData.questions,
+        linked_resources: formData.linked_resources,
+        conclusion: formData.conclusion,
+        deliverable: formData.deliverable,
+        deliverable_type: formData.deliverable_type,
+        should_analyze: formData.should_analyze,
+        analyze_deliverable: formData.analyze_deliverable,
+        task_mode: formData.task_mode
+      };
+      
+      // Update task
+      const taskResponse = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/curriculum/tasks/${taskId}/edit?cohort=${selectedCohort}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(taskUpdates)
+        }
+      );
+      
+      if (!taskResponse.ok) {
+        throw new Error('Failed to update task');
+      }
+      
+      // Update time block if times changed
+      if (formData.start_time || formData.end_time) {
+        // Get the block_id from the task
+        const task = tasks.find(t => t.id === taskId);
+        if (task && task.block_id) {
+          const blockUpdates = {};
+          if (formData.start_time) blockUpdates.start_time = formData.start_time;
+          if (formData.end_time) blockUpdates.end_time = formData.end_time;
+          
+          const blockResponse = await fetch(
+            `${import.meta.env.VITE_API_URL}/api/curriculum/blocks/${task.block_id}/edit?cohort=${selectedCohort}`,
+            {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify(blockUpdates)
+            }
+          );
+          
+          if (!blockResponse.ok) {
+            console.error('Failed to update time block');
+          }
+        }
+      }
+      
+      // Refresh tasks to show updated data
+      await fetchDayTasks();
+      
+    } catch (error) {
+      console.error('Error saving task:', error);
+      throw error;
+    }
   };
 
-  const handleRevertField = async (fieldName, value) => {
-    // This will be implemented in Phase 2 with actual API
-    console.log('Reverting field:', fieldName, 'to:', value);
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Refresh tasks after revert
-    await fetchDayTasks();
+  const handleRevertField = async (entityType, entityId, fieldName, value) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/curriculum/revert?cohort=${selectedCohort}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            entityType,
+            entityId,
+            fieldName,
+            revertToValue: value
+          })
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to revert field');
+      }
+      
+      // Refresh based on entity type
+      if (entityType === 'task') {
+        await fetchDayTasks();
+      } else if (entityType === 'curriculum_day') {
+        await fetchCalendar();
+      }
+      
+    } catch (error) {
+      console.error('Error reverting field:', error);
+      throw error;
+    }
   };
 
   const handleSaveGoals = async (goalData) => {
-    // This will be implemented in Phase 2 with actual API
-    console.log('Saving goals:', goalData);
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Refresh calendar to get updated goals
-    await fetchCalendar();
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/curriculum/days/${selectedDay.id}/edit?cohort=${selectedCohort}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(goalData)
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to update goals');
+      }
+      
+      // Refresh calendar to show updated goals
+      await fetchCalendar();
+      
+    } catch (error) {
+      console.error('Error saving goals:', error);
+      throw error;
+    }
   };
 
   const handleMoveTask = async (taskId, targetDayId) => {
-    // This will be implemented in Phase 2 with actual API
-    console.log('Moving task:', taskId, 'to day:', targetDayId);
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Refresh tasks after move
-    await fetchDayTasks();
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/curriculum/tasks/${taskId}/move?cohort=${selectedCohort}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ targetDayId })
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to move task');
+      }
+      
+      // Refresh calendar to update all days
+      await fetchCalendar();
+      
+    } catch (error) {
+      console.error('Error moving task:', error);
+      throw error;
+    }
   };
 
   const formatDate = (dateString) => {
@@ -466,7 +585,8 @@ const CurriculumBrowserTab = () => {
         open={historyDialogOpen}
         onOpenChange={setHistoryDialogOpen}
         fieldName={selectedField}
-        taskId={selectedTask?.id}
+        entityType={selectedEntityType}
+        entityId={selectedEntityId}
         onRevert={handleRevertField}
         canEdit={canEdit}
       />

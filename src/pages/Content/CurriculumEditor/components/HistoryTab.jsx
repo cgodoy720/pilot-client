@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../../components/ui/select';
+import { Loader2 } from 'lucide-react';
 import { Clock, User, FileEdit, RotateCcw } from 'lucide-react';
 import LoadingState from './shared/LoadingState';
 import EmptyState from './shared/EmptyState';
@@ -20,64 +21,81 @@ const HistoryTab = () => {
   const [changes, setChanges] = useState([]);
   const [filterUser, setFilterUser] = useState('all');
   const [filterDays, setFilterDays] = useState('7');
+  const [selectedCohort, setSelectedCohort] = useState('');
+  const [cohorts, setCohorts] = useState([]);
 
   const canEdit = user?.role === 'staff' || user?.role === 'admin';
 
+  // Fetch cohorts on mount
   useEffect(() => {
-    fetchChangeHistory();
-  }, [filterUser, filterDays]);
+    fetchCohorts();
+  }, []);
+
+  // Fetch changes when filters change
+  useEffect(() => {
+    if (selectedCohort) {
+      fetchChangeHistory();
+    }
+  }, [selectedCohort, filterUser, filterDays]);
+
+  const fetchCohorts = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/curriculum/cohorts`,
+        {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      );
+      
+      if (response.ok) {
+        const cohortList = await response.json();
+        setCohorts(cohortList);
+        if (cohortList.length > 0) {
+          setSelectedCohort(cohortList[0]); // Auto-select first cohort
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching cohorts:', error);
+    }
+  };
 
   const fetchChangeHistory = async () => {
-    // Mock data for Phase 1 - will be replaced with real API in Phase 2
     setLoading(true);
     
-    setTimeout(() => {
-      const mockChanges = [
+    try {
+      const userIdParam = filterUser === 'all' ? '' : `&userId=${user?.userId}`;
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/curriculum/changes/recent?cohort=${selectedCohort}&limit=50${userIdParam}`,
         {
-          id: 1,
-          entity_type: 'task',
-          entity_id: 123,
-          task_title: 'Spaghetti and Marshmallow Challenge',
-          field_name: 'task_description',
-          old_value: 'Build the tallest tower using AI assistance',
-          new_value: 'Build the tallest tower with AI assistance while learning collaborative problem-solving and effective prompting',
-          changed_by_name: 'Sarah Johnson',
-          changed_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          cohort: 'March 2025',
-          day_number: 40
-        },
-        {
-          id: 2,
-          entity_type: 'task',
-          entity_id: 124,
-          task_title: 'How AI Learns',
-          field_name: 'questions',
-          old_value: '["What is an LLM?", "How does it work?"]',
-          new_value: '["Work with your LLM to research what an LLM is", "Turn to a partner and compare explanations", "Identify 2-3 tasks in your work life that involve pattern recognition"]',
-          changed_by_name: 'Michael Chen',
-          changed_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          cohort: 'March 2025',
-          day_number: 40
-        },
-        {
-          id: 3,
-          entity_type: 'task',
-          entity_id: 125,
-          task_title: 'Program Onboarding',
-          field_name: 'intro',
-          old_value: 'Welcome to the AI Native Builder program!',
-          new_value: 'Welcome to the AI Native Builder program! Today you\'re starting your journey to get really good at using AI to build meaningful projects.',
-          changed_by_name: 'Sarah Johnson',
-          changed_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          cohort: 'March 2025',
-          day_number: 40
+          headers: { 'Authorization': `Bearer ${token}` }
         }
-      ];
+      );
       
-      setChanges(mockChanges);
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Filter by time period
+        const now = new Date();
+        const filtered = data.filter(change => {
+          if (filterDays === 'all') return true;
+          const changeDate = new Date(change.changed_at);
+          const daysDiff = (now - changeDate) / (1000 * 60 * 60 * 24);
+          return daysDiff <= parseInt(filterDays);
+        });
+        
+        setChanges(filtered);
+      } else {
+        setChanges([]);
+      }
+    } catch (error) {
+      console.error('Error fetching changes:', error);
+      setChanges([]);
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
+
+  // Use real changes data (no mock fallback needed)
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -125,11 +143,36 @@ const HistoryTab = () => {
     return <LoadingState message="Loading change history..." />;
   }
 
+  if (loading && !selectedCohort) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 text-[#4242EA] animate-spin mb-3" />
+        <p className="text-[#666] font-proxima">Loading...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Filters */}
       <div className="bg-white border border-[#C8C8C8] rounded-lg p-4">
         <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="font-proxima text-sm text-[#666]">Cohort:</label>
+            <Select value={selectedCohort} onValueChange={setSelectedCohort}>
+              <SelectTrigger className="w-[200px] font-proxima">
+                <SelectValue placeholder="Select cohort..." />
+              </SelectTrigger>
+              <SelectContent>
+                {cohorts.map(cohort => (
+                  <SelectItem key={cohort} value={cohort} className="font-proxima">
+                    {cohort}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
           <div className="flex items-center gap-2">
             <label className="font-proxima text-sm text-[#666]">Time Period:</label>
             <Select value={filterDays} onValueChange={setFilterDays}>
@@ -161,7 +204,12 @@ const HistoryTab = () => {
       </div>
 
       {/* Change History List */}
-      {changes.length === 0 ? (
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 text-[#4242EA] animate-spin mb-3" />
+          <p className="text-[#666] font-proxima">Loading changes...</p>
+        </div>
+      ) : changes.length === 0 ? (
         <EmptyState
           icon={Clock}
           title="No changes found"

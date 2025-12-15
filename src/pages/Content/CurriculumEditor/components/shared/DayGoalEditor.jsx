@@ -22,6 +22,11 @@ const DayGoalEditor = ({
   onViewFieldHistory,
   canEdit = true 
 }) => {
+  const handleFieldHistory = (fieldName) => {
+    if (onViewFieldHistory) {
+      onViewFieldHistory(fieldName, 'curriculum_day', day?.id);
+    }
+  };
   const [formData, setFormData] = useState({
     daily_goal: '',
     weekly_goal: ''
@@ -75,7 +80,7 @@ const DayGoalEditor = ({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => onViewFieldHistory?.('daily_goal')}
+                onClick={() => handleFieldHistory('daily_goal')}
                 className="h-8 text-[#666] hover:text-[#4242EA]"
               >
                 <History className="h-4 w-4 mr-1" />
@@ -106,7 +111,7 @@ const DayGoalEditor = ({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => onViewFieldHistory?.('weekly_goal')}
+                onClick={() => handleFieldHistory('weekly_goal')}
                 className="h-8 text-[#666] hover:text-[#4242EA]"
               >
                 <History className="h-4 w-4 mr-1" />

@@ -30,6 +30,12 @@ const TaskEditDialog = ({
   onMoveTask,
   canEdit = true 
 }) => {
+  const handleFieldHistory = (fieldName) => {
+    if (onViewFieldHistory) {
+      onViewFieldHistory(fieldName, 'task', task?.id);
+    }
+  };
+
   const [formData, setFormData] = useState({
     task_title: '',
     task_description: '',
@@ -184,7 +190,7 @@ const TaskEditDialog = ({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => onViewFieldHistory?.('task_title')}
+                onClick={() => handleFieldHistory('task_title')}
                 className="h-8 text-[#666] hover:text-[#4242EA]"
               >
                 <History className="h-4 w-4 mr-1" />
@@ -210,7 +216,7 @@ const TaskEditDialog = ({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => onViewFieldHistory?.('task_description')}
+                onClick={() => handleFieldHistory('task_description')}
                 className="h-8 text-[#666] hover:text-[#4242EA]"
               >
                 <History className="h-4 w-4 mr-1" />
@@ -237,7 +243,7 @@ const TaskEditDialog = ({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => onViewFieldHistory?.('intro')}
+                onClick={() => handleFieldHistory('intro')}
                 className="h-8 text-[#666] hover:text-[#4242EA]"
               >
                 <History className="h-4 w-4 mr-1" />
@@ -263,7 +269,7 @@ const TaskEditDialog = ({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => onViewFieldHistory?.('questions')}
+                  onClick={() => handleFieldHistory('questions')}
                   className="h-8 text-[#666] hover:text-[#4242EA]"
                 >
                   <History className="h-4 w-4 mr-1" />
@@ -318,7 +324,7 @@ const TaskEditDialog = ({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => onViewFieldHistory?.('linked_resources')}
+                  onClick={() => handleFieldHistory('linked_resources')}
                   className="h-8 text-[#666] hover:text-[#4242EA]"
                 >
                   <History className="h-4 w-4 mr-1" />
@@ -419,7 +425,7 @@ const TaskEditDialog = ({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => onViewFieldHistory?.('conclusion')}
+                onClick={() => handleFieldHistory('conclusion')}
                 className="h-8 text-[#666] hover:text-[#4242EA]"
               >
                 <History className="h-4 w-4 mr-1" />
@@ -447,7 +453,7 @@ const TaskEditDialog = ({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => onViewFieldHistory?.('deliverable')}
+                  onClick={() => handleFieldHistory('deliverable')}
                   className="h-8 text-[#666] hover:text-[#4242EA]"
                 >
                   <History className="h-4 w-4 mr-1" />
@@ -506,7 +512,7 @@ const TaskEditDialog = ({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => onViewFieldHistory?.('start_time')}
+                    onClick={() => handleFieldHistory('start_time')}
                     className="h-8 text-[#666] hover:text-[#4242EA]"
                   >
                     <History className="h-4 w-4 mr-1" />
@@ -531,7 +537,7 @@ const TaskEditDialog = ({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => onViewFieldHistory?.('end_time')}
+                    onClick={() => handleFieldHistory('end_time')}
                     className="h-8 text-[#666] hover:text-[#4242EA]"
                   >
                     <History className="h-4 w-4 mr-1" />
@@ -586,7 +592,7 @@ const TaskEditDialog = ({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => onViewFieldHistory?.('task_mode')}
+                    onClick={() => handleFieldHistory('task_mode')}
                   className="h-8 text-[#666] hover:text-[#4242EA]"
                 >
                   <History className="h-4 w-4 mr-1" />
@@ -631,7 +637,7 @@ const TaskEditDialog = ({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => onViewFieldHistory?.('should_analyze')}
+                    onClick={() => handleFieldHistory('should_analyze')}
                   className="h-8 text-[#666] hover:text-[#4242EA]"
                 >
                   <History className="h-4 w-4 mr-1" />
