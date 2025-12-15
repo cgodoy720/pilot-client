@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-<<<<<<< HEAD
-import { LogOut, Settings, Award, Users, Bug, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench, Target } from 'lucide-react';
-=======
 import { LogOut, Settings, Award, Users, FileText, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench } from 'lucide-react';
->>>>>>> origin/curriculum-review
 import { useAuth } from '../../context/AuthContext';
 import LoadingCurtain from '../LoadingCurtain/LoadingCurtain';
 import { cn } from '../../lib/utils';
