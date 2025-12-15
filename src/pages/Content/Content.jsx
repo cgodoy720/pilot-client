@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import JSONGenerator from './JSONGenerator/JSONGenerator';
 import SessionTester from './SessionTester/SessionTester';
 import FacilitatorNotesGenerator from './FacilitatorNotesGenerator/FacilitatorNotesGenerator';
 import CurriculumEditor from './CurriculumEditor';
-import './Content.css';
 
 const Content = () => {
   const location = useLocation();
@@ -62,7 +62,7 @@ const Content = () => {
       navigate('/content/session-tester');
     } else if (tab === 'curriculum-editor') {
       navigate('/content/curriculum-editor');
-    } else {
+    } else if (tab === 'json-generator') {
       navigate('/content');
     }
   };
@@ -73,64 +73,67 @@ const Content = () => {
   };
 
   return (
-    <div className="content-generation">
-      <div className="content-generation__nav">
-        <div className="content-generation__tabs">
-          <button
-            className={`content-generation__tab ${activeTab === 'json-generator' ? 'content-generation__tab--active' : ''}`}
-            onClick={() => handleTabChange('json-generator')}
-          >
-            <span className="content-generation__tab-number">1</span>
-            JSON Generator
-          </button>
-          <button
-            className={`content-generation__tab ${activeTab === 'session-tester' ? 'content-generation__tab--active' : ''}`}
-            onClick={() => handleTabChange('session-tester')}
-          >
-            <span className="content-generation__tab-number">2</span>
-            Session Tester
-          </button>
-          <button
-            className={`content-generation__tab ${activeTab === 'facilitator-notes' ? 'content-generation__tab--active' : ''}`}
-            onClick={() => handleTabChange('facilitator-notes')}
-          >
-            <span className="content-generation__tab-number">3</span>
-            Facilitator Notes
-          </button>
-          {canAccessCurriculumEditor && (
-            <button
-              className={`content-generation__tab ${activeTab === 'curriculum-editor' ? 'content-generation__tab--active' : ''}`}
-              onClick={() => handleTabChange('curriculum-editor')}
+    <div className="w-full min-h-full p-6 bg-[#EFEFEF]">
+      <div className="max-w-[1400px] mx-auto">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="bg-white border border-[#C8C8C8] p-1 h-auto flex-wrap justify-start">
+            <TabsTrigger 
+              value="json-generator" 
+              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
             >
-              <span className="content-generation__tab-number">4</span>
-              Curriculum Editor
-            </button>
-          )}
-        </div>
-      </div>
+              JSON Generator
+            </TabsTrigger>
+            <TabsTrigger 
+              value="session-tester"
+              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+            >
+              Session Tester
+            </TabsTrigger>
+            <TabsTrigger 
+              value="facilitator-notes"
+              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+            >
+              Facilitator Notes
+            </TabsTrigger>
+            {canAccessCurriculumEditor && (
+              <TabsTrigger 
+                value="curriculum-editor"
+                className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+              >
+                Curriculum Editor
+              </TabsTrigger>
+            )}
+          </TabsList>
 
-      <div className="content-generation__content">
-        {activeTab === 'json-generator' && (
-          <JSONGenerator 
-            sharedData={sharedData}
-            updateSharedData={updateSharedData}
-          />
-        )}
-        {activeTab === 'session-tester' && (
-          <SessionTester 
-            sharedData={sharedData}
-            updateSharedData={updateSharedData}
-          />
-        )}
-        {activeTab === 'facilitator-notes' && (
-          <FacilitatorNotesGenerator 
-            sharedData={sharedData}
-            updateSharedData={updateSharedData}
-          />
-        )}
-        {activeTab === 'curriculum-editor' && canAccessCurriculumEditor && (
-          <CurriculumEditor />
-        )}
+          <div className="mt-6">
+            <TabsContent value="json-generator" className="m-0">
+              <JSONGenerator 
+                sharedData={sharedData}
+                updateSharedData={updateSharedData}
+              />
+            </TabsContent>
+
+            <TabsContent value="session-tester" className="m-0">
+              <SessionTester 
+                sharedData={sharedData}
+                updateSharedData={updateSharedData}
+              />
+            </TabsContent>
+
+            <TabsContent value="facilitator-notes" className="m-0">
+              <FacilitatorNotesGenerator 
+                sharedData={sharedData}
+                updateSharedData={updateSharedData}
+              />
+            </TabsContent>
+
+            {canAccessCurriculumEditor && (
+              <TabsContent value="curriculum-editor" className="m-0">
+                <CurriculumEditor />
+              </TabsContent>
+            )}
+          </div>
+        </Tabs>
       </div>
     </div>
   );

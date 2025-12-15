@@ -8,17 +8,19 @@ import {
   SelectValue,
 } from '../../../../components/ui/select';
 import { Button } from '../../../../components/ui/button';
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Edit } from 'lucide-react';
 import TaskCard from './shared/TaskCard';
 import TaskEditDialog from './shared/TaskEditDialog';
 import FieldHistoryDialog from './shared/FieldHistoryDialog';
+import DayGoalEditor from './shared/DayGoalEditor';
+import MoveTaskDialog from './shared/MoveTaskDialog';
 import LoadingState from './shared/LoadingState';
 import EmptyState from './shared/EmptyState';
 import { toast } from 'sonner';
 
 const CurriculumBrowserTab = () => {
   const { token, user } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [cohorts, setCohorts] = useState([]);
   const [selectedCohort, setSelectedCohort] = useState('');
   const [weeks, setWeeks] = useState([]);
@@ -26,10 +28,13 @@ const CurriculumBrowserTab = () => {
   const [days, setDays] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
   const [tasks, setTasks] = useState([]);
+  const [cohortsLoading, setCohortsLoading] = useState(true);
   
   // Dialog states
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [goalEditorOpen, setGoalEditorOpen] = useState(false);
+  const [moveTaskDialogOpen, setMoveTaskDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedField, setSelectedField] = useState('');
 
@@ -57,27 +62,30 @@ const CurriculumBrowserTab = () => {
 
   const fetchCohorts = async () => {
     try {
+      setCohortsLoading(true);
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/curriculum/days`,
+        `${import.meta.env.VITE_API_URL}/api/curriculum/cohorts`,
         {
           headers: { 'Authorization': `Bearer ${token}` }
         }
       );
       
       if (response.ok) {
-        const days = await response.json();
-        // Extract unique cohorts
-        const uniqueCohorts = [...new Set(days.map(d => d.cohort).filter(Boolean))];
-        setCohorts(uniqueCohorts);
+        const cohortList = await response.json();
+        console.log('Cohorts from API:', cohortList);
         
-        // Set default cohort
-        if (uniqueCohorts.length > 0) {
-          setSelectedCohort(user?.cohort || uniqueCohorts[0]);
-        }
+        setCohorts(cohortList);
+        
+        // DO NOT auto-select - user must choose
+        setSelectedCohort('');
+      } else {
+        toast.error('Failed to load cohorts');
       }
     } catch (error) {
       console.error('Error fetching cohorts:', error);
       toast.error('Failed to load cohorts');
+    } finally {
+      setCohortsLoading(false);
     }
   };
 
@@ -95,15 +103,63 @@ const CurriculumBrowserTab = () => {
         const calendarData = await response.json();
         setWeeks(calendarData);
         
-        // Select first week by default
         if (calendarData.length > 0) {
-          setSelectedWeek(calendarData[0]);
-          setDays(calendarData[0].days || []);
+          // Find current week based on today's date
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
           
-          // Select first day
-          if (calendarData[0].days && calendarData[0].days.length > 0) {
-            setSelectedDay(calendarData[0].days[0]);
+          // Find week that contains today
+          let currentWeek = calendarData.find(week => {
+            return week.days?.some(day => {
+              const dayDate = new Date(day.day_date);
+              dayDate.setHours(0, 0, 0, 0);
+              return dayDate.getTime() === today.getTime();
+            });
+          });
+          
+          // If no week contains today, find the closest future week
+          if (!currentWeek) {
+            currentWeek = calendarData.find(week => {
+              return week.days?.some(day => {
+                const dayDate = new Date(day.day_date);
+                return dayDate >= today;
+              });
+            });
           }
+          
+          // If still no match, find the closest past week
+          if (!currentWeek) {
+            currentWeek = calendarData.reverse().find(week => {
+              return week.days?.some(day => {
+                const dayDate = new Date(day.day_date);
+                return dayDate <= today;
+              });
+            });
+            calendarData.reverse(); // Restore original order
+          }
+          
+          // Fall back to first week if no good match
+          const weekToSelect = currentWeek || calendarData[0];
+          setSelectedWeek(weekToSelect);
+          setDays(weekToSelect.days || []);
+          
+          // Try to select today's day, or the closest day
+          if (weekToSelect.days && weekToSelect.days.length > 0) {
+            let dayToSelect = weekToSelect.days.find(day => {
+              const dayDate = new Date(day.day_date);
+              dayDate.setHours(0, 0, 0, 0);
+              return dayDate.getTime() === today.getTime();
+            });
+            
+            // If today not found, select first day of the week
+            if (!dayToSelect) {
+              dayToSelect = weekToSelect.days[0];
+            }
+            
+            setSelectedDay(dayToSelect);
+          }
+          
+          console.log('Navigated to current week:', weekToSelect.weekNumber);
         }
       }
     } catch (error) {
@@ -192,6 +248,28 @@ const CurriculumBrowserTab = () => {
     await fetchDayTasks();
   };
 
+  const handleSaveGoals = async (goalData) => {
+    // This will be implemented in Phase 2 with actual API
+    console.log('Saving goals:', goalData);
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Refresh calendar to get updated goals
+    await fetchCalendar();
+  };
+
+  const handleMoveTask = async (taskId, targetDayId) => {
+    // This will be implemented in Phase 2 with actual API
+    console.log('Moving task:', taskId, 'to day:', targetDayId);
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Refresh tasks after move
+    await fetchDayTasks();
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -201,8 +279,19 @@ const CurriculumBrowserTab = () => {
     });
   };
 
-  if (loading) {
-    return <LoadingState />;
+  // Show loading only for cohorts initially
+  if (cohortsLoading) {
+    return <LoadingState message="Loading cohorts..." />;
+  }
+
+  // Show message if no cohorts available
+  if (cohorts.length === 0) {
+    return (
+      <EmptyState
+        title="No Cohorts Found"
+        description="No curriculum cohorts are available in the system."
+      />
+    );
   }
 
   return (
@@ -215,7 +304,7 @@ const CurriculumBrowserTab = () => {
           </label>
           <Select value={selectedCohort} onValueChange={setSelectedCohort}>
             <SelectTrigger className="w-[250px] font-proxima">
-              <SelectValue placeholder="Choose a cohort" />
+              <SelectValue placeholder="Choose a cohort..." />
             </SelectTrigger>
             <SelectContent>
               {cohorts.map(cohort => (
@@ -228,8 +317,19 @@ const CurriculumBrowserTab = () => {
         </div>
       </div>
 
-      {/* Week Navigation */}
-      {selectedWeek && (
+      {/* Show loading state while fetching curriculum */}
+      {loading && <LoadingState message="Loading curriculum..." />}
+
+      {/* Only show content if cohort is selected */}
+      {!selectedCohort && !loading && (
+        <EmptyState
+          title="Select a Cohort"
+          description="Please select a cohort from the dropdown above to view and edit curriculum."
+        />
+      )}
+
+      {/* Week Navigation - only show when cohort selected and data loaded */}
+      {selectedCohort && !loading && selectedWeek && (
         <div className="bg-white border border-[#C8C8C8] rounded-lg p-4">
           <div className="flex items-center justify-between">
             <Button
@@ -268,8 +368,8 @@ const CurriculumBrowserTab = () => {
         </div>
       )}
 
-      {/* Day Selection */}
-      {days.length > 0 && (
+      {/* Day Selection - only show when cohort selected */}
+      {selectedCohort && !loading && days.length > 0 && (
         <div className="bg-white border border-[#C8C8C8] rounded-lg p-4">
           <h4 className="font-proxima-bold text-[#1E1E1E] mb-3 flex items-center gap-2">
             <Calendar className="h-4 w-4" />
@@ -299,16 +399,35 @@ const CurriculumBrowserTab = () => {
         </div>
       )}
 
-      {/* Tasks Display */}
-      {selectedDay && (
+      {/* Tasks Display - only show when cohort and day selected */}
+      {selectedCohort && !loading && selectedDay && (
         <div className="space-y-4">
           <div className="bg-white border border-[#C8C8C8] rounded-lg p-4">
-            <h4 className="font-proxima-bold text-[#1E1E1E] mb-2">
-              {selectedDay.daily_goal || `Day ${selectedDay.day_number}`}
-            </h4>
-            <p className="text-sm text-[#666] font-proxima">
-              {selectedDay.day_type} • {formatDate(selectedDay.day_date)}
-            </p>
+            <div className="flex justify-between items-start gap-4">
+              <div className="flex-1">
+                <h4 className="font-proxima-bold text-[#1E1E1E] mb-2">
+                  {selectedDay.daily_goal || `Day ${selectedDay.day_number}`}
+                </h4>
+                <p className="text-sm text-[#666] font-proxima">
+                  {selectedDay.day_type} • {formatDate(selectedDay.day_date)}
+                </p>
+                {selectedWeek?.weeklyGoal && (
+                  <p className="text-sm text-[#666] font-proxima mt-2">
+                    <span className="font-proxima-bold">Week Goal:</span> {selectedWeek.weeklyGoal}
+                  </p>
+                )}
+              </div>
+              {canEdit && (
+                <Button
+                  size="sm"
+                  onClick={() => setGoalEditorOpen(true)}
+                  className="bg-[#4242EA] hover:bg-[#3535D1] font-proxima"
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  Edit Goals
+                </Button>
+              )}
+            </div>
           </div>
 
           {tasks.length === 0 ? (
@@ -339,6 +458,7 @@ const CurriculumBrowserTab = () => {
         task={selectedTask}
         onSave={handleSaveTask}
         onViewFieldHistory={handleViewFieldHistory}
+        onMoveTask={() => setMoveTaskDialogOpen(true)}
         canEdit={canEdit}
       />
 
@@ -349,6 +469,25 @@ const CurriculumBrowserTab = () => {
         taskId={selectedTask?.id}
         onRevert={handleRevertField}
         canEdit={canEdit}
+      />
+
+      <DayGoalEditor
+        open={goalEditorOpen}
+        onOpenChange={setGoalEditorOpen}
+        day={selectedDay}
+        week={selectedWeek}
+        onSave={handleSaveGoals}
+        onViewFieldHistory={handleViewFieldHistory}
+        canEdit={canEdit}
+      />
+
+      <MoveTaskDialog
+        open={moveTaskDialogOpen}
+        onOpenChange={setMoveTaskDialogOpen}
+        task={selectedTask}
+        currentDay={selectedDay}
+        allDays={days}
+        onMove={handleMoveTask}
       />
     </div>
   );

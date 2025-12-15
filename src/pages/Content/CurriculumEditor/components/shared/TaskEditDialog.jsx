@@ -17,7 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../../../components/ui/select';
-import { Plus, Trash2, History, Save, X } from 'lucide-react';
+import { Checkbox } from '../../../../../components/ui/checkbox';
+import { Plus, Trash2, History, Save, X, Clock, GraduationCap, MessageCircle, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TaskEditDialog = ({ 
@@ -26,6 +27,7 @@ const TaskEditDialog = ({
   task, 
   onSave,
   onViewFieldHistory,
+  onMoveTask,
   canEdit = true 
 }) => {
   const [formData, setFormData] = useState({
@@ -36,10 +38,36 @@ const TaskEditDialog = ({
     linked_resources: [],
     conclusion: '',
     deliverable: '',
-    deliverable_type: 'none'
+    deliverable_type: 'none',
+    start_time: '',
+    end_time: '',
+    should_analyze: false,
+    analyze_deliverable: false,
+    task_mode: 'basic'
   });
 
   const [isSaving, setIsSaving] = useState(false);
+
+  // Helper function to determine if deliverable type should be analyzed
+  const shouldAnalyzeDeliverableType = (deliverableType) => {
+    // Analyzable types: anything substantial (not text or none)
+    const analyzableTypes = ['link', 'document', 'video', 'presentation', 'structured', 'assessment', 'feedback', 'commitment'];
+    return analyzableTypes.includes(deliverableType);
+  };
+
+  // Update analyze_deliverable when deliverable_type changes and grading is enabled
+  useEffect(() => {
+    if (formData.should_analyze) {
+      const shouldAnalyze = shouldAnalyzeDeliverableType(formData.deliverable_type);
+      
+      if (formData.analyze_deliverable !== shouldAnalyze) {
+        setFormData(prev => ({
+          ...prev,
+          analyze_deliverable: shouldAnalyze
+        }));
+      }
+    }
+  }, [formData.deliverable_type, formData.should_analyze]);
 
   useEffect(() => {
     if (task) {
@@ -55,7 +83,12 @@ const TaskEditDialog = ({
           : [],
         conclusion: task.conclusion || '',
         deliverable: task.deliverable || '',
-        deliverable_type: task.deliverable_type || 'none'
+        deliverable_type: task.deliverable_type || 'none',
+        start_time: task.start_time || '',
+        end_time: task.end_time || '',
+        should_analyze: task.should_analyze || false,
+        analyze_deliverable: task.analyze_deliverable || false,
+        task_mode: task.task_mode || 'basic'
       });
     }
   }, [task]);
@@ -434,7 +467,7 @@ const TaskEditDialog = ({
                 Deliverable Type
               </Label>
               <Select
-                value={formData.deliverable_type}
+                value={formData.deliverable_type || 'none'}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, deliverable_type: value }))}
                 disabled={!canEdit}
               >
@@ -444,33 +477,208 @@ const TaskEditDialog = ({
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
                   <SelectItem value="text">Text</SelectItem>
-                  <SelectItem value="file">File</SelectItem>
                   <SelectItem value="link">Link</SelectItem>
+                  <SelectItem value="document">Document</SelectItem>
+                  <SelectItem value="video">Video</SelectItem>
+                  <SelectItem value="presentation">Presentation</SelectItem>
+                  <SelectItem value="structured">Structured Data</SelectItem>
+                  <SelectItem value="assessment">Assessment</SelectItem>
+                  <SelectItem value="feedback">Feedback</SelectItem>
+                  <SelectItem value="commitment">Commitment</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {/* Time Slots */}
+          <div className="border-t border-[#E3E3E3] pt-6 mt-6">
+            <h3 className="font-proxima-bold text-[#1E1E1E] mb-4 flex items-center gap-2">
+              <Clock className="h-5 w-5 text-[#4242EA]" />
+              Time & Schedule
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="start_time" className="font-proxima-bold">
+                    Start Time
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onViewFieldHistory?.('start_time')}
+                    className="h-8 text-[#666] hover:text-[#4242EA]"
+                  >
+                    <History className="h-4 w-4 mr-1" />
+                    History
+                  </Button>
+                </div>
+                <Input
+                  id="start_time"
+                  type="time"
+                  value={formData.start_time}
+                  onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
+                  disabled={!canEdit}
+                  className="font-proxima"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="end_time" className="font-proxima-bold">
+                    End Time
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onViewFieldHistory?.('end_time')}
+                    className="h-8 text-[#666] hover:text-[#4242EA]"
+                  >
+                    <History className="h-4 w-4 mr-1" />
+                    History
+                  </Button>
+                </div>
+                <Input
+                  id="end_time"
+                  type="time"
+                  value={formData.end_time}
+                  onChange={(e) => setFormData(prev => ({ ...prev, end_time: e.target.value }))}
+                  disabled={!canEdit}
+                  className="font-proxima"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Task Settings */}
+          <div className="border-t border-[#E3E3E3] pt-6 mt-6">
+            <h3 className="font-proxima-bold text-[#1E1E1E] mb-4 flex items-center gap-2">
+              <GraduationCap className="h-5 w-5 text-[#4242EA]" />
+              Task Settings
+            </h3>
+            <div className="space-y-4">
+              {/* Conversation Mode Checkbox */}
+              <div className="flex items-center justify-between bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
+                <div className="flex items-center space-x-3">
+                  <Checkbox
+                    id="conversation_mode"
+                    checked={formData.task_mode === 'conversation'}
+                    onCheckedChange={(checked) => setFormData(prev => ({ 
+                      ...prev, 
+                      task_mode: checked ? 'conversation' : 'basic' 
+                    }))}
+                    disabled={!canEdit}
+                  />
+                  <div>
+                    <label
+                      htmlFor="conversation_mode"
+                      className="text-sm font-proxima-bold text-[#1E1E1E] cursor-pointer flex items-center gap-2"
+                    >
+                      <MessageCircle className="h-4 w-4 text-[#4242EA]" />
+                      Conversation Mode
+                    </label>
+                    <p className="text-xs text-[#666] font-proxima mt-1">
+                      Enable AI chat interaction for this task
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onViewFieldHistory?.('task_mode')}
+                  className="h-8 text-[#666] hover:text-[#4242EA]"
+                >
+                  <History className="h-4 w-4 mr-1" />
+                  History
+                </Button>
+              </div>
+
+              {/* Graded Task Checkbox */}
+              <div className="flex items-center justify-between bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
+                <div className="flex items-center space-x-3">
+                  <Checkbox
+                    id="graded_task"
+                    checked={formData.should_analyze}
+                    onCheckedChange={(checked) => {
+                      const shouldAnalyze = checked && shouldAnalyzeDeliverableType(formData.deliverable_type);
+                      
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        should_analyze: checked,
+                        analyze_deliverable: shouldAnalyze
+                      }));
+                    }}
+                    disabled={!canEdit}
+                  />
+                  <div>
+                    <label
+                      htmlFor="graded_task"
+                      className="text-sm font-proxima-bold text-[#1E1E1E] cursor-pointer flex items-center gap-2"
+                    >
+                      <GraduationCap className="h-4 w-4 text-[#4242EA]" />
+                      Graded Task
+                    </label>
+                    <p className="text-xs text-[#666] font-proxima mt-1">
+                      Student submissions will be analyzed and graded
+                      {formData.should_analyze && shouldAnalyzeDeliverableType(formData.deliverable_type) && (
+                        <span className="block mt-1 text-green-600">✓ Deliverable will be analyzed with rubric</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onViewFieldHistory?.('should_analyze')}
+                  className="h-8 text-[#666] hover:text-[#4242EA]"
+                >
+                  <History className="h-4 w-4 mr-1" />
+                  History
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="flex justify-end gap-2 pt-4 border-t border-[#E3E3E3]">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="font-proxima"
-          >
-            <X className="h-4 w-4 mr-1" />
-            Cancel
-          </Button>
+        <div className="flex justify-between items-center pt-4 border-t border-[#E3E3E3]">
+          {/* Move Task Button (left side) */}
           {canEdit && (
             <Button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="bg-[#4242EA] hover:bg-[#3535D1] font-proxima"
+              variant="outline"
+              onClick={() => {
+                onOpenChange(false);
+                onMoveTask?.();
+              }}
+              className="border-[#C8C8C8] text-[#666] hover:border-[#4242EA] hover:text-[#4242EA] font-proxima"
             >
-              <Save className="h-4 w-4 mr-1" />
-              {isSaving ? 'Saving...' : 'Save Changes'}
+              <ArrowRight className="h-4 w-4 mr-1" />
+              Move to Different Day
             </Button>
           )}
+          
+          {/* Save/Cancel Buttons (right side) */}
+          <div className="flex gap-2 ml-auto">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="font-proxima"
+            >
+              <X className="h-4 w-4 mr-1" />
+              Cancel
+            </Button>
+            {canEdit && (
+              <Button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="bg-[#4242EA] hover:bg-[#3535D1] font-proxima"
+              >
+                <Save className="h-4 w-4 mr-1" />
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
