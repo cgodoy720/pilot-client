@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+<<<<<<< HEAD
 import { LogOut, Settings, Award, Users, Bug, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench, Target } from 'lucide-react';
+=======
+import { LogOut, Settings, Award, Users, FileText, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench } from 'lucide-react';
+>>>>>>> origin/curriculum-review
 import { useAuth } from '../../context/AuthContext';
 import LoadingCurtain from '../LoadingCurtain/LoadingCurtain';
 import { cn } from '../../lib/utils';
@@ -307,7 +311,7 @@ const Layout = ({ children, isLoading = false }) => {
           user?.role === 'admin' || user?.role === 'staff'
         )}
         
-        {renderNavLink('/content', <Bug className="h-4 w-4 text-[#E3E3E3]" />, 'Content Generation', 
+        {renderNavLink('/content', <FileText className="h-4 w-4 text-[#E3E3E3]" />, 'Content', 
           user?.role === 'admin' || user?.role === 'staff',
           () => location.pathname === '/content' || location.pathname.startsWith('/content/')
         )}
