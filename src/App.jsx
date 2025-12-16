@@ -25,6 +25,7 @@ import AssessmentGrades from './pages/AssessmentGrades/AssessmentGrades';
 
 import VolunteerFeedback from './pages/VolunteerFeedback/VolunteerFeedback';
 import AdminVolunteerFeedback from './pages/AdminVolunteerFeedback';
+import PaymentAdmin from './pages/PaymentAdmin';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
 
 // Pathfinder pages
@@ -296,6 +297,13 @@ function App() {
           <Layout>
             <AdminRoute>
               <AdminVolunteerFeedback />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/payment-admin" element={
+          <Layout>
+            <AdminRoute>
+              <PaymentAdmin />
             </AdminRoute>
           </Layout>
         } />

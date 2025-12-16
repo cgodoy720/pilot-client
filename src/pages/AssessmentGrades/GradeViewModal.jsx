@@ -132,12 +132,15 @@ const GradeViewModal = ({
   useEffect(() => {
     if (!isOpen || !grade) return;
     
+    console.log('🔍 Grade object:', grade);
+    console.log('🔍 Grade assessment_period:', grade.assessment_period);
+    
     const fetchUserData = async () => {
       try {
         setLoading(true);
         
-        // Fetch user submissions
-        const submissionsResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/user-submissions/${grade.user_id}`, {
+        // Fetch user submissions - pass assessment_period as query param
+        const submissionsResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/user-submissions/${grade.user_id}?assessmentPeriod=${encodeURIComponent(grade.assessment_period || 'Week 8')}`, {
           headers: {
             'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json'
@@ -146,11 +149,13 @@ const GradeViewModal = ({
         
         if (submissionsResponse.ok) {
           const submissionsData = await submissionsResponse.json();
+          console.log('🔍 User Submissions API Response:', submissionsData);
+          console.log('🔍 Submissions Array:', submissionsData.submissions);
           setUserSubmissions(submissionsData.submissions || []);
         }
         
-        // Fetch comprehensive analysis data
-        const analysisResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/comprehensive-analysis/${grade.user_id}`, {
+        // Fetch comprehensive analysis data - pass assessment_period as query param
+        const analysisResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/comprehensive-analysis/${grade.user_id}?assessmentPeriod=${encodeURIComponent(grade.assessment_period || 'Week 8')}`, {
           headers: {
             'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json'
@@ -159,6 +164,8 @@ const GradeViewModal = ({
         
         if (analysisResponse.ok) {
           const analysisData = await analysisResponse.json();
+          console.log('🔍 Comprehensive Analysis API Response:', analysisData);
+          console.log('🔍 Analysis Array:', analysisData.analysis);
           setComprehensiveAnalysis(analysisData.analysis || []);
         }
         

@@ -1,6 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import './Payment.css';
+import { getContractVersion, calculateTieredPercentage } from '../../utils/contractVersions';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
+import { Badge } from '../../components/ui/badge';
+import { Separator } from '../../components/ui/separator';
+import { Alert, AlertDescription } from '../../components/ui/alert';
+import { CheckCircle, FileText, Calculator, Calendar, Upload } from 'lucide-react';
 
 const Payment = () => {
   const { token } = useAuth();
@@ -43,16 +53,35 @@ const Payment = () => {
     employmentType: 'full-time'
   });
 
-  // Bond Invoice Calculator states
+  // Invoice Calculator states
   const [monthlyIncome, setMonthlyIncome] = useState('');
 
-  // Calculated values
+  // Get user's contract version from uploaded Good Job Agreement
+  const contractVersion = uploadedFiles.goodJobAgreement?.contractVersion || null;
+  const versionConfig = getContractVersion(contractVersion);
+
+  // Calculated values based on contract version
   const annualizedIncome = monthlyIncome ? parseFloat(monthlyIncome) * 12 : 0;
-  const paymentPercentage = monthlyIncome && parseFloat(monthlyIncome) >= 7083 ? 15 : 0;
-  const monthlyPayment = monthlyIncome && parseFloat(monthlyIncome) >= 7083 ? parseFloat(monthlyIncome) * 0.15 : 0;
+  
+  // Calculate income share percentage (handles tiered and flat rates)
+  let incomeSharePercentage = 0;
+  if (monthlyIncome && versionConfig) {
+    if (versionConfig.isTiered) {
+      incomeSharePercentage = calculateTieredPercentage(versionConfig, annualizedIncome);
+    } else {
+      // Check threshold for flat rate contracts
+      const threshold = versionConfig.monthlyThreshold || versionConfig.annualThreshold / 12;
+      if (parseFloat(monthlyIncome) >= threshold) {
+        incomeSharePercentage = versionConfig.incomeSharePercentage || 0;
+      }
+    }
+  }
+  
+  const monthlyPayment = monthlyIncome && incomeSharePercentage > 0 
+    ? parseFloat(monthlyIncome) * (incomeSharePercentage / 100) 
+    : 0;
 
   // File input refs
-  const goodJobAgreementRef = useRef(null);
   const employmentContractRef = useRef(null);
 
   // Load existing data on component mount
@@ -156,9 +185,7 @@ const Payment = () => {
   };
 
   const openFileDialog = (type) => {
-    if (type === 'goodJobAgreement') {
-      goodJobAgreementRef?.current?.click();
-    } else if (type === 'employmentContract') {
+    if (type === 'employmentContract') {
       employmentContractRef?.current?.click();
     }
   };
@@ -303,303 +330,468 @@ const Payment = () => {
   };
 
   return (
-    <div className="payment">
-      <div className="payment__container">
-        <div className="payment__header">
-          <h1 className="payment__title">Good Job Agreement</h1>
-          <p className="payment__subtitle">Manage your payment and employment information.</p>
-        </div>
-
-        {message && <div className="payment__message payment__message--success">{message}</div>}
-        {error && <div className="payment__message payment__message--error">{error}</div>}
-
-        {/* Documents Section */}
-        <div className="payment__section">
-          <h2 className="payment__section-title">Documents</h2>
-          <div className="payment__documents-grid">
-            {/* Good Job Agreement */}
-            <div className="payment__document-card">
-              <div className="payment__document-header">
-                <h3 className="payment__document-title">Good Job Agreement</h3>
-              </div>
-              <div className="payment__document-actions">
-                <button
-                  onClick={openGjaModal}
-                  className="payment__button payment__button--primary"
-                >
-                  View Good Job Agreement
-                </button>
-              </div>
-            </div>
-
-            {/* Good Job Agreement FAQs */}
-            <div className="payment__document-card">
-              <div className="payment__document-header">
-                <h3 className="payment__document-title">Good Job Agreement FAQs</h3>
-              </div>
-              <div className="payment__document-actions">
-                <button
-                  onClick={openFaqsModal}
-                  className="payment__button payment__button--primary"
-                >
-                  View FAQs
-                </button>
-              </div>
-            </div>
-
-            {/* Bill.com Guide */}
-            <div className="payment__document-card">
-              <div className="payment__document-header">
-                <h3 className="payment__document-title">Bill.com Guide</h3>
-              </div>
-              <div className="payment__document-actions">
-                <button
-                  onClick={openBillComModal}
-                  className="payment__button payment__button--primary"
-                >
-                  View Bill.com Guide
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Personal Financial Planning Section */}
-        <div className="payment__section">
-          <h2 className="payment__section-title">Personal Financial Planning</h2>
-          <div className="payment__scheduling-card">
-            <div className="payment__scheduling-content">
-              <p>Take control of your finances</p>
-              <p>Whether you're looking to budget smarter, manage debt, or start saving for what's next, the Pursuit team is here to help you plan for financial stability.</p>
-            </div>
-            <div className="payment__scheduling-button-container">
-              <button
-                onClick={openSchedulingLink}
-                className="payment__button payment__button--primary"
-              >
-                Schedule session
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Bond Invoice Calculator Section */}
-        <div className="payment__section">
-          <h2 className="payment__section-title">Bond Invoice Calculator</h2>
-          <div className="payment__calculator-card">
-            <div className="payment__calculator-content">
-              <div className="payment__calculator-input">
-                <label htmlFor="monthlyIncome" className="payment__label">Monthly Income</label>
-                <input
-                  type="number"
-                  id="monthlyIncome"
-                  value={monthlyIncome}
-                  onChange={(e) => setMonthlyIncome(e.target.value)}
-                  className="payment__input"
-                  placeholder="Enter monthly income"
-                />
-              </div>
-              
-              <div className="payment__calculator-results">
-                <div className="payment__result-item">
-                  <span className="payment__result-label">Annualized Income:</span>
-                  <span className="payment__result-value">${annualizedIncome.toLocaleString()}</span>
-                </div>
-                <div className="payment__result-item">
-                  <span className="payment__result-label">Percentage Owed:</span>
-                  <span className="payment__result-value">{paymentPercentage}%</span>
-                </div>
-                <div className="payment__result-item">
-                  <span className="payment__result-label">Monthly Payment:</span>
-                  <span className="payment__result-value">${monthlyPayment.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="payment__calculator-info">
-              <div className="payment__info-section">
-                <h5>Payment Percentage</h5>
-                <div className="payment__info-content">
-                  <p>If your income in one calendar month is <strong>less than $7,083</strong>, representing an annualized income of <strong>less than $85,000</strong>, then you owe <strong>0%</strong>.</p>
-                  <p>If your income is <strong>equal to or greater than $7,083</strong>, representing an annualized income of <strong>equal to or greater than $85,000</strong>, then your income percentage owed is <strong>15%</strong>.</p>
-                </div>
-              </div>
-
-              <div className="payment__info-section">
-                <h5>When Payments End</h5>
-                <p className="payment__info-intro">Once the first of these events occurs, you will no longer owe any more payments:</p>
-                
-                <div className="payment__conditions-table">
-                  <div className="payment__conditions-header">
-                    <div className="payment__conditions-cell">Payment Term</div>
-                    <div className="payment__conditions-or-cell">OR</div>
-                    <div className="payment__conditions-cell">Payment Cap</div>
-                    <div className="payment__conditions-or-cell">OR</div>
-                    <div className="payment__conditions-cell">Payment Period</div>
-                  </div>
-                  <div className="payment__conditions-row">
-                    <div className="payment__conditions-cell">36 Payments</div>
-                    <div className="payment__conditions-cell">$55,000</div>
-                    <div className="payment__conditions-cell">5 Years</div>
-                  </div>
-                  <div className="payment__conditions-explanations-row">
-                    <div className="payment__conditions-cell">Payments end after you have made this many monthly payments,</div>
-                    <div className="payment__conditions-cell">Payments end when you have paid this amount in total,</div>
-                    <div className="payment__conditions-cell">Payments end this many years after the Program Launch Date even if you've made no payments.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Employment Information Section */}
-        <div className="payment__section">
-          <h2 className="payment__section-title">Employment Information</h2>
-          <p className="payment__message">Keep your employment information up to date for invoice processing.</p>
-          
-          <form onSubmit={handleEmploymentUpdate} className="payment__form">
-            <div className="payment__form-grid">
-              <div className="payment__form-group">
-                <label htmlFor="companyName" className="payment__label">Company Name</label>
-                <input
-                  type="text"
-                  id="companyName"
-                  value={employmentInfo.companyName}
-                  onChange={(e) => setEmploymentInfo(prev => ({ ...prev, companyName: e.target.value }))}
-                  className="payment__input"
-                  placeholder="Enter company name"
-                />
-              </div>
-
-              <div className="payment__form-group">
-                <label htmlFor="position" className="payment__label">Role</label>
-                <input
-                  type="text"
-                  id="position"
-                  value={employmentInfo.position}
-                  onChange={(e) => setEmploymentInfo(prev => ({ ...prev, position: e.target.value }))}
-                  className="payment__input"
-                  placeholder="Enter your position"
-                />
-              </div>
-
-              <div className="payment__form-group">
-                <label htmlFor="startDate" className="payment__label">Start Date</label>
-                <input
-                  type="date"
-                  id="startDate"
-                  value={employmentInfo.startDate}
-                  onChange={(e) => setEmploymentInfo(prev => ({ ...prev, startDate: e.target.value }))}
-                  className="payment__input"
-                />
-              </div>
-
-              <div className="payment__form-group">
-                <label htmlFor="employmentContract" className="payment__label">Employment Contract</label>
-                <div className="payment__file-upload">
-                  <input
-                    type="file"
-                    id="employmentContract"
-                    ref={employmentContractRef}
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        handleFileUpload(file, 'employmentContract');
-                      }
-                    }}
-                    accept=".pdf,.doc,.docx,.txt"
-                    style={{ display: 'none' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => openFileDialog('employmentContract')}
-                    className="payment__button payment__button--secondary"
-                  >
-                    {uploadedFiles.employmentContract ? 'Replace Contract' : 'Upload Contract'}
-                  </button>
-                  {uploadedFiles.employmentContract && (
-                    <div className="payment__file-info">
-                      <span className="payment__file-name">✓ {uploadedFiles.employmentContract.name}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="payment__form-group">
-                <label htmlFor="salary" className="payment__label">Salary (Annual)</label>
-                <input
-                  type="number"
-                  id="salary"
-                  value={employmentInfo.salary}
-                  onChange={(e) => setEmploymentInfo(prev => ({ ...prev, salary: e.target.value }))}
-                  className="payment__input"
-                  placeholder="Enter annual salary"
-                />
-              </div>
-
-              <div className="payment__form-group">
-                <label htmlFor="employmentType" className="payment__label">Employment Type</label>
-                <select
-                  id="employmentType"
-                  value={employmentInfo.employmentType}
-                  onChange={(e) => setEmploymentInfo(prev => ({ ...prev, employmentType: e.target.value }))}
-                  className="payment__input"
-                >
-                  <option value="full-time">Full-time</option>
-                  <option value="part-time">Part-time</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="payment__form-submit">
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="payment__button payment__button--primary"
-              >
-                {isLoading ? 'Updating...' : 'Update Employment Information'}
-              </button>
-            </div>
-          </form>
-        </div>
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-[#4242EA] to-[#8b5cf6] bg-clip-text text-transparent mb-2">
+          Financial Planning
+        </h1>
+        <p className="text-lg text-gray-600">
+          Manage your payment and employment information.
+        </p>
       </div>
 
-      {/* Good Job Agreement Modal */}
-      {isGjaModalOpen && (
-        <div className="payment__modal-overlay" onClick={() => setIsGjaModalOpen(false)}>
-          <div className="payment__modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="payment__modal-header">
-              <h3>Good Job Agreement</h3>
-              <button
-                className="payment__modal-close"
-                onClick={() => setIsGjaModalOpen(false)}
-              >
-                ×
-              </button>
-            </div>
-            <div className="payment__modal-body">
-              {isGjaLoading ? (
-                <div className="payment__modal-loading">Loading...</div>
-              ) : gjaError ? (
-                <div className="payment__modal-error">{gjaError}</div>
-              ) : (
-                <>
-                  {gjaText && gjaText.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i) ? (
-                    <div className="payment__modal-image-container">
-                      <img src={gjaText} alt="Good Job Agreement" className="payment__modal-image" />
-                    </div>
-                  ) : gjaText && gjaText.match(/\.pdf$/i) ? (
-                    <div className="payment__modal-pdf-container">
-                      <iframe src={gjaText} className="payment__modal-pdf" title="Good Job Agreement" />
-                    </div>
+      {message && (
+        <Alert className="mb-6 border-green-200 bg-green-50">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">{message}</AlertDescription>
+        </Alert>
+      )}
+      {error && (
+        <Alert className="mb-6 border-red-200 bg-red-50">
+          <AlertDescription className="text-red-800">{error}</AlertDescription>
+        </Alert>
+      )}
+
+        {/* Documents Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <FileText className="h-6 w-6 text-[#4242EA]" />
+              Documents
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-3">
+              {/* Good Job Agreement */}
+              <Card className="relative overflow-hidden">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Good Job Agreement</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {uploadedFiles.goodJobAgreement ? (
+                    <>
+                      <Button
+                        onClick={openGjaModal}
+                        className="w-full bg-[#4242EA] hover:bg-[#3535C7] text-white"
+                      >
+                        View Your Signed Agreement
+                      </Button>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-green-600 text-sm">
+                          <CheckCircle className="h-4 w-4" />
+                          Your signed agreement is on file
+                        </div>
+                        {uploadedFiles.goodJobAgreement.uploadedAt && (
+                          <p className="text-xs text-gray-500">
+                            Uploaded: {new Date(uploadedFiles.goodJobAgreement.uploadedAt).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    </>
                   ) : (
-                    <pre className="payment__modal-text">{gjaText}</pre>
+                    <>
+                      <Button
+                        onClick={openGjaModal}
+                        variant="outline"
+                        className="w-full border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white"
+                      >
+                        View Template Agreement
+                      </Button>
+                      <Alert className="border-amber-200 bg-amber-50">
+                        <AlertDescription className="text-amber-800 text-sm">
+                          Your signed agreement will appear here once it's been uploaded.
+                        </AlertDescription>
+                      </Alert>
+                    </>
                   )}
-                </>
-              )}
+                  <p className="text-xs text-gray-500 italic">
+                    Please note that your Good Job Agreement does not take effect until you start L2.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Good Job Agreement FAQs */}
+              <Card className="relative overflow-hidden">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Good Job Agreement FAQs</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    onClick={openFaqsModal}
+                    className="w-full bg-[#4242EA] hover:bg-[#3535C7] text-white"
+                  >
+                    View FAQs
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Bill.com Guide */}
+              <Card className="relative overflow-hidden">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Bill.com Guide</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    onClick={openBillComModal}
+                    className="w-full bg-[#4242EA] hover:bg-[#3535C7] text-white"
+                  >
+                    View Bill.com Guide
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
-            <div className="payment__modal-footer">
+          </CardContent>
+        </Card>
+
+        {/* Personal Financial Planning Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <Calendar className="h-6 w-6 text-[#4242EA]" />
+              Personal Financial Planning
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Card className="bg-gradient-to-br from-[#4242EA]/5 to-[#8b5cf6]/5 border-[#4242EA]/20">
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="flex-1 space-y-3">
+                    <h3 className="text-xl font-semibold text-gray-900">Take control of your finances</h3>
+                    <p className="text-gray-600">
+                      Whether you're looking to budget smarter, manage debt, or start saving for what's next, the Pursuit team is here to help you plan for financial stability.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={openSchedulingLink}
+                    size="lg"
+                    className="bg-[#4242EA] hover:bg-[#3535C7] text-white px-8 py-3 text-lg whitespace-nowrap"
+                  >
+                    Schedule session
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </CardContent>
+        </Card>
+
+        {/* Invoice Calculator Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <Calculator className="h-6 w-6 text-[#4242EA]" />
+              Invoice Calculator
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="monthlyIncome" className="text-sm font-medium uppercase tracking-wide text-gray-600">
+                    Monthly Income
+                  </Label>
+                  <Input
+                    type="number"
+                    id="monthlyIncome"
+                    value={monthlyIncome}
+                    onChange={(e) => setMonthlyIncome(e.target.value)}
+                    placeholder="Enter monthly income"
+                    className="text-lg"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-4 bg-gradient-to-r from-[#4242EA]/10 to-[#8b5cf6]/10 rounded-lg border border-[#4242EA]/20">
+                    <span className="text-sm font-medium text-gray-600">Annualized Income:</span>
+                    <span className="text-lg font-semibold text-[#4242EA]">${annualizedIncome.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-4 bg-gradient-to-r from-[#4242EA]/10 to-[#8b5cf6]/10 rounded-lg border border-[#4242EA]/20">
+                    <span className="text-sm font-medium text-gray-600">Percentage Owed:</span>
+                    <span className="text-lg font-semibold text-[#4242EA]">{incomeSharePercentage}%</span>
+                  </div>
+                  <div className="flex justify-between items-center p-4 bg-gradient-to-r from-[#4242EA]/10 to-[#8b5cf6]/10 rounded-lg border border-[#4242EA]/20">
+                    <span className="text-sm font-medium text-gray-600">Monthly Payment:</span>
+                    <span className="text-lg font-semibold text-[#4242EA]">${monthlyPayment.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Separator className="my-8" />
+
+            <div className="space-y-6">
+              <div>
+                <h4 className="text-lg font-semibold text-[#4242EA] mb-4 border-b-2 border-[#4242EA] pb-2">
+                  Payment Percentage
+                </h4>
+                <Card className="bg-gray-50">
+                  <CardContent className="p-4">
+                    {versionConfig?.isTiered ? (
+                      <div className="space-y-3">
+                        <p className="text-gray-700">Your contract uses a <strong>tiered income share percentage</strong>:</p>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center p-3 bg-white rounded border">
+                            <span className="font-medium">$50,000 - $60,000:</span>
+                            <Badge variant="secondary">{versionConfig.tiers.find(t => t.min === 50000)?.percentage}%</Badge>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-white rounded border">
+                            <span className="font-medium">$60,000 - $70,000:</span>
+                            <Badge variant="secondary">{versionConfig.tiers.find(t => t.min === 60000)?.percentage}%</Badge>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-white rounded border">
+                            <span className="font-medium">$70,000+:</span>
+                            <Badge variant="secondary">{versionConfig.tiers.find(t => t.min === 70000)?.percentage}%</Badge>
+                          </div>
+                        </div>
+                      </div>
+                    ) : versionConfig?.monthlyThreshold || versionConfig?.annualThreshold ? (
+                      <div className="space-y-4">
+                        <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
+                          <p className="text-blue-800">
+                            If your income in one calendar month is <strong>less than ${versionConfig.monthlyThreshold ? `$${versionConfig.monthlyThreshold.toLocaleString()}` : `$${(versionConfig.annualThreshold / 12).toLocaleString()}`}</strong>, representing an annualized income of <strong>less than ${versionConfig.annualThreshold ? `$${versionConfig.annualThreshold.toLocaleString()}` : `$${(versionConfig.monthlyThreshold * 12).toLocaleString()}`}</strong>, then you owe <strong className="text-blue-600">0%</strong>.
+                          </p>
+                        </div>
+                        <div className="p-4 bg-green-50 border-l-4 border-green-400 rounded">
+                          <p className="text-green-800">
+                            If your income is <strong>equal to or greater than ${versionConfig.monthlyThreshold ? `$${versionConfig.monthlyThreshold.toLocaleString()}` : `$${(versionConfig.annualThreshold / 12).toLocaleString()}`}</strong>, representing an annualized income of <strong>equal to or greater than ${versionConfig.annualThreshold ? `$${versionConfig.annualThreshold.toLocaleString()}` : `$${(versionConfig.monthlyThreshold * 12).toLocaleString()}`}</strong>, then your income percentage owed is <strong className="text-green-600">{versionConfig.incomeSharePercentage}%</strong>.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-gray-700">
+                        Based on your contract version ({versionConfig?.name || 'Unknown'}), your income share percentage is <strong className="text-[#4242EA]">{versionConfig?.incomeSharePercentage || 0}%</strong>.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div>
+                <h4 className="text-lg font-semibold text-[#4242EA] mb-4 border-b-2 border-[#4242EA] pb-2">
+                  When Payments End
+                </h4>
+                <Card className="bg-gray-50">
+                  <CardContent className="p-4">
+                    <p className="text-gray-700 mb-4 italic">
+                      Once the first of these events occurs, you will no longer owe any more payments:
+                    </p>
+
+                    <div className="bg-white border rounded-lg overflow-hidden">
+                      <div className="grid grid-cols-5 bg-[#4242EA] text-white font-semibold text-center py-3">
+                        <div className="py-2">Payment Term</div>
+                        <div className="py-2 bg-[#3535C7]">OR</div>
+                        <div className="py-2">Payment Cap</div>
+                        {versionConfig?.coveredPeriod && (
+                          <>
+                            <div className="py-2 bg-[#3535C7]">OR</div>
+                            <div className="py-2">Payment Period</div>
+                          </>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-5 text-center py-4 border-b">
+                        <div className="py-2 font-medium">{versionConfig?.maxPayments || 36} Payments</div>
+                        <div className="py-2"></div>
+                        <div className="py-2 font-medium">${versionConfig?.maxPaymentAmount ? versionConfig.maxPaymentAmount.toLocaleString() : '55,000'}</div>
+                        {versionConfig?.coveredPeriod && (
+                          <>
+                            <div className="py-2"></div>
+                            <div className="py-2 font-medium">{Math.round(versionConfig.coveredPeriod / 12)} Years</div>
+                          </>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-5 text-center py-3 text-sm text-gray-600 bg-gray-50">
+                        <div className="py-2 px-2">Payments end after you have made this many monthly payments,</div>
+                        <div className="py-2"></div>
+                        <div className="py-2 px-2">Payments end when you have paid this amount in total,</div>
+                        {versionConfig?.coveredPeriod && (
+                          <>
+                            <div className="py-2"></div>
+                            <div className="py-2 px-2">Payments end this many years after the Program Launch Date even if you've made no payments.</div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Employment Information Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <Upload className="h-6 w-6 text-[#4242EA]" />
+              Employment Information
+            </CardTitle>
+            <CardDescription>
+              Keep your employment information up to date for invoice processing.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleEmploymentUpdate} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="companyName" className="text-sm font-medium uppercase tracking-wide text-gray-600">
+                    Company Name
+                  </Label>
+                  <Input
+                    type="text"
+                    id="companyName"
+                    value={employmentInfo.companyName}
+                    onChange={(e) => setEmploymentInfo(prev => ({ ...prev, companyName: e.target.value }))}
+                    placeholder="Enter company name"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="position" className="text-sm font-medium uppercase tracking-wide text-gray-600">
+                    Role
+                  </Label>
+                  <Input
+                    type="text"
+                    id="position"
+                    value={employmentInfo.position}
+                    onChange={(e) => setEmploymentInfo(prev => ({ ...prev, position: e.target.value }))}
+                    placeholder="Enter your position"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="startDate" className="text-sm font-medium uppercase tracking-wide text-gray-600">
+                    Start Date
+                  </Label>
+                  <Input
+                    type="date"
+                    id="startDate"
+                    value={employmentInfo.startDate}
+                    onChange={(e) => setEmploymentInfo(prev => ({ ...prev, startDate: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="salary" className="text-sm font-medium uppercase tracking-wide text-gray-600">
+                    Salary (Annual)
+                  </Label>
+                  <Input
+                    type="number"
+                    id="salary"
+                    value={employmentInfo.salary}
+                    onChange={(e) => setEmploymentInfo(prev => ({ ...prev, salary: e.target.value }))}
+                    placeholder="Enter annual salary"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="employmentType" className="text-sm font-medium uppercase tracking-wide text-gray-600">
+                    Employment Type
+                  </Label>
+                  <Select
+                    value={employmentInfo.employmentType}
+                    onValueChange={(value) => setEmploymentInfo(prev => ({ ...prev, employmentType: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select employment type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="full-time">Full-time</SelectItem>
+                      <SelectItem value="part-time">Part-time</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium uppercase tracking-wide text-gray-600">
+                    Employment Contract
+                  </Label>
+                  <div className="space-y-3">
+                    <Input
+                      type="file"
+                      id="employmentContract"
+                      ref={employmentContractRef}
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          handleFileUpload(file, 'employmentContract');
+                        }
+                      }}
+                      accept=".pdf,.doc,.docx,.txt"
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => openFileDialog('employmentContract')}
+                      variant="outline"
+                      className="w-full border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white"
+                    >
+                      {uploadedFiles.employmentContract ? 'Replace Contract' : 'Upload Contract'}
+                    </Button>
+                    {uploadedFiles.employmentContract && (
+                      <div className="flex items-center gap-2 text-green-600 text-sm">
+                        <CheckCircle className="h-4 w-4" />
+                        {uploadedFiles.employmentContract.name}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex justify-center">
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="bg-[#4242EA] hover:bg-[#3535C7] text-white px-8 py-3"
+                >
+                  {isLoading ? 'Updating...' : 'Update Employment Information'}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+      {/* Good Job Agreement Modal */}
+      <Dialog open={isGjaModalOpen} onOpenChange={setIsGjaModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>
+              {uploadedFiles.goodJobAgreement ? 'Your Signed Good Job Agreement' : 'Good Job Agreement Template'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {isGjaLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="text-center">Loading...</div>
+              </div>
+            ) : gjaError ? (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertDescription className="text-red-800">{gjaError}</AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                {gjaText && gjaText.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i) ? (
+                  <div className="flex justify-center">
+                    <img src={gjaText} alt="Good Job Agreement" className="max-w-full max-h-96 object-contain" />
+                  </div>
+                ) : gjaText && gjaText.match(/\.pdf$/i) ? (
+                  <div className="flex justify-center">
+                    <iframe src={gjaText} className="w-full h-96" title="Good Job Agreement" />
+                  </div>
+                ) : (
+                  <pre className="bg-gray-50 p-4 rounded-lg text-sm overflow-auto max-h-96 whitespace-pre-wrap">{gjaText}</pre>
+                )}
+              </>
+            )}
+          </div>
+          <div className="flex justify-center pt-4">
+            <Button
+              asChild
+              variant="outline"
+              className="border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white"
+            >
               <a
                 href={(() => {
                   const url = uploadedFiles?.goodJobAgreement?.url || '/uploads/payment-documents/Good_Job_Agreement.pdf';
@@ -607,110 +799,111 @@ const Payment = () => {
                 })()}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="payment__button payment__button--secondary"
               >
                 Open in new tab
               </a>
-            </div>
+            </Button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Bill.com Guide Modal */}
-      {isBillComModalOpen && (
-        <div className="payment__modal-overlay" onClick={() => setIsBillComModalOpen(false)}>
-          <div className="payment__modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="payment__modal-header">
-              <h3>Bill.com Guide</h3>
-              <button
-                className="payment__modal-close"
-                onClick={() => setIsBillComModalOpen(false)}
-              >
-                ×
-              </button>
-            </div>
-            <div className="payment__modal-body">
-              {isBillComLoading ? (
-                <div className="payment__modal-loading">Loading...</div>
-              ) : billComError ? (
-                <div className="payment__modal-error">{billComError}</div>
-              ) : (
-                <>
-                  {billComText && billComText.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i) ? (
-                    <div className="payment__modal-image-container">
-                      <img src={billComText} alt="Bill.com Guide" className="payment__modal-image" />
-                    </div>
-                  ) : billComText && billComText.match(/\.pdf$/i) ? (
-                    <div className="payment__modal-pdf-container">
-                      <iframe src={billComText} className="payment__modal-pdf" title="Bill.com Guide" />
-                    </div>
-                  ) : (
-                    <pre className="payment__modal-text">{billComText}</pre>
-                  )}
-                </>
-              )}
-            </div>
-            <div className="payment__modal-footer">
+      <Dialog open={isBillComModalOpen} onOpenChange={setIsBillComModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Bill.com Guide</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {isBillComLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="text-center">Loading...</div>
+              </div>
+            ) : billComError ? (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertDescription className="text-red-800">{billComError}</AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                {billComText && billComText.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i) ? (
+                  <div className="flex justify-center">
+                    <img src={billComText} alt="Bill.com Guide" className="max-w-full max-h-96 object-contain" />
+                  </div>
+                ) : billComText && billComText.match(/\.pdf$/i) ? (
+                  <div className="flex justify-center">
+                    <iframe src={billComText} className="w-full h-96" title="Bill.com Guide" />
+                  </div>
+                ) : (
+                  <pre className="bg-gray-50 p-4 rounded-lg text-sm overflow-auto max-h-96 whitespace-pre-wrap">{billComText}</pre>
+                )}
+              </>
+            )}
+          </div>
+          <div className="flex justify-center pt-4">
+            <Button
+              asChild
+              variant="outline"
+              className="border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white"
+            >
               <a
                 href={`${import.meta.env.VITE_API_URL}/uploads/payment-documents/Bill.Com%20Set%20Up%20Instructions.pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="payment__button payment__button--secondary"
               >
                 Open in new tab
               </a>
-            </div>
+            </Button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* FAQs Modal */}
-      {isFaqsModalOpen && (
-        <div className="payment__modal-overlay" onClick={() => setIsFaqsModalOpen(false)}>
-          <div className="payment__modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="payment__modal-header">
-              <h3>Good Job Agreement FAQs</h3>
-              <button
-                className="payment__modal-close"
-                onClick={() => setIsFaqsModalOpen(false)}
-              >
-                ×
-              </button>
-            </div>
-            <div className="payment__modal-body">
-              {isFaqsLoading ? (
-                <div className="payment__modal-loading">Loading...</div>
-              ) : faqsError ? (
-                <div className="payment__modal-error">{faqsError}</div>
-              ) : (
-                <>
-                  {faqsText && faqsText.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i) ? (
-                    <div className="payment__modal-image-container">
-                      <img src={faqsText} alt="Good Job Agreement FAQs" className="payment__modal-image" />
-                    </div>
-                  ) : faqsText && faqsText.match(/\.pdf$/i) ? (
-                    <div className="payment__modal-pdf-container">
-                      <iframe src={faqsText} className="payment__modal-pdf" title="Good Job Agreement FAQs" />
-                    </div>
-                  ) : (
-                    <pre className="payment__modal-text">{faqsText}</pre>
-                  )}
-                </>
-              )}
-            </div>
-            <div className="payment__modal-footer">
+      <Dialog open={isFaqsModalOpen} onOpenChange={setIsFaqsModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Good Job Agreement FAQs</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {isFaqsLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="text-center">Loading...</div>
+              </div>
+            ) : faqsError ? (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertDescription className="text-red-800">{faqsError}</AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                {faqsText && faqsText.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i) ? (
+                  <div className="flex justify-center">
+                    <img src={faqsText} alt="Good Job Agreement FAQs" className="max-w-full max-h-96 object-contain" />
+                  </div>
+                ) : faqsText && faqsText.match(/\.pdf$/i) ? (
+                  <div className="flex justify-center">
+                    <iframe src={faqsText} className="w-full h-96" title="Good Job Agreement FAQs" />
+                  </div>
+                ) : (
+                  <pre className="bg-gray-50 p-4 rounded-lg text-sm overflow-auto max-h-96 whitespace-pre-wrap">{faqsText}</pre>
+                )}
+              </>
+            )}
+          </div>
+          <div className="flex justify-center pt-4">
+            <Button
+              asChild
+              variant="outline"
+              className="border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white"
+            >
               <a
                 href={`${import.meta.env.VITE_API_URL}/uploads/payment-documents/Good%20Job%20Agreement%20FAQs.pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="payment__button payment__button--secondary"
               >
                 Open in new tab
               </a>
-            </div>
+            </Button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
