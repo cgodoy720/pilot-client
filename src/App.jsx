@@ -51,6 +51,7 @@ import SalesTracker from './pages/SalesTracker/SalesTracker';
 import { useAuth } from './context/AuthContext';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
+import { Toaster } from './components/ui/sonner';
 
 import './App.css';
 
@@ -423,6 +424,9 @@ function App() {
         message={modalConfig.message}
         onRedirect={handleModalRedirect}
       />
+      
+      {/* Toast Notifications */}
+      <Toaster />
     </>
   );
 }

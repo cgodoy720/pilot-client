@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import Swal from 'sweetalert2';
+import { toast } from 'sonner';
 
 // Import new components
 import FiltersSection from './components/FiltersSection';
@@ -210,18 +210,9 @@ const AssessmentGrades = () => {
 
   const handleSendEmails = () => {
     if (selectedUsers.size === 0) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'No Users Selected',
-        text: 'Please select at least one user to send emails to.',
-        confirmButtonColor: '#3085d6',
-        background: '#1f2937',
-        color: '#f9fafb',
-        customClass: {
-          popup: 'swal-dark-popup',
-          title: 'swal-dark-title',
-          content: 'swal-dark-content'
-        }
+      toast.warning('No Users Selected', {
+        description: 'Please select at least one user to send emails to.',
+        duration: 4000,
       });
       return;
     }
@@ -274,18 +265,9 @@ const AssessmentGrades = () => {
       }
     } catch (err) {
       console.error('Error exporting data:', err);
-      Swal.fire({
-        icon: 'error',
-        title: 'Export Failed',
-        text: 'Failed to export data. Please try again.',
-        confirmButtonColor: '#d33',
-        background: '#1f2937',
-        color: '#f9fafb',
-        customClass: {
-          popup: 'swal-dark-popup',
-          title: 'swal-dark-title',
-          content: 'swal-dark-content'
-        }
+      toast.error('Export Failed', {
+        description: 'Failed to export data. Please try again.',
+        duration: 5000,
       });
     }
   };
@@ -407,35 +389,15 @@ const AssessmentGrades = () => {
       setEditingStrengths('');
       setEditingGrowthAreas('');
       
-      Swal.fire({
-        icon: 'success',
-        title: 'Feedback Updated!',
-        text: 'The feedback has been successfully updated in the database.',
-        confirmButtonColor: '#10b981',
-        timer: 3000,
-        timerProgressBar: true,
-        background: '#1f2937',
-        color: '#f9fafb',
-        customClass: {
-          popup: 'swal-dark-popup',
-          title: 'swal-dark-title',
-          content: 'swal-dark-content'
-        }
+      toast.success('Feedback Updated!', {
+        description: 'The feedback has been successfully updated in the database.',
+        duration: 3000,
       });
     } catch (error) {
       console.error('Error updating feedback:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Update Failed',
-        text: 'Failed to update feedback. Please try again.',
-        confirmButtonColor: '#d33',
-        background: '#1f2937',
-        color: '#f9fafb',
-        customClass: {
-          popup: 'swal-dark-popup',
-          title: 'swal-dark-title',
-          content: 'swal-dark-content'
-        }
+      toast.error('Update Failed', {
+        description: 'Failed to update feedback. Please try again.',
+        duration: 5000,
       });
     } finally {
       setSavingOverview(false);
