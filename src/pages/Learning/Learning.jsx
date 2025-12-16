@@ -14,7 +14,7 @@ import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
 
 // Existing Components
-import PeerFeedbackForm from '../../components/PeerFeedbackForm';
+import PeerFeedbackSheet from '../../components/PeerFeedbackSheet';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
 import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
 import SurveyInterface from '../../components/SurveyInterface/SurveyInterface';
@@ -61,6 +61,7 @@ function Learning() {
   const [isDeliverableSidebarOpen, setIsDeliverableSidebarOpen] = useState(false);
   const [isAssessmentPanelOpen, setIsAssessmentPanelOpen] = useState(false);
   const [currentAssessmentType, setCurrentAssessmentType] = useState(null);
+  const [isPeerFeedbackSheetOpen, setIsPeerFeedbackSheetOpen] = useState(false);
   
   // Submission tracking state
   const [taskSubmissions, setTaskSubmissions] = useState({});
@@ -913,6 +914,19 @@ function Learning() {
     return currentTask?.task_type === 'break';
   };
 
+  // Check if current task is a retrospective (for peer feedback)
+  const isRetrospectiveTask = () => {
+    const currentTask = tasks[currentTaskIndex];
+    
+    if (!currentTask) {
+      return false;
+    }
+    
+    // Exact match for retrospective task titles
+    return currentTask?.task_title === 'Independent Retrospective' || 
+           currentTask?.task_title === 'Individual Retrospective';
+  };
+
   // Handle survey completion
   const handleSurveyComplete = async () => {
     const currentTask = tasks[currentTaskIndex];
@@ -1330,6 +1344,8 @@ function Learning() {
                 disabled={isSending || isAiThinking || !isActive}
                 showAssignmentButton={['video', 'document', 'link', 'structured'].includes(tasks[currentTaskIndex]?.deliverable_type)}
                 onAssignmentClick={() => setIsDeliverableSidebarOpen(true)}
+                showPeerFeedbackButton={isRetrospectiveTask()}
+                onPeerFeedbackClick={() => setIsPeerFeedbackSheetOpen(true)}
                 showLlmDropdown={tasks[currentTaskIndex]?.task_mode === 'conversation'}
               />
               )}
@@ -1346,6 +1362,17 @@ function Learning() {
             isOpen={isDeliverableSidebarOpen}
             onClose={() => setIsDeliverableSidebarOpen(false)}
             onSubmit={handleDeliverableSubmit}
+          />
+        )}
+
+        {/* Peer Feedback Sheet - Show for retrospective tasks */}
+        {tasks[currentTaskIndex] && isRetrospectiveTask() && (
+          <PeerFeedbackSheet
+            isOpen={isPeerFeedbackSheetOpen}
+            onClose={() => setIsPeerFeedbackSheetOpen(false)}
+            dayNumber={currentDay?.day_number}
+            cohort={currentDay?.cohort}
+            token={token}
           />
         )}
       </div>
