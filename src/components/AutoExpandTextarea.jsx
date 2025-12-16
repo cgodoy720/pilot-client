@@ -30,6 +30,9 @@ const AutoExpandTextarea = forwardRef(({
   assignmentButtonText = "Assignment",
   showInstructionsButton = false,
   onInstructionsClick,
+  showPeerFeedbackButton = false,
+  onPeerFeedbackClick,
+  peerFeedbackButtonText = "Peer Feedback",
   showLlmDropdown = false,
   shouldFocus = false
 }, ref) => {
@@ -126,7 +129,7 @@ const AutoExpandTextarea = forwardRef(({
 
         {/* Bottom row with buttons */}
         <div className="flex justify-between items-center">
-          {/* Left side - Assignment and Instructions buttons */}
+          {/* Left side - Assignment, Instructions, and Peer Feedback buttons */}
           <div className="flex gap-2">
             {showInstructionsButton && (
               <Button
@@ -144,6 +147,15 @@ const AutoExpandTextarea = forwardRef(({
                 className="bg-pursuit-purple hover:bg-pursuit-purple/90 text-stardust text-xs px-3 py-1 h-6 rounded-full"
               >
                 {assignmentButtonText}
+              </Button>
+            )}
+            {showPeerFeedbackButton && (
+              <Button
+                onClick={onPeerFeedbackClick}
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 h-6 rounded-full"
+              >
+                {peerFeedbackButtonText}
               </Button>
             )}
           </div>

@@ -156,11 +156,22 @@ const WorkshopsTab = ({
   // Open edit modal
   const openEditModal = (workshop) => {
     setEditingWorkshop(workshop);
+    
+    // Format timestamps for datetime-local input (YYYY-MM-DDTHH:MM)
+    // The start_time/end_time from backend are ISO strings like "2025-11-17T17:00:00.000Z"
+    // We need to extract just the date and time portions (ignore timezone)
+    const formatForInput = (timestamp) => {
+      if (!timestamp) return '';
+      // Extract YYYY-MM-DD and HH:MM from the ISO string
+      const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+      return match ? `${match[1]}T${match[2]}` : '';
+    };
+    
     setWorkshopForm({
       title: workshop.event_name || workshop.title || '',
       description: workshop.description || '',
-      start_time: workshop.event_date ? `${workshop.event_date.split('T')[0]}T${workshop.event_time?.substring(0, 5) || '00:00'}` : '',
-      end_time: '',
+      start_time: formatForInput(workshop.start_time),
+      end_time: formatForInput(workshop.end_time),
       location: workshop.location || 'Pursuit NYC Campus - 47-10 Austell Pl 2nd floor, Long Island City, NY',
       capacity: workshop.capacity || 50,
       is_online: workshop.is_online || false,
@@ -476,7 +487,7 @@ const WorkshopsTab = ({
                   value={workshopForm.start_time}
                   onChange={(e) => setWorkshopForm({ ...workshopForm, start_time: e.target.value })}
                   required
-                  className="font-proxima"
+                  className="font-proxima [&::-webkit-calendar-picker-indicator]:ml-1"
                 />
               </div>
               <div className="space-y-2">
@@ -486,7 +497,7 @@ const WorkshopsTab = ({
                   value={workshopForm.end_time}
                   onChange={(e) => setWorkshopForm({ ...workshopForm, end_time: e.target.value })}
                   required
-                  className="font-proxima"
+                  className="font-proxima [&::-webkit-calendar-picker-indicator]:ml-1"
                 />
               </div>
             </div>
