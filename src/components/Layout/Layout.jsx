@@ -181,7 +181,7 @@ const Layout = ({ children, isLoading = false }) => {
   };
 
   return (
-    <div className={cn("flex h-screen w-full", isPathfinderPage ? "bg-white" : "bg-background")}>
+    <div className={cn("flex min-h-screen w-full", isPathfinderPage ? "bg-white" : "bg-background")}>
       {/* Sidebar - Responsive behavior */}
       <nav
         className={cn(
