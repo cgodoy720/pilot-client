@@ -21,6 +21,7 @@ const Payment = () => {
   const [error, setError] = useState('');
   const [isGjaModalOpen, setIsGjaModalOpen] = useState(false);
   const [gjaText, setGjaText] = useState('');
+  const [gjaFileType, setGjaFileType] = useState(''); // 'pdf', 'image', 'text'
   const [isGjaLoading, setIsGjaLoading] = useState(false);
   const [gjaError, setGjaError] = useState('');
 
@@ -35,6 +36,13 @@ const Payment = () => {
   const [faqsText, setFaqsText] = useState('');
   const [isFaqsLoading, setIsFaqsLoading] = useState(false);
   const [faqsError, setFaqsError] = useState('');
+
+  // Employment Contract modal states
+  const [isEmploymentContractModalOpen, setIsEmploymentContractModalOpen] = useState(false);
+  const [employmentContractText, setEmploymentContractText] = useState('');
+  const [employmentContractFileType, setEmploymentContractFileType] = useState('');
+  const [isEmploymentContractLoading, setIsEmploymentContractLoading] = useState(false);
+  const [employmentContractError, setEmploymentContractError] = useState('');
 
   // File upload states
   const [uploadedFiles, setUploadedFiles] = useState({
@@ -206,18 +214,22 @@ const Payment = () => {
       };
       const url = toAbsolute(uploadedFiles?.goodJobAgreement?.url || '/uploads/payment-documents/Good_Job_Agreement.pdf');
       
-      // Check file type
-      const isImage = url.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/);
-      const isPdf = url.toLowerCase().match(/\.pdf$/);
+      // Check file type based on filename, not URL
+      const fileName = uploadedFiles?.goodJobAgreement?.name || 'Good_Job_Agreement.pdf';
+      const isImage = fileName.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/);
+      const isPdf = fileName.toLowerCase().match(/\.pdf$/);
       
       if (isImage) {
         // For images, just set the URL directly
+        setGjaFileType('image');
         setGjaText(url);
       } else if (isPdf) {
         // For PDFs, set the URL for embedding
+        setGjaFileType('pdf');
         setGjaText(url);
       } else {
         // For text files, fetch the content
+        setGjaFileType('text');
         const response = await fetch(url, { cache: 'no-store' });
         if (!response.ok) {
           throw new Error('Failed to load Good Job Agreement');
@@ -297,6 +309,50 @@ const Payment = () => {
       setFaqsError(e.message || 'Unable to load FAQs');
     } finally {
       setIsFaqsLoading(false);
+    }
+  };
+
+  const openEmploymentContractModal = async () => {
+    if (!uploadedFiles.employmentContract) return;
+    
+    try {
+      setIsEmploymentContractLoading(true);
+      setEmploymentContractError('');
+      setIsEmploymentContractModalOpen(true);
+      const toAbsolute = (p) => {
+        if (!p) return '';
+        return p.startsWith('http') ? p : `${import.meta.env.VITE_API_URL}${p}`;
+      };
+      const url = toAbsolute(uploadedFiles.employmentContract.url);
+      
+      // Check file type based on filename, not URL
+      const fileName = uploadedFiles.employmentContract.name;
+      const isImage = fileName.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/);
+      const isPdf = fileName.toLowerCase().match(/\.pdf$/);
+      const isDoc = fileName.toLowerCase().match(/\.(doc|docx)$/);
+      
+      if (isImage) {
+        setEmploymentContractFileType('image');
+        setEmploymentContractText(url);
+      } else if (isPdf) {
+        setEmploymentContractFileType('pdf');
+        setEmploymentContractText(url);
+      } else if (isDoc) {
+        setEmploymentContractFileType('unsupported');
+        setEmploymentContractError('Preview not available for Word documents. Please use "Open in new tab" to download.');
+      } else {
+        setEmploymentContractFileType('text');
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error('Failed to load Employment Contract');
+        }
+        const text = await response.text();
+        setEmploymentContractText(text);
+      }
+    } catch (e) {
+      setEmploymentContractError(e.message || 'Unable to load Employment Contract');
+    } finally {
+      setIsEmploymentContractLoading(false);
     }
   };
 
@@ -729,10 +785,21 @@ const Payment = () => {
                       {uploadedFiles.employmentContract ? 'Replace Contract' : 'Upload Contract'}
                     </Button>
                     {uploadedFiles.employmentContract && (
-                      <div className="flex items-center gap-2 text-green-600 text-sm">
-                        <CheckCircle className="h-4 w-4" />
-                        {uploadedFiles.employmentContract.name}
-                      </div>
+                      <>
+                        <div className="flex items-center gap-2 text-green-600 text-sm">
+                          <CheckCircle className="h-4 w-4" />
+                          {uploadedFiles.employmentContract.name}
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={openEmploymentContractModal}
+                          variant="outline"
+                          size="sm"
+                          className="w-full border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white"
+                        >
+                          Preview Contract
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -772,17 +839,17 @@ const Payment = () => {
               </Alert>
             ) : (
               <>
-                {gjaText && gjaText.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i) ? (
+                {gjaFileType === 'image' && gjaText ? (
                   <div className="flex justify-center">
                     <img src={gjaText} alt="Good Job Agreement" className="max-w-full max-h-96 object-contain" />
                   </div>
-                ) : gjaText && gjaText.match(/\.pdf$/i) ? (
+                ) : gjaFileType === 'pdf' && gjaText ? (
                   <div className="flex justify-center">
                     <iframe src={gjaText} className="w-full h-96" title="Good Job Agreement" />
                   </div>
-                ) : (
+                ) : gjaFileType === 'text' && gjaText ? (
                   <pre className="bg-gray-50 p-4 rounded-lg text-sm overflow-auto max-h-96 whitespace-pre-wrap">{gjaText}</pre>
-                )}
+                ) : null}
               </>
             )}
           </div>
@@ -895,6 +962,61 @@ const Payment = () => {
             >
               <a
                 href={`${import.meta.env.VITE_API_URL}/uploads/payment-documents/Good%20Job%20Agreement%20FAQs.pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open in new tab
+              </a>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Employment Contract Modal */}
+      <Dialog open={isEmploymentContractModalOpen} onOpenChange={setIsEmploymentContractModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Employment Contract</DialogTitle>
+            <DialogDescription>
+              Preview of your uploaded employment contract
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {isEmploymentContractLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="text-center">Loading...</div>
+              </div>
+            ) : employmentContractError ? (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertDescription className="text-red-800">{employmentContractError}</AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                {employmentContractFileType === 'image' && employmentContractText ? (
+                  <div className="flex justify-center">
+                    <img src={employmentContractText} alt="Employment Contract" className="max-w-full max-h-96 object-contain" />
+                  </div>
+                ) : employmentContractFileType === 'pdf' && employmentContractText ? (
+                  <div className="flex justify-center">
+                    <iframe src={employmentContractText} className="w-full h-96" title="Employment Contract" />
+                  </div>
+                ) : employmentContractFileType === 'text' && employmentContractText ? (
+                  <pre className="bg-gray-50 p-4 rounded-lg text-sm overflow-auto max-h-96 whitespace-pre-wrap">{employmentContractText}</pre>
+                ) : null}
+              </>
+            )}
+          </div>
+          <div className="flex justify-center pt-4">
+            <Button
+              asChild
+              variant="outline"
+              className="border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white"
+            >
+              <a
+                href={(() => {
+                  const url = uploadedFiles?.employmentContract?.url || '#';
+                  return url.startsWith('http') ? url : `${import.meta.env.VITE_API_URL}${url}`;
+                })()}
                 target="_blank"
                 rel="noopener noreferrer"
               >

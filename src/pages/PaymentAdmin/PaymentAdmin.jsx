@@ -28,6 +28,7 @@ const PaymentAdmin = () => {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState('');
   const [previewTitle, setPreviewTitle] = useState('');
+  const [previewFileType, setPreviewFileType] = useState(''); // 'pdf', 'image', 'text'
 
   const fileInputRef = useRef(null);
 
@@ -100,23 +101,35 @@ const PaymentAdmin = () => {
 
     setPreviewLoading(true);
     setPreviewError('');
-    setPreviewTitle(`${documents[documentType].name}`);
+    const fileName = documents[documentType].name;
+    setPreviewTitle(fileName);
     setIsPreviewModalOpen(true);
 
     try {
       const url = documents[documentType].url;
       const fullUrl = url.startsWith('http') ? url : `${import.meta.env.VITE_API_URL}${url}`;
 
-      // For images, use the URL directly
-      if (documents[documentType].name.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i)) {
+      // Check file type based on filename, not URL
+      const isImage = fileName.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i);
+      const isPdf = fileName.match(/\.pdf$/i);
+      const isDoc = fileName.match(/\.(doc|docx)$/i);
+
+      if (isImage) {
+        // For images, use the URL directly
+        setPreviewFileType('image');
         setPreviewContent(fullUrl);
-      }
-      // For PDFs, use the URL directly for iframe
-      else if (documents[documentType].name.match(/\.pdf$/i)) {
+      } else if (isPdf) {
+        // For PDFs, use the URL directly for iframe
+        setPreviewFileType('pdf');
         setPreviewContent(fullUrl);
-      }
-      // For other files, try to fetch as text
-      else {
+      } else if (isDoc) {
+        // For DOC/DOCX, show message that preview isn't available
+        setPreviewFileType('unsupported');
+        setPreviewError('Preview not available for Word documents. Please use "Open in new tab" to download.');
+        setPreviewContent('');
+      } else {
+        // For text files, try to fetch as text
+        setPreviewFileType('text');
         const response = await fetch(fullUrl);
         if (!response.ok) {
           throw new Error('Failed to load document content');
@@ -458,17 +471,17 @@ const PaymentAdmin = () => {
               </Alert>
             ) : (
               <>
-                {previewContent && previewContent.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i) ? (
+                {previewFileType === 'image' && previewContent ? (
                   <div className="flex justify-center">
                     <img src={previewContent} alt={previewTitle} className="max-w-full max-h-96 object-contain" />
                   </div>
-                ) : previewContent && previewContent.match(/\.pdf$/i) ? (
+                ) : previewFileType === 'pdf' && previewContent ? (
                   <div className="flex justify-center">
                     <iframe src={previewContent} className="w-full h-96" title={previewTitle} />
                   </div>
-                ) : (
+                ) : previewFileType === 'text' && previewContent ? (
                   <pre className="bg-gray-50 p-4 rounded-lg text-sm overflow-auto max-h-96 whitespace-pre-wrap">{previewContent}</pre>
-                )}
+                ) : null}
               </>
             )}
           </div>
