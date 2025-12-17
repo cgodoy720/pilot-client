@@ -260,6 +260,26 @@ const InfoSessionsTab = ({
     }
   };
 
+  // Format phone number for display
+  const formatPhoneNumber = (phone) => {
+    if (!phone) return '-';
+    
+    // Remove all non-digit characters
+    const cleaned = phone.replace(/\D/g, '');
+    
+    // Format based on length
+    if (cleaned.length === 10) {
+      // US format: (555) 123-4567
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+    } else if (cleaned.length === 11 && cleaned[0] === '1') {
+      // US format with country code: +1 (555) 123-4567
+      return `+1 (${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
+    }
+    
+    // Return original if not a standard format
+    return phone;
+  };
+
   // Copy all emails
   const copyAllEmails = () => {
     const emails = eventRegistrations
@@ -268,6 +288,17 @@ const InfoSessionsTab = ({
     
     if (emails.length > 0) {
       navigator.clipboard.writeText(emails.join(', '));
+    }
+  };
+
+  // Copy all phone numbers
+  const copyAllPhones = () => {
+    const phones = eventRegistrations
+      .filter(reg => reg.phone_number)
+      .map(reg => reg.phone_number);
+    
+    if (phones.length > 0) {
+      navigator.clipboard.writeText(phones.join(', '));
     }
   };
 
@@ -388,14 +419,24 @@ const InfoSessionsTab = ({
                               <h4 className="font-semibold text-[#1a1a1a] font-proxima-bold">
                                 Registrations ({eventRegistrations.length})
                               </h4>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={copyAllEmails}
-                                className="font-proxima"
-                              >
-                                Copy All Emails
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={copyAllEmails}
+                                  className="font-proxima"
+                                >
+                                  Copy All Emails
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={copyAllPhones}
+                                  className="font-proxima"
+                                >
+                                  Copy All Phone Numbers
+                                </Button>
+                              </div>
                             </div>
 
                             {attendanceLoading ? (
@@ -408,6 +449,7 @@ const InfoSessionsTab = ({
                                   <TableRow>
                                     <TableHead className="font-proxima-bold">Name</TableHead>
                                     <TableHead className="font-proxima-bold">Email</TableHead>
+                                    <TableHead className="font-proxima-bold">Phone</TableHead>
                                     <TableHead className="font-proxima-bold">Status</TableHead>
                                     <TableHead className="font-proxima-bold">Actions</TableHead>
                                   </TableRow>
@@ -420,6 +462,9 @@ const InfoSessionsTab = ({
                                       </TableCell>
                                       <TableCell className="font-proxima text-gray-600">
                                         {reg.email}
+                                      </TableCell>
+                                      <TableCell className="font-proxima text-gray-600">
+                                        {formatPhoneNumber(reg.phone_number)}
                                       </TableCell>
                                       <TableCell>
                                         <Badge className={`${getStatusBadgeClasses(reg.status)} font-proxima`}>

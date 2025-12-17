@@ -49,18 +49,18 @@ const PaymentAdmin = () => {
   const loadUsers = async () => {
     try {
       setIsLoadingUsers(true);
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/builders`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
       if (!response.ok) {
-        throw new Error('Failed to load users');
+        throw new Error('Failed to load builders');
       }
 
       const data = await response.json();
-      // Sort users alphabetically
+      // Sort users alphabetically (already sorted by backend, but keeping for safety)
       const sorted = data.sort((a, b) => {
         const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
         const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
@@ -68,7 +68,7 @@ const PaymentAdmin = () => {
       });
       setUsers(sorted);
     } catch (error) {
-      setError(error.message || 'Failed to load users');
+      setError(error.message || 'Failed to load builders');
     } finally {
       setIsLoadingUsers(false);
     }
@@ -231,7 +231,7 @@ const PaymentAdmin = () => {
             Admin Payments View
           </h1>
           <p className="text-gray-600 mt-1">
-            Upload and manage signed Good Job Agreements for Fellows
+            Upload and manage signed Good Job Agreements for Builders
           </p>
         </div>
       </div>
@@ -264,9 +264,9 @@ const PaymentAdmin = () => {
             <div className="p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-1 flex items-center gap-2">
                 <Users className="h-5 w-5 text-[#4242EA]" />
-                Select Fellow
+                Select Builder
               </h2>
-              <p className="text-sm text-gray-600">Choose a fellow to manage their documents</p>
+              <p className="text-sm text-gray-600">Choose a builder to manage their documents</p>
             </div>
 
             {/* Fixed Search Bar */}
@@ -351,7 +351,7 @@ const PaymentAdmin = () => {
                   </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to get started</h3>
                   <p className="text-gray-500 text-sm leading-relaxed">
-                    Select a fellow from the left panel to upload and manage their signed Good Job Agreement.
+                    Select a builder from the left panel to upload and manage their signed Good Job Agreement.
                   </p>
                 </div>
               </div>
@@ -402,7 +402,7 @@ const PaymentAdmin = () => {
                       </div>
                       <div className="flex-1">
                         <h3 className="font-medium text-amber-800 mb-1">No document uploaded</h3>
-                        <p className="text-sm text-amber-700">Upload the signed Good Job Agreement for this fellow.</p>
+                        <p className="text-sm text-amber-700">Upload the signed Good Job Agreement for this builder.</p>
                       </div>
                     </div>
                   </div>

@@ -413,6 +413,40 @@ export const getExcuseStatistics = async (params = {}, token) => {
 };
 
 /**
+ * Search for builders
+ * @param {Object} params - Query parameters (search, cohort)
+ * @param {string} token - Admin authentication token
+ * @returns {Promise<Object>} Builders search results
+ */
+export const searchBuilders = async (params = {}, token) => {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params.search) queryParams.append('search', params.search);
+    if (params.cohort) queryParams.append('cohort', params.cohort);
+
+    const url = `${API_URL}/api/attendance/builders${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error searching builders:', error);
+    throw error;
+  }
+};
+
+/**
  * Export attendance data as CSV
  */
 export const exportAttendanceCSV = async (startDate, endDate, cohort = 'all') => {
@@ -594,6 +628,7 @@ export const adminApi = {
   updateExcuse,
   bulkExcuseCohort,
   getExcuseStatistics,
+  searchBuilders,
   exportAttendanceCSV,
   getCsvExportHistory,
   getAllCsvExportHistory,

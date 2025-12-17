@@ -22,18 +22,13 @@ import {
 import { cachedAdminApi } from '../../services/cachedAdminApi';
 import { useAuth } from '../../context/AuthContext';
 import { getErrorMessage } from '../../utils/retryUtils';
-import { useNetworkStatus } from '../../utils/networkStatus';
 
 const CohortPerformanceDashboard = () => {
   const { token } = useAuth();
-  const { isOnline } = useNetworkStatus(React);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [cacheInfo, setCacheInfo] = useState(null);
-  const [fetchTime, setFetchTime] = useState(null);
-  const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('last-30-days');
   
   const [filters, setFilters] = useState({
@@ -49,37 +44,13 @@ const CohortPerformanceDashboard = () => {
       setLoading(true);
       setError(null);
       
-      if (!isOnline) {
-        setIsOfflineMode(true);
-        const response = await cachedAdminApi.getCachedCohortPerformance(token, { forceRefresh: false, offlineOnly: true });
-        
-        if (response.data) {
-          setData(response.data);
-          setLastUpdated(new Date());
-          setCacheInfo({ isFromCache: true, cachedAt: response.cachedAt, expiresAt: response.expiresAt });
-          setFetchTime(response.fetchTime || 0);
-        } else {
-          setError('No cached data available. Please connect to the internet to load data.');
-        }
-        return;
-      }
-      
-      setIsOfflineMode(false);
       const response = await cachedAdminApi.getCachedCohortPerformance(token, { forceRefresh, period: selectedPeriod });
       
       setData(response.data);
       setLastUpdated(new Date());
-      setCacheInfo({ isFromCache: response.isFromCache, cachedAt: response.cachedAt, expiresAt: response.expiresAt });
-      setFetchTime(response.fetchTime || 0);
     } catch (err) {
       console.error('Error fetching cohort performance:', err);
-      
-      if (!isOnline && data) {
-        setIsOfflineMode(true);
-        setError('Showing cached data - no network connection');
-      } else {
-        setError(getErrorMessage(err));
-      }
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -194,16 +165,8 @@ const CohortPerformanceDashboard = () => {
             </SelectContent>
           </Select>
           
-          {isOfflineMode && (
-            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">Offline Mode</Badge>
-          )}
           {lastUpdated && (
             <span className="text-sm text-[#666666]">Updated: {lastUpdated.toLocaleTimeString()}</span>
-          )}
-          {cacheInfo && (
-            <Badge variant="outline" className={cacheInfo.isFromCache ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}>
-              {cacheInfo.isFromCache ? 'Cached' : 'Live'}{fetchTime && ` (${fetchTime}ms)`}
-            </Badge>
           )}
           <button onClick={handleRefresh} disabled={loading} className="p-2 hover:bg-[#EFEFEF] rounded-md transition-colors disabled:opacity-50" title="Refresh">
             <RefreshCw className={`h-4 w-4 text-[#666666] ${loading ? 'animate-spin' : ''}`} />
