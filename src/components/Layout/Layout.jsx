@@ -132,6 +132,10 @@ const Layout = ({ children, isLoading = false }) => {
     if (location.pathname.startsWith('/workshop')) {
       return <CalendarIcon className="h-4 w-4 text-[#E3E3E3]" />;
     }
+    // Payment Admin routes
+    if (location.pathname.startsWith('/payment-admin')) {
+      return <Briefcase className="h-4 w-4 text-[#E3E3E3]" />;
+    }
 
     return iconMap[location.pathname] || logo;
   };
@@ -321,8 +325,14 @@ const Layout = ({ children, isLoading = false }) => {
           user?.role === 'admin' || user?.role === 'staff'
         )}
         
+        {/* Payment Admin - NEW */}
+        {renderNavLink('/payment-admin', <Briefcase className="h-4 w-4 text-[#E3E3E3]" />, 'Payment Admin', 
+          user?.role === 'admin' || user?.role === 'staff',
+          () => location.pathname.startsWith('/payment-admin')
+        )}
+        
         {/* Sales Tracker */}
-        {renderNavLink('/sales-tracker', <Target className="h-4 w-4 text-[#E3E3E3]" />, 'Sputnik', 
+        {renderNavLink('/sales-tracker', <Target className="h-4 w-4 text-[#E3E3E3]" />, 'Sales Tracker', 
           user?.role === 'admin' || user?.role === 'staff'
         )}
         
