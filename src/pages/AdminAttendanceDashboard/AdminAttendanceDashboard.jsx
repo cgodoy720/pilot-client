@@ -42,7 +42,7 @@ const AdminAttendanceDashboard = () => {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-[#EFEFEF] p-8">
+      <div className="min-h-screen bg-slate-50 p-8">
         <div className="max-w-4xl mx-auto">
           <div className="bg-red-50 text-red-600 px-6 py-8 rounded-lg border border-red-200 text-center">
             <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
@@ -53,50 +53,40 @@ const AdminAttendanceDashboard = () => {
     );
   }
 
-
   return (
     <AdminDashboardErrorBoundary>
-      <div className="min-h-screen bg-[#EFEFEF]">
+      <div className="min-h-screen bg-slate-50">
         {/* Header */}
-        <div className="border-b border-[#C8C8C8] px-10 py-4">
-          <div>
-            <h1 
-              className="text-2xl font-normal"
-              style={{
-                background: 'linear-gradient(90deg, #1E1E1E 0%, #4242EA 55.29%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              Admin Attendance Dashboard
+        <div className="bg-white border-b border-slate-200 px-8 py-6">
+          <div className="max-w-7xl mx-auto">
+            <h1 className="text-3xl font-bold text-slate-900">
+              Attendance Dashboard
             </h1>
-            <p className="text-[#666666] mt-1">
-              Comprehensive tools for tracking, managing, and analyzing builder attendance.
+            <p className="text-slate-600 mt-1">
+              Track and manage builder attendance across all cohorts
             </p>
           </div>
         </div>
 
-        <div className="p-8 max-w-[1400px] mx-auto">
-
+        <div className="max-w-7xl mx-auto px-8 py-8">
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="bg-white border border-[#C8C8C8] p-1 mb-6 flex-wrap h-auto gap-1">
+            <TabsList className="bg-white border border-slate-200 p-1 mb-8 rounded-lg inline-flex">
               <TabsTrigger 
                 value="todays-attendance"
-                className="data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-[#1E1E1E]"
+                className="data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-slate-700 font-medium px-6 py-2.5 rounded-md transition-all"
               >
                 Today's Attendance
               </TabsTrigger>
               <TabsTrigger 
                 value="cohort-performance"
-                className="data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-[#1E1E1E]"
+                className="data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-slate-700 font-medium px-6 py-2.5 rounded-md transition-all"
               >
                 Cohort Performance
               </TabsTrigger>
               <TabsTrigger 
                 value="excuse-management"
-                className="data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-[#1E1E1E]"
+                className="data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-slate-700 font-medium px-6 py-2.5 rounded-md transition-all"
               >
                 Excuse Management
               </TabsTrigger>
