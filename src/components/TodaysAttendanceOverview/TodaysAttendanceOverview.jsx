@@ -3,7 +3,6 @@ import { Users, RefreshCw, Clock, CheckCircle, AlertTriangle, ChevronDown, Chevr
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { cachedAdminApi } from '../../services/cachedAdminApi';
-import { adminApi } from '../../services/adminApi';
 import { useAuth } from '../../context/AuthContext';
 
 const TodaysAttendanceOverview = () => {
@@ -55,21 +54,24 @@ const TodaysAttendanceOverview = () => {
       setExpandedCohort(cohortName);
       setLoadingDetails(true);
       
-      const today = new Date().toISOString().split('T')[0];
-      const response = await adminApi.getDailyReport(today, token);
+      // Find the cohort data from the already-loaded data
+      const cohortData = data.cohorts.find(c => c.cohort === cohortName);
       
-      const cohortData = response.reportData.filter(builder => builder.cohort === cohortName);
+      if (!cohortData) {
+        setError('Cohort not found');
+        return;
+      }
       
-      const presentBuilders = cohortData.filter(b => b.status === 'present' || b.status === 'late');
-      const absentBuilders = cohortData.filter(b => b.status === 'absent');
-      const excusedBuilders = cohortData.filter(b => b.status === 'excused');
+      // Filter builders to only show checked-in ones (present, late, excused)
+      const checkedInBuilders = cohortData.builders.filter(b => 
+        b.status === 'present' || b.status === 'late' || b.status === 'excused'
+      );
       
       setCohortDetails({
-        present: presentBuilders,
-        absent: absentBuilders,
-        excused: excusedBuilders
+        checkedIn: checkedInBuilders
       });
     } catch (err) {
+      console.error('Error loading cohort details:', err);
       setError('Failed to load cohort details');
     } finally {
       setLoadingDetails(false);
@@ -276,79 +278,50 @@ const TodaysAttendanceOverview = () => {
 
                   {/* Expanded Details */}
                   {isExpanded && (
-                    <div className="border-t border-slate-200 bg-slate-50 p-4">
+                    <div className="border-t border-slate-200 bg-slate-50 p-6">
                       {loadingDetails ? (
                         <div className="flex items-center justify-center py-8">
                           <RefreshCw className="h-6 w-6 text-[#4242EA] animate-spin" />
                         </div>
                       ) : cohortDetails ? (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          {/* Present/Late Builders */}
-                          {cohortDetails.present.length > 0 && (
-                            <div>
-                              <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                                <CheckCircle className="h-4 w-4 text-green-600" />
-                                Checked In ({cohortDetails.present.length})
-                              </h4>
-                              <div className="space-y-1">
-                                {cohortDetails.present.map((builder, idx) => (
-                                  <div key={idx} className="flex items-center justify-between text-sm bg-white p-2 rounded">
-                                    <span className="text-slate-700">{builder.firstName} {builder.lastName}</span>
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-xs text-slate-500">{formatTime(builder.checkInTime)}</span>
-                                      {builder.lateArrivalMinutes > 0 && (
-                                        <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200">
-                                          +{builder.lateArrivalMinutes}m
-                                        </Badge>
-                                      )}
-                                    </div>
+                        <div>
+                          <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            Members Checked In Today ({cohortDetails.checkedIn?.length || 0})
+                          </h4>
+                          {cohortDetails.checkedIn && cohortDetails.checkedIn.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                              {cohortDetails.checkedIn.map((builder, idx) => (
+                                <div key={idx} className="flex items-center justify-between text-sm bg-white p-3 rounded-lg border border-slate-200">
+                                  <div className="flex-1">
+                                    <p className="font-medium text-slate-900">{builder.firstName} {builder.lastName}</p>
+                                    <p className="text-xs text-slate-500">{formatTime(builder.checkInTime)}</p>
                                   </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Absent Builders */}
-                          {cohortDetails.absent.length > 0 && (
-                            <div>
-                              <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                                <AlertTriangle className="h-4 w-4 text-red-600" />
-                                Absent ({cohortDetails.absent.length})
-                              </h4>
-                              <div className="space-y-1">
-                                {cohortDetails.absent.map((builder, idx) => (
-                                  <div key={idx} className="flex items-center justify-between text-sm bg-white p-2 rounded">
-                                    <span className="text-slate-700">{builder.firstName} {builder.lastName}</span>
-                                    <Badge className="text-xs bg-red-100 text-red-700 border-red-200">
-                                      Absent
-                                    </Badge>
+                                  <div className="flex items-center gap-2 ml-2">
+                                    {builder.status === 'excused' ? (
+                                      <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200">
+                                        Excused
+                                      </Badge>
+                                    ) : builder.lateArrivalMinutes > 0 ? (
+                                      <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200">
+                                        +{builder.lateArrivalMinutes}m
+                                      </Badge>
+                                    ) : (
+                                      <Badge className="text-xs bg-green-100 text-green-700 border-green-200">
+                                        On Time
+                                      </Badge>
+                                    )}
                                   </div>
-                                ))}
-                              </div>
+                                </div>
+                              ))}
                             </div>
-                          )}
-
-                          {/* Excused Builders */}
-                          {cohortDetails.excused.length > 0 && (
-                            <div>
-                              <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                                <CheckCircle className="h-4 w-4 text-blue-600" />
-                                Excused ({cohortDetails.excused.length})
-                              </h4>
-                              <div className="space-y-1">
-                                {cohortDetails.excused.map((builder, idx) => (
-                                  <div key={idx} className="flex items-center justify-between text-sm bg-white p-2 rounded">
-                                    <span className="text-slate-700">{builder.firstName} {builder.lastName}</span>
-                                    <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200">
-                                      Excused
-                                    </Badge>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
+                          ) : (
+                            <p className="text-sm text-slate-500 italic text-center py-8">No one checked in yet today</p>
                           )}
                         </div>
-                      ) : null}
+                      ) : (
+                        <p className="text-sm text-slate-500 text-center py-4">Unable to load details</p>
+                      )}
                     </div>
                   )}
                 </div>
