@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, RefreshCw, AlertTriangle, CheckCircle, User, Info } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { TrendingUp, RefreshCw, AlertTriangle, User, ChevronDown } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
@@ -33,11 +33,12 @@ const CohortPerformanceDashboard = () => {
   
   const [filters, setFilters] = useState({
     builder: '',
-    cohort: '',
-    attendanceRate: '',
+    cohorts: ['December 2025', 'March 2025'], // Default to these two cohorts
     recommendation: ''
   });
   const [filteredRiskData, setFilteredRiskData] = useState([]);
+  const [cohortDropdownOpen, setCohortDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   const fetchData = async (forceRefresh = false) => {
     try {
@@ -49,7 +50,6 @@ const CohortPerformanceDashboard = () => {
       setData(response.data);
       setLastUpdated(new Date());
     } catch (err) {
-      console.error('Error fetching cohort performance:', err);
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
@@ -79,8 +79,31 @@ const CohortPerformanceDashboard = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ builder: '', cohort: '', attendanceRate: '', recommendation: '' });
+    setFilters({ builder: '', cohorts: ['December 2025', 'March 2025'], recommendation: '' });
   };
+
+  const toggleCohort = (cohort) => {
+    setFilters(prev => {
+      const cohorts = prev.cohorts.includes(cohort)
+        ? prev.cohorts.filter(c => c !== cohort)
+        : [...prev.cohorts, cohort];
+      return { ...prev, cohorts };
+    });
+  };
+
+  const availableCohorts = ['December 2025', 'March 2025', 'September 2025', 'June 2025'];
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setCohortDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const applyFilters = (riskData) => {
     if (!riskData) return [];
@@ -89,12 +112,15 @@ const CohortPerformanceDashboard = () => {
       const matchesBuilder = !filters.builder || 
         `${builder.firstName} ${builder.lastName}`.toLowerCase().includes(filters.builder.toLowerCase()) ||
         builder.email.toLowerCase().includes(filters.builder.toLowerCase());
-      const matchesCohort = !filters.cohort || filters.cohort === 'all' || builder.cohort.includes(filters.cohort);
-      const matchesRate = !filters.attendanceRate || builder.attendanceRate.toString().includes(filters.attendanceRate);
+      
+      // Match if cohorts array is empty (show all) or if builder's cohort is in the selected cohorts
+      const matchesCohort = filters.cohorts.length === 0 || 
+        filters.cohorts.some(cohort => builder.cohort.includes(cohort));
+      
       const matchesRecommendation = !filters.recommendation || filters.recommendation === 'all' || 
         (builder.recommendation || 'Monitor').includes(filters.recommendation);
       
-      return matchesBuilder && matchesCohort && matchesRate && matchesRecommendation;
+      return matchesBuilder && matchesCohort && matchesRecommendation;
     });
   };
 
@@ -108,9 +134,9 @@ const CohortPerformanceDashboard = () => {
 
   if (loading && !data) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="animate-spin w-8 h-8 border-4 border-[#4242EA] border-t-transparent rounded-full mb-4"></div>
-        <p className="text-[#666666]">Loading cohort performance data...</p>
+      <div className="flex flex-col items-center justify-center py-16">
+        <RefreshCw className="h-8 w-8 text-[#4242EA] animate-spin mb-4" />
+        <p className="text-slate-600">Loading cohort performance data...</p>
       </div>
     );
   }
@@ -132,7 +158,7 @@ const CohortPerformanceDashboard = () => {
   if (!data) {
     return (
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
-        <Info className="h-5 w-5 text-blue-600" />
+        <AlertTriangle className="h-5 w-5 text-blue-600" />
         <span className="text-blue-600">No cohort performance data available.</span>
       </div>
     );
@@ -141,19 +167,16 @@ const CohortPerformanceDashboard = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <TrendingUp className="h-6 w-6 text-[#4242EA]" />
-          <div>
-            <h2 className="text-xl font-semibold text-[#1E1E1E]">Cohort Performance Dashboard</h2>
-            {data?.period?.displayName && (
-              <p className="text-sm text-[#666666]">{data.period.displayName}</p>
-            )}
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold text-slate-900">Cohort Performance</h2>
+          <p className="text-sm text-slate-600 mt-1">
+            {data?.period?.displayName} • {lastUpdated && `Updated ${lastUpdated.toLocaleTimeString()}`}
+          </p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-[180px] bg-white border-[#C8C8C8]">
+            <SelectTrigger className="w-[180px] bg-white border-slate-300">
               <SelectValue placeholder="Time Period" />
             </SelectTrigger>
             <SelectContent className="bg-white">
@@ -165,146 +188,220 @@ const CohortPerformanceDashboard = () => {
             </SelectContent>
           </Select>
           
-          {lastUpdated && (
-            <span className="text-sm text-[#666666]">Updated: {lastUpdated.toLocaleTimeString()}</span>
-          )}
-          <button onClick={handleRefresh} disabled={loading} className="p-2 hover:bg-[#EFEFEF] rounded-md transition-colors disabled:opacity-50" title="Refresh">
-            <RefreshCw className={`h-4 w-4 text-[#666666] ${loading ? 'animate-spin' : ''}`} />
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
           </button>
         </div>
       </div>
 
+      {/* Summary Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="bg-white border border-slate-200 shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Overall Rate</p>
+                <p className="text-3xl font-bold text-slate-900 mt-1">
+                  {data.summary?.overallAttendanceRate?.toFixed(1) || 0}%
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Average across all cohorts</p>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-white border border-slate-200 shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Meeting Target</p>
+                <p className="text-3xl font-bold text-slate-900 mt-1">
+                  {data.summary?.cohortsMeetingRequirement || 0} / {data.summary?.totalCohorts || 0}
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-emerald-600" />
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Cohorts above threshold</p>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-white border border-slate-200 shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">At Risk</p>
+                <p className="text-3xl font-bold text-slate-900 mt-1">
+                  {data.summary?.buildersAtRisk || 0}
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Builders requiring attention</p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Cohort Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {data.cohorts?.map((cohort) => {
-          const requirement = getRequirementForCohort(cohort.cohort);
-          const isMeetingRequirement = cohort.attendanceRate >= requirement;
+      <Card className="bg-white border border-slate-200 shadow-sm">
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Cohort Breakdown</h3>
           
-          return (
-            <Card key={cohort.cohort} className={`border-2 ${isMeetingRequirement ? 'bg-gradient-to-br from-[#11998e]/5 to-[#38ef7d]/10 border-[#11998e]/30' : 'bg-gradient-to-br from-[#eb3349]/5 to-[#f45c43]/10 border-[#eb3349]/30'}`}>
-              <CardContent className="p-5">
-                <div className="text-center mb-4">
-                  <h3 className={`text-lg font-bold mb-3 ${isMeetingRequirement ? 'text-[#11998e]' : 'text-[#eb3349]'}`}>{cohort.cohort}</h3>
-                  <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-white font-bold ${isMeetingRequirement ? 'bg-gradient-to-r from-[#11998e] to-[#38ef7d]' : 'bg-gradient-to-r from-[#eb3349] to-[#f45c43]'}`}>
-                    <span className="text-3xl">{cohort.attendanceRate.toFixed(0)}%</span>
-                    <Badge variant="outline" className="bg-white/20 text-white border-white/30 text-xs">
-                      {isMeetingRequirement ? <CheckCircle className="h-3 w-3 mr-1" /> : <AlertTriangle className="h-3 w-3 mr-1" />}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {data.cohorts?.map((cohort) => {
+              const requirement = getRequirementForCohort(cohort.cohort);
+              const isMeetingRequirement = cohort.attendanceRate >= requirement;
+              
+              return (
+                <div key={cohort.cohort} className="border border-slate-200 rounded-lg p-4 hover:border-slate-300 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-slate-900">{cohort.cohort}</h4>
+                    <Badge className={isMeetingRequirement ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-red-100 text-red-700 border-red-200'}>
                       Target: {requirement}%
                     </Badge>
                   </div>
+                  
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="text-slate-600">Attendance Rate</span>
+                      <span className="font-semibold text-slate-900">{cohort.attendanceRate.toFixed(1)}%</span>
+                    </div>
+                    <Progress 
+                      value={cohort.attendanceRate} 
+                      className={`h-2 ${isMeetingRequirement ? '[&>div]:bg-emerald-500' : '[&>div]:bg-red-500'}`}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="bg-slate-50 rounded p-2 text-center">
+                      <p className="font-semibold text-slate-900">{cohort.totalBuilders}</p>
+                      <p className="text-xs text-slate-600">Total</p>
+                    </div>
+                    <div className="bg-emerald-50 rounded p-2 text-center">
+                      <p className="font-semibold text-emerald-700">{cohort.presentToday}</p>
+                      <p className="text-xs text-slate-600">Present</p>
+                    </div>
+                    <div className="bg-red-50 rounded p-2 text-center">
+                      <p className="font-semibold text-red-700">{cohort.absentToday}</p>
+                      <p className="text-xs text-slate-600">Absent</p>
+                    </div>
+                    <div className="bg-blue-50 rounded p-2 text-center">
+                      <p className="font-semibold text-blue-700">{cohort.excusedToday || 0}</p>
+                      <p className="text-xs text-slate-600">Excused</p>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="mb-4">
-                  <div className="flex justify-between text-xs text-[#666666] mb-1">
-                    <span>Cohort Target: 75%+</span>
-                    <span className="font-semibold">{cohort.attendanceRate.toFixed(0)}%</span>
-                  </div>
-                  <Progress value={cohort.attendanceRate} className={`h-2 ${isMeetingRequirement ? '[&>div]:bg-gradient-to-r [&>div]:from-[#11998e] [&>div]:to-[#38ef7d]' : '[&>div]:bg-gradient-to-r [&>div]:from-[#eb3349] [&>div]:to-[#f45c43]'}`} />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-white/70 rounded-lg p-2 text-center border border-black/5">
-                    <p className="text-xl font-bold text-[#1E1E1E]">{cohort.totalBuilders}</p>
-                    <p className="text-[10px] font-semibold text-[#666666] uppercase">Total</p>
-                  </div>
-                  <div className="bg-white/70 rounded-lg p-2 text-center border border-black/5">
-                    <p className="text-xl font-bold text-[#11998e]">{cohort.presentToday}</p>
-                    <p className="text-[10px] font-semibold text-[#666666] uppercase">Present</p>
-                  </div>
-                  <div className="bg-white/70 rounded-lg p-2 text-center border border-black/5">
-                    <p className="text-xl font-bold text-[#eb3349]">{cohort.absentToday}</p>
-                    <p className="text-[10px] font-semibold text-[#666666] uppercase">Absent</p>
-                  </div>
-                  <div className="bg-white/70 rounded-lg p-2 text-center border border-black/5">
-                    <p className="text-xl font-bold text-[#f2994a]">{cohort.excusedToday || 0}</p>
-                    <p className="text-[10px] font-semibold text-[#666666] uppercase">Excused</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-br from-[#667eea]/10 to-[#764ba2]/15 border-2 border-[#667eea]/30 rounded-2xl">
-          <CardContent className="p-6 text-center">
-            <p className="text-xs font-semibold text-[#667eea] uppercase tracking-wider mb-2">Overall Performance</p>
-            <p className="text-4xl font-black text-[#1E1E1E]">{data.summary?.overallAttendanceRate?.toFixed(1) || 0}%</p>
-            <p className="text-xs text-[#666666] mt-1">Average across all cohorts</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-br from-[#11998e]/10 to-[#38ef7d]/15 border-2 border-[#11998e]/30 rounded-2xl">
-          <CardContent className="p-6 text-center">
-            <p className="text-xs font-semibold text-[#11998e] uppercase tracking-wider mb-2">Meeting Target</p>
-            <p className="text-4xl font-black text-[#1E1E1E]">{data.summary?.cohortsMeetingRequirement || 0} / {data.summary?.totalCohorts || 0}</p>
-            <p className="text-xs text-[#666666] mt-1">Cohorts above threshold</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-br from-[#eb3349]/10 to-[#f45c43]/15 border-2 border-[#eb3349]/30 rounded-2xl">
-          <CardContent className="p-6 text-center">
-            <p className="text-xs font-semibold text-[#eb3349] uppercase tracking-wider mb-2">Builders at Risk</p>
-            <p className="text-4xl font-black text-[#1E1E1E]">{data.summary?.buildersAtRisk || 0}</p>
-            <p className="text-xs text-[#666666] mt-1">Requiring attention</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Risk Assessment Table */}
+      {/* At-Risk Builders Table */}
       {data.riskAssessment && data.riskAssessment.length > 0 && (
-        <Card className="bg-white border-[#C8C8C8]">
+        <Card className="bg-white border border-slate-200 shadow-sm">
           <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              <h3 className="text-lg font-semibold text-[#1E1E1E]">Builders at Risk</h3>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">Builders at Risk</h3>
+                <p className="text-sm text-slate-600 mt-1">
+                  Builders below attendance thresholds
+                  {filteredRiskData.length !== data.riskAssessment.length && ` (${filteredRiskData.length} of ${data.riskAssessment.length} shown)`}
+                </p>
+              </div>
             </div>
-            <p className="text-sm text-[#666666] mb-4">
-              Builders below attendance thresholds requiring attention
-              {filteredRiskData.length !== data.riskAssessment.length && ` (${filteredRiskData.length} of ${data.riskAssessment.length} shown)`}
-            </p>
             
             {/* Filters */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <Input placeholder="Filter by name..." value={filters.builder} onChange={(e) => handleFilterChange('builder', e.target.value)} className="bg-white border-[#C8C8C8]" />
-              <Select value={filters.cohort || 'all'} onValueChange={(v) => handleFilterChange('cohort', v === 'all' ? '' : v)}>
-                <SelectTrigger className="bg-white border-[#C8C8C8]"><SelectValue placeholder="All Cohorts" /></SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="all">All Cohorts</SelectItem>
-                  <SelectItem value="September 2025">September 2025</SelectItem>
-                  <SelectItem value="June 2025">June 2025</SelectItem>
-                  <SelectItem value="March 2025">March 2025</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input placeholder="Filter rate..." value={filters.attendanceRate} onChange={(e) => handleFilterChange('attendanceRate', e.target.value)} className="bg-white border-[#C8C8C8]" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+              <Input 
+                placeholder="Search by name..." 
+                value={filters.builder} 
+                onChange={(e) => handleFilterChange('builder', e.target.value)} 
+                className="bg-white border-slate-300"
+              />
+              
+              {/* Multi-Select Cohort Dropdown */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setCohortDropdownOpen(!cohortDropdownOpen)}
+                  className="w-full flex items-center justify-between px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm hover:bg-slate-50 transition-colors"
+                >
+                  <span className="text-slate-700">
+                    {filters.cohorts.length === 0 
+                      ? 'All Cohorts' 
+                      : filters.cohorts.length === 1
+                      ? filters.cohorts[0]
+                      : `${filters.cohorts.length} Cohorts Selected`
+                    }
+                  </span>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${cohortDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {cohortDropdownOpen && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-slate-300 rounded-lg shadow-lg">
+                    <div className="p-2 space-y-1">
+                      {availableCohorts.map((cohort) => (
+                        <label
+                          key={cohort}
+                          className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 rounded cursor-pointer transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filters.cohorts.includes(cohort)}
+                            onChange={() => toggleCohort(cohort)}
+                            className="w-4 h-4 text-[#4242EA] border-slate-300 rounded focus:ring-[#4242EA] focus:ring-2"
+                          />
+                          <span className="text-sm text-slate-700">
+                            {cohort}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
               <Select value={filters.recommendation || 'all'} onValueChange={(v) => handleFilterChange('recommendation', v === 'all' ? '' : v)}>
-                <SelectTrigger className="bg-white border-[#C8C8C8]"><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectTrigger className="bg-white border-slate-300">
+                  <SelectValue placeholder="All Recommendations" />
+                </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="all">All Recommendations</SelectItem>
                   <SelectItem value="Monitor">Monitor</SelectItem>
                   <SelectItem value="Intervention Required">Intervention Required</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
-            {(filters.builder || filters.cohort || filters.attendanceRate || filters.recommendation) && (
+            {(filters.builder || filters.cohorts.length !== 2 || filters.recommendation) && (
               <div className="mb-4">
-                <button onClick={clearFilters} className="text-sm text-[#4242EA] hover:underline">Clear All Filters</button>
+                <button onClick={clearFilters} className="text-sm text-[#4242EA] hover:underline">
+                  Reset to Default Filters
+                </button>
               </div>
             )}
             
-            <div className="border border-[#C8C8C8] rounded-lg overflow-hidden">
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-[#F9F9F9]">
-                    <TableHead className="text-[#1E1E1E] font-semibold">Builder</TableHead>
-                    <TableHead className="text-[#1E1E1E] font-semibold">Cohort</TableHead>
-                    <TableHead className="text-[#1E1E1E] font-semibold text-right">Rate</TableHead>
-                    <TableHead className="text-[#1E1E1E] font-semibold text-right">Req.</TableHead>
-                    <TableHead className="text-[#1E1E1E] font-semibold text-center">Status</TableHead>
-                    <TableHead className="text-[#1E1E1E] font-semibold text-center">Action</TableHead>
+                  <TableRow className="bg-slate-50">
+                    <TableHead className="text-slate-900 font-semibold">Builder</TableHead>
+                    <TableHead className="text-slate-900 font-semibold">Cohort</TableHead>
+                    <TableHead className="text-slate-900 font-semibold text-right">Attendance Rate</TableHead>
+                    <TableHead className="text-slate-900 font-semibold text-right">Target</TableHead>
+                    <TableHead className="text-slate-900 font-semibold text-center">Status</TableHead>
+                    <TableHead className="text-slate-900 font-semibold text-center">Recommendation</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -313,28 +410,30 @@ const CohortPerformanceDashboard = () => {
                     const isAtRisk = builder.attendanceRate < requirement;
                     
                     return (
-                      <TableRow key={index} className="border-b border-[#E3E3E3]">
+                      <TableRow key={index} className="border-b border-slate-200">
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-[#666666]" />
+                            <User className="h-4 w-4 text-slate-400" />
                             <div>
-                              <p className="text-sm font-medium text-[#1E1E1E]">{builder.firstName} {builder.lastName}</p>
-                              <p className="text-xs text-[#666666]">{builder.email}</p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {builder.firstName} {builder.lastName}
+                              </p>
+                              <p className="text-xs text-slate-500">{builder.email}</p>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-[#1E1E1E]">{builder.cohort}</TableCell>
-                        <TableCell className={`text-right font-semibold ${isAtRisk ? 'text-red-600' : 'text-[#1E1E1E]'}`}>
+                        <TableCell className="text-slate-700">{builder.cohort}</TableCell>
+                        <TableCell className={`text-right font-semibold ${isAtRisk ? 'text-red-600' : 'text-slate-900'}`}>
                           {builder.attendanceRate.toFixed(1)}%
                         </TableCell>
-                        <TableCell className="text-right text-[#666666]">{requirement}%</TableCell>
+                        <TableCell className="text-right text-slate-600">{requirement}%</TableCell>
                         <TableCell className="text-center">
-                          <Badge className={isAtRisk ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}>
+                          <Badge className={isAtRisk ? 'bg-red-100 text-red-700 border-red-200' : 'bg-green-100 text-green-700 border-green-200'}>
                             {isAtRisk ? 'At Risk' : 'Safe'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">
-                          <Badge variant="outline" className={isAtRisk ? 'border-amber-400 text-amber-700' : 'border-[#C8C8C8] text-[#666666]'}>
+                          <Badge variant="outline" className={isAtRisk ? 'border-amber-400 text-amber-700 bg-amber-50' : 'border-slate-300 text-slate-600'}>
                             {builder.recommendation || 'Monitor'}
                           </Badge>
                         </TableCell>
