@@ -43,14 +43,15 @@ function Dashboard() {
   const [taskCompletionMap, setTaskCompletionMap] = useState({});
 
   useEffect(() => {
-    // Only fetch dashboard data if user is active
-    if (isActive) {
+    // Only fetch dashboard data if user is active and not a volunteer
+    // Volunteers have their own view that doesn't need builder curriculum data
+    if (isActive && !isVolunteer) {
       fetchDashboardData();
     } else {
-      // If user is inactive, we don't need to load the dashboard data
+      // If user is inactive or a volunteer, we don't need to load the builder dashboard data
       setIsLoading(false);
     }
-  }, [token, cohortFilter, user?.role, isActive]);
+  }, [token, cohortFilter, user?.role, isActive, isVolunteer]);
 
   const fetchDashboardData = async () => {
     try {

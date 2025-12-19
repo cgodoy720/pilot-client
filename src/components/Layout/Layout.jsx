@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Settings, Award, Users, FileText, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench, Target } from 'lucide-react';
+import { LogOut, Settings, Award, Users, FileText, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench, Target, ListChecks, ClipboardList, UserCheck, Heart } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import LoadingCurtain from '../LoadingCurtain/LoadingCurtain';
+import NavDropdown from './NavDropdown';
 import { cn } from '../../lib/utils';
 import logo from '../../assets/logo.png';
 
@@ -10,6 +12,7 @@ const Layout = ({ children, isLoading = false }) => {
   const [isNavbarHovered, setIsNavbarHovered] = useState(false);
   const [isMobileNavbarOpen, setIsMobileNavbarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(null); // Track which dropdown is open
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -100,41 +103,49 @@ const Layout = ({ children, isLoading = false }) => {
       )
     };
 
-    // Check for admin routes
-    if (location.pathname === '/admin-dashboard' && (user?.role === 'admin' || user?.role === 'staff')) {
-      return <Settings className="h-4 w-4 text-[#E3E3E3]" />;
+    // Check for Staff dropdown routes (admin/staff only)
+    const staffRoutes = [
+      '/admin-dashboard',
+      '/admin-attendance-dashboard', 
+      '/admin/assessment-grades',
+      '/admissions-dashboard',
+      '/sales-tracker',
+      '/payment-admin',
+      '/content'
+    ];
+    
+    if ((user?.role === 'admin' || user?.role === 'staff')) {
+      // Check if on any staff route
+      if (staffRoutes.some(route => location.pathname === route || location.pathname.startsWith(route))) {
+        return <Users className="h-4 w-4 text-[#E3E3E3]" />;
+      }
+      // Check for Admin dropdown route (AI Prompts)
+      if (location.pathname === '/admin-prompts') {
+        return <Settings className="h-4 w-4 text-[#E3E3E3]" />;
+      }
+      // Check for Pathfinder Admin (also in Staff dropdown)
+      if (location.pathname.startsWith('/pathfinder/admin')) {
+        return <Users className="h-4 w-4 text-[#E3E3E3]" />;
+      }
     }
-    if (location.pathname === '/admin/assessment-grades' && (user?.role === 'admin' || user?.role === 'staff')) {
-      return <Award className="h-4 w-4 text-[#E3E3E3]" />;
-    }
-    if (location.pathname === '/admissions-dashboard' && (user?.role === 'admin' || user?.role === 'staff')) {
-      return <Users className="h-4 w-4 text-[#E3E3E3]" />;
-    }
-    if ((location.pathname === '/content' || location.pathname.startsWith('/content')) && (user?.role === 'admin' || user?.role === 'staff')) {
-      return <Bug className="h-4 w-4 text-[#E3E3E3]" />;
-    }
-    if (location.pathname === '/admin-prompts' && (user?.role === 'admin' || user?.role === 'staff')) {
-      return <Brain className="h-4 w-4 text-[#E3E3E3]" />;
-    }
-    if ((location.pathname === '/volunteer-feedback' || location.pathname === '/admin-volunteer-feedback') &&
+    
+    // Check for volunteer routes
+    if ((location.pathname === '/volunteer-feedback' || 
+         location.pathname === '/admin-volunteer-feedback' ||
+         location.pathname === '/my-schedule' ||
+         location.pathname === '/volunteer-list' ||
+         location.pathname === '/volunteer-roster' ||
+         location.pathname === '/volunteer-attendance') &&
         (user?.role === 'volunteer' || user?.role === 'admin' || user?.role === 'staff')) {
-      return <MessageCircle className="h-4 w-4 text-[#E3E3E3]" />;
+      return <Heart className="h-4 w-4 text-[#E3E3E3]" />;
     }
-    // Pathfinder routes
-    if (location.pathname.startsWith('/pathfinder')) {
+    // Pathfinder routes (for fellows)
+    if (location.pathname.startsWith('/pathfinder') && !location.pathname.startsWith('/pathfinder/admin')) {
       return <ArrowRight className="h-4 w-4 text-[#E3E3E3]" />;
-    }
-    // Payment routes
-    if (location.pathname.startsWith('/payment')) {
-      return <Briefcase className="h-4 w-4 text-[#E3E3E3]" />;
     }
     // Workshop routes
     if (location.pathname.startsWith('/workshop')) {
       return <CalendarIcon className="h-4 w-4 text-[#E3E3E3]" />;
-    }
-    // Payment Admin routes
-    if (location.pathname.startsWith('/payment-admin')) {
-      return <Briefcase className="h-4 w-4 text-[#E3E3E3]" />;
     }
 
     return iconMap[location.pathname] || logo;
@@ -258,92 +269,91 @@ const Layout = ({ children, isLoading = false }) => {
           </svg>
         ), 'Calendar', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)}
         
-        {/* Pathfinder - NEW from dev */}
-        {renderNavLink('/pathfinder/dashboard', <ArrowRight className="h-4 w-4 text-[#E3E3E3]" />, 'Pathfinder', 
-          !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant,
+        {/* Pathfinder - NEW from dev (hidden for volunteers) */}
+        {renderNavLink('/pathfinder/dashboard', <ArrowRight className="h-4 w-4 text-[#E3E3E3]" />, 'Pathfinder',
+          !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant && !isVolunteer,
           () => location.pathname.startsWith('/pathfinder')
         )}
         
-        {/* Pathfinder Admin - NEW from dev */}
-        {renderNavLink('/pathfinder/admin', <Settings className="h-4 w-4 text-[#E3E3E3]" />, 'Pathfinder Admin', 
-          (user?.role === 'admin' || user?.role === 'staff')
-        )}
-        
-        {/* My Performance - Show for fellows, admin, and staff; Hide for workshop participants, workshop admins, and applicants */}
+        {/* My Performance - Show for fellows, admin, and staff; Hide for workshop participants, workshop admins, applicants, and volunteers */}
         {renderNavLink('/performance', (
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-        ), 'Performance', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)}
-        
-        {/* Assessment - Show for fellows, admin, and staff; Hide for workshop participants, workshop admins, and applicants */}
-        {/* {renderNavLink('/assessment', (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <polyline points="14,2 14,8 20,8" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <line x1="16" y1="13" x2="8" y2="13" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <line x1="16" y1="17" x2="8" y2="17" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <polyline points="10,9 9,9 8,9" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        ), 'Assessment', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)} */}
-        
-        {/* Payment - NEW from dev */}
-        {/* {renderNavLink('/payment', <Briefcase className="h-4 w-4 text-[#E3E3E3]" />, 'Payment', 
-          !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant,
-          () => location.pathname.startsWith('/payment')
-        )} */}
+        ), 'Performance', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant && !isVolunteer)}
         
         {/* Workshop Admin Dashboard - NEW from dev */}
         {renderNavLink('/workshop-admin-dashboard', <Wrench className="h-4 w-4 text-[#E3E3E3]" />, 'Workshop Admin', 
           isWorkshopAdmin
         )}
         
-        {/* Admin sections */}
-        {renderNavLink('/admin-dashboard', <Settings className="h-4 w-4 text-[#E3E3E3]" />, 'Admin Dashboard', 
-          user?.role === 'admin' || user?.role === 'staff'
-        )}
+        {/* Staff Dropdown - Cohort Management and Operations */}
+        <NavDropdown
+          id="staff"
+          trigger={{ icon: Users, label: "Staff" }}
+          items={[
+            { to: '/admin-dashboard', icon: Settings, label: 'Cohort Stats' },
+            { to: '/admin-attendance-dashboard', icon: CalendarIcon, label: 'Attendance' },
+            { to: '/admin/assessment-grades', icon: Award, label: 'Assessments' },
+            { to: '/admissions-dashboard', icon: Users, label: 'Admissions' },
+            { to: '/pathfinder/admin', icon: ArrowRight, label: 'Pathfinder Admin' },
+            { to: '/sales-tracker', icon: Target, label: 'Sales Tracker' },
+            { to: '/payment-admin', icon: Briefcase, label: 'Payment Admin' },
+            { to: '/content', icon: FileText, label: 'Content' },
+          ]}
+          condition={user?.role === 'admin' || user?.role === 'staff'}
+          isMobile={isMobile}
+          isNavbarHovered={isNavbarHovered}
+          isMobileNavbarOpen={isMobileNavbarOpen}
+          closeMobileNavbar={closeMobileNavbar}
+          isOpen={openDropdown === 'staff'}
+          onToggle={(id) => setOpenDropdown(openDropdown === id ? null : id)}
+        />
         
-        {renderNavLink('/admin/assessment-grades', <Award className="h-4 w-4 text-[#E3E3E3]" />, 'Assessment Grades', 
-          user?.role === 'admin' || user?.role === 'staff'
-        )}
+        {/* Admin Dropdown - System Tools */}
+        <NavDropdown
+          id="admin"
+          trigger={{ icon: Settings, label: "Admin" }}
+          items={[
+            { to: '/admin-prompts', icon: Brain, label: 'AI Prompts' },
+          ]}
+          condition={user?.role === 'admin'}
+          isMobile={isMobile}
+          isNavbarHovered={isNavbarHovered}
+          isMobileNavbarOpen={isMobileNavbarOpen}
+          closeMobileNavbar={closeMobileNavbar}
+          isOpen={openDropdown === 'admin'}
+          onToggle={(id) => setOpenDropdown(openDropdown === id ? null : id)}
+        />
         
-        {renderNavLink('/admissions-dashboard', <Users className="h-4 w-4 text-[#E3E3E3]" />, 'Admissions', 
-          user?.role === 'admin' || user?.role === 'staff'
-        )}
-        
-        {renderNavLink('/content', <FileText className="h-4 w-4 text-[#E3E3E3]" />, 'Content', 
-          user?.role === 'admin' || user?.role === 'staff',
-          () => location.pathname === '/content' || location.pathname.startsWith('/content/')
-        )}
-        
-        {renderNavLink('/admin-prompts', <Brain className="h-4 w-4 text-[#E3E3E3]" />, 'AI Prompts', 
-          user?.role === 'admin' || user?.role === 'staff'
-        )}
-        
-        {/* Admin Attendance Dashboard - NEW from dev */}
-        {renderNavLink('/admin-attendance-dashboard', <CalendarIcon className="h-4 w-4 text-[#E3E3E3]" />, 'Attendance Admin', 
-          user?.role === 'admin' || user?.role === 'staff'
-        )}
-        
-        {/* Payment Admin - NEW */}
-        {renderNavLink('/payment-admin', <Briefcase className="h-4 w-4 text-[#E3E3E3]" />, 'Payment Admin', 
-          user?.role === 'admin' || user?.role === 'staff',
-          () => location.pathname.startsWith('/payment-admin')
-        )}
-        
-        {/* Sales Tracker */}
-        {renderNavLink('/sales-tracker', <Target className="h-4 w-4 text-[#E3E3E3]" />, 'Sales Tracker', 
-          user?.role === 'admin' || user?.role === 'staff'
-        )}
-        
-        {/* Volunteer Feedback */}
-        {renderNavLink(
-          user?.role === 'volunteer' ? '/volunteer-feedback' : '/admin-volunteer-feedback',
-          <MessageCircle className="h-4 w-4 text-[#E3E3E3]" />,
-          'Volunteer Feedback',
-          user?.role === 'volunteer' || user?.role === 'admin' || user?.role === 'staff',
-          () => location.pathname === '/volunteer-feedback' || location.pathname === '/admin-volunteer-feedback'
-        )}
+        {/* Volunteers Dropdown */}
+        <NavDropdown
+          id="volunteers"
+          trigger={{ icon: Heart, label: "Volunteers" }}
+          items={[
+            ...(user?.role === 'volunteer' ? [
+              { to: '/my-schedule', icon: CalendarIcon, label: 'My Schedule' },
+            ] : []),
+            ...((user?.role === 'admin' || user?.role === 'staff') ? [
+              { to: '/volunteer-list', icon: ListChecks, label: 'List' },
+              { to: '/volunteer-roster', icon: ClipboardList, label: 'Calendar' },
+              { to: '/volunteer-attendance', icon: UserCheck, label: 'Attendance' },
+            ] : []),
+            { 
+              to: user?.role === 'volunteer' ? '/volunteer-feedback' : '/admin-volunteer-feedback', 
+              icon: MessageCircle, 
+              label: 'Feedback' 
+            },
+          ]}
+          condition={user?.role === 'volunteer' || user?.role === 'admin' || user?.role === 'staff'}
+          isMobile={isMobile}
+          isNavbarHovered={isNavbarHovered}
+          isMobileNavbarOpen={isMobileNavbarOpen}
+          closeMobileNavbar={closeMobileNavbar}
+          isOpen={openDropdown === 'volunteers'}
+          onToggle={(id) => setOpenDropdown(openDropdown === id ? null : id)}
+        />
+
 
         {/* Spacer to push profile and logout to bottom */}
         <div className="flex-1"></div>
