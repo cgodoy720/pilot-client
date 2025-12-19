@@ -269,11 +269,11 @@ const Signup = () => {
         {/* Main Content */}
         <div className="flex-1 flex flex-col items-center justify-center px-8">
           {/* Container that matches card width */}
-          <div className="w-full max-w-[660px]">
+          <div className="w-full max-w-[920px]">
             {/* Step indicator and question - aligned to left of cards */}
             <div className="text-left mb-12">
               <p className="text-white text-sm font-bold font-proxima mb-3">
-                01 of 08
+                01 of 06
               </p>
               <h2 className="text-white text-base md:text-lg font-bold font-proxima">
                 What type of account do you want to create?
@@ -302,7 +302,7 @@ const Signup = () => {
             </div>
 
             {/* Builder Card */}
-            <div className="w-full md:w-[212px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
+            <div className="w-full md:w-[210px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
               <div className="flex flex-col items-center gap-4 w-full flex-1">
                 <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
                   Builder
@@ -321,7 +321,7 @@ const Signup = () => {
             </div>
 
             {/* Workshop Card */}
-            <div className="w-full md:w-[160px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
+            <div className="w-full md:w-[210px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
               <div className="flex flex-col items-center gap-4 w-full flex-1">
                 <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
                   Workshop
@@ -340,7 +340,7 @@ const Signup = () => {
             </div>
 
             {/* Volunteer Card */}
-            <div className="w-full md:w-[160px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
+            <div className="w-full md:w-[210px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
               <div className="flex flex-col items-center gap-4 w-full flex-1">
                 <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
                   Volunteer
