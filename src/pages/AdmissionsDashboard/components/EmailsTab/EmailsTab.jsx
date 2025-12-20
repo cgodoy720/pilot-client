@@ -284,7 +284,7 @@ const EmailsTab = ({
               {computedStats.openRate}%
             </div>
             <div className="text-sm text-gray-500 font-proxima mt-1">
-              {computedStats.openedCount} of {safeEmailHistory.length} opened
+              {computedStats.openedCount} of {computedStats.totalSent} opened
             </div>
           </CardContent>
         </Card>

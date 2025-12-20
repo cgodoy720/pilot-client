@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '../../../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
 import { Badge } from '../../../../components/ui/badge';
@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '../../../../components/ui/table';
 import { formatEventTime, isEventPast, formatEventDate, sortEventsByDate, getStatusBadgeClasses, formatStatus } from '../shared/utils';
+import ManualRegistrationModal from '../shared/ManualRegistrationModal';
 import Swal from 'sweetalert2';
 
 const InfoSessionsTab = ({
@@ -57,6 +58,10 @@ const InfoSessionsTab = ({
   fetchInfoSessions,
   token
 }) => {
+  // State for manual registration modal
+  const [manualRegModalOpen, setManualRegModalOpen] = useState(false);
+  const [selectedEventForManualReg, setSelectedEventForManualReg] = useState(null);
+
   // Handle view registrations
   const handleViewRegistrations = async (eventId) => {
     if (selectedEvent === eventId) {
@@ -109,6 +114,61 @@ const InfoSessionsTab = ({
       }
     } catch (error) {
       console.error('Error updating attendance:', error);
+    }
+  };
+
+  // Handle remove registration
+  const handleRemoveRegistration = async (eventId, registrationId, applicantName) => {
+    const confirmed = await Swal.fire({
+      title: 'Remove Registration?',
+      text: `Are you sure you want to remove ${applicantName} from this info session? This action cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, remove',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (!confirmed.isConfirmed) return;
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admissions/events/info-session/${eventId}/registrations/${registrationId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.ok) {
+        // Remove from local state
+        setEventRegistrations(prev => prev.filter(reg => reg.registration_id !== registrationId));
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Removed!',
+          text: 'Registration has been removed successfully',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      } else {
+        const data = await response.json().catch(() => ({}));
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: data.error || 'Failed to remove registration'
+        });
+      }
+    } catch (error) {
+      console.error('Error removing registration:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'An unexpected error occurred'
+      });
     }
   };
 
@@ -302,6 +362,20 @@ const InfoSessionsTab = ({
     }
   };
 
+  // Handle open manual registration modal
+  const handleOpenManualReg = (sessionId) => {
+    setSelectedEventForManualReg(sessionId);
+    setManualRegModalOpen(true);
+  };
+
+  // Handle manual registration success
+  const handleManualRegSuccess = () => {
+    // Refresh registrations for the current event
+    if (selectedEvent) {
+      handleViewRegistrations(selectedEvent);
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -436,6 +510,13 @@ const InfoSessionsTab = ({
                                 >
                                   Copy All Phone Numbers
                                 </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleOpenManualReg(session.event_id)}
+                                  className="bg-[#4242ea] hover:bg-[#3333d1] font-proxima"
+                                >
+                                  + Add Registration
+                                </Button>
                               </div>
                             </div>
 
@@ -473,7 +554,7 @@ const InfoSessionsTab = ({
                                       </TableCell>
                                       <TableCell>
                                         <div className="flex gap-1">
-                                          {['attended', 'no_show', 'cancelled'].map((status) => (
+                                          {['attended', 'no_show'].map((status) => (
                                             <Button
                                               key={status}
                                               variant={reg.status === status ? "default" : "outline"}
@@ -484,6 +565,14 @@ const InfoSessionsTab = ({
                                               {formatStatus(status)}
                                             </Button>
                                           ))}
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleRemoveRegistration(session.event_id, reg.registration_id, `${reg.first_name} ${reg.last_name}`)}
+                                            className="text-xs font-proxima text-red-600 hover:text-red-700 hover:bg-red-50"
+                                          >
+                                            Remove
+                                          </Button>
                                         </div>
                                       </TableCell>
                                     </TableRow>
@@ -605,6 +694,16 @@ const InfoSessionsTab = ({
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Manual Registration Modal */}
+      <ManualRegistrationModal
+        isOpen={manualRegModalOpen}
+        onClose={() => setManualRegModalOpen(false)}
+        eventId={selectedEventForManualReg}
+        eventType="info-session"
+        onRegistrationSuccess={handleManualRegSuccess}
+        token={token}
+      />
     </div>
   );
 };
