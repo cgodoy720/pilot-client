@@ -37,12 +37,9 @@ const AdmissionsDashboard = () => {
   const [applications, setApplications] = useState([]);
   const [infoSessions, setInfoSessions] = useState([]);
   const [workshops, setWorkshops] = useState([]);
-  const [computedOverviewStats, setComputedOverviewStats] = useState(null);
   const [compareEnabled, setCompareEnabled] = useState(false);
-  const [previousOverviewStats, setPreviousOverviewStats] = useState(null);
   const [demographicFilters, setDemographicFilters] = useState({ race: 'all', gender: 'all', education: 'all', borough: 'all' });
   const [demographicFilter, setDemographicFilter] = useState('race');
-  const [demographicBreakdown, setDemographicBreakdown] = useState({ race: [], gender: [], education: [], borough: [] });
   const [cohorts, setCohorts] = useState([]);
   
   // Demographics modal for KPI tiles
@@ -58,7 +55,6 @@ const AdmissionsDashboard = () => {
   
   // Application status filter for demographics
   const [applicantStatusFilter, setApplicantStatusFilter] = useState('all');
-  const [appliedStatusBreakdown, setAppliedStatusBreakdown] = useState(null);
   const [submittedAssessmentBreakdown, setSubmittedAssessmentBreakdown] = useState(null);
   const [genderHover, setGenderHover] = useState(null);
   const [overviewDetailsOpen, setOverviewDetailsOpen] = useState(false);
@@ -647,9 +643,6 @@ const AdmissionsDashboard = () => {
     );
   }
 
-  // Decide which stats to show in Overview
-  const overviewStats = (overviewQuickView === 'all_time' || !computedOverviewStats) ? stats : computedOverviewStats;
-
   return (
     <div className="w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-hidden flex flex-col font-proxima">
       {/* Header with Back Button */}
@@ -724,34 +717,27 @@ const AdmissionsDashboard = () => {
                 <div className="text-gray-500 font-proxima">Loading Overview...</div>
               </div>
             }>
-              <OverviewTab
-                loading={loading}
-                error={error}
-                stats={overviewStats}
-                cohorts={cohorts}
-                overviewQuickView={overviewQuickView}
-                setOverviewQuickView={setOverviewQuickView}
-                compareEnabled={compareEnabled}
-                setCompareEnabled={setCompareEnabled}
-                previousOverviewStats={previousOverviewStats}
-                appliedStatusBreakdown={appliedStatusBreakdown}
-                activeOverviewStage={activeOverviewStage}
-                setActiveOverviewStage={setActiveOverviewStage}
-                stageDemographics={stageDemographics}
-                setStageDemographics={setStageDemographics}
-                applicantStatusFilter={applicantStatusFilter}
-                setApplicantStatusFilter={setApplicantStatusFilter}
-                overviewDeliberationFilter={overviewDeliberationFilter}
-                setOverviewDeliberationFilter={setOverviewDeliberationFilter}
-                demographicBreakdown={demographicBreakdown}
-                setDemographicBreakdown={setDemographicBreakdown}
-                token={token}
-                getOverviewCohortParam={getOverviewCohortParam}
-                setComputedOverviewStats={setComputedOverviewStats}
-                setAppliedStatusBreakdown={setAppliedStatusBreakdown}
-                setPreviousOverviewStats={setPreviousOverviewStats}
-                fetchAdmissionsData={fetchOverviewData}
-              />
+            <OverviewTab
+              loading={loading}
+              error={error}
+              stats={stats}
+              cohorts={cohorts}
+              overviewQuickView={overviewQuickView}
+              setOverviewQuickView={setOverviewQuickView}
+              compareEnabled={compareEnabled}
+              setCompareEnabled={setCompareEnabled}
+              activeOverviewStage={activeOverviewStage}
+              setActiveOverviewStage={setActiveOverviewStage}
+              stageDemographics={stageDemographics}
+              setStageDemographics={setStageDemographics}
+              applicantStatusFilter={applicantStatusFilter}
+              setApplicantStatusFilter={setApplicantStatusFilter}
+              overviewDeliberationFilter={overviewDeliberationFilter}
+              setOverviewDeliberationFilter={setOverviewDeliberationFilter}
+              token={token}
+              getOverviewCohortParam={getOverviewCohortParam}
+              fetchAdmissionsData={fetchOverviewData}
+            />
             </Suspense>
           </TabsContent>
 
