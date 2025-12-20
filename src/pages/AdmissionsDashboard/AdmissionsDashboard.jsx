@@ -84,6 +84,7 @@ const AdmissionsDashboard = () => {
   // Application filters and sorting
   const [applicationFilters, setApplicationFilters] = useState({
     status: '',
+    final_status: '',
     info_session_status: '',
     workshop_status: '',
     program_admission_status: '',

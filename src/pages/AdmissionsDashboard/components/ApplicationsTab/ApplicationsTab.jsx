@@ -32,6 +32,20 @@ const filterOptions = {
     { value: 'submitted', label: 'Submitted' },
     { value: 'ineligible', label: 'Ineligible' },
   ],
+  recommendation: [
+    { value: '', label: 'All' },
+    { value: 'strong_recommend', label: 'Strong Recommend' },
+    { value: 'recommend', label: 'Recommend' },
+    { value: 'review_needed', label: 'Review Needed' },
+    { value: 'not_recommend', label: 'Not Recommend' },
+  ],
+  final_status: [
+    { value: '', label: 'All' },
+    { value: 'strong_recommend', label: 'Strong Recommend' },
+    { value: 'recommend', label: 'Recommend' },
+    { value: 'review_needed', label: 'Review Needed' },
+    { value: 'not_recommend', label: 'Not Recommend' },
+  ],
   info_session_status: [
     { value: '', label: 'All' },
     { value: 'registered', label: 'Registered' },
@@ -494,6 +508,7 @@ const ApplicationsTab = ({
     setApplicationFilters(prev => ({
       ...prev,
       status: '',
+      final_status: '',
       info_session_status: '',
       workshop_status: '',
       program_admission_status: '',
@@ -605,48 +620,111 @@ const ApplicationsTab = ({
           <div className="w-[90px] h-10 bg-gray-200 rounded-md animate-pulse"></div>
         </div>
 
-        {/* Table Skeleton */}
-        <div className="flex-1 bg-white overflow-hidden">
-          <div className="w-full h-full">
-            {/* Table header skeleton */}
-            <div className="bg-gray-50 border-b border-gray-200 p-4">
-              <div className="flex gap-4">
-                <div className="w-8 h-4 bg-gray-300 rounded animate-pulse"></div>
-                <div className="w-32 h-4 bg-gray-300 rounded animate-pulse"></div>
-                <div className="w-48 h-4 bg-gray-300 rounded animate-pulse"></div>
-                <div className="w-32 h-4 bg-gray-300 rounded animate-pulse"></div>
-                <div className="w-24 h-4 bg-gray-300 rounded animate-pulse"></div>
-                <div className="w-32 h-4 bg-gray-300 rounded animate-pulse"></div>
-                <div className="w-32 h-4 bg-gray-300 rounded animate-pulse"></div>
-              </div>
-            </div>
-            
-            {/* Table rows skeleton */}
-            {[...Array(10)].map((_, index) => (
-              <div key={index} className="border-b border-gray-100 p-4 animate-pulse">
-                <div className="flex gap-4 items-center">
-                  <div className="w-8 h-4 bg-gray-200 rounded"></div>
-                  <div className="w-32 h-4 bg-gray-200 rounded"></div>
-                  <div className="w-48 h-4 bg-gray-200 rounded"></div>
-                  <div className="w-32 h-4 bg-gray-200 rounded"></div>
-                  <div className="w-24 h-6 bg-gray-200 rounded-full"></div>
-                  <div className="w-24 h-6 bg-gray-200 rounded-full"></div>
-                  <div className="w-24 h-6 bg-gray-200 rounded-full"></div>
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* Table Skeleton - Using actual Table components for proper structure */}
+        <div className="flex-1 bg-white overflow-auto">
+          <Table className="w-full">
+            <TableHeader>
+              <TableRow className="bg-gray-50">
+                <TableHead className="w-12">
+                  <div className="h-4 w-4 bg-gray-300 rounded animate-pulse"></div>
+                </TableHead>
+                <TableHead>
+                  <div className="h-4 w-24 bg-gray-300 rounded animate-pulse"></div>
+                </TableHead>
+                <TableHead>
+                  <div className="h-4 w-40 bg-gray-300 rounded animate-pulse"></div>
+                </TableHead>
+                <TableHead>
+                  <div className="h-4 w-28 bg-gray-300 rounded animate-pulse"></div>
+                </TableHead>
+                <TableHead>
+                  <div className="h-4 w-20 bg-gray-300 rounded animate-pulse"></div>
+                </TableHead>
+                <TableHead>
+                  <div className="h-4 w-28 bg-gray-300 rounded animate-pulse"></div>
+                </TableHead>
+                <TableHead>
+                  <div className="h-4 w-32 bg-gray-300 rounded animate-pulse"></div>
+                </TableHead>
+                <TableHead>
+                  <div className="h-4 w-28 bg-gray-300 rounded animate-pulse"></div>
+                </TableHead>
+                <TableHead>
+                  <div className="h-4 w-32 bg-gray-300 rounded animate-pulse"></div>
+                </TableHead>
+                <TableHead>
+                  <div className="h-4 w-28 bg-gray-300 rounded animate-pulse"></div>
+                </TableHead>
+                <TableHead>
+                  <div className="h-4 w-32 bg-gray-300 rounded animate-pulse"></div>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[...Array(10)].map((_, index) => (
+                <TableRow key={index} className="animate-pulse">
+                  {/* Checkbox */}
+                  <TableCell>
+                    <div className="h-4 w-4 bg-gray-200 rounded"></div>
+                  </TableCell>
+                  {/* Name */}
+                  <TableCell>
+                    <div className="h-4 w-32 bg-gray-200 rounded"></div>
+                  </TableCell>
+                  {/* Email */}
+                  <TableCell>
+                    <div className="h-4 w-48 bg-gray-200 rounded"></div>
+                  </TableCell>
+                  {/* Phone */}
+                  <TableCell>
+                    <div className="h-4 w-28 bg-gray-200 rounded"></div>
+                  </TableCell>
+                  {/* Status Badge */}
+                  <TableCell>
+                    <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
+                  </TableCell>
+                  {/* Assessment Badge */}
+                  <TableCell>
+                    <div className="h-6 w-24 bg-gray-200 rounded-full"></div>
+                  </TableCell>
+                  {/* Info Session Badge */}
+                  <TableCell>
+                    <div className="h-6 w-24 bg-gray-200 rounded-full"></div>
+                  </TableCell>
+                  {/* Workshop Badge */}
+                  <TableCell>
+                    <div className="h-6 w-24 bg-gray-200 rounded-full"></div>
+                  </TableCell>
+                  {/* Workshop Grade */}
+                  <TableCell>
+                    <div className="h-4 w-12 bg-gray-200 rounded"></div>
+                  </TableCell>
+                  {/* Admission Badge */}
+                  <TableCell>
+                    <div className="h-6 w-24 bg-gray-200 rounded-full"></div>
+                  </TableCell>
+                  {/* Deliberation Select */}
+                  <TableCell>
+                    <div className="h-8 w-[100px] bg-gray-200 rounded-md"></div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
 
         {/* Footer Skeleton */}
         <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 shrink-0">
           <div className="flex items-center justify-between">
-            <div className="w-48 h-4 bg-gray-300 rounded animate-pulse"></div>
-            <div className="flex items-center gap-2">
+            <div className="w-48 h-5 bg-gray-300 rounded animate-pulse"></div>
+            <div className="flex items-center gap-1">
+              {/* Prev button */}
               <div className="w-20 h-8 bg-gray-300 rounded animate-pulse"></div>
+              {/* Page numbers */}
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="w-8 h-8 bg-gray-300 rounded animate-pulse"></div>
               ))}
+              {/* Next button */}
               <div className="w-20 h-8 bg-gray-300 rounded animate-pulse"></div>
             </div>
           </div>
@@ -732,12 +810,17 @@ const ApplicationsTab = ({
         </Button>
 
         {/* Active Filters Indicator */}
-        {(applicationFilters.status || applicationFilters.info_session_status || applicationFilters.workshop_status || applicationFilters.program_admission_status || applicationFilters.deliberation) && (
+        {(applicationFilters.status || applicationFilters.final_status || applicationFilters.info_session_status || applicationFilters.workshop_status || applicationFilters.program_admission_status || applicationFilters.deliberation) && (
           <div className="flex items-center gap-2 ml-auto">
             <span className="text-sm text-gray-500 font-proxima">Active filters:</span>
             {applicationFilters.status && (
               <Badge className="bg-blue-100 text-blue-700 font-proxima cursor-pointer hover:bg-blue-200" onClick={() => handleClearFilter('status')}>
                 Status: {formatStatus(applicationFilters.status)} ✕
+              </Badge>
+            )}
+            {applicationFilters.final_status && (
+              <Badge className="bg-indigo-100 text-indigo-700 font-proxima cursor-pointer hover:bg-indigo-200" onClick={() => handleClearFilter('final_status')}>
+                Assessment: {formatStatus(applicationFilters.final_status)} ✕
               </Badge>
             )}
             {applicationFilters.info_session_status && (
@@ -805,9 +888,11 @@ const ApplicationsTab = ({
                       {renderSortableFilterableHeader('status', 'status', 'Status', 'status')}
                     </TableHead>
                   )}
-                  {visibleColumns.assessment && (
-                    <TableHead className="font-proxima-bold">Assessment</TableHead>
-                  )}
+                {visibleColumns.assessment && (
+                  <TableHead>
+                    {renderSortableFilterableHeader('assessment', 'final_status', 'Assessment', null)}
+                  </TableHead>
+                )}
                   {visibleColumns.info_session && (
                     <TableHead>
                       {renderSortableFilterableHeader('info_session', 'info_session_status', 'Info Session', 'info_session_status')}
@@ -872,7 +957,7 @@ const ApplicationsTab = ({
           <div className="text-center">
             <p className="text-gray-500 font-proxima text-lg">No applicants found</p>
             <p className="text-gray-400 font-proxima text-sm mt-1">Try adjusting your filters</p>
-            {(applicationFilters.status || applicationFilters.info_session_status || applicationFilters.workshop_status || applicationFilters.program_admission_status || applicationFilters.deliberation) && (
+            {(applicationFilters.status || applicationFilters.final_status || applicationFilters.info_session_status || applicationFilters.workshop_status || applicationFilters.program_admission_status || applicationFilters.deliberation) && (
               <Button
                 variant="outline"
                 className="mt-4 font-proxima"
