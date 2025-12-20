@@ -79,6 +79,12 @@ const AdmissionsDashboard = () => {
   // CSV export tracking
   const [exportSelections, setExportSelections] = useState(new Set());
 
+  // Pagination state
+  const PAGE_SIZE = 25;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchIndex, setSearchIndex] = useState([]);
+  const [searchIndexLoading, setSearchIndexLoading] = useState(false);
+
   // Application filters and sorting
   const [applicationFilters, setApplicationFilters] = useState({
     status: '',
@@ -89,11 +95,10 @@ const AdmissionsDashboard = () => {
     name_search: '',
     cohort_id: '',
     deliberation: '',
-    limit: 10000,
+    limit: PAGE_SIZE,
     offset: 0
   });
   const [hasMore, setHasMore] = useState(true);
-  const [nameSearchInput, setNameSearchInput] = useState('');
   const [columnSort, setColumnSort] = useState({
     column: 'created_at',
     direction: 'desc'
@@ -253,278 +258,257 @@ const AdmissionsDashboard = () => {
   };
 
   // Fetch cohorts
-  const fetchCohorts = async () => {
-    if (!hasAdminAccess || !token) return;
-    
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/cohorts`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setCohorts(data);
-        
-        if (data.length > 0 && !applicationFilters.cohort_id) {
-          setApplicationFilters(prev => ({
-            ...prev,
-            cohort_id: data[0].cohort_id
-          }));
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching cohorts:', error);
-    }
-  };
+  // ============================================================================
+  // TAB-SPECIFIC DATA FETCHING - Lazy Loading Per Tab
+  // ============================================================================
 
-  // Fetch workshop-specific cohorts
-  const fetchWorkshopCohorts = async () => {
-    if (!hasAdminAccess || !token) {
-      setLoadingCohorts(false);
-      return;
-    }
-    
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshop/workshop-cohorts`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const cohortNames = data.map(cohort => cohort.name);
-        setAvailableCohorts(cohortNames);
-      } else {
-        setAvailableCohorts(['Admissions Workshop Experience']);
-      }
-    } catch (error) {
-      console.error('Error fetching workshop cohorts:', error);
-      setAvailableCohorts(['Admissions Workshop Experience']);
-    } finally {
-      setLoadingCohorts(false);
-    }
-  };
-
-  // Fetch all admissions data
-  const fetchAdmissionsData = async () => {
+  // Fetch overview tab data
+  const fetchOverviewData = async () => {
     if (!hasAdminAccess || !token) {
       setError('You do not have permission to view this page.');
       setLoading(false);
       return;
     }
+    
     try {
       setLoading(true);
       setError(null);
-
-      const statsUrl = new URL(`${import.meta.env.VITE_API_URL}/api/admissions/stats`);
-
-      const [statsResponse, applicationsResponse, infoSessionsResponse, workshopsResponse] = await Promise.all([
-        fetch(statsUrl, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applications?${new URLSearchParams(applicationFilters)}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        fetch(`${import.meta.env.VITE_API_URL}/api/admissions/info-sessions`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        fetch(`${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-      ]);
-
-      if (!statsResponse.ok || !applicationsResponse.ok || !infoSessionsResponse.ok || !workshopsResponse.ok) {
-        throw new Error('Failed to fetch admissions data');
+      
+      const params = new URLSearchParams();
+      if (applicationFilters.cohort_id) {
+        params.append('cohort_id', applicationFilters.cohort_id);
       }
-
-      const [statsData, applicationsData, infoSessionsData, workshopsData] = await Promise.all([
-        statsResponse.json(),
-        applicationsResponse.json(),
-        infoSessionsResponse.json(),
-        workshopsResponse.json()
-      ]);
-
-      setStats(statsData);
-      setApplications(applicationsData);
-      setInfoSessions(infoSessionsData);
-      setWorkshops(workshopsData.workshops || workshopsData);
-
-      // Fetch email stats
-      try {
-        const emailResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/stats`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (emailResponse.ok) {
-          const emailData = await emailResponse.json();
-          setEmailStats(emailData);
-        }
-      } catch (emailError) {
-        console.error('Error fetching email stats:', emailError);
-      }
-
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admissions/dashboard/overview?${params}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (!response.ok) throw new Error('Failed to fetch overview data');
+      
+      const data = await response.json();
+      setStats(data.stats);
+      setCohorts(data.cohorts);
+      // Note: Overview endpoint no longer returns applications to prevent timeout
+      // Applications are fetched separately per-tab as needed
     } catch (error) {
-      console.error('Error fetching admissions data:', error);
-      setError('Failed to load admissions data. Please try again.');
+      console.error('Error fetching overview data:', error);
+      setError('Failed to load overview data. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch applications
-  const fetchApplications = async () => {
+  // Fetch search index for fast client-side filtering
+  const fetchSearchIndex = async (cohortId = '') => {
     if (!hasAdminAccess || !token) return;
+    
+    try {
+      setSearchIndexLoading(true);
+      const params = new URLSearchParams();
+      if (cohortId) {
+        params.append('cohort_id', cohortId);
+      }
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admissions/dashboard/applications/search-index?${params}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (!response.ok) throw new Error('Failed to fetch search index');
+      
+      const data = await response.json();
+      setSearchIndex(data);
+    } catch (error) {
+      console.error('Error fetching search index:', error);
+    } finally {
+      setSearchIndexLoading(false);
+    }
+  };
 
+  // Fetch applications tab data
+  const fetchApplicationsData = async () => {
+    if (!hasAdminAccess || !token) return;
+    
     try {
       setLoading(true);
       const params = new URLSearchParams();
       
+      // Calculate offset based on current page
+      const offset = (currentPage - 1) * PAGE_SIZE;
+      
       Object.entries(applicationFilters).forEach(([key, value]) => {
-        if (value !== '' && value !== false) {
+        if (key === 'offset') {
+          params.append('offset', offset);
+        } else if (value !== '' && value !== false) {
           params.append(key, value);
         }
       });
       
-      if (nameSearchInput.trim()) {
-        params.set('name_search', nameSearchInput.trim());
+      // Ensure limit is set
+      if (!params.has('limit')) {
+        params.append('limit', PAGE_SIZE);
       }
-
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applications?${params}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setApplications(data);
-        setHasMore(data.applications?.length < data.total);
-      }
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admissions/dashboard/applications?${params}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (!response.ok) throw new Error('Failed to fetch applications data');
+      
+      const data = await response.json();
+      setApplications(data.applications);
+      setCohorts(data.cohorts);
+      setHasMore(data.applications?.applications?.length < data.applications?.total);
     } catch (error) {
-      console.error('Error fetching applications:', error);
+      console.error('Error fetching applications data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch info sessions
-  const fetchInfoSessions = async () => {
+  // Fetch info sessions tab data
+  const fetchInfoSessionsData = async () => {
     if (!hasAdminAccess || !token) return;
-
+    
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/info-sessions`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setInfoSessions(data);
-      }
+      setLoading(true);
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admissions/dashboard/info-sessions`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (!response.ok) throw new Error('Failed to fetch info sessions data');
+      
+      const data = await response.json();
+      setInfoSessions(data.infoSessions);
+      setCohorts(data.cohorts);
     } catch (error) {
-      console.error('Error fetching info sessions:', error);
+      console.error('Error fetching info sessions data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Fetch workshops
-  const fetchWorkshops = async () => {
+  // Fetch workshops tab data
+  const fetchWorkshopsData = async () => {
     if (!hasAdminAccess || !token) return;
-
+    
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setWorkshops(data.workshops || data);
-      }
+      setLoading(true);
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admissions/dashboard/workshops`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (!response.ok) throw new Error('Failed to fetch workshops data');
+      
+      const data = await response.json();
+      setWorkshops(data.workshops);
+      setAvailableCohorts(data.workshopCohorts.map(c => c.name));
     } catch (error) {
-      console.error('Error fetching workshops:', error);
+      console.error('Error fetching workshops data:', error);
+      setAvailableCohorts(['Admissions Workshop Experience']);
+    } finally {
+      setLoading(false);
+      setLoadingCohorts(false);
     }
   };
 
-  // Email automation data fetchers
-  const fetchEmailStats = async () => {
+  // Fetch emails tab data
+  const fetchEmailsData = async () => {
     if (!hasAdminAccess || !token) return;
+    
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/stats`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setEmailStats(data);
-      }
+      setEmailAutomationLoading(true);
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admissions/dashboard/emails`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (!response.ok) throw new Error('Failed to fetch emails data');
+      
+      const data = await response.json();
+      setEmailStats(data.emailStats);
+      setQueuedEmails(data.queuedEmails);
+      setEmailHistory(data.emailHistory);
+      setApplicantEmailStatus(data.applicantEmailStatus);
     } catch (error) {
-      console.error('Error fetching email stats:', error);
+      console.error('Error fetching emails data:', error);
+    } finally {
+      setEmailAutomationLoading(false);
     }
   };
 
-  const fetchQueuedEmails = async () => {
-    if (!hasAdminAccess || !token) return;
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/queue`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setQueuedEmails(data);
-      }
-    } catch (error) {
-      console.error('Error fetching queued emails:', error);
-    }
-  };
+  // ============================================================================
+  // USE EFFECT HOOKS - Tab-Based Data Loading
+  // ============================================================================
 
-  const fetchEmailHistory = async () => {
-    if (!hasAdminAccess || !token) return;
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/history`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setEmailHistory(data);
-      }
-    } catch (error) {
-      console.error('Error fetching email history:', error);
-    }
-  };
-
-  const fetchApplicantEmailStatus = async () => {
-    if (!hasAdminAccess || !token) return;
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/email-automation/applicant-status`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setApplicantEmailStatus(data);
-      }
-    } catch (error) {
-      console.error('Error fetching applicant email status:', error);
-    }
-  };
-
-  // Initial data load
+  // Initial load - only overview tab
   useEffect(() => {
     if (hasAdminAccess && token) {
-      fetchCohorts();
-      fetchWorkshopCohorts();
-      fetchAdmissionsData();
+      fetchOverviewData();
     }
   }, [token, hasAdminAccess]);
 
-  // Fetch applications when filters change
+  // Tab-specific data loading - lazy load when switching tabs
+  useEffect(() => {
+    if (!hasAdminAccess || !token) return;
+    
+    switch (activeTab) {
+      case 'overview':
+        // Overview already loaded on initial mount
+        if (!stats) fetchOverviewData();
+        break;
+      case 'applications':
+        // Load applications tab data if not already loaded
+        if (!applications.applications || applications.applications.length === 0) {
+          fetchApplicationsData();
+        }
+        break;
+      case 'info-sessions':
+        // Load info sessions tab data if not already loaded
+        if (infoSessions.length === 0) {
+          fetchInfoSessionsData();
+        }
+        break;
+      case 'workshops':
+        // Load workshops tab data if not already loaded
+        if (workshops.length === 0) {
+          fetchWorkshopsData();
+        }
+        break;
+      case 'emails':
+        // Load emails tab data if not already loaded
+        if (!emailStats) {
+          fetchEmailsData();
+        }
+        break;
+      default:
+        break;
+    }
+  }, [activeTab, hasAdminAccess, token]);
+
+  // Applications tab - refetch when filters or page change
   useEffect(() => {
     if (hasAdminAccess && token && activeTab === 'applications') {
-      fetchApplications();
+      fetchApplicationsData();
     }
-  }, [applicationFilters, nameSearchInput, token, hasAdminAccess, activeTab]);
+  }, [applicationFilters, currentPage, token, hasAdminAccess, activeTab]);
 
-  // Load email data when tab changes
+  // Fetch search index when cohort changes or when switching to applications tab
   useEffect(() => {
-    if (activeTab === 'emails') {
-      fetchEmailStats();
-      fetchQueuedEmails();
-      fetchEmailHistory();
-      fetchApplicantEmailStatus();
+    if (hasAdminAccess && token && activeTab === 'applications') {
+      fetchSearchIndex(applicationFilters.cohort_id);
     }
-  }, [activeTab, token, hasAdminAccess]);
+  }, [applicationFilters.cohort_id, activeTab, token, hasAdminAccess]);
+
+  // Handle page change
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    setSelectedApplicants([]); // Clear selections when changing pages
+  };
 
   // Handle tab change
   const handleTabChange = (tab) => {
@@ -557,7 +541,7 @@ const AdmissionsDashboard = () => {
       });
 
       if (response.ok) {
-        await fetchApplications();
+        await fetchApplicationsData();
         setSelectedApplicants([]);
         setBulkActionsModalOpen(false);
         setError(null);
@@ -766,7 +750,7 @@ const AdmissionsDashboard = () => {
                 setComputedOverviewStats={setComputedOverviewStats}
                 setAppliedStatusBreakdown={setAppliedStatusBreakdown}
                 setPreviousOverviewStats={setPreviousOverviewStats}
-                fetchAdmissionsData={fetchAdmissionsData}
+                fetchAdmissionsData={fetchOverviewData}
               />
             </Suspense>
           </TabsContent>
@@ -784,8 +768,6 @@ const AdmissionsDashboard = () => {
                 cohorts={cohorts}
                 applicationFilters={applicationFilters}
                 setApplicationFilters={setApplicationFilters}
-                nameSearchInput={nameSearchInput}
-                setNameSearchInput={setNameSearchInput}
                 visibleColumns={visibleColumns}
                 setVisibleColumns={setVisibleColumns}
                 columnSort={columnSort}
@@ -797,8 +779,12 @@ const AdmissionsDashboard = () => {
                 openNotesModal={openNotesModal}
                 handleDeliberationChange={handleDeliberationChange}
                 setBulkActionsModalOpen={setBulkActionsModalOpen}
-                fetchApplications={fetchApplications}
+                fetchApplications={fetchApplicationsData}
                 token={token}
+                searchIndex={searchIndex}
+                currentPage={currentPage}
+                pageSize={PAGE_SIZE}
+                onPageChange={handlePageChange}
               />
             </Suspense>
           </TabsContent>
@@ -847,7 +833,7 @@ const AdmissionsDashboard = () => {
                 setRegistrationLoading={setRegistrationLoading}
                 laptopNeeds={laptopNeeds}
                 setLaptopNeeds={setLaptopNeeds}
-                fetchInfoSessions={fetchInfoSessions}
+                fetchInfoSessions={fetchInfoSessionsData}
                 token={token}
               />
             </Suspense>
@@ -899,7 +885,7 @@ const AdmissionsDashboard = () => {
                 setRegistrationLoading={setRegistrationLoading}
                 laptopNeeds={laptopNeeds}
                 setLaptopNeeds={setLaptopNeeds}
-                fetchWorkshops={fetchWorkshops}
+                fetchWorkshops={fetchWorkshopsData}
                 token={token}
               />
             </Suspense>
@@ -923,10 +909,10 @@ const AdmissionsDashboard = () => {
                 setTestEmailAddress={setTestEmailAddress}
                 testEmailLoading={testEmailLoading}
                 setTestEmailLoading={setTestEmailLoading}
-                fetchEmailStats={fetchEmailStats}
-                fetchQueuedEmails={fetchQueuedEmails}
-                fetchEmailHistory={fetchEmailHistory}
-                fetchApplicantEmailStatus={fetchApplicantEmailStatus}
+                fetchEmailStats={fetchEmailsData}
+                fetchQueuedEmails={fetchEmailsData}
+                fetchEmailHistory={fetchEmailsData}
+                fetchApplicantEmailStatus={fetchEmailsData}
                 token={token}
               />
             </Suspense>

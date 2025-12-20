@@ -42,7 +42,7 @@ const OverviewTab = ({
     }
     try {
       const params = new URLSearchParams();
-      params.append('limit', 10000);
+      params.append('limit', 1000); // Reduced from 10000 to prevent timeout
       params.append('offset', 0);
       params.append('cohort_id', cohortParam);
       const resp = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applications?${params}`, {
@@ -99,7 +99,7 @@ const OverviewTab = ({
     try {
       const cohortParam = getOverviewCohortParam();
       const params = new URLSearchParams();
-      params.append('limit', 10000);
+      params.append('limit', 1000); // Reduced from 10000 to prevent timeout
       params.append('offset', 0);
       if (cohortParam) params.append('cohort_id', cohortParam);
 
@@ -220,7 +220,7 @@ const OverviewTab = ({
           if (!sep2025) return;
 
           const params = new URLSearchParams();
-          params.append('limit', 10000);
+          params.append('limit', 1000); // Reduced from 10000 to prevent timeout
           params.append('offset', 0);
           params.append('cohort_id', sep2025.cohort_id);
 

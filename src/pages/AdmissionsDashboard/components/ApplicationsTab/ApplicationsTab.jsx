@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../../../../components/ui/button';
-import { Input } from '../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { Badge } from '../../../../components/ui/badge';
@@ -21,6 +21,7 @@ import {
   DropdownMenuSeparator,
 } from '../../../../components/ui/dropdown-menu';
 import { formatPhoneNumber, getStatusBadgeClasses, formatStatus, getColumnLabel } from '../shared/utils';
+import ApplicantSearchAutocomplete from '../shared/ApplicantSearchAutocomplete';
 
 // Filter options for each column
 const filterOptions = {
@@ -60,14 +61,281 @@ const filterOptions = {
   ],
 };
 
+// Column labels for the table
+const columnLabels = {
+  name: 'Name',
+  email: 'Email',
+  phone: 'Phone',
+  status: 'Status',
+  assessment: 'Assessment',
+  info_session: 'Info Session',
+  workshop: 'Workshop',
+  structured_task_grade: 'Workshop Grade',
+  admission: 'Admission',
+  deliberation: 'Deliberation',
+  notes: 'Notes',
+  age: 'Age',
+  gender: 'Gender',
+  race: 'Race/Ethnicity',
+  education: 'Education',
+  referral: 'Referral Source'
+};
+
+// Memoized ApplicationRow component to prevent unnecessary re-renders
+const ApplicationRow = React.memo(({ 
+  app, 
+  visibleColumns, 
+  isSelected, 
+  onSelect, 
+  onViewApplication,
+  onOpenNotes,
+  onDeliberationChange 
+}) => {
+  return (
+    <TableRow key={app.applicant_id} className="hover:bg-gray-50">
+      <TableCell>
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={(checked) => onSelect(app.applicant_id, checked)}
+        />
+      </TableCell>
+      {visibleColumns.name && (
+        <TableCell 
+          className="font-medium font-proxima text-[#4242ea] hover:text-[#3333d1] cursor-pointer hover:underline"
+          onClick={() => onViewApplication(app.application_id)}
+        >
+          {app.first_name} {app.last_name}
+        </TableCell>
+      )}
+      {visibleColumns.email && (
+        <TableCell className="font-proxima text-gray-600">
+          {app.email || 'N/A'}
+        </TableCell>
+      )}
+      {visibleColumns.phone && (
+        <TableCell className="font-proxima text-gray-600">
+          {formatPhoneNumber(app.phone_number)}
+        </TableCell>
+      )}
+      {visibleColumns.status && (
+        <TableCell>
+          <Badge className={`${getStatusBadgeClasses(app.status)} font-proxima`}>
+            {formatStatus(app.status)}
+          </Badge>
+        </TableCell>
+      )}
+      {visibleColumns.assessment && (
+        <TableCell>
+          {(app.recommendation || app.final_status) && (
+            <Badge className={`${getStatusBadgeClasses(app.final_status || app.recommendation)} font-proxima`}>
+              {formatStatus(app.final_status || app.recommendation)}
+            </Badge>
+          )}
+        </TableCell>
+      )}
+      {visibleColumns.info_session && (
+        <TableCell>
+          {app.info_session_status && (
+            <Badge className={`${getStatusBadgeClasses(app.info_session_status)} font-proxima`}>
+              {formatStatus(app.info_session_status)}
+            </Badge>
+          )}
+        </TableCell>
+      )}
+      {visibleColumns.workshop && (
+        <TableCell>
+          {app.workshop_status && (
+            <Badge className={`${getStatusBadgeClasses(app.workshop_status)} font-proxima`}>
+              {formatStatus(app.workshop_status)}
+            </Badge>
+          )}
+        </TableCell>
+      )}
+      {visibleColumns.structured_task_grade && (
+        <TableCell className="font-proxima">
+          {app.structured_task_grade || '-'}
+        </TableCell>
+      )}
+      {visibleColumns.admission && (
+        <TableCell>
+          {app.program_admission_status && (
+            <Badge className={`${getStatusBadgeClasses(app.program_admission_status)} font-proxima`}>
+              {formatStatus(app.program_admission_status)}
+            </Badge>
+          )}
+        </TableCell>
+      )}
+      {visibleColumns.deliberation && (
+        <TableCell>
+          <Select
+            value={app.deliberation || '_none'}
+            onValueChange={(value) => onDeliberationChange(app.applicant_id, value === '_none' ? '' : value)}
+          >
+            <SelectTrigger className="w-[100px] h-8 text-xs font-proxima">
+              <SelectValue placeholder="Set" />
+            </SelectTrigger>
+            <SelectContent className="font-proxima">
+              <SelectItem value="_none">None</SelectItem>
+              <SelectItem value="yes">Yes</SelectItem>
+              <SelectItem value="maybe">Maybe</SelectItem>
+              <SelectItem value="no">No</SelectItem>
+            </SelectContent>
+          </Select>
+        </TableCell>
+      )}
+      {visibleColumns.age && (
+        <TableCell className="font-proxima text-gray-600">
+          {app.age || '-'}
+        </TableCell>
+      )}
+      {visibleColumns.gender && (
+        <TableCell className="font-proxima text-gray-600">
+          {app.gender || '-'}
+        </TableCell>
+      )}
+      {visibleColumns.race && (
+        <TableCell className="font-proxima text-gray-600 max-w-[150px] truncate" title={app.race_ethnicity}>
+          {app.race_ethnicity || '-'}
+        </TableCell>
+      )}
+      {visibleColumns.education && (
+        <TableCell className="font-proxima text-gray-600 max-w-[150px] truncate" title={app.education_level}>
+          {app.education_level || '-'}
+        </TableCell>
+      )}
+      {visibleColumns.referral && (
+        <TableCell className="font-proxima text-gray-600 max-w-[150px] truncate" title={app.how_did_you_hear}>
+          {app.how_did_you_hear || '-'}
+        </TableCell>
+      )}
+      {visibleColumns.notes && (
+        <TableCell>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onOpenNotes(app)}
+            className="font-proxima text-[#4242ea] hover:text-[#3333d1]"
+          >
+            📝
+          </Button>
+        </TableCell>
+      )}
+    </TableRow>
+  );
+});
+
+ApplicationRow.displayName = 'ApplicationRow';
+
+// Pagination component
+const Pagination = ({ currentPage, totalPages, totalItems, pageSize, onPageChange }) => {
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Always show first page
+      pages.push(1);
+      
+      // Calculate start and end of visible range
+      let start = Math.max(2, currentPage - 1);
+      let end = Math.min(totalPages - 1, currentPage + 1);
+      
+      // Adjust if at the beginning
+      if (currentPage <= 3) {
+        end = 4;
+      }
+      
+      // Adjust if at the end
+      if (currentPage >= totalPages - 2) {
+        start = totalPages - 3;
+      }
+      
+      // Add ellipsis if needed before middle pages
+      if (start > 2) {
+        pages.push('...');
+      }
+      
+      // Add middle pages
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+      
+      // Add ellipsis if needed after middle pages
+      if (end < totalPages - 1) {
+        pages.push('...');
+      }
+      
+      // Always show last page
+      pages.push(totalPages);
+    }
+    
+    return pages;
+  };
+
+  const startItem = (currentPage - 1) * pageSize + 1;
+  const endItem = Math.min(currentPage * pageSize, totalItems);
+
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-sm text-gray-600 font-proxima">
+        Showing {startItem}-{endItem} of {totalItems} applicants
+      </span>
+      
+      <div className="flex items-center gap-1">
+        {/* Previous button */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="font-proxima h-8 px-2"
+          disabled={currentPage === 1}
+          onClick={() => onPageChange(currentPage - 1)}
+        >
+          ← Prev
+        </Button>
+        
+        {/* Page numbers */}
+        {getPageNumbers().map((page, index) => (
+          page === '...' ? (
+            <span key={`ellipsis-${index}`} className="px-2 text-gray-400">...</span>
+          ) : (
+            <Button
+              key={page}
+              variant={currentPage === page ? 'default' : 'outline'}
+              size="sm"
+              className={`font-proxima h-8 w-8 p-0 ${currentPage === page ? 'bg-[#4242ea] hover:bg-[#3333d1]' : ''}`}
+              onClick={() => onPageChange(page)}
+            >
+              {page}
+            </Button>
+          )
+        ))}
+        
+        {/* Next button */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="font-proxima h-8 px-2"
+          disabled={currentPage === totalPages}
+          onClick={() => onPageChange(currentPage + 1)}
+        >
+          Next →
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 const ApplicationsTab = ({
   loading,
   applications,
   cohorts,
   applicationFilters,
   setApplicationFilters,
-  nameSearchInput,
-  setNameSearchInput,
   visibleColumns,
   setVisibleColumns,
   columnSort,
@@ -80,30 +348,22 @@ const ApplicationsTab = ({
   handleDeliberationChange,
   setBulkActionsModalOpen,
   fetchApplications,
-  token
+  token,
+  searchIndex,
+  currentPage,
+  pageSize,
+  onPageChange
 }) => {
-  const columnLabels = {
-    name: 'Name',
-    email: 'Email',
-    phone: 'Phone',
-    status: 'Status',
-    assessment: 'Assessment',
-    info_session: 'Info Session',
-    workshop: 'Workshop',
-    structured_task_grade: 'Workshop Grade',
-    admission: 'Admission',
-    deliberation: 'Deliberation',
-    notes: 'Notes',
-    age: 'Age',
-    gender: 'Gender',
-    race: 'Race/Ethnicity',
-    education: 'Education',
-    referral: 'Referral Source'
-  };
+  const navigate = useNavigate();
+  
+  // Handle navigating to application detail
+  const handleViewApplication = useCallback((applicationId) => {
+    navigate(`/admissions-dashboard/application/${applicationId}`);
+  }, [navigate]);
 
-  // Sort applications
+  // Sort applications (no client-side filtering - that's handled by search autocomplete now)
   const sortedApplications = useMemo(() => {
-    if (!applications?.applications) return [];
+    if (!applications?.applications || applications.applications.length === 0) return [];
     
     let sorted = [...applications.applications];
     
@@ -136,26 +396,30 @@ const ApplicationsTab = ({
     return sorted;
   }, [applications, columnSort]);
 
-  // Handle select all
-  const handleSelectAll = (checked) => {
+  // Calculate pagination values
+  const totalItems = applications?.total || 0;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+
+  // Handle select all (only selects current page)
+  const handleSelectAll = useCallback((checked) => {
     if (checked) {
-      setSelectedApplicants(applications.applications?.map(app => app.applicant_id) || []);
+      setSelectedApplicants(sortedApplications?.map(app => app.applicant_id) || []);
     } else {
       setSelectedApplicants([]);
     }
-  };
+  }, [sortedApplications, setSelectedApplicants]);
 
   // Handle individual selection
-  const handleSelectApplicant = (applicantId, checked) => {
+  const handleSelectApplicant = useCallback((applicantId, checked) => {
     if (checked) {
-      setSelectedApplicants([...selectedApplicants, applicantId]);
+      setSelectedApplicants(prev => [...prev, applicantId]);
     } else {
-      setSelectedApplicants(selectedApplicants.filter(id => id !== applicantId));
+      setSelectedApplicants(prev => prev.filter(id => id !== applicantId));
     }
-  };
+  }, [setSelectedApplicants]);
 
   // Handle CSV export
-  const handleExportCSV = async () => {
+  const handleExportCSV = useCallback(async () => {
     if (selectedApplicants.length === 0) return;
     
     try {
@@ -209,7 +473,35 @@ const ApplicationsTab = ({
       console.error('Error exporting CSV:', error);
       alert('Failed to export data');
     }
-  };
+  }, [selectedApplicants, token]);
+
+  // Optimized filter update handlers
+  const handleColumnToggle = useCallback((column, checked) => {
+    setVisibleColumns(prev => ({ ...prev, [column]: checked }));
+  }, [setVisibleColumns]);
+
+  const handleFilterChange = useCallback((filterKey, value) => {
+    setApplicationFilters(prev => ({ ...prev, [filterKey]: value, offset: 0 }));
+    onPageChange(1); // Reset to first page when filter changes
+  }, [setApplicationFilters, onPageChange]);
+
+  const handleClearFilter = useCallback((filterKey) => {
+    setApplicationFilters(prev => ({ ...prev, [filterKey]: '', offset: 0 }));
+    onPageChange(1);
+  }, [setApplicationFilters, onPageChange]);
+
+  const handleClearAllFilters = useCallback(() => {
+    setApplicationFilters(prev => ({
+      ...prev,
+      status: '',
+      info_session_status: '',
+      workshop_status: '',
+      program_admission_status: '',
+      deliberation: '',
+      offset: 0
+    }));
+    onPageChange(1);
+  }, [setApplicationFilters, onPageChange]);
 
   // Render sort indicator
   const renderSortIndicator = (column) => {
@@ -265,13 +557,7 @@ const ApplicationsTab = ({
               <DropdownMenuItem
                 key={option.value}
                 className={`cursor-pointer ${currentValue === option.value ? 'bg-[#4242ea]/10 text-[#4242ea]' : ''}`}
-                onClick={() => {
-                  setApplicationFilters({ 
-                    ...applicationFilters, 
-                    [filterKey]: option.value,
-                    offset: 0 
-                  });
-                }}
+                onClick={() => handleFilterChange(filterKey, option.value)}
               >
                 {currentValue === option.value && <span className="mr-2">✓</span>}
                 {option.label}
@@ -282,13 +568,7 @@ const ApplicationsTab = ({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="cursor-pointer text-red-600 hover:text-red-700"
-                  onClick={() => {
-                    setApplicationFilters({ 
-                      ...applicationFilters, 
-                      [filterKey]: '',
-                      offset: 0 
-                    });
-                  }}
+                  onClick={() => handleClearFilter(filterKey)}
                 >
                   ✕ Clear Filter
                 </DropdownMenuItem>
@@ -300,13 +580,76 @@ const ApplicationsTab = ({
     );
   };
 
-  // Loading state
+  // Loading state - Skeleton UI
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-white">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-[#4242ea] border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-500 font-proxima">Loading applicants...</p>
+      <div className="flex flex-col h-full">
+        {/* Controls Skeleton */}
+        <div className="flex flex-wrap items-center gap-3 bg-white p-4 border-b border-gray-200 shrink-0">
+          {/* Search skeleton */}
+          <div className="w-[300px] h-10 bg-gray-200 rounded-md animate-pulse"></div>
+          
+          {/* Cohort filter skeleton */}
+          <div className="w-[200px] h-10 bg-gray-200 rounded-md animate-pulse"></div>
+          
+          {/* Columns button skeleton */}
+          <div className="w-[100px] h-10 bg-gray-200 rounded-md animate-pulse"></div>
+          
+          {/* Actions button skeleton */}
+          <div className="w-[110px] h-10 bg-gray-200 rounded-md animate-pulse"></div>
+          
+          {/* Export button skeleton */}
+          <div className="w-[130px] h-10 bg-gray-200 rounded-md animate-pulse"></div>
+          
+          {/* Refresh button skeleton */}
+          <div className="w-[90px] h-10 bg-gray-200 rounded-md animate-pulse"></div>
+        </div>
+
+        {/* Table Skeleton */}
+        <div className="flex-1 bg-white overflow-hidden">
+          <div className="w-full h-full">
+            {/* Table header skeleton */}
+            <div className="bg-gray-50 border-b border-gray-200 p-4">
+              <div className="flex gap-4">
+                <div className="w-8 h-4 bg-gray-300 rounded animate-pulse"></div>
+                <div className="w-32 h-4 bg-gray-300 rounded animate-pulse"></div>
+                <div className="w-48 h-4 bg-gray-300 rounded animate-pulse"></div>
+                <div className="w-32 h-4 bg-gray-300 rounded animate-pulse"></div>
+                <div className="w-24 h-4 bg-gray-300 rounded animate-pulse"></div>
+                <div className="w-32 h-4 bg-gray-300 rounded animate-pulse"></div>
+                <div className="w-32 h-4 bg-gray-300 rounded animate-pulse"></div>
+              </div>
+            </div>
+            
+            {/* Table rows skeleton */}
+            {[...Array(10)].map((_, index) => (
+              <div key={index} className="border-b border-gray-100 p-4 animate-pulse">
+                <div className="flex gap-4 items-center">
+                  <div className="w-8 h-4 bg-gray-200 rounded"></div>
+                  <div className="w-32 h-4 bg-gray-200 rounded"></div>
+                  <div className="w-48 h-4 bg-gray-200 rounded"></div>
+                  <div className="w-32 h-4 bg-gray-200 rounded"></div>
+                  <div className="w-24 h-6 bg-gray-200 rounded-full"></div>
+                  <div className="w-24 h-6 bg-gray-200 rounded-full"></div>
+                  <div className="w-24 h-6 bg-gray-200 rounded-full"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer Skeleton */}
+        <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="w-48 h-4 bg-gray-300 rounded animate-pulse"></div>
+            <div className="flex items-center gap-2">
+              <div className="w-20 h-8 bg-gray-300 rounded animate-pulse"></div>
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="w-8 h-8 bg-gray-300 rounded animate-pulse"></div>
+              ))}
+              <div className="w-20 h-8 bg-gray-300 rounded animate-pulse"></div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -316,19 +659,16 @@ const ApplicationsTab = ({
     <div className="flex flex-col h-full">
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3 bg-white p-4 border-b border-gray-200 shrink-0">
-        {/* Search */}
-        <Input
-          type="text"
-          placeholder="Search by name..."
-          value={nameSearchInput}
-          onChange={(e) => setNameSearchInput(e.target.value)}
-          className="w-[250px] font-proxima"
+        {/* Search Autocomplete */}
+        <ApplicantSearchAutocomplete 
+          searchIndex={searchIndex} 
+          placeholder="Search applicants..."
         />
 
         {/* Cohort Filter */}
         <Select
           value={applicationFilters.cohort_id || '_all'}
-          onValueChange={(value) => setApplicationFilters({ ...applicationFilters, cohort_id: value === '_all' ? '' : value, offset: 0 })}
+          onValueChange={(value) => handleFilterChange('cohort_id', value === '_all' ? '' : value)}
         >
           <SelectTrigger className="w-[200px] bg-white font-proxima">
             <SelectValue placeholder="Cohort: All Time" />
@@ -358,7 +698,7 @@ const ApplicationsTab = ({
               <DropdownMenuCheckboxItem
                 key={column}
                 checked={visibleColumns[column]}
-                onCheckedChange={(checked) => setVisibleColumns({ ...visibleColumns, [column]: checked })}
+                onCheckedChange={(checked) => handleColumnToggle(column, checked)}
               >
                 {columnLabels[column] || getColumnLabel(column)}
               </DropdownMenuCheckboxItem>
@@ -396,27 +736,27 @@ const ApplicationsTab = ({
           <div className="flex items-center gap-2 ml-auto">
             <span className="text-sm text-gray-500 font-proxima">Active filters:</span>
             {applicationFilters.status && (
-              <Badge className="bg-blue-100 text-blue-700 font-proxima cursor-pointer hover:bg-blue-200" onClick={() => setApplicationFilters({ ...applicationFilters, status: '', offset: 0 })}>
+              <Badge className="bg-blue-100 text-blue-700 font-proxima cursor-pointer hover:bg-blue-200" onClick={() => handleClearFilter('status')}>
                 Status: {formatStatus(applicationFilters.status)} ✕
               </Badge>
             )}
             {applicationFilters.info_session_status && (
-              <Badge className="bg-purple-100 text-purple-700 font-proxima cursor-pointer hover:bg-purple-200" onClick={() => setApplicationFilters({ ...applicationFilters, info_session_status: '', offset: 0 })}>
+              <Badge className="bg-purple-100 text-purple-700 font-proxima cursor-pointer hover:bg-purple-200" onClick={() => handleClearFilter('info_session_status')}>
                 Info Session: {formatStatus(applicationFilters.info_session_status)} ✕
               </Badge>
             )}
             {applicationFilters.workshop_status && (
-              <Badge className="bg-green-100 text-green-700 font-proxima cursor-pointer hover:bg-green-200" onClick={() => setApplicationFilters({ ...applicationFilters, workshop_status: '', offset: 0 })}>
+              <Badge className="bg-green-100 text-green-700 font-proxima cursor-pointer hover:bg-green-200" onClick={() => handleClearFilter('workshop_status')}>
                 Workshop: {formatStatus(applicationFilters.workshop_status)} ✕
               </Badge>
             )}
             {applicationFilters.program_admission_status && (
-              <Badge className="bg-yellow-100 text-yellow-700 font-proxima cursor-pointer hover:bg-yellow-200" onClick={() => setApplicationFilters({ ...applicationFilters, program_admission_status: '', offset: 0 })}>
+              <Badge className="bg-yellow-100 text-yellow-700 font-proxima cursor-pointer hover:bg-yellow-200" onClick={() => handleClearFilter('program_admission_status')}>
                 Admission: {formatStatus(applicationFilters.program_admission_status)} ✕
               </Badge>
             )}
             {applicationFilters.deliberation && (
-              <Badge className="bg-orange-100 text-orange-700 font-proxima cursor-pointer hover:bg-orange-200" onClick={() => setApplicationFilters({ ...applicationFilters, deliberation: '', offset: 0 })}>
+              <Badge className="bg-orange-100 text-orange-700 font-proxima cursor-pointer hover:bg-orange-200" onClick={() => handleClearFilter('deliberation')}>
                 Deliberation: {formatStatus(applicationFilters.deliberation)} ✕
               </Badge>
             )}
@@ -424,15 +764,7 @@ const ApplicationsTab = ({
               variant="ghost"
               size="sm"
               className="text-red-600 hover:text-red-700 hover:bg-red-50 font-proxima h-6 px-2"
-              onClick={() => setApplicationFilters({
-                ...applicationFilters,
-                status: '',
-                info_session_status: '',
-                workshop_status: '',
-                program_admission_status: '',
-                deliberation: '',
-                offset: 0
-              })}
+              onClick={handleClearAllFilters}
             >
               Clear All
             </Button>
@@ -448,7 +780,7 @@ const ApplicationsTab = ({
                 <TableRow className="bg-gray-50">
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={selectedApplicants.length === applications.applications?.length && applications.applications?.length > 0}
+                      checked={selectedApplicants.length === sortedApplications?.length && sortedApplications?.length > 0}
                       onCheckedChange={handleSelectAll}
                     />
                   </TableHead>
@@ -521,132 +853,16 @@ const ApplicationsTab = ({
               </TableHeader>
               <TableBody>
                 {sortedApplications.map((app) => (
-                  <TableRow key={app.applicant_id} className="hover:bg-gray-50">
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedApplicants.includes(app.applicant_id)}
-                        onCheckedChange={(checked) => handleSelectApplicant(app.applicant_id, checked)}
-                      />
-                    </TableCell>
-                    {visibleColumns.name && (
-                      <TableCell className="font-medium font-proxima">
-                        {app.first_name} {app.last_name}
-                      </TableCell>
-                    )}
-                    {visibleColumns.email && (
-                      <TableCell className="font-proxima text-gray-600">
-                        {app.email || 'N/A'}
-                      </TableCell>
-                    )}
-                    {visibleColumns.phone && (
-                      <TableCell className="font-proxima text-gray-600">
-                        {formatPhoneNumber(app.phone_number)}
-                      </TableCell>
-                    )}
-                    {visibleColumns.status && (
-                      <TableCell>
-                        <Badge className={`${getStatusBadgeClasses(app.status)} font-proxima`}>
-                          {formatStatus(app.status)}
-                        </Badge>
-                      </TableCell>
-                    )}
-                    {visibleColumns.assessment && (
-                      <TableCell>
-                        {(app.recommendation || app.final_status) && (
-                          <Badge className={`${getStatusBadgeClasses(app.final_status || app.recommendation)} font-proxima`}>
-                            {formatStatus(app.final_status || app.recommendation)}
-                          </Badge>
-                        )}
-                      </TableCell>
-                    )}
-                    {visibleColumns.info_session && (
-                      <TableCell>
-                        {app.info_session_status && (
-                          <Badge className={`${getStatusBadgeClasses(app.info_session_status)} font-proxima`}>
-                            {formatStatus(app.info_session_status)}
-                          </Badge>
-                        )}
-                      </TableCell>
-                    )}
-                    {visibleColumns.workshop && (
-                      <TableCell>
-                        {app.workshop_status && (
-                          <Badge className={`${getStatusBadgeClasses(app.workshop_status)} font-proxima`}>
-                            {formatStatus(app.workshop_status)}
-                          </Badge>
-                        )}
-                      </TableCell>
-                    )}
-                    {visibleColumns.structured_task_grade && (
-                      <TableCell className="font-proxima">
-                        {app.structured_task_grade || '-'}
-                      </TableCell>
-                    )}
-                    {visibleColumns.admission && (
-                      <TableCell>
-                        {app.program_admission_status && (
-                          <Badge className={`${getStatusBadgeClasses(app.program_admission_status)} font-proxima`}>
-                            {formatStatus(app.program_admission_status)}
-                          </Badge>
-                        )}
-                      </TableCell>
-                    )}
-                    {visibleColumns.deliberation && (
-                      <TableCell>
-                        <Select
-                          value={app.deliberation || '_none'}
-                          onValueChange={(value) => handleDeliberationChange(app.applicant_id, value === '_none' ? '' : value)}
-                        >
-                          <SelectTrigger className="w-[100px] h-8 text-xs font-proxima">
-                            <SelectValue placeholder="Set" />
-                          </SelectTrigger>
-                          <SelectContent className="font-proxima">
-                            <SelectItem value="_none">None</SelectItem>
-                            <SelectItem value="yes">Yes</SelectItem>
-                            <SelectItem value="maybe">Maybe</SelectItem>
-                            <SelectItem value="no">No</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                    )}
-                    {visibleColumns.age && (
-                      <TableCell className="font-proxima text-gray-600">
-                        {app.age || '-'}
-                      </TableCell>
-                    )}
-                    {visibleColumns.gender && (
-                      <TableCell className="font-proxima text-gray-600">
-                        {app.gender || '-'}
-                      </TableCell>
-                    )}
-                    {visibleColumns.race && (
-                      <TableCell className="font-proxima text-gray-600 max-w-[150px] truncate" title={app.race_ethnicity}>
-                        {app.race_ethnicity || '-'}
-                      </TableCell>
-                    )}
-                    {visibleColumns.education && (
-                      <TableCell className="font-proxima text-gray-600 max-w-[150px] truncate" title={app.education_level}>
-                        {app.education_level || '-'}
-                      </TableCell>
-                    )}
-                    {visibleColumns.referral && (
-                      <TableCell className="font-proxima text-gray-600 max-w-[150px] truncate" title={app.how_did_you_hear}>
-                        {app.how_did_you_hear || '-'}
-                      </TableCell>
-                    )}
-                    {visibleColumns.notes && (
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openNotesModal(app)}
-                          className="font-proxima text-[#4242ea] hover:text-[#3333d1]"
-                        >
-                          📝
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
+                  <ApplicationRow
+                    key={app.applicant_id}
+                    app={app}
+                    visibleColumns={visibleColumns}
+                    isSelected={selectedApplicants.includes(app.applicant_id)}
+                    onSelect={handleSelectApplicant}
+                    onViewApplication={handleViewApplication}
+                    onOpenNotes={openNotesModal}
+                    onDeliberationChange={handleDeliberationChange}
+                  />
                 ))}
               </TableBody>
             </Table>
@@ -655,25 +871,12 @@ const ApplicationsTab = ({
         <div className="flex-1 bg-white flex items-center justify-center">
           <div className="text-center">
             <p className="text-gray-500 font-proxima text-lg">No applicants found</p>
-            <p className="text-gray-400 font-proxima text-sm mt-1">Try adjusting your search or filters</p>
-            {(applicationFilters.status || applicationFilters.info_session_status || applicationFilters.workshop_status || applicationFilters.program_admission_status || applicationFilters.deliberation || nameSearchInput) && (
+            <p className="text-gray-400 font-proxima text-sm mt-1">Try adjusting your filters</p>
+            {(applicationFilters.status || applicationFilters.info_session_status || applicationFilters.workshop_status || applicationFilters.program_admission_status || applicationFilters.deliberation) && (
               <Button
                 variant="outline"
                 className="mt-4 font-proxima"
-                onClick={() => {
-                  setNameSearchInput('');
-                  setApplicationFilters({
-                    ...applicationFilters,
-                    status: '',
-                    info_session_status: '',
-                    workshop_status: '',
-                    program_admission_status: '',
-                    deliberation: '',
-                    ready_for_workshop_invitation: false,
-                    name_search: '',
-                    offset: 0
-                  });
-                }}
+                onClick={handleClearAllFilters}
               >
                 Clear All Filters
               </Button>
@@ -682,12 +885,16 @@ const ApplicationsTab = ({
         </div>
       )}
 
-      {/* Footer - Fixed at bottom */}
+      {/* Footer with Pagination */}
       {applications?.applications?.length > 0 && (
         <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 shrink-0">
-          <span className="text-sm text-gray-600 font-proxima">
-            Showing {applications.applications.length} of {applications.total} applicants
-          </span>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={onPageChange}
+          />
         </div>
       )}
     </div>
@@ -695,4 +902,3 @@ const ApplicationsTab = ({
 };
 
 export default ApplicationsTab;
-
