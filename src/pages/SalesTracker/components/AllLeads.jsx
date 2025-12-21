@@ -711,48 +711,16 @@ const AllLeads = () => {
                   }}
                 >
                   <CardContent className="p-6">
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-                      {/* Lead Info */}
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center space-x-3">
-                          <h3 className="text-lg font-semibold text-gray-900">{lead.name}</h3>
-                          <Badge className={getStatusBadgeColor(lead.stage)}>
-                            {lead.stage}
-                          </Badge>
-                          {lead.network && (
-                            <span className="text-sm text-gray-500">{lead.network}</span>
-                          )}
-                        </div>
-
-                        <p className="text-gray-600 font-medium">{lead.company}</p>
-
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                          <div>
-                            <span className="font-medium">Status:</span> {lead.stage}
-                          </div>
-                          <div>
-                            <span className="font-medium">Last Contact:</span> {lead.lastContact}
-                          </div>
-                          <div>
-                            <span className="font-medium">Sectors:</span>
-                            {lead.sectors.length > 0 ? (
-                              <span className="ml-1">
-                                {lead.sectors.map((sector) => (
-                                  <Badge key={sector} variant="secondary" className="ml-1 text-xs">
-                                    {sector}
-                                  </Badge>
-                                ))}
-                              </span>
-                            ) : (
-                              <span className="ml-1 text-gray-400">None</span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="text-sm">
-                          <span className="font-medium text-gray-900">Current Owner:</span>
-                          <span className="ml-2 text-gray-600">{lead.currentOwner}</span>
-                        </div>
+                    {/* Header Row - Name and Buttons */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <h3 className="text-lg font-semibold text-gray-900">{lead.name}</h3>
+                        <Badge className={getStatusBadgeColor(lead.stage)}>
+                          {lead.stage}
+                        </Badge>
+                        {lead.network && (
+                          <span className="text-sm text-gray-500">{lead.network}</span>
+                        )}
                       </div>
 
                       {/* Actions */}
@@ -807,6 +775,53 @@ const AllLeads = () => {
                         </AlertDialog>
                       </div>
                     </div>
+
+                    {/* Lead Info */}
+                    <div className="space-y-2">
+                      <p className="text-gray-600 font-medium">{lead.company}</p>
+
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                        <div>
+                          <span className="font-medium">Status:</span> {lead.stage}
+                        </div>
+                        <div>
+                          <span className="font-medium">Last Contact:</span> {lead.lastContact}
+                        </div>
+                        <div>
+                          <span className="font-medium">Sectors:</span>
+                          {lead.sectors.length > 0 ? (
+                            <span className="ml-1">
+                              {lead.sectors.map((sector) => (
+                                <Badge key={sector} variant="secondary" className="ml-1 text-xs">
+                                  {sector}
+                                </Badge>
+                              ))}
+                            </span>
+                          ) : (
+                            <span className="ml-1 text-gray-400">None</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-sm">
+                        <span className="font-medium text-gray-900">Current Owner:</span>
+                        <span className="ml-2 text-gray-600">{lead.currentOwner}</span>
+                      </div>
+                    </div>
+
+                    {/* Latest Activity - Full Width */}
+                    {lead.latestActivity && (
+                      <div className="mt-4 bg-blue-50 border-l-4 border-blue-400 p-3 rounded-r">
+                        <span className="font-medium text-blue-800">Latest Activity: </span>
+                        {lead.latestActivity.type === 'stage_change' ? (
+                          <span className="text-gray-700">
+                            📊 Stage: {lead.latestActivity.oldStage} → {lead.latestActivity.newStage} Followed up on {lead.latestActivity.date}
+                          </span>
+                        ) : (
+                          <span className="text-gray-700">{lead.latestActivity.content}</span>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
