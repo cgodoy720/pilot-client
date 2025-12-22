@@ -26,6 +26,10 @@ const Dashboard = () => {
   const [outreachFromDate, setOutreachFromDate] = useState('');
   const [outreachToDate, setOutreachToDate] = useState('');
   
+  // Sorting for Outreach table
+  const [sortColumn, setSortColumn] = useState('outreachDate');
+  const [sortDirection, setSortDirection] = useState('desc');
+  
   // Filters for Closed Won Jobs
   const [closedJobsFromDate, setClosedJobsFromDate] = useState('');
   const [closedJobsToDate, setClosedJobsToDate] = useState('');
@@ -90,6 +94,60 @@ const Dashboard = () => {
       return 'bg-green-100 text-green-800';
     }
     return 'bg-yellow-100 text-yellow-800';
+  };
+
+  const handleSort = (column) => {
+    if (sortColumn === column) {
+      // Toggle direction if clicking the same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column, default to ascending
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortedData = () => {
+    if (!outreachData || outreachData.length === 0) return [];
+
+    const sorted = [...outreachData].sort((a, b) => {
+      let aValue, bValue;
+
+      switch (sortColumn) {
+        case 'staffMember':
+          aValue = (a.currentOwner || '').toLowerCase();
+          bValue = (b.currentOwner || '').toLowerCase();
+          break;
+        case 'name':
+          aValue = (a.name || '').toLowerCase();
+          bValue = (b.name || '').toLowerCase();
+          break;
+        case 'company':
+          aValue = (a.company || '').toLowerCase();
+          bValue = (b.company || '').toLowerCase();
+          break;
+        case 'role':
+          aValue = (a.jobTitle || a.contactTitle || '').toLowerCase();
+          bValue = (b.jobTitle || b.contactTitle || '').toLowerCase();
+          break;
+        case 'outreachDate':
+          aValue = new Date(a.outreachDate || 0).getTime();
+          bValue = new Date(b.outreachDate || 0).getTime();
+          break;
+        case 'status':
+          aValue = (a.stage || '').toLowerCase();
+          bValue = (b.stage || '').toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
   };
 
   if (loading) {
@@ -240,40 +298,58 @@ const Dashboard = () => {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                  <th 
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('staffMember')}
+                  >
                     <div className="flex items-center space-x-1">
                       <span>Staff Member</span>
-                      <ArrowUpDown className="w-3 h-3" />
+                      <ArrowUpDown className={`w-3 h-3 ${sortColumn === 'staffMember' ? 'text-pursuit-purple' : ''}`} />
                     </div>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                  <th 
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('name')}
+                  >
                     <div className="flex items-center space-x-1">
                       <span>Name</span>
-                      <ArrowUpDown className="w-3 h-3" />
+                      <ArrowUpDown className={`w-3 h-3 ${sortColumn === 'name' ? 'text-pursuit-purple' : ''}`} />
                     </div>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                  <th 
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('company')}
+                  >
                     <div className="flex items-center space-x-1">
                       <span>Company</span>
-                      <ArrowUpDown className="w-3 h-3" />
+                      <ArrowUpDown className={`w-3 h-3 ${sortColumn === 'company' ? 'text-pursuit-purple' : ''}`} />
                     </div>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                  <th 
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('role')}
+                  >
                     <div className="flex items-center space-x-1">
                       <span>Role</span>
-                      <ArrowUpDown className="w-3 h-3" />
+                      <ArrowUpDown className={`w-3 h-3 ${sortColumn === 'role' ? 'text-pursuit-purple' : ''}`} />
                     </div>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                  <th 
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('outreachDate')}
+                  >
                     <div className="flex items-center space-x-1">
                       <span>Date of Initial Outreach</span>
-                      <ArrowUpDown className="w-3 h-3" />
+                      <ArrowUpDown className={`w-3 h-3 ${sortColumn === 'outreachDate' ? 'text-pursuit-purple' : ''}`} />
                     </div>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                  <th 
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('status')}
+                  >
                     <div className="flex items-center space-x-1">
                       <span>Status</span>
-                      <ArrowUpDown className="w-3 h-3" />
+                      <ArrowUpDown className={`w-3 h-3 ${sortColumn === 'status' ? 'text-pursuit-purple' : ''}`} />
                     </div>
                   </th>
                 </tr>
@@ -286,7 +362,7 @@ const Dashboard = () => {
                     </td>
                   </tr>
                 ) : (
-                  outreachData.map((item) => (
+                  getSortedData().map((item) => (
                     <tr key={item.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {item.currentOwner || 'Unknown'}

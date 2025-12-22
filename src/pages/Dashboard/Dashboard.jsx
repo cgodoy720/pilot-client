@@ -351,7 +351,7 @@ function Dashboard() {
     setIsSidebarOpen(false);
   }, []);
 
-  // Handle navigation from sidebar to specific day/task
+  // Handle navigation from sidebar to specific day/task - DEPRECATED, kept for other uses
   const handleNavigateToDay = useCallback((dayId, taskId) => {
     // Navigate to the day view with the task highlighted
     navigate(`/calendar?day=${dayId}&task=${taskId}`);
@@ -1023,7 +1023,7 @@ function Dashboard() {
       <MissedAssignmentsSidebar
         isOpen={isSidebarOpen}
         onClose={handleCloseSidebar}
-        onNavigateToDay={handleNavigateToDay}
+        onNavigateToDay={handleNavigateToTask}
       />
     </Layout>
   );
