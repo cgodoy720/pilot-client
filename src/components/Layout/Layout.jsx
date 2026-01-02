@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Settings, Award, Users, FileText, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench, Target, ListChecks, ClipboardList, UserCheck, Heart } from 'lucide-react';
+import { LogOut, Settings, Award, Users, FileText, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench, Target, ListChecks, ClipboardList, UserCheck, Heart, Building2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import LoadingCurtain from '../LoadingCurtain/LoadingCurtain';
 import NavDropdown from './NavDropdown';
@@ -27,8 +27,12 @@ const Layout = ({ children, isLoading = false }) => {
   const isWorkshopAdmin = user?.role === 'workshop_admin';
   // Check if user is a workshop participant (from dev)
   const isWorkshopParticipant = user?.role === 'workshop_participant';
+  // Check if user is an enterprise builder or admin
+  const isEnterpriseUser = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin';
   // Check if user is an applicant (from dev)
   const isApplicant = user?.role === 'applicant';
+  // Check if user is an enterprise admin
+  const isEnterpriseAdmin = user?.role === 'enterprise_admin';
   
   // Detect mobile vs desktop
   useEffect(() => {
@@ -109,6 +113,7 @@ const Layout = ({ children, isLoading = false }) => {
       '/admin-attendance-dashboard', 
       '/admin/assessment-grades',
       '/admissions-dashboard',
+      '/external-cohorts',
       '/sales-tracker',
       '/payment-admin',
       '/content'
@@ -269,22 +274,27 @@ const Layout = ({ children, isLoading = false }) => {
           </svg>
         ), 'Calendar', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)}
         
-        {/* Pathfinder - NEW from dev (hidden for volunteers) */}
+        {/* Pathfinder - NEW from dev (hidden for volunteers, workshop users, and enterprise users) */}
         {renderNavLink('/pathfinder/dashboard', <ArrowRight className="h-4 w-4 text-[#E3E3E3]" />, 'Pathfinder',
-          !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant && !isVolunteer,
+          !isWorkshopParticipant && !isWorkshopAdmin && !isEnterpriseUser && !isApplicant && !isVolunteer,
           () => location.pathname.startsWith('/pathfinder')
         )}
         
-        {/* My Performance - Show for fellows, admin, and staff; Hide for workshop participants, workshop admins, applicants, and volunteers */}
+        {/* My Performance - Show for fellows, admin, and staff; Hide for workshop participants, workshop admins, enterprise users, applicants, and volunteers */}
         {renderNavLink('/performance', (
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-        ), 'Performance', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant && !isVolunteer)}
+        ), 'Performance', !isWorkshopParticipant && !isWorkshopAdmin && !isEnterpriseUser && !isApplicant && !isVolunteer)}
         
         {/* Workshop Admin Dashboard - NEW from dev */}
         {renderNavLink('/workshop-admin-dashboard', <Wrench className="h-4 w-4 text-[#E3E3E3]" />, 'Workshop Admin', 
           isWorkshopAdmin
+        )}
+        
+        {/* Enterprise Admin Dashboard - for external cohort admins */}
+        {renderNavLink('/cohort-admin-dashboard', <Building2 className="h-4 w-4 text-[#E3E3E3]" />, 'Enterprise Admin', 
+          isEnterpriseAdmin
         )}
         
         {/* Staff Dropdown - Cohort Management and Operations */}
@@ -296,6 +306,7 @@ const Layout = ({ children, isLoading = false }) => {
             { to: '/admin-attendance-dashboard', icon: CalendarIcon, label: 'Attendance' },
             { to: '/admin/assessment-grades', icon: Award, label: 'Assessments' },
             { to: '/admissions-dashboard', icon: Users, label: 'Admissions' },
+            { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
             { to: '/pathfinder/admin', icon: ArrowRight, label: 'Pathfinder Admin' },
             { to: '/sales-tracker', icon: Target, label: 'Sales Tracker' },
             { to: '/payment-admin', icon: Briefcase, label: 'Payment Admin' },

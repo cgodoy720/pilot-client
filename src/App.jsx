@@ -45,6 +45,8 @@ import PathfinderAdminDashboard from './pages/PathfinderDashboard';
 import PathfinderAdmin from './pages/PathfinderAdmin';
 
 import WorkshopAdminDashboard from './pages/WorkshopAdminDashboard/WorkshopAdminDashboard';
+import ExternalCohortsDashboard from './pages/ExternalCohortsDashboard/ExternalCohortsDashboard';
+import CohortAdminDashboard from './pages/CohortAdminDashboard/CohortAdminDashboard';
 
 // Form Builder pages
 import FormBuilderDashboard from './pages/FormBuilder/FormBuilderDashboard';
@@ -171,7 +173,28 @@ function App() {
     return children;
   };
 
+  // Enterprise Admin route protection component
+  const EnterpriseAdminRoute = ({ children }) => {
+    const isEnterpriseAdmin = user?.role === 'enterprise_admin' || user?.role === 'admin' || user?.role === 'staff';
+    
+    if (!isEnterpriseAdmin) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    
+    return children;
+  };
 
+  // Builder-only route protection component (excludes workshop/enterprise users)
+  const BuilderRoute = ({ children }) => {
+    const excludedRoles = ['workshop_participant', 'workshop_admin', 'enterprise_builder', 'enterprise_admin'];
+    const isExcluded = excludedRoles.includes(user?.role);
+    
+    if (isExcluded) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    
+    return children;
+  };
 
   // If auth is still loading, show a minimal loading state
   if (isLoading) {
@@ -322,10 +345,31 @@ function App() {
             </WorkshopAdminRoute>
           </Layout>
         } />
+        
+        {/* External Cohorts Management (Admin/Staff only) */}
+        <Route path="/external-cohorts" element={
+          <Layout>
+            <AdminRoute>
+              <ExternalCohortsDashboard />
+            </AdminRoute>
+          </Layout>
+        } />
+        
+        {/* Enterprise Admin Dashboard (for enterprise admins) */}
+        <Route path="/cohort-admin-dashboard" element={
+          <Layout>
+            <EnterpriseAdminRoute>
+              <CohortAdminDashboard />
+            </EnterpriseAdminRoute>
+          </Layout>
+        } />
+        
         <Route path="/stats" element={<Navigate to="/performance" replace />} />
         <Route path="/performance" element={
           <Layout>
-            <Performance />
+            <BuilderRoute>
+              <Performance />
+            </BuilderRoute>
           </Layout>
         } />
         <Route path="/account" element={
@@ -342,7 +386,9 @@ function App() {
         {/* Pathfinder routes - personal view with nested routes */}
         <Route path="/pathfinder/*" element={
           <Layout>
-            <Pathfinder />
+            <BuilderRoute>
+              <Pathfinder />
+            </BuilderRoute>
           </Layout>
         }>
           <Route path="dashboard" element={<PathfinderPersonalDashboard />} />

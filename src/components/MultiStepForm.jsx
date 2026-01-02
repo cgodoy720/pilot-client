@@ -14,7 +14,7 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
     email: '',
     password: '',
     confirmPassword: '',
-    accessCode: '', // For workshop participants
+    accessCode: '', // For enterprise participants (cohort or workshop)
   });
   const [validationError, setValidationError] = useState('');
 
@@ -36,9 +36,9 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
         { id: 'password', label: 'Create a password', type: 'password', placeholder: 'Type your answer here...' },
         { id: 'confirmPassword', label: 'Confirm your password', type: 'password', placeholder: 'Type your answer here...' },
       ];
-    } else if (userType === 'workshop') {
+    } else if (userType === 'enterprise') {
       return [
-        { id: 'accessCode', label: 'What is your workshop access code?', type: 'text', placeholder: 'Type your answer here...' },
+        { id: 'accessCode', label: 'What is your access code?', type: 'text', placeholder: 'Type your answer here...' },
         { id: 'firstName', label: 'What is your first name?', type: 'text', placeholder: 'Type your answer here...' },
         { id: 'lastName', label: 'What is your last name?', type: 'text', placeholder: 'Type your answer here...' },
         { id: 'email', label: 'What is your email address?', type: 'email', placeholder: 'Type your answer here...' },
