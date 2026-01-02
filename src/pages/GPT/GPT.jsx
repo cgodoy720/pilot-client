@@ -395,13 +395,48 @@ function GPT() {
         
         // Only update if messages actually changed
         if (currentLastMessageId !== newLastMessageId || messages.length !== messagesArray.length) {
-          setMessages(messagesArray);
+          // Merge intelligently: keep temp messages, add new server messages
+          const existingMessageIds = new Set(messages.map(msg => getMessageId(msg)));
+          const existingContents = new Set(messages.map(msg => msg.content));
           
-          // Update isAiThinking based on last message role
-          if (messagesArray.length > 0) {
-            const lastMessage = messagesArray[messagesArray.length - 1];
-            const lastMessageRole = getMessageRole(lastMessage);
-            setIsAiThinking(lastMessageRole === 'user');
+          // Find truly new messages (not in current state by ID or content)
+          const newMessages = messagesArray.filter(serverMsg => {
+            const serverId = getMessageId(serverMsg);
+            const serverContent = serverMsg.content;
+            
+            // Skip if we already have this message by ID
+            if (existingMessageIds.has(serverId)) {
+              return false;
+            }
+            
+            // Skip user messages that match content of existing temp messages
+            const serverRole = getMessageRole(serverMsg);
+            if (serverRole === 'user' && existingContents.has(serverContent)) {
+              return false;
+            }
+            
+            return true;
+          });
+          
+          // If there are new messages, append them (don't replace)
+          if (newMessages.length > 0) {
+            setMessages(prevMessages => {
+              // Remove temp flag from any temp messages
+              const updatedMessages = prevMessages.map(msg => 
+                msg.isTemp ? { ...msg, isTemp: false } : msg
+              );
+              return [...updatedMessages, ...newMessages];
+            });
+            
+            // Update isAiThinking based on last message role
+            if (newMessages.length > 0) {
+              const lastNewMessage = newMessages[newMessages.length - 1];
+              const lastMessageRole = getMessageRole(lastNewMessage);
+              // If last new message is from assistant, we're done waiting
+              if (lastMessageRole === 'assistant' || lastMessageRole === 'ai') {
+                setIsAiThinking(false);
+              }
+            }
           }
         }
       } else {
@@ -538,7 +573,8 @@ function GPT() {
       message_id: tempUserMessageId,
       content: messageToSend,
       message_role: 'user',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      isTemp: true // Mark as temporary message
     };
     
     setMessages(prevMessages => [...prevMessages, tempUserMessage]);
@@ -560,13 +596,26 @@ function GPT() {
       }, 1000);
       
       if (response && response.reply) {
+        // Replace temp message with real one and add AI reply
         setMessages(prevMessages => [
           ...prevMessages.filter(msg => msg.message_id !== tempUserMessageId),
-          tempUserMessage,
+          { ...tempUserMessage, isTemp: false },
           response.reply
         ]);
+        setIsSending(false);
+        setIsAiThinking(false);
       } else {
-        await fetchMessages(threadId);
+        // No immediate response - keep temp message and wait for polling to fetch AI response
+        // Remove isTemp flag so it doesn't get removed when server messages arrive
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg.message_id === tempUserMessageId 
+              ? { ...msg, isTemp: false }
+              : msg
+          )
+        );
+        setIsSending(false);
+        // Keep isAiThinking true so polling continues
       }
       
       setError('');
@@ -580,12 +629,8 @@ function GPT() {
       setMessages(prevMessages => 
         prevMessages.filter(msg => msg.message_id !== tempUserMessageId)
       );
-    } finally {
-      // Only update state if not aborted
-      if (!abortController.signal.aborted) {
       setIsSending(false);
       setIsAiThinking(false);
-      }
     }
   };
 
@@ -605,7 +650,8 @@ function GPT() {
       message_id: tempUserMessageId,
       content: messageToSend,
       message_role: 'user',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      isTemp: true // Mark as temporary message
     };
     
     setMessages(prevMessages => [...prevMessages, tempUserMessage]);
@@ -630,13 +676,26 @@ function GPT() {
       }
       
       if (response && response.reply) {
+        // Replace temp message with real one and add AI reply
         setMessages(prevMessages => [
           ...prevMessages.filter(msg => msg.message_id !== tempUserMessageId),
-          tempUserMessage,
+          { ...tempUserMessage, isTemp: false },
           response.reply
         ]);
+        setIsSending(false);
+        setIsAiThinking(false);
       } else {
-        await fetchMessages(activeThread);
+        // No immediate response - keep temp message and wait for polling to fetch AI response
+        // Remove isTemp flag so it doesn't get removed when server messages arrive
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg.message_id === tempUserMessageId 
+              ? { ...msg, isTemp: false }
+              : msg
+          )
+        );
+        setIsSending(false);
+        // Keep isAiThinking true so polling continues
       }
       
       setError('');
@@ -650,12 +709,8 @@ function GPT() {
       setMessages(prevMessages => 
         prevMessages.filter(msg => msg.message_id !== tempUserMessageId)
       );
-    } finally {
-      // Only update state if not aborted
-      if (!abortController.signal.aborted) {
       setIsSending(false);
       setIsAiThinking(false);
-      }
     }
   };
 

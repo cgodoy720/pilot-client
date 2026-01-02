@@ -2,6 +2,7 @@ import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import CurriculumBrowserTab from './components/CurriculumBrowserTab';
 import HistoryTab from './components/HistoryTab';
+import CohortsTab from './components/CohortsTab';
 
 const CurriculumEditor = () => {
   return (
@@ -21,6 +22,12 @@ const CurriculumEditor = () => {
             >
               Change History
             </TabsTrigger>
+            <TabsTrigger 
+              value="cohorts"
+              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+            >
+              Cohorts
+            </TabsTrigger>
           </TabsList>
 
           <div className="mt-6">
@@ -30,6 +37,10 @@ const CurriculumEditor = () => {
 
             <TabsContent value="history" className="m-0">
               <HistoryTab />
+            </TabsContent>
+
+            <TabsContent value="cohorts" className="m-0">
+              <CohortsTab />
             </TabsContent>
           </div>
         </Tabs>

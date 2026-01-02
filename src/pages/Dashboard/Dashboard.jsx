@@ -42,6 +42,9 @@ function Dashboard() {
   // NEW: Task completion status map for current week
   const [taskCompletionMap, setTaskCompletionMap] = useState({});
 
+  // Cohort info for pre-curriculum countdown display
+  const [cohortInfo, setCohortInfo] = useState(null);
+
   useEffect(() => {
     // Only fetch dashboard data if user is active and not a volunteer
     // Volunteers have their own view that doesn't need builder curriculum data
@@ -82,6 +85,7 @@ function Dashboard() {
       const data = await response.json();
       
       if (data.message === 'No schedule for today') {
+        setCohortInfo(data.cohortInfo || null);
         setIsLoading(false);
         return;
       }
@@ -351,7 +355,7 @@ function Dashboard() {
     setIsSidebarOpen(false);
   }, []);
 
-  // Handle navigation from sidebar to specific day/task
+  // Handle navigation from sidebar to specific day/task - DEPRECATED, kept for other uses
   const handleNavigateToDay = useCallback((dayId, taskId) => {
     // Navigate to the day view with the task highlighted
     navigate(`/calendar?day=${dayId}&task=${taskId}`);
@@ -466,6 +470,83 @@ function Dashboard() {
     );
   };
 
+  // Render pre-curriculum countdown view
+  const renderPreCurriculumView = () => {
+    let daysUntilStart = 0;
+    
+    if (cohortInfo?.start_date) {
+      // Use the same approach as isDateToday - extract components with getDate/getMonth/getFullYear
+      const startDateObj = new Date(cohortInfo.start_date);
+      const today = new Date();
+      
+      // Create local midnight dates using extracted components
+      const startLocal = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
+      const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      
+      const diffMs = startLocal.getTime() - todayLocal.getTime();
+      daysUntilStart = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    }
+    
+    const cohortName = cohortInfo?.cohort_name || 'your program';
+    
+    return (
+      <div className="dashboard">
+        {/* Desktop View */}
+        <div className="dashboard__desktop hidden md:block">
+          {/* Greeting */}
+          <div className="dashboard__greeting">
+            <h1 className="dashboard__greeting-text">
+              Welcome, {user?.firstName || 'there'}!
+            </h1>
+          </div>
+          
+          {/* Countdown Section */}
+          <div className="dashboard__countdown-section">
+            <div className="dashboard__countdown-number">{daysUntilStart}</div>
+            <div className="dashboard__countdown-label">
+              {daysUntilStart === 1 ? 'day' : 'days'} until we begin!
+            </div>
+            <p className="dashboard__countdown-message">
+              Get ready! Your learning journey starts soon.
+            </p>
+          </div>
+          
+          <div className="dashboard__divider-2" />
+          
+          {/* Placeholder for schedule area */}
+          <div className="dashboard__schedule-placeholder">
+            <p>Your schedule will appear here.</p>
+          </div>
+        </div>
+        
+        {/* Mobile View */}
+        <div className="dashboard__mobile block md:hidden">
+          {/* Divider at top */}
+          <div className="dashboard__mobile-divider-top" />
+
+          {/* Countdown Section */}
+          <div className="dashboard__countdown-section">
+            <div className="dashboard__countdown-number">{daysUntilStart}</div>
+            <div className="dashboard__countdown-label">
+              {daysUntilStart === 1 ? 'day' : 'days'} until we begin!
+            </div>
+            <p className="dashboard__countdown-message">
+              Get ready! Your learning journey starts soon.
+            </p>
+          </div>
+
+          {/* Divider */}
+          <div className="dashboard__mobile-divider-2" />
+
+          {/* Placeholder for schedule area */}
+          <div className="dashboard__schedule-placeholder">
+            <p>Your schedule will appear here once {cohortName} begins.</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Mock data for the Figma wireframe
   const upcomingEvents = [
     {
@@ -490,6 +571,9 @@ function Dashboard() {
 
   // Render regular dashboard content matching the Figma wireframe
   const renderDashboardContent = () => {
+    // Check if user is in external cohort (enterprise users don't use Level/Week format)
+    const isExternalCohort = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin';
+    
     return (
       <div className="dashboard">
         {/* Desktop View */}
@@ -552,9 +636,13 @@ function Dashboard() {
           {/* Week Header: Title and Date Picker */}
           <div className="dashboard__week-header items-end">
             <div className="dashboard__week-title">
-              <span className="dashboard__week-label">
-                <span className="dashboard__week-level">{currentLevel}</span>: Week {currentWeek}
-              </span>
+              {isExternalCohort ? (
+                <span className="dashboard__week-label">{user?.cohort || 'Your Program'}</span>
+              ) : (
+                <span className="dashboard__week-label">
+                  <span className="dashboard__week-level">{currentLevel}</span>: Week {currentWeek}
+                </span>
+              )}
               <span 
                 className={`dashboard__week-subtitle ${
                   slideDirection === 'out-left' ? 'animate__animated animate__fadeOutLeft' :
@@ -568,6 +656,8 @@ function Dashboard() {
               </span>
             </div>
 
+            {/* Hide week navigation for external cohorts */}
+            {!isExternalCohort && (
             <div className="dashboard__date-picker">
               <button
                 className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
@@ -638,6 +728,7 @@ function Dashboard() {
                 )}
               </button>
             </div>
+            )}
           </div>
 
           {/* Weekly Agenda Cards */}
@@ -833,16 +924,21 @@ function Dashboard() {
             <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
           </button>
 
-          {/* L1 Week 5 Title */}
+          {/* Week Title - different for external cohorts */}
           <div className="dashboard__mobile-week-title">
-            {currentLevel}: Week {currentWeek} <br />
-            {weeklyGoal}
+            {isExternalCohort ? (
+              <>{user?.cohort || 'Your Program'}</>
+            ) : (
+              <>{currentLevel}: Week {currentWeek} <br />
+              {weeklyGoal}</>
+            )}
           </div>
 
           {/* Divider 2 */}
           <div className="dashboard__mobile-divider-2" />
 
-          {/* Date Picker */}
+          {/* Date Picker - hidden for external cohorts */}
+          {!isExternalCohort && (
           <div className="dashboard__mobile-date-picker">
             <button
               className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
@@ -911,6 +1007,7 @@ function Dashboard() {
               )}
             </button>
           </div>
+          )}
 
           {/* Weekly Agenda - Mobile */}
           <div className="dashboard__mobile-agenda">
@@ -1017,13 +1114,14 @@ function Dashboard() {
       {/* Conditionally render based on user status and role */}
       {!isActive ? renderHistoricalView() : 
        isVolunteer ? renderVolunteerView() : 
+       !currentDay && cohortInfo ? renderPreCurriculumView() :
        renderDashboardContent()}
 
       {/* Missed Assignments Sidebar */}
       <MissedAssignmentsSidebar
         isOpen={isSidebarOpen}
         onClose={handleCloseSidebar}
-        onNavigateToDay={handleNavigateToDay}
+        onNavigateToDay={handleNavigateToTask}
       />
     </Layout>
   );
