@@ -147,7 +147,7 @@ function Dashboard() {
 
   // Memoized week data for current week - only recalculates when currentWeek or allWeeksData changes
   const weekData = useMemo(() => {
-    if (!currentWeek || !allWeeksData.length) return [];
+    if (currentWeek === null || currentWeek === undefined || !allWeeksData.length) return [];
     const week = allWeeksData.find(w => w.weekNumber === currentWeek);
     return week?.days || [];
   }, [currentWeek, allWeeksData]);
