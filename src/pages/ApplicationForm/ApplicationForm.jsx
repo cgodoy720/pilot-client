@@ -381,6 +381,22 @@ const ApplicationForm = () => {
     const currentQuestionGroup = getCurrentQuestions();
     const errors = {};
     
+    // Helper function to recursively validate a question and all its nested children
+    const validateQuestionRecursively = (question) => {
+      const error = validateQuestion(question);
+      if (error) {
+        errors[question.id] = error;
+      }
+      
+      // Find and validate nested conditional questions
+      const section = applicationQuestions[currentQuestionGroup.rootQuestion.sectionIndex];
+      if (section) {
+        const nestedConditionals = getConditionalQuestionsForParent(question.id, section.questions);
+        nestedConditionals.forEach(nestedQ => validateQuestionRecursively(nestedQ));
+      }
+    };
+    
+    // Validate root question
     if (currentQuestionGroup.rootQuestion) {
       const error = validateQuestion(currentQuestionGroup.rootQuestion);
       if (error) {
@@ -388,11 +404,9 @@ const ApplicationForm = () => {
       }
     }
     
+    // Recursively validate all conditional questions and their nested children
     currentQuestionGroup.conditionalQuestions.forEach(question => {
-      const error = validateQuestion(question);
-      if (error) {
-        errors[question.id] = error;
-      }
+      validateQuestionRecursively(question);
     });
     
     return errors;
