@@ -1450,33 +1450,55 @@ const ApplicationForm = () => {
                         </div>
                       )}
 
-                      {currentQuestionGroup.conditionalQuestions.map((question) => (
-                        question.type === 'info' ? (
-                            <div key={question.id}>
-                            {renderQuestion(question)}
-                          </div>
-                        ) : (
-                          <div 
-                            key={question.id} 
-                              className="space-y-3 pl-6 border-l-4 border-blue-200"
-                          >
-                              <label htmlFor={question.id} className="block text-lg font-semibold text-[#1E1E1E]">
-                              {renderQuestionLabel(question)}
-                              {question.required ? (
-                                  <span className="text-red-600 ml-1">*</span>
+                      {(() => {
+                        // Recursive function to render a question and all its nested conditional sub-questions
+                        const renderQuestionWithNestedConditionals = (question, level = 1) => {
+                          const section = applicationQuestions[currentQuestionGroup.rootQuestion.sectionIndex];
+                          const nestedConditionals = section ? getConditionalQuestionsForParent(question.id, section.questions) : [];
+                          
+                          return (
+                            <React.Fragment key={question.id}>
+                              {question.type === 'info' ? (
+                                <div>
+                                  {renderQuestion(question)}
+                                </div>
                               ) : (
-                                  <span className="text-[#666] text-sm font-normal ml-2">(optional)</span>
+                                <div 
+                                  className="space-y-3 border-l-4 border-blue-200"
+                                  style={{ paddingLeft: `${level * 1.5}rem` }}
+                                >
+                                  <label htmlFor={question.id} className="block text-lg font-semibold text-[#1E1E1E]">
+                                    {renderQuestionLabel(question)}
+                                    {question.required ? (
+                                      <span className="text-red-600 ml-1">*</span>
+                                    ) : (
+                                      <span className="text-[#666] text-sm font-normal ml-2">(optional)</span>
+                                    )}
+                                  </label>
+                                  {renderQuestion(question)}
+                                  {showValidation && validationErrors[question.id] && (
+                                    <div className="text-red-600 text-sm mt-1">
+                                      {validationErrors[question.id]}
+                                    </div>
+                                  )}
+                                </div>
                               )}
-                            </label>
-                            {renderQuestion(question)}
-                            {showValidation && validationErrors[question.id] && (
-                                <div className="text-red-600 text-sm mt-1">
-                                {validationErrors[question.id]}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      ))}
+                              
+                              {/* Recursively render nested conditional questions */}
+                              {nestedConditionals.length > 0 && (
+                                <div className="space-y-3">
+                                  {nestedConditionals.map(nestedQ => renderQuestionWithNestedConditionals(nestedQ, level + 1))}
+                                </div>
+                              )}
+                            </React.Fragment>
+                          );
+                        };
+                        
+                        // Render all top-level conditional questions with their nested children
+                        return currentQuestionGroup.conditionalQuestions.map(question => 
+                          renderQuestionWithNestedConditionals(question)
+                        );
+                      })()}
                     </>
                   );
                 })()}
