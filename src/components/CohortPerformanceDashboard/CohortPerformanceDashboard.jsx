@@ -58,13 +58,15 @@ const CohortPerformanceDashboard = () => {
       setData(response.data);
       setLastUpdated(new Date());
       
-      // Set available cohorts and default to first one
+      // Set available cohorts and default to December 2025 (or first one if not available)
       if (response.data?.availableCohorts && response.data.availableCohorts.length > 0) {
         setAvailableCohorts(response.data.availableCohorts);
         
         // Set default cohort if not already selected
         if (!selectedCohort && response.data.availableCohorts.length > 0) {
-          setSelectedCohort(response.data.availableCohorts[0]);
+          // Try to default to December 2025, otherwise use first cohort
+          const decemberCohort = response.data.availableCohorts.find(c => c === 'December 2025');
+          setSelectedCohort(decemberCohort || response.data.availableCohorts[0]);
         }
       }
     } catch (err) {
