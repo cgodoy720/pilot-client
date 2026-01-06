@@ -12,9 +12,13 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
     firstName: '',
     lastName: '',
     email: '',
+    confirmEmail: '',
     password: '',
     confirmPassword: '',
     accessCode: '', // For enterprise participants (cohort or workshop)
+    referralSource: '',
+    referralDetail: '',
+    nychaResident: '',
   });
   const [validationError, setValidationError] = useState('');
 
@@ -25,14 +29,47 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
         { id: 'firstName', label: 'What is your first name?', type: 'text', placeholder: 'Type your answer here...' },
         { id: 'lastName', label: 'What is your last name?', type: 'text', placeholder: 'Type your answer here...' },
         { id: 'email', label: 'What is your email address?', type: 'email', placeholder: 'Type your answer here...' },
+        { id: 'confirmEmail', label: 'Confirm your email address', type: 'email', placeholder: 'Type your answer here...' },
         { id: 'password', label: 'Create a password', type: 'password', placeholder: 'Type your answer here...' },
         { id: 'confirmPassword', label: 'Confirm your password', type: 'password', placeholder: 'Type your answer here...' },
+        { 
+          id: 'referralSource', 
+          label: 'How did you hear about Pursuit?', 
+          type: 'select', 
+          placeholder: 'Select an option...',
+          options: [
+            { value: 'Google Search', label: 'Google Search' },
+            { value: 'Community Based / Non-Profit Organization', label: 'Community Based / Non-Profit Organization' },
+            { value: 'City / Government Agency', label: 'City / Government Agency' },
+            { value: 'Personal Referral / Word of Mouth', label: 'Personal Referral / Word of Mouth' },
+            { value: 'School or University', label: 'School or University' },
+            { value: 'Library', label: 'Library' },
+            { value: 'Eventbrite', label: 'Eventbrite' },
+            { value: 'Postcard/Mail', label: 'Postcard/Mail' },
+            { value: 'Social Media', label: 'Social Media' },
+            { value: 'In-Person Event', label: 'In-Person Event' },
+            { value: 'Other', label: 'Other' },
+          ]
+        },
+        { id: 'referralDetail', label: 'Please provide more detail (Name of School, Organization, or Agency, Social Media Platform or What you searched to Find Us)', type: 'text', placeholder: 'Type your answer here...' },
+        { 
+          id: 'nychaResident', 
+          label: 'Are you a current New York City Housing Authority Resident? (Includes NYCHA sites or Section 8 assistance)', 
+          type: 'select', 
+          placeholder: 'Select an option...',
+          options: [
+            { value: 'Yes', label: 'Yes' },
+            { value: 'No', label: 'No' },
+            { value: 'I don\'t know', label: 'I don\'t know' },
+          ]
+        },
       ];
     } else if (userType === 'builder') {
       return [
         { id: 'firstName', label: 'What is your first name?', type: 'text', placeholder: 'Type your answer here...' },
         { id: 'lastName', label: 'What is your last name?', type: 'text', placeholder: 'Type your answer here...' },
         { id: 'email', label: 'What is your email address?', type: 'email', placeholder: 'Type your answer here...' },
+        { id: 'confirmEmail', label: 'Confirm your email address', type: 'email', placeholder: 'Type your answer here...' },
         { id: 'password', label: 'Create a password', type: 'password', placeholder: 'Type your answer here...' },
         { id: 'confirmPassword', label: 'Confirm your password', type: 'password', placeholder: 'Type your answer here...' },
       ];
@@ -42,6 +79,7 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
         { id: 'firstName', label: 'What is your first name?', type: 'text', placeholder: 'Type your answer here...' },
         { id: 'lastName', label: 'What is your last name?', type: 'text', placeholder: 'Type your answer here...' },
         { id: 'email', label: 'What is your email address?', type: 'email', placeholder: 'Type your answer here...' },
+        { id: 'confirmEmail', label: 'Confirm your email address', type: 'email', placeholder: 'Type your answer here...' },
         { id: 'password', label: 'Create a password', type: 'password', placeholder: 'Type your answer here...' },
         { id: 'confirmPassword', label: 'Confirm your password', type: 'password', placeholder: 'Type your answer here...' },
       ];
@@ -50,6 +88,7 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
         { id: 'firstName', label: 'What is your first name?', type: 'text', placeholder: 'Type your answer here...' },
         { id: 'lastName', label: 'What is your last name?', type: 'text', placeholder: 'Type your answer here...' },
         { id: 'email', label: 'What is your email address?', type: 'email', placeholder: 'Type your answer here...' },
+        { id: 'confirmEmail', label: 'Confirm your email address', type: 'email', placeholder: 'Type your answer here...' },
         { id: 'password', label: 'Create a password', type: 'password', placeholder: 'Type your answer here...' },
         { id: 'confirmPassword', label: 'Confirm your password', type: 'password', placeholder: 'Type your answer here...' },
       ];
@@ -100,6 +139,18 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
     if (currentQuestion.id === 'email') {
       if (!validateEmail(value)) {
         setValidationError('Please enter a valid email address (e.g., name@example.com)');
+        return false;
+      }
+    }
+
+    // Confirm email validation
+    if (currentQuestion.id === 'confirmEmail') {
+      if (!validateEmail(value)) {
+        setValidationError('Please enter a valid email address (e.g., name@example.com)');
+        return false;
+      }
+      if (value !== formData.email) {
+        setValidationError('Email addresses do not match');
         return false;
       }
     }
@@ -260,17 +311,37 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
                     : 'animate-slide-in-left'
                 }`}
               >
-                <Input
-                  type={currentQuestion.type}
-                  value={formData[currentQuestion.id]}
-                  onChange={(e) => handleInputChange(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder={currentQuestion.placeholder}
-                  className={`bg-transparent border-0 border-b-2 rounded-none text-white placeholder:text-white/40 focus:border-white focus:ring-0 px-0 pb-3 text-lg w-full focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 ${
-                    validationError ? 'border-red-400' : 'border-white/60'
-                  }`}
-                  autoFocus
-                />
+                {currentQuestion.type === 'select' ? (
+                  <select
+                    value={formData[currentQuestion.id]}
+                    onChange={(e) => handleInputChange(e.target.value)}
+                    className={`bg-transparent border-0 border-b-2 rounded-none text-white placeholder:text-white/40 focus:border-white focus:ring-0 px-0 pb-3 text-lg w-full focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 appearance-none cursor-pointer ${
+                      validationError ? 'border-red-400' : 'border-white/60'
+                    }`}
+                    autoFocus
+                  >
+                    <option value="" disabled className="bg-pursuit-purple text-white/40">
+                      {currentQuestion.placeholder}
+                    </option>
+                    {currentQuestion.options?.map((option) => (
+                      <option key={option.value} value={option.value} className="bg-pursuit-purple text-white">
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input
+                    type={currentQuestion.type}
+                    value={formData[currentQuestion.id]}
+                    onChange={(e) => handleInputChange(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder={currentQuestion.placeholder}
+                    className={`bg-transparent border-0 border-b-2 rounded-none text-white placeholder:text-white/40 focus:border-white focus:ring-0 px-0 pb-3 text-lg w-full focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 ${
+                      validationError ? 'border-red-400' : 'border-white/60'
+                    }`}
+                    autoFocus
+                  />
+                )}
                 
                 {/* Validation Error Message */}
                 {validationError && (
@@ -316,6 +387,24 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
                         One special character (!@#$%^&*(),.?":{}|&lt;&gt;)
                       </li>
                     </ul>
+                  </div>
+                )}
+
+                {/* Confirm Email Match Display */}
+                {currentQuestion.id === 'confirmEmail' && formData.confirmEmail && (
+                  <div className={`mt-3 p-3 rounded text-sm flex items-center gap-2 ${
+                    formData.confirmEmail === formData.email 
+                      ? 'bg-green-500/20 text-green-300' 
+                      : 'bg-red-500/20 text-red-300'
+                  }`}>
+                    <span className="text-xs">
+                      {formData.confirmEmail === formData.email ? '✓' : '✗'}
+                    </span>
+                    <span>
+                      {formData.confirmEmail === formData.email 
+                        ? 'Email addresses match' 
+                        : 'Email addresses do not match'}
+                    </span>
                   </div>
                 )}
 
