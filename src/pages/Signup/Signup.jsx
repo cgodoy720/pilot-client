@@ -68,7 +68,10 @@ const Signup = () => {
           firstName: formData.firstName, 
           lastName: formData.lastName, 
           email: formData.email, 
-          password: formData.password 
+          password: formData.password,
+          referralSource: formData.referralSource,
+          referralDetail: formData.referralDetail,
+          nychaResident: formData.nychaResident
         };
         
         response = await fetch(endpoint, {
