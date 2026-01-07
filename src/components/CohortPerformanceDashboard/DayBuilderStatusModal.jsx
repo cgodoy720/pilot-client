@@ -32,7 +32,8 @@ const DayBuilderStatusModal = ({
   };
 
   const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
+    // Append T12:00:00 to avoid timezone day-shift issues
+    const date = new Date(dateStr + 'T12:00:00');
     return date.toLocaleDateString('en-US', { 
       month: 'long', 
       day: 'numeric',
