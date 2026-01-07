@@ -495,8 +495,8 @@ function App() {
           </Layout>
         } />
 
-        {/* Sales Tracker routes (Admin/Staff only) */}
-        <Route path="/sales-tracker" element={
+        {/* Sputnik routes (Admin/Staff only) */}
+        <Route path="/sputnik" element={
           <Layout>
             <AdminRoute>
               <SalesTracker />

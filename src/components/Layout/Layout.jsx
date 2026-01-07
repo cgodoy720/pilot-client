@@ -20,7 +20,7 @@ const Layout = ({ children, isLoading = false }) => {
   // Check if user has active status (from dev)
   const isActive = user?.active !== false;
   // Check if user is volunteer (from dev)
-  const isVolunteer = user?.role === 'volunteer';
+  const isVolunteer = user?.role === 'volunteer'; 
   // Check if on Pathfinder pages for light mode styling (from dev)
   const isPathfinderPage = location.pathname.startsWith('/pathfinder');
   // Check if user is workshop admin (from dev)
@@ -119,8 +119,8 @@ const Layout = ({ children, isLoading = false }) => {
     ];
     
     if ((user?.role === 'admin' || user?.role === 'staff')) {
-      // Sputnik (Sales Tracker) gets special rocket icon
-      if (location.pathname === '/sales-tracker' || location.pathname.startsWith('/sales-tracker')) {
+      // Sputnik gets special rocket icon
+      if (location.pathname === '/sputnik' || location.pathname.startsWith('/sputnik')) {
         return <Rocket className="h-4 w-4 text-[#E3E3E3]" />;
       }
       // Check if on any staff route
@@ -311,10 +311,10 @@ const Layout = ({ children, isLoading = false }) => {
               { to: '/admin-attendance-dashboard', icon: CalendarIcon, label: 'Attendance' },
               { to: '/admin/assessment-grades', icon: Award, label: 'Assessments' },
               { to: '/admissions-dashboard', icon: Users, label: 'Admissions' },
-              { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
-              { to: '/pathfinder/admin', icon: ArrowRight, label: 'Pathfinder Admin' },
-              { to: '/sales-tracker', icon: Rocket, label: 'Sputnik' },
-              { to: '/payment-admin', icon: Briefcase, label: 'Payment Admin' },
+            { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
+            { to: '/pathfinder/admin', icon: ArrowRight, label: 'Pathfinder Admin' },
+            { to: '/sputnik', icon: Rocket, label: 'Sputnik' },
+            { to: '/payment-admin', icon: Briefcase, label: 'Payment Admin' },
               { to: '/content', icon: FileText, label: 'Content' },
             ]}
             condition={user?.role === 'admin' || user?.role === 'staff'}
