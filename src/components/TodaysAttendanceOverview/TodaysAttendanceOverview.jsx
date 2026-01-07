@@ -81,8 +81,12 @@ const TodaysAttendanceOverview = () => {
   const formatTime = (timeString) => {
     if (!timeString) return 'N/A';
     try {
-      const date = new Date(timeString);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      // The timestamp is stored in EST 24-hour format but has a Z suffix
+      // Strip the Z to treat it as local time (already EST)
+      const cleanedTimeString = timeString.replace('Z', '');
+      const date = new Date(cleanedTimeString);
+      if (isNaN(date.getTime())) return 'Invalid time';
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     } catch (error) {
       return 'Invalid time';
     }
