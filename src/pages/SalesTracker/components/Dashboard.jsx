@@ -11,7 +11,8 @@ import {
   Eye,
   Plus,
   ArrowRight,
-  ArrowUpDown
+  ArrowUpDown,
+  Rocket
 } from 'lucide-react';
 import { getDashboardStats, getAllLeads, handleApiError } from '../../../services/salesTrackerApi';
 
@@ -242,8 +243,8 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-12">
-            <div className="mb-4">
-              <Target className="w-16 h-16 text-green-500" />
+            <div className="mb-4 text-6xl">
+              🚀
             </div>
             <h3 className="text-xl font-semibold text-pursuit-purple mb-2">Let's Win!</h3>
             <p className="text-gray-600 text-sm">Your first win is just around the corner. Keep pushing!</p>
