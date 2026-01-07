@@ -2,6 +2,14 @@ import React, { useMemo } from 'react';
 import DayCell from './DayCell';
 
 const WeekView = ({ weekNumber, weeklyGoal, days = [], onDayClick, currentDayId, userProgress = {}, currentMonth, currentYear }) => {
+  // Debug logging
+  console.log('🔍 WeekView render:', { 
+    weekNumber, 
+    weekNumberType: typeof weekNumber,
+    weeklyGoal,
+    daysCount: days.length 
+  });
+  
   // Days are already in order from Calendar.jsx (Sat-Fri)
   // Each day object has the enhanced structure with date, curriculumDay, hasClass, etc.
   
@@ -80,7 +88,7 @@ const WeekView = ({ weekNumber, weeklyGoal, days = [], onDayClick, currentDayId,
   return (
     <div className="flex flex-col gap-[7px]">
       {/* Week Header - Only show if this week has a week number */}
-      {weekNumber && (
+      {(weekNumber !== null && weekNumber !== undefined) && (
       <div className="flex items-center gap-[10px]">
         <h3 className="text-[16px] leading-[18px] font-proxima font-bold text-pursuit-purple">
             Week {weekNumber} {weeklyGoal || ''}

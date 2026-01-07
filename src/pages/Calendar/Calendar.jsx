@@ -198,7 +198,7 @@ function Calendar() {
         curriculumDay: curriculumDay || null,
         hasClass: !!curriculumDay,
         tasks: curriculumDay?.tasks || [],
-        weekNumber: curriculumDay?.week || null
+        weekNumber: curriculumDay?.week !== undefined && curriculumDay?.week !== null ? curriculumDay.week : null
       });
       
       currentDate.setDate(currentDate.getDate() + 1);
@@ -210,10 +210,18 @@ function Calendar() {
       const weekDays = calendarDates.slice(i, i + 7);
       
       // Determine week number (use the first curriculum day's week number in this week)
-      const weekNumber = weekDays.find(d => d.weekNumber)?.weekNumber || null;
+      // Note: weekNumber can be 0, which is falsy, so we need explicit null/undefined checks
+      const dayWithWeek = weekDays.find(d => d.weekNumber !== null && d.weekNumber !== undefined);
+      const weekNumber = dayWithWeek ? dayWithWeek.weekNumber : null;
+      
+      console.log('🔍 Calendar week group:', { 
+        weekNumber, 
+        dayWithWeek: dayWithWeek ? { date: dayWithWeek.date, weekNumber: dayWithWeek.weekNumber } : null,
+        weekDaysCount: weekDays.length 
+      });
       
       // Get weekly goal if this week has curriculum days
-      const weeklyGoal = weekNumber ? 
+      const weeklyGoal = (weekNumber !== null && weekNumber !== undefined) ? 
         weeksData.find(w => w.weekNumber === weekNumber)?.weeklyGoal : null;
       
       weeks.push({
