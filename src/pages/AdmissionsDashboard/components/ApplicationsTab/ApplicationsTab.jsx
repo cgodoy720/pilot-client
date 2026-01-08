@@ -62,6 +62,7 @@ const filterOptions = {
   ],
   program_admission_status: [
     { value: '', label: 'All' },
+    { value: 'pending', label: 'Pending' },
     { value: 'accepted', label: 'Accepted' },
     { value: 'rejected', label: 'Rejected' },
     { value: 'waitlisted', label: 'Waitlisted' },
@@ -115,8 +116,12 @@ const ApplicationRow = React.memo(({
       </TableCell>
       {visibleColumns.name && (
         <TableCell 
-          className="font-medium font-proxima text-[#4242ea] hover:text-[#3333d1] cursor-pointer hover:underline"
-          onClick={() => onViewApplication(app.application_id)}
+          className={`font-medium font-proxima ${
+            app.application_id && app.status !== 'no_application'
+              ? 'text-[#4242ea] hover:text-[#3333d1] cursor-pointer hover:underline'
+              : 'text-gray-900'
+          }`}
+          onClick={app.application_id && app.status !== 'no_application' ? () => onViewApplication(app.application_id) : undefined}
         >
           {app.first_name} {app.last_name}
         </TableCell>
@@ -366,7 +371,10 @@ const ApplicationsTab = ({
   searchIndex,
   currentPage,
   pageSize,
-  onPageChange
+  onPageChange,
+  loadAllMode,
+  onLoadAll,
+  onReturnToPagination
 }) => {
   const navigate = useNavigate();
   
@@ -970,16 +978,46 @@ const ApplicationsTab = ({
         </div>
       )}
 
-      {/* Footer with Pagination */}
+      {/* Footer with Pagination or Load All */}
       {applications?.applications?.length > 0 && (
         <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 shrink-0">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            pageSize={pageSize}
-            onPageChange={onPageChange}
-          />
+          {loadAllMode ? (
+            /* Load All Mode - Show count and return button */
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600 font-proxima">
+                Showing all {totalItems} applicants
+              </span>
+              <Button
+                variant="outline"
+                onClick={onReturnToPagination}
+                className="font-proxima"
+              >
+                ← Back to Paginated View
+              </Button>
+            </div>
+          ) : (
+            /* Normal Mode - Show pagination and Load All button */
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={totalItems}
+                  pageSize={pageSize}
+                  onPageChange={onPageChange}
+                />
+              </div>
+              {totalItems > pageSize && (
+                <Button
+                  variant="outline"
+                  onClick={onLoadAll}
+                  className="font-proxima ml-4"
+                >
+                  Load All {totalItems} Applicants
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
