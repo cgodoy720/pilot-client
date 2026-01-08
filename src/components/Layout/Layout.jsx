@@ -307,15 +307,15 @@ const Layout = ({ children, isLoading = false }) => {
             id="staff"
             trigger={{ icon: Users, label: "Staff" }}
             items={[
-              { to: '/admin-dashboard', icon: Settings, label: 'Cohort Stats' },
-              { to: '/admin-attendance-dashboard', icon: CalendarIcon, label: 'Attendance' },
-              { to: '/admin/assessment-grades', icon: Award, label: 'Assessments' },
               { to: '/admissions-dashboard', icon: Users, label: 'Admissions' },
-            { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
-            { to: '/pathfinder/admin', icon: ArrowRight, label: 'Pathfinder Admin' },
-            { to: '/sputnik', icon: Rocket, label: 'Sputnik' },
-            { to: '/payment-admin', icon: Briefcase, label: 'Payment Admin' },
+              { to: '/admin/assessment-grades', icon: Award, label: 'Assessments' },
+              { to: '/admin-attendance-dashboard', icon: CalendarIcon, label: 'Attendance' },
+              { to: '/admin-dashboard', icon: Settings, label: 'Cohort Stats' },
               { to: '/content', icon: FileText, label: 'Content' },
+              { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
+              { to: '/pathfinder/admin', icon: ArrowRight, label: 'Pathfinder Admin' },
+              { to: '/payment-admin', icon: Briefcase, label: 'Payment Admin' },
+              { to: '/sputnik', icon: Rocket, label: 'Sputnik' },
             ]}
             condition={user?.role === 'admin' || user?.role === 'staff'}
             isMobile={isMobile}
