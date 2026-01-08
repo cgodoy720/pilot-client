@@ -667,10 +667,10 @@ const CohortsTab = () => {
                               <div className="space-y-1">
                                 <Label className="text-xs font-proxima-bold">Level</Label>
                                 <Input
-                                  type="number"
-                                  value={day.level !== undefined ? day.level : 1}
-                                  onChange={(e) => updateDayField(index, 'level', parseInt(e.target.value))}
+                                  value={day.level || ''}
+                                  onChange={(e) => updateDayField(index, 'level', e.target.value)}
                                   className="h-8"
+                                  placeholder="e.g., L1, L3+"
                                 />
                               </div>
                             </div>

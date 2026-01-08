@@ -22,6 +22,16 @@ import {
   DialogFooter,
   DialogDescription,
 } from '../../components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import {
@@ -31,6 +41,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
+import { toast } from 'sonner';
 import Swal from 'sweetalert2';
 
 const ExternalCohortsDashboard = () => {
@@ -58,6 +69,8 @@ const ExternalCohortsDashboard = () => {
   const [sendAdminInvitation, setSendAdminInvitation] = useState(true);
   const [cohortAdmins, setCohortAdmins] = useState([]);
   const [adminLoading, setAdminLoading] = useState(false);
+  const [removeAdminConfirmOpen, setRemoveAdminConfirmOpen] = useState(false);
+  const [adminToRemove, setAdminToRemove] = useState(null);
 
   // Participant invitation modal
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
@@ -322,19 +335,19 @@ const ExternalCohortsDashboard = () => {
   };
 
   const handleRemoveAdmin = async (adminId) => {
-    const result = await Swal.fire({
-      title: 'Remove Admin?',
-      text: 'Are you sure you want to remove this admin?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444'
-    });
+    setAdminToRemove(adminId);
+    setRemoveAdminConfirmOpen(true);
+  };
 
-    if (!result.isConfirmed) return;
+  const confirmRemoveAdmin = async () => {
+    if (!adminToRemove) return;
 
+    setAdminLoading(true);
+    setRemoveAdminConfirmOpen(false);
+    
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/external-cohorts/${selectedCohort.cohort_id}/admins/${adminId}`,
+        `${import.meta.env.VITE_API_URL}/api/external-cohorts/${selectedCohort.cohort_id}/admins/${adminToRemove}`,
         {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
@@ -342,11 +355,25 @@ const ExternalCohortsDashboard = () => {
       );
 
       if (response.ok) {
-        setCohortAdmins(prev => prev.filter(a => a.admin_id !== adminId));
+        toast.success('Admin removed successfully', {
+          description: 'The admin has been removed from this cohort'
+        });
+        setCohortAdmins(prev => prev.filter(a => a.admin_id !== adminToRemove));
         fetchCohorts();
+      } else {
+        const data = await response.json();
+        toast.error('Failed to remove admin', {
+          description: data.error || 'An error occurred while removing the admin'
+        });
       }
     } catch (error) {
       console.error('Error removing admin:', error);
+      toast.error('Failed to remove admin', {
+        description: 'An unexpected error occurred. Please try again.'
+      });
+    } finally {
+      setAdminLoading(false);
+      setAdminToRemove(null);
     }
   };
 
@@ -1077,9 +1104,10 @@ const ExternalCohortsDashboard = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveAdmin(admin.admin_id)}
-                          className="text-red-600 hover:text-red-700"
+                          disabled={adminLoading}
+                          className="text-red-600 hover:text-red-700 disabled:opacity-50"
                         >
-                          Remove
+                          {adminLoading ? 'Removing...' : 'Remove'}
                         </Button>
                       </div>
                     </div>
@@ -1089,6 +1117,27 @@ const ExternalCohortsDashboard = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Remove Admin Confirmation Dialog */}
+        <AlertDialog open={removeAdminConfirmOpen} onOpenChange={setRemoveAdminConfirmOpen}>
+          <AlertDialogContent className="font-proxima">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove Admin?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to remove this admin? They will no longer have access to view participant progress and statistics for this cohort.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmRemoveAdmin}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Remove Admin
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Participant Invitation Modal */}
         <Dialog open={inviteModalOpen} onOpenChange={setInviteModalOpen}>
@@ -1472,10 +1521,10 @@ const ExternalCohortsDashboard = () => {
                                 <div className="space-y-1">
                                   <Label className="text-xs font-proxima-bold">Level</Label>
                                   <Input
-                                    type="number"
-                                    value={day.level !== undefined ? day.level : 1}
-                                    onChange={(e) => updateDayField(index, 'level', parseInt(e.target.value))}
+                                    value={day.level || ''}
+                                    onChange={(e) => updateDayField(index, 'level', e.target.value)}
                                     className="h-8"
+                                    placeholder="e.g., L1, L3+"
                                   />
                                 </div>
                               </div>
