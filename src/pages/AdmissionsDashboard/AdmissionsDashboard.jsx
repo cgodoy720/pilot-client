@@ -80,6 +80,7 @@ const AdmissionsDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchIndex, setSearchIndex] = useState([]);
   const [searchIndexLoading, setSearchIndexLoading] = useState(false);
+  const [loadAllMode, setLoadAllMode] = useState(false);
 
   // Application filters and sorting
   const [applicationFilters, setApplicationFilters] = useState({
@@ -331,21 +332,24 @@ const AdmissionsDashboard = () => {
       setLoading(true);
       const params = new URLSearchParams();
       
-      // Calculate offset based on current page
-      const offset = (currentPage - 1) * PAGE_SIZE;
+      // Calculate offset and limit based on load all mode
+      const offset = loadAllMode ? 0 : (currentPage - 1) * PAGE_SIZE;
+      const limit = loadAllMode ? 1000 : PAGE_SIZE;
       
+      // Add filter parameters (skip limit and offset as we calculate them above)
       Object.entries(applicationFilters).forEach(([key, value]) => {
-        if (key === 'offset') {
-          params.append('offset', offset);
-        } else if (value !== '' && value !== false) {
+        if (key === 'limit' || key === 'offset') {
+          // Skip - we calculate these separately based on loadAllMode
+          return;
+        }
+        if (value !== '' && value !== false) {
           params.append(key, value);
         }
       });
       
-      // Ensure limit is set
-      if (!params.has('limit')) {
-        params.append('limit', PAGE_SIZE);
-      }
+      // Set limit and offset from our calculated values
+      params.append('limit', limit);
+      params.append('offset', offset);
       
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/admissions/dashboard/applications?${params}`,
@@ -492,7 +496,7 @@ const AdmissionsDashboard = () => {
     if (hasAdminAccess && token && activeTab === 'applications') {
       fetchApplicationsData();
     }
-  }, [applicationFilters, currentPage, token, hasAdminAccess, activeTab]);
+  }, [applicationFilters, currentPage, loadAllMode, token, hasAdminAccess, activeTab]);
 
   // Fetch search index when cohort changes or when switching to applications tab
   useEffect(() => {
@@ -501,10 +505,53 @@ const AdmissionsDashboard = () => {
     }
   }, [applicationFilters.cohort_id, activeTab, token, hasAdminAccess]);
 
+  // Reset load all mode when filters change
+  useEffect(() => {
+    if (loadAllMode) {
+      setLoadAllMode(false);
+      setCurrentPage(1);
+    }
+  }, [applicationFilters]);
+
   // Handle page change
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
     setSelectedApplicants([]); // Clear selections when changing pages
+  };
+
+  // Handle load all applicants
+  const handleLoadAll = async () => {
+    const totalCount = applications?.total || 0;
+    
+    // Show confirmation if count > 500
+    if (totalCount > 500) {
+      const result = await Swal.fire({
+        title: 'Load All Applicants?',
+        text: `This will load ${totalCount} applicants. This may take a moment.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#4242ea',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, load all',
+        cancelButtonText: 'Cancel'
+      });
+      
+      if (!result.isConfirmed) {
+        return;
+      }
+    }
+    
+    // Enable load all mode and fetch
+    setLoadAllMode(true);
+    setCurrentPage(1);
+    setSelectedApplicants([]); // Clear selections
+  };
+
+  // Handle return to paginated view
+  const handleReturnToPagination = () => {
+    setLoadAllMode(false);
+    setCurrentPage(1);
+    setSelectedApplicants([]); // Clear selections
   };
 
   // Handle tab change
@@ -772,6 +819,9 @@ const AdmissionsDashboard = () => {
                 currentPage={currentPage}
                 pageSize={PAGE_SIZE}
                 onPageChange={handlePageChange}
+                loadAllMode={loadAllMode}
+                onLoadAll={handleLoadAll}
+                onReturnToPagination={handleReturnToPagination}
               />
             </Suspense>
           </TabsContent>
