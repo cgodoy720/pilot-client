@@ -71,7 +71,7 @@ const ApplicantSearchAutocomplete = ({ searchIndex, placeholder = "Search applic
   const handleSelectApplicant = (applicant) => {
     setSearchTerm('');
     setIsOpen(false);
-    navigate(`/admissions-dashboard/application/${applicant.application_id}`);
+    navigate(`/admissions-dashboard/applicant/${applicant.applicant_id}`);
   };
 
   const handleInputChange = (e) => {

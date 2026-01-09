@@ -216,7 +216,7 @@ const getQuestionCategory = (prompt) => {
 };
 
 const ApplicationDetail = () => {
-    const { applicationId } = useParams();
+    const { applicantId } = useParams();
     const { token } = useAuth();
     const navigate = useNavigate();
 
@@ -252,7 +252,7 @@ const ApplicationDetail = () => {
             setLoading(true);
             setError(null);
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/application/${applicationId}`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicant/${applicantId}/detail`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -260,11 +260,11 @@ const ApplicationDetail = () => {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to fetch application details');
+                throw new Error('Failed to fetch applicant details');
             }
 
             const data = await response.json();
-            console.log('📋 Application Detail Data:', data);
+            console.log('📋 Applicant Detail Data:', data);
             console.log('🔍 Deferred status:', data.application?.deferred);
             console.log('📅 Deferred at:', data.application?.deferred_at);
             setApplicationData(data);
@@ -274,8 +274,8 @@ const ApplicationDetail = () => {
                 fetchEmailTrackingData(data.applicant.applicant_id);
             }
         } catch (error) {
-            console.error('Error fetching application details:', error);
-            setError('Failed to load application details. Please try again.');
+            console.error('Error fetching applicant details:', error);
+            setError('Failed to load applicant details. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -308,10 +308,10 @@ const ApplicationDetail = () => {
     };
 
     useEffect(() => {
-        if (applicationId && token) {
+        if (applicantId && token) {
             fetchApplicationDetail();
         }
-    }, [applicationId, token]);
+    }, [applicantId, token]);
 
     // Handle notes modal
     const openNotesSidebar = () => {
@@ -540,17 +540,19 @@ const ApplicationDetail = () => {
                         >
                             ← Back to Applicants
                         </Button>
-                        <Badge 
-                            className={`
-                                ${application.status === 'submitted' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}
-                                ${application.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100' : ''}
-                                ${application.status === 'no_application' ? 'bg-gray-100 text-gray-800 hover:bg-gray-100' : ''}
-                                ${application.status === 'ineligible' ? 'bg-red-100 text-red-800 hover:bg-red-100' : ''}
-                                font-proxima
-                            `}
-                        >
-                            {application.status.replace('_', ' ').toUpperCase()}
-                        </Badge>
+                        {application && (
+                            <Badge 
+                                className={`
+                                    ${application.status === 'submitted' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}
+                                    ${application.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100' : ''}
+                                    ${application.status === 'no_application' ? 'bg-gray-100 text-gray-800 hover:bg-gray-100' : ''}
+                                    ${application.status === 'ineligible' ? 'bg-red-100 text-red-800 hover:bg-red-100' : ''}
+                                    font-proxima
+                                `}
+                            >
+                                {application.status.replace('_', ' ').toUpperCase()}
+                            </Badge>
+                        )}
                     </div>
                     <h1 className="text-3xl font-bold text-[#1a1a1a] font-proxima-bold">Applicant Details</h1>
                 </div>
@@ -591,13 +593,15 @@ const ApplicationDetail = () => {
                                 </div>
                                 <div className="space-y-2 text-sm text-gray-600">
                                     <p className="font-proxima">{applicant.email}</p>
-                                    <p className="font-proxima text-gray-500">
-                                        Applied: {new Date(application.created_at).toLocaleDateString('en-US', {
-                                            month: 'long',
-                                            day: 'numeric',
-                                            year: 'numeric'
-                                        })}
-                                    </p>
+                                    {application && (
+                                        <p className="font-proxima text-gray-500">
+                                            Applied: {new Date(application.created_at).toLocaleDateString('en-US', {
+                                                month: 'long',
+                                                day: 'numeric',
+                                                year: 'numeric'
+                                            })}
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                     <Button
@@ -627,9 +631,11 @@ const ApplicationDetail = () => {
                                                             <span className="text-lg">📅</span>
                                                             <strong className="font-proxima-bold text-sm">Application Deferred</strong>
                                                         </div>
-                                                        <p className="text-xs text-gray-600 font-proxima">
-                                                            Deferred on {new Date(application.deferred_at).toLocaleDateString()}
-                                                        </p>
+                                                        {application.deferred_at && (
+                                                            <p className="text-xs text-gray-600 font-proxima">
+                                                                Deferred on {new Date(application.deferred_at).toLocaleDateString()}
+                                                            </p>
+                                                        )}
                                                         <p className="text-xs text-gray-500 font-proxima italic">
                                                             Use Actions menu to remove deferral
                                                         </p>
@@ -953,7 +959,12 @@ const ApplicationDetail = () => {
                         <CardTitle className="font-proxima-bold">Application Responses</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {responses && responses.length > 0 ? (
+                        {!application ? (
+                            <div className="text-center py-8">
+                                <p className="text-gray-500 font-proxima mb-2">No application has been started yet.</p>
+                                <p className="text-sm text-gray-400 font-proxima">This applicant has not begun filling out their application.</p>
+                            </div>
+                        ) : responses && responses.length > 0 ? (
                             <div className="space-y-4">
                                 {/* Key Analysis Questions Section */}
                                 {processedResponses.keyResponses.length > 0 && (

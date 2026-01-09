@@ -116,12 +116,8 @@ const ApplicationRow = React.memo(({
       </TableCell>
       {visibleColumns.name && (
         <TableCell 
-          className={`font-medium font-proxima ${
-            app.application_id && app.status !== 'no_application'
-              ? 'text-[#4242ea] hover:text-[#3333d1] cursor-pointer hover:underline'
-              : 'text-gray-900'
-          }`}
-          onClick={app.application_id && app.status !== 'no_application' ? () => onViewApplication(app.application_id) : undefined}
+          className="font-medium font-proxima text-[#4242ea] hover:text-[#3333d1] cursor-pointer hover:underline"
+          onClick={() => onViewApplication(app.applicant_id)}
         >
           {app.first_name} {app.last_name}
         </TableCell>
@@ -378,9 +374,9 @@ const ApplicationsTab = ({
 }) => {
   const navigate = useNavigate();
   
-  // Handle navigating to application detail
-  const handleViewApplication = useCallback((applicationId) => {
-    navigate(`/admissions-dashboard/application/${applicationId}`);
+  // Handle navigating to applicant detail
+  const handleViewApplication = useCallback((applicantId) => {
+    navigate(`/admissions-dashboard/applicant/${applicantId}`);
   }, [navigate]);
 
   // Sort applications (no client-side filtering - that's handled by search autocomplete now)
@@ -524,6 +520,12 @@ const ApplicationsTab = ({
       offset: 0
     }));
     onPageChange(1);
+    // Clear sessionStorage
+    try {
+      sessionStorage.removeItem('admissions-dashboard-filters-v1');
+    } catch (error) {
+      console.error('Error clearing sessionStorage:', error);
+    }
   }, [setApplicationFilters, onPageChange]);
 
   // Render sort indicator

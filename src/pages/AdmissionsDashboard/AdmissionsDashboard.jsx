@@ -77,49 +77,104 @@ const AdmissionsDashboard = () => {
 
   // Pagination state
   const PAGE_SIZE = 25;
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('admissions-dashboard-filters-v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.currentPage || 1;
+      }
+    } catch (error) {
+      console.error('Error loading saved filters:', error);
+    }
+    return 1;
+  });
   const [searchIndex, setSearchIndex] = useState([]);
   const [searchIndexLoading, setSearchIndexLoading] = useState(false);
-  const [loadAllMode, setLoadAllMode] = useState(false);
+  const [loadAllMode, setLoadAllMode] = useState(false); // Never persist - always start in paginated mode
 
   // Application filters and sorting
-  const [applicationFilters, setApplicationFilters] = useState({
-    status: '',
-    final_status: '',
-    info_session_status: '',
-    workshop_status: '',
-    program_admission_status: '',
-    ready_for_workshop_invitation: false,
-    name_search: '',
-    cohort_id: '',
-    deliberation: '',
-    limit: PAGE_SIZE,
-    offset: 0
+  const [applicationFilters, setApplicationFilters] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('admissions-dashboard-filters-v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          status: parsed.applicationFilters?.status || '',
+          final_status: parsed.applicationFilters?.final_status || '',
+          info_session_status: parsed.applicationFilters?.info_session_status || '',
+          workshop_status: parsed.applicationFilters?.workshop_status || '',
+          program_admission_status: parsed.applicationFilters?.program_admission_status || '',
+          ready_for_workshop_invitation: false,
+          name_search: '',
+          cohort_id: parsed.applicationFilters?.cohort_id || '',
+          deliberation: parsed.applicationFilters?.deliberation || '',
+          limit: PAGE_SIZE,
+          offset: 0
+        };
+      }
+    } catch (error) {
+      console.error('Error loading saved filters:', error);
+    }
+    return {
+      status: '',
+      final_status: '',
+      info_session_status: '',
+      workshop_status: '',
+      program_admission_status: '',
+      ready_for_workshop_invitation: false,
+      name_search: '',
+      cohort_id: '',
+      deliberation: '',
+      limit: PAGE_SIZE,
+      offset: 0
+    };
   });
   const [hasMore, setHasMore] = useState(true);
-  const [columnSort, setColumnSort] = useState({
-    column: 'created_at',
-    direction: 'desc'
+  const [columnSort, setColumnSort] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('admissions-dashboard-filters-v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.columnSort || { column: 'created_at', direction: 'desc' };
+      }
+    } catch (error) {
+      console.error('Error loading saved filters:', error);
+    }
+    return { column: 'created_at', direction: 'desc' };
   });
 
   // Column visibility state
-  const [visibleColumns, setVisibleColumns] = useState({
-    name: true,
-    email: true,
-    phone: true,
-    status: true,
-    assessment: true,
-    info_session: true,
-    workshop: true,
-    structured_task_grade: true,
-    admission: true,
-    notes: true,
-    deliberation: true,
-    age: false,
-    gender: false,
-    race: false,
-    education: false,
-    referral: false
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('admissions-dashboard-filters-v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.visibleColumns) {
+          return parsed.visibleColumns;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading saved filters:', error);
+    }
+    return {
+      name: true,
+      email: true,
+      phone: true,
+      status: true,
+      assessment: true,
+      info_session: true,
+      workshop: true,
+      structured_task_grade: true,
+      admission: true,
+      notes: true,
+      deliberation: true,
+      age: false,
+      gender: false,
+      race: false,
+      education: false,
+      referral: false
+    };
   });
 
   // Overview quick views state
@@ -512,6 +567,30 @@ const AdmissionsDashboard = () => {
       setCurrentPage(1);
     }
   }, [applicationFilters]);
+
+  // Save filter state to sessionStorage
+  useEffect(() => {
+    try {
+      const stateToSave = {
+        applicationFilters: {
+          status: applicationFilters.status,
+          final_status: applicationFilters.final_status,
+          info_session_status: applicationFilters.info_session_status,
+          workshop_status: applicationFilters.workshop_status,
+          program_admission_status: applicationFilters.program_admission_status,
+          cohort_id: applicationFilters.cohort_id,
+          deliberation: applicationFilters.deliberation
+        },
+        columnSort,
+        currentPage,
+        visibleColumns
+        // Note: loadAllMode is NOT saved - always return to paginated view
+      };
+      sessionStorage.setItem('admissions-dashboard-filters-v1', JSON.stringify(stateToSave));
+    } catch (error) {
+      console.error('Error saving filters to sessionStorage:', error);
+    }
+  }, [applicationFilters, columnSort, currentPage, visibleColumns]);
 
   // Handle page change
   const handlePageChange = (newPage) => {
