@@ -296,7 +296,7 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
-        <Route path="/admissions-dashboard/application/:applicationId" element={
+        <Route path="/admissions-dashboard/applicant/:applicantId" element={
           <Layout>
             <AdminRoute>
               <ApplicationDetail />
