@@ -235,7 +235,6 @@ const WorkshopsTab = ({
       }
 
       // Make the API call
-      console.log('Toggling workshop active status:', eventId, 'to', newActiveState);
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops/${eventId}/toggle-active`,
         {
@@ -244,11 +243,8 @@ const WorkshopsTab = ({
         }
       );
 
-      console.log('Toggle response status:', response.status);
-
       if (response.ok) {
         const data = await response.json();
-        console.log('Toggle response data:', data);
         
         // Show brief success toast
         Swal.fire({
@@ -262,7 +258,6 @@ const WorkshopsTab = ({
         });
       } else {
         // Revert on error
-        console.error('Toggle failed with status:', response.status);
         setWorkshops(originalWorkshops);
         const errorData = await response.json().catch(() => ({}));
         Swal.fire({

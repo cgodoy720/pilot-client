@@ -232,7 +232,6 @@ const InfoSessionsTab = ({
       }
 
       // Make the API call
-      console.log('Toggling info session active status:', eventId, 'to', newActiveState);
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/admissions/events/${eventId}/toggle-active`,
         {
@@ -240,12 +239,9 @@ const InfoSessionsTab = ({
           headers: { Authorization: `Bearer ${token}` }
         }
       );
-
-      console.log('Toggle response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Toggle response data:', data);
         
         // Show brief success toast
         Swal.fire({
@@ -259,7 +255,6 @@ const InfoSessionsTab = ({
         });
       } else {
         // Revert on error
-        console.error('Toggle failed with status:', response.status);
         setInfoSessions(originalSessions);
         const errorData = await response.json().catch(() => ({}));
         Swal.fire({
