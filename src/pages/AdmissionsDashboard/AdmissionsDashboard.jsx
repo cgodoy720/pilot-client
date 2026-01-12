@@ -914,7 +914,8 @@ const AdmissionsDashboard = () => {
             }>
               <InfoSessionsTab
                 loading={loading}
-                infoSessions={getFilteredInfoSessions()}
+                infoSessions={infoSessions}
+                setInfoSessions={setInfoSessions}
                 showInactiveInfoSessions={showInactiveInfoSessions}
                 setShowInactiveInfoSessions={setShowInactiveInfoSessions}
                 selectedEvent={selectedEvent}
@@ -964,7 +965,8 @@ const AdmissionsDashboard = () => {
             }>
               <WorkshopsTab
                 loading={loading}
-                workshops={getFilteredWorkshops()}
+                workshops={workshops}
+                setWorkshops={setWorkshops}
                 showInactiveWorkshops={showInactiveWorkshops}
                 setShowInactiveWorkshops={setShowInactiveWorkshops}
                 selectedEvent={selectedEvent}
