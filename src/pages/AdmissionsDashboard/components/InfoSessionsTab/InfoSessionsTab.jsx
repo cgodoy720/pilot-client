@@ -21,6 +21,7 @@ import Swal from 'sweetalert2';
 const InfoSessionsTab = ({
   loading,
   infoSessions,
+  setInfoSessions: setParentInfoSessions,
   showInactiveInfoSessions,
   setShowInactiveInfoSessions,
   selectedEvent,
@@ -61,6 +62,30 @@ const InfoSessionsTab = ({
   // State for manual registration modal
   const [manualRegModalOpen, setManualRegModalOpen] = useState(false);
   const [selectedEventForManualReg, setSelectedEventForManualReg] = useState(null);
+  
+  // Local state management for info sessions
+  const [localInfoSessions, setLocalInfoSessions] = useState(infoSessions);
+  
+  // Update local state when prop changes
+  React.useEffect(() => {
+    setLocalInfoSessions(infoSessions);
+  }, [infoSessions]);
+  
+  // Helper to update both local and parent state
+  const setInfoSessions = (updater) => {
+    if (typeof updater === 'function') {
+      setLocalInfoSessions(prev => {
+        const updated = updater(prev);
+        // Also update parent state
+        setParentInfoSessions(updated);
+        return updated;
+      });
+    } else {
+      setLocalInfoSessions(updater);
+      // Also update parent state
+      setParentInfoSessions(updater);
+    }
+  };
 
   // Handle view registrations
   const handleViewRegistrations = async (eventId) => {
@@ -174,7 +199,40 @@ const InfoSessionsTab = ({
 
   // Handle toggle event active
   const handleToggleEventActive = async (eventId) => {
+    // Find the current session to get its current state
+    const currentSession = localInfoSessions.find(s => s.event_id === eventId);
+    if (!currentSession) return;
+
+    const newActiveState = !currentSession.is_active;
+
+    // Store original state for rollback
+    const originalSessions = [...localInfoSessions];
+
     try {
+      // Optimistically update local state immediately for instant feedback
+      const updatedSessions = localInfoSessions.map(session =>
+        session.event_id === eventId
+          ? { ...session, is_active: newActiveState }
+          : session
+      );
+
+      // If we're deactivating and not showing inactive, wait a moment for animation
+      if (!newActiveState && !showInactiveInfoSessions) {
+        // Update state immediately so switch animates
+        setInfoSessions(updatedSessions);
+        
+        // Wait for switch animation to complete
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Now filter it out
+        setInfoSessions(prev => prev.filter(s => s.event_id !== eventId || s.is_active));
+      } else {
+        // Just update the state immediately
+        setInfoSessions(updatedSessions);
+      }
+
+      // Make the API call
+      console.log('Toggling info session active status:', eventId, 'to', newActiveState);
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/admissions/events/${eventId}/toggle-active`,
         {
@@ -183,11 +241,42 @@ const InfoSessionsTab = ({
         }
       );
 
+      console.log('Toggle response status:', response.status);
+      
       if (response.ok) {
-        fetchInfoSessions();
+        const data = await response.json();
+        console.log('Toggle response data:', data);
+        
+        // Show brief success toast
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: data.message || 'Info session status updated',
+          timer: 1500,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end'
+        });
+      } else {
+        // Revert on error
+        console.error('Toggle failed with status:', response.status);
+        setInfoSessions(originalSessions);
+        const errorData = await response.json().catch(() => ({}));
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: errorData.error || 'Failed to update info session status'
+        });
       }
     } catch (error) {
       console.error('Error toggling event active:', error);
+      // Revert on error
+      setInfoSessions(originalSessions);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'An unexpected error occurred'
+      });
     }
   };
 
@@ -388,7 +477,12 @@ const InfoSessionsTab = ({
     );
   }
 
-  const sortedSessions = sortEventsByDate(infoSessions);
+  // Filter sessions based on showInactive toggle
+  const filteredSessions = showInactiveInfoSessions 
+    ? localInfoSessions 
+    : localInfoSessions.filter(session => session.is_active);
+
+  const sortedSessions = sortEventsByDate(filteredSessions);
 
   return (
     <div className="space-y-6">
@@ -435,7 +529,7 @@ const InfoSessionsTab = ({
               <TableBody>
                 {sortedSessions.map((session) => (
                   <React.Fragment key={session.event_id}>
-                    <TableRow className="hover:bg-gray-50">
+                    <TableRow className="hover:bg-gray-50 transition-opacity duration-300">
                       <TableCell className="font-medium font-proxima">
                         <div className="flex items-center gap-2">
                           {session.event_name}

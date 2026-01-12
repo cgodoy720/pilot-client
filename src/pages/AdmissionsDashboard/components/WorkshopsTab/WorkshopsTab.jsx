@@ -22,6 +22,7 @@ import Swal from 'sweetalert2';
 const WorkshopsTab = ({
   loading,
   workshops,
+  setWorkshops: setParentWorkshops,
   showInactiveWorkshops,
   setShowInactiveWorkshops,
   selectedEvent,
@@ -64,6 +65,30 @@ const WorkshopsTab = ({
   // State for manual registration modal
   const [manualRegModalOpen, setManualRegModalOpen] = useState(false);
   const [selectedEventForManualReg, setSelectedEventForManualReg] = useState(null);
+  
+  // Local state management for workshops
+  const [localWorkshops, setLocalWorkshops] = useState(workshops);
+  
+  // Update local state when prop changes
+  React.useEffect(() => {
+    setLocalWorkshops(workshops);
+  }, [workshops]);
+  
+  // Helper to update both local and parent state
+  const setWorkshops = (updater) => {
+    if (typeof updater === 'function') {
+      setLocalWorkshops(prev => {
+        const updated = updater(prev);
+        // Also update parent state
+        setParentWorkshops(updated);
+        return updated;
+      });
+    } else {
+      setLocalWorkshops(updater);
+      // Also update parent state
+      setParentWorkshops(updater);
+    }
+  };
 
   // Handle view registrations
   const handleViewRegistrations = async (eventId) => {
@@ -177,7 +202,40 @@ const WorkshopsTab = ({
 
   // Handle toggle event active
   const handleToggleEventActive = async (eventId) => {
+    // Find the current workshop to get its current state
+    const currentWorkshop = localWorkshops.find(w => w.event_id === eventId);
+    if (!currentWorkshop) return;
+
+    const newActiveState = !currentWorkshop.is_active;
+
+    // Store original state for rollback
+    const originalWorkshops = [...localWorkshops];
+
     try {
+      // Optimistically update local state immediately for instant feedback
+      const updatedWorkshops = localWorkshops.map(workshop =>
+        workshop.event_id === eventId
+          ? { ...workshop, is_active: newActiveState }
+          : workshop
+      );
+
+      // If we're deactivating and not showing inactive, wait a moment for animation
+      if (!newActiveState && !showInactiveWorkshops) {
+        // Update state immediately so switch animates
+        setWorkshops(updatedWorkshops);
+        
+        // Wait for switch animation to complete
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Now filter it out
+        setWorkshops(prev => prev.filter(w => w.event_id !== eventId || w.is_active));
+      } else {
+        // Just update the state immediately
+        setWorkshops(updatedWorkshops);
+      }
+
+      // Make the API call
+      console.log('Toggling workshop active status:', eventId, 'to', newActiveState);
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops/${eventId}/toggle-active`,
         {
@@ -186,11 +244,42 @@ const WorkshopsTab = ({
         }
       );
 
+      console.log('Toggle response status:', response.status);
+
       if (response.ok) {
-        fetchWorkshops();
+        const data = await response.json();
+        console.log('Toggle response data:', data);
+        
+        // Show brief success toast
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: data.message || 'Workshop status updated',
+          timer: 1500,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end'
+        });
+      } else {
+        // Revert on error
+        console.error('Toggle failed with status:', response.status);
+        setWorkshops(originalWorkshops);
+        const errorData = await response.json().catch(() => ({}));
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: errorData.error || 'Failed to update workshop status'
+        });
       }
     } catch (error) {
       console.error('Error toggling event active:', error);
+      // Revert on error
+      setWorkshops(originalWorkshops);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'An unexpected error occurred'
+      });
     }
   };
 
@@ -333,7 +422,12 @@ const WorkshopsTab = ({
     );
   }
 
-  const sortedWorkshops = sortEventsByDate(workshops);
+  // Filter workshops based on showInactive toggle
+  const filteredWorkshops = showInactiveWorkshops 
+    ? localWorkshops 
+    : localWorkshops.filter(workshop => workshop.is_active);
+
+  const sortedWorkshops = sortEventsByDate(filteredWorkshops);
 
   return (
     <div className="space-y-6">
@@ -381,7 +475,7 @@ const WorkshopsTab = ({
               <TableBody>
                 {sortedWorkshops.map((workshop) => (
                   <React.Fragment key={workshop.event_id}>
-                    <TableRow className="hover:bg-gray-50">
+                    <TableRow className="hover:bg-gray-50 transition-opacity duration-300">
                       <TableCell className="font-medium font-proxima">
                         <div className="flex items-center gap-2">
                           {workshop.event_name || workshop.title}
