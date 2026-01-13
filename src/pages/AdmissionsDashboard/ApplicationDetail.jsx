@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotesSidebar from '../../components/NotesSidebar';
 import BulkActionsModal from '../../components/BulkActionsModal';
+import AttendedEventModal from './components/shared/AttendedEventModal';
 import Swal from 'sweetalert2';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -13,6 +14,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '../../components/ui/collapsible';
+import { getStatusBadgeClasses, formatStatus } from './components/shared/utils';
 
 // Utility functions for formatting response values
 const formatResponseValue = (value, questionType) => {
@@ -230,6 +232,9 @@ const ApplicationDetail = () => {
     // Actions modal management
     const [actionsModalOpen, setActionsModalOpen] = useState(false);
     const [actionInProgress, setActionInProgress] = useState(false);
+
+    // Attended event modal management
+    const [attendedEventModalOpen, setAttendedEventModalOpen] = useState(false);
 
     // Email tracking data
     const [emailTrackingData, setEmailTrackingData] = useState(null);
@@ -603,6 +608,69 @@ const ApplicationDetail = () => {
                                         </p>
                                     )}
                                 </div>
+                                
+                                {/* Event Participation Status - Always show so admins can mark external events */}
+                                {applicant && (
+                                    <div className="mt-4 space-y-2">
+                                        <h3 className="text-xs font-proxima-bold text-gray-500 uppercase tracking-wide">Event Participation</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {/* Info Session - Always show */}
+                                            {applicant.info_session_status ? (
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-xs text-gray-500 font-proxima">Info Session</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge className={`${getStatusBadgeClasses(applicant.info_session_status)} font-proxima`}>
+                                                            {formatStatus(applicant.info_session_status)}
+                                                        </Badge>
+                                                        {!['attended', 'attended_late', 'very_late'].includes(applicant.info_session_status) && (
+                                                            <button
+                                                                onClick={() => setAttendedEventModalOpen(true)}
+                                                                className="text-xs text-[#4242ea] hover:text-[#3333d1] underline font-proxima"
+                                                                title="Manage external event attendance"
+                                                            >
+                                                                {applicant.info_session_status === 'attended_event' ? 'Manage' : 'Mark Event'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-xs text-gray-500 font-proxima">Info Session</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs text-gray-400 font-proxima">Not Registered</span>
+                                                        <button
+                                                            onClick={() => setAttendedEventModalOpen(true)}
+                                                            className="text-xs text-[#4242ea] hover:text-[#3333d1] underline font-proxima"
+                                                            title="Mark as attended external event"
+                                                        >
+                                                            Mark Event
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                            {/* Workshop - Only show if there's a status */}
+                                            {applicant.workshop_status && (
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-xs text-gray-500 font-proxima">Workshop</span>
+                                                    <Badge className={`${getStatusBadgeClasses(applicant.workshop_status)} font-proxima`}>
+                                                        {formatStatus(applicant.workshop_status)}
+                                                    </Badge>
+                                                </div>
+                                            )}
+                                            
+                                            {/* Workshop Grade - Only show if available */}
+                                            {applicant.structured_task_grade && (
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-xs text-gray-500 font-proxima">Workshop Grade</span>
+                                                    <Badge variant="outline" className="font-proxima-bold text-[#4242ea] border-[#4242ea]">
+                                                        {applicant.structured_task_grade}
+                                                    </Badge>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="flex flex-wrap gap-2">
                                     <Button
                                         variant="outline"
@@ -1177,6 +1245,15 @@ const ApplicationDetail = () => {
                 onClose={closeNotesSidebar}
                 applicantId={applicant?.applicant_id}
                 applicantName={`${applicant?.first_name} ${applicant?.last_name}`}
+            />
+
+            {/* Attended Event Modal */}
+            <AttendedEventModal
+                isOpen={attendedEventModalOpen}
+                onClose={() => setAttendedEventModalOpen(false)}
+                applicant={applicant}
+                onSuccess={fetchApplicationDetail}
+                token={token}
             />
         </div>
     );
