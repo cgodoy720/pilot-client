@@ -50,6 +50,7 @@ const filterOptions = {
     { value: '', label: 'All' },
     { value: 'registered', label: 'Registered' },
     { value: 'attended', label: 'Attended' },
+    { value: 'attended_event', label: 'Attended Event' },
     { value: 'no_show', label: 'No Show' },
     { value: 'cancelled', label: 'Cancelled' },
   ],
