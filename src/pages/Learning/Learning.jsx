@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt, FaEdit, FaCheck, FaTimes, FaFileAlt, FaVideo, FaBrain, FaComments, FaClipboardList, FaLock } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
@@ -72,6 +72,14 @@ function Learning() {
   
   // Task completion map from backend (for DailyOverview checkmarks)
   const [taskCompletionMap, setTaskCompletionMap] = useState({});
+  
+  // Input tray height for dynamic message container padding
+  const [inputTrayHeight, setInputTrayHeight] = useState(180);
+  
+  // Callback for height changes from AutoExpandTextarea
+  const handleInputTrayHeightChange = useCallback((height) => {
+    setInputTrayHeight(height);
+  }, []);
   
   // Get dayId from URL query parameters
   const queryParams = new URLSearchParams(location.search);
@@ -1162,7 +1170,10 @@ function Learning() {
           // Chat Interface
         <div className="flex-1 flex flex-col relative overflow-hidden">
           {/* Messages Area - Scrollable with proper spacing */}
-          <div className="flex-1 overflow-y-auto py-8 px-6" style={{ paddingBottom: '180px' }}>
+          <div 
+            className="flex-1 overflow-y-auto py-8 px-6 transition-[padding] duration-200 ease-out" 
+            style={{ paddingBottom: `${inputTrayHeight}px` }}
+          >
             <div className="max-w-2xl mx-auto">
               {messages.map((message, index) => (
                 <div key={message.id || index} className="mb-6">
@@ -1347,6 +1358,7 @@ function Learning() {
                 showPeerFeedbackButton={isRetrospectiveTask()}
                 onPeerFeedbackClick={() => setIsPeerFeedbackSheetOpen(true)}
                 showLlmDropdown={tasks[currentTaskIndex]?.task_mode === 'conversation'}
+                onHeightChange={handleInputTrayHeightChange}
               />
               )}
             </div>

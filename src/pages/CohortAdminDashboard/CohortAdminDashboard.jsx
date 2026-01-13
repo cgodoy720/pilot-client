@@ -18,6 +18,9 @@ import {
 } from '../../components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Progress } from '../../components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import ConversationViewer from '../../components/ConversationViewer';
+import TaskConversationList from '../../components/TaskConversationList';
 
 const CohortAdminDashboard = () => {
   const { token, user } = useAuth();
@@ -29,6 +32,21 @@ const CohortAdminDashboard = () => {
   const [participantsModalOpen, setParticipantsModalOpen] = useState(false);
   const [participants, setParticipants] = useState([]);
   const [participantsLoading, setParticipantsLoading] = useState(false);
+
+  // Conversation viewing
+  const [viewMode, setViewMode] = useState('by-participant'); // 'by-participant' or 'by-task'
+  const [expandedParticipant, setExpandedParticipant] = useState(null);
+  const [conversationDayFilter, setConversationDayFilter] = useState(null);
+  const [participantConversations, setParticipantConversations] = useState({});
+  const [conversationsLoading, setConversationsLoading] = useState({});
+  const [curriculumDays, setCurriculumDays] = useState([]);
+  
+  // Task view states
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [dayTasks, setDayTasks] = useState([]);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [taskConversations, setTaskConversations] = useState(null);
+  const [taskConversationsLoading, setTaskConversationsLoading] = useState(false);
 
   // Fetch cohorts on mount
   useEffect(() => {
@@ -125,6 +143,125 @@ const CohortAdminDashboard = () => {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  // Conversation viewing functions
+  const fetchCurriculumDays = async (cohortId) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/external-cohorts/${cohortId}/curriculum`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.ok) {
+        const days = await response.json();
+        setCurriculumDays(days);
+      }
+    } catch (error) {
+      console.error('Error fetching curriculum days:', error);
+    }
+  };
+
+  const fetchParticipantConversations = async (userId) => {
+    if (conversationsLoading[userId]) return;
+
+    setConversationsLoading(prev => ({ ...prev, [userId]: true }));
+    
+    try {
+      const dayParam = conversationDayFilter ? `?dayNumber=${conversationDayFilter}` : '';
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/external-cohorts/${selectedCohort.cohort_id}/participants/${userId}/conversations${dayParam}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setParticipantConversations(prev => ({
+          ...prev,
+          [userId]: data.tasks
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching participant conversations:', error);
+    } finally {
+      setConversationsLoading(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
+  const toggleParticipantRow = async (userId) => {
+    if (expandedParticipant === userId) {
+      setExpandedParticipant(null);
+    } else {
+      setExpandedParticipant(userId);
+      if (!participantConversations[userId]) {
+        await fetchParticipantConversations(userId);
+      }
+    }
+  };
+
+  const fetchDayTasks = async (dayNumber) => {
+    try {
+      const day = curriculumDays.find(d => d.day_number === dayNumber);
+      if (!day) return;
+
+      // Fetch tasks for this day via curriculum endpoint
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/external-cohorts/${selectedCohort.cohort_id}/curriculum`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.ok) {
+        const days = await response.json();
+        const selectedDayData = days.find(d => d.day_number === dayNumber);
+        // This is simplified - in a real scenario, you'd need an endpoint that returns tasks per day
+        setDayTasks([]); // Placeholder - would need task data
+      }
+    } catch (error) {
+      console.error('Error fetching day tasks:', error);
+    }
+  };
+
+  const fetchTaskConversations = async (taskId) => {
+    setTaskConversationsLoading(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/external-cohorts/${selectedCohort.cohort_id}/tasks/${taskId}/conversations`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setTaskConversations(data);
+      }
+    } catch (error) {
+      console.error('Error fetching task conversations:', error);
+    } finally {
+      setTaskConversationsLoading(false);
+    }
+  };
+
+  // Effects
+  useEffect(() => {
+    if (participantsModalOpen && selectedCohort) {
+      fetchCurriculumDays(selectedCohort.cohort_id);
+    }
+  }, [participantsModalOpen, selectedCohort]);
+
+  useEffect(() => {
+    if (expandedParticipant && selectedCohort) {
+      fetchParticipantConversations(expandedParticipant);
+    }
+  }, [conversationDayFilter]);
+
+  useEffect(() => {
+    if (selectedDay) {
+      fetchDayTasks(selectedDay);
+    }
+  }, [selectedDay]);
+
+  useEffect(() => {
+    if (selectedTask) {
+      fetchTaskConversations(selectedTask.task_id);
+    }
+  }, [selectedTask]);
 
   if (loading) {
     return (
@@ -266,7 +403,7 @@ const CohortAdminDashboard = () => {
 
         {/* Participants Modal */}
         <Dialog open={participantsModalOpen} onOpenChange={setParticipantsModalOpen}>
-          <DialogContent className="max-w-4xl font-proxima max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-6xl font-proxima max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-proxima-bold">
                 Participants - {selectedCohort?.name}
@@ -278,102 +415,200 @@ const CohortAdminDashboard = () => {
                 <div className="w-8 h-8 border-4 border-[#4242ea] border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : (
-              <div className="space-y-4">
-                {/* Summary Stats */}
-                <div className="grid grid-cols-4 gap-4">
-                  <Card>
-                    <CardContent className="pt-4 text-center">
-                      <div className="text-2xl font-proxima-bold text-[#4242ea]">
-                        {participants.length}
-                      </div>
-                      <div className="text-xs text-gray-600">Total</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-4 text-center">
-                      <div className="text-2xl font-proxima-bold text-green-600">
-                        {participants.filter(p => p.tasks_completed > 0).length}
-                      </div>
-                      <div className="text-xs text-gray-600">Active</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-4 text-center">
-                      <div className="text-2xl font-proxima-bold text-purple-600">
-                        {participants.length > 0 
-                          ? Math.round(participants.reduce((sum, p) => sum + p.tasks_completed, 0) / participants.length)
-                          : 0}
-                      </div>
-                      <div className="text-xs text-gray-600">Avg Tasks</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-4 text-center">
-                      <div className="text-2xl font-proxima-bold text-orange-600">
-                        {participants.length > 0 
-                          ? Math.round(participants.reduce((sum, p) => sum + p.submissions_count, 0) / participants.length)
-                          : 0}
-                      </div>
-                      <div className="text-xs text-gray-600">Avg Submissions</div>
-                    </CardContent>
-                  </Card>
-                </div>
+              <Tabs value={viewMode} onValueChange={setViewMode} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="by-participant">By Participant</TabsTrigger>
+                  <TabsTrigger value="by-task">By Task</TabsTrigger>
+                </TabsList>
 
-                {/* Export Button */}
-                <div className="flex justify-end">
-                  <Button variant="outline" size="sm" onClick={exportParticipantsCSV}>
-                    📥 Export CSV
-                  </Button>
-                </div>
+                {/* By Participant Tab */}
+                <TabsContent value="by-participant" className="space-y-4 mt-4">
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-4 gap-4">
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-proxima-bold text-[#4242ea]">
+                          {participants.length}
+                        </div>
+                        <div className="text-xs text-gray-600">Total</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-proxima-bold text-green-600">
+                          {participants.filter(p => p.tasks_completed > 0).length}
+                        </div>
+                        <div className="text-xs text-gray-600">Active</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-proxima-bold text-purple-600">
+                          {participants.length > 0 
+                            ? Math.round(participants.reduce((sum, p) => sum + p.tasks_completed, 0) / participants.length)
+                            : 0}
+                        </div>
+                        <div className="text-xs text-gray-600">Avg Tasks</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-proxima-bold text-orange-600">
+                          {participants.length > 0 
+                            ? Math.round(participants.reduce((sum, p) => sum + p.submissions_count, 0) / participants.length)
+                            : 0}
+                        </div>
+                        <div className="text-xs text-gray-600">Avg Submissions</div>
+                      </CardContent>
+                    </Card>
+                  </div>
 
-                {/* Participants Table */}
-                {participants.length > 0 ? (
-                  <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-gray-50">
-                          <TableHead className="font-proxima-bold">Name</TableHead>
-                          <TableHead className="font-proxima-bold">Email</TableHead>
-                          <TableHead className="font-proxima-bold text-center">Tasks</TableHead>
-                          <TableHead className="font-proxima-bold text-center">Submissions</TableHead>
-                          <TableHead className="font-proxima-bold">Last Activity</TableHead>
-                          <TableHead className="font-proxima-bold text-center">Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {participants.map((p) => (
-                          <TableRow key={p.user_id} className="hover:bg-gray-50">
-                            <TableCell className="font-medium font-proxima">
-                              {p.first_name} {p.last_name}
-                            </TableCell>
-                            <TableCell className="text-sm text-gray-600">{p.email}</TableCell>
-                            <TableCell className="text-center font-proxima-bold">
-                              {p.tasks_completed}
-                            </TableCell>
-                            <TableCell className="text-center font-proxima">
-                              {p.submissions_count}
-                            </TableCell>
-                            <TableCell className="text-sm text-gray-500">
-                              {p.last_activity ? formatDate(p.last_activity) : 'Never'}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {p.tasks_completed > 0 ? (
-                                <Badge className="bg-green-100 text-green-700">Active</Badge>
+                  {/* Filters and Export */}
+                  <div className="flex justify-between items-center">
+                    <select
+                      value={conversationDayFilter || ''}
+                      onChange={(e) => setConversationDayFilter(e.target.value ? parseInt(e.target.value) : null)}
+                      className="text-sm border border-gray-300 rounded px-3 py-2 font-proxima"
+                    >
+                      <option value="">All Days</option>
+                      {curriculumDays.map(day => (
+                        <option key={day.id} value={day.day_number}>
+                          Day {day.day_number} ({formatDate(day.day_date)})
+                        </option>
+                      ))}
+                    </select>
+                    <Button variant="outline" size="sm" onClick={exportParticipantsCSV}>
+                      📥 Export CSV
+                    </Button>
+                  </div>
+
+                  {/* Participants List with Expandable Conversations */}
+                  {participants.length > 0 ? (
+                    <div className="space-y-2">
+                      {participants.map((p) => (
+                        <div key={p.user_id} className="border rounded-lg overflow-hidden">
+                          <div 
+                            className="flex items-center p-3 hover:bg-gray-50 cursor-pointer"
+                            onClick={() => toggleParticipantRow(p.user_id)}
+                          >
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 mr-2">
+                              <span className={`transform transition-transform text-xs ${expandedParticipant === p.user_id ? 'rotate-90' : ''}`}>
+                                ▶
+                              </span>
+                            </Button>
+                            
+                            <div className="flex-1 grid grid-cols-6 gap-4 items-center">
+                              <div className="font-medium">{p.first_name} {p.last_name}</div>
+                              <div className="text-sm text-gray-600 col-span-2">{p.email}</div>
+                              <div className="text-center">{p.tasks_completed}</div>
+                              <div className="text-center">{p.submissions_count}</div>
+                              <div className="text-center">
+                                {p.tasks_completed > 0 ? (
+                                  <Badge className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                                ) : (
+                                  <Badge className="bg-gray-100 text-gray-600 text-xs">Inactive</Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {expandedParticipant === p.user_id && (
+                            <div className="border-t bg-gray-50 p-4">
+                              {conversationsLoading[p.user_id] ? (
+                                <div className="flex items-center justify-center py-8">
+                                  <div className="w-6 h-6 border-4 border-[#4242ea] border-t-transparent rounded-full animate-spin"></div>
+                                  <span className="ml-3 text-gray-600">Loading conversations...</span>
+                                </div>
+                              ) : participantConversations[p.user_id] && participantConversations[p.user_id].length > 0 ? (
+                                <div className="space-y-4">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <h4 className="font-proxima-bold text-sm">
+                                      Tasks {conversationDayFilter && `(Day ${conversationDayFilter})`}
+                                    </h4>
+                                    <Badge variant="outline">
+                                      {participantConversations[p.user_id].filter(t => t.has_conversation).length} with conversations
+                                    </Badge>
+                                  </div>
+                                  
+                                  {participantConversations[p.user_id].map((task) => (
+                                    <Card key={task.task_id} className="border-[#C8C8C8]">
+                                      <CardHeader className="pb-2">
+                                        <div className="flex items-center justify-between">
+                                          <div className="font-medium">{task.task_title}</div>
+                                          <div className="flex gap-2">
+                                            <Badge variant="outline" className="text-xs">Day {task.day_number}</Badge>
+                                            {task.task_status && (
+                                              <Badge className={
+                                                task.task_status === 'completed' ? 'bg-green-100 text-green-700 text-xs'
+                                                : task.task_status === 'in_progress' ? 'bg-blue-100 text-blue-700 text-xs'
+                                                : 'bg-gray-100 text-gray-600 text-xs'
+                                              }>
+                                                {task.task_status === 'in_progress' ? 'In Progress' : task.task_status}
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </CardHeader>
+                                      <CardContent>
+                                        {task.has_conversation ? (
+                                          <ConversationViewer
+                                            task={task}
+                                            messages={task.messages}
+                                            questions={task.questions}
+                                            participant={p}
+                                            submission={task.submission}
+                                          />
+                                        ) : (
+                                          <p className="text-sm text-gray-500 text-center py-4">
+                                            No conversation for this task yet
+                                          </p>
+                                        )}
+                                      </CardContent>
+                                    </Card>
+                                  ))}
+                                </div>
                               ) : (
-                                <Badge className="bg-gray-100 text-gray-600">Inactive</Badge>
+                                <div className="text-center py-8">
+                                  <p className="text-gray-500">No conversations found</p>
+                                </div>
                               )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      No participants have registered yet
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* By Task Tab */}
+                <TabsContent value="by-task" className="space-y-4 mt-4">
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-600">
+                      View conversations across all participants for specific tasks. Select a day to see available tasks.
+                    </p>
+                    
+                    {taskConversations ? (
+                      <TaskConversationList
+                        task={taskConversations.task}
+                        participants={taskConversations.participants}
+                        stats={taskConversations.stats}
+                      />
+                    ) : (
+                      <Card>
+                        <CardContent className="p-12 text-center">
+                          <p className="text-gray-500">
+                            Task-level conversation viewing coming soon. This feature will allow you to see all participant responses for a specific task.
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )}
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    No participants have registered yet
-                  </div>
-                )}
-              </div>
+                </TabsContent>
+              </Tabs>
             )}
           </DialogContent>
         </Dialog>
