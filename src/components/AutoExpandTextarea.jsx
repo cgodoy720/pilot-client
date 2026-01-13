@@ -34,9 +34,11 @@ const AutoExpandTextarea = forwardRef(({
   onPeerFeedbackClick,
   peerFeedbackButtonText = "Peer Feedback",
   showLlmDropdown = false,
-  shouldFocus = false
+  shouldFocus = false,
+  onHeightChange
 }, ref) => {
   const textareaRef = useRef(null);
+  const containerRef = useRef(null);
   const [localModel, setLocalModel] = useState(LLM_MODELS[0].value);
   const [hasContent, setHasContent] = useState(false);
 
@@ -54,6 +56,15 @@ const AutoExpandTextarea = forwardRef(({
       
       const newHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
       textarea.style.height = `${newHeight}px`;
+      
+      // Notify parent of height change after textarea resizes
+      if (containerRef.current && onHeightChange) {
+        // Use requestAnimationFrame to ensure DOM has updated
+        requestAnimationFrame(() => {
+          const height = containerRef.current.getBoundingClientRect().height;
+          onHeightChange(height + 24);
+        });
+      }
     }
   };
 
@@ -88,6 +99,28 @@ const AutoExpandTextarea = forwardRef(({
     }
   }, [shouldFocus, disabled]);
 
+  // Track container height and notify parent of changes
+  useEffect(() => {
+    if (!containerRef.current || !onHeightChange) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.target.getBoundingClientRect().height;
+        onHeightChange(height + 24);
+      }
+    });
+
+    resizeObserver.observe(containerRef.current);
+
+    // Initial height notification
+    const initialHeight = containerRef.current.getBoundingClientRect().height;
+    onHeightChange(initialHeight + 24);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [onHeightChange]);
+
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -112,7 +145,7 @@ const AutoExpandTextarea = forwardRef(({
   };
 
   return (
-    <div className="bg-stardust shadow-lg rounded-t-[20px] p-4">
+    <div ref={containerRef} className="bg-stardust shadow-lg rounded-t-[20px] p-4">
       <div className="flex flex-col gap-2">
         {/* Main input area */}
         <div className="bg-white rounded-md p-3 mb-2">

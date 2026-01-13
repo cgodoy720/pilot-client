@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './GPT.css';
 import { useAuth } from '../../context/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -65,6 +65,9 @@ function GPT() {
   // Model selection state
   const [selectedModel, setSelectedModel] = useState('openai/gpt-5.2');
   
+  // Input tray height for dynamic message container padding
+  const [inputTrayHeight, setInputTrayHeight] = useState(180);
+  
   // Available LLM models - matches Learning page
   const LLM_MODELS = [
     { value: 'openai/gpt-5.2', label: 'GPT-5.2', description: 'Latest GPT model' },
@@ -96,6 +99,7 @@ function GPT() {
   const fetchThreadsAbortControllerRef = useRef(null);
   const fetchMessagesAbortControllerRef = useRef(null);
   const textareaRef = useRef(null);
+  const chatTrayRef = useRef(null);
 
   // Check if user is inactive (in historical access mode)
   const isInactiveUser = user && user.active === false;
@@ -283,12 +287,42 @@ function GPT() {
       
       const newHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
       textarea.style.height = `${newHeight}px`;
+      
+      // Update input tray height for messages container padding
+      if (chatTrayRef.current) {
+        requestAnimationFrame(() => {
+          const trayHeight = chatTrayRef.current.getBoundingClientRect().height;
+          setInputTrayHeight(trayHeight + 24); // 24px for bottom-6 spacing
+        });
+      }
     }
   };
 
   // Initial resize on mount
   useEffect(() => {
     handleTextareaResize();
+  }, []);
+
+  // Track chat tray height changes for dynamic message padding
+  useEffect(() => {
+    if (!chatTrayRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.target.getBoundingClientRect().height;
+        setInputTrayHeight(height + 24); // 24px for bottom-6 spacing
+      }
+    });
+
+    resizeObserver.observe(chatTrayRef.current);
+
+    // Initial height notification
+    const initialHeight = chatTrayRef.current.getBoundingClientRect().height;
+    setInputTrayHeight(initialHeight + 24);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, []);
 
   const fetchThreads = async () => {
@@ -1077,7 +1111,7 @@ function GPT() {
         {/* Chat Interface */}
         <div className="flex-1 flex flex-col relative overflow-hidden">
           {/* Empty State or Messages Area */}
-          <div className="flex-1 overflow-y-auto py-8 px-6" style={{ paddingBottom: '180px' }}>
+          <div className="flex-1 overflow-y-auto py-8 px-6 transition-[padding] duration-200 ease-out" style={{ paddingBottom: `${inputTrayHeight}px` }}>
             {!activeThread && messages.length === 0 ? (
               <div className="max-w-2xl mx-auto pt-[50px]">
                 <h2 className="text-[18px] leading-[26px] font-proxima font-normal text-black mb-6">
@@ -1286,7 +1320,7 @@ function GPT() {
           <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
             <div className="pointer-events-auto max-w-2xl mx-auto">
               {/* Chat Tray */}
-              <div className="bg-stardust rounded-[20px] p-[10px_15px] shadow-[4px_4px_10px_rgba(0,0,0,0.15)] flex flex-col gap-[10px]">
+              <div ref={chatTrayRef} className="bg-stardust rounded-[20px] p-[10px_15px] shadow-[4px_4px_10px_rgba(0,0,0,0.15)] flex flex-col gap-[10px]">
                 {/* Input Area */}
                 <div className="flex flex-col gap-2">
                   {/* Text Input */}
