@@ -43,6 +43,7 @@ import {
 } from '../../components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import Swal from 'sweetalert2';
+import ConversationViewer from '../../components/ConversationViewer';
 
 const ExternalCohortsDashboard = () => {
   const { token } = useAuth();
@@ -84,6 +85,15 @@ const ExternalCohortsDashboard = () => {
   const [cohortStats, setCohortStats] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [statsLoading, setStatsLoading] = useState(false);
+
+  // Conversation viewing
+  const [expandedParticipant, setExpandedParticipant] = useState(null);
+  const [conversationDayFilter, setConversationDayFilter] = useState(null);
+  const [participantConversations, setParticipantConversations] = useState({});
+  const [conversationsLoading, setConversationsLoading] = useState({});
+  const [curriculumDays, setCurriculumDays] = useState([]);
+  const [expandedDays, setExpandedDays] = useState({}); // Track which days are expanded
+  const [expandedTasks, setExpandedTasks] = useState({}); // Track which tasks are expanded
 
   // Curriculum upload modal
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -563,6 +573,112 @@ const ExternalCohortsDashboard = () => {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  // ============================================================================
+  // CONVERSATION VIEWING
+  // ============================================================================
+
+  const fetchCurriculumDays = async (cohortId) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/external-cohorts/${cohortId}/curriculum`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.ok) {
+        const days = await response.json();
+        setCurriculumDays(days);
+      }
+    } catch (error) {
+      console.error('Error fetching curriculum days:', error);
+    }
+  };
+
+  const fetchParticipantConversations = async (userId) => {
+    if (conversationsLoading[userId]) return;
+
+    setConversationsLoading(prev => ({ ...prev, [userId]: true }));
+    
+    try {
+      const dayParam = conversationDayFilter ? `?dayNumber=${conversationDayFilter}` : '';
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/external-cohorts/${selectedCohort.cohort_id}/participants/${userId}/conversations${dayParam}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setParticipantConversations(prev => ({
+          ...prev,
+          [userId]: data.tasks
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching participant conversations:', error);
+      toast.error('Failed to load conversations');
+    } finally {
+      setConversationsLoading(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
+  const toggleParticipantRow = async (userId) => {
+    if (expandedParticipant === userId) {
+      setExpandedParticipant(null);
+    } else {
+      setExpandedParticipant(userId);
+      // Fetch conversations if not already loaded
+      if (!participantConversations[userId]) {
+        await fetchParticipantConversations(userId);
+      }
+    }
+  };
+
+  const toggleDay = (dayNumber) => {
+    setExpandedDays(prev => ({
+      ...prev,
+      [dayNumber]: !prev[dayNumber]
+    }));
+  };
+
+  const toggleTask = (taskId) => {
+    setExpandedTasks(prev => ({
+      ...prev,
+      [taskId]: !prev[taskId]
+    }));
+  };
+
+  // Group tasks by day
+  const groupTasksByDay = (tasks) => {
+    if (!tasks || tasks.length === 0) return [];
+    
+    const grouped = tasks.reduce((acc, task) => {
+      const dayKey = task.day_number;
+      if (!acc[dayKey]) {
+        acc[dayKey] = {
+          day_number: task.day_number,
+          day_date: task.day_date,
+          tasks: []
+        };
+      }
+      acc[dayKey].tasks.push(task);
+      return acc;
+    }, {});
+    
+    return Object.values(grouped).sort((a, b) => a.day_number - b.day_number);
+  };
+
+  // Fetch curriculum days when stats modal opens
+  useEffect(() => {
+    if (statsModalOpen && selectedCohort) {
+      fetchCurriculumDays(selectedCohort.cohort_id);
+    }
+  }, [statsModalOpen, selectedCohort]);
+
+  // Refetch conversations when day filter changes
+  useEffect(() => {
+    if (expandedParticipant && selectedCohort) {
+      fetchParticipantConversations(expandedParticipant);
+    }
+  }, [conversationDayFilter]);
 
   // ============================================================================
   // CURRICULUM UPLOAD
@@ -1249,7 +1365,7 @@ const ExternalCohortsDashboard = () => {
 
         {/* Statistics Modal */}
         <Dialog open={statsModalOpen} onOpenChange={setStatsModalOpen}>
-          <DialogContent className="max-w-4xl font-proxima max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-[95vw] w-[1400px] font-proxima max-h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle className="font-proxima-bold">
                 Statistics - {selectedCohort?.name}
@@ -1261,118 +1377,249 @@ const ExternalCohortsDashboard = () => {
                 <div className="w-8 h-8 border-4 border-[#4242ea] border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : (
-              <div className="space-y-6">
-                {/* KPI Cards */}
-                {cohortStats && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Card>
-                      <CardContent className="pt-6 text-center">
-                        <div className="text-3xl font-proxima-bold text-[#4242ea]">
-                          {cohortStats.total_enrolled || 0}
-                        </div>
-                        <div className="text-sm text-gray-600">Total Enrolled</div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6 text-center">
-                        <div className="text-3xl font-proxima-bold text-green-600">
-                          {cohortStats.active_users || 0}
-                        </div>
-                        <div className="text-sm text-gray-600">Active Users</div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6 text-center">
-                        <div className="text-3xl font-proxima-bold text-purple-600">
-                          {Number(cohortStats.avg_tasks_completed || 0).toFixed(1)}
-                        </div>
-                        <div className="text-sm text-gray-600">Avg Tasks Completed</div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6 text-center">
-                        <div className="text-3xl font-proxima-bold text-orange-600">
-                          {Number(cohortStats.avg_submissions || 0).toFixed(1)}
-                        </div>
-                        <div className="text-sm text-gray-600">Avg Submissions</div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
-
-                {/* Invitation Stats */}
-                {cohortStats?.invitations && (
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Invitation Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex gap-4">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold">{cohortStats.invitations.total_invitations}</div>
-                          <div className="text-xs text-gray-500">Total</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-blue-600">{cohortStats.invitations.sent_count}</div>
-                          <div className="text-xs text-gray-500">Sent</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-green-600">{cohortStats.invitations.registered_count}</div>
-                          <div className="text-xs text-gray-500">Registered</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-yellow-600">{cohortStats.invitations.pending_count}</div>
-                          <div className="text-xs text-gray-500">Pending</div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Participants Table */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-center">
-                      <CardTitle className="text-lg">Participants ({participants.length})</CardTitle>
-                      <Button variant="outline" size="sm" onClick={exportParticipantsCSV}>
-                        📥 Export CSV
+              <>
+                {/* Split Pane: Participants List (Left) | Conversation Details (Right) */}
+                <div className="flex gap-4 flex-1 min-h-0">
+                  {/* LEFT PANE: Participants List */}
+                  <div className="w-[400px] flex flex-col border-r pr-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="font-proxima-bold text-sm">Participants ({participants.length})</h3>
+                      <Button variant="outline" size="sm" onClick={exportParticipantsCSV} className="h-7 text-xs">
+                        📥 CSV
                       </Button>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    {participants.length > 0 ? (
-                      <div className="max-h-[300px] overflow-y-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Name</TableHead>
-                              <TableHead>Email</TableHead>
-                              <TableHead className="text-center">Tasks</TableHead>
-                              <TableHead className="text-center">Submissions</TableHead>
-                              <TableHead>Last Activity</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {participants.map((p) => (
-                              <TableRow key={p.user_id}>
-                                <TableCell>{p.first_name} {p.last_name}</TableCell>
-                                <TableCell className="text-sm text-gray-600">{p.email}</TableCell>
-                                <TableCell className="text-center">{p.tasks_completed}</TableCell>
-                                <TableCell className="text-center">{p.submissions_count}</TableCell>
-                                <TableCell className="text-sm text-gray-500">
-                                  {p.last_activity ? formatDate(p.last_activity) : 'Never'}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
+                    
+                    {/* Day Filter */}
+                    <select
+                      value={conversationDayFilter || ''}
+                      onChange={(e) => setConversationDayFilter(e.target.value ? parseInt(e.target.value) : null)}
+                      className="text-xs border border-gray-300 rounded px-2 py-1.5 font-proxima mb-3"
+                    >
+                      <option value="">All Days</option>
+                      {curriculumDays.map(day => (
+                        <option key={day.id} value={day.day_number}>
+                          Day {day.day_number} ({formatDate(day.day_date)})
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Scrollable Participants List */}
+                    <div className="flex-1 overflow-y-auto space-y-1 pr-2">
+                      {participants.length > 0 ? (
+                        participants.map((p) => (
+                          <div
+                            key={p.user_id}
+                            onClick={() => toggleParticipantRow(p.user_id)}
+                            className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                              expandedParticipant === p.user_id
+                                ? 'bg-[#4242ea] text-white border-[#4242ea]'
+                                : 'hover:bg-gray-50 border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className={`font-medium text-sm truncate ${expandedParticipant === p.user_id ? 'text-white' : 'text-gray-900'}`}>
+                                  {p.first_name} {p.last_name}
+                                </div>
+                                <div className={`text-xs truncate ${expandedParticipant === p.user_id ? 'text-blue-100' : 'text-gray-500'}`}>
+                                  {p.email}
+                                </div>
+                                <div className="flex gap-2 mt-1.5">
+                                  <span className={`text-xs ${expandedParticipant === p.user_id ? 'text-blue-100' : 'text-gray-600'}`}>
+                                    {p.tasks_completed} tasks
+                                  </span>
+                                  <span className={`text-xs ${expandedParticipant === p.user_id ? 'text-blue-100' : 'text-gray-600'}`}>
+                                    • {p.submissions_count} submissions
+                                  </span>
+                                </div>
+                              </div>
+                              <Badge
+                                className={
+                                  expandedParticipant === p.user_id
+                                    ? 'bg-white/20 text-white text-xs'
+                                    : p.tasks_completed > 0
+                                    ? 'bg-green-100 text-green-700 text-xs'
+                                    : 'bg-gray-100 text-gray-600 text-xs'
+                                }
+                              >
+                                {p.tasks_completed > 0 ? 'Active' : 'Inactive'}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-center py-8 text-gray-500 text-sm">No participants yet</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* RIGHT PANE: Conversation Details */}
+                  <div className="flex-1 flex flex-col min-w-0">
+                    {expandedParticipant ? (
+                      <>
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-proxima-bold text-sm">
+                            Conversations
+                            {conversationDayFilter && ` - Day ${conversationDayFilter}`}
+                          </h3>
+                          {participantConversations[expandedParticipant] && (
+                            <Badge variant="outline" className="text-xs">
+                              {participantConversations[expandedParticipant].filter(t => t.has_conversation).length} with conversations
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* Scrollable Conversation Area */}
+                        <div className="flex-1 overflow-y-auto pr-2">
+                          {conversationsLoading[expandedParticipant] ? (
+                            <div className="flex items-center justify-center py-12">
+                              <div className="w-6 h-6 border-4 border-[#4242ea] border-t-transparent rounded-full animate-spin"></div>
+                              <span className="ml-3 text-gray-600">Loading conversations...</span>
+                            </div>
+                          ) : participantConversations[expandedParticipant] && participantConversations[expandedParticipant].length > 0 ? (
+                            <div className="space-y-3">
+                              {groupTasksByDay(participantConversations[expandedParticipant]).map((day) => (
+                                <div key={day.day_number} className="border rounded-lg overflow-hidden">
+                                  {/* Day Header - Clickable to expand/collapse */}
+                                  <div
+                                    onClick={() => toggleDay(day.day_number)}
+                                    className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 cursor-pointer border-b"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                        <span className={`transform transition-transform text-xs ${expandedDays[day.day_number] ? 'rotate-90' : ''}`}>
+                                          ▶
+                                        </span>
+                                      </Button>
+                                      <div>
+                                        <div className="font-proxima-bold text-sm">
+                                          Day {day.day_number} - {formatDate(day.day_date)}
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          {day.tasks.length} {day.tasks.length === 1 ? 'task' : 'tasks'}
+                                          {day.tasks.filter(t => t.has_conversation).length > 0 && 
+                                            ` • ${day.tasks.filter(t => t.has_conversation).length} with conversations`
+                                          }
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-1">
+                                      {day.tasks.some(t => t.task_status === 'completed') && (
+                                        <Badge className="bg-green-100 text-green-700 text-xs">
+                                          {day.tasks.filter(t => t.task_status === 'completed').length} completed
+                                        </Badge>
+                                      )}
+                                      {day.tasks.some(t => t.submission) && (
+                                        <Badge className="bg-purple-100 text-purple-700 text-xs">
+                                          {day.tasks.filter(t => t.submission).length} submitted
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Day Tasks - Shown when expanded */}
+                                  {expandedDays[day.day_number] && (
+                                    <div className="p-3 space-y-2 bg-white">
+                                      {day.tasks.map((task) => (
+                                        <div key={task.task_id} className="border border-gray-200 rounded-lg overflow-hidden">
+                                          {/* Task Header - Clickable to expand/collapse */}
+                                          <div
+                                            onClick={() => toggleTask(task.task_id)}
+                                            className="flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer"
+                                          >
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 flex-shrink-0">
+                                                <span className={`transform transition-transform text-xs ${expandedTasks[task.task_id] ? 'rotate-90' : ''}`}>
+                                                  ▶
+                                                </span>
+                                              </Button>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="font-medium text-sm truncate">{task.task_title}</div>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                  {task.has_conversation ? (
+                                                    <span className="text-xs text-blue-600">
+                                                      {task.messages?.length || 0} messages
+                                                    </span>
+                                                  ) : (
+                                                    <span className="text-xs text-gray-400">No conversation</span>
+                                                  )}
+                                                  {task.submission && (
+                                                    <span className="text-xs text-purple-600">• Submitted</span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </div>
+                                            <div className="flex gap-2 flex-shrink-0 ml-2">
+                                              {task.task_status && (
+                                                <Badge 
+                                                  className={
+                                                    task.task_status === 'completed'
+                                                      ? 'bg-green-100 text-green-700 text-xs'
+                                                      : task.task_status === 'in_progress'
+                                                      ? 'bg-blue-100 text-blue-700 text-xs'
+                                                      : 'bg-gray-100 text-gray-600 text-xs'
+                                                  }
+                                                >
+                                                  {task.task_status === 'in_progress' ? 'In Progress' : task.task_status}
+                                                </Badge>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {/* Task Content - Shown when expanded */}
+                                          {expandedTasks[task.task_id] && (
+                                            <div className="border-t bg-white p-3">
+                                              {task.has_conversation ? (
+                                                <ConversationViewer
+                                                  task={task}
+                                                  messages={task.messages}
+                                                  questions={task.questions}
+                                                  participant={participants.find(p => p.user_id === expandedParticipant)}
+                                                  submission={task.submission}
+                                                />
+                                              ) : (
+                                                <p className="text-sm text-gray-500 text-center py-4">
+                                                  No conversation for this task yet
+                                                </p>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center h-full">
+                              <div className="text-center py-12">
+                                <p className="text-gray-500">
+                                  {conversationDayFilter 
+                                    ? `No tasks found for Day ${conversationDayFilter}`
+                                    : 'No conversations found for this participant'
+                                  }
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </>
                     ) : (
-                      <p className="text-center py-8 text-gray-500">No participants yet</p>
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center">
+                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <span className="text-3xl">💬</span>
+                          </div>
+                          <p className="text-gray-600 font-proxima">
+                            Select a participant to view their conversations
+                          </p>
+                        </div>
+                      </div>
                     )}
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                </div>
+              </>
             )}
           </DialogContent>
         </Dialog>
