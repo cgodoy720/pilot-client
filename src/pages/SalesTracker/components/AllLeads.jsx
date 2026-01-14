@@ -659,7 +659,7 @@ const AllLeads = () => {
           <SelectContent>
             <SelectItem value="all-owners">All Owners</SelectItem>
             {staffUsers.map((staff) => (
-              <SelectItem key={staff.id} value={staff.name.toLowerCase().replace(' ', '-')}>
+              <SelectItem key={staff.id} value={staff.id.toString()}>
                 {staff.name}
               </SelectItem>
             ))}
