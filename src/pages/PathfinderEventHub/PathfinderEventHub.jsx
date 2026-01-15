@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import EventCard from './EventCard';
+import EventCalendar from './EventCalendar';
 
 // Icons
 import ViewListIcon from '@mui/icons-material/ViewList';
@@ -71,20 +72,7 @@ function PathfinderEventHub() {
   };
 
   const handleViewChange = (newView) => {
-    if (newView === 'calendar') {
-      // Placeholder for Phase 3.2
-      Swal.fire({
-        toast: true,
-        icon: 'info',
-        title: 'Calendar view coming soon!',
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 3000,
-        timerProgressBar: true
-      });
-    } else {
-      setView(newView);
-    }
+    setView(newView);
   };
 
   const filteredEvents = events.filter(event => {
@@ -157,40 +145,53 @@ function PathfinderEventHub() {
         </div>
       </div>
 
-      {/* Events List */}
-      <div className="space-y-4">
-        {filteredEvents.length === 0 ? (
-          <Card className="p-12 text-center border border-[#e0e0e0] bg-white">
-            <div className="flex flex-col items-center gap-3">
-              <CalendarMonthIcon sx={{ fontSize: 48, color: '#cccccc' }} />
-              <h3 className="text-lg font-semibold text-[#1a1a1a]">
-                No events found
-              </h3>
-              <p className="text-[#666666] max-w-md">
-                {filter === 'all' 
-                  ? 'No upcoming events at the moment. Check back soon or add your own!'
-                  : 'No events match your current filter. Try changing your selection.'}
-              </p>
-              {filter === 'all' && (
-                <Button 
-                  onClick={handleAddEvent}
-                  className="mt-4 bg-[#4242ea] hover:bg-[#3535c9] text-white"
-                >
-                  Add Your First Event
-                </Button>
-              )}
-            </div>
-          </Card>
-        ) : (
-          filteredEvents.map(event => (
-            <EventCard 
-              key={event.event_id} 
-              event={event}
-              onUpdate={fetchEvents}
-            />
-          ))
-        )}
-      </div>
+      {/* List View */}
+      {view === 'list' && (
+        <div className="space-y-4">
+          {filteredEvents.length === 0 ? (
+            <Card className="p-12 text-center border border-[#e0e0e0] bg-white">
+              <div className="flex flex-col items-center gap-3">
+                <CalendarMonthIcon sx={{ fontSize: 48, color: '#cccccc' }} />
+                <h3 className="text-lg font-semibold text-[#1a1a1a]">
+                  No events found
+                </h3>
+                <p className="text-[#666666] max-w-md">
+                  {filter === 'all' 
+                    ? 'No upcoming events at the moment. Check back soon or add your own!'
+                    : 'No events match your current filter. Try changing your selection.'}
+                </p>
+                {filter === 'all' && (
+                  <Button 
+                    onClick={handleAddEvent}
+                    className="mt-4 bg-[#4242ea] hover:bg-[#3535c9] text-white"
+                  >
+                    Add Your First Event
+                  </Button>
+                )}
+              </div>
+            </Card>
+          ) : (
+            filteredEvents.map(event => (
+              <EventCard 
+                key={event.event_id} 
+                event={event}
+                onUpdate={fetchEvents}
+              />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Calendar View */}
+      {view === 'calendar' && (
+        <EventCalendar 
+          events={filteredEvents}
+          onEventClick={(event) => {
+            // Placeholder for Phase 3.4 - Event detail modal
+            console.log('Event clicked:', event);
+          }}
+        />
+      )}
     </div>
   );
 }
