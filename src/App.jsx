@@ -33,6 +33,7 @@ import PathfinderPersonalDashboard from './pages/Pathfinder/PathfinderPersonalDa
 import PathfinderApplications from './pages/PathfinderApplications';
 import PathfinderNetworking from './pages/PathfinderNetworking';
 import PathfinderProjects from './pages/PathfinderProjects';
+import PathfinderEventHub from './pages/PathfinderEventHub/PathfinderEventHub';
 import PathfinderAdminDashboard from './pages/PathfinderDashboard';
 import PathfinderAdmin from './pages/PathfinderAdmin';
 
@@ -330,6 +331,7 @@ function App() {
           <Route path="applications" element={<PathfinderApplications />} />
           <Route path="networking" element={<PathfinderNetworking />} />
           <Route path="projects" element={<PathfinderProjects />} />
+          <Route path="events" element={<PathfinderEventHub />} />
         </Route>
         
         {/* Pathfinder admin dashboard - separate route */}
