@@ -410,9 +410,17 @@ const ApplicationDetail = () => {
     const processedResponses = useMemo(() => {
         const responses = applicationData?.responses;
         const questions = applicationData?.questions;
+        const eligibilityCheck = applicationData?.eligibilityCheck;
         
         if (!responses || !questions || responses.length === 0) {
-            return { keyResponses: [], responsesByCategory: {}, categoryOrder: [], keyAnalysisQuestions: [] };
+            return { 
+                keyResponses: [], 
+                responsesByCategory: {}, 
+                categoryOrder: [], 
+                keyAnalysisQuestions: [],
+                eligibilityResponses: [],
+                failedQuestionIds: []
+            };
         }
 
         // Define the 9 key analysis questions in order
@@ -420,9 +428,26 @@ const ApplicationDetail = () => {
             1046, 1052, 1053, 1055, 1056, 1057, 1059, 1061, 1062
         ];
 
-        // Separate key analysis questions from other responses
+        // Helper function to identify eligibility questions by their prompt
+        const isEligibilityQuestion = (prompt) => {
+            if (!prompt) return false;
+            const lowerPrompt = prompt.toLowerCase();
+            return (
+                lowerPrompt.includes('date of birth') ||
+                lowerPrompt.includes('annual (gross) personal income') ||
+                lowerPrompt.includes('home address') ||
+                lowerPrompt.includes('work in the u.s. legally') ||
+                lowerPrompt.includes('commute to a fully in-person') ||
+                lowerPrompt.includes('commit to that in-person schedule') ||
+                lowerPrompt.includes('privacy policy')
+            );
+        };
+
+        // Separate different types of questions
         const keyResponses = [];
+        const eligibilityResponses = [];
         const otherResponses = [];
+        const failedQuestionIds = eligibilityCheck?.failedQuestionIds || [];
 
         // Create a question lookup map for O(1) access
         const questionMap = new Map(questions.map(q => [q.question_id, q]));
@@ -433,11 +458,15 @@ const ApplicationDetail = () => {
                 const responseData = {
                     response,
                     question,
-                    shortLabel: getShorthandLabel(question.prompt, question.question_id)
+                    shortLabel: getShorthandLabel(question.prompt, question.question_id),
+                    isFailed: failedQuestionIds.includes(question.question_id)
                 };
 
+                // Categorize the response
                 if (keyAnalysisQuestions.includes(question.question_id)) {
                     keyResponses.push(responseData);
+                } else if (isEligibilityQuestion(question.prompt)) {
+                    eligibilityResponses.push(responseData);
                 } else {
                     otherResponses.push(responseData);
                 }
@@ -449,6 +478,13 @@ const ApplicationDetail = () => {
             const indexA = keyAnalysisQuestions.indexOf(a.question.question_id);
             const indexB = keyAnalysisQuestions.indexOf(b.question.question_id);
             return indexA - indexB;
+        });
+
+        // Sort eligibility responses - failed ones first
+        eligibilityResponses.sort((a, b) => {
+            if (a.isFailed && !b.isFailed) return -1;
+            if (!a.isFailed && b.isFailed) return 1;
+            return a.question.question_id - b.question.question_id;
         });
 
         // Group other responses by logical categories
@@ -472,6 +508,8 @@ const ApplicationDetail = () => {
         return {
             keyResponses,
             keyAnalysisQuestions,
+            eligibilityResponses,
+            failedQuestionIds,
             responsesByCategory,
             categoryOrder: categoryOrder.filter(category => responsesByCategory[category]?.length > 0)
         };
@@ -1034,6 +1072,67 @@ const ApplicationDetail = () => {
                             </div>
                         ) : responses && responses.length > 0 ? (
                             <div className="space-y-4">
+                                {/* Eligibility Questions Section */}
+                                {processedResponses.eligibilityResponses.length > 0 && (
+                                    <Collapsible 
+                                        key="eligibility-questions" 
+                                        open={expandedSections['eligibility-questions'] ?? (processedResponses.failedQuestionIds.length > 0)}
+                                        onOpenChange={() => toggleSection('eligibility-questions')}
+                                        className="border rounded-lg"
+                                    >
+                                        <CollapsibleTrigger className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 rounded-t-lg">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-gray-500">{(expandedSections['eligibility-questions'] ?? (processedResponses.failedQuestionIds.length > 0)) ? '▼' : '▶'}</span>
+                                                <span className="font-proxima-bold">Eligibility Questions</span>
+                                                <Badge variant="secondary" className="font-proxima">{processedResponses.eligibilityResponses.length}</Badge>
+                                                {processedResponses.failedQuestionIds.length > 0 && (
+                                                    <Badge className="bg-red-100 text-red-700 hover:bg-red-100 font-proxima">
+                                                        {processedResponses.failedQuestionIds.length} Failed
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent className="p-4 space-y-4">
+                                            {processedResponses.eligibilityResponses.map(({ response, question, shortLabel, isFailed }, index) => (
+                                                <div 
+                                                    key={response.question_id || index} 
+                                                    className={`
+                                                        pb-4 last:pb-0
+                                                        ${isFailed ? 'border-l-4 border-red-500 bg-red-50 pl-4 py-3 rounded' : 'border-b last:border-b-0'}
+                                                    `}
+                                                >
+                                                    <div className="mb-2">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            {isFailed ? (
+                                                                <Badge className="bg-red-100 text-red-700 hover:bg-red-100 font-proxima">
+                                                                    ✗ Failed
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge className="bg-green-100 text-green-700 hover:bg-green-100 font-proxima">
+                                                                    ✓ Passed
+                                                                </Badge>
+                                                            )}
+                                                            <h4 className={`font-proxima-bold ${isFailed ? 'text-red-900' : 'text-gray-900'}`}>
+                                                                {shortLabel}
+                                                            </h4>
+                                                        </div>
+                                                        <p className={`text-sm mt-1 font-proxima italic ${isFailed ? 'text-red-600' : 'text-gray-500'}`}>
+                                                            {question.prompt}
+                                                        </p>
+                                                    </div>
+                                                    <div className={`font-proxima ${isFailed ? 'text-red-700 font-proxima-bold' : 'text-gray-700'}`}>
+                                                        {response.response_value ? (
+                                                            <div>{formatResponseValue(response.response_value, question?.response_type)}</div>
+                                                        ) : (
+                                                            <p className="text-gray-400 italic">No response provided</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </CollapsibleContent>
+                                    </Collapsible>
+                                )}
+
                                 {/* Key Analysis Questions Section */}
                                 {processedResponses.keyResponses.length > 0 && (
                                     <Collapsible 
