@@ -37,14 +37,21 @@ const OverviewTab = ({
     isLoading: demoLoading 
   } = useOverviewDemographics(cohortParam, activeOverviewStage, overviewDeliberationFilter, token);
   
-  // Get previous cohort ID for comparison
+  // Get previous cohort ID for comparison (find the cohort before the selected one)
   const previousCohortId = useMemo(() => {
-    if (overviewQuickView === 'dec2025') {
-      const sep2025 = cohorts.find(c => {
-        const n = (c.name || '').toLowerCase();
-        return (n.includes('sep') || n.includes('september')) && n.includes('2025');
-      });
-      return sep2025?.cohort_id;
+    if (!overviewQuickView || overviewQuickView === 'all_time' || overviewQuickView === 'deferred') {
+      return null;
+    }
+    
+    // Find current cohort index
+    const sortedCohorts = [...(cohorts || [])].sort((a, b) => 
+      new Date(b.start_date) - new Date(a.start_date)
+    );
+    const currentIndex = sortedCohorts.findIndex(c => c.cohort_id === overviewQuickView);
+    
+    // Get the previous cohort (next in the sorted array since it's sorted DESC)
+    if (currentIndex >= 0 && currentIndex < sortedCohorts.length - 1) {
+      return sortedCohorts[currentIndex + 1]?.cohort_id;
     }
     return null;
   }, [overviewQuickView, cohorts]);
@@ -154,13 +161,16 @@ const OverviewTab = ({
             </SelectTrigger>
             <SelectContent className="font-proxima">
               <SelectItem value="all_time">Cohort: All Time</SelectItem>
-              <SelectItem value="dec2025">December 2025</SelectItem>
-              <SelectItem value="sep2025">September 2025</SelectItem>
+              {cohorts?.map(cohort => (
+                <SelectItem key={cohort.cohort_id} value={cohort.cohort_id}>
+                  {cohort.name}
+                </SelectItem>
+              ))}
               <SelectItem value="deferred">Deferred Applicants</SelectItem>
             </SelectContent>
           </Select>
           
-          {overviewQuickView === 'dec2025' && (
+          {previousCohortId && (
             <label className="flex items-center gap-2 cursor-pointer font-proxima">
               <Checkbox 
                 checked={compareEnabled} 
@@ -174,15 +184,28 @@ const OverviewTab = ({
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {/* Total Applicants */}
+        {/* Total Pool with Net New vs Rollover breakdown */}
         <Card className="bg-white border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 font-proxima">Total Applicants</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 font-proxima">Total Pool</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-[#1a1a1a] font-proxima-bold">
               {appliedStatusBreakdown?.total ?? displayStats.totalApplicants ?? 0}
             </div>
+            {/* Net New vs Rollover breakdown */}
+            {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
+              <div className="mt-2 space-y-1">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                  <span className="text-gray-600 font-proxima">Net New: {displayStats.netNewApplicants ?? 0}</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                  <span className="text-gray-600 font-proxima">Rolled Over: {displayStats.rolloverApplicants ?? 0}</span>
+                </div>
+              </div>
+            )}
             {renderChange('applicants')}
           </CardContent>
         </Card>
@@ -196,6 +219,19 @@ const OverviewTab = ({
             <div className="text-3xl font-bold text-[#1a1a1a] font-proxima-bold">
               {displayStats.infoSessions?.totalAttended ?? 0}
             </div>
+            {/* This cohort vs any cohort breakdown */}
+            {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && displayStats.infoSessions?.attendedThisCohort !== undefined && (
+              <div className="mt-2 space-y-1">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="inline-block w-2 h-2 bg-purple-500 rounded-full"></span>
+                  <span className="text-gray-600 font-proxima">This Cohort: {displayStats.infoSessions.attendedThisCohort}</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="inline-block w-2 h-2 bg-gray-400 rounded-full"></span>
+                  <span className="text-gray-600 font-proxima">Prior Cohorts: {(displayStats.infoSessions.totalAttended ?? 0) - (displayStats.infoSessions.attendedThisCohort ?? 0)}</span>
+                </div>
+              </div>
+            )}
             {renderChange('infoSessions')}
           </CardContent>
         </Card>
@@ -220,14 +256,27 @@ const OverviewTab = ({
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-[#1a1a1a] font-proxima-bold">
-              {displayStats.offersExtended ?? 0}
+              {displayStats.offers?.total ?? displayStats.offersExtended ?? 0}
             </div>
+            {/* This cohort vs prior cohorts breakdown */}
+            {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && displayStats.offers !== undefined && (
+              <div className="mt-2 space-y-1">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="inline-block w-2 h-2 bg-purple-500 rounded-full"></span>
+                  <span className="text-gray-600 font-proxima">This Cohort: {displayStats.offers?.thisCohort ?? 0}</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="inline-block w-2 h-2 bg-gray-400 rounded-full"></span>
+                  <span className="text-gray-600 font-proxima">Prior Cohorts: {displayStats.offers?.priorCohorts ?? 0}</span>
+                </div>
+              </div>
+            )}
             {compareEnabled && comparisonStats ? (
               renderChange('offers')
             ) : (
               <span className="text-sm text-gray-500 font-proxima">
                 {displayStats.totalApplicants > 0 
-                  ? `${Math.round(((displayStats.offersExtended ?? 0) / displayStats.totalApplicants) * 100)}%`
+                  ? `${Math.round(((displayStats.offers?.total ?? displayStats.offersExtended ?? 0) / displayStats.totalApplicants) * 100)}%`
                   : '0%'
                 }
               </span>
@@ -236,7 +285,7 @@ const OverviewTab = ({
         </Card>
 
         {/* Marketing Insights - Only for All Time and December 2025 */}
-        {(overviewQuickView === 'all_time' || overviewQuickView === 'dec2025' || !overviewQuickView) && (
+        {overviewQuickView !== 'deferred' && (
           <Card className="bg-white border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600 font-proxima">Marketing Insights</CardTitle>

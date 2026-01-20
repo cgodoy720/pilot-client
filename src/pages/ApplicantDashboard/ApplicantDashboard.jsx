@@ -797,7 +797,7 @@ function ApplicantDashboard() {
                       </div>
                     )}
                     
-                    {/* Deferred notice */}
+                    {/* Deferred notice with opt-in button */}
                     {section.key === 'application' && status === 'submitted' && applicantStage?.deferred && (
                       <div className="bg-amber-50 border border-amber-400 rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-2">
@@ -805,13 +805,64 @@ function ApplicantDashboard() {
                           <strong className="text-amber-700 font-semibold">Application Deferred</strong>
                         </div>
                         <p className="text-sm text-amber-700 mb-1">
-                          Your application will be automatically reconsidered for the next cohort. We'll reach out with details about the timeline.
+                          Your application has been deferred. When you're ready to rejoin the program, click the button below to opt back in to the next cohort.
                         </p>
                         {applicantStage.deferred_at && (
-                          <p className="text-xs text-amber-600">
+                          <p className="text-xs text-amber-600 mb-3">
                             Deferred on {new Date(applicantStage.deferred_at).toLocaleDateString()}
                           </p>
                         )}
+                        <button
+                          onClick={async () => {
+                            const result = await Swal.fire({
+                              title: 'Ready to Rejoin?',
+                              html: `<p>If you opt back in, your application will be added to the next cohort pool.</p><p style="color: #666; margin-top: 10px;">You may need to complete additional requirements like workshop attendance.</p>`,
+                              icon: 'question',
+                              showCancelButton: true,
+                              confirmButtonText: 'Yes, Opt Me Back In',
+                              cancelButtonText: 'Cancel',
+                              confirmButtonColor: '#4242ea',
+                              cancelButtonColor: '#6c757d'
+                            });
+
+                            if (result.isConfirmed) {
+                              try {
+                                const token = localStorage.getItem('applicantToken');
+                                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/undefer`, {
+                                  method: 'POST',
+                                  headers: { 
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`
+                                  },
+                                  body: JSON.stringify({ applicantId: currentApplicantId })
+                                });
+
+                                if (!response.ok) {
+                                  const error = await response.json();
+                                  throw new Error(error.error || 'Failed to opt back in');
+                                }
+
+                                await Swal.fire({
+                                  icon: 'success',
+                                  title: 'Welcome Back!',
+                                  text: 'Your application has been reactivated. You are now in the pool for the next cohort.',
+                                  confirmButtonColor: '#4242ea'
+                                });
+                                window.location.reload();
+                              } catch (error) {
+                                await Swal.fire({
+                                  icon: 'error',
+                                  title: 'Error',
+                                  text: error.message || 'Failed to opt back in.',
+                                  confirmButtonColor: '#dc3545'
+                                });
+                              }
+                            }
+                          }}
+                          className="w-full text-sm text-[#4242ea] border border-[#4242ea] rounded-xl py-2 px-4 hover:bg-[#4242ea] hover:text-white transition-colors"
+                        >
+                          Opt Back In to Next Cohort
+                        </button>
                       </div>
                     )}
 
@@ -865,6 +916,70 @@ function ApplicantDashboard() {
                       >
                         Change of plans? Defer your application
                       </button>
+                    )}
+
+                    {/* Rejected notice with reapply option */}
+                    {section.key === 'workshop' && applicantStage?.program_admission_status === 'rejected' && (
+                      <div className="bg-red-50 border border-red-300 rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span>❌</span>
+                          <strong className="text-red-700 font-semibold">Application Not Accepted</strong>
+                        </div>
+                        <p className="text-sm text-red-700 mb-3">
+                          Unfortunately, we were not able to offer you a spot in the program at this time. If you'd like to be reconsidered for a future cohort, you can reapply below.
+                        </p>
+                        <button
+                          onClick={async () => {
+                            const result = await Swal.fire({
+                              title: 'Reapply for Next Cohort?',
+                              html: `<p>If you reapply, you'll be added to the pool for the next cohort.</p><p style="color: #666; margin-top: 10px;">You'll need to register for and attend a new workshop.</p>`,
+                              icon: 'question',
+                              showCancelButton: true,
+                              confirmButtonText: 'Yes, Reapply',
+                              cancelButtonText: 'Cancel',
+                              confirmButtonColor: '#4242ea',
+                              cancelButtonColor: '#6c757d'
+                            });
+
+                            if (result.isConfirmed) {
+                              try {
+                                const token = localStorage.getItem('applicantToken');
+                                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/reapply`, {
+                                  method: 'POST',
+                                  headers: { 
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`
+                                  }
+                                });
+
+                                if (!response.ok) {
+                                  const error = await response.json();
+                                  throw new Error(error.error || 'Failed to reapply');
+                                }
+
+                                const reapplyResult = await response.json();
+                                await Swal.fire({
+                                  icon: 'success',
+                                  title: 'Application Resubmitted!',
+                                  html: `<p>${reapplyResult.message}</p>${reapplyResult.next_cohort ? `<p style="margin-top: 10px; color: #666;">Next cohort: ${reapplyResult.next_cohort.name}</p>` : ''}`,
+                                  confirmButtonColor: '#4242ea'
+                                });
+                                window.location.reload();
+                              } catch (error) {
+                                await Swal.fire({
+                                  icon: 'error',
+                                  title: 'Error',
+                                  text: error.message || 'Failed to reapply.',
+                                  confirmButtonColor: '#dc3545'
+                                });
+                              }
+                            }
+                          }}
+                          className="w-full text-sm text-[#4242ea] border border-[#4242ea] rounded-xl py-2 px-4 hover:bg-[#4242ea] hover:text-white transition-colors"
+                        >
+                          Reapply for Next Cohort
+                        </button>
+                      </div>
                     )}
 
                     {/* Info session details */}

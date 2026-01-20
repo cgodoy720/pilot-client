@@ -283,11 +283,18 @@ const AdmissionsDashboard = () => {
     };
   }, [openFilterColumn]);
 
-  // Helper: robustly map overview quick view to a cohort_id or 'deferred'
+  // Helper: map overview quick view to a cohort_id or 'deferred'
   const getOverviewCohortParam = () => {
     if (!overviewQuickView || overviewQuickView === 'all_time') return '';
     if (overviewQuickView === 'deferred') return 'deferred';
+    
+    // If it's a UUID (cohort_id), return it directly
+    // UUIDs are 36 characters with hyphens
+    if (overviewQuickView.length === 36 && overviewQuickView.includes('-')) {
+      return overviewQuickView;
+    }
 
+    // Legacy support for hardcoded values (can be removed later)
     const norm = (s) => (s || '').toLowerCase();
     const candidates = cohorts || [];
 
