@@ -7,7 +7,7 @@ import {
   SelectValue,
 } from './ui/select';
 
-const ActivityHeader = ({ currentDay, tasks, currentTaskIndex, onTaskChange }) => {
+const ActivityHeader = ({ currentDay, tasks, currentTaskIndex, onTaskChange, isWorkshopParticipant = false }) => {
   if (!currentDay || !tasks) return null;
 
   const currentTask = tasks[currentTaskIndex];
@@ -52,7 +52,7 @@ const ActivityHeader = ({ currentDay, tasks, currentTaskIndex, onTaskChange }) =
             backgroundClip: 'text'
           }}
         >
-          {formatDate(currentDay.day_date)}
+          {isWorkshopParticipant ? 'AI Native Workshop' : formatDate(currentDay.day_date)}
         </h1>
 
       {/* Navigation Bar - Centered */}

@@ -31,6 +31,8 @@ const Layout = ({ children, isLoading = false }) => {
   const isEnterpriseUser = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin';
   // Check if user is an applicant (from dev)
   const isApplicant = user?.role === 'applicant';
+  // Check if user is a workshop participant (applicant with workshop flag)
+  const isWorkshopParticipantApplicant = isApplicant && user?.isWorkshopParticipant;
   // Check if user is an enterprise admin
   const isEnterpriseAdmin = user?.role === 'enterprise_admin';
   
@@ -254,7 +256,7 @@ const Layout = ({ children, isLoading = false }) => {
           {/* Navigation Links */}
           {renderNavLink('/dashboard', <img src={logo} alt="Logo" className="h-5 w-5 object-contain" />, 'Dashboard')}
           
-          {renderNavLink('/learning', (
+          {          renderNavLink('/learning', (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path d="M2 3H8C9.1 3 10 3.9 10 5V19C10 20.1 9.1 21 8 21H2C1.45 21 1 20.55 1 20V4C1 3.45 1.45 3 2 3Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M22 3H16C14.9 3 14 3.9 14 5V19C14 20.1 14.9 21 16 21H22C22.55 21 23 20.55 23 20V4C23 3.45 22.55 3 22 3Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -262,22 +264,22 @@ const Layout = ({ children, isLoading = false }) => {
               <path d="M10 11H14" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M10 15H14" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-          ), 'Learning', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)}
+          ), 'Learning', (!isWorkshopParticipant && !isWorkshopAdmin && !isApplicant) || isWorkshopParticipantApplicant)}
           
-          {renderNavLink('/ai-chat', (
+          {          renderNavLink('/ai-chat', (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-          ), 'AI Chat', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)}
+          ), 'AI Chat', (!isWorkshopParticipant && !isWorkshopAdmin && !isApplicant) || isWorkshopParticipantApplicant)}
           
-          {renderNavLink('/calendar', (
+          {          renderNavLink('/calendar', (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <line x1="16" y1="2" x2="16" y2="6" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <line x1="8" y1="2" x2="8" y2="6" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <line x1="3" y1="10" x2="21" y2="10" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-          ), 'Calendar', !isWorkshopParticipant && !isWorkshopAdmin && !isApplicant)}
+          ), 'Calendar', (!isWorkshopParticipant && !isWorkshopAdmin && !isApplicant) || isWorkshopParticipantApplicant)}
           
           {/* Pathfinder - NEW from dev (hidden for volunteers, workshop users, and enterprise users) */}
           {renderNavLink('/pathfinder/dashboard', <ArrowRight className="h-4 w-4 text-[#E3E3E3]" />, 'Pathfinder',

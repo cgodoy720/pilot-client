@@ -20,8 +20,10 @@ export const AuthProvider = ({ children }) => {
     if (storedUser && storedToken) {
       try {
         const parsedUser = JSON.parse(storedUser);
-        // Set auth state for builder users, workshop participants, AND volunteers
-        if (parsedUser.userType === 'builder' || parsedUser.userType === 'workshop_participant' || parsedUser.userType === 'volunteer') {
+        // Set auth state for builder users, workshop participants, volunteers, AND workshop participant applicants
+        if (parsedUser.userType === 'builder' || parsedUser.userType === 'workshop_participant' || 
+            parsedUser.userType === 'volunteer' || 
+            (parsedUser.userType === 'applicant' && parsedUser.isWorkshopParticipant)) {
           setUser(parsedUser);
           setToken(storedToken);
           setIsAuthenticated(true);
@@ -69,8 +71,9 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('token', data.token);
       }
       
-      // Set auth context state for builder users and volunteers
-      if (data.user.userType === 'builder' || data.user.userType === 'volunteer') {
+      // Set auth context state for builder users, volunteers, and workshop participant applicants
+      if (data.user.userType === 'builder' || data.user.userType === 'volunteer' || 
+          (data.user.userType === 'applicant' && data.user.isWorkshopParticipant)) {
         setUser(data.user);
         setToken(data.token);
         setIsAuthenticated(true);
