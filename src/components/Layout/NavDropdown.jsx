@@ -19,12 +19,6 @@ const NavDropdown = ({
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Don't render if condition is false
-  if (!condition) return null;
-
-  // Don't render on mobile if navbar is not open
-  if (isMobile && !isMobileNavbarOpen) return null;
-
   // Check if any of the dropdown items is currently active
   const isAnyItemActive = items.some(item => {
     if (item.to === location.pathname) return true;
@@ -33,11 +27,18 @@ const NavDropdown = ({
   });
 
   // Auto-expand when on an active route
+  // Must be called before any early returns to follow Rules of Hooks
   useEffect(() => {
-    if (isAnyItemActive && !isOpen) {
+    if (condition && isAnyItemActive && !isOpen) {
       onToggle(id);
     }
-  }, [location.pathname]); // Only run when pathname changes
+  }, [location.pathname, condition]); // Only run when pathname or condition changes
+
+  // Don't render if condition is false
+  if (!condition) return null;
+
+  // Don't render on mobile if navbar is not open
+  if (isMobile && !isMobileNavbarOpen) return null;
 
   const handleItemClick = (to) => {
     navigate(to);
