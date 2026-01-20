@@ -45,6 +45,9 @@ function Learning() {
   // Check if user has active status
   const isActive = user?.active !== false;
   
+  // Check if user is a workshop participant
+  const isWorkshopParticipant = user?.isWorkshopParticipant === true;
+  
   // Add state variables for message editing
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editMessageContent, setEditMessageContent] = useState('');
@@ -1074,6 +1077,7 @@ function Learning() {
           onStartActivity={handleStartActivity}
           isPageLoading={isPageLoading}
           navigate={navigate}
+          isWorkshopParticipant={isWorkshopParticipant}
         />
         {/* Loading Curtain */}
         <LoadingCurtain isLoading={isPageLoading} />
@@ -1111,6 +1115,7 @@ function Learning() {
         tasks={tasks}
         currentTaskIndex={currentTaskIndex}
         onTaskChange={handleTaskChange}
+        isWorkshopParticipant={isWorkshopParticipant}
       />
 
       {/* Main Content Area - Takes remaining height */}

@@ -24,6 +24,8 @@ function Dashboard() {
   const isActive = user?.active !== false;
   // Check if user is volunteer
   const isVolunteer = user?.role === 'volunteer';
+  // Check if user is a workshop participant (applicant with workshop flag)
+  const isWorkshopParticipant = user?.isWorkshopParticipant === true;
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -307,6 +309,22 @@ function Dashboard() {
       prefix: '',
       date: dateStr,
       full: dateStr
+    };
+  };
+
+  // Format card header for workshop participants (Day 1, Day 2, etc.)
+  const formatWorkshopCardHeader = (dayNumber, isToday = false) => {
+    if (isToday) {
+      return {
+        prefix: 'TODAY ',
+        date: `Day ${dayNumber}`,
+        full: `TODAY Day ${dayNumber}`
+      };
+    }
+    return {
+      prefix: '',
+      date: `Day ${dayNumber}`,
+      full: `Day ${dayNumber}`
     };
   };
 
@@ -636,13 +654,16 @@ function Dashboard() {
           {/* Week Header: Title and Date Picker */}
           <div className="dashboard__week-header items-end">
             <div className="dashboard__week-title">
-              {isExternalCohort ? (
+              {isWorkshopParticipant ? (
+                <span className="dashboard__week-label">AI Native Workshop</span>
+              ) : isExternalCohort ? (
                 <span className="dashboard__week-label">{user?.cohort || 'Your Program'}</span>
               ) : (
                 <span className="dashboard__week-label">
                   <span className="dashboard__week-level">{currentLevel}</span>: Week {currentWeek}
                 </span>
               )}
+              {!isWorkshopParticipant && (
               <span 
                 className={`dashboard__week-subtitle ${
                   slideDirection === 'out-left' ? 'animate__animated animate__fadeOutLeft' :
@@ -654,10 +675,11 @@ function Dashboard() {
               >
                 {weeklyGoal}
               </span>
+              )}
             </div>
 
-            {/* Hide week navigation for external cohorts */}
-            {!isExternalCohort && (
+            {/* Hide week navigation for external cohorts and workshop participants */}
+            {!isExternalCohort && !isWorkshopParticipant && (
             <div className="dashboard__date-picker">
               <button
                 className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
@@ -771,7 +793,9 @@ function Dashboard() {
                   {/* Date */}
                   <div className="dashboard__day-date">
                     {(() => {
-                      const formattedDate = formatDayDate(day.day_date, dayIsToday);
+                      const formattedDate = isWorkshopParticipant 
+                        ? formatWorkshopCardHeader(day.day_number, dayIsToday)
+                        : formatDayDate(day.day_date, dayIsToday);
                       return (
                         <>
                           {formattedDate.prefix && <strong>{formattedDate.prefix}</strong>}
@@ -926,7 +950,9 @@ function Dashboard() {
 
           {/* Week Title - different for external cohorts */}
           <div className="dashboard__mobile-week-title">
-            {isExternalCohort ? (
+            {isWorkshopParticipant ? (
+              <>AI Native Workshop</>
+            ) : isExternalCohort ? (
               <>{user?.cohort || 'Your Program'}</>
             ) : (
               <>{currentLevel}: Week {currentWeek} <br />
@@ -937,8 +963,8 @@ function Dashboard() {
           {/* Divider 2 */}
           <div className="dashboard__mobile-divider-2" />
 
-          {/* Date Picker - hidden for external cohorts */}
-          {!isExternalCohort && (
+          {/* Date Picker - hidden for external cohorts and workshop participants */}
+          {!isExternalCohort && !isWorkshopParticipant && (
           <div className="dashboard__mobile-date-picker">
             <button
               className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
