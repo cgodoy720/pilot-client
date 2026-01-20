@@ -19,6 +19,8 @@ const BulkActionsModal = ({ isOpen, selectedCount, onClose, onAction, isLoading 
         { value: 'reject_from_program', label: 'Reject from program' },
         { value: 'waitlist_applicant', label: 'Add to waitlist' },
         { value: 'defer_applicant', label: 'Defer application' },
+        { value: 'undefer_applicant', label: 'Remove deferral (return to active pool)' },
+        { value: 'allow_reapply', label: 'Allow reapply (for rejected applicants)' },
         { value: 'withdraw_applicant', label: 'Mark as withdrawn' },
         { value: 'send_custom_email', label: 'Send custom email' }
     ];
@@ -58,6 +60,10 @@ const BulkActionsModal = ({ isOpen, selectedCount, onClose, onAction, isLoading 
                 return 'Update admission status to "waitlisted" and send waitlist notification';
             case 'defer_applicant':
                 return 'Update admission status to "deferred" for future consideration';
+            case 'undefer_applicant':
+                return 'Remove deferral status and return applicant to active pool for current cohort';
+            case 'allow_reapply':
+                return 'Allow rejected applicant to reapply - they will be added to next cohort at info session stage';
             case 'withdraw_applicant':
                 return 'Update admission status to "withdrawn" - applicant has voluntarily withdrawn from consideration';
             case 'send_custom_email':
