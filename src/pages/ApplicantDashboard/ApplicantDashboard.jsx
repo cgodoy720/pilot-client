@@ -552,7 +552,9 @@ function ApplicantDashboard() {
         ...data.user,
         userType: 'builder',
         firstName: data.user.first_name,
-        lastName: data.user.last_name
+        lastName: data.user.last_name,
+        isWorkshopParticipant: data.user.is_workshop_participant || false,
+        workshopEventId: data.workshop?.event_id || null
       };
 
       localStorage.setItem('token', data.token);
