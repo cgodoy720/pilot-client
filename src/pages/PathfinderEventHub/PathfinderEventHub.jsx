@@ -8,6 +8,7 @@ import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import EventCard from './EventCard';
 import EventCalendar from './EventCalendar';
+import AddEventDialog from './AddEventDialog';
 
 // Icons
 import ViewListIcon from '@mui/icons-material/ViewList';
@@ -21,6 +22,7 @@ function PathfinderEventHub() {
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState('list'); // 'list' or 'calendar'
   const [filter, setFilter] = useState('all'); // 'all', 'interested', 'attending'
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   useEffect(() => {
     fetchEvents();
@@ -59,16 +61,7 @@ function PathfinderEventHub() {
   };
 
   const handleAddEvent = () => {
-    // Placeholder for Phase 3.3
-    Swal.fire({
-      toast: true,
-      icon: 'info',
-      title: 'Event submission coming soon!',
-      position: 'top-end',
-      showConfirmButton: false,
-      timer: 3000,
-      timerProgressBar: true
-    });
+    setShowAddDialog(true);
   };
 
   const handleViewChange = (newView) => {
@@ -192,6 +185,16 @@ function PathfinderEventHub() {
           }}
         />
       )}
+
+      {/* Add Event Dialog */}
+      <AddEventDialog 
+        isOpen={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+        onEventAdded={() => {
+          setShowAddDialog(false);
+          fetchEvents();
+        }}
+      />
     </div>
   );
 }
