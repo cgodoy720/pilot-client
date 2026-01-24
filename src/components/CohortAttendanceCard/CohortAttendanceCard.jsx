@@ -3,15 +3,14 @@ import './CohortAttendanceCard.css';
 
 const CohortAttendanceCard = ({ 
   cohortName, 
-  cohortLevel, 
   attendees = [], 
   className = '' 
 }) => {
 
 
   // Get cohort display name
-  const getCohortDisplayName = (level, name) => {
-    return `${level} ${name} Cohort`;
+  const getCohortDisplayName = (name) => {
+    return `${name} Cohort`;
   };
 
   // Get placeholder photo for attendees without photos
@@ -40,7 +39,7 @@ const CohortAttendanceCard = ({
       <div className={`cohort-attendance-card ${className}`}>
         <div className="card-header">
           <div className="card-icon">👥</div>
-          <h2>{getCohortDisplayName(cohortLevel, cohortName)} Present Today (0)</h2>
+          <h2>{getCohortDisplayName(cohortName)} Present Today (0)</h2>
         </div>
         <div className="cohort-empty-state">
           <div className="empty-icon">📷</div>
@@ -54,7 +53,7 @@ const CohortAttendanceCard = ({
     <div className={`cohort-attendance-card ${className}`}>
       <div className="card-header">
         <div className="card-icon">👥</div>
-        <h2>{getCohortDisplayName(cohortLevel, cohortName)} Present Today ({attendees.length})</h2>
+        <h2>{getCohortDisplayName(cohortName)} Present Today ({attendees.length})</h2>
       </div>
       
       <div className="cohort-photos-container">
