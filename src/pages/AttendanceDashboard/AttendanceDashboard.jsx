@@ -615,14 +615,6 @@ const AttendanceDashboard = () => {
     // Convert to cohort data structure
     const cohortData = [];
     
-    // Map cohort names to display names
-    const cohortMapping = {
-      'March 2025': { name: 'Pilot', level: 'L3' },
-      'June 2025': { name: 'June 2025', level: 'L2' },
-      'September 2025': { name: 'September', level: 'L1' },
-      'Unknown Cohort': { name: 'Unknown', level: 'L?' }
-    };
-
     cohortsData.forEach(cohortGroup => {
       console.log('🔍 Processing cohort group:', cohortGroup);
       
@@ -654,12 +646,10 @@ const AttendanceDashboard = () => {
         };
       });
       
-      const mapping = cohortMapping[cohortName] || { name: cohortName, level: 'L?' };
-      console.log(`Creating cohort card for ${cohortName} -> ${mapping.name} ${mapping.level} with ${normalizedAttendees.length} attendees`);
+      console.log(`Creating cohort card for ${cohortName} with ${normalizedAttendees.length} attendees`);
       
       cohortData.push({
-        cohortName: mapping.name,
-        cohortLevel: mapping.level,
+        cohortName: cohortName,
         attendees: normalizedAttendees
       });
     });
@@ -1002,9 +992,8 @@ const AttendanceDashboard = () => {
             console.log('🔍 Rendering cohort cards, data:', cohortData);
             return cohortData.map((cohort, index) => (
               <CohortAttendanceCard
-                key={`${cohort.cohortLevel}-${cohort.cohortName}-${index}`}
+                key={`${cohort.cohortName}-${index}`}
                 cohortName={cohort.cohortName}
-                cohortLevel={cohort.cohortLevel}
                 attendees={cohort.attendees}
                 className="cohort-card"
               />
