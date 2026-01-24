@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import CalendarHeader from './components/CalendarHeader';
 import WeekView from './components/WeekView';
-import { ScrollArea } from '../../components/ui/scroll-area';
 
 function Calendar() {
   const [weeksData, setWeeksData] = useState([]);
@@ -264,7 +263,7 @@ function Calendar() {
         />
         
         {/* Weeks List */}
-        <ScrollArea className="flex-1 px-[85px] py-[20px]">
+        <div className="flex-1 overflow-auto px-[85px] py-[20px]">
           <div className="flex flex-col gap-[34px]">
             {calendarWeeks.map((week, idx) => (
               <WeekView
@@ -280,7 +279,7 @@ function Calendar() {
               />
             ))}
         </div>
-      </ScrollArea>
+      </div>
       
       {/* Loading Curtain */}
       <LoadingCurtain isLoading={isLoading} />
