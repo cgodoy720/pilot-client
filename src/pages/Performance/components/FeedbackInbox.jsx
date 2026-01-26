@@ -17,8 +17,8 @@ import { useNavigate } from 'react-router-dom';
 import { fetchTasksWithFeedback, getTaskCompletionStatus, markFeedbackAsViewed } from '../../../utils/performanceInboxService';
 import { createThread } from '../../../utils/api';
 
-const FeedbackInbox = ({ userId, month, year, cohort }) => {
-  const { token, user } = useAuth();
+const FeedbackInbox = ({ userId, month, year }) => {
+  const { token } = useAuth();
   const navigate = useNavigate();
   
   // State for real task data
@@ -45,16 +45,17 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
         const selectedYear = year !== undefined ? year : new Date().getFullYear();
         const monthStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
         
-        // Use provided cohort or user's cohort
-        const userCohort = cohort || user?.cohort || 'September 2025';
+        // Backend now handles cohort resolution via user_enrollment
+        console.log('📊 Loading tasks for Performance Inbox...', { userId, month: monthStr });
         
-        console.log('📊 Loading tasks for Performance Inbox...', { userId, month: monthStr, cohort: userCohort });
-        
-        const response = await fetchTasksWithFeedback(token, monthStr, userCohort, userId);
+        const response = await fetchTasksWithFeedback(token, monthStr, null, userId);
         
         if (response.success) {
           setTasksData(response.tasks || []);
           console.log('✅ Loaded', response.tasks?.length || 0, 'tasks with feedback data');
+          if (response.metadata?.cohorts) {
+            console.log('📊 From cohorts:', response.metadata.cohorts);
+          }
         } else {
           throw new Error(response.error || 'Failed to load tasks');
         }
@@ -69,7 +70,7 @@ const FeedbackInbox = ({ userId, month, year, cohort }) => {
     };
 
     loadTasks();
-  }, [userId, token, month, year, cohort, user?.cohort]);
+  }, [userId, token, month, year]);
 
   // Filter tasks based on search and type
   const filteredTasks = useMemo(() => {

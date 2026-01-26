@@ -7,7 +7,6 @@ import WeekView from './components/WeekView';
 
 function Calendar() {
   const [weeksData, setWeeksData] = useState([]);
-  const [userProgress, setUserProgress] = useState({});
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentDayId, setCurrentDayId] = useState(null);
@@ -16,6 +15,50 @@ function Calendar() {
   const { token, user } = useAuth();
   const navigate = useNavigate();
   const [cohortFilter, setCohortFilter] = useState(null);
+  const [selectedCohort, setSelectedCohort] = useState(null); // For regular users to switch between enrolled cohorts
+  const [enrollments, setEnrollments] = useState([]); // User's enrollments
+
+  // Fetch user enrollments on mount (for regular users with multiple enrollments)
+  useEffect(() => {
+    const fetchEnrollments = async () => {
+      // Only fetch enrollments for regular users (not staff/admin)
+      if (user?.role === 'staff' || user?.role === 'admin') {
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/progress/dashboard-full`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.enrollments && data.enrollments.length > 0) {
+            setEnrollments(data.enrollments);
+            
+            // Set default to active enrollment if not already set
+            if (!selectedCohort) {
+              const activeEnrollment = data.enrollments.find(e => e.is_active);
+              if (activeEnrollment) {
+                setSelectedCohort(activeEnrollment.cohort_name);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching enrollments:', error);
+      }
+    };
+
+    if (token && user) {
+      fetchEnrollments();
+    }
+  }, [token, user?.role]);
 
   // Fetch all curriculum data (weeks, days, tasks) in ONE optimized call
   useEffect(() => {
@@ -25,10 +68,14 @@ function Calendar() {
         setError(null);
         
         let url = `${import.meta.env.VITE_API_URL}/api/curriculum/calendar`;
+        
+        // Staff/admin use cohortFilter, regular users use selectedCohort
         if (user.role === 'staff' || user.role === 'admin') {
           if (cohortFilter) {
-            url += `?cohort=${cohortFilter}`;
+            url += `?cohort=${encodeURIComponent(cohortFilter)}`;
           }
+        } else if (selectedCohort) {
+          url += `?cohort=${encodeURIComponent(selectedCohort)}`;
         }
         
         const response = await fetch(url, {
@@ -69,56 +116,8 @@ function Calendar() {
     if (token) {
       fetchCalendarData();
     }
-  }, [token, cohortFilter, user.role]);
+  }, [token, cohortFilter, selectedCohort, user.role]);
 
-  // Fetch user progress in ONE batch call
-  useEffect(() => {
-    const fetchUserProgress = async () => {
-      try {
-        // Get all past day IDs
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const pastDays = weeksData
-          .flatMap(week => week.days)
-          .filter(day => {
-            const dayDate = new Date(day.day_date);
-            dayDate.setHours(0, 0, 0, 0);
-            return dayDate < today;
-          });
-        
-        if (pastDays.length === 0) {
-          return;
-        }
-        
-        const dayIds = pastDays.map(d => d.id);
-        
-        // Batch fetch progress for all past days in ONE call
-        const progressResponse = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/progress/days/batch`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ dayIds })
-          }
-        );
-        
-        if (progressResponse.ok) {
-          const progressMap = await progressResponse.json();
-          setUserProgress(progressMap);
-        }
-      } catch (error) {
-        console.error('Error fetching user progress:', error);
-      }
-    };
-    
-    if (weeksData.length > 0 && token) {
-      fetchUserProgress();
-    }
-  }, [weeksData, token]);
 
   const handlePrevMonth = useCallback(() => {
     if (currentMonth === 0) {
@@ -143,8 +142,18 @@ function Calendar() {
   }, []);
 
   const handleDayClick = useCallback((dayId) => {
-    navigate(`/learning?dayId=${dayId}`);
-  }, [navigate]);
+    // Pass selected cohort to Learning page for proper access
+    const params = new URLSearchParams();
+    params.append('dayId', dayId);
+    
+    if (selectedCohort) {
+      params.append('cohort', selectedCohort);
+    } else if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
+      params.append('cohort', cohortFilter);
+    }
+    
+    navigate(`/learning?${params.toString()}`);
+  }, [selectedCohort, cohortFilter, user?.role, navigate]);
 
   // Memoize calendar grid generation - only recalculate when dependencies change
   const calendarWeeks = useMemo(() => {
@@ -259,6 +268,9 @@ function Calendar() {
           onMonthChange={handleMonthChange}
           cohortFilter={cohortFilter}
           onCohortChange={setCohortFilter}
+          selectedCohort={selectedCohort}
+          onSelectedCohortChange={setSelectedCohort}
+          enrollments={enrollments}
           userRole={user?.role}
         />
         
@@ -273,7 +285,6 @@ function Calendar() {
                 days={week.days}
                 onDayClick={handleDayClick}
                 currentDayId={currentDayId}
-                userProgress={userProgress}
                 currentMonth={currentMonth}
                 currentYear={currentYear}
               />
