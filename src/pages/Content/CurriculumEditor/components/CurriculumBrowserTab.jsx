@@ -8,7 +8,17 @@ import {
   SelectValue,
 } from '../../../../components/ui/select';
 import { Button } from '../../../../components/ui/button';
-import { ChevronLeft, ChevronRight, Calendar, Edit } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Edit, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../../../components/ui/alert-dialog';
 import TaskCard from './shared/TaskCard';
 import TaskEditDialog from './shared/TaskEditDialog';
 import FieldHistoryDialog from './shared/FieldHistoryDialog';
@@ -35,6 +45,8 @@ const CurriculumBrowserTab = () => {
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [goalEditorOpen, setGoalEditorOpen] = useState(false);
   const [moveTaskDialogOpen, setMoveTaskDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [dayToDelete, setDayToDelete] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedField, setSelectedField] = useState('');
   const [selectedEntityType, setSelectedEntityType] = useState('task');
@@ -362,6 +374,46 @@ const CurriculumBrowserTab = () => {
     }
   };
 
+  const openDeleteDialog = () => {
+    setDayToDelete(selectedDay);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteDay = async () => {
+    if (!dayToDelete) return;
+    
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/curriculum/days/${dayToDelete.id}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      
+      if (response.ok) {
+        toast.success(`Day ${dayToDelete.day_number} deleted successfully`);
+        
+        // Clear selection since we deleted the current day
+        setSelectedDay(null);
+        setTasks([]);
+        
+        // Refresh calendar to update day list
+        await fetchCalendar();
+        
+        // Close dialog
+        setDeleteDialogOpen(false);
+        setDayToDelete(null);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to delete day');
+      }
+    } catch (error) {
+      console.error('Error deleting day:', error);
+      toast.error('Failed to delete day');
+    }
+  };
+
   const handleMoveTask = async (taskId, targetDayId) => {
     try {
       const response = await fetch(
@@ -537,14 +589,25 @@ const CurriculumBrowserTab = () => {
                 )}
               </div>
               {canEdit && (
-                <Button
-                  size="sm"
-                  onClick={() => setGoalEditorOpen(true)}
-                  className="bg-[#4242EA] hover:bg-[#3535D1] font-proxima"
-                >
-                  <Edit className="h-4 w-4 mr-1" />
-                  Edit Goals
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => setGoalEditorOpen(true)}
+                    className="bg-[#4242EA] hover:bg-[#3535D1] font-proxima"
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    Edit Goals
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={openDeleteDialog}
+                    className="font-proxima"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete Day
+                  </Button>
+                </div>
               )}
             </div>
           </div>
@@ -609,6 +672,38 @@ const CurriculumBrowserTab = () => {
         allDays={days}
         onMove={handleMoveTask}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="font-proxima">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Curriculum Day?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete{' '}
+              <strong>Day {dayToDelete?.day_number}</strong>{' '}
+              ({dayToDelete?.day_date ? formatDate(dayToDelete.day_date) : ''})?
+              <br /><br />
+              This will permanently delete:
+              <ul className="list-disc list-inside mt-2 ml-2">
+                <li>All time blocks for this day</li>
+                <li>All tasks for this day</li>
+                <li>All task submissions and conversations</li>
+              </ul>
+              <br />
+              <strong>This action cannot be undone.</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteDay}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Day
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
