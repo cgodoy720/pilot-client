@@ -149,8 +149,11 @@ function Learning() {
         let data;
         
         if (dayId) {
-          // Fetch day details
+          // Fetch day details - include cohort param if provided (for enrollment-based access)
           endpoint = `${import.meta.env.VITE_API_URL}/api/curriculum/days/${dayId}/full-details`;
+          if (cohort) {
+            endpoint += `?cohort=${encodeURIComponent(cohort)}`;
+          }
           const response = await fetch(endpoint, {
             headers: {
               'Authorization': `Bearer ${token}`,

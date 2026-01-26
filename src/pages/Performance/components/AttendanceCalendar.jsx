@@ -20,6 +20,8 @@ const AttendanceCalendar = ({
   month, 
   year, 
   userPhoto, 
+  userFirstName,
+  userLastName,
   attendanceData,
   programInfo,
   onMonthChange, 
@@ -98,13 +100,16 @@ const AttendanceCalendar = ({
     );
   };
 
-  const formatUserInitials = (name) => {
-    if (!name) return 'U';
-    const parts = name.split(' ');
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  const formatUserInitials = (firstName, lastName) => {
+    const first = firstName?.[0]?.toUpperCase() || '';
+    const last = lastName?.[0]?.toUpperCase() || '';
+    
+    if (first && last) {
+      return `${first}${last}`;
     }
-    return parts[0][0].toUpperCase();
+    
+    // Fallback if we only have one name
+    return first || last || 'U';
   };
 
   return (
@@ -224,11 +229,11 @@ const AttendanceCalendar = ({
                 </div>
                 
                 {/* Daily Photo Background for Attended Days - Uses check-in photo from that day */}
-                {day.isClassDay && day.attendanceStatus && ['present', 'late', 'excused'].includes(day.attendanceStatus) && (day.attendanceRecord?.photoUrl || userPhoto) && (
+                {day.isClassDay && day.attendanceStatus && ['present', 'late', 'excused'].includes(day.attendanceStatus) && day.attendanceRecord?.photoUrl && (
                   <div 
                     className="absolute bottom-0 left-0 right-0 rounded-b-[20px] bg-cover bg-no-repeat"
                     style={{
-                      backgroundImage: `url(${day.attendanceRecord?.photoUrl || userPhoto})`,
+                      backgroundImage: `url(${day.attendanceRecord.photoUrl})`,
                       backgroundSize: '120%',
                       backgroundPosition: 'top center',
                       height: '75%'
@@ -236,11 +241,24 @@ const AttendanceCalendar = ({
                   />
                 )}
                 
-                {/* Fallback for attended days without any photo - Bottom 75% */}
-                {day.isClassDay && day.attendanceStatus && ['present', 'late', 'excused'].includes(day.attendanceStatus) && !day.attendanceRecord?.photoUrl && !userPhoto && (
-                  <div className="absolute bottom-0 left-0 right-0 rounded-b-[20px] bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center" style={{ height: '75%' }}>
-                    <span className="text-white text-2xl font-bold">
-                      {formatUserInitials('User')}
+                {/* Profile photo fallback for attended days without check-in photo */}
+                {day.isClassDay && day.attendanceStatus && ['present', 'late', 'excused'].includes(day.attendanceStatus) && !day.attendanceRecord?.photoUrl && userPhoto && !userPhoto.includes('default-avatar') && (
+                  <div 
+                    className="absolute bottom-0 left-0 right-0 rounded-b-[20px] bg-cover bg-no-repeat"
+                    style={{
+                      backgroundImage: `url(${userPhoto})`,
+                      backgroundSize: '120%',
+                      backgroundPosition: 'top center',
+                      height: '75%'
+                    }}
+                  />
+                )}
+                
+                {/* Fallback initials for attended days without any real photo - No background, just text */}
+                {day.isClassDay && day.attendanceStatus && ['present', 'late', 'excused'].includes(day.attendanceStatus) && !day.attendanceRecord?.photoUrl && (!userPhoto || userPhoto.includes('default-avatar')) && (
+                  <div className="absolute bottom-0 left-0 right-0 rounded-b-[20px] flex items-center justify-center" style={{ height: '75%' }}>
+                    <span className="text-black text-2xl font-bold">
+                      {formatUserInitials(userFirstName, userLastName)}
                     </span>
                   </div>
                 )}

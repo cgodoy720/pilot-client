@@ -10,7 +10,9 @@ import { Button } from '../../components/ui/button';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
@@ -46,6 +48,13 @@ function Dashboard() {
 
   // Cohort info for pre-curriculum countdown display
   const [cohortInfo, setCohortInfo] = useState(null);
+  
+  // NEW: Enrollments for course switcher (user's enrolled cohorts)
+  const [enrollments, setEnrollments] = useState([]);
+  const [selectedCohort, setSelectedCohort] = useState(null); // Currently selected cohort for viewing
+  
+  // Track user-selected week to preserve it when switching cohorts
+  const [pendingWeek, setPendingWeek] = useState(null);
 
   useEffect(() => {
     // Only fetch dashboard data if user is active and not a volunteer
@@ -56,7 +65,7 @@ function Dashboard() {
       // If user is inactive or a volunteer, we don't need to load the builder dashboard data
       setIsLoading(false);
     }
-  }, [token, cohortFilter, user?.role, isActive, isVolunteer]);
+  }, [token, cohortFilter, selectedCohort, user?.role, isActive, isVolunteer]);
 
   const fetchDashboardData = async () => {
     try {
@@ -66,9 +75,12 @@ function Dashboard() {
       // NEW: Single optimized API call for ALL dashboard data
       let url = `${import.meta.env.VITE_API_URL}/api/progress/dashboard-full`;
       
-      // Add cohort parameter for staff/admin if selected
+      // Add cohort parameter for staff/admin if selected, or for course switcher
       if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
         url += `?cohort=${encodeURIComponent(cohortFilter)}`;
+      } else if (selectedCohort) {
+        // User selected a different cohort from their enrollments
+        url += `?cohort=${encodeURIComponent(selectedCohort)}`;
       }
       
       const response = await fetch(url, {
@@ -86,8 +98,22 @@ function Dashboard() {
       
       const data = await response.json();
       
+      // Store enrollments for course switcher (only on initial load, not when switching)
+      if (data.enrollments && data.enrollments.length > 0 && enrollments.length === 0) {
+        setEnrollments(data.enrollments);
+        // Set initial selected cohort to active enrollment
+        const activeEnrollment = data.enrollments.find(e => e.is_active);
+        if (activeEnrollment && !selectedCohort) {
+          setSelectedCohort(activeEnrollment.cohort_name);
+        }
+      }
+      
       if (data.message === 'No schedule for today') {
         setCohortInfo(data.cohortInfo || null);
+        // Still store enrollments even if no schedule
+        if (data.enrollments && data.enrollments.length > 0) {
+          setEnrollments(data.enrollments);
+        }
         setIsLoading(false);
         return;
       }
@@ -135,8 +161,18 @@ function Dashboard() {
       // Set level, week, and weekly goal
       if (data.day) {
         setCurrentLevel(data.day.level || 1);
-        setCurrentWeek(data.day.week);
-        setWeeklyGoal(data.day.weekly_goal || '');
+        
+        // Use pending week if user explicitly selected one, otherwise use current day's week
+        if (pendingWeek !== null) {
+          setCurrentWeek(pendingWeek);
+          // Find the weekly goal for the selected week
+          const selectedWeekData = (data.weeks || []).find(w => w.weekNumber === pendingWeek);
+          setWeeklyGoal(selectedWeekData?.weeklyGoal || data.day.weekly_goal || '');
+          setPendingWeek(null); // Clear pending week after using it
+        } else {
+          setCurrentWeek(data.day.week);
+          setWeeklyGoal(data.day.weekly_goal || '');
+        }
       }
       
     } catch (error) {
@@ -390,13 +426,15 @@ function Dashboard() {
     const params = new URLSearchParams();
     params.append('dayId', dayId);
     
-    // Add cohort for staff/admin
-    if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
+    // Pass cohort for all users when viewing a specific enrolled cohort
+    if (selectedCohort) {
+      params.append('cohort', selectedCohort);
+    } else if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
       params.append('cohort', cohortFilter);
     }
     
     navigate(`/learning?${params.toString()}`);
-  }, [isActive, user?.role, cohortFilter, navigate]);
+  }, [isActive, user?.role, cohortFilter, selectedCohort, navigate]);
 
   // Handle navigation to Learning page for a specific task
   const handleNavigateToTask = useCallback((dayId, taskId) => {
@@ -409,12 +447,15 @@ function Dashboard() {
     params.append('dayId', dayId);
     params.append('taskId', taskId);
     
-    if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
+    // Pass cohort for all users when viewing a specific enrolled cohort
+    if (selectedCohort) {
+      params.append('cohort', selectedCohort);
+    } else if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
       params.append('cohort', cohortFilter);
     }
     
     navigate(`/learning?${params.toString()}`);
-  }, [isActive, user?.role, cohortFilter, navigate]);
+  }, [isActive, user?.role, cohortFilter, selectedCohort, navigate]);
 
   // Render skeleton loading cards
   const renderSkeletonCards = () => {
@@ -652,19 +693,128 @@ function Dashboard() {
           <div className="dashboard__divider-2" />
 
           {/* Week Header: Title and Date Picker */}
-          <div className="dashboard__week-header items-end">
-            <div className="dashboard__week-title">
-              {isWorkshopParticipant ? (
-                <span className="dashboard__week-label">AI Native Workshop</span>
-              ) : isExternalCohort ? (
-                <span className="dashboard__week-label">{user?.cohort || 'Your Program'}</span>
-              ) : (
-                <span className="dashboard__week-label">
-                  <span className="dashboard__week-level">{currentLevel}</span>: Week {currentWeek}
-                </span>
+          <div className="dashboard__week-header-wrapper">
+            <div className="dashboard__week-header">
+              <div className="dashboard__week-title">
+                {isWorkshopParticipant ? (
+                  <span className="dashboard__week-label">AI Native Workshop</span>
+                ) : isExternalCohort ? (
+                  <span className="dashboard__week-label">{user?.cohort || 'Your Program'}</span>
+                ) : (
+                  <span className="dashboard__week-label">
+                    <span className="dashboard__week-level">{currentLevel}</span>: Week {currentWeek}
+                  </span>
+                )}
+              </div>
+
+              {/* Hide week navigation for external cohorts and workshop participants */}
+              {!isExternalCohort && !isWorkshopParticipant && (
+              <div className="dashboard__date-picker">
+                <button
+                  className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
+                    currentWeek > 1 
+                      ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer' 
+                      : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
+                  }`}
+                  style={{ borderRadius: '.5rem' }}
+                  onClick={() => navigateToWeek('prev')}
+                  disabled={currentWeek <= 1 || slideDirection !== null}
+                >
+                  <ChevronLeft className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-white' : ''}`} strokeWidth={0.8} />
+                  {currentWeek > 1 && (
+                    <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+                  )}
+                </button>
+                
+                {/* Week Dropdown - shows cohorts with weeks if multiple enrollments */}
+                <Select 
+                  value={`${selectedCohort || currentDay?.cohort}|${currentWeek}`}
+                  onValueChange={(val) => {
+                    const [cohort, weekStr] = val.split('|');
+                    const targetWeek = parseInt(weekStr);
+                    
+                    // Check if switching cohorts
+                    const switchingCohort = cohort !== (selectedCohort || currentDay?.cohort);
+                    
+                    if (switchingCohort) {
+                      // Switching to different cohort - set pending week so fetchDashboardData uses it
+                      setPendingWeek(targetWeek);
+                      setSelectedCohort(cohort);
+                      // Don't set currentWeek here - let fetchDashboardData handle it with pendingWeek
+                    } else if (targetWeek !== currentWeek && !slideDirection) {
+                      // Same cohort, different week
+                      setSlideDirection(targetWeek > currentWeek ? 'out-left' : 'out-right');
+                      setTimeout(() => {
+                        setCurrentWeek(targetWeek);
+                        const newWeekData = allWeeksData.find(w => w.weekNumber === targetWeek);
+                        if (newWeekData) {
+                          setWeeklyGoal(newWeekData.weeklyGoal || '');
+                          if (newWeekData.days && newWeekData.days.length > 0) {
+                            setCurrentLevel(newWeekData.days[0].level || 1);
+                          }
+                        }
+                        setSlideDirection(targetWeek > currentWeek ? 'in-from-right' : 'in-from-left');
+                        setTimeout(() => setSlideDirection(null), 1000);
+                      }, 1000);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[140px] h-10 bg-white px-[10px] border-0 text-[16px] leading-[18px] font-proxima font-normal text-carbon-black justify-center" style={{ borderRadius: '7px' }}>
+                    <SelectValue className="text-center">Week {String(currentWeek).padStart(2, '0')}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[400px] w-[140px]">
+                    {enrollments.length > 1 ? (
+                      // Show cohorts with nested weeks
+                      enrollments.map((enrollment) => (
+                        <SelectGroup key={enrollment.cohort_id}>
+                          <SelectLabel className="text-sm font-bold text-carbon-black text-left px-3 py-1.5">
+                            {enrollment.cohort_name}
+                          </SelectLabel>
+                          {/* Show actual weeks for this cohort */}
+                          {Array.from({ length: enrollment.max_week || 12 }, (_, i) => i + 1).map((week) => (
+                            <SelectItem 
+                              key={`${enrollment.cohort_name}|${week}`} 
+                              value={`${enrollment.cohort_name}|${week}`}
+                              className="pl-2 justify-center text-center"
+                            >
+                              <span className="w-full text-center">Week {String(week).padStart(2, '0')}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))
+                    ) : (
+                      // Single cohort - show weeks only
+                      Array.from({ length: currentDay?.week || 1 }, (_, i) => i + 1).map((week) => (
+                        <SelectItem key={week} value={`${currentDay?.cohort}|${week}`}>
+                          Week {String(week).padStart(2, '0')}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                
+                <button
+                  className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
+                    currentDay?.week && currentWeek < currentDay.week
+                      ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer' 
+                      : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
+                  }`}
+                  style={{ borderRadius: '.5rem' }}
+                  onClick={() => navigateToWeek('next')}
+                  disabled={!currentDay?.week || currentWeek >= currentDay.week || slideDirection !== null}
+                >
+                  <ChevronRight className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-white' : ''}`} strokeWidth={0.8} />
+                  {currentDay?.week && currentWeek < currentDay.week && (
+                    <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+                  )}
+                </button>
+              </div>
               )}
-              {!isWorkshopParticipant && (
-              <span 
+            </div>
+
+            {/* Weekly Goal - separate row below header */}
+            {!isWorkshopParticipant && weeklyGoal && (
+              <div 
                 className={`dashboard__week-subtitle ${
                   slideDirection === 'out-left' ? 'animate__animated animate__fadeOutLeft' :
                   slideDirection === 'out-right' ? 'animate__animated animate__fadeOutRight' :
@@ -674,82 +824,7 @@ function Dashboard() {
                 style={{ animationDuration: '0.6s' }}
               >
                 {weeklyGoal}
-              </span>
-              )}
-            </div>
-
-            {/* Hide week navigation for external cohorts and workshop participants */}
-            {!isExternalCohort && !isWorkshopParticipant && (
-            <div className="dashboard__date-picker">
-              <button
-                className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
-                  currentWeek > 1 
-                    ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer' 
-                    : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
-                }`}
-                style={{ borderRadius: '.5rem' }}
-                onClick={() => navigateToWeek('prev')}
-                disabled={currentWeek <= 1 || slideDirection !== null}
-              >
-                <ChevronLeft className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-white' : ''}`} strokeWidth={0.8} />
-                {currentWeek > 1 && (
-                  <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
-                )}
-              </button>
-              
-              {/* Week Dropdown */}
-              <Select 
-                value={String(currentWeek)} 
-                onValueChange={(val) => {
-                  const targetWeek = parseInt(val);
-                  if (targetWeek !== currentWeek && !slideDirection) {
-                    // Future week: slide out LEFT, slide in from RIGHT
-                    // Past week: slide out RIGHT, slide in from LEFT
-                    setSlideDirection(targetWeek > currentWeek ? 'out-left' : 'out-right');
-                    setTimeout(() => {
-                      setCurrentWeek(targetWeek);
-                      const newWeekData = allWeeksData.find(w => w.weekNumber === targetWeek);
-                      if (newWeekData) {
-                        setWeeklyGoal(newWeekData.weeklyGoal || '');
-                        // Update level based on the first day of the new week
-                        if (newWeekData.days && newWeekData.days.length > 0) {
-                          setCurrentLevel(newWeekData.days[0].level || 1);
-                        }
-                      }
-                      setSlideDirection(targetWeek > currentWeek ? 'in-from-right' : 'in-from-left');
-                      setTimeout(() => setSlideDirection(null), 1000);
-                    }, 1000);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-[100px] h-10 bg-white px-[10px] border-0 text-[16px] leading-[18px] font-proxima font-normal text-carbon-black" style={{ borderRadius: '7px' }}>
-                  <SelectValue>Week {String(currentWeek).padStart(2, '0')}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: currentDay?.week || 1 }, (_, i) => i + 1).map((week) => (
-                    <SelectItem key={week} value={String(week)}>
-                      Week {String(week).padStart(2, '0')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <button
-                className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
-                  currentDay?.week && currentWeek < currentDay.week
-                    ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer' 
-                    : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
-                }`}
-                style={{ borderRadius: '.5rem' }}
-                onClick={() => navigateToWeek('next')}
-                disabled={!currentDay?.week || currentWeek >= currentDay.week || slideDirection !== null}
-              >
-                <ChevronRight className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-white' : ''}`} strokeWidth={0.8} />
-                {currentDay?.week && currentWeek < currentDay.week && (
-                  <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
-                )}
-              </button>
-            </div>
+              </div>
             )}
           </div>
 
