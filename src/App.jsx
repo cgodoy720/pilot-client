@@ -47,6 +47,7 @@ import PathfinderAdmin from './pages/PathfinderAdmin';
 import WorkshopAdminDashboard from './pages/WorkshopAdminDashboard/WorkshopAdminDashboard';
 import ExternalCohortsDashboard from './pages/ExternalCohortsDashboard/ExternalCohortsDashboard';
 import CohortAdminDashboard from './pages/CohortAdminDashboard/CohortAdminDashboard';
+import OrganizationManagement from './pages/Admin/OrganizationManagement/OrganizationManagement';
 
 // Form Builder pages
 import FormBuilderDashboard from './pages/FormBuilder/FormBuilderDashboard';
@@ -351,6 +352,15 @@ function App() {
           <Layout>
             <AdminRoute>
               <ExternalCohortsDashboard />
+            </AdminRoute>
+          </Layout>
+        } />
+        
+        {/* Organization Management (Admin/Staff only) */}
+        <Route path="/admin/organization-management" element={
+          <Layout>
+            <AdminRoute>
+              <OrganizationManagement />
             </AdminRoute>
           </Layout>
         } />
