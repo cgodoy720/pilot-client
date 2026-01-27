@@ -117,7 +117,9 @@ const Layout = ({ children, isLoading = false }) => {
       '/admissions-dashboard',
       '/external-cohorts',
       '/payment-admin',
-      '/content'
+      '/content',
+      '/admin/organization-management',
+      '/forms'
     ];
     
     if ((user?.role === 'admin' || user?.role === 'staff')) {
@@ -315,6 +317,7 @@ const Layout = ({ children, isLoading = false }) => {
               { to: '/admin-dashboard', icon: Settings, label: 'Cohort Stats' },
               { to: '/content', icon: FileText, label: 'Content' },
               { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
+              { to: '/forms', icon: ClipboardList, label: 'Form Builder' },
               { to: '/pathfinder/admin', icon: ArrowRight, label: 'Pathfinder Admin' },
               { to: '/payment-admin', icon: Briefcase, label: 'Payment Admin' },
               { to: '/sputnik', icon: Rocket, label: 'Sputnik' },
@@ -334,6 +337,7 @@ const Layout = ({ children, isLoading = false }) => {
             trigger={{ icon: Settings, label: "Admin" }}
             items={[
               { to: '/admin-prompts', icon: Brain, label: 'AI Prompts' },
+              { to: '/admin/organization-management', icon: Building2, label: 'Organizations' },
             ]}
             condition={user?.role === 'admin'}
             isMobile={isMobile}
