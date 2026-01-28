@@ -118,6 +118,7 @@ const Layout = ({ children, isLoading = false }) => {
       '/external-cohorts',
       '/payment-admin',
       '/content',
+      '/content-preview',
       '/admin/organization-management',
       '/forms'
     ];
@@ -316,6 +317,7 @@ const Layout = ({ children, isLoading = false }) => {
               { to: '/admin-attendance-dashboard', icon: CalendarIcon, label: 'Attendance' },
               { to: '/admin-dashboard', icon: Settings, label: 'Cohort Stats' },
               { to: '/content', icon: FileText, label: 'Content' },
+              { to: '/content-preview', icon: Target, label: 'Content Preview' },
               { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
               { to: '/forms', icon: ClipboardList, label: 'Form Builder' },
               { to: '/pathfinder/admin', icon: ArrowRight, label: 'Pathfinder Admin' },

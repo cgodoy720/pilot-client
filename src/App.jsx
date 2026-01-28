@@ -48,6 +48,7 @@ import WorkshopAdminDashboard from './pages/WorkshopAdminDashboard/WorkshopAdmin
 import ExternalCohortsDashboard from './pages/ExternalCohortsDashboard/ExternalCohortsDashboard';
 import CohortAdminDashboard from './pages/CohortAdminDashboard/CohortAdminDashboard';
 import OrganizationManagement from './pages/Admin/OrganizationManagement/OrganizationManagement';
+import ContentPreview from './pages/ContentPreview';
 
 // Form Builder pages
 import FormBuilderDashboard from './pages/FormBuilder/FormBuilderDashboard';
@@ -362,6 +363,15 @@ function App() {
             <AdminRoute>
               <OrganizationManagement />
             </AdminRoute>
+          </Layout>
+        } />
+        
+        {/* Content Preview (Staff/Admin/Volunteer) */}
+        <Route path="/content-preview" element={
+          <Layout>
+            <ProtectedRoute>
+              <ContentPreview />
+            </ProtectedRoute>
           </Layout>
         } />
         
