@@ -1105,9 +1105,9 @@ function GPT() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 overflow-hidden relative">
         {/* Chat Interface */}
-        <div className="flex-1 flex flex-col relative overflow-hidden">
+        <div className="h-full flex flex-col relative overflow-hidden">
           {/* Empty State or Messages Area */}
           <div className="flex-1 overflow-y-auto py-8 px-6 transition-[padding] duration-200 ease-out" style={{ paddingBottom: `${inputTrayHeight}px` }}>
             {!activeThread && messages.length === 0 ? (
