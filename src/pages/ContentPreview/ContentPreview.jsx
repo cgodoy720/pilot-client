@@ -210,9 +210,9 @@ function ContentPreview() {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex">
+        <div className="flex h-[calc(100vh-53px)]">
           {/* Left: Cohort & Day Selector */}
-          <div className="w-80 bg-white border-r border-slate-200 min-h-screen">
+          <div className="w-80 bg-white border-r border-slate-200 overflow-y-auto">
             <CohortDaySelector
               token={token}
               selectedCohort={selectedCohort}
@@ -223,7 +223,7 @@ function ContentPreview() {
           </div>
 
           {/* Middle: Content Display */}
-          <div className="flex-1">
+          <div className="flex-1 overflow-y-auto">
             {!dayContent ? (
               <div className="flex items-center justify-center h-96">
                 <div className="text-center">
@@ -340,7 +340,7 @@ function ContentPreview() {
 
           {/* Right: Staff Controls Panel */}
           {dayContent && (
-            <div className="w-80 bg-white border-l border-slate-200">
+            <div className="w-80 bg-white border-l border-slate-200 overflow-y-auto">
               <StaffControlsPanel
                 dayContent={dayContent}
                 cohort={selectedCohort}
