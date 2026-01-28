@@ -65,7 +65,7 @@ const FormQuestion = ({ question, value, onChange, slideDirection, onEnter }) =>
                         onChange([...selectedValues, option]);
                       }
                     }}
-                    className={`group relative w-full min-h-[56px] border rounded-[12px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex items-center justify-between px-5 py-4 cursor-pointer transition-colors duration-200 overflow-hidden ${
+                    className={`group relative w-full min-h-[48px] border rounded-[12px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex items-center justify-between px-5 py-3 cursor-pointer transition-colors duration-200 overflow-hidden ${
                       isSelected 
                         ? 'border-white bg-white' 
                         : 'border-white/30 bg-transparent hover:border-white'
@@ -102,7 +102,7 @@ const FormQuestion = ({ question, value, onChange, slideDirection, onEnter }) =>
                   <div 
                     key={index}
                     onClick={() => onChange(option)}
-                    className={`group relative w-full min-h-[56px] border rounded-[12px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex items-center justify-between px-5 py-4 cursor-pointer transition-colors duration-200 overflow-hidden ${
+                    className={`group relative w-full min-h-[48px] border rounded-[12px] shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex items-center justify-between px-5 py-3 cursor-pointer transition-colors duration-200 overflow-hidden ${
                       isSelected 
                         ? 'border-white bg-white' 
                         : 'border-white/30 bg-transparent hover:border-white'
