@@ -161,6 +161,7 @@ const AdmissionsDashboard = () => {
       name: true,
       email: true,
       phone: true,
+      app_start_date: false,
       status: true,
       assessment: true,
       info_session: true,

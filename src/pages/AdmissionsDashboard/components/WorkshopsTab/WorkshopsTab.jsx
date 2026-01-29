@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '../../../../components/ui/table';
-import { formatEventTime, isEventPast, formatEventDate, sortEventsByDate, getStatusBadgeClasses, formatStatus } from '../shared/utils';
+import { formatEventTime, isEventPast, formatEventDate, sortEventsByDate, getStatusBadgeClasses, formatStatus, formatPhoneNumber } from '../shared/utils';
 import ManualRegistrationModal from '../shared/ManualRegistrationModal';
 import Swal from 'sweetalert2';
 
@@ -566,6 +566,7 @@ const WorkshopsTab = ({
                                   <TableRow>
                                     <TableHead className="font-proxima-bold">Name</TableHead>
                                     <TableHead className="font-proxima-bold">Email</TableHead>
+                                    <TableHead className="font-proxima-bold">Phone</TableHead>
                                     <TableHead className="font-proxima-bold">Laptop Needed</TableHead>
                                     <TableHead className="font-proxima-bold">Status</TableHead>
                                     <TableHead className="font-proxima-bold">Actions</TableHead>
@@ -579,6 +580,9 @@ const WorkshopsTab = ({
                                       </TableCell>
                                       <TableCell className="font-proxima text-gray-600">
                                         {reg.email}
+                                      </TableCell>
+                                      <TableCell className="font-proxima text-gray-600">
+                                        {formatPhoneNumber(reg.phone_number)}
                                       </TableCell>
                                       <TableCell>
                                         {reg.needs_laptop ? (
