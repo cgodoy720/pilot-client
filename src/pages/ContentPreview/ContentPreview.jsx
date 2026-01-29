@@ -144,25 +144,37 @@ function ContentPreview() {
       const { deletedCount, details } = response.data;
       const detailsText = [
         details.messages > 0 && `${details.messages} conversation message(s)`,
+        details.taskThreads > 0 && `${details.taskThreads} task thread(s)`,
         details.threads > 0 && `${details.threads} thread(s)`,
         details.submissions > 0 && `${details.submissions} task submission(s)`,
         details.assessmentSubmissions > 0 && `${details.assessmentSubmissions} assessment submission(s)`,
         details.taskProgress > 0 && `${details.taskProgress} task progress record(s)`,
-        details.userProgress > 0 && `${details.userProgress} day progress record(s)`,
         details.feedback > 0 && `${details.feedback} survey response(s)`
       ].filter(Boolean).join('<br>');
       
-      Swal.fire({
+      await Swal.fire({
         icon: 'success',
         title: 'Test Data Cleared',
-        html: `
-          <p>Successfully deleted <strong>${deletedCount}</strong> preview record(s):</p>
-          <div style="text-align: left; margin: 1rem 0; font-size: 0.9rem;">
-            ${detailsText}
-          </div>
-        `,
+        html: deletedCount > 0 
+          ? `
+            <p>Successfully deleted <strong>${deletedCount}</strong> preview record(s):</p>
+            <div style="text-align: left; margin: 1rem 0; font-size: 0.9rem;">
+              ${detailsText}
+            </div>
+          `
+          : '<p>No test data found to delete.</p>',
         confirmButtonColor: '#4242EA'
       });
+      
+      // Navigate back to the overview/cohort selection
+      setSelectedDay(null);
+      setDayContent(null);
+      setPreviewMode('readonly');
+      
+      // Clear URL params to go back to cohort overview
+      searchParams.delete('day');
+      setSearchParams(searchParams);
+      
     } catch (error) {
       console.error('Error clearing test data:', error);
       Swal.fire({

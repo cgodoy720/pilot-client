@@ -284,20 +284,6 @@ const OverviewTab = ({
           </CardContent>
         </Card>
 
-        {/* Marketing Insights - Only for All Time and December 2025 */}
-        {overviewQuickView !== 'deferred' && (
-          <Card className="bg-white border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 font-proxima">Marketing Insights</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-[#4242ea] font-proxima-bold">
-                📊
-              </div>
-              <span className="text-sm text-gray-500 font-proxima">Click for details</span>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       {/* Stage Selection Tabs */}
@@ -353,24 +339,72 @@ const OverviewTab = ({
                 <div className="text-2xl font-bold text-[#1a1a1a] font-proxima-bold">
                   {appliedStatusBreakdown.accounts_created}
                 </div>
+                {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Net New: {appliedStatusBreakdown.accounts_created_net_new ?? 0}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Rolled Over: {appliedStatusBreakdown.accounts_created_rolled ?? 0}</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="p-4 bg-yellow-50 rounded-lg">
                 <div className="text-sm text-gray-600 font-proxima">In Progress</div>
                 <div className="text-2xl font-bold text-yellow-700 font-proxima-bold">
                   {appliedStatusBreakdown.in_progress}
                 </div>
+                {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Net New: {appliedStatusBreakdown.in_progress_net_new ?? 0}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Rolled Over: {appliedStatusBreakdown.in_progress_rolled ?? 0}</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="p-4 bg-blue-50 rounded-lg">
                 <div className="text-sm text-gray-600 font-proxima">Submitted</div>
                 <div className="text-2xl font-bold text-blue-700 font-proxima-bold">
                   {appliedStatusBreakdown.submitted}
                 </div>
+                {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Net New: {appliedStatusBreakdown.submitted_net_new ?? 0}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Rolled Over: {appliedStatusBreakdown.submitted_rolled ?? 0}</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="p-4 bg-red-50 rounded-lg">
                 <div className="text-sm text-gray-600 font-proxima">Ineligible</div>
                 <div className="text-2xl font-bold text-red-700 font-proxima-bold">
                   {appliedStatusBreakdown.ineligible}
                 </div>
+                {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Net New: {appliedStatusBreakdown.ineligible_net_new ?? 0}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Rolled Over: {appliedStatusBreakdown.ineligible_rolled ?? 0}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

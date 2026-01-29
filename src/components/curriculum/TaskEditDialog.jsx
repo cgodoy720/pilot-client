@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '../ui/select';
 import { Checkbox } from '../ui/checkbox';
-import { Plus, Trash2, History, Save, X, Clock, GraduationCap, MessageCircle, ArrowRight } from 'lucide-react';
+import { Plus, Trash2, History, Save, X, Clock, GraduationCap, MessageCircle, ArrowRight, Coffee, FileQuestion, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TaskEditDialog = ({ 
@@ -30,6 +30,20 @@ const TaskEditDialog = ({
   onMoveTask,
   canEdit = true 
 }) => {
+  // Determine interface type based on task configuration
+  const getInterfaceType = (taskData) => {
+    if (taskData.feedback_slot && taskData.feedback_slot !== 'none') {
+      return 'survey';
+    }
+    if (taskData.task_type === 'assessment') {
+      return 'assessment';
+    }
+    if (taskData.task_type === 'break') {
+      return 'break';
+    }
+    return 'chat'; // Default conversation/chat interface
+  };
+
   const handleFieldHistory = (fieldName) => {
     if (onViewFieldHistory) {
       onViewFieldHistory(fieldName, 'task', task?.id);
@@ -39,6 +53,7 @@ const TaskEditDialog = ({
   const [formData, setFormData] = useState({
     task_title: '',
     task_description: '',
+    task_type: 'individual',
     intro: '',
     questions: [],
     linked_resources: [],
@@ -49,10 +64,15 @@ const TaskEditDialog = ({
     end_time: '',
     should_analyze: false,
     analyze_deliverable: false,
-    task_mode: 'basic'
+    task_mode: 'basic',
+    feedback_slot: null,
+    assessment_id: null,
+    persona: null,
+    ai_helper_mode: null
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const interfaceType = getInterfaceType(formData);
 
   // Helper function to determine if deliverable type should be analyzed
   const shouldAnalyzeDeliverableType = (deliverableType) => {
@@ -80,6 +100,7 @@ const TaskEditDialog = ({
       setFormData({
         task_title: task.task_title || '',
         task_description: task.task_description || '',
+        task_type: task.task_type || 'individual',
         intro: task.intro || '',
         questions: Array.isArray(task.questions) ? task.questions : [],
         linked_resources: Array.isArray(task.linked_resources) 
@@ -94,7 +115,11 @@ const TaskEditDialog = ({
         end_time: task.end_time || '',
         should_analyze: task.should_analyze || false,
         analyze_deliverable: task.analyze_deliverable || false,
-        task_mode: task.task_mode || 'basic'
+        task_mode: task.task_mode || 'basic',
+        feedback_slot: task.feedback_slot || null,
+        assessment_id: task.assessment_id || null,
+        persona: task.persona || null,
+        ai_helper_mode: task.ai_helper_mode || null
       });
     }
   }, [task]);
@@ -171,7 +196,11 @@ const TaskEditDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-proxima-bold text-xl">
+          <DialogTitle className="font-proxima-bold text-xl flex items-center gap-2">
+            {interfaceType === 'chat' && <MessageCircle className="h-5 w-5 text-blue-600" />}
+            {interfaceType === 'survey' && <FileQuestion className="h-5 w-5 text-purple-600" />}
+            {interfaceType === 'assessment' && <ClipboardCheck className="h-5 w-5 text-green-600" />}
+            {interfaceType === 'break' && <Coffee className="h-5 w-5 text-amber-600" />}
             {canEdit ? 'Edit Task' : 'View Task'}
           </DialogTitle>
           <DialogDescription className="font-proxima text-[#666]">
@@ -180,6 +209,71 @@ const TaskEditDialog = ({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Interface Type Selector */}
+          {canEdit && (
+            <div className="space-y-3">
+              <Label className="font-proxima-bold">Task Interface Type</Label>
+              <div className="grid grid-cols-4 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, task_type: 'individual', feedback_slot: null }))}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                    interfaceType === 'chat'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-blue-300'
+                  }`}
+                >
+                  <MessageCircle className={`h-5 w-5 ${interfaceType === 'chat' ? 'text-blue-600' : 'text-gray-400'}`} />
+                  <span className={`text-xs font-proxima-bold ${interfaceType === 'chat' ? 'text-blue-900' : 'text-gray-600'}`}>
+                    Chat
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, task_type: 'individual', feedback_slot: 'weekly' }))}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                    interfaceType === 'survey'
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200 hover:border-purple-300'
+                  }`}
+                >
+                  <FileQuestion className={`h-5 w-5 ${interfaceType === 'survey' ? 'text-purple-600' : 'text-gray-400'}`} />
+                  <span className={`text-xs font-proxima-bold ${interfaceType === 'survey' ? 'text-purple-900' : 'text-gray-600'}`}>
+                    Survey
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, task_type: 'assessment', feedback_slot: null }))}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                    interfaceType === 'assessment'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 hover:border-green-300'
+                  }`}
+                >
+                  <ClipboardCheck className={`h-5 w-5 ${interfaceType === 'assessment' ? 'text-green-600' : 'text-gray-400'}`} />
+                  <span className={`text-xs font-proxima-bold ${interfaceType === 'assessment' ? 'text-green-900' : 'text-gray-600'}`}>
+                    Assessment
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, task_type: 'break', feedback_slot: null }))}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                    interfaceType === 'break'
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-gray-200 hover:border-amber-300'
+                  }`}
+                >
+                  <Coffee className={`h-5 w-5 ${interfaceType === 'break' ? 'text-amber-600' : 'text-gray-400'}`} />
+                  <span className={`text-xs font-proxima-bold ${interfaceType === 'break' ? 'text-amber-900' : 'text-gray-600'}`}>
+                    Break
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Task Title */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">

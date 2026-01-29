@@ -63,6 +63,10 @@ const InfoSessionsTab = ({
   const [manualRegModalOpen, setManualRegModalOpen] = useState(false);
   const [selectedEventForManualReg, setSelectedEventForManualReg] = useState(null);
   
+  // State for registration search and sort
+  const [registrationSearch, setRegistrationSearch] = useState('');
+  const [registrationSort, setRegistrationSort] = useState({ column: 'name', direction: 'asc' });
+  
   // Local state management for info sessions
   const [localInfoSessions, setLocalInfoSessions] = useState(infoSessions);
   
@@ -92,8 +96,12 @@ const InfoSessionsTab = ({
     if (selectedEvent === eventId) {
       setSelectedEvent(null);
       setEventRegistrations([]);
+      setRegistrationSearch(''); // Clear search when closing
       return;
     }
+    
+    // Clear search when opening a different session
+    setRegistrationSearch('');
 
     setAttendanceLoading(true);
     try {
@@ -460,6 +468,62 @@ const InfoSessionsTab = ({
     }
   };
 
+  // Filter and sort registrations
+  const filteredAndSortedRegistrations = React.useMemo(() => {
+    let filtered = [...eventRegistrations];
+    
+    // Apply search filter
+    if (registrationSearch.trim()) {
+      const searchLower = registrationSearch.toLowerCase().trim();
+      filtered = filtered.filter(reg => {
+        const fullName = `${reg.first_name || ''} ${reg.last_name || ''}`.toLowerCase();
+        const email = (reg.email || '').toLowerCase();
+        return fullName.includes(searchLower) || email.includes(searchLower);
+      });
+    }
+    
+    // Apply sort
+    filtered.sort((a, b) => {
+      let aVal, bVal;
+      
+      if (registrationSort.column === 'name') {
+        aVal = `${a.first_name || ''} ${a.last_name || ''}`.toLowerCase();
+        bVal = `${b.first_name || ''} ${b.last_name || ''}`.toLowerCase();
+      } else if (registrationSort.column === 'email') {
+        aVal = (a.email || '').toLowerCase();
+        bVal = (b.email || '').toLowerCase();
+      } else if (registrationSort.column === 'status') {
+        aVal = (a.status || '').toLowerCase();
+        bVal = (b.status || '').toLowerCase();
+      } else {
+        aVal = a[registrationSort.column] || '';
+        bVal = b[registrationSort.column] || '';
+      }
+      
+      if (aVal < bVal) return registrationSort.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return registrationSort.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return filtered;
+  }, [eventRegistrations, registrationSearch, registrationSort]);
+
+  // Handle registration sort
+  const handleRegistrationSort = (column) => {
+    setRegistrationSort(prev => ({
+      column,
+      direction: prev.column === column && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  // Render sort indicator for registrations
+  const renderRegSortIndicator = (column) => {
+    if (registrationSort.column !== column) {
+      return <span className="text-gray-400 ml-1">⇅</span>;
+    }
+    return <span className="text-[#4242ea] ml-1">{registrationSort.direction === 'asc' ? '▲' : '▼'}</span>;
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -583,6 +647,13 @@ const InfoSessionsTab = ({
                                 Registrations ({eventRegistrations.length})
                               </h4>
                               <div className="flex gap-2">
+                                <Input
+                                  type="text"
+                                  placeholder="Search registrations..."
+                                  value={registrationSearch}
+                                  onChange={(e) => setRegistrationSearch(e.target.value)}
+                                  className="w-[200px] h-8 text-sm font-proxima"
+                                />
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -613,19 +684,40 @@ const InfoSessionsTab = ({
                               <div className="text-center py-4 text-gray-500 font-proxima">
                                 Loading registrations...
                               </div>
-                            ) : eventRegistrations.length > 0 ? (
+                            ) : filteredAndSortedRegistrations.length > 0 ? (
                               <Table>
                                 <TableHeader>
                                   <TableRow>
-                                    <TableHead className="font-proxima-bold">Name</TableHead>
-                                    <TableHead className="font-proxima-bold">Email</TableHead>
+                                    <TableHead 
+                                      className="font-proxima-bold cursor-pointer hover:bg-gray-100"
+                                      onClick={() => handleRegistrationSort('name')}
+                                    >
+                                      <div className="flex items-center">
+                                        Name {renderRegSortIndicator('name')}
+                                      </div>
+                                    </TableHead>
+                                    <TableHead 
+                                      className="font-proxima-bold cursor-pointer hover:bg-gray-100"
+                                      onClick={() => handleRegistrationSort('email')}
+                                    >
+                                      <div className="flex items-center">
+                                        Email {renderRegSortIndicator('email')}
+                                      </div>
+                                    </TableHead>
                                     <TableHead className="font-proxima-bold">Phone</TableHead>
-                                    <TableHead className="font-proxima-bold">Status</TableHead>
+                                    <TableHead 
+                                      className="font-proxima-bold cursor-pointer hover:bg-gray-100"
+                                      onClick={() => handleRegistrationSort('status')}
+                                    >
+                                      <div className="flex items-center">
+                                        Status {renderRegSortIndicator('status')}
+                                      </div>
+                                    </TableHead>
                                     <TableHead className="font-proxima-bold">Actions</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {eventRegistrations.map((reg) => (
+                                  {filteredAndSortedRegistrations.map((reg) => (
                                     <TableRow key={reg.registration_id}>
                                       <TableCell className="font-proxima">
                                         {reg.first_name} {reg.last_name}
@@ -668,6 +760,10 @@ const InfoSessionsTab = ({
                                   ))}
                                 </TableBody>
                               </Table>
+                            ) : registrationSearch.trim() && eventRegistrations.length > 0 ? (
+                              <div className="text-center py-4 text-gray-500 font-proxima">
+                                No registrations match your search
+                              </div>
                             ) : (
                               <div className="text-center py-4 text-gray-500 font-proxima">
                                 No registrations for this session
