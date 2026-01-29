@@ -421,26 +421,12 @@ const OverviewTab = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="p-6 bg-gray-50 rounded-lg">
                 <h4 className="text-sm font-medium text-gray-600 mb-4 font-proxima">Race/Ethnicity</h4>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {demographics?.race?.length > 0 ? (
                     demographics.race.slice(0, 5).map((item, idx) => (
-                      <div key={idx}>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-700 font-proxima">{item.label}</span>
-                          <span className="text-sm font-medium text-[#1a1a1a] font-proxima-bold">{item.count}</span>
-                        </div>
-                        {demographics.hasBreakdown && (item.netNew > 0 || item.rolledOver > 0) && (
-                          <div className="flex gap-3 mt-1 ml-2">
-                            <span className="text-xs text-gray-500 font-proxima">
-                              <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span>
-                              New: {item.netNew}
-                            </span>
-                            <span className="text-xs text-gray-500 font-proxima">
-                              <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mr-1"></span>
-                              Rolled: {item.rolledOver}
-                            </span>
-                          </div>
-                        )}
+                      <div key={idx} className="flex justify-between items-center">
+                        <span className="text-sm text-gray-700 font-proxima">{item.label}</span>
+                        <span className="text-sm font-medium text-[#1a1a1a] font-proxima-bold">{item.count}</span>
                       </div>
                     ))
                   ) : (
@@ -451,26 +437,12 @@ const OverviewTab = ({
 
               <div className="p-6 bg-gray-50 rounded-lg">
                 <h4 className="text-sm font-medium text-gray-600 mb-4 font-proxima">Gender</h4>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {demographics?.gender?.length > 0 ? (
                     demographics.gender.slice(0, 5).map((item, idx) => (
-                      <div key={idx}>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-700 font-proxima">{item.label}</span>
-                          <span className="text-sm font-medium text-[#1a1a1a] font-proxima-bold">{item.count}</span>
-                        </div>
-                        {demographics.hasBreakdown && (item.netNew > 0 || item.rolledOver > 0) && (
-                          <div className="flex gap-3 mt-1 ml-2">
-                            <span className="text-xs text-gray-500 font-proxima">
-                              <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span>
-                              New: {item.netNew}
-                            </span>
-                            <span className="text-xs text-gray-500 font-proxima">
-                              <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mr-1"></span>
-                              Rolled: {item.rolledOver}
-                            </span>
-                          </div>
-                        )}
+                      <div key={idx} className="flex justify-between items-center">
+                        <span className="text-sm text-gray-700 font-proxima">{item.label}</span>
+                        <span className="text-sm font-medium text-[#1a1a1a] font-proxima-bold">{item.count}</span>
                       </div>
                     ))
                   ) : (
@@ -481,26 +453,12 @@ const OverviewTab = ({
 
               <div className="p-6 bg-gray-50 rounded-lg">
                 <h4 className="text-sm font-medium text-gray-600 mb-4 font-proxima">Education Level</h4>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {demographics?.education?.length > 0 ? (
                     demographics.education.slice(0, 5).map((item, idx) => (
-                      <div key={idx}>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-700 font-proxima truncate">{item.label}</span>
-                          <span className="text-sm font-medium text-[#1a1a1a] font-proxima-bold">{item.count}</span>
-                        </div>
-                        {demographics.hasBreakdown && (item.netNew > 0 || item.rolledOver > 0) && (
-                          <div className="flex gap-3 mt-1 ml-2">
-                            <span className="text-xs text-gray-500 font-proxima">
-                              <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span>
-                              New: {item.netNew}
-                            </span>
-                            <span className="text-xs text-gray-500 font-proxima">
-                              <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mr-1"></span>
-                              Rolled: {item.rolledOver}
-                            </span>
-                          </div>
-                        )}
+                      <div key={idx} className="flex justify-between items-center">
+                        <span className="text-sm text-gray-700 font-proxima truncate">{item.label}</span>
+                        <span className="text-sm font-medium text-[#1a1a1a] font-proxima-bold">{item.count}</span>
                       </div>
                     ))
                   ) : (
