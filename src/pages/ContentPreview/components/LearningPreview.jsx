@@ -258,6 +258,31 @@ function LearningPreview({ dayId, cohort, onBack }) {
     }
   };
 
+  // Check if current task is complete (mirrors Learning.jsx)
+  const checkTaskCompletion = async (taskId) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/learning/task-completion-status/${taskId}?isPreviewMode=true`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Preview task ${taskId} completion status:`, data);
+        setIsTaskComplete(data.isComplete);
+        if (data.isComplete) {
+          setTaskCompletionMap(prev => ({
+            ...prev,
+            [taskId]: { isComplete: true, reason: data.reason }
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error checking task completion:', error);
+    }
+  };
+
   const handleStartActivity = async (task) => {
     setShowDailyOverview(false);
     const taskIndex = tasks.findIndex(t => t.id === task.id);
@@ -336,6 +361,8 @@ function LearningPreview({ dayId, cohort, onBack }) {
           sender: 'ai',
           timestamp: new Date().toISOString(),
         }]);
+        // Check if task is now complete after receiving AI response
+        checkTaskCompletion(messageTaskId);
       }
     } catch (err) {
       if (err.name === 'AbortError') return;
@@ -515,17 +542,21 @@ function LearningPreview({ dayId, cohort, onBack }) {
 
               <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
                 <div className="max-w-2xl mx-auto pointer-events-auto">
-                  <AutoExpandTextarea
-                    ref={textareaRef}
-                    onSubmit={handleSendMessage}
-                    disabled={isSending || isAiThinking}
-                    showAssignmentButton={['video', 'document', 'link', 'structured'].includes(tasks[currentTaskIndex]?.deliverable_type)}
-                    onAssignmentClick={() => setIsDeliverableSidebarOpen(true)}
-                    showPeerFeedbackButton={isRetrospectiveTask()}
-                    onPeerFeedbackClick={() => setIsPeerFeedbackSheetOpen(true)}
-                    showLlmDropdown={tasks[currentTaskIndex]?.task_mode === 'conversation'}
-                    onHeightChange={setInputTrayHeight}
-                  />
+                  {(isTaskComplete || taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete) ? (
+                    <TaskCompletionBar onNextExercise={handleNextExercise} />
+                  ) : (
+                    <AutoExpandTextarea
+                      ref={textareaRef}
+                      onSubmit={handleSendMessage}
+                      disabled={isSending || isAiThinking}
+                      showAssignmentButton={['video', 'document', 'link', 'structured'].includes(tasks[currentTaskIndex]?.deliverable_type)}
+                      onAssignmentClick={() => setIsDeliverableSidebarOpen(true)}
+                      showPeerFeedbackButton={isRetrospectiveTask()}
+                      onPeerFeedbackClick={() => setIsPeerFeedbackSheetOpen(true)}
+                      showLlmDropdown={tasks[currentTaskIndex]?.task_mode === 'conversation'}
+                      onHeightChange={setInputTrayHeight}
+                    />
+                  )}
                 </div>
               </div>
             </div>
