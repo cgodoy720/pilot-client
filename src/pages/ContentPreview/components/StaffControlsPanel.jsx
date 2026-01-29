@@ -1,5 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
 import { 
@@ -10,15 +9,21 @@ import {
   Calendar,
   Clock,
   Building2,
-  Play
+  Play,
+  Plus,
+  Trash2
 } from 'lucide-react';
 
-function StaffControlsPanel({ dayContent, cohort, onNavigate, onEnterInteractive }) {
-  const navigate = useNavigate();
-
-  const handleEditDay = () => {
-    navigate(`/content?day=${dayContent.day?.id}`);
-  };
+function StaffControlsPanel({ 
+  dayContent, 
+  cohort, 
+  onNavigate, 
+  onEnterInteractive,
+  onEditDayGoals,
+  onAddTask,
+  onDeleteDay,
+  canEdit = false
+}) {
 
   return (
     <div className="h-screen flex flex-col overflow-y-auto p-4">
@@ -112,14 +117,34 @@ function StaffControlsPanel({ dayContent, cohort, onNavigate, onEnterInteractive
             <Play className="h-4 w-4 mr-2" />
             Enter Interactive Mode
           </Button>
-          <Button
-            onClick={handleEditDay}
-            variant="outline"
-            className="w-full justify-start font-proxima"
-          >
-            <Edit className="h-4 w-4 mr-2" />
-            Edit This Day
-          </Button>
+          {canEdit && (
+            <>
+              <Button
+                onClick={onEditDayGoals}
+                variant="outline"
+                className="w-full justify-start font-proxima"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Day Goals
+              </Button>
+              <Button
+                onClick={onAddTask}
+                variant="outline"
+                className="w-full justify-start font-proxima"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add New Task
+              </Button>
+              <Button
+                onClick={onDeleteDay}
+                variant="outline"
+                className="w-full justify-start font-proxima text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Day
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
