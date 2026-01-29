@@ -19,13 +19,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../../../../components/ui/alert-dialog';
-import TaskCard from './shared/TaskCard';
-import TaskEditDialog from './shared/TaskEditDialog';
-import FieldHistoryDialog from './shared/FieldHistoryDialog';
-import DayGoalEditor from './shared/DayGoalEditor';
-import MoveTaskDialog from './shared/MoveTaskDialog';
-import LoadingState from './shared/LoadingState';
-import EmptyState from './shared/EmptyState';
+import TaskCard from '../../../../components/curriculum/TaskCard';
+import TaskEditDialog from '../../../../components/curriculum/TaskEditDialog';
+import FieldHistoryDialog from '../../../../components/curriculum/FieldHistoryDialog';
+import DayGoalEditor from '../../../../components/curriculum/DayGoalEditor';
+import MoveTaskDialog from '../../../../components/curriculum/MoveTaskDialog';
+import LoadingState from '../../../../components/curriculum/LoadingState';
+import EmptyState from '../../../../components/curriculum/EmptyState';
 import { toast } from 'sonner';
 
 const CurriculumBrowserTab = () => {
