@@ -223,6 +223,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
           dayNumber: currentDay?.day_number,
           cohort: cohort,
           conversationModel: selectedModel,
+          isPreviewMode: true, // Mark as preview mode for ContentPreview
         }),
         signal: abortController.signal,
       });
@@ -319,6 +320,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
           dayNumber: currentDay?.day_number,
           cohort: cohort,
           conversationModel: modelFromTextarea || selectedModel,
+          isPreviewMode: true, // Mark as preview mode for ContentPreview
         }),
         signal: abortController.signal,
       });
