@@ -284,20 +284,6 @@ const OverviewTab = ({
           </CardContent>
         </Card>
 
-        {/* Marketing Insights - Only for All Time and December 2025 */}
-        {overviewQuickView !== 'deferred' && (
-          <Card className="bg-white border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 font-proxima">Marketing Insights</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-[#4242ea] font-proxima-bold">
-                📊
-              </div>
-              <span className="text-sm text-gray-500 font-proxima">Click for details</span>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       {/* Stage Selection Tabs */}
@@ -353,24 +339,72 @@ const OverviewTab = ({
                 <div className="text-2xl font-bold text-[#1a1a1a] font-proxima-bold">
                   {appliedStatusBreakdown.accounts_created}
                 </div>
+                {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Net New: {appliedStatusBreakdown.accounts_created_net_new ?? 0}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Rolled Over: {appliedStatusBreakdown.accounts_created_rolled ?? 0}</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="p-4 bg-yellow-50 rounded-lg">
                 <div className="text-sm text-gray-600 font-proxima">In Progress</div>
                 <div className="text-2xl font-bold text-yellow-700 font-proxima-bold">
                   {appliedStatusBreakdown.in_progress}
                 </div>
+                {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Net New: {appliedStatusBreakdown.in_progress_net_new ?? 0}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Rolled Over: {appliedStatusBreakdown.in_progress_rolled ?? 0}</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="p-4 bg-blue-50 rounded-lg">
                 <div className="text-sm text-gray-600 font-proxima">Submitted</div>
                 <div className="text-2xl font-bold text-blue-700 font-proxima-bold">
                   {appliedStatusBreakdown.submitted}
                 </div>
+                {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Net New: {appliedStatusBreakdown.submitted_net_new ?? 0}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Rolled Over: {appliedStatusBreakdown.submitted_rolled ?? 0}</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="p-4 bg-red-50 rounded-lg">
                 <div className="text-sm text-gray-600 font-proxima">Ineligible</div>
                 <div className="text-2xl font-bold text-red-700 font-proxima-bold">
                   {appliedStatusBreakdown.ineligible}
                 </div>
+                {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Net New: {appliedStatusBreakdown.ineligible_net_new ?? 0}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                      <span className="text-gray-600 font-proxima">Rolled Over: {appliedStatusBreakdown.ineligible_rolled ?? 0}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -387,12 +421,26 @@ const OverviewTab = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="p-6 bg-gray-50 rounded-lg">
                 <h4 className="text-sm font-medium text-gray-600 mb-4 font-proxima">Race/Ethnicity</h4>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {demographics?.race?.length > 0 ? (
                     demographics.race.slice(0, 5).map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center">
-                        <span className="text-sm text-gray-700 font-proxima">{item.label}</span>
-                        <span className="text-sm font-medium text-[#1a1a1a] font-proxima-bold">{item.count}</span>
+                      <div key={idx}>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-700 font-proxima">{item.label}</span>
+                          <span className="text-sm font-medium text-[#1a1a1a] font-proxima-bold">{item.count}</span>
+                        </div>
+                        {demographics.hasBreakdown && (item.netNew > 0 || item.rolledOver > 0) && (
+                          <div className="flex gap-3 mt-1 ml-2">
+                            <span className="text-xs text-gray-500 font-proxima">
+                              <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span>
+                              New: {item.netNew}
+                            </span>
+                            <span className="text-xs text-gray-500 font-proxima">
+                              <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mr-1"></span>
+                              Rolled: {item.rolledOver}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ))
                   ) : (
@@ -403,12 +451,26 @@ const OverviewTab = ({
 
               <div className="p-6 bg-gray-50 rounded-lg">
                 <h4 className="text-sm font-medium text-gray-600 mb-4 font-proxima">Gender</h4>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {demographics?.gender?.length > 0 ? (
                     demographics.gender.slice(0, 5).map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center">
-                        <span className="text-sm text-gray-700 font-proxima">{item.label}</span>
-                        <span className="text-sm font-medium text-[#1a1a1a] font-proxima-bold">{item.count}</span>
+                      <div key={idx}>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-700 font-proxima">{item.label}</span>
+                          <span className="text-sm font-medium text-[#1a1a1a] font-proxima-bold">{item.count}</span>
+                        </div>
+                        {demographics.hasBreakdown && (item.netNew > 0 || item.rolledOver > 0) && (
+                          <div className="flex gap-3 mt-1 ml-2">
+                            <span className="text-xs text-gray-500 font-proxima">
+                              <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span>
+                              New: {item.netNew}
+                            </span>
+                            <span className="text-xs text-gray-500 font-proxima">
+                              <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mr-1"></span>
+                              Rolled: {item.rolledOver}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ))
                   ) : (
@@ -419,12 +481,26 @@ const OverviewTab = ({
 
               <div className="p-6 bg-gray-50 rounded-lg">
                 <h4 className="text-sm font-medium text-gray-600 mb-4 font-proxima">Education Level</h4>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {demographics?.education?.length > 0 ? (
                     demographics.education.slice(0, 5).map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center">
-                        <span className="text-sm text-gray-700 font-proxima truncate">{item.label}</span>
-                        <span className="text-sm font-medium text-[#1a1a1a] font-proxima-bold">{item.count}</span>
+                      <div key={idx}>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-700 font-proxima truncate">{item.label}</span>
+                          <span className="text-sm font-medium text-[#1a1a1a] font-proxima-bold">{item.count}</span>
+                        </div>
+                        {demographics.hasBreakdown && (item.netNew > 0 || item.rolledOver > 0) && (
+                          <div className="flex gap-3 mt-1 ml-2">
+                            <span className="text-xs text-gray-500 font-proxima">
+                              <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span>
+                              New: {item.netNew}
+                            </span>
+                            <span className="text-xs text-gray-500 font-proxima">
+                              <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mr-1"></span>
+                              Rolled: {item.rolledOver}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ))
                   ) : (

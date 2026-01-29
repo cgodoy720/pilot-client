@@ -1,6 +1,7 @@
 import React, { useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../../../components/ui/button';
+import { Input } from '../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { Badge } from '../../../../components/ui/badge';
@@ -21,7 +22,6 @@ import {
   DropdownMenuSeparator,
 } from '../../../../components/ui/dropdown-menu';
 import { formatPhoneNumber, getStatusBadgeClasses, formatStatus, getColumnLabel } from '../shared/utils';
-import ApplicantSearchAutocomplete from '../shared/ApplicantSearchAutocomplete';
 
 // Filter options for each column
 const filterOptions = {
@@ -48,6 +48,7 @@ const filterOptions = {
   ],
   info_session_status: [
     { value: '', label: 'All' },
+    { value: 'not_registered', label: 'Not Registered' },
     { value: 'registered', label: 'Registered' },
     { value: 'attended', label: 'Attended' },
     { value: 'attended_event', label: 'Attended Event' },
@@ -56,6 +57,7 @@ const filterOptions = {
   ],
   workshop_status: [
     { value: '', label: 'All' },
+    { value: 'pending', label: 'Pending' },
     { value: 'registered', label: 'Registered' },
     { value: 'attended', label: 'Attended' },
     { value: 'no_show', label: 'No Show' },
@@ -82,6 +84,7 @@ const columnLabels = {
   name: 'Name',
   email: 'Email',
   phone: 'Phone',
+  app_start_date: 'App Start Date',
   status: 'Status',
   assessment: 'Assessment',
   info_session: 'Info Session',
@@ -95,6 +98,28 @@ const columnLabels = {
   race: 'Race/Ethnicity',
   education: 'Education',
   referral: 'Referral Source'
+};
+
+// Helper function to calculate age from date of birth
+const calculateAge = (dateOfBirth) => {
+  if (!dateOfBirth) return null;
+  
+  try {
+    const birthDate = new Date(dateOfBirth);
+    if (isNaN(birthDate.getTime())) return null;
+    
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age;
+  } catch {
+    return null;
+  }
 };
 
 // Memoized ApplicationRow component to prevent unnecessary re-renders
@@ -131,6 +156,15 @@ const ApplicationRow = React.memo(({
       {visibleColumns.phone && (
         <TableCell className="font-proxima text-gray-600">
           {formatPhoneNumber(app.phone_number)}
+        </TableCell>
+      )}
+      {visibleColumns.app_start_date && (
+        <TableCell className="font-proxima text-gray-600">
+          {app.created_at ? new Date(app.created_at).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          }) : '-'}
         </TableCell>
       )}
       {visibleColumns.status && (
@@ -201,7 +235,7 @@ const ApplicationRow = React.memo(({
       )}
       {visibleColumns.age && (
         <TableCell className="font-proxima text-gray-600">
-          {app.age || '-'}
+          {calculateAge(app.date_of_birth) || '-'}
         </TableCell>
       )}
       {visibleColumns.gender && (
@@ -220,8 +254,8 @@ const ApplicationRow = React.memo(({
         </TableCell>
       )}
       {visibleColumns.referral && (
-        <TableCell className="font-proxima text-gray-600 max-w-[150px] truncate" title={app.how_did_you_hear}>
-          {app.how_did_you_hear || '-'}
+        <TableCell className="font-proxima text-gray-600 max-w-[150px] truncate" title={app.referral_source}>
+          {app.referral_source || '-'}
         </TableCell>
       )}
       {visibleColumns.notes && (
@@ -374,17 +408,69 @@ const ApplicationsTab = ({
   onReturnToPagination
 }) => {
   const navigate = useNavigate();
+  const [tableSearchTerm, setTableSearchTerm] = React.useState('');
+  const [csvExportColumns, setCsvExportColumns] = React.useState({
+    name: true,
+    email: true,
+    phone: true,
+    app_start_date: true,
+    status: true,
+    assessment: true,
+    info_session: true,
+    workshop: true,
+    workshop_grade: false,
+    admission: true,
+    deliberation: false,
+    age: false,
+    gender: false,
+    race_ethnicity: false,
+    education: false,
+    referral: false
+  });
+
+  // Sync CSV export columns with visible columns when opening export
+  const initializeCsvColumnsFromVisible = React.useCallback(() => {
+    setCsvExportColumns({
+      name: visibleColumns.name ?? true,
+      email: visibleColumns.email ?? true,
+      phone: visibleColumns.phone ?? true,
+      app_start_date: visibleColumns.app_start_date ?? false,
+      status: visibleColumns.status ?? true,
+      assessment: visibleColumns.assessment ?? true,
+      info_session: visibleColumns.info_session ?? true,
+      workshop: visibleColumns.workshop ?? true,
+      workshop_grade: visibleColumns.structured_task_grade ?? false,
+      admission: visibleColumns.admission ?? true,
+      deliberation: visibleColumns.deliberation ?? false,
+      age: visibleColumns.age ?? false,
+      gender: visibleColumns.gender ?? false,
+      race_ethnicity: visibleColumns.race ?? false,
+      education: visibleColumns.education ?? false,
+      referral: visibleColumns.referral ?? false
+    });
+  }, [visibleColumns]);
   
   // Handle navigating to applicant detail
   const handleViewApplication = useCallback((applicantId) => {
     navigate(`/admissions-dashboard/applicant/${applicantId}`);
   }, [navigate]);
 
-  // Sort applications (no client-side filtering - that's handled by search autocomplete now)
+  // Sort and filter applications
   const sortedApplications = useMemo(() => {
     if (!applications?.applications || applications.applications.length === 0) return [];
     
     let sorted = [...applications.applications];
+    
+    // Apply client-side search filter
+    if (tableSearchTerm.trim()) {
+      const searchLower = tableSearchTerm.toLowerCase().trim();
+      sorted = sorted.filter(app => {
+        const fullName = `${app.first_name || ''} ${app.last_name || ''}`.toLowerCase();
+        const email = (app.email || '').toLowerCase();
+        const phone = (app.phone_number || '').toLowerCase();
+        return fullName.includes(searchLower) || email.includes(searchLower) || phone.includes(searchLower);
+      });
+    }
     
     if (columnSort.column) {
       sorted.sort((a, b) => {
@@ -413,7 +499,7 @@ const ApplicationsTab = ({
     }
     
     return sorted;
-  }, [applications, columnSort]);
+  }, [applications, columnSort, tableSearchTerm]);
 
   // Calculate pagination values
   const totalItems = applications?.total || 0;
@@ -436,6 +522,30 @@ const ApplicationsTab = ({
       setSelectedApplicants(prev => prev.filter(id => id !== applicantId));
     }
   }, [setSelectedApplicants]);
+
+  // CSV export column configuration
+  // Note: Export endpoint returns demographics data in a nested 'demographics' object
+  const csvColumnConfig = {
+    name: { label: 'Name', getValue: (app) => `${app.first_name || ''} ${app.last_name || ''}` },
+    email: { label: 'Email', getValue: (app) => app.email || '' },
+    phone: { label: 'Phone', getValue: (app) => app.phone_number || '' },
+    app_start_date: { label: 'App Start Date', getValue: (app) => app.created_at ? new Date(app.created_at).toLocaleDateString() : '' },
+    status: { label: 'Status', getValue: (app) => app.status || '' },
+    assessment: { label: 'Assessment', getValue: (app) => app.recommendation || app.final_status || '' },
+    info_session: { label: 'Info Session', getValue: (app) => app.info_session_status || '' },
+    workshop: { label: 'Workshop', getValue: (app) => app.workshop_status || '' },
+    workshop_grade: { label: 'Workshop Grade', getValue: (app) => app.structured_task_grade || '' },
+    admission: { label: 'Admission', getValue: (app) => app.program_admission_status || '' },
+    deliberation: { label: 'Deliberation', getValue: (app) => app.deliberation || '' },
+    age: { label: 'Age', getValue: (app) => {
+      const dob = app.demographics?.date_of_birth || app.date_of_birth;
+      return dob ? calculateAge(dob) || '' : '';
+    }},
+    gender: { label: 'Gender', getValue: (app) => app.demographics?.gender || app.gender || '' },
+    race_ethnicity: { label: 'Race/Ethnicity', getValue: (app) => app.demographics?.race_ethnicity || app.race_ethnicity || '' },
+    education: { label: 'Education', getValue: (app) => app.demographics?.education_level || app.education_level || '' },
+    referral: { label: 'Referral Source', getValue: (app) => app.demographics?.reason_for_applying || app.demographics?.referral_source || app.referral_source || '' }
+  };
 
   // Handle CSV export
   const handleExportCSV = useCallback(async () => {
@@ -461,19 +571,21 @@ const ApplicationsTab = ({
         return;
       }
 
-      // Create CSV content
-      const headers = ['Name', 'Email', 'Phone', 'Status', 'Assessment', 'Info Session', 'Workshop', 'Admission', 'Created'];
-      const rows = detailedApplicantData.map(app => [
-        `${app.first_name || ''} ${app.last_name || ''}`,
-        app.email || '',
-        app.phone_number || '',
-        app.status || '',
-        app.recommendation || app.final_status || '',
-        app.info_session_status || '',
-        app.workshop_status || '',
-        app.program_admission_status || '',
-        app.created_at ? new Date(app.created_at).toLocaleDateString() : ''
-      ]);
+      // Get selected columns
+      const selectedCols = Object.entries(csvExportColumns)
+        .filter(([_, isSelected]) => isSelected)
+        .map(([key]) => key);
+      
+      if (selectedCols.length === 0) {
+        alert('Please select at least one column to export');
+        return;
+      }
+
+      // Create CSV content with selected columns
+      const headers = selectedCols.map(col => csvColumnConfig[col].label);
+      const rows = detailedApplicantData.map(app => 
+        selectedCols.map(col => csvColumnConfig[col].getValue(app))
+      );
 
       const csvContent = [headers, ...rows]
         .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
@@ -492,7 +604,7 @@ const ApplicationsTab = ({
       console.error('Error exporting CSV:', error);
       alert('Failed to export data');
     }
-  }, [selectedApplicants, token]);
+  }, [selectedApplicants, token, csvExportColumns]);
 
   // Optimized filter update handlers
   const handleColumnToggle = useCallback((column, checked) => {
@@ -565,7 +677,7 @@ const ApplicationsTab = ({
         )}
         
         {/* Filter dropdown */}
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <button 
               className={`p-1 rounded hover:bg-gray-200 ${isFiltered ? 'text-[#4242ea]' : 'text-gray-400'}`}
@@ -580,21 +692,24 @@ const ApplicationsTab = ({
             <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase">Filter by {label}</div>
             <DropdownMenuSeparator />
             {options.map((option) => (
-              <DropdownMenuItem
+              <DropdownMenuCheckboxItem
                 key={option.value}
-                className={`cursor-pointer ${currentValue === option.value ? 'bg-[#4242ea]/10 text-[#4242ea]' : ''}`}
-                onClick={() => handleFilterChange(filterKey, option.value)}
+                checked={currentValue === option.value}
+                onCheckedChange={() => handleFilterChange(filterKey, option.value)}
+                onSelect={(e) => e.preventDefault()}
               >
-                {currentValue === option.value && <span className="mr-2">✓</span>}
                 {option.label}
-              </DropdownMenuItem>
+              </DropdownMenuCheckboxItem>
             ))}
             {isFiltered && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="cursor-pointer text-red-600 hover:text-red-700"
-                  onClick={() => handleClearFilter(filterKey)}
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    handleClearFilter(filterKey);
+                  }}
                 >
                   ✕ Clear Filter
                 </DropdownMenuItem>
@@ -748,11 +863,32 @@ const ApplicationsTab = ({
     <div className="flex flex-col h-full">
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3 bg-white p-4 border-b border-gray-200 shrink-0">
-        {/* Search Autocomplete */}
-        <ApplicantSearchAutocomplete 
-          searchIndex={searchIndex} 
-          placeholder="Search applicants..."
-        />
+        {/* Real-time Search Filter */}
+        <div className="relative w-[300px]">
+          <Input
+            type="text"
+            placeholder="Search by name, email, or phone..."
+            value={tableSearchTerm}
+            onChange={(e) => setTableSearchTerm(e.target.value)}
+            className="w-full font-proxima pr-8"
+          />
+          {tableSearchTerm && (
+            <button
+              onClick={() => setTableSearchTerm('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          )}
+          {!tableSearchTerm && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.3-4.3"></path>
+              </svg>
+            </div>
+          )}
+        </div>
 
         {/* Cohort Filter */}
         <Select
@@ -774,7 +910,7 @@ const ApplicationsTab = ({
         </Select>
 
         {/* Columns Toggle */}
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="font-proxima">
               ⚙️ Columns
@@ -788,6 +924,7 @@ const ApplicationsTab = ({
                 key={column}
                 checked={visibleColumns[column]}
                 onCheckedChange={(checked) => handleColumnToggle(column, checked)}
+                onSelect={(e) => e.preventDefault()}
               >
                 {columnLabels[column] || getColumnLabel(column)}
               </DropdownMenuCheckboxItem>
@@ -805,15 +942,68 @@ const ApplicationsTab = ({
           Actions ({selectedApplicants.length})
         </Button>
 
-        {/* Export CSV */}
-        <Button
-          variant="outline"
-          className="font-proxima"
-          disabled={selectedApplicants.length === 0}
-          onClick={handleExportCSV}
-        >
-          Export CSV ({selectedApplicants.length})
-        </Button>
+        {/* Export CSV with Column Selection Dropdown */}
+        <DropdownMenu modal={false} onOpenChange={(open) => { if (open) initializeCsvColumnsFromVisible(); }}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              className="font-proxima"
+              disabled={selectedApplicants.length === 0}
+            >
+              Export CSV ({selectedApplicants.length})
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56 font-proxima max-h-[400px] overflow-y-auto" align="start">
+            <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase">
+              Select Columns to Export
+            </div>
+            <DropdownMenuSeparator />
+            {Object.entries(csvColumnConfig).map(([key, config]) => (
+              <DropdownMenuCheckboxItem
+                key={key}
+                checked={csvExportColumns[key]}
+                onCheckedChange={(checked) => setCsvExportColumns(prev => ({ ...prev, [key]: checked }))}
+                onSelect={(e) => e.preventDefault()}
+              >
+                {config.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+            <DropdownMenuSeparator />
+            <div className="px-2 py-1.5 flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setCsvExportColumns(Object.fromEntries(Object.keys(csvColumnConfig).map(k => [k, true])));
+                }}
+                className="font-proxima text-xs flex-1"
+              >
+                All
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setCsvExportColumns(Object.fromEntries(Object.keys(csvColumnConfig).map(k => [k, false])));
+                }}
+                className="font-proxima text-xs flex-1"
+              >
+                None
+              </Button>
+            </div>
+            <DropdownMenuSeparator />
+            <div className="p-2">
+              <Button
+                onClick={handleExportCSV}
+                className="w-full bg-[#4242ea] hover:bg-[#3333d1] font-proxima"
+              >
+                Download CSV
+              </Button>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Refresh */}
         <Button variant="outline" onClick={fetchApplications} className="font-proxima">
@@ -868,8 +1058,10 @@ const ApplicationsTab = ({
 
       {/* Table */}
       {applications?.applications?.length > 0 ? (
-        <div className="flex-1 bg-white overflow-auto">
-          <Table className="w-full">
+        <div className="flex-1 bg-white overflow-hidden flex flex-col">
+          {/* Scrollable table container */}
+          <div className="flex-1 overflow-auto relative">
+            <Table className="w-full min-w-max">
               <TableHeader>
                 <TableRow className="bg-gray-50">
                   <TableHead className="w-12">
@@ -893,6 +1085,16 @@ const ApplicationsTab = ({
                   )}
                   {visibleColumns.phone && (
                     <TableHead className="font-proxima-bold">Phone</TableHead>
+                  )}
+                  {visibleColumns.app_start_date && (
+                    <TableHead 
+                      className="cursor-pointer hover:bg-gray-100 font-proxima-bold"
+                      onClick={() => handleColumnSort('created_at')}
+                    >
+                      <div className="flex items-center">
+                        App Start Date {renderSortIndicator('created_at')}
+                      </div>
+                    </TableHead>
                   )}
                   {visibleColumns.status && (
                     <TableHead>
@@ -962,6 +1164,7 @@ const ApplicationsTab = ({
                 ))}
               </TableBody>
             </Table>
+          </div>
         </div>
       ) : (
         <div className="flex-1 bg-white flex items-center justify-center">
@@ -1023,6 +1226,7 @@ const ApplicationsTab = ({
           )}
         </div>
       )}
+
     </div>
   );
 };

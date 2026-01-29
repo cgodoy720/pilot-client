@@ -405,6 +405,68 @@ const ApplicationDetail = () => {
         }
     };
 
+    // Handle eligibility override
+    const handleEligibilityOverride = async (newStatus) => {
+        if (!applicant?.applicant_id || !applicationData?.application?.application_id) return;
+
+        try {
+            const confirmed = await Swal.fire({
+                title: 'Override Eligibility Status?',
+                html: newStatus === 'submitted' 
+                    ? `<p>This will mark the applicant as <strong>Eligible</strong> and change their status from "Ineligible" to "Submitted".</p>
+                       <p class="text-gray-500 mt-2">This is an administrative override of the eligibility check.</p>`
+                    : `<p>This will mark the applicant as <strong>Ineligible</strong> and change their status to "Ineligible".</p>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#4242ea',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: newStatus === 'submitted' ? 'Yes, Mark Eligible' : 'Yes, Mark Ineligible',
+                cancelButtonText: 'Cancel'
+            });
+
+            if (!confirmed.isConfirmed) return;
+
+            const response = await fetch(
+                `${import.meta.env.VITE_API_URL}/api/admissions/applications/${applicationData.application.application_id}/eligibility-override`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                }
+            );
+
+            if (response.ok) {
+                // Refresh data
+                await fetchApplicationDetail();
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Updated!',
+                    text: `Eligibility status has been overridden to "${newStatus === 'submitted' ? 'Eligible' : 'Ineligible'}"`,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                const errorData = await response.json();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: errorData.error || 'Failed to update eligibility status'
+                });
+            }
+        } catch (error) {
+            console.error('Error updating eligibility:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'An unexpected error occurred'
+            });
+        }
+    };
+
     // Memoize the processed responses to avoid re-computation on every render
     // This must be called before any conditional returns (Rules of Hooks)
     const processedResponses = useMemo(() => {
@@ -584,17 +646,40 @@ const ApplicationDetail = () => {
                             ← Back to Applicants
                         </Button>
                         {application && (
-                            <Badge 
-                                className={`
-                                    ${application.status === 'submitted' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}
-                                    ${application.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100' : ''}
-                                    ${application.status === 'no_application' ? 'bg-gray-100 text-gray-800 hover:bg-gray-100' : ''}
-                                    ${application.status === 'ineligible' ? 'bg-red-100 text-red-800 hover:bg-red-100' : ''}
-                                    font-proxima
-                                `}
-                            >
-                                {application.status.replace('_', ' ').toUpperCase()}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                                <Badge 
+                                    className={`
+                                        ${application.status === 'submitted' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}
+                                        ${application.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100' : ''}
+                                        ${application.status === 'no_application' ? 'bg-gray-100 text-gray-800 hover:bg-gray-100' : ''}
+                                        ${application.status === 'ineligible' ? 'bg-red-100 text-red-800 hover:bg-red-100' : ''}
+                                        font-proxima
+                                    `}
+                                >
+                                    {application.status.replace('_', ' ').toUpperCase()}
+                                </Badge>
+                                {/* Eligibility Override Button */}
+                                {application.status === 'ineligible' && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleEligibilityOverride('submitted')}
+                                        className="text-xs font-proxima text-green-600 border-green-300 hover:bg-green-50"
+                                    >
+                                        Override → Mark Eligible
+                                    </Button>
+                                )}
+                                {application.status === 'submitted' && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleEligibilityOverride('ineligible')}
+                                        className="text-xs font-proxima text-red-600 border-red-300 hover:bg-red-50"
+                                    >
+                                        Override → Mark Ineligible
+                                    </Button>
+                                )}
+                            </div>
                         )}
                     </div>
                     <h1 className="text-3xl font-bold text-[#1a1a1a] font-proxima-bold">Applicant Details</h1>
