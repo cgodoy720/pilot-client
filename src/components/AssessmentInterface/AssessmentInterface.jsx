@@ -683,6 +683,7 @@ function AssessmentInterface({
         <AssessmentDeliverablePanel
           assessmentType={assessmentData.assessment_type}
           assessmentName={assessmentData.assessment_name}
+          assessmentData={assessmentData}
           currentSubmission={currentSubmission}
           draftFormData={draftFormData}
           onDraftUpdate={setDraftFormData}
@@ -713,12 +714,10 @@ function AssessmentInterface({
             </div>
 
             {/* Instructions Content */}
-            <div className="prose prose-sm max-w-none">
-              {assessmentData?.instructions?.split('\n').map((paragraph, index) => (
-                <p key={index} className="mb-3 last:mb-0 text-carbon-black leading-relaxed">
-                  {paragraph}
-                </p>
-              ))}
+            <div className="prose prose-sm max-w-none text-carbon-black leading-relaxed">
+              <ReactMarkdown>
+                {assessmentData?.instructions || ''}
+              </ReactMarkdown>
             </div>
 
             {/* Action Button */}
