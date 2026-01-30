@@ -261,6 +261,10 @@ const AdmissionsDashboard = () => {
   const [testEmailAddress, setTestEmailAddress] = useState('');
   const [testEmailLoading, setTestEmailLoading] = useState(false);
 
+  // Email mappings state
+  const [emailMappings, setEmailMappings] = useState([]);
+  const [emailMappingsLoading, setEmailMappingsLoading] = useState(false);
+
   // Check if user has admin access
   const hasAdminAccess = user?.role === 'admin' || user?.role === 'staff';
 
@@ -502,6 +506,40 @@ const AdmissionsDashboard = () => {
       console.error('Error fetching emails data:', error);
     } finally {
       setEmailAutomationLoading(false);
+    }
+  };
+
+  // Fetch email mappings data
+  const fetchEmailMappings = async (page = 1, search = '') => {
+    if (!hasAdminAccess || !token) return;
+    
+    try {
+      setEmailMappingsLoading(true);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '25'
+      });
+      
+      if (search) {
+        params.append('search', search);
+      }
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/email-mappings?${params}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch email mappings data');
+      }
+      
+      const mappingsData = await response.json();
+      
+      setEmailMappings(mappingsData.data);
+    } catch (error) {
+      console.error('Error fetching email mappings:', error);
+    } finally {
+      setEmailMappingsLoading(false);
     }
   };
 
@@ -1039,6 +1077,9 @@ const AdmissionsDashboard = () => {
                 fetchQueuedEmails={fetchEmailsData}
                 fetchEmailHistory={fetchEmailsData}
                 fetchApplicantEmailStatus={fetchEmailsData}
+                emailMappings={emailMappings}
+                emailMappingsLoading={emailMappingsLoading}
+                fetchEmailMappings={fetchEmailMappings}
                 token={token}
               />
             </Suspense>
