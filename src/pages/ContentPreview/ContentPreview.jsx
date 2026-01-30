@@ -581,9 +581,9 @@ function ContentPreview() {
     <>
       {loading && <LoadingCurtain />}
       
-      <div className="content-preview-container min-h-screen bg-slate-50">
+      <div className="content-preview-container h-screen bg-slate-50 flex flex-col overflow-hidden">
         {/* Preview Mode Banner */}
-        <div className="preview-banner bg-blue-600 text-white px-6 py-3 sticky top-0 z-50 shadow-md">
+        <div className="preview-banner bg-blue-600 text-white px-6 py-3 z-50 shadow-md flex-shrink-0">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
               <AlertCircle className="h-5 w-5" />
@@ -614,7 +614,7 @@ function ContentPreview() {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex h-[calc(100vh-53px)]">
+        <div className="flex flex-1 overflow-hidden">
           {/* Left: Cohort & Day Selector */}
           <div className="w-80 bg-white border-r border-slate-200 flex flex-col">
             <CohortDaySelector
