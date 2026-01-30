@@ -152,14 +152,33 @@ function ContentPreview() {
         details.feedback > 0 && `${details.feedback} survey response(s)`
       ].filter(Boolean).join('<br>');
       
+      // Clear localStorage survey progress data
+      let localStorageCleared = 0;
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('survey_progress_')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        localStorageCleared++;
+      });
+      
+      if (localStorageCleared > 0) {
+        console.log(`Cleared ${localStorageCleared} survey progress items from localStorage`);
+      }
+      
       await Swal.fire({
         icon: 'success',
         title: 'Test Data Cleared',
-        html: deletedCount > 0 
+        html: deletedCount > 0 || localStorageCleared > 0
           ? `
             <p>Successfully deleted <strong>${deletedCount}</strong> preview record(s):</p>
             <div style="text-align: left; margin: 1rem 0; font-size: 0.9rem;">
               ${detailsText}
+              ${localStorageCleared > 0 ? `<br>${localStorageCleared} cached survey progress item(s)` : ''}
             </div>
           `
           : '<p>No test data found to delete.</p>',
@@ -597,7 +616,7 @@ function ContentPreview() {
         {/* Main Content Area */}
         <div className="flex h-[calc(100vh-53px)]">
           {/* Left: Cohort & Day Selector */}
-          <div className="w-80 bg-white border-r border-slate-200 overflow-y-auto">
+          <div className="w-80 bg-white border-r border-slate-200 flex flex-col">
             <CohortDaySelector
               token={token}
               selectedCohort={selectedCohort}

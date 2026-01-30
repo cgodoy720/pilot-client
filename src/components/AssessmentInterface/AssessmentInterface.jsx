@@ -24,7 +24,8 @@ function AssessmentInterface({
   isLastTask = false,
   externalPanelOpen = false,
   onExternalPanelOpenChange = null,
-  onAssessmentTypeLoaded = null
+  onAssessmentTypeLoaded = null,
+  isPreviewMode = false
 }) {
   const { token, user } = useAuth();
   const [assessmentData, setAssessmentData] = useState(null);
@@ -41,9 +42,40 @@ function AssessmentInterface({
   // UI state
   const [showDeliverablePanel, setShowDeliverablePanel] = useState(false);
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
+  const [hasViewedInstructions, setHasViewedInstructions] = useState(false);
   
   // Draft form data - persists when sidebar closes (cleared on successful submission)
   const [draftFormData, setDraftFormData] = useState(null);
+  
+  // Check localStorage for instructions viewed status on mount
+  useEffect(() => {
+    if (assessmentId) {
+      const storageKey = `assessment_instructions_viewed_${assessmentId}`;
+      const viewed = localStorage.getItem(storageKey) === 'true';
+      setHasViewedInstructions(viewed);
+    }
+  }, [assessmentId]);
+  
+  // Mark instructions as viewed in localStorage
+  const markInstructionsViewed = () => {
+    if (assessmentId) {
+      const storageKey = `assessment_instructions_viewed_${assessmentId}`;
+      localStorage.setItem(storageKey, 'true');
+      setHasViewedInstructions(true);
+    }
+  };
+  
+  // Auto-open instructions modal on first visit (after data loads)
+  useEffect(() => {
+    if (!loading && assessmentData && !hasViewedInstructions && !isCompleted) {
+      // Small delay to ensure component is fully rendered
+      const timer = setTimeout(() => {
+        setShowInstructionsModal(true);
+        markInstructionsViewed();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, assessmentData, hasViewedInstructions, isCompleted]);
   
   // Sync external panel state with internal state
   useEffect(() => {
@@ -148,6 +180,8 @@ function AssessmentInterface({
       }
 
       // Handle conversation data
+      // For assessments, we DON'T auto-start conversations - user sees instructions first
+      // and can optionally chat with the LLM when they send a message
       if (conversationResponse && conversationResponse.ok) {
         const conversationData = await conversationResponse.json();
         console.log(`📨 Loaded ${conversationData.messages?.length || 0} messages for assessment task ${taskId}`);
@@ -163,14 +197,10 @@ function AssessmentInterface({
           
           setMessages(formattedMessages);
           setHasInitialMessage(true);
-        } else {
-          // No messages yet - start conversation
-          await startTaskConversation();
         }
-      } else {
-        // No conversation yet - start new one
-        await startTaskConversation();
+        // If no messages, don't auto-start - show instructions and let user initiate
       }
+      // If no conversation response, don't auto-start either
 
     } catch (err) {
       console.error('❌ Error loading assessment:', err);
@@ -198,6 +228,7 @@ function AssessmentInterface({
             dayNumber: dayNumber,
             cohort: cohort,
             conversationModel: 'anthropic/claude-sonnet-4.5',
+            isPreviewMode: isPreviewMode,
           }),
         }
       );
@@ -274,6 +305,7 @@ function AssessmentInterface({
           dayNumber: dayNumber,
           cohort: cohort,
           conversationModel: modelFromTextarea || 'anthropic/claude-sonnet-4.5',
+          isPreviewMode: isPreviewMode,
         }),
         signal: abortController.signal,
       });
@@ -335,7 +367,8 @@ function AssessmentInterface({
         },
         body: JSON.stringify({
           submission_data: submissionData,
-          status: 'submitted'
+          status: 'submitted',
+          isPreviewMode: isPreviewMode
         }),
       });
 
@@ -502,23 +535,9 @@ function AssessmentInterface({
                   </div>
                 </div>
                 
-                <div className="text-sm text-carbon-black/60 font-proxima mb-4">
+                <div className="text-sm text-carbon-black/60 font-proxima">
                   {assessmentData.assessment_type?.charAt(0).toUpperCase() + assessmentData.assessment_type?.slice(1)} Assessment
                   {assessmentData.assessment_period && ` • ${assessmentData.assessment_period}`}
-                </div>
-
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="text-base font-semibold text-carbon-black mb-3 font-proxima flex items-center gap-2">
-                    <FaInfoCircle className="w-4 h-4 text-blue-600" />
-                    Instructions
-                  </h3>
-                  <div className="text-sm text-carbon-black font-proxima">
-                    {assessmentData.instructions?.split('\n').map((paragraph, index) => (
-                      <p key={index} className="mb-2 last:mb-0">
-                        {paragraph}
-                      </p>
-                    ))}
-                  </div>
                 </div>
               </div>
             </div>
