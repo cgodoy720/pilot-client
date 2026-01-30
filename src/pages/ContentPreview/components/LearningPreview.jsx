@@ -412,6 +412,19 @@ function LearningPreview({ dayId, cohort, onBack }) {
     }
   };
 
+  // Handle assessment completion (preview mode - local state only)
+  const handleAssessmentComplete = async () => {
+    const currentTask = tasks[currentTaskIndex];
+    if (!currentTask?.id) return;
+    
+    // Update local state only (no API call in preview mode)
+    setIsTaskComplete(true);
+    setTaskCompletionMap(prev => ({
+      ...prev,
+      [currentTask.id]: { isComplete: true, reason: 'Assessment completed' }
+    }));
+  };
+
   // Task type checks
   const isCurrentTaskSurvey = () => {
     const task = tasks[currentTaskIndex];
@@ -481,6 +494,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
                 onComplete={() => {}}
                 isCompleted={false}
                 isLastTask={currentTaskIndex === tasks.length - 1}
+                isPreviewMode={true}
               />
             </div>
           ) : isCurrentTaskAssessment() ? (
@@ -490,13 +504,28 @@ function LearningPreview({ dayId, cohort, onBack }) {
                 assessmentId={tasks[currentTaskIndex]?.assessment_id}
                 dayNumber={currentDay?.day_number}
                 cohort={cohort}
-                onComplete={() => {}}
-                isCompleted={false}
+                onComplete={handleAssessmentComplete}
+                isCompleted={taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete || false}
                 isLastTask={currentTaskIndex === tasks.length - 1}
                 externalPanelOpen={isAssessmentPanelOpen}
                 onExternalPanelOpenChange={setIsAssessmentPanelOpen}
                 onAssessmentTypeLoaded={setCurrentAssessmentType}
+                isPreviewMode={true}
               />
+              
+              {/* Assessment Task Completion Bar */}
+              <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
+                <div className="max-w-2xl mx-auto pointer-events-auto">
+                  {(isTaskComplete || taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete) && (
+                    <TaskCompletionBar
+                      onNextExercise={handleNextExercise}
+                      isLastTask={currentTaskIndex === tasks.length - 1}
+                      showViewSubmission={currentAssessmentType !== 'self'}
+                      onViewSubmission={() => setIsAssessmentPanelOpen(true)}
+                    />
+                  )}
+                </div>
+              </div>
             </div>
           ) : isCurrentTaskBreak() ? (
             <div className="flex-1 flex flex-col relative overflow-hidden">

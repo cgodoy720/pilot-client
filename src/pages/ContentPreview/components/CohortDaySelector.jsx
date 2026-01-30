@@ -75,7 +75,7 @@ function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect,
   }, {});
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-full flex flex-col">
       {/* Cohort Selection */}
       {!selectedCohort ? (
         <div className="flex-1 overflow-hidden flex flex-col">

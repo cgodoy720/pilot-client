@@ -438,6 +438,57 @@ const TaskCreateDialog = ({
             </div>
           </div>
 
+          {/* ASSESSMENT INTERFACE - Assessment Configuration (shown first) */}
+          {interfaceType === 'assessment' && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-start gap-2 mb-3">
+                <ClipboardCheck className="h-5 w-5 text-green-600 mt-0.5" />
+                <div>
+                  <p className="font-proxima-bold text-green-900 text-sm">Assessment Configuration</p>
+                  <p className="text-xs text-green-700 font-proxima">Select an assessment from the database.</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="assessment_id" className="font-proxima-bold text-sm">
+                  Assessment *
+                </Label>
+                {loadingAssessments ? (
+                  <div className="text-sm text-green-700 font-proxima py-2">Loading assessments...</div>
+                ) : (
+                  <Select
+                    value={formData.assessment_id?.toString() || ''}
+                    onValueChange={(value) => {
+                      const selectedAssessment = assessments.find(a => a.value.toString() === value);
+                      
+                      if (selectedAssessment) {
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          assessment_id: parseInt(value),
+                          task_title: selectedAssessment.label
+                        }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="font-proxima">
+                      <SelectValue placeholder="Select an assessment..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {assessments.map(assessment => (
+                        <SelectItem 
+                          key={assessment.value} 
+                          value={assessment.value.toString()}
+                        >
+                          {assessment.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Task Title - Always shown */}
           <div className="space-y-2">
             <Label htmlFor="task_title" className="font-proxima-bold">
@@ -457,20 +508,22 @@ const TaskCreateDialog = ({
             />
           </div>
 
-          {/* Description - Always shown */}
-          <div className="space-y-2">
-            <Label htmlFor="task_description" className="font-proxima-bold">
-              Description
-            </Label>
-            <Textarea
-              id="task_description"
-              value={formData.task_description}
-              onChange={(e) => setFormData(prev => ({ ...prev, task_description: e.target.value }))}
-              placeholder="Brief description of the task"
-              rows={2}
-              className="font-proxima"
-            />
-          </div>
+          {/* Description - Hidden for assessments (not used) */}
+          {interfaceType !== 'assessment' && (
+            <div className="space-y-2">
+              <Label htmlFor="task_description" className="font-proxima-bold">
+                Description
+              </Label>
+              <Textarea
+                id="task_description"
+                value={formData.task_description}
+                onChange={(e) => setFormData(prev => ({ ...prev, task_description: e.target.value }))}
+                placeholder="Brief description of the task"
+                rows={2}
+                className="font-proxima"
+              />
+            </div>
+          )}
 
           {/* Time Fields */}
           <div className="grid grid-cols-2 gap-4">
@@ -583,67 +636,6 @@ const TaskCreateDialog = ({
                   value={formData.intro}
                   onChange={(e) => setFormData(prev => ({ ...prev, intro: e.target.value }))}
                   placeholder="Introductory text for the survey..."
-                  rows={3}
-                  className="font-proxima"
-                />
-              </div>
-            </>
-          )}
-
-          {/* ASSESSMENT INTERFACE - Assessment-specific fields */}
-          {interfaceType === 'assessment' && (
-            <>
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-start gap-2 mb-3">
-                  <ClipboardCheck className="h-5 w-5 text-green-600 mt-0.5" />
-                  <div>
-                    <p className="font-proxima-bold text-green-900 text-sm">Assessment Configuration</p>
-                    <p className="text-xs text-green-700 font-proxima">Select an assessment from the database.</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="assessment_id" className="font-proxima-bold text-sm">
-                    Assessment *
-                  </Label>
-                  {loadingAssessments ? (
-                    <div className="text-sm text-green-700 font-proxima py-2">Loading assessments...</div>
-                  ) : (
-                    <Select
-                      value={formData.assessment_id?.toString() || ''}
-                      onValueChange={(value) => setFormData(prev => ({ 
-                        ...prev, 
-                        assessment_id: parseInt(value) 
-                      }))}
-                    >
-                      <SelectTrigger className="font-proxima">
-                        <SelectValue placeholder="Select an assessment..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {assessments.map(assessment => (
-                          <SelectItem 
-                            key={assessment.value} 
-                            value={assessment.value.toString()}
-                          >
-                            {assessment.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-              </div>
-
-              {/* Assessment intro */}
-              <div className="space-y-2">
-                <Label htmlFor="intro" className="font-proxima-bold">
-                  Assessment Instructions
-                </Label>
-                <Textarea
-                  id="intro"
-                  value={formData.intro}
-                  onChange={(e) => setFormData(prev => ({ ...prev, intro: e.target.value }))}
-                  placeholder="e.g., Time to complete your technical assessment. Click on the Instructions button to view requirements..."
                   rows={3}
                   className="font-proxima"
                 />

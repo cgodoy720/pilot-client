@@ -165,7 +165,6 @@ const SelfAssessmentQuestionnaire = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [existingSubmission, setExistingSubmission] = useState(null);
-  const [hasShownInstructions, setHasShownInstructions] = useState(false);
 
   // Track section and question start times
   const [sectionStartTime, setSectionStartTime] = useState(new Date());
@@ -177,18 +176,6 @@ const SelfAssessmentQuestionnaire = ({
       loadExistingSubmission();
     }
   }, [assessmentId, token]);
-
-  // Show instructions on first load if not completed and not read-only
-  useEffect(() => {
-    if (!isLoading && !isCompleted && !hasShownInstructions && onShowInstructions) {
-      // Small delay to ensure component is fully rendered
-      const timer = setTimeout(() => {
-        onShowInstructions();
-        setHasShownInstructions(true);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, isCompleted, hasShownInstructions, onShowInstructions]);
 
   // Initialize section/question start times when they change
   useEffect(() => {

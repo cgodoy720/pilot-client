@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Calendar, BookOpen, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, Calendar, BookOpen, ArrowRight, ChevronLeft, ChevronRight, BarChart3, Eye, Rocket, FileText, GraduationCap } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Layout from '../../components/Layout/Layout';
 import ArrowButton from '../../components/ArrowButton/ArrowButton';
@@ -26,6 +26,8 @@ function Dashboard() {
   const isActive = user?.active !== false;
   // Check if user is volunteer
   const isVolunteer = user?.role === 'volunteer';
+  // Check if user is staff or admin
+  const isStaffOrAdmin = user?.role === 'staff' || user?.role === 'admin';
   // Check if user is a workshop participant (applicant with workshop flag)
   const isWorkshopParticipant = user?.isWorkshopParticipant === true;
   
@@ -57,15 +59,15 @@ function Dashboard() {
   const [pendingWeek, setPendingWeek] = useState(null);
 
   useEffect(() => {
-    // Only fetch dashboard data if user is active and not a volunteer
-    // Volunteers have their own view that doesn't need builder curriculum data
-    if (isActive && !isVolunteer) {
+    // Only fetch dashboard data if user is active, not a volunteer, and not staff/admin
+    // Staff/admin have their own dashboard, volunteers have their own view
+    if (isActive && !isVolunteer && !isStaffOrAdmin) {
       fetchDashboardData();
     } else {
-      // If user is inactive or a volunteer, we don't need to load the builder dashboard data
+      // If user is inactive, volunteer, or staff/admin, we don't need to load the builder dashboard data
       setIsLoading(false);
     }
-  }, [token, cohortFilter, selectedCohort, user?.role, isActive, isVolunteer]);
+  }, [token, cohortFilter, selectedCohort, user?.role, isActive, isVolunteer, isStaffOrAdmin]);
 
   const fetchDashboardData = async () => {
     try {
@@ -525,6 +527,184 @@ function Dashboard() {
             </button>
           </CardContent>
         </Card>
+      </div>
+    );
+  };
+
+  // Render staff/admin dashboard view
+  const renderStaffAdminView = () => {
+    const [stats, setStats] = useState({ activeBuilders: 0, activeCohorts: 0 });
+    const [statsLoading, setStatsLoading] = useState(true);
+
+    useEffect(() => {
+      const fetchStats = async () => {
+        try {
+          setStatsLoading(true);
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/dashboard/quick-stats`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setStats(data.data);
+          }
+        } catch (error) {
+          console.error('Error fetching admin stats:', error);
+        } finally {
+          setStatsLoading(false);
+        }
+      };
+
+      fetchStats();
+    }, [token]);
+
+    const tools = [
+      {
+        name: 'Cohort Stats',
+        description: 'View analytics',
+        icon: BarChart3,
+        path: '/admin-dashboard'
+      },
+      {
+        name: 'Content Preview',
+        description: 'Preview/edit',
+        icon: Eye,
+        path: '/content-preview'
+      },
+      {
+        name: 'Sputnik',
+        description: 'Sales tracker',
+        icon: Rocket,
+        path: '/sputnik'
+      },
+      {
+        name: 'Form Builder',
+        description: 'Create forms',
+        icon: FileText,
+        path: '/forms'
+      },
+      {
+        name: 'Admissions',
+        description: 'Manage apps',
+        icon: GraduationCap,
+        path: '/admissions-dashboard'
+      }
+    ];
+
+    return (
+      <div className="dashboard">
+        {/* Desktop View */}
+        <div className="dashboard__desktop hidden md:block">
+          {/* Greeting */}
+          <div className="dashboard__greeting">
+            <h1 className="dashboard__greeting-text">
+              Welcome back, {user?.firstName || 'there'}!
+            </h1>
+          </div>
+
+          {/* Quick Stats Section */}
+          <div className="dashboard__stats-section">
+            <h2 className="dashboard__section-title">Quick Stats</h2>
+            <div className="dashboard__stats-grid">
+              <div className="dashboard__stat-card">
+                <div className="dashboard__stat-label">Active Builders</div>
+                <div className="dashboard__stat-number">
+                  {statsLoading ? '...' : stats.activeBuilders}
+                </div>
+              </div>
+              <div className="dashboard__stat-card">
+                <div className="dashboard__stat-label">Active Cohorts</div>
+                <div className="dashboard__stat-number">
+                  {statsLoading ? '...' : stats.activeCohorts}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="dashboard__divider-2" />
+
+          {/* Quick Access Tools */}
+          <div className="dashboard__tools-section">
+            <h2 className="dashboard__section-title">Quick Access Tools</h2>
+            <div className="dashboard__tools-grid">
+              {tools.map((tool, index) => {
+                const Icon = tool.icon;
+                return (
+                  <div
+                    key={index}
+                    className="dashboard__tool-card"
+                    onClick={() => navigate(tool.path)}
+                  >
+                    <div className="dashboard__tool-icon">
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <div className="dashboard__tool-content">
+                      <h3 className="dashboard__tool-name">{tool.name}</h3>
+                      <p className="dashboard__tool-description">{tool.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="dashboard__divider-3" />
+        </div>
+
+        {/* Mobile View */}
+        <div className="dashboard__mobile block md:hidden">
+          <div className="dashboard__mobile-divider-top" />
+
+          {/* Quick Stats Section */}
+          <div className="dashboard__stats-section">
+            <h2 className="dashboard__mobile-section-title">Quick Stats</h2>
+            <div className="dashboard__stats-grid">
+              <div className="dashboard__stat-card">
+                <div className="dashboard__stat-label">Active Builders</div>
+                <div className="dashboard__stat-number">
+                  {statsLoading ? '...' : stats.activeBuilders}
+                </div>
+              </div>
+              <div className="dashboard__stat-card">
+                <div className="dashboard__stat-label">Active Cohorts</div>
+                <div className="dashboard__stat-number">
+                  {statsLoading ? '...' : stats.activeCohorts}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="dashboard__mobile-divider-2" />
+
+          {/* Quick Access Tools */}
+          <div className="dashboard__tools-section">
+            <h2 className="dashboard__mobile-section-title">Quick Access Tools</h2>
+            <div className="dashboard__tools-grid">
+              {tools.map((tool, index) => {
+                const Icon = tool.icon;
+                return (
+                  <div
+                    key={index}
+                    className="dashboard__tool-card"
+                    onClick={() => navigate(tool.path)}
+                  >
+                    <div className="dashboard__tool-icon">
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <div className="dashboard__tool-content">
+                      <h3 className="dashboard__tool-name">{tool.name}</h3>
+                      <p className="dashboard__tool-description">{tool.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="dashboard__mobile-divider-3" />
+        </div>
       </div>
     );
   };
@@ -1213,7 +1393,8 @@ function Dashboard() {
         )}
       
       {/* Conditionally render based on user status and role */}
-      {!isActive ? renderHistoricalView() : 
+      {isStaffOrAdmin ? renderStaffAdminView() :
+       !isActive ? renderHistoricalView() : 
        isVolunteer ? renderVolunteerView() : 
        !currentDay && cohortInfo ? renderPreCurriculumView() :
        renderDashboardContent()}
