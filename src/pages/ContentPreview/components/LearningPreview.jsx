@@ -436,7 +436,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
   const isCurrentTaskBreak = () => tasks[currentTaskIndex]?.task_type === 'break';
   const isRetrospectiveTask = () => {
     const task = tasks[currentTaskIndex];
-    return task?.task_title === 'Independent Retrospective' || task?.task_title === 'Individual Retrospective';
+    return task?.task_title?.toLowerCase().includes('retro') || false;
   };
 
   // Daily Overview

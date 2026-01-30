@@ -936,9 +936,8 @@ function Learning() {
       return false;
     }
     
-    // Exact match for retrospective task titles
-    return currentTask?.task_title === 'Independent Retrospective' || 
-           currentTask?.task_title === 'Individual Retrospective';
+    // Check if task title contains "retro" (case-insensitive)
+    return currentTask?.task_title?.toLowerCase().includes('retro') || false;
   };
 
   // Handle survey completion
