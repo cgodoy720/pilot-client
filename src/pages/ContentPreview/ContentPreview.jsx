@@ -771,6 +771,7 @@ function ContentPreview() {
           onViewFieldHistory={handleViewFieldHistory}
           onMoveTask={() => setMoveTaskDialogOpen(true)}
           canEdit={canEdit}
+          token={token}
         />
 
         <FieldHistoryDialog

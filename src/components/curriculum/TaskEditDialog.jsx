@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,8 @@ import { Checkbox } from '../ui/checkbox';
 import { Plus, Trash2, History, Save, X, Clock, GraduationCap, MessageCircle, ArrowRight, Coffee, FileQuestion, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const TaskEditDialog = ({ 
   open, 
   onOpenChange, 
@@ -28,7 +31,8 @@ const TaskEditDialog = ({
   onSave,
   onViewFieldHistory,
   onMoveTask,
-  canEdit = true 
+  canEdit = true,
+  token
 }) => {
   // Determine interface type based on task configuration
   const getInterfaceType = (taskData) => {
@@ -72,7 +76,34 @@ const TaskEditDialog = ({
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [assessments, setAssessments] = useState([]);
+  const [loadingAssessments, setLoadingAssessments] = useState(false);
   const interfaceType = getInterfaceType(formData);
+
+  // Fetch assessments when modal opens with assessment interface type
+  useEffect(() => {
+    const fetchAssessments = async () => {
+      if (!token) return;
+      
+      try {
+        setLoadingAssessments(true);
+        const response = await axios.get(
+          `${API_URL}/api/preview/assessments`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setAssessments(response.data.assessments || []);
+      } catch (error) {
+        console.error('Error fetching assessments:', error);
+        toast.error('Failed to load assessments');
+      } finally {
+        setLoadingAssessments(false);
+      }
+    };
+
+    if (open && interfaceType === 'assessment') {
+      fetchAssessments();
+    }
+  }, [open, interfaceType, token]);
 
   // Helper function to determine if deliverable type should be analyzed
   const shouldAnalyzeDeliverableType = (deliverableType) => {
@@ -274,6 +305,70 @@ const TaskEditDialog = ({
             </div>
           )}
 
+          {/* ASSESSMENT INTERFACE - Assessment Configuration (shown first) */}
+          {interfaceType === 'assessment' && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-start gap-2 mb-3">
+                <ClipboardCheck className="h-5 w-5 text-green-600 mt-0.5" />
+                <div>
+                  <p className="font-proxima-bold text-green-900 text-sm">Assessment Configuration</p>
+                  <p className="text-xs text-green-700 font-proxima">Select an assessment from the database.</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="assessment_id" className="font-proxima-bold text-sm">
+                    Assessment *
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleFieldHistory('assessment_id')}
+                    className="h-8 text-[#666] hover:text-[#4242EA]"
+                  >
+                    <History className="h-4 w-4 mr-1" />
+                    History
+                  </Button>
+                </div>
+                {loadingAssessments ? (
+                  <div className="text-sm text-green-700 font-proxima py-2">Loading assessments...</div>
+                ) : (
+                  <Select
+                    value={formData.assessment_id?.toString() || ''}
+                    onValueChange={(value) => {
+                      const selectedAssessment = assessments.find(a => a.value.toString() === value);
+                      
+                      if (selectedAssessment) {
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          assessment_id: parseInt(value),
+                          task_title: selectedAssessment.label
+                        }));
+                      }
+                    }}
+                    disabled={!canEdit}
+                  >
+                    <SelectTrigger className="font-proxima">
+                      <SelectValue placeholder="Select an assessment..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {assessments.map(assessment => (
+                        <SelectItem 
+                          key={assessment.value} 
+                          value={assessment.value.toString()}
+                        >
+                          {assessment.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Task Title */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -300,295 +395,34 @@ const TaskEditDialog = ({
             />
           </div>
 
-          {/* Description */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="task_description" className="font-proxima-bold">
-                Description
-              </Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => handleFieldHistory('task_description')}
-                className="h-8 text-[#666] hover:text-[#4242EA]"
-              >
-                <History className="h-4 w-4 mr-1" />
-                History
-              </Button>
-            </div>
-            <Textarea
-              id="task_description"
-              value={formData.task_description}
-              onChange={(e) => setFormData(prev => ({ ...prev, task_description: e.target.value }))}
-              disabled={!canEdit}
-              rows={3}
-              className="font-proxima"
-            />
-          </div>
-
-          {/* Intro */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="intro" className="font-proxima-bold">
-                Introduction Text
-              </Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => handleFieldHistory('intro')}
-                className="h-8 text-[#666] hover:text-[#4242EA]"
-              >
-                <History className="h-4 w-4 mr-1" />
-                History
-              </Button>
-            </div>
-            <Textarea
-              id="intro"
-              value={formData.intro}
-              onChange={(e) => setFormData(prev => ({ ...prev, intro: e.target.value }))}
-              disabled={!canEdit}
-              rows={4}
-              className="font-proxima"
-            />
-          </div>
-
-          {/* Questions */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="font-proxima-bold">Questions</Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleFieldHistory('questions')}
-                  className="h-8 text-[#666] hover:text-[#4242EA]"
-                >
-                  <History className="h-4 w-4 mr-1" />
-                  History
-                </Button>
-                {canEdit && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={addQuestion}
-                    className="h-8 bg-[#4242EA] hover:bg-[#3535D1]"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Question
-                  </Button>
-                )}
-              </div>
-            </div>
-            <div className="space-y-2">
-              {formData.questions.map((question, index) => (
-                <div key={index} className="flex gap-2">
-                  <Textarea
-                    value={question}
-                    onChange={(e) => updateQuestion(index, e.target.value)}
-                    disabled={!canEdit}
-                    placeholder={`Question ${index + 1}`}
-                    rows={2}
-                    className="font-proxima flex-1"
-                  />
-                  {canEdit && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeQuestion(index)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Linked Resources */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="font-proxima-bold">Linked Resources</Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleFieldHistory('linked_resources')}
-                  className="h-8 text-[#666] hover:text-[#4242EA]"
-                >
-                  <History className="h-4 w-4 mr-1" />
-                  History
-                </Button>
-                {canEdit && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={addResource}
-                    className="h-8 bg-[#4242EA] hover:bg-[#3535D1]"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Resource
-                  </Button>
-                )}
-              </div>
-            </div>
-            <div className="space-y-4">
-              {formData.linked_resources.map((resource, index) => (
-                <div key={index} className="border border-[#E3E3E3] rounded-lg p-4 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <Label className="font-proxima text-sm">Resource {index + 1}</Label>
-                    {canEdit && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeResource(index)}
-                        className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-[#666]">Title</Label>
-                      <Input
-                        value={resource.title}
-                        onChange={(e) => updateResource(index, 'title', e.target.value)}
-                        disabled={!canEdit}
-                        className="font-proxima"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-[#666]">Type</Label>
-                      <Select
-                        value={resource.type}
-                        onValueChange={(value) => updateResource(index, 'type', value)}
-                        disabled={!canEdit}
-                      >
-                        <SelectTrigger className="font-proxima">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="article">Article</SelectItem>
-                          <SelectItem value="video">Video</SelectItem>
-                          <SelectItem value="documentation">Documentation</SelectItem>
-                          <SelectItem value="tutorial">Tutorial</SelectItem>
-                          <SelectItem value="tool">Tool</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-[#666]">URL</Label>
-                    <Input
-                      value={resource.url}
-                      onChange={(e) => updateResource(index, 'url', e.target.value)}
-                      disabled={!canEdit}
-                      placeholder="https://..."
-                      className="font-proxima"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-[#666]">Description</Label>
-                    <Textarea
-                      value={resource.description}
-                      onChange={(e) => updateResource(index, 'description', e.target.value)}
-                      disabled={!canEdit}
-                      rows={2}
-                      className="font-proxima"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Conclusion */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="conclusion" className="font-proxima-bold">
-                Conclusion Text
-              </Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => handleFieldHistory('conclusion')}
-                className="h-8 text-[#666] hover:text-[#4242EA]"
-              >
-                <History className="h-4 w-4 mr-1" />
-                History
-              </Button>
-            </div>
-            <Textarea
-              id="conclusion"
-              value={formData.conclusion}
-              onChange={(e) => setFormData(prev => ({ ...prev, conclusion: e.target.value }))}
-              disabled={!canEdit}
-              rows={4}
-              className="font-proxima"
-            />
-          </div>
-
-          {/* Deliverable */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Description - Hidden for assessments and breaks */}
+          {interfaceType !== 'assessment' && interfaceType !== 'break' && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="deliverable" className="font-proxima-bold">
-                  Deliverable
+                <Label htmlFor="task_description" className="font-proxima-bold">
+                  Description
                 </Label>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleFieldHistory('deliverable')}
+                  onClick={() => handleFieldHistory('task_description')}
                   className="h-8 text-[#666] hover:text-[#4242EA]"
                 >
                   <History className="h-4 w-4 mr-1" />
                   History
                 </Button>
               </div>
-              <Input
-                id="deliverable"
-                value={formData.deliverable}
-                onChange={(e) => setFormData(prev => ({ ...prev, deliverable: e.target.value }))}
+              <Textarea
+                id="task_description"
+                value={formData.task_description}
+                onChange={(e) => setFormData(prev => ({ ...prev, task_description: e.target.value }))}
                 disabled={!canEdit}
+                rows={3}
                 className="font-proxima"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="deliverable_type" className="font-proxima-bold">
-                Deliverable Type
-              </Label>
-              <Select
-                value={formData.deliverable_type || 'none'}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, deliverable_type: value }))}
-                disabled={!canEdit}
-              >
-                <SelectTrigger className="font-proxima">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="text">Text</SelectItem>
-                  <SelectItem value="link">Link</SelectItem>
-                  <SelectItem value="document">Document</SelectItem>
-                  <SelectItem value="video">Video</SelectItem>
-                  <SelectItem value="presentation">Presentation</SelectItem>
-                  <SelectItem value="structured">Structured Data</SelectItem>
-                  <SelectItem value="assessment">Assessment</SelectItem>
-                  <SelectItem value="feedback">Feedback</SelectItem>
-                  <SelectItem value="commitment">Commitment</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          )}
 
           {/* Time Slots */}
           <div className="border-t border-[#E3E3E3] pt-6 mt-6">
@@ -650,96 +484,482 @@ const TaskEditDialog = ({
             </div>
           </div>
 
-          {/* Task Settings */}
-          <div className="border-t border-[#E3E3E3] pt-6 mt-6">
-            <h3 className="font-proxima-bold text-[#1E1E1E] mb-4 flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-[#4242EA]" />
-              Task Settings
-            </h3>
-            <div className="space-y-4">
-              {/* Conversation Mode Checkbox */}
-              <div className="flex items-center justify-between bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
-                <div className="flex items-center space-x-3">
-                  <Checkbox
-                    id="conversation_mode"
-                    checked={formData.task_mode === 'conversation'}
-                    onCheckedChange={(checked) => setFormData(prev => ({ 
-                      ...prev, 
-                      task_mode: checked ? 'conversation' : 'basic' 
-                    }))}
-                    disabled={!canEdit}
-                  />
-                  <div>
-                    <label
-                      htmlFor="conversation_mode"
-                      className="text-sm font-proxima-bold text-[#1E1E1E] cursor-pointer flex items-center gap-2"
-                    >
-                      <MessageCircle className="h-4 w-4 text-[#4242EA]" />
-                      Conversation Mode
-                    </label>
-                    <p className="text-xs text-[#666] font-proxima mt-1">
-                      Enable AI chat interaction for this task
-                    </p>
-                  </div>
+          {/* BREAK INTERFACE - Minimal fields */}
+          {interfaceType === 'break' && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-start gap-2 mb-3">
+                <Coffee className="h-5 w-5 text-amber-600 mt-0.5" />
+                <div>
+                  <p className="font-proxima-bold text-amber-900 text-sm">Break Task Configuration</p>
+                  <p className="text-xs text-amber-700 font-proxima">Break tasks use a simple interface with minimal configuration.</p>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                    onClick={() => handleFieldHistory('task_mode')}
-                  className="h-8 text-[#666] hover:text-[#4242EA]"
-                >
-                  <History className="h-4 w-4 mr-1" />
-                  History
-                </Button>
               </div>
-
-              {/* Graded Task Checkbox */}
-              <div className="flex items-center justify-between bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
-                <div className="flex items-center space-x-3">
-                  <Checkbox
-                    id="graded_task"
-                    checked={formData.should_analyze}
-                    onCheckedChange={(checked) => {
-                      const shouldAnalyze = checked && shouldAnalyzeDeliverableType(formData.deliverable_type);
-                      
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        should_analyze: checked,
-                        analyze_deliverable: shouldAnalyze
-                      }));
-                    }}
-                    disabled={!canEdit}
-                  />
-                  <div>
-                    <label
-                      htmlFor="graded_task"
-                      className="text-sm font-proxima-bold text-[#1E1E1E] cursor-pointer flex items-center gap-2"
-                    >
-                      <GraduationCap className="h-4 w-4 text-[#4242EA]" />
-                      Graded Task
-                    </label>
-                    <p className="text-xs text-[#666] font-proxima mt-1">
-                      Student submissions will be analyzed and graded
-                      {formData.should_analyze && shouldAnalyzeDeliverableType(formData.deliverable_type) && (
-                        <span className="block mt-1 text-green-600">✓ Deliverable will be analyzed with rubric</span>
-                      )}
-                    </p>
-                  </div>
+              
+              {/* Optional intro for break */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="intro" className="font-proxima-bold text-sm">
+                    Break Message (Optional)
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleFieldHistory('intro')}
+                    className="h-8 text-[#666] hover:text-[#4242EA]"
+                  >
+                    <History className="h-4 w-4 mr-1" />
+                    History
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                    onClick={() => handleFieldHistory('should_analyze')}
-                  className="h-8 text-[#666] hover:text-[#4242EA]"
-                >
-                  <History className="h-4 w-4 mr-1" />
-                  History
-                </Button>
+                <Textarea
+                  id="intro"
+                  value={formData.intro}
+                  onChange={(e) => setFormData(prev => ({ ...prev, intro: e.target.value }))}
+                  disabled={!canEdit}
+                  placeholder="e.g., Time to recharge! Use this break to network with fellow Builders..."
+                  rows={3}
+                  className="font-proxima"
+                />
               </div>
             </div>
-          </div>
+          )}
+
+          {/* SURVEY INTERFACE - Survey-specific fields */}
+          {interfaceType === 'survey' && (
+            <>
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="flex items-start gap-2 mb-3">
+                  <FileQuestion className="h-5 w-5 text-purple-600 mt-0.5" />
+                  <div>
+                    <p className="font-proxima-bold text-purple-900 text-sm">Survey Configuration</p>
+                    <p className="text-xs text-purple-700 font-proxima">Survey questions are hardcoded in the frontend based on survey type.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="feedback_slot" className="font-proxima-bold text-sm">
+                      Survey Type *
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleFieldHistory('feedback_slot')}
+                      className="h-8 text-[#666] hover:text-[#4242EA]"
+                    >
+                      <History className="h-4 w-4 mr-1" />
+                      History
+                    </Button>
+                  </div>
+                  <Select
+                    value={formData.feedback_slot || 'weekly'}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, feedback_slot: value }))}
+                    disabled={!canEdit}
+                  >
+                    <SelectTrigger className="font-proxima">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="weekly">Weekly Survey (5 questions)</SelectItem>
+                      <SelectItem value="l1_final">L1 Final Survey (6 questions)</SelectItem>
+                      <SelectItem value="end_of_l1">End of L1</SelectItem>
+                      <SelectItem value="mid_program">Mid Program</SelectItem>
+                      <SelectItem value="final">Final</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Survey intro/description */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="intro" className="font-proxima-bold">
+                    Survey Introduction (Optional)
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleFieldHistory('intro')}
+                    className="h-8 text-[#666] hover:text-[#4242EA]"
+                  >
+                    <History className="h-4 w-4 mr-1" />
+                    History
+                  </Button>
+                </div>
+                <Textarea
+                  id="intro"
+                  value={formData.intro}
+                  onChange={(e) => setFormData(prev => ({ ...prev, intro: e.target.value }))}
+                  disabled={!canEdit}
+                  placeholder="Introductory text for the survey..."
+                  rows={3}
+                  className="font-proxima"
+                />
+              </div>
+            </>
+          )}
+
+          {/* CHAT INTERFACE - Full conversation fields */}
+          {interfaceType === 'chat' && (
+            <>
+              {/* Intro */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="intro" className="font-proxima-bold">
+                    Introduction Text
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleFieldHistory('intro')}
+                    className="h-8 text-[#666] hover:text-[#4242EA]"
+                  >
+                    <History className="h-4 w-4 mr-1" />
+                    History
+                  </Button>
+                </div>
+                <Textarea
+                  id="intro"
+                  value={formData.intro}
+                  onChange={(e) => setFormData(prev => ({ ...prev, intro: e.target.value }))}
+                  disabled={!canEdit}
+                  rows={4}
+                  className="font-proxima"
+                />
+              </div>
+
+              {/* Questions */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="font-proxima-bold">Questions</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleFieldHistory('questions')}
+                      className="h-8 text-[#666] hover:text-[#4242EA]"
+                    >
+                      <History className="h-4 w-4 mr-1" />
+                      History
+                    </Button>
+                    {canEdit && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={addQuestion}
+                        className="h-8 bg-[#4242EA] hover:bg-[#3535D1]"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Question
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {formData.questions.map((question, index) => (
+                    <div key={index} className="flex gap-2">
+                      <Textarea
+                        value={question}
+                        onChange={(e) => updateQuestion(index, e.target.value)}
+                        disabled={!canEdit}
+                        placeholder={`Question ${index + 1}`}
+                        rows={2}
+                        className="font-proxima flex-1"
+                      />
+                      {canEdit && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeQuestion(index)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Linked Resources */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="font-proxima-bold">Linked Resources</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleFieldHistory('linked_resources')}
+                      className="h-8 text-[#666] hover:text-[#4242EA]"
+                    >
+                      <History className="h-4 w-4 mr-1" />
+                      History
+                    </Button>
+                    {canEdit && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={addResource}
+                        className="h-8 bg-[#4242EA] hover:bg-[#3535D1]"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Resource
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {formData.linked_resources.map((resource, index) => (
+                    <div key={index} className="border border-[#E3E3E3] rounded-lg p-4 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <Label className="font-proxima text-sm">Resource {index + 1}</Label>
+                        {canEdit && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeResource(index)}
+                            className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-[#666]">Title</Label>
+                          <Input
+                            value={resource.title}
+                            onChange={(e) => updateResource(index, 'title', e.target.value)}
+                            disabled={!canEdit}
+                            className="font-proxima"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-[#666]">Type</Label>
+                          <Select
+                            value={resource.type}
+                            onValueChange={(value) => updateResource(index, 'type', value)}
+                            disabled={!canEdit}
+                          >
+                            <SelectTrigger className="font-proxima">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="article">Article</SelectItem>
+                              <SelectItem value="video">Video</SelectItem>
+                              <SelectItem value="documentation">Documentation</SelectItem>
+                              <SelectItem value="tutorial">Tutorial</SelectItem>
+                              <SelectItem value="tool">Tool</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-[#666]">URL</Label>
+                        <Input
+                          value={resource.url}
+                          onChange={(e) => updateResource(index, 'url', e.target.value)}
+                          disabled={!canEdit}
+                          placeholder="https://..."
+                          className="font-proxima"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-[#666]">Description</Label>
+                        <Textarea
+                          value={resource.description}
+                          onChange={(e) => updateResource(index, 'description', e.target.value)}
+                          disabled={!canEdit}
+                          rows={2}
+                          className="font-proxima"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Conclusion */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="conclusion" className="font-proxima-bold">
+                    Conclusion Text
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleFieldHistory('conclusion')}
+                    className="h-8 text-[#666] hover:text-[#4242EA]"
+                  >
+                    <History className="h-4 w-4 mr-1" />
+                    History
+                  </Button>
+                </div>
+                <Textarea
+                  id="conclusion"
+                  value={formData.conclusion}
+                  onChange={(e) => setFormData(prev => ({ ...prev, conclusion: e.target.value }))}
+                  disabled={!canEdit}
+                  rows={4}
+                  className="font-proxima"
+                />
+              </div>
+
+              {/* Deliverable */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="deliverable" className="font-proxima-bold">
+                      Deliverable
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleFieldHistory('deliverable')}
+                      className="h-8 text-[#666] hover:text-[#4242EA]"
+                    >
+                      <History className="h-4 w-4 mr-1" />
+                      History
+                    </Button>
+                  </div>
+                  <Input
+                    id="deliverable"
+                    value={formData.deliverable}
+                    onChange={(e) => setFormData(prev => ({ ...prev, deliverable: e.target.value }))}
+                    disabled={!canEdit}
+                    className="font-proxima"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="deliverable_type" className="font-proxima-bold">
+                    Deliverable Type
+                  </Label>
+                  <Select
+                    value={formData.deliverable_type || 'none'}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, deliverable_type: value }))}
+                    disabled={!canEdit}
+                  >
+                    <SelectTrigger className="font-proxima">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="text">Text</SelectItem>
+                      <SelectItem value="link">Link</SelectItem>
+                      <SelectItem value="document">Document</SelectItem>
+                      <SelectItem value="video">Video</SelectItem>
+                      <SelectItem value="presentation">Presentation</SelectItem>
+                      <SelectItem value="structured">Structured Data</SelectItem>
+                      <SelectItem value="assessment">Assessment</SelectItem>
+                      <SelectItem value="feedback">Feedback</SelectItem>
+                      <SelectItem value="commitment">Commitment</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Task Settings */}
+              <div className="border-t border-[#E3E3E3] pt-6 mt-6">
+                <h3 className="font-proxima-bold text-[#1E1E1E] mb-4 flex items-center gap-2">
+                  <GraduationCap className="h-5 w-5 text-[#4242EA]" />
+                  Task Settings
+                </h3>
+                <div className="space-y-4">
+                  {/* Conversation Mode Checkbox */}
+                  <div className="flex items-center justify-between bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
+                    <div className="flex items-center space-x-3">
+                      <Checkbox
+                        id="conversation_mode"
+                        checked={formData.task_mode === 'conversation'}
+                        onCheckedChange={(checked) => setFormData(prev => ({ 
+                          ...prev, 
+                          task_mode: checked ? 'conversation' : 'basic' 
+                        }))}
+                        disabled={!canEdit}
+                      />
+                      <div>
+                        <label
+                          htmlFor="conversation_mode"
+                          className="text-sm font-proxima-bold text-[#1E1E1E] cursor-pointer flex items-center gap-2"
+                        >
+                          <MessageCircle className="h-4 w-4 text-[#4242EA]" />
+                          Conversation Mode
+                        </label>
+                        <p className="text-xs text-[#666] font-proxima mt-1">
+                          Enable AI chat interaction for this task
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleFieldHistory('task_mode')}
+                      className="h-8 text-[#666] hover:text-[#4242EA]"
+                    >
+                      <History className="h-4 w-4 mr-1" />
+                      History
+                    </Button>
+                  </div>
+
+                  {/* Graded Task Checkbox */}
+                  <div className="flex items-center justify-between bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
+                    <div className="flex items-center space-x-3">
+                      <Checkbox
+                        id="graded_task"
+                        checked={formData.should_analyze}
+                        onCheckedChange={(checked) => {
+                          const shouldAnalyze = checked && shouldAnalyzeDeliverableType(formData.deliverable_type);
+                          
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            should_analyze: checked,
+                            analyze_deliverable: shouldAnalyze
+                          }));
+                        }}
+                        disabled={!canEdit}
+                      />
+                      <div>
+                        <label
+                          htmlFor="graded_task"
+                          className="text-sm font-proxima-bold text-[#1E1E1E] cursor-pointer flex items-center gap-2"
+                        >
+                          <GraduationCap className="h-4 w-4 text-[#4242EA]" />
+                          Graded Task
+                        </label>
+                        <p className="text-xs text-[#666] font-proxima mt-1">
+                          Student submissions will be analyzed and graded
+                          {formData.should_analyze && shouldAnalyzeDeliverableType(formData.deliverable_type) && (
+                            <span className="block mt-1 text-green-600">✓ Deliverable will be analyzed with rubric</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleFieldHistory('should_analyze')}
+                      className="h-8 text-[#666] hover:text-[#4242EA]"
+                    >
+                      <History className="h-4 w-4 mr-1" />
+                      History
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex justify-between items-center pt-4 border-t border-[#E3E3E3]">
