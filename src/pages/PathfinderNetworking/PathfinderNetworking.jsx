@@ -101,10 +101,35 @@ function PathfinderNetworking() {
 
   // Check if we should open the form (from navigation state)
   useEffect(() => {
+    console.log('[Networking] location.state:', location.state);
     if (location.state?.openForm) {
-      setShowForm(true);
-      // Clear the state so it doesn't reopen if user navigates back
+      console.log('[Networking] openForm detected');
+
+      // Clear the state first so it doesn't reopen if user navigates back
       window.history.replaceState({}, document.title);
+
+      // If prefillData exists, merge it into formData
+      if (location.state?.prefillData) {
+        console.log('[Networking] prefillData:', location.state.prefillData);
+        const prefillData = location.state.prefillData;
+
+        // Set form data first, then open form after a tick to ensure state is updated
+        setFormData(prev => {
+          const newData = {
+            ...prev,
+            ...prefillData
+          };
+          console.log('[Networking] Setting formData to:', newData);
+          return newData;
+        });
+
+        // Open form after state update
+        setTimeout(() => {
+          setShowForm(true);
+        }, 0);
+      } else {
+        setShowForm(true);
+      }
     }
   }, [location]);
 
