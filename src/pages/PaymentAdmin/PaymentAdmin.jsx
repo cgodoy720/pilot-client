@@ -60,8 +60,10 @@ const PaymentAdmin = () => {
       }
 
       const data = await response.json();
+      // Handle both array and object response formats
+      const buildersList = data.builders || data;
       // Sort users alphabetically (already sorted by backend, but keeping for safety)
-      const sorted = data.sort((a, b) => {
+      const sorted = buildersList.sort((a, b) => {
         const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
         const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
         return nameA.localeCompare(nameB);
