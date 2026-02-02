@@ -70,6 +70,30 @@ function LearningPreview({ dayId, cohort, onBack }) {
     }
   }, [messages]);
 
+  // Auto-focus input when initial message loads
+  useEffect(() => {
+    if (hasInitialMessage && textareaRef.current) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 200);
+    }
+  }, [hasInitialMessage]);
+
+  // Auto-focus input when AI response arrives
+  useEffect(() => {
+    if (messages.length > 0 && !isAiThinking && !isSending) {
+      const lastMessage = messages[messages.length - 1];
+      // Focus when last message is from AI and input is not disabled
+      if (lastMessage.sender === 'ai' && textareaRef.current) {
+        // Small delay to ensure DOM is ready and user can see the response
+        setTimeout(() => {
+          textareaRef.current?.focus();
+        }, 300);
+      }
+    }
+  }, [messages, isAiThinking, isSending]);
+
   // Cleanup
   useEffect(() => {
     return () => {

@@ -820,6 +820,15 @@ function Learning() {
         [currentTask.id]: submission
       }));
       
+      // Clear draft from localStorage after successful submission
+      try {
+        const draftKey = `deliverable_draft_${user?.id}_${currentTask.id}`;
+        localStorage.removeItem(draftKey);
+        console.log('🗑️ Cleared draft from localStorage');
+      } catch (e) {
+        console.error('Error clearing draft from localStorage:', e);
+      }
+      
       // Show success toast
       toast.success("Good job! You just submitted your deliverable.", {
         duration: 4000,
@@ -1381,6 +1390,8 @@ function Learning() {
             isOpen={isDeliverableSidebarOpen}
             onClose={() => setIsDeliverableSidebarOpen(false)}
             onSubmit={handleDeliverableSubmit}
+            userId={user?.id}
+            taskId={tasks[currentTaskIndex].id}
           />
         )}
 

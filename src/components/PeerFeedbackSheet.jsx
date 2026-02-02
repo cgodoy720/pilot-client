@@ -60,10 +60,21 @@ const PeerFeedbackSheet = ({ isOpen, onClose, dayNumber, cohort, token }) => {
 
       const data = await response.json();
       
+      // Handle different response formats
+      let usersList = [];
+      if (Array.isArray(data)) {
+        usersList = data;
+      } else if (data.users && Array.isArray(data.users)) {
+        usersList = data.users;
+      } else {
+        console.error('Unexpected API response format:', data);
+        throw new Error('Invalid response format from server');
+      }
+      
       // Sort users alphabetically by first name, then last name
-      const sortedUsers = data.sort((a, b) => {
-        const nameA = `${a.first_name.toLowerCase()} ${a.last_name.toLowerCase()}`;
-        const nameB = `${b.first_name.toLowerCase()} ${b.last_name.toLowerCase()}`;
+      const sortedUsers = usersList.sort((a, b) => {
+        const nameA = `${a.first_name?.toLowerCase() || ''} ${a.last_name?.toLowerCase() || ''}`;
+        const nameB = `${b.first_name?.toLowerCase() || ''} ${b.last_name?.toLowerCase() || ''}`;
         return nameA.localeCompare(nameB);
       });
 
