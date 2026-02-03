@@ -20,8 +20,8 @@ const FiltersSection = ({
             Cohort:
           </Label>
           <Select
-            value={filters.cohort || "__ALL_COHORTS__"}
-            onValueChange={(value) => onFilterChange('cohort', value === "__ALL_COHORTS__" ? '' : value)}
+            value={filters.cohortId || "__ALL_COHORTS__"}
+            onValueChange={(value) => onFilterChange('cohortId', value === "__ALL_COHORTS__" ? '' : value)}
           >
             <SelectTrigger id="cohort">
               <SelectValue placeholder="All Cohorts" />
@@ -29,8 +29,8 @@ const FiltersSection = ({
             <SelectContent>
               <SelectItem value="__ALL_COHORTS__">All Cohorts</SelectItem>
               {availableCohorts.map(cohort => (
-                <SelectItem key={cohort} value={cohort}>
-                  {cohort}
+                <SelectItem key={cohort.cohort_id} value={cohort.cohort_id}>
+                  {cohort.name}
                 </SelectItem>
               ))}
             </SelectContent>
