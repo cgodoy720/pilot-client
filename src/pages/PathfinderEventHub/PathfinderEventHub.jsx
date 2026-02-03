@@ -6,6 +6,8 @@ import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Input } from '../../components/ui/input';
+import { Checkbox } from '../../components/ui/checkbox';
 import EventCard from './EventCard';
 import EventCalendar from './EventCalendar';
 import AddEventDialog from './AddEventDialog';
@@ -21,7 +23,11 @@ function PathfinderEventHub() {
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState('list'); // 'list' or 'calendar'
-  const [filter, setFilter] = useState('all'); // 'all', 'interested', 'attending'
+  const [filter, setFilter] = useState('all'); // 'all', 'going', 'attended'
+  const [locationFilter, setLocationFilter] = useState('all'); // 'all', 'in_person', 'virtual', 'hybrid'
+  const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'hackathon', 'networking', etc.
+  const [searchQuery, setSearchQuery] = useState('');
+  const [freeOnly, setFreeOnly] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
 
   useEffect(() => {
@@ -69,9 +75,23 @@ function PathfinderEventHub() {
   };
 
   const filteredEvents = events.filter(event => {
-    if (filter === 'all') return true;
-    if (filter === 'interested') return event.user_registration?.registration_status === 'interested';
-    if (filter === 'attending') return event.user_registration?.registration_status === 'attending';
+    // My Events filter
+    if (filter === 'going' && event.user_registration?.registration_status !== 'attending') return false;
+    if (filter === 'attended' && event.user_registration?.registration_status !== 'attended') return false;
+
+    // Location filter
+    if (locationFilter !== 'all' && event.location_type !== locationFilter) return false;
+
+    // Type filter
+    if (typeFilter !== 'all' && event.event_type !== typeFilter) return false;
+
+    // Search filter - match title or description
+    if (searchQuery && !event.title?.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        !event.description?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+
+    // Free only filter
+    if (freeOnly && event.cost > 0) return false;
+
     return true;
   });
 
@@ -96,7 +116,33 @@ function PathfinderEventHub() {
       </div>
 
       {/* View Toggle & Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-4 mb-6">
+        {/* Search Input */}
+        <div className="w-64">
+          <Input
+            type="text"
+            placeholder="Search events..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="bg-white border-[#e0e0e0]"
+          />
+        </div>
+
+        {/* Free Only Checkbox */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-[#e0e0e0]">
+          <Checkbox
+            id="freeOnly"
+            checked={freeOnly}
+            onCheckedChange={setFreeOnly}
+          />
+          <label
+            htmlFor="freeOnly"
+            className="text-sm font-medium text-[#1a1a1a] cursor-pointer"
+          >
+            Free only
+          </label>
+        </div>
+
         {/* View Toggle */}
         <div className="flex gap-2 bg-white rounded-lg p-1 border border-[#e0e0e0]">
           <button
@@ -123,16 +169,49 @@ function PathfinderEventHub() {
           </button>
         </div>
 
-        {/* Filter Dropdown */}
-        <div className="flex-1 max-w-xs">
+        {/* My Events Filter */}
+        <div className="w-40">
           <Select value={filter} onValueChange={setFilter}>
             <SelectTrigger className="bg-white border-[#e0e0e0]">
-              <SelectValue placeholder="Filter events" />
+              <SelectValue placeholder="My Events" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Events</SelectItem>
-              <SelectItem value="interested">I'm Interested</SelectItem>
-              <SelectItem value="attending">I'm Going</SelectItem>
+              <SelectItem value="going">Going</SelectItem>
+              <SelectItem value="attended">Attended</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Location Filter */}
+        <div className="w-40">
+          <Select value={locationFilter} onValueChange={setLocationFilter}>
+            <SelectTrigger className="bg-white border-[#e0e0e0]">
+              <SelectValue placeholder="Location" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              <SelectItem value="in_person">In-Person</SelectItem>
+              <SelectItem value="virtual">Virtual</SelectItem>
+              <SelectItem value="hybrid">Hybrid</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Type Filter */}
+        <div className="w-40">
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="bg-white border-[#e0e0e0]">
+              <SelectValue placeholder="Event Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="hackathon">Hackathon</SelectItem>
+              <SelectItem value="networking">Networking</SelectItem>
+              <SelectItem value="conference">Conference</SelectItem>
+              <SelectItem value="workshop">Workshop</SelectItem>
+              <SelectItem value="meetup">Meetup</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
             </SelectContent>
           </Select>
         </div>
