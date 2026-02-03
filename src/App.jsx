@@ -34,6 +34,7 @@ import PathfinderApplications from './pages/PathfinderApplications';
 import PathfinderNetworking from './pages/PathfinderNetworking';
 import PathfinderProjects from './pages/PathfinderProjects';
 import PathfinderEventHub from './pages/PathfinderEventHub/PathfinderEventHub';
+import EventDetailPage from './pages/PathfinderEventHub/EventDetailPage';
 import PathfinderAdminDashboard from './pages/PathfinderDashboard';
 import PathfinderAdmin from './pages/PathfinderAdmin';
 
@@ -332,6 +333,7 @@ function App() {
           <Route path="networking" element={<PathfinderNetworking />} />
           <Route path="projects" element={<PathfinderProjects />} />
           <Route path="events" element={<PathfinderEventHub />} />
+          <Route path="events/:eventId" element={<EventDetailPage />} />
         </Route>
         
         {/* Pathfinder admin dashboard - separate route */}

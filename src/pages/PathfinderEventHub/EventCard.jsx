@@ -371,17 +371,7 @@ function EventCard({ event, onUpdate }) {
               <Button
                 variant="outline"
                 className="ml-auto text-[#666666] hover:text-[#1a1a1a]"
-                onClick={() => {
-                  Swal.fire({
-                    toast: true,
-                    icon: 'info',
-                    title: 'Event details coming soon!',
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 3000,
-                    timerProgressBar: true
-                  });
-                }}
+                onClick={() => navigate(`/pathfinder/events/${event.event_id}`)}
               >
                 View Details
               </Button>
