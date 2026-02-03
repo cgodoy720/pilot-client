@@ -150,7 +150,8 @@ function EventCard({ event, onUpdate }) {
               date: eventDate,
               eventName: event.title || '',
               eventOrganizer: event.organizer || '',
-              notes: event.description?.substring(0, 200) || ''
+              notes: event.description?.substring(0, 200) || '',
+              linkedEventId: event.event_id  // Link back to EventHub event
             };
             console.log('[EventCard] Event object:', event);
             console.log('[EventCard] Navigating with prefillData:', prefillData);

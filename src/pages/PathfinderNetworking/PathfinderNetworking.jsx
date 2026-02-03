@@ -72,7 +72,8 @@ function PathfinderNetworking() {
     direction: 'outbound', // For digital: 'outbound' or 'inbound'
     eventName: '', // For IRL
     eventOrganizer: '', // For IRL
-    linkedJobId: null // Link to job application
+    linkedJobId: null, // Link to job application
+    linkedEventId: null // Link to EventHub event (for Hustle→RSVP linking)
   });
   const [parsedUrlData, setParsedUrlData] = useState(null);
   const [isParsingUrl, setIsParsingUrl] = useState(false);
@@ -342,6 +343,29 @@ function PathfinderNetworking() {
       });
 
       if (response.ok) {
+        const activity = await response.json();
+
+        // If this Hustle came from EventHub, link it back to the RSVP
+        if (!isEditing && formData.linkedEventId) {
+          try {
+            console.log('[Networking] Linking Hustle to EventHub RSVP:', {
+              eventId: formData.linkedEventId,
+              hustleId: activity.networking_activity_id
+            });
+            await fetch(`${import.meta.env.VITE_API_URL}/api/pathfinder/events/${formData.linkedEventId}/register`, {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ linkedHustleId: activity.networking_activity_id })
+            });
+          } catch (linkErr) {
+            console.error('Error linking Hustle to RSVP:', linkErr);
+            // Don't fail the whole operation if linking fails
+          }
+        }
+
         // Show success toast notification
         Swal.fire({
           toast: true,
@@ -452,7 +476,8 @@ function PathfinderNetworking() {
       direction: 'outbound',
       eventName: '',
       eventOrganizer: '',
-      linkedJobId: null
+      linkedJobId: null,
+      linkedEventId: null
     });
     setParsedUrlData(null);
     setShowForm(false);
