@@ -17,6 +17,7 @@ const JobApplicationsTab = lazy(() => import('./components/JobApplicationsTab/Jo
 const PRDsTab = lazy(() => import('./components/PRDsTab/PRDsTab'));
 const CeremoniesTab = lazy(() => import('./components/CeremoniesTab/CeremoniesTab'));
 const WeeklyGoalsTab = lazy(() => import('./components/WeeklyGoalsTab/WeeklyGoalsTab'));
+const EventsTab = lazy(() => import('./components/EventsTab/EventsTab'));
 
 // Import shared modals
 import BuilderDetailModal from './components/shared/BuilderDetailModal';
@@ -1260,13 +1261,13 @@ function PathfinderAdmin() {
 
         {/* Tabs */}
         <Tabs value={view} onValueChange={setView} className="w-full">
-          <TabsList className="grid w-full grid-cols-8 mb-8">
+          <TabsList className="grid w-full grid-cols-9 mb-8">
             <TabsTrigger value="overview" className="px-2 text-sm font-proxima">Overview</TabsTrigger>
             <TabsTrigger value="builders" className="px-2 text-sm font-proxima">Builders</TabsTrigger>
             <TabsTrigger value="companies" className="px-2 text-sm font-proxima">Companies</TabsTrigger>
             <TabsTrigger value="build-projects" className="px-2 text-sm font-proxima">Build Projects</TabsTrigger>
+            <TabsTrigger value="events" className="px-2 text-sm font-proxima">Events</TabsTrigger>
             <TabsTrigger value="job-applications" className="px-2 text-sm font-proxima">Job Applications</TabsTrigger>
-            <TabsTrigger value="ceremonies" className="px-2 text-sm font-proxima">Ceremonies</TabsTrigger>
             <TabsTrigger value="prds" className="relative px-2 text-sm font-proxima">
               PRDs
               {pendingApprovals.length > 0 && (
@@ -1276,6 +1277,7 @@ function PathfinderAdmin() {
               )}
             </TabsTrigger>
             <TabsTrigger value="weekly-goals" className="px-2 text-sm font-proxima">Weekly Goals</TabsTrigger>
+            <TabsTrigger value="ceremonies" className="px-2 text-sm font-proxima">Ceremonies</TabsTrigger>
           </TabsList>
 
           {/* Overview View */}
@@ -1416,6 +1418,13 @@ function PathfinderAdmin() {
                 handleDeleteGoal={handleDeleteGoal}
                 handleCancelEdit={handleCancelEdit}
               />
+            </Suspense>
+          </TabsContent>
+
+          {/* Events View */}
+          <TabsContent value="events" className="mt-0">
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading Events...</div></div>}>
+              <EventsTab />
             </Suspense>
           </TabsContent>
         </Tabs>
