@@ -19,8 +19,11 @@ import {
   DropdownMenuTrigger,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '../../../../components/ui/dropdown-menu';
-import { Upload, Settings, RefreshCw } from 'lucide-react';
+import { Upload, Settings, RefreshCw, ChevronDown, Users } from 'lucide-react';
 import LeadImportModal from './LeadImportModal';
 import EmailListsManager from './EmailListsManager';
 import SourceConfigManager from './SourceConfigManager';
@@ -257,17 +260,21 @@ const LeadsTab = ({ token }) => {
 
   // Fetch email lists
   const fetchEmailLists = useCallback(async () => {
+    console.log('📧 fetchEmailLists called, token:', token ? 'present' : 'missing');
     if (!token) return;
     
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/admissions/leads/email-lists`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const url = `${import.meta.env.VITE_API_URL}/api/admissions/leads/email-lists`;
+      console.log('📧 Fetching from:', url);
+      const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       
+      console.log('📧 Response status:', response.status);
       if (response.ok) {
         const data = await response.json();
+        console.log('📧 Email lists received:', data);
         setEmailLists(data || []);
+      } else {
+        console.error('📧 Failed to fetch email lists:', response.status, await response.text());
       }
     } catch (error) {
       console.error('Error fetching email lists:', error);
@@ -332,13 +339,42 @@ const LeadsTab = ({ token }) => {
   // Handle page change
   const handlePageChange = (newPage) => {
     setPagination(prev => ({ ...prev, page: newPage }));
-    setSelectedLeads([]);
+    // Don't clear selection on page change - user may want to select across pages
   };
 
-  // Handle select all
-  const handleSelectAll = (checked) => {
+  // Handle select all - fetches ALL matching lead IDs for current filter
+  const handleSelectAll = async (checked) => {
     if (checked) {
-      setSelectedLeads(sortedLeads.map(l => l.lead_id));
+      // Fetch all lead IDs matching current filter (no pagination limit)
+      try {
+        const params = new URLSearchParams({
+          page: '1',
+          limit: '10000', // Large limit to get all
+          ids_only: 'true' // Signal to backend we only need IDs
+        });
+        
+        if (filters.status) params.append('status', filters.status);
+        if (filters.source_type) params.append('source_type', filters.source_type);
+        if (filters.list_id) params.append('list_id', filters.list_id);
+        if (filters.attended_event) params.append('attended_event', filters.attended_event);
+        if (filters.search) params.append('search', filters.search);
+        
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/admissions/leads?${params}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Get all lead IDs from response
+          const allIds = (data.leads || []).map(l => l.lead_id);
+          setSelectedLeads(allIds);
+        }
+      } catch (error) {
+        console.error('Error fetching all lead IDs:', error);
+        // Fallback to current page selection
+        setSelectedLeads(sortedLeads.map(l => l.lead_id));
+      }
     } else {
       setSelectedLeads([]);
     }
@@ -406,6 +442,36 @@ const LeadsTab = ({ token }) => {
     fetchStats();
     fetchEmailLists();
     fetchSourceConfig();
+  };
+
+  // Bulk add selected leads to an email list
+  const handleBulkAddToList = async (listId) => {
+    if (selectedLeads.length === 0) return;
+    
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admissions/leads/email-lists/${listId}/add-leads`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ lead_ids: selectedLeads })
+        }
+      );
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`Added ${result.added} leads to list`);
+        setSelectedLeads([]); // Clear selection
+        fetchLeads(); // Refresh table
+      } else {
+        console.error('Failed to add leads to list');
+      }
+    } catch (error) {
+      console.error('Error bulk adding leads to list:', error);
+    }
   };
 
   // Get unique source types for filter
@@ -729,6 +795,58 @@ const LeadsTab = ({ token }) => {
 
         {/* Actions */}
         <div className="flex items-center gap-2 ml-auto">
+          {/* Bulk Actions Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="outline" 
+                className="font-proxima gap-2"
+                disabled={selectedLeads.length === 0}
+              >
+                <Users className="h-4 w-4" />
+                Bulk Actions {selectedLeads.length > 0 && `(${selectedLeads.length})`}
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="font-proxima w-56">
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <span>Add to Email List</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="font-proxima">
+                  {emailLists.length > 0 ? (
+                    emailLists.map(list => (
+                      <DropdownMenuItem 
+                        key={list.list_id}
+                        onClick={() => handleBulkAddToList(list.list_id)}
+                      >
+                        {list.name}
+                        {list.member_count > 0 && (
+                          <span className="ml-auto text-gray-400 text-xs">
+                            {list.member_count} members
+                          </span>
+                        )}
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <div className="px-2 py-1.5 text-sm text-gray-500">
+                      No email lists created yet.
+                      <br />
+                      <span className="text-xs">Create one in Settings.</span>
+                    </div>
+                  )}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={() => setSelectedLeads([])}
+                className="text-gray-500"
+              >
+                Clear Selection
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button 
             variant="outline" 
             onClick={() => setSettingsOpen(!settingsOpen)}
@@ -753,10 +871,18 @@ const LeadsTab = ({ token }) => {
         </div>
       </div>
 
-      {/* Active Filters Display */}
-      {hasActiveFilters && (
+      {/* Selection & Active Filters Display */}
+      {(hasActiveFilters || selectedLeads.length > 0) && (
         <div className="flex items-center gap-2 bg-white px-4 py-2 border-b border-gray-200 shrink-0">
-          <span className="text-sm text-gray-500 font-proxima">Active filters:</span>
+          {selectedLeads.length > 0 && (
+            <>
+              <Badge className="bg-[#4242ea] text-white font-proxima">
+                {selectedLeads.length} of {pagination.total} selected
+              </Badge>
+              <span className="text-gray-300">|</span>
+            </>
+          )}
+          {hasActiveFilters && <span className="text-sm text-gray-500 font-proxima">Active filters:</span>}
           {filters.status && (
             <Badge className="bg-blue-100 text-blue-700 font-proxima cursor-pointer hover:bg-blue-200" onClick={() => handleClearFilter('status')}>
               Status: {formatStatus(filters.status)} ✕
@@ -815,7 +941,13 @@ const LeadsTab = ({ token }) => {
                 <TableRow className="bg-gray-50">
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={selectedLeads.length === sortedLeads.length && sortedLeads.length > 0}
+                      checked={
+                        selectedLeads.length === 0 
+                          ? false 
+                          : selectedLeads.length === pagination.total 
+                            ? true 
+                            : "indeterminate"
+                      }
                       onCheckedChange={handleSelectAll}
                     />
                   </TableHead>
