@@ -13,6 +13,7 @@ const OverviewTab = lazy(() => import('./components/OverviewTab/OverviewTab'));
 const ApplicationsTab = lazy(() => import('./components/ApplicationsTab/ApplicationsTab'));
 const InfoSessionsTab = lazy(() => import('./components/InfoSessionsTab/InfoSessionsTab'));
 const WorkshopsTab = lazy(() => import('./components/WorkshopsTab/WorkshopsTab'));
+const LeadsTab = lazy(() => import('./components/LeadsTab/LeadsTab'));
 const EmailsTab = lazy(() => import('./components/EmailsTab/EmailsTab'));
 
 const AdmissionsDashboard = () => {
@@ -27,7 +28,7 @@ const AdmissionsDashboard = () => {
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['overview', 'applications', 'info-sessions', 'workshops', 'emails'].includes(tabParam)) {
+    if (tabParam && ['overview', 'applications', 'info-sessions', 'workshops', 'leads', 'emails'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [location.search]);
@@ -849,7 +850,7 @@ const AdmissionsDashboard = () => {
       <div className="flex-1 overflow-hidden flex flex-col">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
           <div className="px-6 pt-4 pb-0 shrink-0">
-            <TabsList className="grid w-full grid-cols-5 bg-white border border-gray-200">
+            <TabsList className="grid w-full grid-cols-6 bg-white border border-gray-200">
             <TabsTrigger 
               value="overview" 
               className="font-proxima data-[state=active]:bg-[#4242ea] data-[state=active]:text-white"
@@ -873,6 +874,12 @@ const AdmissionsDashboard = () => {
               className="font-proxima data-[state=active]:bg-[#4242ea] data-[state=active]:text-white"
             >
               Workshops
+            </TabsTrigger>
+            <TabsTrigger 
+              value="leads" 
+              className="font-proxima data-[state=active]:bg-[#4242ea] data-[state=active]:text-white"
+            >
+              Leads
             </TabsTrigger>
             <TabsTrigger 
               value="emails" 
@@ -1052,6 +1059,17 @@ const AdmissionsDashboard = () => {
                 fetchWorkshops={fetchWorkshopsData}
                 token={token}
               />
+            </Suspense>
+          </TabsContent>
+
+          {/* Leads Tab */}
+          <TabsContent value="leads" className="flex-1 overflow-auto px-6 py-4">
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-12">
+                <div className="text-gray-500 font-proxima">Loading Leads...</div>
+              </div>
+            }>
+              <LeadsTab token={token} />
             </Suspense>
           </TabsContent>
 
