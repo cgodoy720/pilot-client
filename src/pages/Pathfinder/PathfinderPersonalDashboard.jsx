@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import confetti from 'canvas-confetti';
+import { Badge } from '../../components/ui/badge';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 
 function PathfinderPersonalDashboard() {
   const { token, user } = useAuth();
+  const navigate = useNavigate();
   const [applicationStats, setApplicationStats] = useState(null);
+  const [featuredEvents, setFeaturedEvents] = useState([]);
   const [networkingStats, setNetworkingStats] = useState(null);
   const [projectStats, setProjectStats] = useState(null);
   const [milestones, setMilestones] = useState(null);
@@ -26,7 +29,7 @@ function PathfinderPersonalDashboard() {
       setIsLoading(true);
       
       // Fetch application stats, networking stats, project stats, milestones, and weekly goals
-      const [appResponse, netResponse, projResponse, dashResponse, goalsResponse] = await Promise.all([
+      const [appResponse, netResponse, projResponse, dashResponse, goalsResponse, eventsResponse] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL}/api/pathfinder/applications/stats`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
@@ -40,6 +43,9 @@ function PathfinderPersonalDashboard() {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         fetch(`${import.meta.env.VITE_API_URL}/api/weekly-goals/current${user?.cohort ? `?cohort=${encodeURIComponent(user.cohort)}` : ''}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/pathfinder/events`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -72,6 +78,16 @@ function PathfinderPersonalDashboard() {
       if (goalsResponse.ok) {
         const goalsData = await goalsResponse.json();
         setWeeklyGoals(goalsData);
+      }
+
+      if (eventsResponse.ok) {
+        const eventsData = await eventsResponse.json();
+        const today = new Date(new Date().toDateString());
+        const upcoming = eventsData
+          .filter(e => e.is_featured && new Date(e.event_date) >= today)
+          .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))
+          .slice(0, 3);
+        setFeaturedEvents(upcoming);
       }
     } catch (err) {
       console.error('Error fetching stats:', err);
@@ -638,10 +654,50 @@ function PathfinderPersonalDashboard() {
 
       <div className="flex gap-6 items-stretch">
         {/* Left Side - Welcome Card */}
-        <div className="flex-[0_0_40%] flex flex-col">
+        <div className="flex-[0_0_40%] flex flex-col gap-6">
           <div className="h-auto p-4 bg-white rounded-lg border border-[rgba(66,66,234,0.2)] flex flex-col justify-start shadow-sm">
             {renderWelcomeContent()}
           </div>
+
+          {/* Upcoming Events */}
+          {featuredEvents.length > 0 && (
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="m-0 text-xl font-semibold text-[#1a1a1a]">Upcoming Events</h3>
+                <Link to="/pathfinder/events" className="text-[#4242ea] no-underline font-semibold text-[0.95rem] transition-colors duration-200 hover:text-[#3333d1]">
+                  View All →
+                </Link>
+              </div>
+              <div className="flex flex-col gap-3">
+                {featuredEvents.map(event => (
+                  <Card
+                    key={event.event_id}
+                    className="bg-white border-[#e0e0e0] cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                    onClick={() => navigate(`/pathfinder/events/${event.event_id}`)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="font-semibold text-[#1a1a1a] mb-2">{event.title}</div>
+                      <div className="flex items-center gap-3 text-sm">
+                        <span className="text-[#666666]">
+                          {new Date(event.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                        <Badge className={
+                          event.location_type === 'virtual' ? 'bg-blue-100 text-blue-700' :
+                          event.location_type === 'in_person' ? 'bg-green-100 text-green-700' :
+                          event.location_type === 'hybrid' ? 'bg-purple-100 text-purple-700' :
+                          'bg-gray-100 text-gray-700'
+                        }>
+                          {event.location_type === 'virtual' ? 'Virtual' :
+                           event.location_type === 'in_person' ? 'In-Person' :
+                           event.location_type === 'hybrid' ? 'Hybrid' : 'TBD'}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Side - All Stats and Actions */}
