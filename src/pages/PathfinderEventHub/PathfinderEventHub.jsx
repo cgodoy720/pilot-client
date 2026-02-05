@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Swal from 'sweetalert2';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
@@ -20,6 +21,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 function PathfinderEventHub() {
   const { token } = useAuth();
+  const location = useLocation();
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState('list'); // 'list' or 'calendar'
@@ -33,6 +35,13 @@ function PathfinderEventHub() {
   useEffect(() => {
     fetchEvents();
   }, [token]);
+
+  useEffect(() => {
+    if (location.state?.openAddDialog) {
+      setShowAddDialog(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const fetchEvents = async () => {
     try {

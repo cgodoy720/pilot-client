@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/AuthContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/ui/table';
 import { Button } from '../../../../components/ui/button';
@@ -24,6 +25,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 const EventsTab = () => {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showPastEvents, setShowPastEvents] = useState(false);
@@ -448,6 +450,13 @@ const EventsTab = () => {
           <div className="text-sm text-gray-500">
             {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''}
           </div>
+          <Button
+            size="sm"
+            onClick={() => navigate('/pathfinder/events', { state: { openAddDialog: true } })}
+            className="bg-[#4242ea] hover:bg-[#3535c9] text-white"
+          >
+            + Add Event
+          </Button>
           <Button
             variant="outline"
             size="sm"

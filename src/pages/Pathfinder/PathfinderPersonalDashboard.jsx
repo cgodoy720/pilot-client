@@ -629,13 +629,22 @@ function PathfinderPersonalDashboard() {
                 + Add Hustle
               </Button>
             </Link>
-            <Link 
-              to="/pathfinder/applications" 
+            <Link
+              to="/pathfinder/applications"
               state={{ openModal: true }}
               className="flex-1"
             >
               <Button className="w-full px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] hover:bg-[#3333d1] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(66,66,234,0.4)]">
                 + Add Job
+              </Button>
+            </Link>
+            <Link
+              to="/pathfinder/events"
+              state={{ openAddDialog: true }}
+              className="flex-1"
+            >
+              <Button className="w-full px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] hover:bg-[#3333d1] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(66,66,234,0.4)]">
+                + Add Event
               </Button>
             </Link>
           </div>
@@ -663,7 +672,7 @@ function PathfinderPersonalDashboard() {
           {featuredEvents.length > 0 && (
             <div>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="m-0 text-xl font-semibold text-[#1a1a1a]">Upcoming Events</h3>
+                <h3 className="m-0 text-xl font-semibold text-[#1a1a1a]">Featured Upcoming Events</h3>
                 <Link to="/pathfinder/events" className="text-[#4242ea] no-underline font-semibold text-[0.95rem] transition-colors duration-200 hover:text-[#3333d1]">
                   View All →
                 </Link>
@@ -691,6 +700,11 @@ function PathfinderPersonalDashboard() {
                            event.location_type === 'in_person' ? 'In-Person' :
                            event.location_type === 'hybrid' ? 'Hybrid' : 'TBD'}
                         </Badge>
+                        {event.user_registration && (
+                          <Badge className="bg-blue-100 text-blue-700">
+                            Attending ✓
+                          </Badge>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
