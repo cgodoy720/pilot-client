@@ -16,6 +16,7 @@ import Swal from 'sweetalert2';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import StarIcon from '@mui/icons-material/Star';
+import GroupIcon from '@mui/icons-material/Group';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -28,6 +29,9 @@ const EventsTab = () => {
   const [editingEvent, setEditingEvent] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  const [viewingRegistrations, setViewingRegistrations] = useState(null);
+  const [registrations, setRegistrations] = useState([]);
+  const [isLoadingRegistrations, setIsLoadingRegistrations] = useState(false);
 
   useEffect(() => {
     fetchEvents();
@@ -285,6 +289,42 @@ const EventsTab = () => {
     }
   };
 
+  // Handle view registrations
+  const handleViewRegistrations = async (event) => {
+    setViewingRegistrations(event);
+    setRegistrations([]);
+    setIsLoadingRegistrations(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/pathfinder/events/admin/events/${event.event_id}/registrations`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch registrations');
+      }
+
+      const data = await response.json();
+      setRegistrations(data);
+    } catch (error) {
+      console.error('Error fetching registrations:', error);
+      Swal.fire({
+        toast: true,
+        icon: 'error',
+        title: 'Failed to load registrations',
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true
+      });
+    } finally {
+      setIsLoadingRegistrations(false);
+    }
+  };
+
   // Sortable header component
   const SortableHeader = ({ sortKey, children }) => (
     <TableHead
@@ -409,8 +449,18 @@ const EventsTab = () => {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => handleViewRegistrations(event)}
+                          className="h-8 w-8 p-0 text-gray-500 hover:text-[#4242ea]"
+                          title="View RSVPs"
+                        >
+                          <GroupIcon fontSize="small" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleEdit(event)}
                           className="h-8 w-8 p-0 text-gray-500 hover:text-[#4242ea]"
+                          title="Edit"
                         >
                           <EditIcon fontSize="small" />
                         </Button>
@@ -419,6 +469,7 @@ const EventsTab = () => {
                           size="sm"
                           onClick={() => handleDelete(event)}
                           className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+                          title="Delete"
                         >
                           <DeleteIcon fontSize="small" />
                         </Button>
@@ -598,6 +649,82 @@ const EventsTab = () => {
               {isSaving ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Registrations Dialog */}
+      <Dialog open={!!viewingRegistrations} onOpenChange={(open) => !open && setViewingRegistrations(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-[#1a1a1a]">
+              {viewingRegistrations?.title} — RSVPs
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="py-4">
+            {isLoadingRegistrations ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-gray-500">Loading registrations...</div>
+              </div>
+            ) : registrations.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <GroupIcon sx={{ fontSize: 48, color: '#cccccc' }} />
+                <p className="mt-3">No registrations yet</p>
+              </div>
+            ) : (
+              <>
+                <div className="text-sm text-gray-500 mb-4">
+                  {registrations.length} registration{registrations.length !== 1 ? 's' : ''}
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Cohort</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Registered</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {registrations.map((reg) => (
+                      <TableRow key={reg.registration_id} className="hover:bg-gray-50">
+                        <TableCell className="font-medium">
+                          {reg.first_name} {reg.last_name}
+                        </TableCell>
+                        <TableCell className="text-gray-600">
+                          {reg.email}
+                        </TableCell>
+                        <TableCell>
+                          {reg.cohort || '-'}
+                        </TableCell>
+                        <TableCell>
+                          {reg.registration_status === 'attended' ? (
+                            <Badge className="bg-green-100 text-green-700">
+                              Attended
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-blue-100 text-blue-700">
+                              Going
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-gray-600">
+                          {reg.created_at
+                            ? new Date(reg.created_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })
+                            : '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
