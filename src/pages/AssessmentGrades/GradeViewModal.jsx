@@ -43,6 +43,10 @@ const GradeViewModal = ({
     'technical': 'technical', 
     'professional': 'professional',
     'self': 'self',
+    // L2 assessment type mappings
+    'l2_technical_improvement': 'technical',
+    'l2_professional_ceo': 'professional',
+    'l2_business_justification': 'business',
     // Legacy mappings for backward compatibility
     'quiz': 'self',
     'knowledge_assessment': 'self',
@@ -51,7 +55,8 @@ const GradeViewModal = ({
     'video': 'professional'
   };
   
-  const assessmentTypes = ['technical', 'business', 'professional', 'self'];
+  // Base assessment types - will be filtered to only show tabs with actual data
+  const allAssessmentTypes = ['technical', 'business', 'professional', 'self'];
 
   // Smart website preview generator (simplified version)
   const createWebsitePreview = (files) => {
@@ -139,8 +144,12 @@ const GradeViewModal = ({
       try {
         setLoading(true);
         
-        // Fetch user submissions - pass assessment_period as query param
-        const submissionsResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/user-submissions/${grade.user_id}?assessmentPeriod=${encodeURIComponent(grade.assessment_period || 'Week 8')}`, {
+        // Fetch user submissions - pass assessment_period AND cohort as query params
+        const submissionsParams = new URLSearchParams({
+          assessmentPeriod: grade.assessment_period || 'Week 8',
+          cohort: grade.cohort || ''
+        });
+        const submissionsResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/user-submissions/${grade.user_id}?${submissionsParams}`, {
           headers: {
             'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json'
@@ -154,8 +163,12 @@ const GradeViewModal = ({
           setUserSubmissions(submissionsData.submissions || []);
         }
         
-        // Fetch comprehensive analysis data - pass assessment_period as query param
-        const analysisResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/comprehensive-analysis/${grade.user_id}?assessmentPeriod=${encodeURIComponent(grade.assessment_period || 'Week 8')}`, {
+        // Fetch comprehensive analysis data - pass assessment_period AND cohort as query params
+        const analysisParams = new URLSearchParams({
+          assessmentPeriod: grade.assessment_period || 'Week 8',
+          cohort: grade.cohort || ''
+        });
+        const analysisResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/comprehensive-analysis/${grade.user_id}?${analysisParams}`, {
           headers: {
             'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json'
@@ -178,7 +191,7 @@ const GradeViewModal = ({
     };
     
     fetchUserData();
-  }, [grade?.user_id, authToken, isOpen]);
+  }, [grade?.user_id, grade?.assessment_period, grade?.cohort, authToken, isOpen]);
 
   // Generate website preview when technical submission data is available
   useEffect(() => {
@@ -196,9 +209,11 @@ const GradeViewModal = ({
     }
   }, [userSubmissions]);
   
-  // Group comprehensive analysis by our assessment types
+  // Group comprehensive analysis by our assessment types (case-insensitive matching)
   const analysisByType = comprehensiveAnalysis.reduce((acc, analysis) => {
-    const mappedType = assessmentTypeMapping[analysis.assessment_type] || analysis.assessment_type;
+    const typeKey = (analysis.assessment_type || '').toLowerCase();
+    const mappedType = assessmentTypeMapping[typeKey] || typeKey;
+    console.log('🔍 Analysis mapping:', { original: analysis.assessment_type, typeKey, mappedType });
     if (!acc[mappedType]) {
       acc[mappedType] = [];
     }
@@ -206,9 +221,9 @@ const GradeViewModal = ({
     return acc;
   }, {});
 
-  // Group user submissions by assessment type for easier access
+  // Group user submissions by assessment type for easier access (case-insensitive)
   const submissionsByType = userSubmissions.reduce((acc, submission) => {
-    const type = submission.assessment_type || 'unknown';
+    const type = (submission.assessment_type || 'unknown').toLowerCase();
     if (!acc[type]) {
       acc[type] = [];
     }
@@ -216,8 +231,19 @@ const GradeViewModal = ({
     return acc;
   }, {});
   
-  // Create tabs: Overview + individual assessment types
-  const availableTabs = ['overview', ...assessmentTypes];
+  // Debug logging
+  console.log('📊 analysisByType keys:', Object.keys(analysisByType));
+  console.log('📊 submissionsByType keys:', Object.keys(submissionsByType));
+  
+  // Filter assessment types to only show tabs that have submissions or analysis data
+  const assessmentTypesWithData = allAssessmentTypes.filter(type => {
+    const hasSubmission = submissionsByType[type] && submissionsByType[type].length > 0;
+    const hasAnalysis = analysisByType[type] && analysisByType[type].length > 0;
+    return hasSubmission || hasAnalysis;
+  });
+  
+  // Create tabs: Overview + individual assessment types that have data
+  const availableTabs = ['overview', ...assessmentTypesWithData];
   
   // Get the current tab's analysis data
   const currentAnalysis = analysisByType[tabValue] || [];
@@ -504,8 +530,8 @@ const GradeViewModal = ({
                     </div>
                   </TabsContent>
 
-                  {/* Individual Assessment Tabs */}
-                  {assessmentTypes.map((assessmentType) => (
+                  {/* Individual Assessment Tabs - only render tabs that have data */}
+                  {assessmentTypesWithData.map((assessmentType) => (
                     <TabsContent key={assessmentType} value={assessmentType} className="mt-0 p-6 h-full overflow-y-auto">
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-full">
                         {/* Student Submission Content */}
