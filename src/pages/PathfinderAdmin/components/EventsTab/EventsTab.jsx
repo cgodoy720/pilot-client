@@ -16,7 +16,9 @@ import Swal from 'sweetalert2';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import StarIcon from '@mui/icons-material/Star';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 import GroupIcon from '@mui/icons-material/Group';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -325,6 +327,81 @@ const EventsTab = () => {
     }
   };
 
+  // Handle toggle featured
+  const handleToggleFeatured = async (event) => {
+    try {
+      const response = await fetch(`${API_URL}/api/pathfinder/events/admin/events/${event.event_id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isFeatured: !event.is_featured })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update event');
+      }
+
+      setEvents(prev => prev.map(e =>
+        e.event_id === event.event_id ? { ...e, is_featured: !event.is_featured } : e
+      ));
+
+      Swal.fire({
+        toast: true,
+        icon: 'success',
+        title: event.is_featured ? 'Event unfeatured' : 'Event featured',
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true
+      });
+    } catch (error) {
+      console.error('Error toggling featured:', error);
+      Swal.fire({
+        toast: true,
+        icon: 'error',
+        title: error.message || 'Failed to update event',
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true
+      });
+    }
+  };
+
+  // Handle CSV export
+  const handleExportCSV = () => {
+    const headers = ['Title', 'Date', 'Time', 'Type', 'Location Type', 'Venue', 'Cost', 'RSVPs', 'Status', 'Featured', 'Source URL'];
+    const rows = filteredEvents.map(event => [
+      event.title || '',
+      event.event_date ? event.event_date.split('T')[0] : '',
+      event.event_time || '',
+      event.event_type || '',
+      getLocationLabel(event.location_type),
+      event.venue_name || '',
+      event.price != null ? event.price : '',
+      event.registration_count || 0,
+      isPastEvent(event.event_date) ? 'Past' : 'Upcoming',
+      event.is_featured ? 'Yes' : 'No',
+      event.external_url || ''
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const today = new Date().toISOString().split('T')[0];
+    link.href = url;
+    link.download = `pathfinder-events-export-${today}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Sortable header component
   const SortableHeader = ({ sortKey, children }) => (
     <TableHead
@@ -367,8 +444,20 @@ const EventsTab = () => {
             Show past events
           </label>
         </div>
-        <div className="text-sm text-gray-500">
-          {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''}
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-gray-500">
+            {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCSV}
+            disabled={filteredEvents.length === 0}
+            className="text-gray-600 hover:text-[#4242ea]"
+          >
+            <FileDownloadIcon fontSize="small" className="mr-1" />
+            Export CSV
+          </Button>
         </div>
       </div>
 
@@ -446,6 +535,15 @@ const EventsTab = () => {
                     {/* Actions */}
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleFeatured(event)}
+                          className={`h-8 w-8 p-0 ${event.is_featured ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-500 hover:text-yellow-500'}`}
+                          title={event.is_featured ? 'Unfeature' : 'Feature'}
+                        >
+                          {event.is_featured ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
