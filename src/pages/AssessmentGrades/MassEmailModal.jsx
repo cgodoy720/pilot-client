@@ -180,7 +180,8 @@ const MassEmailModal = ({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="2">Week 2</SelectItem>
+                    <SelectItem value="2">Week 2 (L1)</SelectItem>
+                    <SelectItem value="L2 Week 2">Week 2 (L2)</SelectItem>
                     <SelectItem value="8">Week 8</SelectItem>
                   </SelectContent>
                 </Select>
