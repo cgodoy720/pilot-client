@@ -159,16 +159,29 @@ const SubmissionContent = ({
           </div>
         </div>
 
-        {/* Proposed Solution */}
+        {/* Solution Statement */}
         <div className="bg-card border border-border rounded-lg p-6">
           <div className="flex items-center gap-2 mb-4">
             <span className="text-xl">💡</span>
-            <h4 className="text-lg font-semibold">Proposed Solution</h4>
+            <h4 className="text-lg font-semibold">Solution Statement</h4>
           </div>
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 italic whitespace-pre-wrap">
-            {submissionData.proposedSolution || submissionData.deliverables?.proposed_solution?.content || 'No solution provided'}
+          <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 italic whitespace-pre-wrap">
+            {submissionData.solutionStatement || submissionData.proposedSolution || submissionData.deliverables?.proposed_solution?.content || submissionData.deliverables?.solution_statement?.content || 'No solution statement provided'}
           </div>
         </div>
+
+        {/* Justification Bullets */}
+        {submissionData.justificationBullets && (
+          <div className="bg-card border border-border rounded-lg p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xl">✅</span>
+              <h4 className="text-lg font-semibold">Justification</h4>
+            </div>
+            <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 italic whitespace-pre-wrap">
+              {submissionData.justificationBullets || submissionData.deliverables?.justification_bullets?.content || 'No justification provided'}
+            </div>
+          </div>
+        )}
 
         {/* AI Discussion */}
         {conversationData.messages && conversationData.messages.length > 0 && (
