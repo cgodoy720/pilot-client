@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './GPT.css';
 import { useAuth } from '../../context/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { getThreads, getThreadMessages, createThread, sendMessageToGPT } from '../../utils/api';
+import { getThreads, getThreadMessages, createThread, sendMessageToGPT, streamMessageToGPT } from '../../utils/api';
 import SummaryModal from '../../components/SummaryModal/SummaryModal';
 import ReactMarkdown from 'react-markdown';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
@@ -91,6 +91,10 @@ function GPT() {
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   
+  // Streaming message state
+  const [streamingContent, setStreamingContent] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -98,6 +102,7 @@ function GPT() {
   const fetchMessagesAbortControllerRef = useRef(null);
   const textareaRef = useRef(null);
   const chatTrayRef = useRef(null);
+  const skipNextFetchRef = useRef(false); // Skip fetch after sending to new thread
 
   // Check if user is inactive (in historical access mode)
   const isInactiveUser = user && user.active === false;
@@ -201,6 +206,11 @@ function GPT() {
   // Fetch messages when active thread changes
   useEffect(() => {
     if (activeThread && token) {
+      // Skip fetch if we just sent a message to a new thread (messages already in state)
+      if (skipNextFetchRef.current) {
+        skipNextFetchRef.current = false;
+        return;
+      }
       fetchMessages(activeThread);
     } else {
       setMessages([]);
@@ -209,7 +219,7 @@ function GPT() {
 
   // Poll for new messages when waiting for AI response
   useEffect(() => {
-    if (!isAiThinking || !activeThread || !token) return;
+    if (!isAiThinking || !activeThread || !token || isStreaming) return;
 
     let pollCount = 0;
     const maxPolls = 30; // Stop polling after 60 seconds (30 * 2s)
@@ -228,7 +238,7 @@ function GPT() {
     }, 2000); // Poll every 2 seconds
 
     return () => clearInterval(pollInterval);
-  }, [isAiThinking, activeThread, token]);
+  }, [isAiThinking, activeThread, token, isStreaming]);
 
   // Clear summary data when switching to a thread without summary
   useEffect(() => {
@@ -258,7 +268,7 @@ function GPT() {
 
   // Auto-focus input when AI response arrives
   useEffect(() => {
-    if (messages.length > 0 && !isAiThinking && !isSending && textareaRef.current && !isInactiveUser) {
+    if (messages.length > 0 && !isAiThinking && !isSending && !isStreaming && textareaRef.current && !isInactiveUser) {
       const lastMessage = messages[messages.length - 1];
       const lastMessageRole = lastMessage.message_role || lastMessage.role;
       // Focus when last message is from AI/assistant
@@ -419,56 +429,16 @@ function GPT() {
         return message;
       });
       
-      // When polling, only update messages if they've actually changed (to prevent flashing)
+      // When polling, replace messages with server data in a single update (no flash)
       if (isPolling) {
-        // Compare message count and last message ID to avoid unnecessary updates
-        const currentLastMessageId = messages.length > 0 ? getMessageId(messages[messages.length - 1]) : null;
-        const newLastMessageId = messagesArray.length > 0 ? getMessageId(messagesArray[messagesArray.length - 1]) : null;
+        setMessages(messagesArray);
         
-        // Only update if messages actually changed
-        if (currentLastMessageId !== newLastMessageId || messages.length !== messagesArray.length) {
-          // Merge intelligently: keep temp messages, add new server messages
-          const existingMessageIds = new Set(messages.map(msg => getMessageId(msg)));
-          const existingContents = new Set(messages.map(msg => msg.content));
-          
-          // Find truly new messages (not in current state by ID or content)
-          const newMessages = messagesArray.filter(serverMsg => {
-            const serverId = getMessageId(serverMsg);
-            const serverContent = serverMsg.content;
-            
-            // Skip if we already have this message by ID
-            if (existingMessageIds.has(serverId)) {
-              return false;
-            }
-            
-            // Skip user messages that match content of existing temp messages
-            const serverRole = getMessageRole(serverMsg);
-            if (serverRole === 'user' && existingContents.has(serverContent)) {
-              return false;
-            }
-            
-            return true;
-          });
-          
-          // If there are new messages, append them (don't replace)
-          if (newMessages.length > 0) {
-            setMessages(prevMessages => {
-              // Remove temp flag from any temp messages
-              const updatedMessages = prevMessages.map(msg => 
-                msg.isTemp ? { ...msg, isTemp: false } : msg
-              );
-              return [...updatedMessages, ...newMessages];
-            });
-            
-            // Update isAiThinking based on last message role
-            if (newMessages.length > 0) {
-              const lastNewMessage = newMessages[newMessages.length - 1];
-              const lastMessageRole = getMessageRole(lastNewMessage);
-              // If last new message is from assistant, we're done waiting
-              if (lastMessageRole === 'assistant' || lastMessageRole === 'ai') {
-                setIsAiThinking(false);
-              }
-            }
+        // If last message is from AI, we're done waiting
+        if (messagesArray.length > 0) {
+          const lastMessage = messagesArray[messagesArray.length - 1];
+          const lastMessageRole = getMessageRole(lastMessage);
+          if (lastMessageRole === 'assistant' || lastMessageRole === 'ai') {
+            setIsAiThinking(false);
           }
         }
       } else {
@@ -572,6 +542,8 @@ function GPT() {
           // Now send the message to the new thread
           await sendMessageToNewThread(newThreadId);
           
+          // Skip the next fetch since we already have messages in state
+          skipNextFetchRef.current = true;
           // Now set the active thread after message is sent
           setActiveThread(newThreadId);
         }
@@ -601,68 +573,103 @@ function GPT() {
     
     const messageToSend = newMessage;
     const tempUserMessageId = Date.now();
+    const streamingMessageId = tempUserMessageId + 1;
     const tempUserMessage = {
       message_id: tempUserMessageId,
       content: messageToSend,
       message_role: 'user',
       created_at: new Date().toISOString(),
-      isTemp: true // Mark as temporary message
+      isTemp: true
     };
     
     setMessages(prevMessages => [...prevMessages, tempUserMessage]);
     setNewMessage('');
-    handleTextareaResize(); // Reset height after clearing
+    handleTextareaResize();
     setIsSending(true);
     setIsAiThinking(true);
+    setIsStreaming(true);
+    setStreamingContent('');
 
     try {
-      const response = await sendMessageToGPT(messageToSend, threadId, token, selectedModel, abortController.signal);
-      
-      // Check if this request was aborted
-      if (abortController.signal.aborted) {
-        return;
-      }
+      // Add a placeholder streaming message
+      setMessages(prevMessages => [
+        ...prevMessages.map(msg =>
+          msg.message_id === tempUserMessageId ? { ...msg, isTemp: false } : msg
+        ),
+        {
+          message_id: streamingMessageId,
+          content: '',
+          message_role: 'assistant',
+          created_at: new Date().toISOString(),
+          isStreaming: true
+        }
+      ]);
+
+      await streamMessageToGPT(
+        messageToSend,
+        threadId,
+        token,
+        selectedModel,
+        (chunk) => {
+          if (chunk.type === 'text') {
+            setStreamingContent(prev => prev + chunk.content);
+            // Update the streaming message content
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.message_id === streamingMessageId 
+                  ? { ...msg, content: (msg.content || '') + chunk.content }
+                  : msg
+              )
+            );
+          } else if (chunk.type === 'done' && chunk.message) {
+            // Replace streaming message with final message from server
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.message_id === streamingMessageId 
+                  ? { ...chunk.message, isStreaming: false }
+                  : msg
+              )
+            );
+            setIsStreaming(false);
+            setIsSending(false);
+            setIsAiThinking(false);
+            setStreamingContent('');
+          } else if (chunk.type === 'error') {
+            console.error('Stream error:', chunk.error);
+            setError(chunk.error || 'Failed to get response');
+            // Remove the streaming message on error
+            setMessages(prevMessages => 
+              prevMessages.filter(msg => msg.message_id !== streamingMessageId)
+            );
+            setIsStreaming(false);
+            setIsSending(false);
+            setIsAiThinking(false);
+            setStreamingContent('');
+          }
+        },
+        abortController.signal
+      );
       
       setTimeout(() => {
         fetchThreads();
       }, 1000);
       
-      if (response && response.reply) {
-        // Replace temp message with real one and add AI reply
-        setMessages(prevMessages => [
-          ...prevMessages.filter(msg => msg.message_id !== tempUserMessageId),
-          { ...tempUserMessage, isTemp: false },
-          response.reply
-        ]);
-        setIsSending(false);
-        setIsAiThinking(false);
-      } else {
-        // No immediate response - keep temp message and wait for polling to fetch AI response
-        // Remove isTemp flag so it doesn't get removed when server messages arrive
-        setMessages(prevMessages => 
-          prevMessages.map(msg => 
-            msg.message_id === tempUserMessageId 
-              ? { ...msg, isTemp: false }
-              : msg
-          )
-        );
-        setIsSending(false);
-        // Keep isAiThinking true so polling continues
-      }
-      
       setError('');
     } catch (err) {
-      // Ignore abort errors
       if (err.name === 'AbortError') {
         return;
       }
       console.error('Error sending message:', err);
       setError('Failed to send message. Please try again.');
       setMessages(prevMessages => 
-        prevMessages.filter(msg => msg.message_id !== tempUserMessageId)
+        prevMessages.filter(msg => 
+          msg.message_id !== tempUserMessageId && msg.message_id !== streamingMessageId
+        )
       );
       setIsSending(false);
+      setIsStreaming(false);
       setIsAiThinking(false);
+      setStreamingContent('');
     }
   };
 
@@ -678,28 +685,84 @@ function GPT() {
     
     const messageToSend = newMessage;
     const tempUserMessageId = Date.now();
+    const streamingMessageId = tempUserMessageId + 1;
     const tempUserMessage = {
       message_id: tempUserMessageId,
       content: messageToSend,
       message_role: 'user',
       created_at: new Date().toISOString(),
-      isTemp: true // Mark as temporary message
+      isTemp: true
     };
     
     setMessages(prevMessages => [...prevMessages, tempUserMessage]);
     setNewMessage('');
-    handleTextareaResize(); // Reset height after clearing
+    handleTextareaResize();
     setIsSending(true);
     setIsAiThinking(true);
+    setIsStreaming(true);
+    setStreamingContent('');
 
     try {
       const isFirstMessage = messages.length === 0;
-      const response = await sendMessageToGPT(messageToSend, activeThread, token, selectedModel, abortController.signal);
       
-      // Check if this request was aborted
-      if (abortController.signal.aborted) {
-        return;
-      }
+      // Add a placeholder streaming message
+      setMessages(prevMessages => [
+        ...prevMessages.map(msg =>
+          msg.message_id === tempUserMessageId ? { ...msg, isTemp: false } : msg
+        ),
+        {
+          message_id: streamingMessageId,
+          content: '',
+          message_role: 'assistant',
+          created_at: new Date().toISOString(),
+          isStreaming: true
+        }
+      ]);
+
+      await streamMessageToGPT(
+        messageToSend,
+        activeThread,
+        token,
+        selectedModel,
+        (chunk) => {
+          if (chunk.type === 'text') {
+            setStreamingContent(prev => prev + chunk.content);
+            // Update the streaming message content
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.message_id === streamingMessageId 
+                  ? { ...msg, content: (msg.content || '') + chunk.content }
+                  : msg
+              )
+            );
+          } else if (chunk.type === 'done' && chunk.message) {
+            // Replace streaming message with final message from server
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.message_id === streamingMessageId 
+                  ? { ...chunk.message, isStreaming: false }
+                  : msg
+              )
+            );
+            setIsStreaming(false);
+            setIsSending(false);
+            setIsAiThinking(false);
+            setStreamingContent('');
+          } else if (chunk.type === 'error') {
+            console.error('Stream error:', chunk.error);
+            setError(chunk.error || 'Failed to get response');
+            // Remove the streaming message on error
+            setMessages(prevMessages => 
+              prevMessages.filter(msg => msg.message_id !== streamingMessageId)
+            );
+            setIsStreaming(false);
+            setIsSending(false);
+            setIsAiThinking(false);
+            setStreamingContent('');
+          }
+        },
+        abortController.signal
+      );
       
       if (isFirstMessage) {
         setTimeout(() => {
@@ -707,42 +770,22 @@ function GPT() {
         }, 1000);
       }
       
-      if (response && response.reply) {
-        // Replace temp message with real one and add AI reply
-        setMessages(prevMessages => [
-          ...prevMessages.filter(msg => msg.message_id !== tempUserMessageId),
-          { ...tempUserMessage, isTemp: false },
-          response.reply
-        ]);
-        setIsSending(false);
-        setIsAiThinking(false);
-      } else {
-        // No immediate response - keep temp message and wait for polling to fetch AI response
-        // Remove isTemp flag so it doesn't get removed when server messages arrive
-        setMessages(prevMessages => 
-          prevMessages.map(msg => 
-            msg.message_id === tempUserMessageId 
-              ? { ...msg, isTemp: false }
-              : msg
-          )
-        );
-        setIsSending(false);
-        // Keep isAiThinking true so polling continues
-      }
-      
       setError('');
     } catch (err) {
-      // Ignore abort errors
       if (err.name === 'AbortError') {
         return;
       }
       console.error('Error sending message:', err);
       setError('Failed to send message. Please try again.');
       setMessages(prevMessages => 
-        prevMessages.filter(msg => msg.message_id !== tempUserMessageId)
+        prevMessages.filter(msg => 
+          msg.message_id !== tempUserMessageId && msg.message_id !== streamingMessageId
+        )
       );
       setIsSending(false);
+      setIsStreaming(false);
       setIsAiThinking(false);
+      setStreamingContent('');
     }
   };
 
@@ -1297,7 +1340,7 @@ function GPT() {
                       );
                     })}
                     
-                    {isAiThinking && (
+                    {(isAiThinking && !isStreaming) || (isStreaming && !streamingContent) ? (
                       <div className="mb-6">
                         <img 
                           src="/preloader.gif" 
@@ -1305,7 +1348,7 @@ function GPT() {
                           className="w-8 h-8"
                         />
                       </div>
-                    )}
+                    ) : null}
                     
                     <div ref={messagesEndRef} />
                   </>
