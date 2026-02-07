@@ -51,6 +51,85 @@ export const sendMessageToGPT = async (message, threadId, token, model = 'anthro
 };
 
 /**
+ * Stream a learning message and receive SSE events
+ * @param {string} message - The message content to send
+ * @param {number} taskId - The task ID
+ * @param {string} token - Auth token
+ * @param {object} options - Additional payload data
+ * @param {function} onChunk - Callback for each chunk
+ * @param {AbortSignal} signal - Optional abort signal for cancellation
+ * @returns {Promise<void>}
+ */
+export const streamLearningMessage = async (message, taskId, token, options = {}, onChunk, signal = null) => {
+  const url = `${API_URL}/api/learning/messages/stream`;
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        content: message,
+        taskId: taskId,
+        ...options
+      }),
+      signal
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `API error: ${response.status}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            onChunk(data);
+          } catch (parseError) {
+            console.error('Failed to parse SSE data:', line, parseError);
+          }
+        }
+      }
+    }
+
+    if (buffer.startsWith('data: ')) {
+      try {
+        const data = JSON.parse(buffer.slice(6));
+        onChunk(data);
+      } catch (parseError) {
+        console.error('Failed to parse final SSE data:', buffer, parseError);
+      }
+    }
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      return;
+    }
+    console.error('Stream request failed:', error);
+    onChunk({ type: 'error', error: error.message || 'Stream failed' });
+    throw error;
+  }
+};
+
+/**
  * Stream a message to the GPT API and receive SSE events
  * @param {string} message - The message content to send
  * @param {number} threadId - The thread ID

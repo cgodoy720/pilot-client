@@ -18,6 +18,7 @@ import BreakInterface from '../../../components/BreakInterface/BreakInterface';
 import DeliverablePanel from '../../Learning/components/DeliverablePanel/DeliverablePanel';
 import TaskCompletionBar from '../../../components/TaskCompletionBar/TaskCompletionBar';
 import LoadingCurtain from '../../../components/LoadingCurtain/LoadingCurtain';
+import { streamLearningMessage } from '../../../utils/api';
 
 import '../../Learning/Learning.css';
 
@@ -34,6 +35,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
   const [messages, setMessages] = useState([]);
   const [isSending, setIsSending] = useState(false);
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState('');
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [hasInitialMessage, setHasInitialMessage] = useState(false);
@@ -82,7 +84,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
 
   // Auto-focus input when AI response arrives
   useEffect(() => {
-    if (messages.length > 0 && !isAiThinking && !isSending) {
+    if (messages.length > 0 && !isAiThinking && !isSending && !isStreaming) {
       const lastMessage = messages[messages.length - 1];
       // Focus when last message is from AI and input is not disabled
       if (lastMessage.sender === 'ai' && textareaRef.current) {
@@ -92,7 +94,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
         }, 300);
       }
     }
-  }, [messages, isAiThinking, isSending]);
+  }, [messages, isAiThinking, isSending, isStreaming]);
 
   // Cleanup
   useEffect(() => {
@@ -329,7 +331,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
   };
 
   const handleSendMessage = async (messageContent, modelFromTextarea) => {
-    if (!messageContent?.trim() || isSending || isAiThinking) return;
+    if (!messageContent?.trim() || isSending || isAiThinking || isStreaming) return;
     
     const trimmedMessage = messageContent.trim();
     const messageTaskId = tasks[currentTaskIndex]?.id;
@@ -337,6 +339,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
     
     setIsSending(true);
     setIsAiThinking(true);
+    setIsStreaming(true);
     
     if (modelFromTextarea && modelFromTextarea !== selectedModel) {
       setSelectedModel(modelFromTextarea);
@@ -350,44 +353,74 @@ function LearningPreview({ dayId, cohort, onBack }) {
     sendMessageAbortControllerRef.current = abortController;
 
     try {
-      setMessages(prev => [...prev, {
-        id: Date.now(),
-        content: trimmedMessage,
-        sender: 'user',
-        timestamp: new Date().toISOString(),
-      }]);
-
-      const response = await fetch(`${API_URL}/api/learning/messages/continue`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const streamingMessageId = Date.now() + 1;
+      setMessages(prev => [
+        ...prev,
+        {
+          id: Date.now(),
           content: trimmedMessage,
-          taskId: messageTaskId,
+          sender: 'user',
+          timestamp: new Date().toISOString(),
+        },
+        {
+          id: streamingMessageId,
+          content: '',
+          sender: 'ai',
+          timestamp: new Date().toISOString(),
+          isStreaming: true
+        }
+      ]);
+
+      await streamLearningMessage(
+        trimmedMessage,
+        messageTaskId,
+        token,
+        {
           dayNumber: currentDay?.day_number,
           cohort: cohort,
           conversationModel: modelFromTextarea || selectedModel,
-          isPreviewMode: true, // Mark as preview mode for ContentPreview
-        }),
-        signal: abortController.signal,
-      });
-      
-      if (abortController.signal.aborted) return;
-      if (tasks[currentTaskIndex]?.id !== messageTaskId) return;
+          isPreviewMode: true
+        },
+        (chunk) => {
+          if (tasks[currentTaskIndex]?.id !== messageTaskId) {
+            return;
+          }
 
-      if (response.ok) {
-        const data = await response.json();
-        setMessages(prev => [...prev, {
-          id: Date.now() + 1,
-          content: data.content || data.response || data.message,
-          sender: 'ai',
-          timestamp: new Date().toISOString(),
-        }]);
-        // Check if task is now complete after receiving AI response
-        checkTaskCompletion(messageTaskId);
-      }
+          if (chunk.type === 'text') {
+            setMessages(prev =>
+              prev.map(msg =>
+                msg.id === streamingMessageId
+                  ? { ...msg, content: `${msg.content || ''}${chunk.content}` }
+                  : msg
+              )
+            );
+          } else if (chunk.type === 'done' && chunk.message) {
+            setMessages(prev =>
+              prev.map(msg =>
+                msg.id === streamingMessageId
+                  ? {
+                      id: chunk.message.message_id,
+                      content: chunk.message.content,
+                      sender: 'ai',
+                      timestamp: chunk.message.timestamp,
+                      isStreaming: false
+                    }
+                  : msg
+              )
+            );
+            setIsStreaming(false);
+            setIsAiThinking(false);
+            setIsSending(false);
+            checkTaskCompletion(messageTaskId);
+          } else if (chunk.type === 'error') {
+            setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId));
+            setIsStreaming(false);
+            setIsAiThinking(false);
+            setIsSending(false);
+          }
+        },
+        abortController.signal
+      );
     } catch (err) {
       if (err.name === 'AbortError') return;
       console.error('Error sending message:', err);
@@ -395,6 +428,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
       if (!abortController.signal.aborted) {
         setIsSending(false);
         setIsAiThinking(false);
+        setIsStreaming(false);
       }
     }
   };
