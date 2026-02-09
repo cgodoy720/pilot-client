@@ -724,7 +724,7 @@
   }
   
   .dashboard__top-grid,
-  .dashboard__week-header,
+  .dashboard__week-header-wrapper,
   .dashboard__weekly-grid {
     padding: 0 50px;
   }
@@ -760,7 +760,7 @@
   }
   
   .dashboard__top-grid,
-  .dashboard__week-header,
+  .dashboard__week-header-wrapper,
   .dashboard__weekly-grid {
     padding: 0 60px;
   }
