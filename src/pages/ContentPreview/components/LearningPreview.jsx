@@ -21,6 +21,139 @@ import LoadingCurtain from '../../../components/LoadingCurtain/LoadingCurtain';
 import { streamLearningMessage } from '../../../utils/api';
 
 import '../../Learning/Learning.css';
+import { useStreamingText } from '../../../hooks/useStreamingText';
+
+// Component that wraps ReactMarkdown with streaming text support
+// Uses useStreamingText to smooth out bursty SSE chunks into natural typing flow
+const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  const effectiveContent = animateOnMount && !hasMounted ? '' : (content || '');
+  const displayedContent = useStreamingText(effectiveContent);
+  
+  // Preprocess content to convert bullet points and URLs to markdown
+  let processedContent = displayedContent;
+  
+  // Step 0: Strip all ** (bold markdown) from the content BEFORE processing
+  processedContent = processedContent.replace(/\*\*/g, '');
+  
+  // Step 1: Convert URLs to markdown links FIRST
+  processedContent = processedContent.replace(
+    /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
+    '[$1 ($2)]($4): $3'
+  );
+  
+  // Fallback: Convert any remaining bare URLs to clickable links
+  processedContent = processedContent.replace(
+    /(?<!\()(?<!]\()https?:\/\/[^\s)]+/g,
+    (url) => `[${url}](${url})`
+  );
+  
+  // Step 2: Handle inline "Resources:" section
+  processedContent = processedContent.replace(
+    /Resources:\s*-\s*(.+?)(?=\n\n|$)/gis,
+    (match, resourcesText) => {
+      const items = resourcesText.split(/\s+-\s+(?=\[)/);
+      const formattedItems = items
+        .map(item => item.trim())
+        .filter(item => item.length > 0)
+        .map(item => `- ${item}`)
+        .join('\n');
+      return `**Resources:**\n\n${formattedItems}`;
+    }
+  );
+  
+  // Step 3: Convert bullet points to markdown
+  processedContent = processedContent.replace(/^•\s+/gm, '- ');
+  processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
+  
+  // Step 4: Convert numbered lists
+  processedContent = processedContent.replace(/^(\d+)\.\s+/gm, '$1. ');
+  
+  // Step 5: Format section headers
+  processedContent = processedContent.replace(
+    /\n\n(?!\*\*Resources:\*\*)([A-Z][^:\n]+:)(?!\s*\n\n-)/g,
+    '\n\n## $1'
+  );
+  
+  return (
+    <div className="text-carbon-black leading-relaxed text-base">
+      <ReactMarkdown
+        components={{
+          p: ({ node, children, ...props }) => (
+            <p className="mb-4" {...props}>{children}</p>
+          ),
+          h1: ({ node, children, ...props }) => (
+            <h1 className="text-xl font-semibold mt-6 mb-4 first:mt-0 text-carbon-black" {...props}>{children}</h1>
+          ),
+          h2: ({ node, children, ...props }) => (
+            <h2 className="text-lg font-semibold mt-5 mb-3 first:mt-0 text-carbon-black" {...props}>{children}</h2>
+          ),
+          h3: ({ node, children, ...props }) => (
+            <h3 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-carbon-black" {...props}>{children}</h3>
+          ),
+          ul: ({ node, children, ...props }) => (
+            <ul className="list-disc pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ul>
+          ),
+          ol: ({ node, children, ...props }) => (
+            <ol className="list-decimal pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ol>
+          ),
+          li: ({ node, children, ...props }) => (
+            <li className="text-carbon-black" {...props}>{children}</li>
+          ),
+          a: ({ node, children, ...props }) => (
+            <a className="text-blue-500 hover:underline break-all" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+          ),
+          code: ({ node, inline, className, children, ...props }) => {
+            if (inline) {
+              return (
+                <code
+                  className="px-1.5 py-0.5 rounded text-sm font-mono bg-gray-200 text-carbon-black"
+                  {...props}
+                >
+                  {children}
+                </code>
+              );
+            }
+            return (
+              <code className="block" {...props}>
+                {children}
+              </code>
+            );
+          },
+          pre: ({ node, children, ...props }) => (
+            <pre
+              className="p-4 rounded-lg my-4 overflow-x-auto text-sm font-mono bg-gray-100 text-carbon-black"
+              {...props}
+            >
+              {children}
+            </pre>
+          ),
+          blockquote: ({ node, children, ...props }) => (
+            <blockquote
+              className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-700"
+              {...props}
+            >
+              {children}
+            </blockquote>
+          ),
+          strong: ({ node, children, ...props }) => (
+            <strong className="font-semibold text-carbon-black" {...props}>{children}</strong>
+          ),
+          em: ({ node, children, ...props }) => (
+            <em className="italic text-carbon-black" {...props}>{children}</em>
+          ),
+        }}
+      >
+        {processedContent}
+      </ReactMarkdown>
+    </div>
+  );
+};
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -264,6 +397,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
           content: data.content,
           sender: 'ai',
           timestamp: data.timestamp,
+          shouldAnimate: true,
         }]);
         setHasInitialMessage(true);
       } else {
@@ -274,6 +408,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
             content: task.intro,
             sender: 'ai',
             timestamp: new Date().toISOString(),
+            shouldAnimate: true,
           }]);
           setHasInitialMessage(true);
         }
@@ -395,23 +530,26 @@ function LearningPreview({ dayId, cohort, onBack }) {
               )
             );
           } else if (chunk.type === 'done' && chunk.message) {
+            // Enable input immediately
+            setIsStreaming(false);
+            setIsAiThinking(false);
+            setIsSending(false);
+            checkTaskCompletion(messageTaskId);
+
+            const finalMessage = chunk.message;
             setMessages(prev =>
               prev.map(msg =>
                 msg.id === streamingMessageId
                   ? {
-                      id: chunk.message.message_id,
-                      content: chunk.message.content,
+                      ...msg,
+                      content: finalMessage.content,
                       sender: 'ai',
-                      timestamp: chunk.message.timestamp,
+                      timestamp: finalMessage.timestamp,
                       isStreaming: false
                     }
                   : msg
               )
             );
-            setIsStreaming(false);
-            setIsAiThinking(false);
-            setIsSending(false);
-            checkTaskCompletion(messageTaskId);
           } else if (chunk.type === 'error') {
             setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId));
             setIsStreaming(false);
@@ -596,28 +734,38 @@ function LearningPreview({ dayId, cohort, onBack }) {
                 style={{ paddingBottom: `${inputTrayHeight}px` }}
               >
                 <div className="max-w-2xl mx-auto">
-                  {messages.map((message, index) => (
-                    <div key={message.id || index} className="mb-6">
-                      {message.sender === 'user' ? (
-                        <div className="bg-stardust rounded-lg px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
-                              <span className="text-pursuit-purple text-sm font-semibold">
-                                {user?.firstName?.charAt(0).toUpperCase() || 'U'}
-                              </span>
+                  {messages.map((message, index) => {
+                    const isStreamingMessage = message.isStreaming === true;
+                    
+                    return (
+                      <div key={message.id || index} className="mb-6">
+                        {message.sender === 'user' ? (
+                          <div className="bg-stardust rounded-lg px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
+                                <span className="text-pursuit-purple text-sm font-semibold">
+                                  {user?.firstName?.charAt(0).toUpperCase() || 'U'}
+                                </span>
+                              </div>
+                              <div className="flex-1 text-carbon-black">{message.content}</div>
                             </div>
-                            <div className="flex-1 text-carbon-black">{message.content}</div>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="text-carbon-black leading-relaxed">
-                          <ReactMarkdown>{message.content}</ReactMarkdown>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                        ) : message.isStreaming && !message.content ? (
+                          // Streaming AI message waiting for first chunk — show preloader inline
+                          // Keeps preloader inside the same wrapper div so no layout shift when text arrives
+                          <img src="/preloader.gif" alt="Loading..." className="w-8 h-8" />
+                        ) : (
+                          // AI message - StreamingMarkdownMessage handles both streaming and static
+                          <StreamingMarkdownMessage
+                            content={message.content}
+                            animateOnMount={!!message.shouldAnimate}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                   
-                  {isAiThinking && (
+                  {isAiThinking && !isStreaming && (
                     <div className="mb-6">
                       <img src="/preloader.gif" alt="Loading..." className="w-8 h-8" />
                     </div>

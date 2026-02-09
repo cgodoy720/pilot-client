@@ -40,6 +40,139 @@ import {
 } from '../../components/ui/select';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import { useStreamingText } from '../../hooks/useStreamingText';
+
+// Component that wraps ReactMarkdown with streaming text support
+// Uses useStreamingText to smooth out bursty SSE chunks into natural typing flow
+const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  const effectiveContent = animateOnMount && !hasMounted ? '' : (content || '');
+  const displayedContent = useStreamingText(effectiveContent);
+  
+  // Preprocess content to convert bullet points and URLs to markdown
+  let processedContent = displayedContent;
+  
+  // Step 0: Strip all ** (bold markdown) from the content BEFORE processing
+  processedContent = processedContent.replace(/\*\*/g, '');
+  
+  // Step 1: Convert URLs to markdown links FIRST
+  processedContent = processedContent.replace(
+    /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
+    '[$1 ($2)]($4): $3'
+  );
+  
+  // Fallback: Convert any remaining bare URLs to clickable links
+  processedContent = processedContent.replace(
+    /(?<!\()(?<!]\()https?:\/\/[^\s)]+/g,
+    (url) => `[${url}](${url})`
+  );
+  
+  // Step 2: Handle inline "Resources:" section
+  processedContent = processedContent.replace(
+    /Resources:\s*-\s*(.+?)(?=\n\n|$)/gis,
+    (match, resourcesText) => {
+      const items = resourcesText.split(/\s+-\s+(?=\[)/);
+      const formattedItems = items
+        .map(item => item.trim())
+        .filter(item => item.length > 0)
+        .map(item => `- ${item}`)
+        .join('\n');
+      return `**Resources:**\n\n${formattedItems}`;
+    }
+  );
+  
+  // Step 3: Convert bullet points to markdown
+  processedContent = processedContent.replace(/^•\s+/gm, '- ');
+  processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
+  
+  // Step 4: Convert numbered lists
+  processedContent = processedContent.replace(/^(\d+)\.\s+/gm, '$1. ');
+  
+  // Step 5: Format section headers
+  processedContent = processedContent.replace(
+    /\n\n(?!\*\*Resources:\*\*)([A-Z][^:\n]+:)(?!\s*\n\n-)/g,
+    '\n\n## $1'
+  );
+  
+  return (
+    <div className="text-carbon-black leading-relaxed text-base">
+      <ReactMarkdown
+        components={{
+          p: ({ node, children, ...props }) => (
+            <p className="mb-4" {...props}>{children}</p>
+          ),
+          h1: ({ node, children, ...props }) => (
+            <h1 className="text-xl font-semibold mt-6 mb-4 first:mt-0 text-carbon-black" {...props}>{children}</h1>
+          ),
+          h2: ({ node, children, ...props }) => (
+            <h2 className="text-lg font-semibold mt-5 mb-3 first:mt-0 text-carbon-black" {...props}>{children}</h2>
+          ),
+          h3: ({ node, children, ...props }) => (
+            <h3 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-carbon-black" {...props}>{children}</h3>
+          ),
+          ul: ({ node, children, ...props }) => (
+            <ul className="list-disc pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ul>
+          ),
+          ol: ({ node, children, ...props }) => (
+            <ol className="list-decimal pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ol>
+          ),
+          li: ({ node, children, ...props }) => (
+            <li className="text-carbon-black" {...props}>{children}</li>
+          ),
+          a: ({ node, children, ...props }) => (
+            <a className="text-blue-500 hover:underline break-all" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+          ),
+          code: ({ node, inline, className, children, ...props }) => {
+            if (inline) {
+              return (
+                <code
+                  className="px-1.5 py-0.5 rounded text-sm font-mono bg-gray-200 text-carbon-black"
+                  {...props}
+                >
+                  {children}
+                </code>
+              );
+            }
+            return (
+              <code className="block" {...props}>
+                {children}
+              </code>
+            );
+          },
+          pre: ({ node, children, ...props }) => (
+            <pre
+              className="p-4 rounded-lg my-4 overflow-x-auto text-sm font-mono bg-gray-100 text-carbon-black"
+              {...props}
+            >
+              {children}
+            </pre>
+          ),
+          blockquote: ({ node, children, ...props }) => (
+            <blockquote
+              className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-700"
+              {...props}
+            >
+              {children}
+            </blockquote>
+          ),
+          strong: ({ node, children, ...props }) => (
+            <strong className="font-semibold text-carbon-black" {...props}>{children}</strong>
+          ),
+          em: ({ node, children, ...props }) => (
+            <em className="italic text-carbon-black" {...props}>{children}</em>
+          ),
+        }}
+      >
+        {processedContent}
+      </ReactMarkdown>
+    </div>
+  );
+};
 
 function GPT() {
   const { token, user } = useAuth();
@@ -103,6 +236,7 @@ function GPT() {
   const textareaRef = useRef(null);
   const chatTrayRef = useRef(null);
   const skipNextFetchRef = useRef(false); // Skip fetch after sending to new thread
+  const prevMessageCountRef = useRef(0);
 
   // Check if user is inactive (in historical access mode)
   const isInactiveUser = user && user.active === false;
@@ -249,12 +383,13 @@ function GPT() {
     setModalSummaryData(null);
   }, [activeThread, summaryThreadId]);
 
-  // Scroll to bottom when messages change
+  // Auto-scroll to bottom only when message count changes
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length !== prevMessageCountRef.current) {
+      prevMessageCountRef.current = messages.length;
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages.length]);
 
   // Auto-focus input when messages load after thread selection
   useEffect(() => {
@@ -622,18 +757,20 @@ function GPT() {
               )
             );
           } else if (chunk.type === 'done' && chunk.message) {
-            // Replace streaming message with final message from server
-            setMessages(prevMessages => 
-              prevMessages.map(msg => 
-                msg.message_id === streamingMessageId 
-                  ? { ...chunk.message, isStreaming: false }
-                  : msg
-              )
-            );
+            // Enable input immediately
             setIsStreaming(false);
             setIsSending(false);
             setIsAiThinking(false);
             setStreamingContent('');
+
+            const finalMessage = chunk.message;
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.message_id === streamingMessageId 
+                  ? { ...msg, content: finalMessage.content, isStreaming: false }
+                  : msg
+              )
+            );
           } else if (chunk.type === 'error') {
             console.error('Stream error:', chunk.error);
             setError(chunk.error || 'Failed to get response');
@@ -736,18 +873,20 @@ function GPT() {
               )
             );
           } else if (chunk.type === 'done' && chunk.message) {
-            // Replace streaming message with final message from server
-            setMessages(prevMessages => 
-              prevMessages.map(msg => 
-                msg.message_id === streamingMessageId 
-                  ? { ...chunk.message, isStreaming: false }
-                  : msg
-              )
-            );
+            // Enable input immediately
             setIsStreaming(false);
             setIsSending(false);
             setIsAiThinking(false);
             setStreamingContent('');
+
+            const finalMessage = chunk.message;
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.message_id === streamingMessageId 
+                  ? { ...msg, content: finalMessage.content, isStreaming: false }
+                  : msg
+              )
+            );
           } else if (chunk.type === 'error') {
             console.error('Stream error:', chunk.error);
             setError(chunk.error || 'Failed to get response');
@@ -1178,6 +1317,7 @@ function GPT() {
                   <>
                     {messages.map((message, index) => {
                       const role = getMessageRole(message);
+                      const isStreamingMessage = message.isStreaming === true;
                       
                       // Handle content source messages with MessageBubble component
                       if (role === 'content_source' || role === 'system_content_summary') {
@@ -1208,147 +1348,26 @@ function GPT() {
                                 </div>
                               </div>
                             </div>
+                          ) : message.isStreaming && !message.content ? (
+                            // Streaming AI message waiting for first chunk — show preloader inline
+                            // Keeps preloader inside the same wrapper div so no layout shift when text arrives
+                            <img src="/preloader.gif" alt="Loading..." className="w-8 h-8" />
                           ) : (
-                            // AI/System message (no avatar) - matches Learning page
-                            <div className="text-carbon-black leading-relaxed text-base">
-                              <ReactMarkdown
-                                components={{
-                                  p: ({ node, children, ...props }) => (
-                                    <p className="mb-4" {...props}>{children}</p>
-                                  ),
-                                  h1: ({ node, children, ...props }) => (
-                                    <h1 className="text-xl font-semibold mt-6 mb-4 first:mt-0 text-carbon-black" {...props}>{children}</h1>
-                                  ),
-                                  h2: ({ node, children, ...props }) => (
-                                    <h2 className="text-lg font-semibold mt-5 mb-3 first:mt-0 text-carbon-black" {...props}>{children}</h2>
-                                  ),
-                                  h3: ({ node, children, ...props }) => (
-                                    <h3 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-carbon-black" {...props}>{children}</h3>
-                                  ),
-                                  ul: ({ node, children, ...props }) => (
-                                    <ul className="list-disc pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ul>
-                                  ),
-                                  ol: ({ node, children, ...props }) => (
-                                    <ol className="list-decimal pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ol>
-                                  ),
-                                  li: ({ node, children, ...props }) => (
-                                    <li className="text-carbon-black" {...props}>{children}</li>
-                                  ),
-                                  a: ({ node, children, ...props }) => (
-                                    <a className="text-blue-500 hover:underline break-all" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
-                                  ),
-                                  code: ({ node, inline, className, children, ...props }) => {
-                                    if (inline) {
-                                      return (
-                                        <code
-                                          className="px-1.5 py-0.5 rounded text-sm font-mono bg-gray-200 text-carbon-black"
-                                          {...props}
-                                        >
-                                          {children}
-                                        </code>
-                                      );
-                                    }
-                                    return (
-                                      <code className="block" {...props}>
-                                        {children}
-                                      </code>
-                                    );
-                                  },
-                                  pre: ({ node, children, ...props }) => (
-                                    <pre
-                                      className="p-4 rounded-lg my-4 overflow-x-auto text-sm font-mono bg-gray-100 text-carbon-black"
-                                      {...props}
-                                    >
-                                      {children}
-                                    </pre>
-                                  ),
-                                  blockquote: ({ node, children, ...props }) => (
-                                    <blockquote
-                                      className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-700"
-                                      {...props}
-                                    >
-                                      {children}
-                                    </blockquote>
-                                  ),
-                                  strong: ({ node, children, ...props }) => (
-                                    <strong className="font-semibold text-carbon-black" {...props}>{children}</strong>
-                                  ),
-                                  em: ({ node, children, ...props }) => (
-                                    <em className="italic text-carbon-black" {...props}>{children}</em>
-                                  ),
-                                }}
-                              >
-                                {(() => {
-                                  // Preprocess content to convert bullet points and URLs to markdown
-                                  let processedContent = message.content;
-                                  
-                                  // Step 0: Strip all ** (bold markdown) from the content BEFORE processing
-                                  // This prevents ** from appearing in link text or anywhere else
-                                  processedContent = processedContent.replace(/\*\*/g, '');
-                                  
-                                  // Step 1: Convert URLs to markdown links FIRST (before any text manipulation)
-                                  // Pattern: "Title (Type): Description URL" - structured resource links
-                                  processedContent = processedContent.replace(
-                                    /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
-                                    '[$1 ($2)]($4): $3'
-                                  );
-                                  
-                                  // Fallback: Convert any remaining bare URLs to clickable links
-                                  processedContent = processedContent.replace(
-                                    /(?<!\()(?<!]\()https?:\/\/[^\s)]+/g,
-                                    (url) => `[${url}](${url})`
-                                  );
-                                  
-                                  // Step 2: Handle inline "Resources:" section - convert to proper bulleted list
-                                  // Match "Resources: - Item1 - Item2" pattern and split into list
-                                  processedContent = processedContent.replace(
-                                    /Resources:\s*-\s*(.+?)(?=\n\n|$)/gis,
-                                    (match, resourcesText) => {
-                                      // Split by " - " pattern that precedes a markdown link [
-                                      const items = resourcesText.split(/\s+-\s+(?=\[)/);
-                                      
-                                      // Format each item as a bullet
-                                      const formattedItems = items
-                                        .map(item => item.trim())
-                                        .filter(item => item.length > 0)
-                                        .map(item => `- ${item}`)
-                                        .join('\n');
-                                      
-                                      return `**Resources:**\n\n${formattedItems}`;
-                                    }
-                                  );
-                                  
-                                  // Step 3: Convert bullet points to markdown (preserves links)
-                                  processedContent = processedContent.replace(/^•\s+/gm, '- ');
-                                  processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
-                                  
-                                  // Step 4: Convert numbered lists
-                                  processedContent = processedContent.replace(/^(\d+)\.\s+/gm, '$1. ');
-                                  
-                                  // Step 5: Format section headers (exclude Resources: which is already bold)
-                                  processedContent = processedContent.replace(
-                                    /\n\n(?!\*\*Resources:\*\*)([A-Z][^:\n]+:)(?!\s*\n\n-)/g,
-                                    '\n\n## $1'
-                                  );
-                                  
-                                  return processedContent;
-                                })()}
-                              </ReactMarkdown>
-                            </div>
+                            // AI message - StreamingMarkdownMessage handles both streaming and static
+                            <StreamingMarkdownMessage
+                              content={message.content}
+                              animateOnMount={!!message.shouldAnimate}
+                            />
                           )}
                         </div>
                       );
                     })}
                     
-                    {(isAiThinking && !isStreaming) || (isStreaming && !streamingContent) ? (
+                    {isAiThinking && !isStreaming && (
                       <div className="mb-6">
-                        <img 
-                          src="/preloader.gif" 
-                          alt="Loading..." 
-                          className="w-8 h-8"
-                        />
+                        <img src="/preloader.gif" alt="Loading..." className="w-8 h-8" />
                       </div>
-                    ) : null}
+                    )}
                     
                     <div ref={messagesEndRef} />
                   </>

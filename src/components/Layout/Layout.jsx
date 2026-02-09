@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Settings, Award, Users, FileText, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench, Target, ListChecks, ClipboardList, UserCheck, Heart, Building2, Rocket } from 'lucide-react';
+import { LogOut, Settings, Award, Users, FileText, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench, Target, ListChecks, ClipboardList, UserCheck, Heart, Building2, Rocket, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import LoadingCurtain from '../LoadingCurtain/LoadingCurtain';
 import NavDropdown from './NavDropdown';
 import { cn } from '../../lib/utils';
@@ -14,26 +15,29 @@ const Layout = ({ children, isLoading = false }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null); // Track which dropdown is open
   const { logout, user } = useAuth();
+  const { canAccessPage, isStaffOrAdmin, isAdmin } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Check if user has active status (from dev)
-  const isActive = user?.active !== false;
-  // Check if user is volunteer (from dev)
-  const isVolunteer = user?.role === 'volunteer'; 
-  // Check if on Pathfinder pages for light mode styling (from dev)
+  // Permission-based access checks
+  const canViewLearning = canAccessPage('learning');
+  const canViewAiChat = canAccessPage('ai_chat');
+  const canViewCalendar = canAccessPage('calendar');
+  const canViewPathfinder = canAccessPage('pathfinder');
+  const canViewPerformance = canAccessPage('performance');
+  const canViewStaffSection = canAccessPage('staff_section');
+  const canViewAdminSection = canAccessPage('admin_section');
+  const canViewVolunteerSection = canAccessPage('volunteer_section');
+  const canViewWorkshopAdmin = canAccessPage('workshop_admin');
+  const canViewCohortAdmin = canAccessPage('cohort_admin');
+  const canViewMySchedule = canAccessPage('my_schedule');
+  
+  // Check if on Pathfinder pages for light mode styling
   const isPathfinderPage = location.pathname.startsWith('/pathfinder');
-  // Check if user is workshop admin (from dev)
+  
+  // Legacy role checks (kept for backwards compatibility where needed)
+  const isVolunteer = user?.role === 'volunteer';
   const isWorkshopAdmin = user?.role === 'workshop_admin';
-  // Check if user is a workshop participant (from dev)
-  const isWorkshopParticipant = user?.role === 'workshop_participant';
-  // Check if user is an enterprise builder or admin
-  const isEnterpriseUser = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin';
-  // Check if user is an applicant (from dev)
-  const isApplicant = user?.role === 'applicant';
-  // Check if user is a workshop participant (applicant with workshop flag)
-  const isWorkshopParticipantApplicant = isApplicant && user?.isWorkshopParticipant;
-  // Check if user is an enterprise admin
   const isEnterpriseAdmin = user?.role === 'enterprise_admin';
   
   // Detect mobile vs desktop
@@ -123,7 +127,7 @@ const Layout = ({ children, isLoading = false }) => {
       '/forms'
     ];
     
-    if ((user?.role === 'admin' || user?.role === 'staff')) {
+    if (canViewStaffSection) {
       // Sputnik gets special rocket icon
       if (location.pathname === '/sputnik' || location.pathname.startsWith('/sputnik')) {
         return <Rocket className="h-4 w-4 text-[#E3E3E3]" />;
@@ -142,14 +146,14 @@ const Layout = ({ children, isLoading = false }) => {
       }
     }
     
-    // Check for volunteer routes
+    // Check for volunteer routes (permission-based)
     if ((location.pathname === '/volunteer-feedback' || 
          location.pathname === '/admin-volunteer-feedback' ||
          location.pathname === '/my-schedule' ||
          location.pathname === '/volunteer-list' ||
          location.pathname === '/volunteer-roster' ||
          location.pathname === '/volunteer-attendance') &&
-        (user?.role === 'volunteer' || user?.role === 'admin' || user?.role === 'staff')) {
+        canViewVolunteerSection) {
       return <Heart className="h-4 w-4 text-[#E3E3E3]" />;
     }
     // Pathfinder routes (for fellows)
@@ -259,7 +263,8 @@ const Layout = ({ children, isLoading = false }) => {
           {/* Navigation Links */}
           {renderNavLink('/dashboard', <img src={logo} alt="Logo" className="h-5 w-5 object-contain" />, 'Dashboard')}
           
-          {          renderNavLink('/learning', (
+          {/* Learning - permission-based */}
+          {renderNavLink('/learning', (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path d="M2 3H8C9.1 3 10 3.9 10 5V19C10 20.1 9.1 21 8 21H2C1.45 21 1 20.55 1 20V4C1 3.45 1.45 3 2 3Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M22 3H16C14.9 3 14 3.9 14 5V19C14 20.1 14.9 21 16 21H22C22.55 21 23 20.55 23 20V4C23 3.45 22.55 3 22 3Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -267,47 +272,49 @@ const Layout = ({ children, isLoading = false }) => {
               <path d="M10 11H14" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M10 15H14" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-          ), 'Learning', (!isWorkshopParticipant && !isWorkshopAdmin && !isApplicant) || isWorkshopParticipantApplicant)}
+          ), 'Learning', canViewLearning)}
           
-          {          renderNavLink('/ai-chat', (
+          {/* AI Chat - permission-based */}
+          {renderNavLink('/ai-chat', (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-          ), 'AI Chat', (!isWorkshopParticipant && !isWorkshopAdmin && !isApplicant) || isWorkshopParticipantApplicant)}
+          ), 'AI Chat', canViewAiChat)}
           
-          {          renderNavLink('/calendar', (
+          {/* Calendar - permission-based */}
+          {renderNavLink('/calendar', (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <line x1="16" y1="2" x2="16" y2="6" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <line x1="8" y1="2" x2="8" y2="6" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <line x1="3" y1="10" x2="21" y2="10" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-          ), 'Calendar', (!isWorkshopParticipant && !isWorkshopAdmin && !isApplicant) || isWorkshopParticipantApplicant)}
+          ), 'Calendar', canViewCalendar)}
           
-          {/* Pathfinder - NEW from dev (hidden for volunteers, workshop users, and enterprise users) */}
+          {/* Pathfinder - permission-based */}
           {renderNavLink('/pathfinder/dashboard', <ArrowRight className="h-4 w-4 text-[#E3E3E3]" />, 'Pathfinder',
-            !isWorkshopParticipant && !isWorkshopAdmin && !isEnterpriseUser && !isApplicant && !isVolunteer,
+            canViewPathfinder,
             () => location.pathname.startsWith('/pathfinder')
           )}
           
-          {/* My Performance - Show for fellows, admin, and staff; Hide for workshop participants, workshop admins, enterprise users, applicants, and volunteers */}
+          {/* My Performance - permission-based */}
           {renderNavLink('/performance', (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-          ), 'Performance', !isWorkshopParticipant && !isWorkshopAdmin && !isEnterpriseUser && !isApplicant && !isVolunteer)}
+          ), 'Performance', canViewPerformance)}
           
-          {/* Workshop Admin Dashboard - NEW from dev */}
+          {/* Workshop Admin Dashboard - permission-based */}
           {renderNavLink('/workshop-admin-dashboard', <Wrench className="h-4 w-4 text-[#E3E3E3]" />, 'Workshop Admin', 
-            isWorkshopAdmin
+            canViewWorkshopAdmin
           )}
           
-          {/* Enterprise Admin Dashboard - for external cohort admins */}
+          {/* Enterprise Admin Dashboard - permission-based */}
           {renderNavLink('/cohort-admin-dashboard', <Building2 className="h-4 w-4 text-[#E3E3E3]" />, 'Enterprise Admin', 
-            isEnterpriseAdmin
+            canViewCohortAdmin
           )}
           
-          {/* Staff Dropdown - Cohort Management and Operations */}
+          {/* Staff Dropdown - Cohort Management and Operations (permission-based) */}
           <NavDropdown
             id="staff"
             trigger={{ icon: Users, label: "Staff" }}
@@ -324,7 +331,7 @@ const Layout = ({ children, isLoading = false }) => {
               { to: '/payment-admin', icon: Briefcase, label: 'Payment Admin' },
               { to: '/sputnik', icon: Rocket, label: 'Sputnik' },
             ]}
-            condition={user?.role === 'admin' || user?.role === 'staff'}
+            condition={canViewStaffSection}
             isMobile={isMobile}
             isNavbarHovered={isNavbarHovered}
             isMobileNavbarOpen={isMobileNavbarOpen}
@@ -333,15 +340,16 @@ const Layout = ({ children, isLoading = false }) => {
             onToggle={(id) => setOpenDropdown(openDropdown === id ? null : id)}
           />
           
-          {/* Admin Dropdown - System Tools */}
+          {/* Admin Dropdown - System Tools (admin only, permission-based) */}
           <NavDropdown
             id="admin"
             trigger={{ icon: Settings, label: "Admin" }}
             items={[
               { to: '/admin-prompts', icon: Brain, label: 'AI Prompts' },
               { to: '/admin/organization-management', icon: Building2, label: 'Organizations' },
+              { to: '/admin/permissions', icon: Shield, label: 'Permissions' },
             ]}
-            condition={user?.role === 'admin'}
+            condition={canViewAdminSection}
             isMobile={isMobile}
             isNavbarHovered={isNavbarHovered}
             isMobileNavbarOpen={isMobileNavbarOpen}
@@ -350,26 +358,29 @@ const Layout = ({ children, isLoading = false }) => {
             onToggle={(id) => setOpenDropdown(openDropdown === id ? null : id)}
           />
           
-          {/* Volunteers Dropdown */}
+          {/* Volunteers Dropdown (permission-based) */}
           <NavDropdown
             id="volunteers"
             trigger={{ icon: Heart, label: "Volunteers" }}
             items={[
-              ...(user?.role === 'volunteer' ? [
+              // My Schedule - only for volunteers
+              ...(canViewMySchedule && isVolunteer ? [
                 { to: '/my-schedule', icon: CalendarIcon, label: 'My Schedule' },
               ] : []),
-              ...((user?.role === 'admin' || user?.role === 'staff') ? [
+              // Admin volunteer management - only for staff/admin
+              ...(isStaffOrAdmin ? [
                 { to: '/volunteer-list', icon: ListChecks, label: 'List' },
                 { to: '/volunteer-roster', icon: ClipboardList, label: 'Calendar' },
                 { to: '/volunteer-attendance', icon: UserCheck, label: 'Attendance' },
               ] : []),
+              // Feedback - different routes for volunteers vs staff/admin
               { 
-                to: user?.role === 'volunteer' ? '/volunteer-feedback' : '/admin-volunteer-feedback', 
+                to: isVolunteer ? '/volunteer-feedback' : '/admin-volunteer-feedback', 
                 icon: MessageCircle, 
                 label: 'Feedback' 
               },
             ]}
-            condition={user?.role === 'volunteer' || user?.role === 'admin' || user?.role === 'staff'}
+            condition={canViewVolunteerSection}
             isMobile={isMobile}
             isNavbarHovered={isNavbarHovered}
             isMobileNavbarOpen={isMobileNavbarOpen}

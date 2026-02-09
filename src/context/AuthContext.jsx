@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 
 // Create the auth context
 export const AuthContext = createContext();
@@ -12,32 +12,66 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch effective permissions from the backend and attach to user object
+  const fetchAndSetPermissions = useCallback(async (currentToken, currentUser) => {
+    if (!currentToken || !currentUser) return currentUser;
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/permissions/my-permissions`, {
+        headers: { 'Authorization': `Bearer ${currentToken}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // data.permissions is { "page:dashboard": true, "feature:edit_curriculum": false, ... }
+        // data.detailed is the full array from getUserEffectivePermissions
+        const updatedUser = {
+          ...currentUser,
+          effectivePermissions: data.permissions || {},
+          customPermissions: (data.detailed || []).filter(p => p.source === 'custom'),
+        };
+        // Update localStorage with permissions attached
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        return updatedUser;
+      }
+    } catch (error) {
+      console.error('Error fetching effective permissions:', error);
+    }
+    return currentUser;
+  }, []);
+
   // Check if user is already logged in (from localStorage)
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    const storedToken = localStorage.getItem('token');
-    
-    if (storedUser && storedToken) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        // Set auth state for builder users, workshop participants, volunteers, AND workshop participant applicants
-        if (parsedUser.userType === 'builder' || parsedUser.userType === 'workshop_participant' || 
-            parsedUser.userType === 'volunteer' || 
-            (parsedUser.userType === 'applicant' && parsedUser.isWorkshopParticipant)) {
-          setUser(parsedUser);
-          setToken(storedToken);
-          setIsAuthenticated(true);
+    const initAuth = async () => {
+      const storedUser = localStorage.getItem('user');
+      const storedToken = localStorage.getItem('token');
+      
+      if (storedUser && storedToken) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          // Set auth state for builder users, workshop participants, volunteers, AND workshop participant applicants
+          if (parsedUser.userType === 'builder' || parsedUser.userType === 'workshop_participant' || 
+              parsedUser.userType === 'volunteer' || 
+              (parsedUser.userType === 'applicant' && parsedUser.isWorkshopParticipant)) {
+            // Set initial state with stored data (may include cached permissions)
+            setToken(storedToken);
+            setIsAuthenticated(true);
+            
+            // Fetch fresh permissions from DB in the background
+            const userWithPerms = await fetchAndSetPermissions(storedToken, parsedUser);
+            setUser(userWithPerms);
+          }
+        } catch (error) {
+          console.error('Error parsing stored user data:', error);
+          // Clear invalid data
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
         }
-      } catch (error) {
-        console.error('Error parsing stored user data:', error);
-        // Clear invalid data
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
       }
-    }
+      
+      setIsLoading(false);
+    };
     
-    setIsLoading(false);
-  }, []);
+    initAuth();
+  }, [fetchAndSetPermissions]);
 
   // Login function - now uses unified auth endpoint
   const login = async (email, password) => {
@@ -74,9 +108,12 @@ export const AuthProvider = ({ children }) => {
       // Set auth context state for builder users, volunteers, and workshop participant applicants
       if (data.user.userType === 'builder' || data.user.userType === 'volunteer' || 
           (data.user.userType === 'applicant' && data.user.isWorkshopParticipant)) {
-        setUser(data.user);
         setToken(data.token);
         setIsAuthenticated(true);
+        
+        // Fetch effective permissions from backend and attach to user
+        const userWithPerms = await fetchAndSetPermissions(data.token, data.user);
+        setUser(userWithPerms);
       }
       
       return { success: true, redirectTo: data.redirectTo, userType: data.user.userType };
@@ -153,6 +190,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Refresh permissions from the backend (call after role/permission changes)
+  const refreshPermissions = useCallback(async () => {
+    if (token && user) {
+      const userWithPerms = await fetchAndSetPermissions(token, user);
+      setUser(userWithPerms);
+    }
+  }, [token, user, fetchAndSetPermissions]);
+
   // Value object to be provided to consumers
   const value = {
     user,
@@ -163,7 +208,8 @@ export const AuthProvider = ({ children }) => {
     signup,
     logout,
     updateUser,
-    setAuthState
+    setAuthState,
+    refreshPermissions,
   };
 
   return (
