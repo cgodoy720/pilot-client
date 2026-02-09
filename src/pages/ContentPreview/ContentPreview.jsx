@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -60,9 +61,10 @@ function ContentPreview() {
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [dayToDelete, setDayToDelete] = useState(null);
 
-  // Check if user has preview access and edit permissions
-  const hasPreviewAccess = user?.role === 'admin' || user?.role === 'staff' || user?.role === 'volunteer';
-  const canEdit = user?.role === 'admin' || user?.role === 'staff';
+  // Check if user has preview access and edit permissions via the permission system
+  const { canAccessPage, canUseFeature } = usePermissions();
+  const hasPreviewAccess = canAccessPage('content_preview');
+  const canEdit = canUseFeature('edit_curriculum');
 
   const loadDayContent = async (dayId) => {
     try {

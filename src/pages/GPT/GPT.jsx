@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './GPT.css';
 import { useAuth } from '../../context/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { getThreads, getThreadMessages, createThread, sendMessageToGPT } from '../../utils/api';
+import { getThreads, getThreadMessages, createThread, sendMessageToGPT, streamMessageToGPT } from '../../utils/api';
 import SummaryModal from '../../components/SummaryModal/SummaryModal';
 import ReactMarkdown from 'react-markdown';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
@@ -40,6 +40,139 @@ import {
 } from '../../components/ui/select';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import { useStreamingText } from '../../hooks/useStreamingText';
+
+// Component that wraps ReactMarkdown with streaming text support
+// Uses useStreamingText to smooth out bursty SSE chunks into natural typing flow
+const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  const effectiveContent = animateOnMount && !hasMounted ? '' : (content || '');
+  const displayedContent = useStreamingText(effectiveContent);
+  
+  // Preprocess content to convert bullet points and URLs to markdown
+  let processedContent = displayedContent;
+  
+  // Step 0: Strip all ** (bold markdown) from the content BEFORE processing
+  processedContent = processedContent.replace(/\*\*/g, '');
+  
+  // Step 1: Convert URLs to markdown links FIRST
+  processedContent = processedContent.replace(
+    /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
+    '[$1 ($2)]($4): $3'
+  );
+  
+  // Fallback: Convert any remaining bare URLs to clickable links
+  processedContent = processedContent.replace(
+    /(?<!\()(?<!]\()https?:\/\/[^\s)]+/g,
+    (url) => `[${url}](${url})`
+  );
+  
+  // Step 2: Handle inline "Resources:" section
+  processedContent = processedContent.replace(
+    /Resources:\s*-\s*(.+?)(?=\n\n|$)/gis,
+    (match, resourcesText) => {
+      const items = resourcesText.split(/\s+-\s+(?=\[)/);
+      const formattedItems = items
+        .map(item => item.trim())
+        .filter(item => item.length > 0)
+        .map(item => `- ${item}`)
+        .join('\n');
+      return `**Resources:**\n\n${formattedItems}`;
+    }
+  );
+  
+  // Step 3: Convert bullet points to markdown
+  processedContent = processedContent.replace(/^•\s+/gm, '- ');
+  processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
+  
+  // Step 4: Convert numbered lists
+  processedContent = processedContent.replace(/^(\d+)\.\s+/gm, '$1. ');
+  
+  // Step 5: Format section headers
+  processedContent = processedContent.replace(
+    /\n\n(?!\*\*Resources:\*\*)([A-Z][^:\n]+:)(?!\s*\n\n-)/g,
+    '\n\n## $1'
+  );
+  
+  return (
+    <div className="text-carbon-black leading-relaxed text-base">
+      <ReactMarkdown
+        components={{
+          p: ({ node, children, ...props }) => (
+            <p className="mb-4" {...props}>{children}</p>
+          ),
+          h1: ({ node, children, ...props }) => (
+            <h1 className="text-xl font-semibold mt-6 mb-4 first:mt-0 text-carbon-black" {...props}>{children}</h1>
+          ),
+          h2: ({ node, children, ...props }) => (
+            <h2 className="text-lg font-semibold mt-5 mb-3 first:mt-0 text-carbon-black" {...props}>{children}</h2>
+          ),
+          h3: ({ node, children, ...props }) => (
+            <h3 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-carbon-black" {...props}>{children}</h3>
+          ),
+          ul: ({ node, children, ...props }) => (
+            <ul className="list-disc pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ul>
+          ),
+          ol: ({ node, children, ...props }) => (
+            <ol className="list-decimal pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ol>
+          ),
+          li: ({ node, children, ...props }) => (
+            <li className="text-carbon-black" {...props}>{children}</li>
+          ),
+          a: ({ node, children, ...props }) => (
+            <a className="text-blue-500 hover:underline break-all" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+          ),
+          code: ({ node, inline, className, children, ...props }) => {
+            if (inline) {
+              return (
+                <code
+                  className="px-1.5 py-0.5 rounded text-sm font-mono bg-gray-200 text-carbon-black"
+                  {...props}
+                >
+                  {children}
+                </code>
+              );
+            }
+            return (
+              <code className="block" {...props}>
+                {children}
+              </code>
+            );
+          },
+          pre: ({ node, children, ...props }) => (
+            <pre
+              className="p-4 rounded-lg my-4 overflow-x-auto text-sm font-mono bg-gray-100 text-carbon-black"
+              {...props}
+            >
+              {children}
+            </pre>
+          ),
+          blockquote: ({ node, children, ...props }) => (
+            <blockquote
+              className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-700"
+              {...props}
+            >
+              {children}
+            </blockquote>
+          ),
+          strong: ({ node, children, ...props }) => (
+            <strong className="font-semibold text-carbon-black" {...props}>{children}</strong>
+          ),
+          em: ({ node, children, ...props }) => (
+            <em className="italic text-carbon-black" {...props}>{children}</em>
+          ),
+        }}
+      >
+        {processedContent}
+      </ReactMarkdown>
+    </div>
+  );
+};
 
 function GPT() {
   const { token, user } = useAuth();
@@ -91,6 +224,10 @@ function GPT() {
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   
+  // Streaming message state
+  const [streamingContent, setStreamingContent] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -98,6 +235,8 @@ function GPT() {
   const fetchMessagesAbortControllerRef = useRef(null);
   const textareaRef = useRef(null);
   const chatTrayRef = useRef(null);
+  const skipNextFetchRef = useRef(false); // Skip fetch after sending to new thread
+  const prevMessageCountRef = useRef(0);
 
   // Check if user is inactive (in historical access mode)
   const isInactiveUser = user && user.active === false;
@@ -201,6 +340,11 @@ function GPT() {
   // Fetch messages when active thread changes
   useEffect(() => {
     if (activeThread && token) {
+      // Skip fetch if we just sent a message to a new thread (messages already in state)
+      if (skipNextFetchRef.current) {
+        skipNextFetchRef.current = false;
+        return;
+      }
       fetchMessages(activeThread);
     } else {
       setMessages([]);
@@ -209,7 +353,7 @@ function GPT() {
 
   // Poll for new messages when waiting for AI response
   useEffect(() => {
-    if (!isAiThinking || !activeThread || !token) return;
+    if (!isAiThinking || !activeThread || !token || isStreaming) return;
 
     let pollCount = 0;
     const maxPolls = 30; // Stop polling after 60 seconds (30 * 2s)
@@ -228,7 +372,7 @@ function GPT() {
     }, 2000); // Poll every 2 seconds
 
     return () => clearInterval(pollInterval);
-  }, [isAiThinking, activeThread, token]);
+  }, [isAiThinking, activeThread, token, isStreaming]);
 
   // Clear summary data when switching to a thread without summary
   useEffect(() => {
@@ -239,12 +383,13 @@ function GPT() {
     setModalSummaryData(null);
   }, [activeThread, summaryThreadId]);
 
-  // Scroll to bottom when messages change
+  // Auto-scroll to bottom only when message count changes
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length !== prevMessageCountRef.current) {
+      prevMessageCountRef.current = messages.length;
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages.length]);
 
   // Auto-focus input when messages load after thread selection
   useEffect(() => {
@@ -258,7 +403,7 @@ function GPT() {
 
   // Auto-focus input when AI response arrives
   useEffect(() => {
-    if (messages.length > 0 && !isAiThinking && !isSending && textareaRef.current && !isInactiveUser) {
+    if (messages.length > 0 && !isAiThinking && !isSending && !isStreaming && textareaRef.current && !isInactiveUser) {
       const lastMessage = messages[messages.length - 1];
       const lastMessageRole = lastMessage.message_role || lastMessage.role;
       // Focus when last message is from AI/assistant
@@ -419,56 +564,16 @@ function GPT() {
         return message;
       });
       
-      // When polling, only update messages if they've actually changed (to prevent flashing)
+      // When polling, replace messages with server data in a single update (no flash)
       if (isPolling) {
-        // Compare message count and last message ID to avoid unnecessary updates
-        const currentLastMessageId = messages.length > 0 ? getMessageId(messages[messages.length - 1]) : null;
-        const newLastMessageId = messagesArray.length > 0 ? getMessageId(messagesArray[messagesArray.length - 1]) : null;
+        setMessages(messagesArray);
         
-        // Only update if messages actually changed
-        if (currentLastMessageId !== newLastMessageId || messages.length !== messagesArray.length) {
-          // Merge intelligently: keep temp messages, add new server messages
-          const existingMessageIds = new Set(messages.map(msg => getMessageId(msg)));
-          const existingContents = new Set(messages.map(msg => msg.content));
-          
-          // Find truly new messages (not in current state by ID or content)
-          const newMessages = messagesArray.filter(serverMsg => {
-            const serverId = getMessageId(serverMsg);
-            const serverContent = serverMsg.content;
-            
-            // Skip if we already have this message by ID
-            if (existingMessageIds.has(serverId)) {
-              return false;
-            }
-            
-            // Skip user messages that match content of existing temp messages
-            const serverRole = getMessageRole(serverMsg);
-            if (serverRole === 'user' && existingContents.has(serverContent)) {
-              return false;
-            }
-            
-            return true;
-          });
-          
-          // If there are new messages, append them (don't replace)
-          if (newMessages.length > 0) {
-            setMessages(prevMessages => {
-              // Remove temp flag from any temp messages
-              const updatedMessages = prevMessages.map(msg => 
-                msg.isTemp ? { ...msg, isTemp: false } : msg
-              );
-              return [...updatedMessages, ...newMessages];
-            });
-            
-            // Update isAiThinking based on last message role
-            if (newMessages.length > 0) {
-              const lastNewMessage = newMessages[newMessages.length - 1];
-              const lastMessageRole = getMessageRole(lastNewMessage);
-              // If last new message is from assistant, we're done waiting
-              if (lastMessageRole === 'assistant' || lastMessageRole === 'ai') {
-                setIsAiThinking(false);
-              }
-            }
+        // If last message is from AI, we're done waiting
+        if (messagesArray.length > 0) {
+          const lastMessage = messagesArray[messagesArray.length - 1];
+          const lastMessageRole = getMessageRole(lastMessage);
+          if (lastMessageRole === 'assistant' || lastMessageRole === 'ai') {
+            setIsAiThinking(false);
           }
         }
       } else {
@@ -572,6 +677,8 @@ function GPT() {
           // Now send the message to the new thread
           await sendMessageToNewThread(newThreadId);
           
+          // Skip the next fetch since we already have messages in state
+          skipNextFetchRef.current = true;
           // Now set the active thread after message is sent
           setActiveThread(newThreadId);
         }
@@ -601,68 +708,105 @@ function GPT() {
     
     const messageToSend = newMessage;
     const tempUserMessageId = Date.now();
+    const streamingMessageId = tempUserMessageId + 1;
     const tempUserMessage = {
       message_id: tempUserMessageId,
       content: messageToSend,
       message_role: 'user',
       created_at: new Date().toISOString(),
-      isTemp: true // Mark as temporary message
+      isTemp: true
     };
     
     setMessages(prevMessages => [...prevMessages, tempUserMessage]);
     setNewMessage('');
-    handleTextareaResize(); // Reset height after clearing
+    handleTextareaResize();
     setIsSending(true);
     setIsAiThinking(true);
+    setIsStreaming(true);
+    setStreamingContent('');
 
     try {
-      const response = await sendMessageToGPT(messageToSend, threadId, token, selectedModel, abortController.signal);
-      
-      // Check if this request was aborted
-      if (abortController.signal.aborted) {
-        return;
-      }
+      // Add a placeholder streaming message
+      setMessages(prevMessages => [
+        ...prevMessages.map(msg =>
+          msg.message_id === tempUserMessageId ? { ...msg, isTemp: false } : msg
+        ),
+        {
+          message_id: streamingMessageId,
+          content: '',
+          message_role: 'assistant',
+          created_at: new Date().toISOString(),
+          isStreaming: true
+        }
+      ]);
+
+      await streamMessageToGPT(
+        messageToSend,
+        threadId,
+        token,
+        selectedModel,
+        (chunk) => {
+          if (chunk.type === 'text') {
+            setStreamingContent(prev => prev + chunk.content);
+            // Update the streaming message content
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.message_id === streamingMessageId 
+                  ? { ...msg, content: (msg.content || '') + chunk.content }
+                  : msg
+              )
+            );
+          } else if (chunk.type === 'done' && chunk.message) {
+            // Enable input immediately
+            setIsStreaming(false);
+            setIsSending(false);
+            setIsAiThinking(false);
+            setStreamingContent('');
+
+            const finalMessage = chunk.message;
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.message_id === streamingMessageId 
+                  ? { ...msg, content: finalMessage.content, isStreaming: false }
+                  : msg
+              )
+            );
+          } else if (chunk.type === 'error') {
+            console.error('Stream error:', chunk.error);
+            setError(chunk.error || 'Failed to get response');
+            // Remove the streaming message on error
+            setMessages(prevMessages => 
+              prevMessages.filter(msg => msg.message_id !== streamingMessageId)
+            );
+            setIsStreaming(false);
+            setIsSending(false);
+            setIsAiThinking(false);
+            setStreamingContent('');
+          }
+        },
+        abortController.signal
+      );
       
       setTimeout(() => {
         fetchThreads();
       }, 1000);
       
-      if (response && response.reply) {
-        // Replace temp message with real one and add AI reply
-        setMessages(prevMessages => [
-          ...prevMessages.filter(msg => msg.message_id !== tempUserMessageId),
-          { ...tempUserMessage, isTemp: false },
-          response.reply
-        ]);
-        setIsSending(false);
-        setIsAiThinking(false);
-      } else {
-        // No immediate response - keep temp message and wait for polling to fetch AI response
-        // Remove isTemp flag so it doesn't get removed when server messages arrive
-        setMessages(prevMessages => 
-          prevMessages.map(msg => 
-            msg.message_id === tempUserMessageId 
-              ? { ...msg, isTemp: false }
-              : msg
-          )
-        );
-        setIsSending(false);
-        // Keep isAiThinking true so polling continues
-      }
-      
       setError('');
     } catch (err) {
-      // Ignore abort errors
       if (err.name === 'AbortError') {
         return;
       }
       console.error('Error sending message:', err);
       setError('Failed to send message. Please try again.');
       setMessages(prevMessages => 
-        prevMessages.filter(msg => msg.message_id !== tempUserMessageId)
+        prevMessages.filter(msg => 
+          msg.message_id !== tempUserMessageId && msg.message_id !== streamingMessageId
+        )
       );
       setIsSending(false);
+      setIsStreaming(false);
       setIsAiThinking(false);
+      setStreamingContent('');
     }
   };
 
@@ -678,28 +822,86 @@ function GPT() {
     
     const messageToSend = newMessage;
     const tempUserMessageId = Date.now();
+    const streamingMessageId = tempUserMessageId + 1;
     const tempUserMessage = {
       message_id: tempUserMessageId,
       content: messageToSend,
       message_role: 'user',
       created_at: new Date().toISOString(),
-      isTemp: true // Mark as temporary message
+      isTemp: true
     };
     
     setMessages(prevMessages => [...prevMessages, tempUserMessage]);
     setNewMessage('');
-    handleTextareaResize(); // Reset height after clearing
+    handleTextareaResize();
     setIsSending(true);
     setIsAiThinking(true);
+    setIsStreaming(true);
+    setStreamingContent('');
 
     try {
       const isFirstMessage = messages.length === 0;
-      const response = await sendMessageToGPT(messageToSend, activeThread, token, selectedModel, abortController.signal);
       
-      // Check if this request was aborted
-      if (abortController.signal.aborted) {
-        return;
-      }
+      // Add a placeholder streaming message
+      setMessages(prevMessages => [
+        ...prevMessages.map(msg =>
+          msg.message_id === tempUserMessageId ? { ...msg, isTemp: false } : msg
+        ),
+        {
+          message_id: streamingMessageId,
+          content: '',
+          message_role: 'assistant',
+          created_at: new Date().toISOString(),
+          isStreaming: true
+        }
+      ]);
+
+      await streamMessageToGPT(
+        messageToSend,
+        activeThread,
+        token,
+        selectedModel,
+        (chunk) => {
+          if (chunk.type === 'text') {
+            setStreamingContent(prev => prev + chunk.content);
+            // Update the streaming message content
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.message_id === streamingMessageId 
+                  ? { ...msg, content: (msg.content || '') + chunk.content }
+                  : msg
+              )
+            );
+          } else if (chunk.type === 'done' && chunk.message) {
+            // Enable input immediately
+            setIsStreaming(false);
+            setIsSending(false);
+            setIsAiThinking(false);
+            setStreamingContent('');
+
+            const finalMessage = chunk.message;
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.message_id === streamingMessageId 
+                  ? { ...msg, content: finalMessage.content, isStreaming: false }
+                  : msg
+              )
+            );
+          } else if (chunk.type === 'error') {
+            console.error('Stream error:', chunk.error);
+            setError(chunk.error || 'Failed to get response');
+            // Remove the streaming message on error
+            setMessages(prevMessages => 
+              prevMessages.filter(msg => msg.message_id !== streamingMessageId)
+            );
+            setIsStreaming(false);
+            setIsSending(false);
+            setIsAiThinking(false);
+            setStreamingContent('');
+          }
+        },
+        abortController.signal
+      );
       
       if (isFirstMessage) {
         setTimeout(() => {
@@ -707,42 +909,22 @@ function GPT() {
         }, 1000);
       }
       
-      if (response && response.reply) {
-        // Replace temp message with real one and add AI reply
-        setMessages(prevMessages => [
-          ...prevMessages.filter(msg => msg.message_id !== tempUserMessageId),
-          { ...tempUserMessage, isTemp: false },
-          response.reply
-        ]);
-        setIsSending(false);
-        setIsAiThinking(false);
-      } else {
-        // No immediate response - keep temp message and wait for polling to fetch AI response
-        // Remove isTemp flag so it doesn't get removed when server messages arrive
-        setMessages(prevMessages => 
-          prevMessages.map(msg => 
-            msg.message_id === tempUserMessageId 
-              ? { ...msg, isTemp: false }
-              : msg
-          )
-        );
-        setIsSending(false);
-        // Keep isAiThinking true so polling continues
-      }
-      
       setError('');
     } catch (err) {
-      // Ignore abort errors
       if (err.name === 'AbortError') {
         return;
       }
       console.error('Error sending message:', err);
       setError('Failed to send message. Please try again.');
       setMessages(prevMessages => 
-        prevMessages.filter(msg => msg.message_id !== tempUserMessageId)
+        prevMessages.filter(msg => 
+          msg.message_id !== tempUserMessageId && msg.message_id !== streamingMessageId
+        )
       );
       setIsSending(false);
+      setIsStreaming(false);
       setIsAiThinking(false);
+      setStreamingContent('');
     }
   };
 
@@ -1135,6 +1317,7 @@ function GPT() {
                   <>
                     {messages.map((message, index) => {
                       const role = getMessageRole(message);
+                      const isStreamingMessage = message.isStreaming === true;
                       
                       // Handle content source messages with MessageBubble component
                       if (role === 'content_source' || role === 'system_content_summary') {
@@ -1165,145 +1348,24 @@ function GPT() {
                                 </div>
                               </div>
                             </div>
+                          ) : message.isStreaming && !message.content ? (
+                            // Streaming AI message waiting for first chunk — show preloader inline
+                            // Keeps preloader inside the same wrapper div so no layout shift when text arrives
+                            <img src="/preloader.gif" alt="Loading..." className="w-8 h-8" />
                           ) : (
-                            // AI/System message (no avatar) - matches Learning page
-                            <div className="text-carbon-black leading-relaxed text-base">
-                              <ReactMarkdown
-                                components={{
-                                  p: ({ node, children, ...props }) => (
-                                    <p className="mb-4" {...props}>{children}</p>
-                                  ),
-                                  h1: ({ node, children, ...props }) => (
-                                    <h1 className="text-xl font-semibold mt-6 mb-4 first:mt-0 text-carbon-black" {...props}>{children}</h1>
-                                  ),
-                                  h2: ({ node, children, ...props }) => (
-                                    <h2 className="text-lg font-semibold mt-5 mb-3 first:mt-0 text-carbon-black" {...props}>{children}</h2>
-                                  ),
-                                  h3: ({ node, children, ...props }) => (
-                                    <h3 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-carbon-black" {...props}>{children}</h3>
-                                  ),
-                                  ul: ({ node, children, ...props }) => (
-                                    <ul className="list-disc pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ul>
-                                  ),
-                                  ol: ({ node, children, ...props }) => (
-                                    <ol className="list-decimal pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ol>
-                                  ),
-                                  li: ({ node, children, ...props }) => (
-                                    <li className="text-carbon-black" {...props}>{children}</li>
-                                  ),
-                                  a: ({ node, children, ...props }) => (
-                                    <a className="text-blue-500 hover:underline break-all" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
-                                  ),
-                                  code: ({ node, inline, className, children, ...props }) => {
-                                    if (inline) {
-                                      return (
-                                        <code
-                                          className="px-1.5 py-0.5 rounded text-sm font-mono bg-gray-200 text-carbon-black"
-                                          {...props}
-                                        >
-                                          {children}
-                                        </code>
-                                      );
-                                    }
-                                    return (
-                                      <code className="block" {...props}>
-                                        {children}
-                                      </code>
-                                    );
-                                  },
-                                  pre: ({ node, children, ...props }) => (
-                                    <pre
-                                      className="p-4 rounded-lg my-4 overflow-x-auto text-sm font-mono bg-gray-100 text-carbon-black"
-                                      {...props}
-                                    >
-                                      {children}
-                                    </pre>
-                                  ),
-                                  blockquote: ({ node, children, ...props }) => (
-                                    <blockquote
-                                      className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-700"
-                                      {...props}
-                                    >
-                                      {children}
-                                    </blockquote>
-                                  ),
-                                  strong: ({ node, children, ...props }) => (
-                                    <strong className="font-semibold text-carbon-black" {...props}>{children}</strong>
-                                  ),
-                                  em: ({ node, children, ...props }) => (
-                                    <em className="italic text-carbon-black" {...props}>{children}</em>
-                                  ),
-                                }}
-                              >
-                                {(() => {
-                                  // Preprocess content to convert bullet points and URLs to markdown
-                                  let processedContent = message.content;
-                                  
-                                  // Step 0: Strip all ** (bold markdown) from the content BEFORE processing
-                                  // This prevents ** from appearing in link text or anywhere else
-                                  processedContent = processedContent.replace(/\*\*/g, '');
-                                  
-                                  // Step 1: Convert URLs to markdown links FIRST (before any text manipulation)
-                                  // Pattern: "Title (Type): Description URL" - structured resource links
-                                  processedContent = processedContent.replace(
-                                    /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
-                                    '[$1 ($2)]($4): $3'
-                                  );
-                                  
-                                  // Fallback: Convert any remaining bare URLs to clickable links
-                                  processedContent = processedContent.replace(
-                                    /(?<!\()(?<!]\()https?:\/\/[^\s)]+/g,
-                                    (url) => `[${url}](${url})`
-                                  );
-                                  
-                                  // Step 2: Handle inline "Resources:" section - convert to proper bulleted list
-                                  // Match "Resources: - Item1 - Item2" pattern and split into list
-                                  processedContent = processedContent.replace(
-                                    /Resources:\s*-\s*(.+?)(?=\n\n|$)/gis,
-                                    (match, resourcesText) => {
-                                      // Split by " - " pattern that precedes a markdown link [
-                                      const items = resourcesText.split(/\s+-\s+(?=\[)/);
-                                      
-                                      // Format each item as a bullet
-                                      const formattedItems = items
-                                        .map(item => item.trim())
-                                        .filter(item => item.length > 0)
-                                        .map(item => `- ${item}`)
-                                        .join('\n');
-                                      
-                                      return `**Resources:**\n\n${formattedItems}`;
-                                    }
-                                  );
-                                  
-                                  // Step 3: Convert bullet points to markdown (preserves links)
-                                  processedContent = processedContent.replace(/^•\s+/gm, '- ');
-                                  processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
-                                  
-                                  // Step 4: Convert numbered lists
-                                  processedContent = processedContent.replace(/^(\d+)\.\s+/gm, '$1. ');
-                                  
-                                  // Step 5: Format section headers (exclude Resources: which is already bold)
-                                  processedContent = processedContent.replace(
-                                    /\n\n(?!\*\*Resources:\*\*)([A-Z][^:\n]+:)(?!\s*\n\n-)/g,
-                                    '\n\n## $1'
-                                  );
-                                  
-                                  return processedContent;
-                                })()}
-                              </ReactMarkdown>
-                            </div>
+                            // AI message - StreamingMarkdownMessage handles both streaming and static
+                            <StreamingMarkdownMessage
+                              content={message.content}
+                              animateOnMount={!!message.shouldAnimate}
+                            />
                           )}
                         </div>
                       );
                     })}
                     
-                    {isAiThinking && (
+                    {isAiThinking && !isStreaming && (
                       <div className="mb-6">
-                        <img 
-                          src="/preloader.gif" 
-                          alt="Loading..." 
-                          className="w-8 h-8"
-                        />
+                        <img src="/preloader.gif" alt="Loading..." className="w-8 h-8" />
                       </div>
                     )}
                     

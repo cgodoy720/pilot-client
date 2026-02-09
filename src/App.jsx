@@ -41,6 +41,8 @@ import PathfinderPersonalDashboard from './pages/Pathfinder/PathfinderPersonalDa
 import PathfinderApplications from './pages/PathfinderApplications';
 import PathfinderNetworking from './pages/PathfinderNetworking';
 import PathfinderProjects from './pages/PathfinderProjects';
+import PathfinderEventHub from './pages/PathfinderEventHub/PathfinderEventHub';
+import EventDetailPage from './pages/PathfinderEventHub/EventDetailPage';
 import PathfinderAdminDashboard from './pages/PathfinderDashboard';
 import PathfinderAdmin from './pages/PathfinderAdmin';
 
@@ -48,6 +50,7 @@ import WorkshopAdminDashboard from './pages/WorkshopAdminDashboard/WorkshopAdmin
 import ExternalCohortsDashboard from './pages/ExternalCohortsDashboard/ExternalCohortsDashboard';
 import CohortAdminDashboard from './pages/CohortAdminDashboard/CohortAdminDashboard';
 import OrganizationManagement from './pages/Admin/OrganizationManagement/OrganizationManagement';
+import PermissionManagement from './pages/Admin/PermissionManagement';
 import ContentPreview from './pages/ContentPreview';
 
 // Form Builder pages
@@ -63,6 +66,14 @@ import { useAuth } from './context/AuthContext';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
 import { Toaster } from './components/ui/sonner';
+import { 
+  PermissionRoute, 
+  ActiveUserRoute, 
+  BuilderRoute,
+  WorkshopAdminRoute,
+  EnterpriseAdminRoute 
+} from './components/RouteGuards';
+import { PAGE_PERMISSIONS } from './constants/permissions';
 
 import './App.css';
 
@@ -129,7 +140,7 @@ function App() {
     window.location.href = '/login';
   };
 
-  // Protected route component
+  // Protected route component (basic auth check)
   const ProtectedRoute = ({ children }) => {
     if (isLoading) {
       return <div>Loading...</div>;
@@ -141,61 +152,24 @@ function App() {
     
     return children;
   };
-  
-  // Active user route protection component
-  const ActiveUserRoute = ({ children }) => {
-    const isActive = user?.active !== false;
-    
-    if (!isActive) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    
-    return children;
-  };
 
-  // Admin route protection component
+  // Legacy AdminRoute - now uses permission system
+  // Kept inline for routes that need both admin AND staff access
   const AdminRoute = ({ children }) => {
-    const isAdmin = user?.role === 'admin' || user?.role === 'staff';
-    
-    if (!isAdmin) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    
-    return children;
+    return (
+      <PermissionRoute permission={PAGE_PERMISSIONS.STAFF_SECTION}>
+        {children}
+      </PermissionRoute>
+    );
   };
 
-  // Workshop Admin route protection component
-  const WorkshopAdminRoute = ({ children }) => {
-    const isWorkshopAdmin = user?.role === 'workshop_admin' || user?.role === 'admin' || user?.role === 'staff';
-    
-    if (!isWorkshopAdmin) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    
-    return children;
-  };
-
-  // Enterprise Admin route protection component
-  const EnterpriseAdminRoute = ({ children }) => {
-    const isEnterpriseAdmin = user?.role === 'enterprise_admin' || user?.role === 'admin' || user?.role === 'staff';
-    
-    if (!isEnterpriseAdmin) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    
-    return children;
-  };
-
-  // Builder-only route protection component (excludes workshop/enterprise users)
-  const BuilderRoute = ({ children }) => {
-    const excludedRoles = ['workshop_participant', 'workshop_admin', 'enterprise_builder', 'enterprise_admin'];
-    const isExcluded = excludedRoles.includes(user?.role);
-    
-    if (isExcluded) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    
-    return children;
+  // Admin-only route (excludes staff)
+  const AdminOnlyRoute = ({ children }) => {
+    return (
+      <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_SECTION}>
+        {children}
+      </PermissionRoute>
+    );
   };
 
   // If auth is still loading, show a minimal loading state
@@ -314,9 +288,9 @@ function App() {
         } />
         <Route path="/admin-prompts" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_PROMPTS}>
               <AdminPrompts />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/facilitator-view" element={
@@ -357,21 +331,30 @@ function App() {
           </Layout>
         } />
         
-        {/* Organization Management (Admin/Staff only) */}
+        {/* Organization Management (Admin only) */}
         <Route path="/admin/organization-management" element={
           <Layout>
-            <AdminRoute>
+            <AdminOnlyRoute>
               <OrganizationManagement />
-            </AdminRoute>
+            </AdminOnlyRoute>
           </Layout>
         } />
         
-        {/* Content Preview (Staff/Admin/Volunteer) */}
+        {/* Permission Management (Admin only) */}
+        <Route path="/admin/permissions" element={
+          <Layout>
+            <AdminOnlyRoute>
+              <PermissionManagement />
+            </AdminOnlyRoute>
+          </Layout>
+        } />
+        
+        {/* Content Preview (Staff/Admin/Volunteer - permission-based) */}
         <Route path="/content-preview" element={
           <Layout>
-            <ProtectedRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.CONTENT_PREVIEW}>
               <ContentPreview />
-            </ProtectedRoute>
+            </PermissionRoute>
           </Layout>
         } />
         
@@ -415,6 +398,8 @@ function App() {
           <Route path="applications" element={<PathfinderApplications />} />
           <Route path="networking" element={<PathfinderNetworking />} />
           <Route path="projects" element={<PathfinderProjects />} />
+          <Route path="events" element={<PathfinderEventHub />} />
+          <Route path="events/:eventId" element={<EventDetailPage />} />
         </Route>
         
         {/* Pathfinder admin dashboard - separate route */}
