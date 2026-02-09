@@ -76,6 +76,91 @@ export const getCohortPerformance = async (token, options = {}) => {
 };
 
 /**
+ * Get daily breakdown for a specific cohort
+ * @param {string} cohort - Cohort name
+ * @param {string} token - Admin authentication token
+ * @param {Object} options - Options including period, startDate, endDate
+ * @returns {Promise<Object>} Daily breakdown data
+ */
+export const getCohortDailyBreakdown = async (cohort, token, options = {}) => {
+  const { period = 'last-30-days', startDate, endDate } = options;
+  
+  return retryWithBackoff(
+    async () => {
+      const url = new URL(`${API_URL}/api/admin/attendance/dashboard/cohort-daily-breakdown`);
+      url.searchParams.append('cohort', cohort);
+      
+      if (period) {
+        url.searchParams.append('period', period);
+      }
+      if (startDate) {
+        url.searchParams.append('startDate', startDate);
+      }
+      if (endDate) {
+        url.searchParams.append('endDate', endDate);
+      }
+      
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(errorData.error || `API error: ${response.status}`);
+        error.response = response;
+        error.status = response.status;
+        throw error;
+      }
+
+      return await response.json();
+    },
+    RETRY_CONFIGS.STANDARD,
+    'Cohort Daily Breakdown API'
+  );
+};
+
+/**
+ * Get builder status for a specific cohort and date
+ * @param {string} cohort - Cohort name
+ * @param {string} date - Date in YYYY-MM-DD format
+ * @param {string} token - Admin authentication token
+ * @returns {Promise<Object>} Builder status data
+ */
+export const getDayBuilderStatus = async (cohort, date, token) => {
+  return retryWithBackoff(
+    async () => {
+      const url = new URL(`${API_URL}/api/admin/attendance/dashboard/day-builder-status`);
+      url.searchParams.append('cohort', cohort);
+      url.searchParams.append('date', date);
+      
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(errorData.error || `API error: ${response.status}`);
+        error.response = response;
+        error.status = response.status;
+        throw error;
+      }
+
+      return await response.json();
+    },
+    RETRY_CONFIGS.STANDARD,
+    'Day Builder Status API'
+  );
+};
+
+/**
  * Get daily attendance report
  * @param {string} date - Date in YYYY-MM-DD format
  * @param {string} token - Admin authentication token
@@ -413,6 +498,40 @@ export const getExcuseStatistics = async (params = {}, token) => {
 };
 
 /**
+ * Search for builders
+ * @param {Object} params - Query parameters (search, cohort)
+ * @param {string} token - Admin authentication token
+ * @returns {Promise<Object>} Builders search results
+ */
+export const searchBuilders = async (params = {}, token) => {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params.search) queryParams.append('search', params.search);
+    if (params.cohort) queryParams.append('cohort', params.cohort);
+
+    const url = `${API_URL}/api/attendance/builders${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error searching builders:', error);
+    throw error;
+  }
+};
+
+/**
  * Export attendance data as CSV
  */
 export const exportAttendanceCSV = async (startDate, endDate, cohort = 'all') => {
@@ -584,6 +703,8 @@ export const getCsvExportStatistics = async (params = {}) => {
 export const adminApi = {
   getTodaysAttendanceOverview,
   getCohortPerformance,
+  getCohortDailyBreakdown,
+  getDayBuilderStatus,
   getDailyReport,
   getWeeklyReport,
   getMonthlyReport,
@@ -594,6 +715,7 @@ export const adminApi = {
   updateExcuse,
   bulkExcuseCohort,
   getExcuseStatistics,
+  searchBuilders,
   exportAttendanceCSV,
   getCsvExportHistory,
   getAllCsvExportHistory,

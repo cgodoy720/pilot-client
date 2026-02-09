@@ -5,15 +5,61 @@ import { Input } from '../../../../components/ui/input';
 import { Loader2, ExternalLink, AlertCircle } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 
-function FlexibleSubmission({ task, currentSubmission, isSubmitting, isLocked, onSubmit }) {
+function FlexibleSubmission({ task, currentSubmission, isSubmitting, isLocked, onSubmit, userId, taskId }) {
   const [submissionType, setSubmissionType] = useState('link');
   const [content, setContent] = useState('');
   const [hasPermission, setHasPermission] = useState('');
   const [validationError, setValidationError] = useState('');
 
-  // Initialize from existing submission
+  // Helper function to get localStorage key
+  const getLocalStorageKey = () => {
+    return `deliverable_draft_${userId}_${taskId}`;
+  };
+
+  // Helper function to load draft from localStorage
+  const loadDraftFromLocalStorage = () => {
+    try {
+      const key = getLocalStorageKey();
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Error loading draft from localStorage:', e);
+    }
+    return null;
+  };
+
+  // Helper function to save draft to localStorage
+  const saveDraftToLocalStorage = (type, contentValue) => {
+    try {
+      const key = getLocalStorageKey();
+      const draftData = {
+        submissionType: type,
+        content: contentValue
+      };
+      localStorage.setItem(key, JSON.stringify(draftData));
+    } catch (e) {
+      console.error('Error saving draft to localStorage:', e);
+    }
+  };
+
+  // Helper function to clear draft from localStorage
+  const clearDraftFromLocalStorage = () => {
+    try {
+      const key = getLocalStorageKey();
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.error('Error clearing draft from localStorage:', e);
+    }
+  };
+
+  // Initialize from existing submission or localStorage draft
   useEffect(() => {
+    let hasSubmission = false;
+    
     if (currentSubmission?.content) {
+      hasSubmission = true;
       try {
         // Try to parse as JSON (legacy format)
         const parsedContent = JSON.parse(currentSubmission.content);
@@ -47,16 +93,35 @@ function FlexibleSubmission({ task, currentSubmission, isSubmitting, isLocked, o
         setContent(contentStr);
       }
     }
-  }, [currentSubmission]);
+    
+    // If no submission exists, try to load draft from localStorage
+    if (!hasSubmission) {
+      const draftData = loadDraftFromLocalStorage();
+      if (draftData) {
+        console.log('Loaded draft from localStorage for task', taskId);
+        setSubmissionType(draftData.submissionType || 'link');
+        setContent(draftData.content || '');
+      }
+    }
+  }, [currentSubmission, userId, taskId]);
 
   const handleTypeChange = (type) => {
     setSubmissionType(type);
     setContent('');
     setValidationError('');
+    
+    // Clear draft when changing type (don't save empty state)
+    clearDraftFromLocalStorage();
   };
 
   const handleContentChange = (value) => {
     setContent(value);
+    
+    // Save to localStorage (only if no submission exists yet)
+    if (!currentSubmission) {
+      saveDraftToLocalStorage(submissionType, value);
+    }
+    
     if (validationError) {
       setValidationError('');
     }
@@ -105,6 +170,9 @@ function FlexibleSubmission({ task, currentSubmission, isSubmitting, isLocked, o
       return;
     }
 
+    // Clear draft from localStorage before submitting
+    clearDraftFromLocalStorage();
+    
     // Submit the content directly (backend expects plain string)
     onSubmit(content);
   };

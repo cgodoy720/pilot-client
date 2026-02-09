@@ -1,21 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotesSidebar from '../../components/NotesSidebar';
 import BulkActionsModal from '../../components/BulkActionsModal';
+import AttendedEventModal from './components/shared/AttendedEventModal';
 import Swal from 'sweetalert2';
-import './ApplicationDetail.css';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '../../components/ui/collapsible';
+import { getStatusBadgeClasses, formatStatus } from './components/shared/utils';
 
 // Utility functions for formatting response values
 const formatResponseValue = (value, questionType) => {
-    if (!value) return <span className="no-response">No response provided</span>;
+    if (!value) return <span className="text-gray-400 italic">No response provided</span>;
 
     // Try to detect if the value is an array (JSON string)
     try {
         const parsedValue = JSON.parse(value);
         if (Array.isArray(parsedValue)) {
             return (
-                <ul className="response-list">
+                <ul className="list-disc list-inside space-y-1">
                     {parsedValue.map((item, i) => (
                         <li key={i}>{item}</li>
                     ))}
@@ -78,8 +88,137 @@ const formatResponseValue = (value, questionType) => {
     return value;
 };
 
+// Create shorthand labels for common questions
+const getShorthandLabel = (prompt, questionId) => {
+    if (!prompt) return 'Unknown Question';
+
+    // Special handling for key analysis questions
+    const keyQuestionLabels = {
+        1046: 'Education & Work History',
+        1052: 'AI Perspectives & Career Impact',
+        1053: 'Personal Background Story',
+        1055: 'AI Learning Questions Used',
+        1056: 'Neural Network Definition',
+        1057: 'Neural Network Structure & Function',
+        1059: 'Most Intriguing Neural Network Aspect',
+        1061: 'Learning About Intriguing Aspect',
+        1062: 'AI Tools Learning Process Impact'
+    };
+
+    if (questionId && keyQuestionLabels[questionId]) {
+        return keyQuestionLabels[questionId];
+    }
+
+    const lowercasePrompt = prompt.toLowerCase();
+
+    // Common question mappings
+    if (lowercasePrompt.includes('first name')) return 'First Name';
+    if (lowercasePrompt.includes('last name')) return 'Last Name';
+    if (lowercasePrompt.includes('date of birth') || lowercasePrompt.includes('birthday')) return 'Date of Birth';
+    if (lowercasePrompt.includes('annual') && lowercasePrompt.includes('personal income')) return 'Personal Annual Income';
+    if (lowercasePrompt.includes('annual') && lowercasePrompt.includes('household income')) return 'Household Annual Income';
+    if (lowercasePrompt.includes('annual') && lowercasePrompt.includes('income') && !lowercasePrompt.includes('personal') && !lowercasePrompt.includes('household')) return 'Annual Income';
+    if (lowercasePrompt.includes('home address') || lowercasePrompt.includes('street address')) return 'Address';
+    if (lowercasePrompt.includes('phone') || lowercasePrompt.includes('mobile')) return 'Phone';
+    if (lowercasePrompt.includes('email')) return 'Email';
+    if (lowercasePrompt.includes('gender')) return 'Gender';
+    if (lowercasePrompt.includes('race') || lowercasePrompt.includes('ethnicity')) return 'Race/Ethnicity';
+    if (lowercasePrompt.includes('education') && lowercasePrompt.includes('level')) return 'Education Level';
+    if (lowercasePrompt.includes('work') && lowercasePrompt.includes('experience')) return 'Work Experience';
+    if (lowercasePrompt.includes('why') && lowercasePrompt.includes('pursuit')) return 'Why Pursuit?';
+    if (lowercasePrompt.includes('programming') && lowercasePrompt.includes('experience')) return 'Programming Experience';
+    if (lowercasePrompt.includes('obstacle') || lowercasePrompt.includes('challenge')) return 'Challenges/Obstacles';
+    if (lowercasePrompt.includes('goal') || lowercasePrompt.includes('career')) return 'Career Goals';
+    if (lowercasePrompt.includes('reference') || lowercasePrompt.includes('contact')) return 'Reference Contact';
+    if (lowercasePrompt.includes('privacy') && lowercasePrompt.includes('policy')) return 'Privacy Policy Agreement';
+    if (lowercasePrompt.includes('citizen') || lowercasePrompt.includes('authorized')) return 'Work Authorization';
+    if (lowercasePrompt.includes('conviction') || lowercasePrompt.includes('criminal')) return 'Criminal Background';
+
+    // If no match found, try to create a shortened version
+    if (prompt.length > 50) {
+        return prompt.substring(0, 47) + '...';
+    }
+
+    return prompt;
+};
+
+// Helper function to convert arrays or semicolon-separated text to bullet points
+const formatBulletPoints = (data) => {
+    if (!data) return null;
+
+    let points = [];
+
+    // Check if data is already an array
+    if (Array.isArray(data)) {
+        points = data.filter(item => item && item.trim());
+    } else if (typeof data === 'string') {
+        // Try to parse as JSON first (in case it's a JSON string)
+        try {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed)) {
+                points = parsed.filter(item => item && item.trim());
+            } else {
+                // Fall back to semicolon-separated splitting
+                points = data.split(';').map(item => item.trim()).filter(item => item);
+            }
+        } catch (e) {
+            // Not valid JSON, split by semicolons
+            points = data.split(';').map(item => item.trim()).filter(item => item);
+        }
+    }
+
+    if (points.length === 0) return null;
+
+    // Return as bullet point list
+    return (
+        <ul className="list-disc list-inside space-y-1">
+            {points.map((point, index) => (
+                <li key={index}>{point}</li>
+            ))}
+        </ul>
+    );
+};
+
+// Create logical groupings based on question content instead of database sections
+const getQuestionCategory = (prompt) => {
+    if (!prompt) return 'Other';
+
+    const lowercasePrompt = prompt.toLowerCase();
+
+    // Personal/Basic Information
+    if (lowercasePrompt.includes('first name') || lowercasePrompt.includes('last name') ||
+        lowercasePrompt.includes('date of birth') || lowercasePrompt.includes('email') ||
+        lowercasePrompt.includes('phone') || lowercasePrompt.includes('address') ||
+        lowercasePrompt.includes('gender')) {
+        return 'Personal Information';
+    }
+
+    // Background & Demographics
+    if (lowercasePrompt.includes('race') || lowercasePrompt.includes('ethnicity') ||
+        lowercasePrompt.includes('education') || lowercasePrompt.includes('income') ||
+        lowercasePrompt.includes('citizen') || lowercasePrompt.includes('authorized')) {
+        return 'Background & Demographics';
+    }
+
+    // Experience & Work
+    if (lowercasePrompt.includes('work') || lowercasePrompt.includes('job') ||
+        lowercasePrompt.includes('experience') || lowercasePrompt.includes('programming') ||
+        lowercasePrompt.includes('technical')) {
+        return 'Experience & Background';
+    }
+
+    // References & Additional
+    if (lowercasePrompt.includes('reference') || lowercasePrompt.includes('contact') ||
+        lowercasePrompt.includes('privacy') || lowercasePrompt.includes('conviction') ||
+        lowercasePrompt.includes('criminal')) {
+        return 'Additional Information';
+    }
+
+    return 'Other';
+};
+
 const ApplicationDetail = () => {
-    const { applicationId } = useParams();
+    const { applicantId } = useParams();
     const { token } = useAuth();
     const navigate = useNavigate();
 
@@ -94,6 +233,9 @@ const ApplicationDetail = () => {
     const [actionsModalOpen, setActionsModalOpen] = useState(false);
     const [actionInProgress, setActionInProgress] = useState(false);
 
+    // Attended event modal management
+    const [attendedEventModalOpen, setAttendedEventModalOpen] = useState(false);
+
     // Email tracking data
     const [emailTrackingData, setEmailTrackingData] = useState(null);
     const [emailTrackingLoading, setEmailTrackingLoading] = useState(false);
@@ -102,12 +244,12 @@ const ApplicationDetail = () => {
     const [expandedSections, setExpandedSections] = useState({});
 
     // Toggle section expansion
-    const toggleSection = (sectionKey) => {
+    const toggleSection = useCallback((sectionKey) => {
         setExpandedSections(prev => ({
             ...prev,
             [sectionKey]: !prev[sectionKey]
         }));
-    };
+    }, []);
 
     // Fetch application details
     const fetchApplicationDetail = async () => {
@@ -115,7 +257,7 @@ const ApplicationDetail = () => {
             setLoading(true);
             setError(null);
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/application/${applicationId}`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicant/${applicantId}/detail`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -123,11 +265,11 @@ const ApplicationDetail = () => {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to fetch application details');
+                throw new Error('Failed to fetch applicant details');
             }
 
             const data = await response.json();
-            console.log('📋 Application Detail Data:', data);
+            console.log('📋 Applicant Detail Data:', data);
             console.log('🔍 Deferred status:', data.application?.deferred);
             console.log('📅 Deferred at:', data.application?.deferred_at);
             setApplicationData(data);
@@ -137,8 +279,8 @@ const ApplicationDetail = () => {
                 fetchEmailTrackingData(data.applicant.applicant_id);
             }
         } catch (error) {
-            console.error('Error fetching application details:', error);
-            setError('Failed to load application details. Please try again.');
+            console.error('Error fetching applicant details:', error);
+            setError('Failed to load applicant details. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -171,10 +313,10 @@ const ApplicationDetail = () => {
     };
 
     useEffect(() => {
-        if (applicationId && token) {
+        if (applicantId && token) {
             fetchApplicationDetail();
         }
-    }, [applicationId, token]);
+    }, [applicantId, token]);
 
     // Handle notes modal
     const openNotesSidebar = () => {
@@ -192,70 +334,6 @@ const ApplicationDetail = () => {
 
     const closeActionsModal = () => {
         setActionsModalOpen(false);
-    };
-
-    // Handle defer/undefer toggle
-    const handleDeferToggle = async () => {
-        const isDeferred = application?.deferred;
-        const action = isDeferred ? 'undefer' : 'defer';
-        
-        const result = await Swal.fire({
-            title: isDeferred ? 'Remove Deferral?' : 'Defer Application?',
-            html: isDeferred 
-                ? `<p style="font-size: 16px; margin: 20px 0;">This will remove the deferral status and return the applicant to the active pool.</p>`
-                : `<p style="font-size: 16px; margin: 20px 0;">This will mark the applicant as deferred and move them out of the current cohort pool.</p>`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: isDeferred ? 'Yes, Remove Deferral' : 'Yes, Defer Application',
-            cancelButtonText: 'Cancel',
-            confirmButtonColor: isDeferred ? '#4242ea' : '#dc3545',
-            cancelButtonColor: '#6c757d',
-            background: 'var(--color-background-dark)',
-            color: 'var(--color-text-primary)',
-        });
-
-        if (result.isConfirmed) {
-            try {
-                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/${action}`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ applicantId: applicant.applicant_id })
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || `Failed to ${action} application`);
-                }
-
-                const deferResult = await response.json();
-                
-                await Swal.fire({
-                    icon: 'success',
-                    title: isDeferred ? 'Deferral Removed' : 'Application Deferred',
-                    html: `<p style="font-size: 16px;">${deferResult.message}</p>`,
-                    confirmButtonColor: '#4242ea',
-                    background: 'var(--color-background-dark)',
-                    color: 'var(--color-text-primary)',
-                    confirmButtonText: 'OK'
-                });
-                
-                // Reload application data
-                fetchApplicationDetail();
-            } catch (error) {
-                await Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: error.message || `Failed to ${action} application. Please try again.`,
-                    confirmButtonColor: '#dc3545',
-                    background: 'var(--color-background-dark)',
-                    color: 'var(--color-text-primary)',
-                    confirmButtonText: 'OK'
-                });
-            }
-        }
     };
 
     // Handle single applicant action
@@ -293,170 +371,219 @@ const ApplicationDetail = () => {
                 // Close modal
                 setActionsModalOpen(false);
                 
-                // Show success message (you could add a toast notification here)
-                console.log('Action completed successfully');
+                // Show success message
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: result.message || 'Action completed successfully',
+                    confirmButtonColor: '#4242ea',
+                    timer: 2000,
+                    showConfirmButton: true
+                });
             } else {
                 const errorData = await response.json();
                 console.error('Action failed:', errorData);
-                // You could show an error message here
+                
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: errorData.error || 'Failed to perform action. Please try again.',
+                    confirmButtonColor: '#dc3545',
+                });
             }
         } catch (error) {
             console.error('Error performing action:', error);
-            // You could show an error message here
+            
+            await Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'An unexpected error occurred. Please try again.',
+                confirmButtonColor: '#dc3545',
+            });
         } finally {
             setActionInProgress(false);
         }
     };
 
-    // Create shorthand labels for common questions
-    const getShorthandLabel = (prompt, questionId) => {
-        if (!prompt) return 'Unknown Question';
+    // Handle eligibility override
+    const handleEligibilityOverride = async (newStatus) => {
+        if (!applicant?.applicant_id || !applicationData?.application?.application_id) return;
 
-        // Special handling for key analysis questions
-        const keyQuestionLabels = {
-            1046: 'Education & Work History',
-            1052: 'AI Perspectives & Career Impact',
-            1053: 'Personal Background Story',
-            1055: 'AI Learning Questions Used',
-            1056: 'Neural Network Definition',
-            1057: 'Neural Network Structure & Function',
-            1059: 'Most Intriguing Neural Network Aspect',
-            1061: 'Learning About Intriguing Aspect',
-            1062: 'AI Tools Learning Process Impact'
+        try {
+            const confirmed = await Swal.fire({
+                title: 'Override Eligibility Status?',
+                html: newStatus === 'submitted' 
+                    ? `<p>This will mark the applicant as <strong>Eligible</strong> and change their status from "Ineligible" to "Submitted".</p>
+                       <p class="text-gray-500 mt-2">This is an administrative override of the eligibility check.</p>`
+                    : `<p>This will mark the applicant as <strong>Ineligible</strong> and change their status to "Ineligible".</p>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#4242ea',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: newStatus === 'submitted' ? 'Yes, Mark Eligible' : 'Yes, Mark Ineligible',
+                cancelButtonText: 'Cancel'
+            });
+
+            if (!confirmed.isConfirmed) return;
+
+            const response = await fetch(
+                `${import.meta.env.VITE_API_URL}/api/admissions/applications/${applicationData.application.application_id}/eligibility-override`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                }
+            );
+
+            if (response.ok) {
+                // Refresh data
+                await fetchApplicationDetail();
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Updated!',
+                    text: `Eligibility status has been overridden to "${newStatus === 'submitted' ? 'Eligible' : 'Ineligible'}"`,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                const errorData = await response.json();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: errorData.error || 'Failed to update eligibility status'
+                });
+            }
+        } catch (error) {
+            console.error('Error updating eligibility:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'An unexpected error occurred'
+            });
+        }
+    };
+
+    // Memoize the processed responses to avoid re-computation on every render
+    // This must be called before any conditional returns (Rules of Hooks)
+    const processedResponses = useMemo(() => {
+        const responses = applicationData?.responses;
+        const questions = applicationData?.questions;
+        const eligibilityCheck = applicationData?.eligibilityCheck;
+        
+        if (!responses || !questions || responses.length === 0) {
+            return { 
+                keyResponses: [], 
+                responsesByCategory: {}, 
+                categoryOrder: [], 
+                keyAnalysisQuestions: [],
+                eligibilityResponses: [],
+                failedQuestionIds: []
+            };
+        }
+
+        // Define the 9 key analysis questions in order
+        const keyAnalysisQuestions = [
+            1046, 1052, 1053, 1055, 1056, 1057, 1059, 1061, 1062
+        ];
+
+        // Helper function to identify eligibility questions by their prompt
+        const isEligibilityQuestion = (prompt) => {
+            if (!prompt) return false;
+            const lowerPrompt = prompt.toLowerCase();
+            return (
+                lowerPrompt.includes('date of birth') ||
+                lowerPrompt.includes('annual (gross) personal income') ||
+                lowerPrompt.includes('home address') ||
+                lowerPrompt.includes('work in the u.s. legally') ||
+                lowerPrompt.includes('commute to a fully in-person') ||
+                lowerPrompt.includes('commit to that in-person schedule') ||
+                lowerPrompt.includes('privacy policy')
+            );
         };
 
-        if (questionId && keyQuestionLabels[questionId]) {
-            return keyQuestionLabels[questionId];
-        }
+        // Separate different types of questions
+        const keyResponses = [];
+        const eligibilityResponses = [];
+        const otherResponses = [];
+        const failedQuestionIds = eligibilityCheck?.failedQuestionIds || [];
 
-        const lowercasePrompt = prompt.toLowerCase();
+        // Create a question lookup map for O(1) access
+        const questionMap = new Map(questions.map(q => [q.question_id, q]));
 
-        // Common question mappings
-        if (lowercasePrompt.includes('first name')) return 'First Name';
-        if (lowercasePrompt.includes('last name')) return 'Last Name';
-        if (lowercasePrompt.includes('date of birth') || lowercasePrompt.includes('birthday')) return 'Date of Birth';
-        if (lowercasePrompt.includes('annual') && lowercasePrompt.includes('personal income')) return 'Personal Annual Income';
-        if (lowercasePrompt.includes('annual') && lowercasePrompt.includes('household income')) return 'Household Annual Income';
-        if (lowercasePrompt.includes('annual') && lowercasePrompt.includes('income') && !lowercasePrompt.includes('personal') && !lowercasePrompt.includes('household')) return 'Annual Income';
-        if (lowercasePrompt.includes('home address') || lowercasePrompt.includes('street address')) return 'Address';
-        if (lowercasePrompt.includes('phone') || lowercasePrompt.includes('mobile')) return 'Phone';
-        if (lowercasePrompt.includes('email')) return 'Email';
-        if (lowercasePrompt.includes('gender')) return 'Gender';
-        if (lowercasePrompt.includes('race') || lowercasePrompt.includes('ethnicity')) return 'Race/Ethnicity';
-        if (lowercasePrompt.includes('education') && lowercasePrompt.includes('level')) return 'Education Level';
-        if (lowercasePrompt.includes('work') && lowercasePrompt.includes('experience')) return 'Work Experience';
-        if (lowercasePrompt.includes('why') && lowercasePrompt.includes('pursuit')) return 'Why Pursuit?';
-        if (lowercasePrompt.includes('programming') && lowercasePrompt.includes('experience')) return 'Programming Experience';
-        if (lowercasePrompt.includes('obstacle') || lowercasePrompt.includes('challenge')) return 'Challenges/Obstacles';
-        if (lowercasePrompt.includes('goal') || lowercasePrompt.includes('career')) return 'Career Goals';
-        if (lowercasePrompt.includes('reference') || lowercasePrompt.includes('contact')) return 'Reference Contact';
-        if (lowercasePrompt.includes('privacy') && lowercasePrompt.includes('policy')) return 'Privacy Policy Agreement';
-        if (lowercasePrompt.includes('citizen') || lowercasePrompt.includes('authorized')) return 'Work Authorization';
-        if (lowercasePrompt.includes('conviction') || lowercasePrompt.includes('criminal')) return 'Criminal Background';
+        responses.forEach(response => {
+            const question = questionMap.get(response.question_id);
+            if (question) {
+                const responseData = {
+                    response,
+                    question,
+                    shortLabel: getShorthandLabel(question.prompt, question.question_id),
+                    isFailed: failedQuestionIds.includes(question.question_id)
+                };
 
-        // If no match found, try to create a shortened version
-        if (prompt.length > 50) {
-            return prompt.substring(0, 47) + '...';
-        }
-
-        return prompt;
-    };
-
-    // Helper function to convert arrays or semicolon-separated text to bullet points
-    const formatBulletPoints = (data) => {
-        if (!data) return null;
-
-        let points = [];
-
-        // Check if data is already an array
-        if (Array.isArray(data)) {
-            points = data.filter(item => item && item.trim());
-        } else if (typeof data === 'string') {
-            // Try to parse as JSON first (in case it's a JSON string)
-            try {
-                const parsed = JSON.parse(data);
-                if (Array.isArray(parsed)) {
-                    points = parsed.filter(item => item && item.trim());
+                // Categorize the response
+                if (keyAnalysisQuestions.includes(question.question_id)) {
+                    keyResponses.push(responseData);
+                } else if (isEligibilityQuestion(question.prompt)) {
+                    eligibilityResponses.push(responseData);
                 } else {
-                    // Fall back to semicolon-separated splitting
-                    points = data.split(';').map(item => item.trim()).filter(item => item);
+                    otherResponses.push(responseData);
                 }
-            } catch (e) {
-                // Not valid JSON, split by semicolons
-                points = data.split(';').map(item => item.trim()).filter(item => item);
             }
-        }
+        });
 
-        if (points.length === 0) return null;
+        // Sort key responses by the defined order
+        keyResponses.sort((a, b) => {
+            const indexA = keyAnalysisQuestions.indexOf(a.question.question_id);
+            const indexB = keyAnalysisQuestions.indexOf(b.question.question_id);
+            return indexA - indexB;
+        });
 
-        // Return as bullet point list
-        return (
-            <ul className="bullet-list">
-                {points.map((point, index) => (
-                    <li key={index}>{point}</li>
-                ))}
-            </ul>
-        );
-    };
+        // Sort eligibility responses - failed ones first
+        eligibilityResponses.sort((a, b) => {
+            if (a.isFailed && !b.isFailed) return -1;
+            if (!a.isFailed && b.isFailed) return 1;
+            return a.question.question_id - b.question.question_id;
+        });
 
-    // Create logical groupings based on question content instead of database sections
-    const getQuestionCategory = (prompt) => {
-        if (!prompt) return 'Other';
+        // Group other responses by logical categories
+        const responsesByCategory = {};
+        const categoryOrder = [
+            'Personal Information',
+            'Background & Demographics',
+            'Experience & Background',
+            'Additional Information',
+            'Other'
+        ];
 
-        const lowercasePrompt = prompt.toLowerCase();
+        otherResponses.forEach(responseData => {
+            const category = getQuestionCategory(responseData.question.prompt);
+            if (!responsesByCategory[category]) {
+                responsesByCategory[category] = [];
+            }
+            responsesByCategory[category].push(responseData);
+        });
 
-        // Personal/Basic Information
-        if (lowercasePrompt.includes('first name') || lowercasePrompt.includes('last name') ||
-            lowercasePrompt.includes('date of birth') || lowercasePrompt.includes('email') ||
-            lowercasePrompt.includes('phone') || lowercasePrompt.includes('address') ||
-            lowercasePrompt.includes('gender')) {
-            return 'Personal Information';
-        }
-
-        // Background & Demographics
-        if (lowercasePrompt.includes('race') || lowercasePrompt.includes('ethnicity') ||
-            lowercasePrompt.includes('education') || lowercasePrompt.includes('income') ||
-            lowercasePrompt.includes('citizen') || lowercasePrompt.includes('authorized')) {
-            return 'Background & Demographics';
-        }
-
-        // Experience & Work
-        if (lowercasePrompt.includes('work') || lowercasePrompt.includes('job') ||
-            lowercasePrompt.includes('experience') || lowercasePrompt.includes('programming') ||
-            lowercasePrompt.includes('technical')) {
-            return 'Experience & Background';
-        }
-
-        // Program Interest & Motivation - now grouped into Other
-        // if (lowercasePrompt.includes('why') || lowercasePrompt.includes('pursuit') ||
-        //     lowercasePrompt.includes('goal') || lowercasePrompt.includes('career') ||
-        //     lowercasePrompt.includes('motivation') || lowercasePrompt.includes('interest')) {
-        //     return 'Program Interest';
-        // }
-
-        // Challenges & Personal - now grouped into Other
-        // if (lowercasePrompt.includes('obstacle') || lowercasePrompt.includes('challenge') ||
-        //     lowercasePrompt.includes('overcome') || lowercasePrompt.includes('difficult')) {
-        //     return 'Personal Story';
-        // }
-
-        // References & Additional
-        if (lowercasePrompt.includes('reference') || lowercasePrompt.includes('contact') ||
-            lowercasePrompt.includes('privacy') || lowercasePrompt.includes('conviction') ||
-            lowercasePrompt.includes('criminal')) {
-            return 'Additional Information';
-        }
-
-        return 'Other';
-    };
+        return {
+            keyResponses,
+            keyAnalysisQuestions,
+            eligibilityResponses,
+            failedQuestionIds,
+            responsesByCategory,
+            categoryOrder: categoryOrder.filter(category => responsesByCategory[category]?.length > 0)
+        };
+    }, [applicationData]);
 
     // Loading state
     if (loading) {
         return (
-            <div className="application-detail">
-                <div className="application-detail__loading">
-                    <div className="application-detail__loading-spinner"></div>
-                    <p>Loading application details...</p>
+            <div className="w-full h-full bg-[#f5f5f5] flex items-center justify-center p-6">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 border-4 border-[#4242ea] border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-gray-500 font-proxima">Loading application details...</p>
                 </div>
             </div>
         );
@@ -465,14 +592,18 @@ const ApplicationDetail = () => {
     // Error state
     if (error) {
         return (
-            <div className="application-detail">
-                <div className="application-detail__error">
-                    <h2>Error</h2>
-                    <p>{error}</p>
-                    <button onClick={fetchApplicationDetail} className="retry-btn">
-                        Try Again
-                    </button>
-                </div>
+            <div className="w-full h-full bg-[#f5f5f5] flex items-center justify-center p-6">
+                <Card className="max-w-md w-full">
+                    <CardHeader>
+                        <CardTitle className="text-red-600">Error</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <p className="text-gray-700">{error}</p>
+                        <Button onClick={fetchApplicationDetail} className="w-full">
+                            Try Again
+                        </Button>
+                    </CardContent>
+                </Card>
             </div>
         );
     }
@@ -480,14 +611,21 @@ const ApplicationDetail = () => {
     // No data state
     if (!applicationData) {
         return (
-            <div className="application-detail">
-                <div className="application-detail__no-data">
-                    <h2>Application Not Found</h2>
-                    <p>The requested application could not be found.</p>
-                    <button onClick={() => navigate('/admissions-dashboard')} className="back-btn">
-                        Back to Admissions
-                    </button>
-                </div>
+            <div className="w-full h-full bg-[#f5f5f5] flex items-center justify-center p-6">
+                <Card className="max-w-md w-full">
+                    <CardHeader>
+                        <CardTitle>Application Not Found</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <p className="text-gray-700">The requested application could not be found.</p>
+                        <Button 
+                            onClick={() => navigate('/admissions-dashboard?tab=applications')} 
+                            className="w-full"
+                        >
+                            Back to Admissions
+                        </Button>
+                    </CardContent>
+                </Card>
             </div>
         );
     }
@@ -495,284 +633,328 @@ const ApplicationDetail = () => {
     const { applicant, application, assessment, responses, questions } = applicationData;
 
     return (
-        <div className="application-detail">
+        <div className="w-full h-full bg-[#f5f5f5] overflow-auto font-proxima">
             {/* Header */}
-            <div className="application-detail__header">
-                <div className="application-detail__header-content">
-                    <button
-                        onClick={() => navigate('/admissions-dashboard?tab=applications')}
-                        className="application-detail__back-btn"
-                    >
-                        ← Back to Applicants
-                    </button>
-                    <div className="application-detail__title">
-                        <h1>Applicant Details</h1>
-                        <span className={`status-badge status-badge--${application.status}`}>
-                            {application.status}
-                        </span>
+            <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+                <div className="px-6 py-4">
+                    <div className="flex items-center justify-between mb-2">
+                        <Button
+                            variant="ghost"
+                            onClick={() => navigate('/admissions-dashboard?tab=applications')}
+                            className="font-proxima"
+                        >
+                            ← Back to Applicants
+                        </Button>
+                        {application && (
+                            <div className="flex items-center gap-2">
+                                <Badge 
+                                    className={`
+                                        ${application.status === 'submitted' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}
+                                        ${application.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100' : ''}
+                                        ${application.status === 'no_application' ? 'bg-gray-100 text-gray-800 hover:bg-gray-100' : ''}
+                                        ${application.status === 'ineligible' ? 'bg-red-100 text-red-800 hover:bg-red-100' : ''}
+                                        font-proxima
+                                    `}
+                                >
+                                    {application.status.replace('_', ' ').toUpperCase()}
+                                </Badge>
+                                {/* Eligibility Override Button */}
+                                {application.status === 'ineligible' && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleEligibilityOverride('submitted')}
+                                        className="text-xs font-proxima text-green-600 border-green-300 hover:bg-green-50"
+                                    >
+                                        Override → Mark Eligible
+                                    </Button>
+                                )}
+                                {application.status === 'submitted' && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleEligibilityOverride('ineligible')}
+                                        className="text-xs font-proxima text-red-600 border-red-300 hover:bg-red-50"
+                                    >
+                                        Override → Mark Ineligible
+                                    </Button>
+                                )}
+                            </div>
+                        )}
                     </div>
+                    <h1 className="text-3xl font-bold text-[#1a1a1a] font-proxima-bold">Applicant Details</h1>
                 </div>
             </div>
 
-            <div className="application-detail__content">
-                {/* Condensed Header with Applicant Info and Assessment */}
-                <div className="application-detail__section application-detail__section--condensed">
-                    <div className="application-detail__condensed-header">
-                        <div className="application-detail__condensed-header-left">
-                            <div className="application-detail__applicant-name-section">
-                                <h1 className="application-detail__applicant-name">
-                                    {applicant.first_name} {applicant.last_name}
-                                    {assessment?.has_masters_degree && (
-                                        <span className="application-detail__masters-flag" title="Has Masters Degree">🎓</span>
-                                    )}
-                                </h1>
-                                <div className="application-detail__applicant-details">
-                                    <span className="application-detail__applicant-email">{applicant.email}</span>
-                                    <span className="application-detail__applicant-applied">
-                                        APPLIED: {new Date(application.created_at).toLocaleDateString('en-US', {
-                                            month: 'numeric',
-                                            day: 'numeric',
-                                            year: 'numeric'
-                                        })}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="application-detail__action-buttons">
-                                <button
-                                    className="application-detail__notes-btn application-detail__notes-btn--header"
-                                    onClick={openNotesSidebar}
-                                >
-                                    📝 Notes
-                                </button>
-                                <button
-                                    className="application-detail__actions-btn"
-                                    onClick={openActionsModal}
-                                >
-                                    ⚡ Actions
-                                </button>
-                            </div>
-                            
-                            {/* Deferral Status & Button */}
-                            {application?.status === 'submitted' && (
-                                <div className="application-detail__deferral-section" style={{
-                                    marginTop: '16px',
-                                    padding: '12px',
-                                    borderRadius: '8px',
-                                    background: application?.deferred 
-                                        ? 'rgba(255, 193, 7, 0.1)' 
-                                        : 'rgba(66, 66, 234, 0.05)',
-                                    border: `1px solid ${application?.deferred ? '#ffc107' : 'rgba(66, 66, 234, 0.2)'}`
-                                }}>
-                                    {application?.deferred ? (
-                                        <>
-                                            <div style={{ 
-                                                display: 'flex', 
-                                                alignItems: 'center', 
-                                                gap: '8px',
-                                                marginBottom: '8px',
-                                                color: '#ffc107'
-                                            }}>
-                                                <span style={{ fontSize: '18px' }}>📅</span>
-                                                <strong>Application Deferred</strong>
-                                            </div>
-                                            <p style={{ 
-                                                margin: '0 0 8px 0', 
-                                                fontSize: '0.85rem',
-                                                color: 'var(--color-text-secondary)'
-                                            }}>
-                                                Deferred on {new Date(application.deferred_at).toLocaleDateString()}
-                                            </p>
-                                            <button
-                                                onClick={handleDeferToggle}
-                                                style={{
-                                                    background: '#4242ea',
-                                                    color: 'white',
-                                                    padding: '8px 14px',
-                                                    border: 'none',
-                                                    borderRadius: '6px',
-                                                    fontSize: '0.85rem',
-                                                    fontWeight: '600',
-                                                    cursor: 'pointer',
-                                                    width: '100%',
-                                                    transition: 'all 0.2s'
-                                                }}
-                                                onMouseEnter={(e) => e.target.style.background = '#3636d1'}
-                                                onMouseLeave={(e) => e.target.style.background = '#4242ea'}
-                                            >
-                                                Remove Deferral
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div style={{ 
-                                                display: 'flex', 
-                                                alignItems: 'center', 
-                                                gap: '8px',
-                                                marginBottom: '8px'
-                                            }}>
-                                                <strong style={{ fontSize: '0.9rem' }}>Deferral Options</strong>
-                                            </div>
-                                            <button
-                                                onClick={handleDeferToggle}
-                                                style={{
-                                                    background: 'rgba(220, 53, 69, 0.1)',
-                                                    color: '#dc3545',
-                                                    padding: '8px 14px',
-                                                    border: '1px solid #dc3545',
-                                                    borderRadius: '6px',
-                                                    fontSize: '0.85rem',
-                                                    fontWeight: '600',
-                                                    cursor: 'pointer',
-                                                    width: '100%',
-                                                    transition: 'all 0.2s'
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    e.target.style.background = '#dc3545';
-                                                    e.target.style.color = 'white';
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    e.target.style.background = 'rgba(220, 53, 69, 0.1)';
-                                                    e.target.style.color = '#dc3545';
-                                                }}
-                                            >
-                                                Defer Application
-                                            </button>
-                                        </>
+            <div className="p-6 space-y-6 max-w-7xl mx-auto">
+                {/* Main Info Card */}
+                <Card>
+                    <CardContent className="p-6">
+                        <div className="flex flex-col lg:flex-row gap-6">
+                            {/* Left side - Applicant Info */}
+                            <div className="flex-1 space-y-4">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <h2 className="text-2xl font-bold text-[#1a1a1a] font-proxima-bold">
+                                        {applicant.first_name} {applicant.last_name}
+                                        {assessment?.has_masters_degree && (
+                                            <span className="ml-2 text-xl" title="Has Masters Degree">🎓</span>
+                                        )}
+                                    </h2>
+                                    {assessment && assessment.recommendation && (
+                                        <Badge 
+                                            className={`
+                                                text-xs px-2 py-0.5
+                                                ${assessment.recommendation === 'strong_recommend' ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}
+                                                ${assessment.recommendation === 'recommend' ? 'bg-blue-100 text-blue-700 hover:bg-blue-100' : ''}
+                                                ${assessment.recommendation === 'review_needed' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100' : ''}
+                                                ${assessment.recommendation === 'not_recommend' ? 'bg-red-100 text-red-700 hover:bg-red-100' : ''}
+                                                font-proxima-bold
+                                            `}
+                                        >
+                                            {assessment.recommendation === 'strong_recommend' && '✓'}
+                                            {assessment.recommendation === 'recommend' && '✓'}
+                                            {assessment.recommendation === 'review_needed' && '⚠️'}
+                                            {assessment.recommendation === 'not_recommend' && '✗'}
+                                            <span className="ml-1">{assessment.recommendation.replace('_', ' ')}</span>
+                                        </Badge>
                                     )}
                                 </div>
-                            )}
-                            
-                            {/* Deliberation Section */}
-                            {application?.status === 'submitted' && (
-                                <div className="application-detail__deliberation-section" style={{
-                                    marginTop: '16px',
-                                    padding: '12px',
-                                    borderRadius: '8px',
-                                    background: 'rgba(75, 61, 237, 0.05)',
-                                    border: '1px solid rgba(75, 61, 237, 0.2)'
-                                }}>
-                                    <div style={{ 
-                                        display: 'flex', 
-                                        alignItems: 'center', 
-                                        gap: '8px',
-                                        marginBottom: '8px'
-                                    }}>
-                                        <strong style={{ fontSize: '0.9rem' }}>Deliberation Status</strong>
+                                <div className="space-y-2 text-sm text-gray-600">
+                                    <p className="font-proxima">{applicant.email}</p>
+                                    {application && (
+                                        <p className="font-proxima text-gray-500">
+                                            Applied: {new Date(application.created_at).toLocaleDateString('en-US', {
+                                                month: 'long',
+                                                day: 'numeric',
+                                                year: 'numeric'
+                                            })}
+                                        </p>
+                                    )}
+                                </div>
+                                
+                                {/* Event Participation Status - Always show so admins can mark external events */}
+                                {applicant && (
+                                    <div className="mt-4 space-y-2">
+                                        <h3 className="text-xs font-proxima-bold text-gray-500 uppercase tracking-wide">Event Participation</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {/* Info Session - Always show */}
+                                            {applicant.info_session_status ? (
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-xs text-gray-500 font-proxima">Info Session</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge className={`${getStatusBadgeClasses(applicant.info_session_status)} font-proxima`}>
+                                                            {formatStatus(applicant.info_session_status)}
+                                                        </Badge>
+                                                        {!['attended', 'attended_late', 'very_late'].includes(applicant.info_session_status) && (
+                                                            <button
+                                                                onClick={() => setAttendedEventModalOpen(true)}
+                                                                className="text-xs text-[#4242ea] hover:text-[#3333d1] underline font-proxima"
+                                                                title="Manage external event attendance"
+                                                            >
+                                                                {applicant.info_session_status === 'attended_event' ? 'Manage' : 'Mark Event'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-xs text-gray-500 font-proxima">Info Session</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs text-gray-400 font-proxima">Not Registered</span>
+                                                        <button
+                                                            onClick={() => setAttendedEventModalOpen(true)}
+                                                            className="text-xs text-[#4242ea] hover:text-[#3333d1] underline font-proxima"
+                                                            title="Mark as attended external event"
+                                                        >
+                                                            Mark Event
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                            {/* Workshop - Only show if there's a status */}
+                                            {applicant.workshop_status && (
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-xs text-gray-500 font-proxima">Workshop</span>
+                                                    <Badge className={`${getStatusBadgeClasses(applicant.workshop_status)} font-proxima`}>
+                                                        {formatStatus(applicant.workshop_status)}
+                                                    </Badge>
+                                                </div>
+                                            )}
+                                            
+                                            {/* Workshop Grade - Only show if available */}
+                                            {applicant.structured_task_grade && (
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-xs text-gray-500 font-proxima">Workshop Grade</span>
+                                                    <Badge variant="outline" className="font-proxima-bold text-[#4242ea] border-[#4242ea]">
+                                                        {applicant.structured_task_grade}
+                                                    </Badge>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                    <select
-                                        value={application?.deliberation || ''}
-                                        onChange={(e) => {
-                                            const newValue = e.target.value || null;
-                                            // Call API to update
-                                            fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${applicant.applicant_id}/deliberation`, {
-                                                method: 'PATCH',
-                                                headers: {
-                                                    'Content-Type': 'application/json',
-                                                    'Authorization': `Bearer ${token}`
-                                                },
-                                                body: JSON.stringify({ deliberation: newValue })
-                                            })
-                                            .then(response => {
-                                                if (!response.ok) throw new Error('Failed to update');
-                                                return response.json();
-                                            })
-                                            .then(() => {
-                                                // Update local state
-                                                setApplicationData(prev => ({
-                                                    ...prev,
-                                                    application: {
-                                                        ...prev.application,
-                                                        deliberation: newValue
-                                                    }
-                                                }));
-                                                Swal.fire({
-                                                    icon: 'success',
-                                                    title: 'Updated!',
-                                                    text: 'Deliberation status has been updated',
-                                                    timer: 1500,
-                                                    showConfirmButton: false
-                                                });
-                                            })
-                                            .catch(error => {
-                                                console.error('Error updating deliberation:', error);
-                                                Swal.fire({
-                                                    icon: 'error',
-                                                    title: 'Error',
-                                                    text: 'Failed to update deliberation status'
-                                                });
-                                            });
-                                        }}
-                                        style={{
-                                            width: '100%',
-                                            padding: '10px 14px',
-                                            borderRadius: '6px',
-                                            border: '1px solid rgba(255, 255, 255, 0.2)',
-                                            backgroundColor: 
-                                                application?.deliberation === 'yes' ? 'rgba(16, 185, 129, 0.2)' :
-                                                application?.deliberation === 'maybe' ? 'rgba(251, 191, 36, 0.2)' :
-                                                application?.deliberation === 'no' ? 'rgba(239, 68, 68, 0.2)' :
-                                                'rgba(107, 114, 128, 0.2)',
-                                            color: 'var(--color-text-primary)',
-                                            cursor: 'pointer',
-                                            fontSize: '0.875rem',
-                                            fontWeight: '600'
-                                        }}
+                                )}
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={openNotesSidebar}
+                                        className="font-proxima"
                                     >
-                                        <option value="">Not Set</option>
-                                        <option value="yes">✓ Yes - Admit</option>
-                                        <option value="maybe">? Maybe - Review</option>
-                                        <option value="no">✗ No - Decline</option>
-                                    </select>
+                                        📝 Notes
+                                    </Button>
+                                    <Button
+                                        onClick={openActionsModal}
+                                        className="bg-[#4242ea] hover:bg-[#3333d1] font-proxima"
+                                    >
+                                        ⚡ Actions
+                                    </Button>
                                 </div>
-                            )}
-                        </div>
-
-                        <div className="application-detail__condensed-header-right">
-                            {assessment && assessment.recommendation ? (
-                                <>
-                                    <div className="application-detail__recommendation-badge-condensed">
-                                        <div className={`application-detail__recommendation-status application-detail__recommendation-status--${assessment.recommendation}`}>
-                                            <div className="application-detail__recommendation-icon">
-                                                {assessment.recommendation === 'strong_recommend' && '✓'}
-                                                {assessment.recommendation === 'recommend' && '✓'}
-                                                {assessment.recommendation === 'review_needed' && '⚠️'}
-                                                {assessment.recommendation === 'not_recommend' && '✗'}
-                                            </div>
-                                            <span>{assessment.recommendation.replace('_', ' ')}</span>
-                                        </div>
+                                
+                                {/* Deferral Status & Deliberation Section - Side by Side */}
+                                {application?.status === 'submitted' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {/* Deferral Status Display (Read-only) */}
+                                        {application?.deferred && (
+                                            <Card className="border-yellow-400 bg-yellow-50">
+                                                <CardContent className="p-4">
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center gap-2 text-yellow-700">
+                                                            <span className="text-lg">📅</span>
+                                                            <strong className="font-proxima-bold text-sm">Application Deferred</strong>
+                                                        </div>
+                                                        {application.deferred_at && (
+                                                            <p className="text-xs text-gray-600 font-proxima">
+                                                                Deferred on {new Date(application.deferred_at).toLocaleDateString()}
+                                                            </p>
+                                                        )}
+                                                        <p className="text-xs text-gray-500 font-proxima italic">
+                                                            Use Actions menu to remove deferral
+                                                        </p>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        )}
+                                        
+                                        {/* Deliberation Section */}
+                                        <Card className={`border-purple-200 bg-purple-50 ${!application?.deferred ? 'md:col-span-2' : ''}`}>
+                                            <CardContent className="p-4 space-y-3">
+                                                <strong className="font-proxima-bold text-sm">Deliberation Status</strong>
+                                                <Select
+                                                    value={application?.deliberation || '_none'}
+                                                    onValueChange={(value) => {
+                                                        const newValue = value === '_none' ? null : value;
+                                                        // Call API to update
+                                                        fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${applicant.applicant_id}/deliberation`, {
+                                                            method: 'PATCH',
+                                                            headers: {
+                                                                'Content-Type': 'application/json',
+                                                                'Authorization': `Bearer ${token}`
+                                                            },
+                                                            body: JSON.stringify({ deliberation: newValue })
+                                                        })
+                                                        .then(response => {
+                                                            if (!response.ok) throw new Error('Failed to update');
+                                                            return response.json();
+                                                        })
+                                                        .then(() => {
+                                                            // Update local state
+                                                            setApplicationData(prev => ({
+                                                                ...prev,
+                                                                application: {
+                                                                    ...prev.application,
+                                                                    deliberation: newValue
+                                                                }
+                                                            }));
+                                                            Swal.fire({
+                                                                icon: 'success',
+                                                                title: 'Updated!',
+                                                                text: 'Deliberation status has been updated',
+                                                                timer: 1500,
+                                                                showConfirmButton: false
+                                                            });
+                                                        })
+                                                        .catch(error => {
+                                                            console.error('Error updating deliberation:', error);
+                                                            Swal.fire({
+                                                                icon: 'error',
+                                                                title: 'Error',
+                                                                text: 'Failed to update deliberation status'
+                                                            });
+                                                        });
+                                                    }}
+                                                >
+                                                    <SelectTrigger className={`
+                                                        ${application?.deliberation === 'yes' ? 'bg-green-100 border-green-300' : ''}
+                                                        ${application?.deliberation === 'maybe' ? 'bg-yellow-100 border-yellow-300' : ''}
+                                                        ${application?.deliberation === 'no' ? 'bg-red-100 border-red-300' : ''}
+                                                        ${!application?.deliberation ? 'bg-gray-100 border-gray-300' : ''}
+                                                        font-proxima-bold h-9 text-sm
+                                                    `}>
+                                                        <SelectValue placeholder="Not Set" />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="font-proxima">
+                                                        <SelectItem value="_none">Not Set</SelectItem>
+                                                        <SelectItem value="yes">✓ Yes - Admit</SelectItem>
+                                                        <SelectItem value="maybe">? Maybe - Review</SelectItem>
+                                                        <SelectItem value="no">✗ No - Decline</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </CardContent>
+                                        </Card>
                                     </div>
+                                )}
+                            </div>
 
-                                    <div className="application-detail__assessment-scores-condensed">
-                                        <div className="application-detail__score-item-condensed application-detail__score-item-condensed--overall">
-                                            <div className="application-detail__score-circle-condensed">
-                                                <svg viewBox="0 0 100 100">
-                                                    <defs>
-                                                        <linearGradient id="overallGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                            <stop offset="0%" stopColor="#06d6a0" />
-                                                            <stop offset="50%" stopColor="#4ecdc4" />
-                                                            <stop offset="100%" stopColor="#45b7d1" />
-                                                        </linearGradient>
-                                                    </defs>
-                                                    <circle cx="50" cy="50" r="40" className="application-detail__score-circle-bg" />
-                                                    <circle
-                                                        cx="50"
-                                                        cy="50"
-                                                        r="40"
-                                                        className="application-detail__score-circle-progress application-detail__score-circle-progress--overall"
-                                                        strokeDasharray={`${(assessment.overall_score / 100) * 251.2} 251.2`}
-                                                    />
-                                                </svg>
-                                                <div className="application-detail__score-value-condensed">{assessment.overall_score}</div>
+                            {/* Right side - Assessment Scores */}
+                            <div className="flex-1">
+                                {assessment && assessment.recommendation ? (
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {/* Overall Score */}
+                                            <div className="col-span-2 flex flex-col items-center p-3 bg-gradient-to-br from-cyan-50 to-blue-50 rounded-lg">
+                                                <div className="relative w-24 h-24">
+                                                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                                        <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="8" />
+                                                        <circle 
+                                                            cx="50" 
+                                                            cy="50" 
+                                                            r="40" 
+                                                            fill="none" 
+                                                            stroke="url(#overallGradient)" 
+                                                            strokeWidth="8"
+                                                            strokeDasharray={`${(assessment.overall_score / 100) * 251.2} 251.2`}
+                                                            strokeLinecap="round"
+                                                        />
+                                                        <defs>
+                                                            <linearGradient id="overallGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                                <stop offset="0%" stopColor="#06d6a0" />
+                                                                <stop offset="50%" stopColor="#4ecdc4" />
+                                                                <stop offset="100%" stopColor="#45b7d1" />
+                                                            </linearGradient>
+                                                        </defs>
+                                                    </svg>
+                                                    <div className="absolute inset-0 flex items-center justify-center">
+                                                        <span className="text-2xl font-bold text-[#1a1a1a] font-proxima-bold">{assessment.overall_score}</span>
+                                                    </div>
+                                                </div>
+                                                <p className="text-xs font-semibold text-gray-700 mt-1.5 font-proxima-bold">Overall Score</p>
                                             </div>
-                                            <div className="application-detail__score-label-condensed">Overall<br />Score</div>
-                                        </div>
 
-                                        <div className="application-detail__score-arrow">→</div>
-
-                                        <div className="application-detail__detailed-scores">
-                                            <div className="application-detail__score-item-condensed">
-                                                <div className="application-detail__score-circle-condensed application-detail__score-circle-condensed--small">
-                                                    <svg viewBox="0 0 100 100">
+                                            {/* Learning Score */}
+                                            <div className="flex flex-col items-center p-2 bg-gradient-to-br from-red-50 to-cyan-50 rounded-lg">
+                                                <div className="relative w-16 h-16">
+                                                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                                        <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="8" />
+                                                        <circle 
+                                                            cx="50" 
+                                                            cy="50" 
+                                                            r="40" 
+                                                            fill="none" 
+                                                            stroke="url(#learningGradient)" 
+                                                            strokeWidth="8"
+                                                            strokeDasharray={`${(assessment.learning_score / 100) * 251.2} 251.2`}
+                                                            strokeLinecap="round"
+                                                        />
                                                         <defs>
                                                             <linearGradient id="learningGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                                                                 <stop offset="0%" stopColor="#ff6b6b" />
@@ -780,23 +962,29 @@ const ApplicationDetail = () => {
                                                                 <stop offset="100%" stopColor="#45b7d1" />
                                                             </linearGradient>
                                                         </defs>
-                                                        <circle cx="50" cy="50" r="40" className="application-detail__score-circle-bg" />
-                                                        <circle
-                                                            cx="50"
-                                                            cy="50"
-                                                            r="40"
-                                                            className="application-detail__score-circle-progress application-detail__score-circle-progress--learning"
-                                                            strokeDasharray={`${(assessment.learning_score / 100) * 251.2} 251.2`}
-                                                        />
                                                     </svg>
-                                                    <div className="application-detail__score-value-condensed application-detail__score-value-condensed--small">{assessment.learning_score}</div>
+                                                    <div className="absolute inset-0 flex items-center justify-center">
+                                                        <span className="text-base font-bold text-[#1a1a1a] font-proxima-bold">{assessment.learning_score}</span>
+                                                    </div>
                                                 </div>
-                                                <div className="application-detail__score-label-condensed">Learning<br />Ability</div>
+                                                <p className="text-[10px] font-semibold text-gray-700 mt-1 text-center font-proxima-bold leading-tight">Learning<br/>Ability</p>
                                             </div>
 
-                                            <div className="application-detail__score-item-condensed">
-                                                <div className="application-detail__score-circle-condensed application-detail__score-circle-condensed--small">
-                                                    <svg viewBox="0 0 100 100">
+                                            {/* Grit Score */}
+                                            <div className="flex flex-col items-center p-2 bg-gradient-to-br from-yellow-50 to-red-50 rounded-lg">
+                                                <div className="relative w-16 h-16">
+                                                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                                        <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="8" />
+                                                        <circle 
+                                                            cx="50" 
+                                                            cy="50" 
+                                                            r="40" 
+                                                            fill="none" 
+                                                            stroke="url(#gritGradient)" 
+                                                            strokeWidth="8"
+                                                            strokeDasharray={`${(assessment.grit_score / 100) * 251.2} 251.2`}
+                                                            strokeLinecap="round"
+                                                        />
                                                         <defs>
                                                             <linearGradient id="gritGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                                                                 <stop offset="0%" stopColor="#ffd93d" />
@@ -804,23 +992,29 @@ const ApplicationDetail = () => {
                                                                 <stop offset="100%" stopColor="#ff6b6b" />
                                                             </linearGradient>
                                                         </defs>
-                                                        <circle cx="50" cy="50" r="40" className="application-detail__score-circle-bg" />
-                                                        <circle
-                                                            cx="50"
-                                                            cy="50"
-                                                            r="40"
-                                                            className="application-detail__score-circle-progress application-detail__score-circle-progress--grit"
-                                                            strokeDasharray={`${(assessment.grit_score / 100) * 251.2} 251.2`}
-                                                        />
                                                     </svg>
-                                                    <div className="application-detail__score-value-condensed application-detail__score-value-condensed--small">{assessment.grit_score}</div>
+                                                    <div className="absolute inset-0 flex items-center justify-center">
+                                                        <span className="text-base font-bold text-[#1a1a1a] font-proxima-bold">{assessment.grit_score}</span>
+                                                    </div>
                                                 </div>
-                                                <div className="application-detail__score-label-condensed">Grit &<br />Perseverance</div>
+                                                <p className="text-[10px] font-semibold text-gray-700 mt-1 text-center font-proxima-bold leading-tight">Grit &<br/>Perseverance</p>
                                             </div>
 
-                                            <div className="application-detail__score-item-condensed">
-                                                <div className="application-detail__score-circle-condensed application-detail__score-circle-condensed--small">
-                                                    <svg viewBox="0 0 100 100">
+                                            {/* Critical Thinking Score */}
+                                            <div className="col-span-2 flex flex-col items-center p-2 bg-gradient-to-br from-purple-50 to-cyan-50 rounded-lg">
+                                                <div className="relative w-16 h-16">
+                                                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                                        <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="8" />
+                                                        <circle 
+                                                            cx="50" 
+                                                            cy="50" 
+                                                            r="40" 
+                                                            fill="none" 
+                                                            stroke="url(#thinkingGradient)" 
+                                                            strokeWidth="8"
+                                                            strokeDasharray={`${(assessment.critical_thinking_score / 100) * 251.2} 251.2`}
+                                                            strokeLinecap="round"
+                                                        />
                                                         <defs>
                                                             <linearGradient id="thinkingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                                                                 <stop offset="0%" stopColor="#a855f7" />
@@ -828,411 +1022,400 @@ const ApplicationDetail = () => {
                                                                 <stop offset="100%" stopColor="#06b6d4" />
                                                             </linearGradient>
                                                         </defs>
-                                                        <circle cx="50" cy="50" r="40" className="application-detail__score-circle-bg" />
-                                                        <circle
-                                                            cx="50"
-                                                            cy="50"
-                                                            r="40"
-                                                            className="application-detail__score-circle-progress application-detail__score-circle-progress--thinking"
-                                                            strokeDasharray={`${(assessment.critical_thinking_score / 100) * 251.2} 251.2`}
-                                                        />
                                                     </svg>
-                                                    <div className="application-detail__score-value-condensed application-detail__score-value-condensed--small">{assessment.critical_thinking_score}</div>
+                                                    <div className="absolute inset-0 flex items-center justify-center">
+                                                        <span className="text-base font-bold text-[#1a1a1a] font-proxima-bold">{assessment.critical_thinking_score}</span>
+                                                    </div>
                                                 </div>
-                                                <div className="application-detail__score-label-condensed">Critical<br />Thinking</div>
+                                                <p className="text-[10px] font-semibold text-gray-700 mt-1 text-center font-proxima-bold">Critical Thinking</p>
                                             </div>
                                         </div>
                                     </div>
-                                </>
-                            ) : (
-                                <div className="application-detail__assessment-pending-condensed">
-                                    <div className="application-detail__pending-badge">Assessment Pending</div>
-                                </div>
-                            )}
+                                ) : (
+                                    <div className="h-full flex items-center justify-center">
+                                        <Badge variant="secondary" className="text-lg px-6 py-3 font-proxima">
+                                            Assessment Pending
+                                        </Badge>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Assessment Flags */}
-                    {assessment && (
-                        <div className="application-detail__assessment-flags-condensed">
-                            {(() => {
-                                const flags = [];
+                        {/* Assessment Flags */}
+                        {assessment && (
+                            <div className="mt-6 flex flex-wrap gap-2">
+                                {assessment.missing_count > 0 && (
+                                    <Badge variant="outline" className="border-yellow-400 text-yellow-700 font-proxima">
+                                        <span className="mr-1">⚠️</span>
+                                        {assessment.missing_count} key question{assessment.missing_count > 1 ? 's' : ''} incomplete
+                                    </Badge>
+                                )}
 
-                                // Missing questions flag
-                                if (assessment.missing_count > 0) {
-                                    flags.push(
-                                        <div key="missing" className="application-detail__assessment-flag application-detail__assessment-flag--warning">
-                                            <span className="application-detail__flag-icon">⚠️</span>
-                                            <span className="application-detail__flag-text">{assessment.missing_count} key question{assessment.missing_count > 1 ? 's' : ''} incomplete</span>
-                                        </div>
-                                    );
-                                }
+                                {(() => {
+                                    const creationQuestion = responses?.find(r => {
+                                        const question = questions?.find(q => q.question_id === r.question_id);
+                                        return question?.prompt?.toLowerCase().includes('created') &&
+                                            question?.prompt?.toLowerCase().includes('share') &&
+                                            question?.prompt?.toLowerCase().includes('link');
+                                    });
 
-                                // Creation sharing link flag
-                                const creationQuestion = responses?.find(r => {
-                                    const question = questions?.find(q => q.question_id === r.question_id);
-                                    return question?.prompt?.toLowerCase().includes('created') &&
-                                        question?.prompt?.toLowerCase().includes('share') &&
-                                        question?.prompt?.toLowerCase().includes('link');
-                                });
-
-                                if (creationQuestion?.response_value && creationQuestion.response_value.trim()) {
-                                    const isUrl = /^https?:\/\//.test(creationQuestion.response_value.trim());
-                                    flags.push(
-                                        <div key="creation" className="application-detail__assessment-flag application-detail__assessment-flag--info">
-                                            <span className="application-detail__flag-icon">🔗</span>
-                                            <span className="application-detail__flag-text">
+                                    if (creationQuestion?.response_value && creationQuestion.response_value.trim()) {
+                                        const isUrl = /^https?:\/\//.test(creationQuestion.response_value.trim());
+                                        return (
+                                            <Badge variant="outline" className="border-blue-400 text-blue-700 font-proxima">
+                                                <span className="mr-1">🔗</span>
                                                 Shared creation: {isUrl ? (
                                                     <a
                                                         href={creationQuestion.response_value.trim()}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="application-detail__creation-link"
+                                                        className="underline ml-1 hover:text-blue-800"
                                                     >
                                                         {creationQuestion.response_value.trim()}
                                                     </a>
                                                 ) : (
-                                                    <span className="application-detail__creation-text">{creationQuestion.response_value.trim()}</span>
+                                                    <span className="ml-1">{creationQuestion.response_value.trim()}</span>
                                                 )}
-                                            </span>
-                                        </div>
-                                    );
-                                }
+                                            </Badge>
+                                        );
+                                    }
+                                    return null;
+                                })()}
+                            </div>
+                        )}
 
-                                return flags.length > 0 ? flags : null;
-                            })()}
-                        </div>
-                    )}
+                        {/* Detailed Analysis - Collapsible */}
+                        {assessment && assessment.recommendation && (
+                            <div className="mt-6">
+                                <Collapsible>
+                                    <CollapsibleTrigger className="flex items-center gap-2 text-[#4242ea] hover:text-[#3333d1] font-proxima-bold">
+                                        📋 View Detailed Analysis
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent className="mt-4 space-y-4">
+                                        {assessment.strengths && (
+                                            <div>
+                                                <h4 className="font-proxima-bold text-green-700 mb-2">Strengths</h4>
+                                                <div className="text-gray-700 font-proxima">{formatBulletPoints(assessment.strengths)}</div>
+                                            </div>
+                                        )}
 
-                    {/* Detailed Analysis - Expandable */}
-                    {assessment && assessment.recommendation && (
-                        <div className="application-detail__detailed-analysis">
-                            <details className="assessment-expandable">
-                                <summary className="assessment-expandable__summary">
-                                    📋 View Detailed Analysis
-                                </summary>
-                                <div className="assessment-expandable__content">
-                                    {assessment.strengths && (
-                                        <div className="assessment-detail-item">
-                                            <h4>Strengths</h4>
-                                            {formatBulletPoints(assessment.strengths)}
-                                        </div>
-                                    )}
+                                        {assessment.concerns && (
+                                            <div>
+                                                <h4 className="font-proxima-bold text-yellow-700 mb-2">Areas of Concern</h4>
+                                                <div className="text-gray-700 font-proxima">{formatBulletPoints(assessment.concerns)}</div>
+                                            </div>
+                                        )}
 
-                                    {assessment.concerns && (
-                                        <div className="assessment-detail-item">
-                                            <h4>Areas of Concern</h4>
-                                            {formatBulletPoints(assessment.concerns)}
-                                        </div>
-                                    )}
+                                        {assessment.weaknesses && (
+                                            <div>
+                                                <h4 className="font-proxima-bold text-red-700 mb-2">Weaknesses</h4>
+                                                <div className="text-gray-700 font-proxima">{formatBulletPoints(assessment.weaknesses)}</div>
+                                            </div>
+                                        )}
 
-                                    {assessment.weaknesses && (
-                                        <div className="assessment-detail-item">
-                                            <h4>Weaknesses</h4>
-                                            {formatBulletPoints(assessment.weaknesses)}
-                                        </div>
-                                    )}
+                                        {assessment.areas_for_development && (
+                                            <div>
+                                                <h4 className="font-proxima-bold text-blue-700 mb-2">Areas for Development</h4>
+                                                <div className="text-gray-700 font-proxima">{formatBulletPoints(assessment.areas_for_development)}</div>
+                                            </div>
+                                        )}
 
-                                    {assessment.areas_for_development && (
-                                        <div className="assessment-detail-item">
-                                            <h4>Areas for Development</h4>
-                                            {formatBulletPoints(assessment.areas_for_development)}
-                                        </div>
-                                    )}
+                                        {assessment.analysis_notes && (
+                                            <div>
+                                                <h4 className="font-proxima-bold text-gray-700 mb-2">Analysis Notes</h4>
+                                                <p className="text-gray-700 font-proxima">{assessment.analysis_notes}</p>
+                                            </div>
+                                        )}
 
-                                    {assessment.analysis_notes && (
-                                        <div className="assessment-detail-item">
-                                            <h4>Analysis Notes</h4>
-                                            <p>{assessment.analysis_notes}</p>
-                                        </div>
-                                    )}
+                                        {assessment.recommendation_reason && (
+                                            <div>
+                                                <h4 className="font-proxima-bold text-gray-700 mb-2">Recommendation Reasoning</h4>
+                                                <p className="text-gray-700 font-proxima">{assessment.recommendation_reason}</p>
+                                            </div>
+                                        )}
 
-                                    {assessment.recommendation_reason && (
-                                        <div className="assessment-detail-item">
-                                            <h4>Recommendation Reasoning</h4>
-                                            <p>{assessment.recommendation_reason}</p>
-                                        </div>
-                                    )}
-
-                                    <div className="assessment-metadata">
-                                        <p className="assessment-meta">
+                                        <p className="text-sm text-gray-500 font-proxima">
                                             Assessment completed on {new Date(assessment.created_at).toLocaleDateString()}
                                         </p>
-                                    </div>
-                                </div>
-                            </details>
-                        </div>
-                    )}
-                </div>
-
-
+                                    </CollapsibleContent>
+                                </Collapsible>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
 
                 {/* Application Responses */}
-                <div className="application-detail__section">
-                    <h2>Application Responses</h2>
-                    {responses && responses.length > 0 ? (
-                        <div className="responses-by-section">
-                            {(() => {
-                                // Define the 9 key analysis questions in order
-                                const keyAnalysisQuestions = [
-                                    1046, // "Please explain your education and work history in more detail."
-                                    1052, // "Share your thoughts and perspectives on AI..."
-                                    1053, // "Some applicants have a background, identity, interest, or talent..."
-                                    1055, // "List all of the questions you used to ask the AI to learn."
-                                    1056, // "Explain, in your own words, what a neural network is."
-                                    1057, // "What is the basic structure and function of a neural network?"
-                                    1059, // "What aspect of neural networks did you find most intriguing..."
-                                    1061, // "What did you learn about this new aspect you listed above? (optional)"
-                                    1062  // "How did using AI tools to learn about a new topic influence your learning process?"
-                                ];
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="font-proxima-bold">Application Responses</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {!application ? (
+                            <div className="text-center py-8">
+                                <p className="text-gray-500 font-proxima mb-2">No application has been started yet.</p>
+                                <p className="text-sm text-gray-400 font-proxima">This applicant has not begun filling out their application.</p>
+                            </div>
+                        ) : responses && responses.length > 0 ? (
+                            <div className="space-y-4">
+                                {/* Eligibility Questions Section */}
+                                {processedResponses.eligibilityResponses.length > 0 && (
+                                    <Collapsible 
+                                        key="eligibility-questions" 
+                                        open={expandedSections['eligibility-questions'] ?? (processedResponses.failedQuestionIds.length > 0)}
+                                        onOpenChange={() => toggleSection('eligibility-questions')}
+                                        className="border rounded-lg"
+                                    >
+                                        <CollapsibleTrigger className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 rounded-t-lg">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-gray-500">{(expandedSections['eligibility-questions'] ?? (processedResponses.failedQuestionIds.length > 0)) ? '▼' : '▶'}</span>
+                                                <span className="font-proxima-bold">Eligibility Questions</span>
+                                                <Badge variant="secondary" className="font-proxima">{processedResponses.eligibilityResponses.length}</Badge>
+                                                {processedResponses.failedQuestionIds.length > 0 && (
+                                                    <Badge className="bg-red-100 text-red-700 hover:bg-red-100 font-proxima">
+                                                        {processedResponses.failedQuestionIds.length} Failed
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent className="p-4 space-y-4">
+                                            {processedResponses.eligibilityResponses.map(({ response, question, shortLabel, isFailed }, index) => (
+                                                <div 
+                                                    key={response.question_id || index} 
+                                                    className={`
+                                                        pb-4 last:pb-0
+                                                        ${isFailed ? 'border-l-4 border-red-500 bg-red-50 pl-4 py-3 rounded' : 'border-b last:border-b-0'}
+                                                    `}
+                                                >
+                                                    <div className="mb-2">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            {isFailed ? (
+                                                                <Badge className="bg-red-100 text-red-700 hover:bg-red-100 font-proxima">
+                                                                    ✗ Failed
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge className="bg-green-100 text-green-700 hover:bg-green-100 font-proxima">
+                                                                    ✓ Passed
+                                                                </Badge>
+                                                            )}
+                                                            <h4 className={`font-proxima-bold ${isFailed ? 'text-red-900' : 'text-gray-900'}`}>
+                                                                {shortLabel}
+                                                            </h4>
+                                                        </div>
+                                                        <p className={`text-sm mt-1 font-proxima italic ${isFailed ? 'text-red-600' : 'text-gray-500'}`}>
+                                                            {question.prompt}
+                                                        </p>
+                                                    </div>
+                                                    <div className={`font-proxima ${isFailed ? 'text-red-700 font-proxima-bold' : 'text-gray-700'}`}>
+                                                        {response.response_value ? (
+                                                            <div>{formatResponseValue(response.response_value, question?.response_type)}</div>
+                                                        ) : (
+                                                            <p className="text-gray-400 italic">No response provided</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </CollapsibleContent>
+                                    </Collapsible>
+                                )}
 
-                                // Separate key analysis questions from other responses
-                                const keyResponses = [];
-                                const otherResponses = [];
+                                {/* Key Analysis Questions Section */}
+                                {processedResponses.keyResponses.length > 0 && (
+                                    <Collapsible 
+                                        key="key-analysis" 
+                                        open={expandedSections['key-analysis']}
+                                        onOpenChange={() => toggleSection('key-analysis')}
+                                        className="border rounded-lg"
+                                    >
+                                        <CollapsibleTrigger className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 rounded-t-lg">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-gray-500">{expandedSections['key-analysis'] ? '▼' : '▶'}</span>
+                                                <span className="font-proxima-bold">Key Analysis Questions</span>
+                                                <Badge variant="secondary" className="font-proxima">{processedResponses.keyResponses.length}</Badge>
+                                            </div>
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent className="p-4 space-y-4">
+                                            {processedResponses.keyResponses.map(({ response, question, shortLabel }, index) => (
+                                                <div key={response.question_id || index} className="border-b last:border-b-0 pb-4 last:pb-0">
+                                                    <div className="mb-2">
+                                                        <h4 className="font-proxima-bold text-gray-900 flex items-center gap-2">
+                                                            <Badge variant="outline" className="font-proxima">
+                                                                Q{processedResponses.keyAnalysisQuestions.indexOf(question.question_id) + 1}
+                                                            </Badge>
+                                                            {shortLabel}
+                                                        </h4>
+                                                        <p className="text-sm text-gray-500 mt-1 font-proxima italic">{question.prompt}</p>
+                                                    </div>
+                                                    <div className="text-gray-700 font-proxima">
+                                                        {response.response_value ? (
+                                                            <div>{formatResponseValue(response.response_value, question?.response_type)}</div>
+                                                        ) : (
+                                                            <p className="text-gray-400 italic">No response provided</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </CollapsibleContent>
+                                    </Collapsible>
+                                )}
 
-                                responses.forEach(response => {
-                                    const question = questions?.find(q => q.question_id === response.question_id);
-                                    if (question) {
-                                        const responseData = {
-                                            response,
-                                            question,
-                                            shortLabel: getShorthandLabel(question.prompt, question.question_id)
-                                        };
-
-                                        if (keyAnalysisQuestions.includes(question.question_id)) {
-                                            keyResponses.push(responseData);
-                                        } else {
-                                            otherResponses.push(responseData);
-                                        }
-                                    }
-                                });
-
-                                // Sort key responses by the defined order
-                                keyResponses.sort((a, b) => {
-                                    const indexA = keyAnalysisQuestions.indexOf(a.question.question_id);
-                                    const indexB = keyAnalysisQuestions.indexOf(b.question.question_id);
-                                    return indexA - indexB;
-                                });
-
-                                // Group other responses by logical categories
-                                const responsesByCategory = {};
-                                const categoryOrder = [
-                                    'Personal Information',
-                                    'Background & Demographics',
-                                    'Experience & Background',
-                                    'Additional Information',
-                                    'Other'
-                                ];
-
-                                otherResponses.forEach(responseData => {
-                                    const category = getQuestionCategory(responseData.question.prompt);
-                                    if (!responsesByCategory[category]) {
-                                        responsesByCategory[category] = [];
-                                    }
-                                    responsesByCategory[category].push(responseData);
-                                });
-
-                                const sections = [];
-
-                                // First section: Key Analysis Questions
-                                if (keyResponses.length > 0) {
-                                    const sectionKey = 'key-analysis';
+                                {/* Other Categories */}
+                                {processedResponses.categoryOrder.map(category => {
+                                    const sectionKey = category.toLowerCase().replace(/\s+/g, '-');
                                     const isExpanded = expandedSections[sectionKey];
 
-                                    sections.push(
-                                        <div key="key-analysis" className="response-section">
-                                            <h3
-                                                className="response-section__title response-section__title--collapsible"
-                                                onClick={() => toggleSection(sectionKey)}
-                                            >
-                                                <span className="section-toggle-arrow">
-                                                    {isExpanded ? '▼' : '▶'}
-                                                </span>
-                                                Key Analysis Questions
-                                                <span className="section-count">({keyResponses.length})</span>
-                                            </h3>
-                                            {isExpanded && (
-                                                <div className="responses-list responses-list--compact">
-                                                    {keyResponses.map(({ response, question, shortLabel }, index) => (
-                                                        <div key={response.question_id || index} className="response-item response-item--compact">
-                                                            <div className="response-item__question">
-                                                                <h4>
-                                                                    <span className="question-number">Q{keyAnalysisQuestions.indexOf(question.question_id) + 1}</span>
-                                                                    {shortLabel}
-                                                                </h4>
-                                                                <div className="response-item__full-question">
-                                                                    {question.prompt}
-                                                                </div>
-                                                            </div>
-                                                            <div className="response-item__answer">
-                                                                {response.response_value ? (
-                                                                    <p>{formatResponseValue(response.response_value, question?.response_type)}</p>
-                                                                ) : (
-                                                                    <p className="no-response">No response provided</p>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ))}
+                                    return (
+                                        <Collapsible 
+                                            key={category} 
+                                            open={isExpanded}
+                                            onOpenChange={() => toggleSection(sectionKey)}
+                                            className="border rounded-lg"
+                                        >
+                                            <CollapsibleTrigger className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 rounded-t-lg">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-gray-500">{isExpanded ? '▼' : '▶'}</span>
+                                                    <span className="font-proxima-bold">{category}</span>
+                                                    <Badge variant="secondary" className="font-proxima">{processedResponses.responsesByCategory[category].length}</Badge>
                                                 </div>
-                                            )}
-                                        </div>
-                                    );
-                                }
-
-                                // Then add other sections in logical order
-                                categoryOrder
-                                    .filter(category => responsesByCategory[category]?.length > 0)
-                                    .forEach(category => {
-                                        const sectionKey = category.toLowerCase().replace(/\s+/g, '-');
-                                        const isExpanded = expandedSections[sectionKey];
-
-                                        sections.push(
-                                            <div key={category} className="response-section">
-                                                <h3
-                                                    className="response-section__title response-section__title--collapsible"
-                                                    onClick={() => toggleSection(sectionKey)}
-                                                >
-                                                    <span className="section-toggle-arrow">
-                                                        {isExpanded ? '▼' : '▶'}
-                                                    </span>
-                                                    {category}
-                                                    <span className="section-count">({responsesByCategory[category].length})</span>
-                                                </h3>
-                                                {isExpanded && (
-                                                    <div className="responses-list responses-list--compact">
-                                                        {responsesByCategory[category].map(({ response, question, shortLabel }, index) => (
-                                                            <div key={response.question_id || index} className="response-item response-item--compact">
-                                                                <div className="response-item__question">
-                                                                    <h4>{shortLabel}</h4>
-                                                                </div>
-                                                                <div className="response-item__answer">
-                                                                    {response.response_value ? (
-                                                                        <p>{formatResponseValue(response.response_value, question?.response_type)}</p>
-                                                                    ) : (
-                                                                        <p className="no-response">No response provided</p>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        ))}
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent className="p-4 space-y-4">
+                                                {processedResponses.responsesByCategory[category].map(({ response, question, shortLabel }, index) => (
+                                                    <div key={response.question_id || index} className="border-b last:border-b-0 pb-4 last:pb-0">
+                                                        <div className="mb-2">
+                                                            <h4 className="font-proxima-bold text-gray-900">{shortLabel}</h4>
+                                                        </div>
+                                                        <div className="text-gray-700 font-proxima">
+                                                            {response.response_value ? (
+                                                                <div>{formatResponseValue(response.response_value, question?.response_type)}</div>
+                                                            ) : (
+                                                                <p className="text-gray-400 italic">No response provided</p>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                )}
-                                            </div>
-                                        );
-                                    });
-
-                                return sections;
-                            })()}
-                        </div>
-                    ) : (
-                        <div className="no-responses">
-                            <p>No responses found for this application.</p>
-                        </div>
-                    )}
-                </div>
+                                                ))}
+                                            </CollapsibleContent>
+                                        </Collapsible>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <p className="text-gray-500 text-center py-8 font-proxima">No responses found for this application.</p>
+                        )}
+                    </CardContent>
+                </Card>
 
                 {/* Email Tracking Section */}
-                <div className="application-detail__section">
-                    <h2>Email Tracking</h2>
-                    {emailTrackingLoading ? (
-                        <div className="application-detail__loading">
-                            <div className="application-detail__loading-spinner"></div>
-                            <p>Loading email tracking data...</p>
-                        </div>
-                    ) : emailTrackingData ? (
-                        <div className="application-detail__email-tracking">
-                            <div className="application-detail__email-tracking-stats">
-                                <div className="application-detail__email-stat">
-                                    <div className="application-detail__email-stat-value">
-                                        {Math.floor(emailTrackingData.days_since_account_created)} days
-                                    </div>
-                                    <div className="application-detail__email-stat-label">Days Since Account</div>
-                                </div>
-                                
-                                <div className="application-detail__email-stat">
-                                    <div className="application-detail__email-stat-value">
-                                        {emailTrackingData.email_logs && emailTrackingData.email_logs.length > 0 
-                                            ? emailTrackingData.email_logs.reduce((total, log) => total + (log.send_count || 0), 0)
-                                            : 0
-                                        }
-                                    </div>
-                                    <div className="application-detail__email-stat-label">Total Emails Sent</div>
-                                </div>
-                                
-                                <div className="application-detail__email-stat">
-                                    <div className="application-detail__email-stat-value">
-                                        {(() => {
-                                            if (!emailTrackingData.email_logs || emailTrackingData.email_logs.length === 0) {
-                                                return 'None';
-                                            }
-                                            
-                                            const nextEmails = emailTrackingData.email_logs
-                                                ?.filter(log => log.next_send_at && !log.is_queued)
-                                                ?.sort((a, b) => new Date(a.next_send_at) - new Date(b.next_send_at));
-                                            
-                                            if (nextEmails && nextEmails.length > 0) {
-                                                const nextEmail = nextEmails[0];
-                                                const nextDate = new Date(nextEmail.next_send_at);
-                                                return nextDate.toLocaleDateString();
-                                            } else {
-                                                return 'None';
-                                            }
-                                        })()}
-                                    </div>
-                                    <div className="application-detail__email-stat-label">Next Email</div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="font-proxima-bold">Email Tracking</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {emailTrackingLoading ? (
+                            <div className="flex items-center justify-center py-8">
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="w-8 h-8 border-4 border-[#4242ea] border-t-transparent rounded-full animate-spin"></div>
+                                    <p className="text-gray-500 font-proxima">Loading email tracking data...</p>
                                 </div>
                             </div>
-
-                            {emailTrackingData.email_logs && emailTrackingData.email_logs.length > 0 && (
-                                <div className="application-detail__email-logs">
-                                    <h3>Email History</h3>
-                                    <div className="application-detail__email-logs-list">
-                                        {emailTrackingData.email_logs.map((log, index) => (
-                                            <div key={index} className="application-detail__email-log-item">
-                                                <div className="application-detail__email-log-type">
-                                                    {log.email_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                                </div>
-                                                <div className="application-detail__email-log-count">
-                                                    Sent {log.send_count} time{log.send_count !== 1 ? 's' : ''}
-                                                </div>
-                                                {log.email_sent_at && (
-                                                    <div className="application-detail__email-log-date">
-                                                        Last sent: {new Date(log.email_sent_at).toLocaleDateString()}
-                                                    </div>
-                                                )}
-                                                {log.is_queued && (
-                                                    <div className="application-detail__email-log-queued">
-                                                        📋 Queued for next send
-                                                    </div>
-                                                )}
+                        ) : emailTrackingData ? (
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <Card className="bg-blue-50 border-blue-200">
+                                        <CardContent className="p-4 text-center">
+                                            <div className="text-3xl font-bold text-blue-700 font-proxima-bold">
+                                                {Math.floor(emailTrackingData.days_since_account_created)}
                                             </div>
-                                        ))}
-                                    </div>
+                                            <div className="text-sm text-blue-600 font-proxima">Days Since Account</div>
+                                        </CardContent>
+                                    </Card>
+                                    
+                                    <Card className="bg-green-50 border-green-200">
+                                        <CardContent className="p-4 text-center">
+                                            <div className="text-3xl font-bold text-green-700 font-proxima-bold">
+                                                {emailTrackingData.email_logs && emailTrackingData.email_logs.length > 0 
+                                                    ? emailTrackingData.email_logs.reduce((total, log) => total + (log.send_count || 0), 0)
+                                                    : 0
+                                                }
+                                            </div>
+                                            <div className="text-sm text-green-600 font-proxima">Total Emails Sent</div>
+                                        </CardContent>
+                                    </Card>
+                                    
+                                    <Card className="bg-purple-50 border-purple-200">
+                                        <CardContent className="p-4 text-center">
+                                            <div className="text-lg font-bold text-purple-700 font-proxima-bold">
+                                                {(() => {
+                                                    if (!emailTrackingData.email_logs || emailTrackingData.email_logs.length === 0) {
+                                                        return 'None';
+                                                    }
+                                                    
+                                                    const nextEmails = emailTrackingData.email_logs
+                                                        ?.filter(log => log.next_send_at && !log.is_queued)
+                                                        ?.sort((a, b) => new Date(a.next_send_at) - new Date(b.next_send_at));
+                                                    
+                                                    if (nextEmails && nextEmails.length > 0) {
+                                                        const nextEmail = nextEmails[0];
+                                                        const nextDate = new Date(nextEmail.next_send_at);
+                                                        return nextDate.toLocaleDateString();
+                                                    } else {
+                                                        return 'None';
+                                                    }
+                                                })()}
+                                            </div>
+                                            <div className="text-sm text-purple-600 font-proxima">Next Email</div>
+                                        </CardContent>
+                                    </Card>
                                 </div>
-                            )}
 
-                            {emailTrackingData.email_opt_out && (
-                                <div className="application-detail__opt-out-info">
-                                    <h3>Opt-out Information</h3>
-                                    <div className="application-detail__opt-out-details">
-                                        <p><strong>Status:</strong> Opted out of automated emails</p>
-                                        <p><strong>Date:</strong> {new Date(emailTrackingData.email_opt_out_date_est).toLocaleDateString()}</p>
-                                        <p><strong>Reason:</strong> {emailTrackingData.email_opt_out_reason}</p>
+                                {emailTrackingData.email_logs && emailTrackingData.email_logs.length > 0 && (
+                                    <div>
+                                        <h3 className="font-proxima-bold text-lg mb-3">Email History</h3>
+                                        <div className="space-y-2">
+                                            {emailTrackingData.email_logs.map((log, index) => (
+                                                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                                    <div className="flex-1">
+                                                        <div className="font-proxima-bold text-gray-900">
+                                                            {log.email_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                        </div>
+                                                        <div className="text-sm text-gray-600 font-proxima">
+                                                            Sent {log.send_count} time{log.send_count !== 1 ? 's' : ''}
+                                                            {log.email_sent_at && ` • Last sent: ${new Date(log.email_sent_at).toLocaleDateString()}`}
+                                                        </div>
+                                                    </div>
+                                                    {log.is_queued && (
+                                                        <Badge className="bg-blue-100 text-blue-700 font-proxima">
+                                                            📋 Queued
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="application-detail__no-email-data">
-                            <p>No email tracking data available for this applicant.</p>
-                        </div>
-                    )}
-                </div>
+                                )}
 
+                                {emailTrackingData.email_opt_out && (
+                                    <Card className="border-red-200 bg-red-50">
+                                        <CardHeader>
+                                            <CardTitle className="text-red-700 font-proxima-bold">Opt-out Information</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2 font-proxima">
+                                            <p><strong>Status:</strong> Opted out of automated emails</p>
+                                            <p><strong>Date:</strong> {new Date(emailTrackingData.email_opt_out_date_est).toLocaleDateString()}</p>
+                                            <p><strong>Reason:</strong> {emailTrackingData.email_opt_out_reason}</p>
+                                        </CardContent>
+                                    </Card>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="text-gray-500 text-center py-8 font-proxima">No email tracking data available for this applicant.</p>
+                        )}
+                    </CardContent>
+                </Card>
             </div>
 
             {/* Actions Modal */}
             {actionsModalOpen && (
                 <BulkActionsModal
+                    isOpen={actionsModalOpen}
                     selectedCount={1}
                     onClose={closeActionsModal}
                     onAction={handleApplicantAction}
@@ -1247,8 +1430,17 @@ const ApplicationDetail = () => {
                 applicantId={applicant?.applicant_id}
                 applicantName={`${applicant?.first_name} ${applicant?.last_name}`}
             />
+
+            {/* Attended Event Modal */}
+            <AttendedEventModal
+                isOpen={attendedEventModalOpen}
+                onClose={() => setAttendedEventModalOpen(false)}
+                applicant={applicant}
+                onSuccess={fetchApplicationDetail}
+                token={token}
+            />
         </div>
     );
 };
 
-export default ApplicationDetail; 
+export default ApplicationDetail;

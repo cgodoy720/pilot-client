@@ -25,7 +25,15 @@ import AssessmentGrades from './pages/AssessmentGrades/AssessmentGrades';
 
 import VolunteerFeedback from './pages/VolunteerFeedback/VolunteerFeedback';
 import AdminVolunteerFeedback from './pages/AdminVolunteerFeedback';
+import PaymentAdmin from './pages/PaymentAdmin';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
+
+// Volunteer Management pages
+import VolunteerCheckIn from './pages/VolunteerCheckIn/VolunteerCheckIn';
+import VolunteerAttendance from './pages/VolunteerAttendance/VolunteerAttendance';
+import VolunteerRoster from './pages/VolunteerRoster/VolunteerRoster';
+import VolunteerList from './pages/VolunteerList/VolunteerList';
+import MySchedule from './pages/MySchedule/MySchedule';
 
 // Pathfinder pages
 import Pathfinder from './pages/Pathfinder';
@@ -39,6 +47,11 @@ import PathfinderAdminDashboard from './pages/PathfinderDashboard';
 import PathfinderAdmin from './pages/PathfinderAdmin';
 
 import WorkshopAdminDashboard from './pages/WorkshopAdminDashboard/WorkshopAdminDashboard';
+import ExternalCohortsDashboard from './pages/ExternalCohortsDashboard/ExternalCohortsDashboard';
+import CohortAdminDashboard from './pages/CohortAdminDashboard/CohortAdminDashboard';
+import OrganizationManagement from './pages/Admin/OrganizationManagement/OrganizationManagement';
+import PermissionManagement from './pages/Admin/PermissionManagement';
+import ContentPreview from './pages/ContentPreview';
 
 // Form Builder pages
 import FormBuilderDashboard from './pages/FormBuilder/FormBuilderDashboard';
@@ -46,9 +59,21 @@ import FormEditor from './pages/FormBuilder/FormEditor';
 import FormSubmissions from './pages/FormBuilder/FormSubmissions';
 import FormAnalytics from './pages/FormBuilder/FormAnalytics';
 
+// Sales Tracker pages
+import SalesTracker from './pages/SalesTracker/SalesTracker';
+
 import { useAuth } from './context/AuthContext';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
+import { Toaster } from './components/ui/sonner';
+import { 
+  PermissionRoute, 
+  ActiveUserRoute, 
+  BuilderRoute,
+  WorkshopAdminRoute,
+  EnterpriseAdminRoute 
+} from './components/RouteGuards';
+import { PAGE_PERMISSIONS } from './constants/permissions';
 
 import './App.css';
 
@@ -115,7 +140,7 @@ function App() {
     window.location.href = '/login';
   };
 
-  // Protected route component
+  // Protected route component (basic auth check)
   const ProtectedRoute = ({ children }) => {
     if (isLoading) {
       return <div>Loading...</div>;
@@ -127,41 +152,25 @@ function App() {
     
     return children;
   };
-  
-  // Active user route protection component
-  const ActiveUserRoute = ({ children }) => {
-    const isActive = user?.active !== false;
-    
-    if (!isActive) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    
-    return children;
-  };
 
-  // Admin route protection component
+  // Legacy AdminRoute - now uses permission system
+  // Kept inline for routes that need both admin AND staff access
   const AdminRoute = ({ children }) => {
-    const isAdmin = user?.role === 'admin' || user?.role === 'staff';
-    
-    if (!isAdmin) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    
-    return children;
+    return (
+      <PermissionRoute permission={PAGE_PERMISSIONS.STAFF_SECTION}>
+        {children}
+      </PermissionRoute>
+    );
   };
 
-  // Workshop Admin route protection component
-  const WorkshopAdminRoute = ({ children }) => {
-    const isWorkshopAdmin = user?.role === 'workshop_admin' || user?.role === 'admin' || user?.role === 'staff';
-    
-    if (!isWorkshopAdmin) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    
-    return children;
+  // Admin-only route (excludes staff)
+  const AdminOnlyRoute = ({ children }) => {
+    return (
+      <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_SECTION}>
+        {children}
+      </PermissionRoute>
+    );
   };
-
-
 
   // If auth is still loading, show a minimal loading state
   if (isLoading) {
@@ -263,7 +272,7 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
-        <Route path="/admissions-dashboard/application/:applicationId" element={
+        <Route path="/admissions-dashboard/applicant/:applicantId" element={
           <Layout>
             <AdminRoute>
               <ApplicationDetail />
@@ -279,9 +288,9 @@ function App() {
         } />
         <Route path="/admin-prompts" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_PROMPTS}>
               <AdminPrompts />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/facilitator-view" element={
@@ -298,6 +307,13 @@ function App() {
             </AdminRoute>
           </Layout>
         } />
+        <Route path="/payment-admin" element={
+          <Layout>
+            <AdminRoute>
+              <PaymentAdmin />
+            </AdminRoute>
+          </Layout>
+        } />
         <Route path="/workshop-admin-dashboard" element={
           <Layout>
             <WorkshopAdminRoute>
@@ -305,10 +321,58 @@ function App() {
             </WorkshopAdminRoute>
           </Layout>
         } />
+        
+        {/* External Cohorts Management (Admin/Staff only) */}
+        <Route path="/external-cohorts" element={
+          <Layout>
+            <AdminRoute>
+              <ExternalCohortsDashboard />
+            </AdminRoute>
+          </Layout>
+        } />
+        
+        {/* Organization Management (Admin only) */}
+        <Route path="/admin/organization-management" element={
+          <Layout>
+            <AdminOnlyRoute>
+              <OrganizationManagement />
+            </AdminOnlyRoute>
+          </Layout>
+        } />
+        
+        {/* Permission Management (Admin only) */}
+        <Route path="/admin/permissions" element={
+          <Layout>
+            <AdminOnlyRoute>
+              <PermissionManagement />
+            </AdminOnlyRoute>
+          </Layout>
+        } />
+        
+        {/* Content Preview (Staff/Admin/Volunteer - permission-based) */}
+        <Route path="/content-preview" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.CONTENT_PREVIEW}>
+              <ContentPreview />
+            </PermissionRoute>
+          </Layout>
+        } />
+        
+        {/* Enterprise Admin Dashboard (for enterprise admins) */}
+        <Route path="/cohort-admin-dashboard" element={
+          <Layout>
+            <EnterpriseAdminRoute>
+              <CohortAdminDashboard />
+            </EnterpriseAdminRoute>
+          </Layout>
+        } />
+        
         <Route path="/stats" element={<Navigate to="/performance" replace />} />
         <Route path="/performance" element={
           <Layout>
-            <Performance />
+            <BuilderRoute>
+              <Performance />
+            </BuilderRoute>
           </Layout>
         } />
         <Route path="/account" element={
@@ -325,7 +389,9 @@ function App() {
         {/* Pathfinder routes - personal view with nested routes */}
         <Route path="/pathfinder/*" element={
           <Layout>
-            <Pathfinder />
+            <BuilderRoute>
+              <Pathfinder />
+            </BuilderRoute>
           </Layout>
         }>
           <Route path="dashboard" element={<PathfinderPersonalDashboard />} />
@@ -357,6 +423,43 @@ function App() {
         <Route path="/volunteer-feedback" element={
           <Layout>
             <VolunteerFeedback />
+          </Layout>
+        } />
+
+        {/* Volunteer Management routes */}
+        <Route path="/volunteer-checkin" element={
+          <Layout>
+            <VolunteerCheckIn />
+          </Layout>
+        } />
+        <Route path="/volunteer-attendance" element={
+          <Layout>
+            <AdminRoute>
+              <VolunteerAttendance />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/volunteer-roster" element={
+          <Layout>
+            <AdminRoute>
+              <VolunteerRoster />
+            </AdminRoute>
+          </Layout>
+        } />
+        <Route path="/volunteer-list" element={
+          <Layout>
+            <AdminRoute>
+              <VolunteerList />
+            </AdminRoute>
+          </Layout>
+        } />
+
+        {/* Volunteer Self-Service Schedule (for volunteer role) */}
+        <Route path="/my-schedule" element={
+          <Layout>
+            <ProtectedRoute>
+              <MySchedule />
+            </ProtectedRoute>
           </Layout>
         } />
 
@@ -397,6 +500,15 @@ function App() {
           </Layout>
         } />
 
+        {/* Sputnik routes (Admin/Staff only) */}
+        <Route path="/sputnik" element={
+          <Layout>
+            <AdminRoute>
+              <SalesTracker />
+            </AdminRoute>
+          </Layout>
+        } />
+
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
       
@@ -407,6 +519,9 @@ function App() {
         message={modalConfig.message}
         onRedirect={handleModalRedirect}
       />
+      
+      {/* Toast Notifications */}
+      <Toaster />
     </>
   );
 }

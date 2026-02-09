@@ -211,6 +211,8 @@ const Performance = () => {
             month={selectedMonth}
             year={selectedYear}
             userPhoto={userPhoto}
+            userFirstName={user?.firstName || user?.first_name || ''}
+            userLastName={user?.lastName || user?.last_name || ''}
             attendanceData={attendanceData}
             programInfo={programInfo}
             onMonthChange={handleMonthChange}
@@ -227,7 +229,6 @@ const Performance = () => {
             userId={user.user_id}
             month={selectedMonth}
             year={selectedYear}
-            cohort={user?.cohort}
             feedbackData={feedbackData}
             onTaskClick={handleTaskClick}
             onIncompleteTaskNavigate={handleIncompleteTaskNavigate}

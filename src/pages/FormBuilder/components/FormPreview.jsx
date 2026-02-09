@@ -3,21 +3,21 @@ const FormPreview = ({ title, description, questions, settings }) => {
     switch (question.type) {
       case 'text':
         return (
-          <textarea
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base resize-vertical opacity-60"
+          <input
+            type="text"
+            className="w-full px-4 py-3 border-b-2 border-gray-300 bg-transparent text-base opacity-60 focus:outline-none"
             placeholder="Your answer..."
             disabled
-            rows={3}
           />
         );
 
       case 'long_text':
         return (
           <textarea
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base resize-vertical opacity-60"
+            className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 bg-transparent text-base resize-none opacity-60 focus:outline-none min-h-[40px]"
             placeholder="Your detailed answer..."
             disabled
-            rows={6}
+            rows={1}
           />
         );
 
@@ -25,14 +25,19 @@ const FormPreview = ({ title, description, questions, settings }) => {
         return (
           <div className="flex flex-col gap-3">
             {question.options.map((option, i) => (
-              <label key={i} className="flex items-center gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg cursor-not-allowed opacity-60">
-                <input
-                  type={question.multiple_select ? 'checkbox' : 'radio'}
-                  name={`question-${index}`}
-                  disabled
-                  className="w-4 h-4"
-                />
-                <span className="text-gray-800">{option}</span>
+              <label key={i} className="flex items-center justify-between gap-4 px-5 py-4 bg-gray-50 border border-gray-200 rounded-lg cursor-not-allowed opacity-60 min-h-[56px]">
+                <span className="text-gray-800 text-left flex-1">{option}</span>
+                <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center flex-shrink-0">
+                  {question.multiple_select ? (
+                    <input
+                      type="checkbox"
+                      disabled
+                      className="w-4 h-4 pointer-events-none"
+                    />
+                  ) : (
+                    <div className="w-3 h-3 rounded-full bg-gray-300" />
+                  )}
+                </div>
               </label>
             ))}
           </div>

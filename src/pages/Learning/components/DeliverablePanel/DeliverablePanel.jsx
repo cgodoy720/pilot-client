@@ -13,7 +13,9 @@ function DeliverablePanel({
   isOpen,
   onClose,
   onSubmit,
-  isLocked = false
+  isLocked = false,
+  userId,
+  taskId
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -47,7 +49,9 @@ function DeliverablePanel({
       currentSubmission,
       isSubmitting,
       isLocked,
-      onSubmit: handleSubmit
+      onSubmit: handleSubmit,
+      userId,
+      taskId
     };
 
     console.log('DeliverablePanel - task:', task);

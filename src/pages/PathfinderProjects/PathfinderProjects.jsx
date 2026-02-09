@@ -8,7 +8,7 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Badge } from '../../components/ui/badge';
 
 function PathfinderProjects() {
@@ -730,489 +730,454 @@ function PathfinderProjects() {
         <div className="flex justify-between items-center mb-4 gap-4 flex-wrap max-w-full w-full">
           <Button 
             className="px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] relative overflow-hidden flex-shrink-0 whitespace-nowrap hover:bg-[#3333d1] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(66,66,234,0.4)] active:translate-y-0 active:shadow-[0_2px_8px_rgba(66,66,234,0.2)]"
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => setShowForm(true)}
           >
-            {showForm ? 'Cancel' : '+ Add Project'}
+            + Add Project
           </Button>
         </div>
 
         {/* Add/Edit Form Modal */}
-        {showForm && (
-          <div className="pathfinder-projects__modal-overlay" onClick={resetForm}>
-            <div className="pathfinder-projects__modal" onClick={(e) => e.stopPropagation()}>
-              <div className="pathfinder-projects__modal-header">
-                <h2>{isEditing ? 'Edit Project' : 'Add New Project'}</h2>
-                <button type="button" className="pathfinder-projects__modal-close" onClick={resetForm}>
-                  ×
-                </button>
-              </div>
+        <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()}>
+          <DialogContent className={`p-0 flex flex-col max-h-[90vh] overflow-hidden ${
+            (isEditing && formData.prdApproved && formData.prdApprovalNotes) || 
+            (isEditing && (formData.stage === 'testing' || formData.stage === 'launch'))
+              ? 'max-w-[900px]' 
+              : 'max-w-[500px]'
+          }`}>
+            <DialogHeader className="flex flex-row justify-between items-center p-6 border-b-2 border-[#e0e0e0] flex-shrink-0">
+              <DialogTitle className="m-0 text-[#1a1a1a] text-2xl font-semibold">
+                {isEditing ? 'Edit Project' : 'Add New Project'}
+              </DialogTitle>
+            </DialogHeader>
+            
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className={`grid flex-1 min-h-0 ${
+                (isEditing && formData.prdApproved && formData.prdApprovalNotes) || 
+                (isEditing && (formData.stage === 'testing' || formData.stage === 'launch'))
+                  ? 'grid-cols-1 lg:grid-cols-[1fr_1fr]' 
+                  : 'grid-cols-1'
+              }`}>
+                {/* Left Panel - Form */}
+                <div className="p-6 overflow-y-auto min-h-0 bg-white">
+                  {error && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+                      {error}
+                    </div>
+                  )}
 
-              <div className="pathfinder-projects__modal-content">
-                {/* Two-column layout when editing with feedback OR launch checklist */}
-                <div className={`pathfinder-projects__modal-body ${
-                  (isEditing && formData.prdApproved && formData.prdApprovalNotes) || 
-                  (isEditing && (formData.stage === 'testing' || formData.stage === 'launch'))
-                    ? 'pathfinder-projects__modal-body--two-column' 
-                    : ''
-                }`}>
-                  {/* Left Panel - Form */}
-                  <div className="pathfinder-projects__form-panel">
-                    <form onSubmit={handleSubmit} className="pathfinder-projects__form">
-                      {error && (
-                        <div className="pathfinder-projects__error">
-                          {error}
-                        </div>
-                      )}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Project Name *</label>
+                      <Input
+                        type="text"
+                        name="projectName"
+                        value={formData.projectName}
+                        onChange={handleInputChange}
+                        required
+                        placeholder="e.g., Portfolio Website, E-commerce App"
+                        className="w-full"
+                      />
+                    </div>
 
-                      <div className="pathfinder-projects__form-group">
-                        <label>Project Name *</label>
-                        <input
-                          type="text"
-                          name="projectName"
-                          value={formData.projectName}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Stage *</label>
+                        <Select
+                          name="stage"
+                          value={formData.stage}
+                          onValueChange={(value) => handleInputChange({ target: { name: 'stage', value } })}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select stage" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ideation">Ideation</SelectItem>
+                            <SelectItem value="planning">Planning & Design</SelectItem>
+                            <SelectItem value="development">Development</SelectItem>
+                            <SelectItem value="testing">Testing</SelectItem>
+                            <SelectItem value="launch">Launch</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Target Completion *</label>
+                        <Input
+                          type="date"
+                          name="targetDate"
+                          value={formData.targetDate}
                           onChange={handleInputChange}
                           required
-                          placeholder="e.g., Portfolio Website, E-commerce App"
+                          className="w-full"
                         />
                       </div>
+                    </div>
 
-                      <div className="pathfinder-projects__form-row">
-                        <div className="pathfinder-projects__form-group">
-                          <label>Stage *</label>
-                          <select
-                            name="stage"
-                            value={formData.stage}
-                            onChange={handleInputChange}
-                            required
+                    <div>
+                      <label className="block text-sm font-medium text-[#1a1a1a] mb-2">PRD Link (Google Docs, etc.)</label>
+                      <Input
+                        type="url"
+                        name="prdLink"
+                        value={formData.prdLink}
+                        onChange={handleInputChange}
+                        placeholder="https://docs.google.com/document/d/..."
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Link to Job Application */}
+                    <div>
+                      <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Link to Job Application (Optional)</label>
+                      <div className="relative">
+                        <Input
+                          type="text"
+                          value={jobSearchQuery}
+                          onChange={(e) => {
+                            setJobSearchQuery(e.target.value);
+                            if (selectedJob && e.target.value !== `${selectedJob.role_title} at ${selectedJob.company_name}`) {
+                              setSelectedJob(null);
+                              setFormData(prev => ({ ...prev, linkedJobId: null }));
+                            }
+                          }}
+                          onFocus={() => {
+                            if (!selectedJob && jobSearchQuery) {
+                              setShowJobDropdown(true);
+                            }
+                          }}
+                          placeholder="Search for a job application..."
+                          className="w-full"
+                        />
+                        {selectedJob && (
+                          <button
+                            type="button"
+                            onClick={handleJobSearchClear}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-[#666666] hover:text-[#1a1a1a] text-lg font-bold leading-none"
                           >
-                            <option value="ideation">Ideation</option>
-                            <option value="planning">Planning & Design</option>
-                            <option value="development">Development</option>
-                            <option value="testing">Testing</option>
-                            <option value="launch">Launch</option>
-                          </select>
-                        </div>
-                        <div className="pathfinder-projects__form-group">
-                          <label>Target Completion *</label>
-                          <input
-                            type="date"
-                            name="targetDate"
-                            value={formData.targetDate}
-                            onChange={handleInputChange}
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="pathfinder-projects__form-group">
-                        <label>PRD Link (Google Docs, etc.)</label>
-                        <input
-                          type="url"
-                          name="prdLink"
-                          value={formData.prdLink}
-                          onChange={handleInputChange}
-                          placeholder="https://docs.google.com/document/d/..."
-                        />
-                      </div>
-
-                      {/* Link to Job Application */}
-                      <div className="pathfinder-projects__form-group">
-                        <label>Link to Job Application (Optional)</label>
-                        <div className="pathfinder-projects__job-search-container">
-                          <div className="pathfinder-projects__job-search-input-wrapper">
-                            <input
-                              type="text"
-                              value={jobSearchQuery}
-                              onChange={(e) => {
-                                setJobSearchQuery(e.target.value);
-                                if (selectedJob && e.target.value !== `${selectedJob.role_title} at ${selectedJob.company_name}`) {
-                                  setSelectedJob(null);
-                                  setFormData(prev => ({ ...prev, linkedJobId: null }));
-                                }
-                              }}
-                              onFocus={() => {
-                                if (!selectedJob && jobSearchQuery) {
-                                  setShowJobDropdown(true);
-                                }
-                              }}
-                              placeholder="Search for a job application..."
-                              className="pathfinder-projects__job-search-input"
-                            />
-                            {selectedJob && (
-                              <button
-                                type="button"
-                                onClick={handleJobSearchClear}
-                                className="pathfinder-projects__job-clear-btn"
+                            ✕
+                          </button>
+                        )}
+                        {showJobDropdown && filteredJobs.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-[#d0d0d0] rounded-md shadow-lg max-h-60 overflow-y-auto">
+                            {filteredJobs.map((job) => (
+                              <div
+                                key={job.job_application_id}
+                                className="p-3 cursor-pointer hover:bg-[#f5f5f5] border-b border-[#e0e0e0] last:border-b-0"
+                                onClick={() => handleJobSelect(job)}
                               >
-                                ✕
-                              </button>
-                            )}
+                                <div className="font-medium text-[#1a1a1a] text-sm">{job.company_name}</div>
+                                <div className="text-xs text-[#666666] mt-1">{job.role_title}</div>
+                              </div>
+                            ))}
                           </div>
-
-                          {showJobDropdown && filteredJobs.length > 0 && (
-                            <div className="pathfinder-projects__job-dropdown">
-                              {filteredJobs.map((job) => (
-                                <div
-                                  key={job.job_application_id}
-                                  className="pathfinder-projects__job-option"
-                                  onClick={() => handleJobSelect(job)}
-                                >
-                                  <div className="pathfinder-projects__job-option-company">
-                                    {job.company_name}
-                                  </div>
-                                  <div className="pathfinder-projects__job-option-role">
-                                    {job.role_title}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        )}
                       </div>
+                    </div>
 
-                      <div className="pathfinder-projects__form-group">
-                        <label>Notes</label>
-                        <textarea
-                          name="notes"
-                          value={formData.notes}
-                          onChange={handleInputChange}
-                          rows="4"
-                          placeholder="Add any notes about the project..."
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Notes</label>
+                      <textarea
+                        name="notes"
+                        value={formData.notes}
+                        onChange={handleInputChange}
+                        rows="4"
+                        placeholder="Add any notes about the project..."
+                        className="w-full p-3 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                      />
+                    </div>
 
-                      {/* PRD Approval Status (if no feedback, show inline) */}
-                      {isEditing && formData.prdLink && !formData.prdApprovalNotes && (
-                        <div className="pathfinder-projects__approval-section">
-                          <h3 className="pathfinder-projects__approval-section-title">PRD Approval Status</h3>
-                          {formData.prdApproved ? (
-                            <div className="pathfinder-projects__approval-status pathfinder-projects__approval-status--approved">
-                              <span className="pathfinder-projects__approval-icon">✓</span>
-                              <div className="pathfinder-projects__approval-details">
-                                <div className="pathfinder-projects__approval-text">
-                                  <strong>Approved</strong>
-                                  {formData.approverFirstName && (
-                                    <span> by {formData.approverFirstName} {formData.approverLastName}</span>
-                                  )}
-                                </div>
-                                {formData.prdApprovedAt && (
-                                  <div className="pathfinder-projects__approval-date">
-                                    {new Date(formData.prdApprovedAt).toLocaleDateString('en-US', {
-                                      year: 'numeric',
-                                      month: 'long',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
-                                  </div>
+                    {/* PRD Approval Status (if no feedback, show inline) */}
+                    {isEditing && formData.prdLink && !formData.prdApprovalNotes && (
+                      <div className="pt-4 border-t border-[#e0e0e0]">
+                        <h3 className="text-sm font-semibold text-[#1a1a1a] mb-3">PRD Approval Status</h3>
+                        {formData.prdApproved ? (
+                          <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                            <span className="text-green-600 text-lg">✓</span>
+                            <div>
+                              <div className="text-sm text-green-700">
+                                <strong>Approved</strong>
+                                {formData.approverFirstName && (
+                                  <span> by {formData.approverFirstName} {formData.approverLastName}</span>
                                 )}
                               </div>
-                            </div>
-                          ) : formData.prdSubmitted ? (
-                            <div className="pathfinder-projects__approval-status pathfinder-projects__approval-status--pending">
-                              <span className="pathfinder-projects__approval-icon">⏳</span>
-                              <div className="pathfinder-projects__approval-details">
-                                <div className="pathfinder-projects__approval-text">
-                                  <strong>Pending Approval</strong>
+                              {formData.prdApprovedAt && (
+                                <div className="text-xs text-green-600 mt-1">
+                                  {new Date(formData.prdApprovedAt).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
                                 </div>
-                                {formData.prdSubmittedAt && (
-                                  <div className="pathfinder-projects__approval-date">
-                                    Submitted {new Date(formData.prdSubmittedAt).toLocaleDateString()}
-                                  </div>
-                                )}
-                                <button
-                                  type="button"
-                                  className="pathfinder-projects__unsubmit-btn"
-                                  onClick={() => handleUnsubmitPRD(formData.id)}
-                                >
-                                  Unsubmit PRD
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="pathfinder-projects__approval-status pathfinder-projects__approval-status--not-submitted">
-                              <span className="pathfinder-projects__approval-icon">📋</span>
-                              <div className="pathfinder-projects__approval-text">
-                                Not yet submitted for approval
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="pathfinder-projects__form-actions">
-                        <button type="submit" className="pathfinder-projects__submit-btn">
-                          {isEditing ? 'Update Project' : 'Add Project'}
-                        </button>
-                        <button 
-                          type="button" 
-                          className="pathfinder-projects__cancel-btn"
-                          onClick={resetForm}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-
-                  {/* Right Panel - Feedback (only when approved with notes) */}
-                  {isEditing && formData.prdApproved && formData.prdApprovalNotes && (
-                    <div className="pathfinder-projects__feedback-sidebar">
-                      <div className="pathfinder-projects__feedback-sidebar-header">
-                        <h3>PRD Approval</h3>
-                      </div>
-                      <div className="pathfinder-projects__feedback-sidebar-content">
-                        <div className="pathfinder-projects__approval-status pathfinder-projects__approval-status--approved">
-                          <span className="pathfinder-projects__approval-icon">✓</span>
-                          <div className="pathfinder-projects__approval-details">
-                            <div className="pathfinder-projects__approval-text">
-                              <strong>Approved</strong>
-                              {formData.approverFirstName && (
-                                <span> by {formData.approverFirstName} {formData.approverLastName}</span>
                               )}
                             </div>
-                            {formData.prdApprovedAt && (
-                              <div className="pathfinder-projects__approval-date">
-                                {new Date(formData.prdApprovedAt).toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
+                          </div>
+                        ) : formData.prdSubmitted ? (
+                          <div className="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                            <span className="text-yellow-600 text-lg">⏳</span>
+                            <div>
+                              <div className="text-sm text-yellow-700">
+                                <strong>Pending Approval</strong>
                               </div>
+                              {formData.prdSubmittedAt && (
+                                <div className="text-xs text-yellow-600 mt-1">
+                                  Submitted {new Date(formData.prdSubmittedAt).toLocaleDateString()}
+                                </div>
+                              )}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="mt-2 text-xs"
+                                onClick={() => handleUnsubmitPRD(formData.id)}
+                              >
+                                Unsubmit PRD
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-md">
+                            <span className="text-gray-500 text-lg">📋</span>
+                            <div className="text-sm text-gray-600">
+                              Not yet submitted for approval
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Panel - Feedback (only when approved with notes) */}
+                {isEditing && formData.prdApproved && formData.prdApprovalNotes && (
+                  <div className="bg-[#f9f9f9] border-l-2 border-[#e0e0e0] p-6 overflow-y-auto min-h-0">
+                    <h3 className="text-lg font-semibold text-[#1a1a1a] mb-4">PRD Approval</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                        <span className="text-green-600 text-lg">✓</span>
+                        <div>
+                          <div className="text-sm text-green-700">
+                            <strong>Approved</strong>
+                            {formData.approverFirstName && (
+                              <span> by {formData.approverFirstName} {formData.approverLastName}</span>
                             )}
                           </div>
+                          {formData.prdApprovedAt && (
+                            <div className="text-xs text-green-600 mt-1">
+                              {new Date(formData.prdApprovedAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </div>
+                          )}
                         </div>
-                        
-                        <div className="pathfinder-projects__feedback-content">
-                          <div className="pathfinder-projects__approval-feedback-label">
-                            💬 Feedback from Reviewer:
-                          </div>
-                          <div className="pathfinder-projects__approval-feedback-text">
-                            {formData.prdApprovalNotes}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Right Panel - Launch Checklist */}
-                  {isEditing && (formData.stage === 'testing' || formData.stage === 'launch') && !formData.prdApprovalNotes && (
-                    <div className="pathfinder-projects__feedback-sidebar">
-                      <div className="pathfinder-projects__feedback-sidebar-header">
-                        <h3>Launch Checklist</h3>
-                        <p className="pathfinder-projects__checklist-desc">
-                          Complete all items before moving to Launch
-                        </p>
                       </div>
                       
-                      <div className="pathfinder-projects__feedback-sidebar-content">
-                        {/* Main Checklist Items */}
-                        <div className="pathfinder-projects__checklist-items">
-                          {/* 1. App Deployed */}
-                          <div className="pathfinder-projects__checklist-item">
-                            <label className="pathfinder-projects__checkbox-label">
-                              <input
-                                type="checkbox"
-                                checked={!!formData.deploymentUrl}
-                                readOnly
-                                style={{ cursor: 'not-allowed' }}
-                              />
-                              <span className="pathfinder-projects__checkbox-text">
-                                App Deployed
-                              </span>
-                            </label>
-                            <div className="pathfinder-projects__checklist-detail">
-                              <input
-                                type="url"
-                                name="deploymentUrl"
-                                value={formData.deploymentUrl}
-                                onChange={handleInputChange}
-                                placeholder="Deployment URL (e.g., https://myapp.netlify.app)"
-                                className="pathfinder-projects__checklist-input"
-                              />
-                            </div>
-                          </div>
-
-                          {/* 2. Demoed to Class */}
-                          <div className="pathfinder-projects__checklist-item">
-                            <label className="pathfinder-projects__checkbox-label">
-                              <input
-                                type="checkbox"
-                                checked={!!formData.demoDate}
-                                readOnly
-                                style={{ cursor: 'not-allowed' }}
-                              />
-                              <span className="pathfinder-projects__checkbox-text">
-                                Demoed to Class
-                              </span>
-                            </label>
-                            <div className="pathfinder-projects__checklist-detail">
-                              <input
-                                type="date"
-                                name="demoDate"
-                                value={formData.demoDate}
-                                onChange={handleInputChange}
-                                className="pathfinder-projects__checklist-input"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Lookbook Preparation Header */}
-                          <div className="pathfinder-projects__checklist-group-header">
-                            Lookbook Preparation:
-                          </div>
-
-                          {/* 3. Short Description */}
-                          <div className="pathfinder-projects__checklist-item pathfinder-projects__checklist-item--nested">
-                            <label className="pathfinder-projects__checkbox-label">
-                              <input
-                                type="checkbox"
-                                checked={!!formData.lookbookShortDesc && formData.lookbookShortDesc.trim().length > 0}
-                                readOnly
-                                style={{ cursor: 'not-allowed' }}
-                              />
-                              <span className="pathfinder-projects__checkbox-text">
-                                Short Description
-                              </span>
-                            </label>
-                            <div className="pathfinder-projects__checklist-detail">
-                              <textarea
-                                name="lookbookShortDesc"
-                                value={formData.lookbookShortDesc}
-                                onChange={handleInputChange}
-                                placeholder="1-2 sentences describing your project"
-                                rows="2"
-                                className="pathfinder-projects__checklist-input"
-                              />
-                            </div>
-                          </div>
-
-                          {/* 4. Long Description */}
-                          <div className="pathfinder-projects__checklist-item pathfinder-projects__checklist-item--nested">
-                            <label className="pathfinder-projects__checkbox-label">
-                              <input
-                                type="checkbox"
-                                checked={!!formData.lookbookLongDesc && formData.lookbookLongDesc.trim().length > 0}
-                                readOnly
-                                style={{ cursor: 'not-allowed' }}
-                              />
-                              <span className="pathfinder-projects__checkbox-text">
-                                Long Description
-                              </span>
-                            </label>
-                            <div className="pathfinder-projects__checklist-detail">
-                              <textarea
-                                name="lookbookLongDesc"
-                                value={formData.lookbookLongDesc}
-                                onChange={handleInputChange}
-                                placeholder="Detailed project overview (features, purpose, impact)"
-                                rows="4"
-                                className="pathfinder-projects__checklist-input"
-                              />
-                            </div>
-                          </div>
-
-                          {/* 5. Skills & Tech */}
-                          <div className="pathfinder-projects__checklist-item pathfinder-projects__checklist-item--nested">
-                            <label className="pathfinder-projects__checkbox-label">
-                              <input
-                                type="checkbox"
-                                checked={formData.lookbookSkillsTech && formData.lookbookSkillsTech.length > 0}
-                                readOnly
-                                style={{ cursor: 'not-allowed' }}
-                              />
-                              <span className="pathfinder-projects__checkbox-text">
-                                Skills & Technologies
-                              </span>
-                            </label>
-                            <div className="pathfinder-projects__checklist-detail">
-                              <input
-                                type="text"
-                                name="lookbookSkillsTech"
-                                value={formData.lookbookSkillsTech.join(', ')}
-                                onChange={(e) => setFormData(prev => ({ 
-                                  ...prev, 
-                                  lookbookSkillsTech: e.target.value.split(',').map(s => s.trim()).filter(s => s)
-                                }))}
-                                placeholder="React, Node.js, PostgreSQL, AWS (comma-separated)"
-                                className="pathfinder-projects__checklist-input"
-                              />
-                            </div>
-                          </div>
-
-                          {/* 6. Screenshot */}
-                          <div className="pathfinder-projects__checklist-item pathfinder-projects__checklist-item--nested">
-                            <label className="pathfinder-projects__checkbox-label">
-                              <input
-                                type="checkbox"
-                                checked={!!formData.lookbookScreenshotUrl}
-                                readOnly
-                                style={{ cursor: 'not-allowed' }}
-                              />
-                              <span className="pathfinder-projects__checkbox-text">
-                                Screenshot Uploaded
-                              </span>
-                            </label>
-                            <div className="pathfinder-projects__checklist-detail">
-                              <input
-                                type="url"
-                                name="lookbookScreenshotUrl"
-                                value={formData.lookbookScreenshotUrl}
-                                onChange={handleInputChange}
-                                placeholder="Screenshot URL"
-                                className="pathfinder-projects__checklist-input"
-                              />
-                            </div>
-                          </div>
-
-                          {/* 7. Video */}
-                          <div className="pathfinder-projects__checklist-item pathfinder-projects__checklist-item--nested">
-                            <label className="pathfinder-projects__checkbox-label">
-                              <input
-                                type="checkbox"
-                                checked={!!formData.lookbookVideoUrl}
-                                readOnly
-                                style={{ cursor: 'not-allowed' }}
-                              />
-                              <span className="pathfinder-projects__checkbox-text">
-                                Video Demo Uploaded
-                              </span>
-                            </label>
-                            <div className="pathfinder-projects__checklist-detail">
-                              <input
-                                type="url"
-                                name="lookbookVideoUrl"
-                                value={formData.lookbookVideoUrl}
-                                onChange={handleInputChange}
-                                placeholder="Video URL (YouTube, Loom, etc.)"
-                                className="pathfinder-projects__checklist-input"
-                              />
-                            </div>
-                          </div>
+                      <div>
+                        <div className="text-sm font-medium text-[#1a1a1a] mb-2">
+                          💬 Feedback from Reviewer:
                         </div>
-
-                        {/* Completion Status */}
-                        <div className="pathfinder-projects__checklist-progress">
-                          {[
-                            !!formData.deploymentUrl,
-                            !!formData.demoDate,
-                            !!formData.lookbookShortDesc && formData.lookbookShortDesc.trim().length > 0,
-                            !!formData.lookbookLongDesc && formData.lookbookLongDesc.trim().length > 0,
-                            formData.lookbookSkillsTech && formData.lookbookSkillsTech.length > 0,
-                            !!formData.lookbookScreenshotUrl,
-                            !!formData.lookbookVideoUrl
-                          ].filter(Boolean).length} of 7 items completed
+                        <div className="p-3 bg-white border border-[#e0e0e0] rounded-md text-sm text-[#1a1a1a]">
+                          {formData.prdApprovalNotes}
                         </div>
                       </div>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
+
+                {/* Right Panel - Launch Checklist */}
+                {isEditing && (formData.stage === 'testing' || formData.stage === 'launch') && !formData.prdApprovalNotes && (
+                  <div className="bg-[#f9f9f9] border-l-2 border-[#e0e0e0] p-6 overflow-y-auto min-h-0">
+                    <h3 className="text-lg font-semibold text-[#1a1a1a] mb-1">Launch Checklist</h3>
+                    <p className="text-sm text-[#666666] mb-4">
+                      Complete all items before moving to Launch
+                    </p>
+                    
+                    <div className="space-y-4">
+                      {/* 1. App Deployed */}
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 cursor-not-allowed">
+                          <input
+                            type="checkbox"
+                            checked={!!formData.deploymentUrl}
+                            readOnly
+                            className="w-4 h-4 cursor-not-allowed"
+                          />
+                          <span className="text-sm font-medium text-[#1a1a1a]">App Deployed</span>
+                        </label>
+                        <Input
+                          type="url"
+                          name="deploymentUrl"
+                          value={formData.deploymentUrl}
+                          onChange={handleInputChange}
+                          placeholder="Deployment URL (e.g., https://myapp.netlify.app)"
+                          className="w-full text-sm"
+                        />
+                      </div>
+
+                      {/* 2. Demoed to Class */}
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 cursor-not-allowed">
+                          <input
+                            type="checkbox"
+                            checked={!!formData.demoDate}
+                            readOnly
+                            className="w-4 h-4 cursor-not-allowed"
+                          />
+                          <span className="text-sm font-medium text-[#1a1a1a]">Demoed to Class</span>
+                        </label>
+                        <Input
+                          type="date"
+                          name="demoDate"
+                          value={formData.demoDate}
+                          onChange={handleInputChange}
+                          className="w-full text-sm"
+                        />
+                      </div>
+
+                      {/* Lookbook Preparation Header */}
+                      <div className="text-sm font-semibold text-[#666666] pt-2 border-t border-[#e0e0e0]">
+                        Lookbook Preparation:
+                      </div>
+
+                      {/* 3. Short Description */}
+                      <div className="space-y-2 pl-4">
+                        <label className="flex items-center gap-2 cursor-not-allowed">
+                          <input
+                            type="checkbox"
+                            checked={!!formData.lookbookShortDesc && formData.lookbookShortDesc.trim().length > 0}
+                            readOnly
+                            className="w-4 h-4 cursor-not-allowed"
+                          />
+                          <span className="text-sm font-medium text-[#1a1a1a]">Short Description</span>
+                        </label>
+                        <textarea
+                          name="lookbookShortDesc"
+                          value={formData.lookbookShortDesc}
+                          onChange={handleInputChange}
+                          placeholder="1-2 sentences describing your project"
+                          rows="2"
+                          className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                        />
+                      </div>
+
+                      {/* 4. Long Description */}
+                      <div className="space-y-2 pl-4">
+                        <label className="flex items-center gap-2 cursor-not-allowed">
+                          <input
+                            type="checkbox"
+                            checked={!!formData.lookbookLongDesc && formData.lookbookLongDesc.trim().length > 0}
+                            readOnly
+                            className="w-4 h-4 cursor-not-allowed"
+                          />
+                          <span className="text-sm font-medium text-[#1a1a1a]">Long Description</span>
+                        </label>
+                        <textarea
+                          name="lookbookLongDesc"
+                          value={formData.lookbookLongDesc}
+                          onChange={handleInputChange}
+                          placeholder="Detailed project overview (features, purpose, impact)"
+                          rows="3"
+                          className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                        />
+                      </div>
+
+                      {/* 5. Skills & Tech */}
+                      <div className="space-y-2 pl-4">
+                        <label className="flex items-center gap-2 cursor-not-allowed">
+                          <input
+                            type="checkbox"
+                            checked={formData.lookbookSkillsTech && formData.lookbookSkillsTech.length > 0}
+                            readOnly
+                            className="w-4 h-4 cursor-not-allowed"
+                          />
+                          <span className="text-sm font-medium text-[#1a1a1a]">Skills & Technologies</span>
+                        </label>
+                        <Input
+                          type="text"
+                          name="lookbookSkillsTech"
+                          value={formData.lookbookSkillsTech.join(', ')}
+                          onChange={(e) => setFormData(prev => ({ 
+                            ...prev, 
+                            lookbookSkillsTech: e.target.value.split(',').map(s => s.trim()).filter(s => s)
+                          }))}
+                          placeholder="React, Node.js, PostgreSQL, AWS (comma-separated)"
+                          className="w-full text-sm"
+                        />
+                      </div>
+
+                      {/* 6. Screenshot */}
+                      <div className="space-y-2 pl-4">
+                        <label className="flex items-center gap-2 cursor-not-allowed">
+                          <input
+                            type="checkbox"
+                            checked={!!formData.lookbookScreenshotUrl}
+                            readOnly
+                            className="w-4 h-4 cursor-not-allowed"
+                          />
+                          <span className="text-sm font-medium text-[#1a1a1a]">Screenshot Uploaded</span>
+                        </label>
+                        <Input
+                          type="url"
+                          name="lookbookScreenshotUrl"
+                          value={formData.lookbookScreenshotUrl}
+                          onChange={handleInputChange}
+                          placeholder="Screenshot URL"
+                          className="w-full text-sm"
+                        />
+                      </div>
+
+                      {/* 7. Video */}
+                      <div className="space-y-2 pl-4">
+                        <label className="flex items-center gap-2 cursor-not-allowed">
+                          <input
+                            type="checkbox"
+                            checked={!!formData.lookbookVideoUrl}
+                            readOnly
+                            className="w-4 h-4 cursor-not-allowed"
+                          />
+                          <span className="text-sm font-medium text-[#1a1a1a]">Video Demo Uploaded</span>
+                        </label>
+                        <Input
+                          type="url"
+                          name="lookbookVideoUrl"
+                          value={formData.lookbookVideoUrl}
+                          onChange={handleInputChange}
+                          placeholder="Video URL (YouTube, Loom, etc.)"
+                          className="w-full text-sm"
+                        />
+                      </div>
+
+                      {/* Completion Status */}
+                      <div className="pt-3 border-t border-[#e0e0e0] text-sm text-[#666666] font-medium">
+                        {[
+                          !!formData.deploymentUrl,
+                          !!formData.demoDate,
+                          !!formData.lookbookShortDesc && formData.lookbookShortDesc.trim().length > 0,
+                          !!formData.lookbookLongDesc && formData.lookbookLongDesc.trim().length > 0,
+                          formData.lookbookSkillsTech && formData.lookbookSkillsTech.length > 0,
+                          !!formData.lookbookScreenshotUrl,
+                          !!formData.lookbookVideoUrl
+                        ].filter(Boolean).length} of 7 items completed
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
-        )}
+              
+              <DialogFooter className="flex justify-end gap-2 p-6 border-t-2 border-[#e0e0e0] bg-white flex-shrink-0">
+                <Button type="button" variant="outline" onClick={resetForm}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-[#4242ea] hover:bg-[#3333d1]">
+                  {isEditing ? 'Update Project' : 'Add Project'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* Kanban Board */}
         <div className="pathfinder-projects__kanban">

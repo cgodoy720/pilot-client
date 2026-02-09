@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import './CompanyAutocomplete.css';
 
-function CompanyAutocomplete({ value, onChange, required = false }) {
+function CompanyAutocomplete({ value, onChange, required = false, className = '' }) {
   const { token } = useAuth();
   const [inputValue, setInputValue] = useState(value || '');
   const [suggestions, setSuggestions] = useState([]);
@@ -139,7 +139,7 @@ function CompanyAutocomplete({ value, onChange, required = false }) {
         }}
         required={required}
         placeholder="Start typing company name..."
-        className="company-autocomplete__input"
+        className={`company-autocomplete__input ${className}`}
         autoComplete="off"
       />
 

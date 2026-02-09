@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '../../../../components/ui/button';
 import { Card, CardContent } from '../../../../components/ui/card';
 import { Badge } from '../../../../components/ui/badge';
@@ -15,11 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from '../../../../components/ui/table';
-import { formatEventTime, isEventPast, formatEventDate, sortEventsByDate, getStatusBadgeClasses, formatStatus } from '../shared/utils';
+import { formatEventTime, isEventPast, formatEventDate, sortEventsByDate, getStatusBadgeClasses, formatStatus, formatPhoneNumber } from '../shared/utils';
+import ManualRegistrationModal from '../shared/ManualRegistrationModal';
+import Swal from 'sweetalert2';
 
 const WorkshopsTab = ({
   loading,
   workshops,
+  setWorkshops: setParentWorkshops,
   showInactiveWorkshops,
   setShowInactiveWorkshops,
   selectedEvent,
@@ -59,6 +62,34 @@ const WorkshopsTab = ({
   fetchWorkshops,
   token
 }) => {
+  // State for manual registration modal
+  const [manualRegModalOpen, setManualRegModalOpen] = useState(false);
+  const [selectedEventForManualReg, setSelectedEventForManualReg] = useState(null);
+  
+  // Local state management for workshops
+  const [localWorkshops, setLocalWorkshops] = useState(workshops);
+  
+  // Update local state when prop changes
+  React.useEffect(() => {
+    setLocalWorkshops(workshops);
+  }, [workshops]);
+  
+  // Helper to update both local and parent state
+  const setWorkshops = (updater) => {
+    if (typeof updater === 'function') {
+      setLocalWorkshops(prev => {
+        const updated = updater(prev);
+        // Also update parent state
+        setParentWorkshops(updated);
+        return updated;
+      });
+    } else {
+      setLocalWorkshops(updater);
+      // Also update parent state
+      setParentWorkshops(updater);
+    }
+  };
+
   // Handle view registrations
   const handleViewRegistrations = async (eventId) => {
     if (selectedEvent === eventId) {
@@ -114,9 +145,96 @@ const WorkshopsTab = ({
     }
   };
 
+  // Handle remove registration
+  const handleRemoveRegistration = async (eventId, registrationId, applicantName) => {
+    const confirmed = await Swal.fire({
+      title: 'Remove Registration?',
+      text: `Are you sure you want to remove ${applicantName} from this workshop? This action cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, remove',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (!confirmed.isConfirmed) return;
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admissions/events/workshop/${eventId}/registrations/${registrationId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.ok) {
+        // Remove from local state
+        setEventRegistrations(prev => prev.filter(reg => reg.registration_id !== registrationId));
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Removed!',
+          text: 'Registration has been removed successfully',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      } else {
+        const data = await response.json().catch(() => ({}));
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: data.error || 'Failed to remove registration'
+        });
+      }
+    } catch (error) {
+      console.error('Error removing registration:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'An unexpected error occurred'
+      });
+    }
+  };
+
   // Handle toggle event active
   const handleToggleEventActive = async (eventId) => {
+    // Find the current workshop to get its current state
+    const currentWorkshop = localWorkshops.find(w => w.event_id === eventId);
+    if (!currentWorkshop) return;
+
+    const newActiveState = !currentWorkshop.is_active;
+
+    // Store original state for rollback
+    const originalWorkshops = [...localWorkshops];
+
     try {
+      // Optimistically update local state immediately for instant feedback
+      const updatedWorkshops = localWorkshops.map(workshop =>
+        workshop.event_id === eventId
+          ? { ...workshop, is_active: newActiveState }
+          : workshop
+      );
+
+      // If we're deactivating and not showing inactive, wait a moment for animation
+      if (!newActiveState && !showInactiveWorkshops) {
+        // Update state immediately so switch animates
+        setWorkshops(updatedWorkshops);
+        
+        // Wait for switch animation to complete
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Now filter it out
+        setWorkshops(prev => prev.filter(w => w.event_id !== eventId || w.is_active));
+      } else {
+        // Just update the state immediately
+        setWorkshops(updatedWorkshops);
+      }
+
+      // Make the API call
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/workshop/admin/workshops/${eventId}/toggle-active`,
         {
@@ -126,10 +244,37 @@ const WorkshopsTab = ({
       );
 
       if (response.ok) {
-        fetchWorkshops();
+        const data = await response.json();
+        
+        // Show brief success toast
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: data.message || 'Workshop status updated',
+          timer: 1500,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end'
+        });
+      } else {
+        // Revert on error
+        setWorkshops(originalWorkshops);
+        const errorData = await response.json().catch(() => ({}));
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: errorData.error || 'Failed to update workshop status'
+        });
       }
     } catch (error) {
       console.error('Error toggling event active:', error);
+      // Revert on error
+      setWorkshops(originalWorkshops);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'An unexpected error occurred'
+      });
     }
   };
 
@@ -156,11 +301,22 @@ const WorkshopsTab = ({
   // Open edit modal
   const openEditModal = (workshop) => {
     setEditingWorkshop(workshop);
+    
+    // Format timestamps for datetime-local input (YYYY-MM-DDTHH:MM)
+    // The start_time/end_time from backend are ISO strings like "2025-11-17T17:00:00.000Z"
+    // We need to extract just the date and time portions (ignore timezone)
+    const formatForInput = (timestamp) => {
+      if (!timestamp) return '';
+      // Extract YYYY-MM-DD and HH:MM from the ISO string
+      const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+      return match ? `${match[1]}T${match[2]}` : '';
+    };
+    
     setWorkshopForm({
       title: workshop.event_name || workshop.title || '',
       description: workshop.description || '',
-      start_time: workshop.event_date ? `${workshop.event_date.split('T')[0]}T${workshop.event_time?.substring(0, 5) || '00:00'}` : '',
-      end_time: '',
+      start_time: formatForInput(workshop.start_time),
+      end_time: formatForInput(workshop.end_time),
       location: workshop.location || 'Pursuit NYC Campus - 47-10 Austell Pl 2nd floor, Long Island City, NY',
       capacity: workshop.capacity || 50,
       is_online: workshop.is_online || false,
@@ -235,6 +391,20 @@ const WorkshopsTab = ({
     }
   };
 
+  // Handle open manual registration modal
+  const handleOpenManualReg = (workshopId) => {
+    setSelectedEventForManualReg(workshopId);
+    setManualRegModalOpen(true);
+  };
+
+  // Handle manual registration success
+  const handleManualRegSuccess = () => {
+    // Refresh registrations for the current event
+    if (selectedEvent) {
+      handleViewRegistrations(selectedEvent);
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -247,7 +417,12 @@ const WorkshopsTab = ({
     );
   }
 
-  const sortedWorkshops = sortEventsByDate(workshops);
+  // Filter workshops based on showInactive toggle
+  const filteredWorkshops = showInactiveWorkshops 
+    ? localWorkshops 
+    : localWorkshops.filter(workshop => workshop.is_active);
+
+  const sortedWorkshops = sortEventsByDate(filteredWorkshops);
 
   return (
     <div className="space-y-6">
@@ -295,7 +470,7 @@ const WorkshopsTab = ({
               <TableBody>
                 {sortedWorkshops.map((workshop) => (
                   <React.Fragment key={workshop.event_id}>
-                    <TableRow className="hover:bg-gray-50">
+                    <TableRow className="hover:bg-gray-50 transition-opacity duration-300">
                       <TableCell className="font-medium font-proxima">
                         <div className="flex items-center gap-2">
                           {workshop.event_name || workshop.title}
@@ -362,14 +537,23 @@ const WorkshopsTab = ({
                               <h4 className="font-semibold text-[#1a1a1a] font-proxima-bold">
                                 Registrations ({eventRegistrations.length})
                               </h4>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={copyAllEmails}
-                                className="font-proxima"
-                              >
-                                Copy All Emails
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={copyAllEmails}
+                                  className="font-proxima"
+                                >
+                                  Copy All Emails
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleOpenManualReg(workshop.event_id)}
+                                  className="bg-[#4242ea] hover:bg-[#3333d1] font-proxima"
+                                >
+                                  + Add Registration
+                                </Button>
+                              </div>
                             </div>
 
                             {attendanceLoading ? (
@@ -382,6 +566,7 @@ const WorkshopsTab = ({
                                   <TableRow>
                                     <TableHead className="font-proxima-bold">Name</TableHead>
                                     <TableHead className="font-proxima-bold">Email</TableHead>
+                                    <TableHead className="font-proxima-bold">Phone</TableHead>
                                     <TableHead className="font-proxima-bold">Laptop Needed</TableHead>
                                     <TableHead className="font-proxima-bold">Status</TableHead>
                                     <TableHead className="font-proxima-bold">Actions</TableHead>
@@ -395,6 +580,9 @@ const WorkshopsTab = ({
                                       </TableCell>
                                       <TableCell className="font-proxima text-gray-600">
                                         {reg.email}
+                                      </TableCell>
+                                      <TableCell className="font-proxima text-gray-600">
+                                        {formatPhoneNumber(reg.phone_number)}
                                       </TableCell>
                                       <TableCell>
                                         {reg.needs_laptop ? (
@@ -410,7 +598,7 @@ const WorkshopsTab = ({
                                       </TableCell>
                                       <TableCell>
                                         <div className="flex gap-1">
-                                          {['attended', 'no_show', 'cancelled'].map((status) => (
+                                          {['attended', 'no_show'].map((status) => (
                                             <Button
                                               key={status}
                                               variant={reg.status === status ? "default" : "outline"}
@@ -421,6 +609,14 @@ const WorkshopsTab = ({
                                               {formatStatus(status)}
                                             </Button>
                                           ))}
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleRemoveRegistration(workshop.event_id, reg.registration_id, `${reg.first_name} ${reg.last_name}`)}
+                                            className="text-xs font-proxima text-red-600 hover:text-red-700 hover:bg-red-50"
+                                          >
+                                            Remove
+                                          </Button>
                                         </div>
                                       </TableCell>
                                     </TableRow>
@@ -476,7 +672,7 @@ const WorkshopsTab = ({
                   value={workshopForm.start_time}
                   onChange={(e) => setWorkshopForm({ ...workshopForm, start_time: e.target.value })}
                   required
-                  className="font-proxima"
+                  className="font-proxima [&::-webkit-calendar-picker-indicator]:ml-1"
                 />
               </div>
               <div className="space-y-2">
@@ -486,7 +682,7 @@ const WorkshopsTab = ({
                   value={workshopForm.end_time}
                   onChange={(e) => setWorkshopForm({ ...workshopForm, end_time: e.target.value })}
                   required
-                  className="font-proxima"
+                  className="font-proxima [&::-webkit-calendar-picker-indicator]:ml-1"
                 />
               </div>
             </div>
@@ -577,6 +773,16 @@ const WorkshopsTab = ({
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Manual Registration Modal */}
+      <ManualRegistrationModal
+        isOpen={manualRegModalOpen}
+        onClose={() => setManualRegModalOpen(false)}
+        eventId={selectedEventForManualReg}
+        eventType="workshop"
+        onRegistrationSuccess={handleManualRegSuccess}
+        token={token}
+      />
     </div>
   );
 };
