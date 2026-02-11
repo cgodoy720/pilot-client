@@ -1311,7 +1311,7 @@ function Learning() {
       />
 
       {/* Main Content Area - Takes remaining height */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 min-h-0 flex overflow-hidden relative">
         {/* Survey Interface OR Assessment Interface OR Break Interface OR Chat Interface */}
         {isCurrentTaskSurvey() ? (
           // Survey Interface
@@ -1365,10 +1365,10 @@ function Learning() {
           </div>
         ) : (
           // Chat Interface
-        <div className="flex-1 flex flex-col relative overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
           {/* Messages Area - Scrollable with proper spacing */}
           <div 
-            className="flex-1 overflow-y-auto py-8 px-6 transition-[padding] duration-200 ease-out" 
+            className="flex-1 min-h-0 overflow-y-auto py-8 px-6 transition-[padding] duration-200 ease-out" 
             style={{ paddingBottom: `${inputTrayHeight}px` }}
           >
             <div className="max-w-2xl mx-auto">
