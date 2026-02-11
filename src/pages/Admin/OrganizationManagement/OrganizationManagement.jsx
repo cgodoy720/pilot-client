@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
+import { usePermissions } from '../../../hooks/usePermissions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import OrganizationsTab from './components/OrganizationsTab';
 import ProgramsTab from './components/ProgramsTab';
@@ -14,17 +15,17 @@ import LoadingCurtain from '../../../components/LoadingCurtain/LoadingCurtain';
  */
 function OrganizationManagement() {
   const { user, token } = useAuth();
+  const { canAccessPage } = usePermissions();
   const [activeTab, setActiveTab] = useState('organizations');
   const [loading, setLoading] = useState(false);
 
-  // Check if user has admin/staff access
-  if (!user || (user.role !== 'admin' && user.role !== 'staff')) {
+  if (!user || !canAccessPage('organization_management')) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-md max-w-md">
           <h2 className="text-2xl font-bold text-slate-900 mb-4">Access Denied</h2>
           <p className="text-slate-600">
-            You don't have permission to access this page. Only admin and staff members can manage organizations.
+            You don't have permission to access this page.
           </p>
         </div>
       </div>

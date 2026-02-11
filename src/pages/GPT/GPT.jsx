@@ -57,10 +57,7 @@ const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
   // Preprocess content to convert bullet points and URLs to markdown
   let processedContent = displayedContent;
   
-  // Step 0: Strip all ** (bold markdown) from the content BEFORE processing
-  processedContent = processedContent.replace(/\*\*/g, '');
-  
-  // Step 1: Convert URLs to markdown links FIRST
+  // Step 0: Convert URLs to markdown links FIRST
   processedContent = processedContent.replace(
     /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
     '[$1 ($2)]($4): $3'
@@ -72,7 +69,7 @@ const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
     (url) => `[${url}](${url})`
   );
   
-  // Step 2: Handle inline "Resources:" section
+  // Step 1: Handle inline "Resources:" section
   processedContent = processedContent.replace(
     /Resources:\s*-\s*(.+?)(?=\n\n|$)/gis,
     (match, resourcesText) => {
@@ -86,14 +83,14 @@ const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
     }
   );
   
-  // Step 3: Convert bullet points to markdown
+  // Step 2: Convert bullet points to markdown
   processedContent = processedContent.replace(/^•\s+/gm, '- ');
   processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
   
-  // Step 4: Convert numbered lists
+  // Step 3: Convert numbered lists
   processedContent = processedContent.replace(/^(\d+)\.\s+/gm, '$1. ');
   
-  // Step 5: Format section headers
+  // Step 4: Format section headers
   processedContent = processedContent.replace(
     /\n\n(?!\*\*Resources:\*\*)([A-Z][^:\n]+:)(?!\s*\n\n-)/g,
     '\n\n## $1'
@@ -1287,11 +1284,11 @@ function GPT() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 min-h-0 overflow-hidden relative">
         {/* Chat Interface */}
-        <div className="h-full flex flex-col relative overflow-hidden">
+        <div className="h-full min-h-0 flex flex-col relative overflow-hidden">
           {/* Empty State or Messages Area */}
-          <div className="flex-1 overflow-y-auto py-8 px-6 transition-[padding] duration-200 ease-out" style={{ paddingBottom: `${inputTrayHeight}px` }}>
+          <div className="flex-1 min-h-0 overflow-y-auto py-8 px-6 transition-[padding] duration-200 ease-out" style={{ paddingBottom: `${inputTrayHeight}px` }}>
             {!activeThread && messages.length === 0 ? (
               <div className="max-w-2xl mx-auto pt-[50px]">
                 <h2 className="text-[18px] leading-[26px] font-proxima font-normal text-black mb-6">

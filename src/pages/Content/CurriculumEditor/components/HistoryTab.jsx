@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../../context/AuthContext';
+import { usePermissions } from '../../../../hooks/usePermissions';
 import { Card, CardContent, CardHeader } from '../../../../components/ui/card';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
@@ -17,6 +18,7 @@ import EmptyState from './shared/EmptyState';
 
 const HistoryTab = () => {
   const { token, user } = useAuth();
+  const { canUseFeature } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [changes, setChanges] = useState([]);
   const [filterUser, setFilterUser] = useState('all');
@@ -24,7 +26,7 @@ const HistoryTab = () => {
   const [selectedCohort, setSelectedCohort] = useState('');
   const [cohorts, setCohorts] = useState([]);
 
-  const canEdit = user?.role === 'staff' || user?.role === 'admin';
+  const canEdit = canUseFeature('edit_curriculum');
 
   // Fetch cohorts on mount
   useEffect(() => {

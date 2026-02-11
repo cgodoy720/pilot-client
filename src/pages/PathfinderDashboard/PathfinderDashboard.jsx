@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -7,7 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 
 function PathfinderDashboard() {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
+  const { canAccessPage } = usePermissions();
+  const hasPathfinderAdminAccess = canAccessPage('pathfinder_admin');
   const [overview, setOverview] = useState(null);
   const [builders, setBuilders] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -22,12 +25,12 @@ function PathfinderDashboard() {
   const [companiesViewMode, setCompaniesViewMode] = useState('table'); // table or cards
 
   useEffect(() => {
-    if (user.role === 'staff' || user.role === 'admin') {
+    if (hasPathfinderAdminAccess) {
       fetchOverview();
       fetchBuilders();
       fetchCompanies();
     }
-  }, [token, cohortFilter]);
+  }, [token, cohortFilter, hasPathfinderAdminAccess]);
 
   const fetchOverview = async () => {
     try {
@@ -146,7 +149,7 @@ function PathfinderDashboard() {
     window.open(url, '_blank');
   };
 
-  if (user.role !== 'staff' && user.role !== 'admin') {
+  if (!hasPathfinderAdminAccess) {
     return (
       <div className="pathfinder-dashboard__access-denied">
         <h2>Access Denied</h2>

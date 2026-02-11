@@ -28,6 +28,7 @@ import '../../styles/smart-tasks.css';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { streamLearningMessage } from '../../utils/api';
 import { useStreamingText } from '../../hooks/useStreamingText';
+import { createStreamBuffer } from '../../utils/streamBufferUtils';
 
 // Component that wraps ReactMarkdown with streaming text support
 // Uses useStreamingText to smooth out bursty SSE chunks into natural typing flow
@@ -43,11 +44,12 @@ const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
   
   // Preprocess content to convert bullet points and URLs to markdown
   let processedContent = displayedContent;
+
+  // Safety-net: never render completion control markers in UI.
+  // Backend should already strip these, but this protects against edge cases.
+  processedContent = processedContent.replace(/\[TASK(?:_| )COMPLETE\]/gi, '').trim();
   
-  // Step 0: Strip all ** (bold markdown) from the content BEFORE processing
-  processedContent = processedContent.replace(/\*\*/g, '');
-  
-  // Step 1: Convert URLs to markdown links FIRST
+  // Step 0: Convert URLs to markdown links FIRST
   processedContent = processedContent.replace(
     /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
     '[$1 ($2)]($4): $3'
@@ -59,7 +61,7 @@ const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
     (url) => `[${url}](${url})`
   );
   
-  // Step 2: Handle inline "Resources:" section
+  // Step 1: Handle inline "Resources:" section
   processedContent = processedContent.replace(
     /Resources:\s*-\s*(.+?)(?=\n\n|$)/gis,
     (match, resourcesText) => {
@@ -73,14 +75,14 @@ const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
     }
   );
   
-  // Step 3: Convert bullet points to markdown
+  // Step 2: Convert bullet points to markdown
   processedContent = processedContent.replace(/^•\s+/gm, '- ');
   processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
   
-  // Step 4: Convert numbered lists
+  // Step 3: Convert numbered lists
   processedContent = processedContent.replace(/^(\d+)\.\s+/gm, '$1. ');
   
-  // Step 5: Format section headers
+  // Step 4: Format section headers
   processedContent = processedContent.replace(
     /\n\n(?!\*\*Resources:\*\*)([A-Z][^:\n]+:)(?!\s*\n\n-)/g,
     '\n\n## $1'
@@ -848,6 +850,7 @@ function Learning() {
     try {
       let receivedChunk = false;
       const streamingMessageId = Date.now() + 1;
+      const streamBuffer = createStreamBuffer();
       // Add user message to chat
       const userMessage = {
         id: Date.now(),
@@ -883,15 +886,29 @@ function Learning() {
 
           if (chunk.type === 'text') {
             receivedChunk = true;
-            setMessages(prev =>
-              prev.map(msg =>
-                msg.id === streamingMessageId
-                  ? { ...msg, content: `${msg.content || ''}${chunk.content}` }
-                  : msg
-              )
-            );
+            const safeText = streamBuffer.append(chunk.content);
+            if (safeText) {
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: `${msg.content || ''}${safeText}` }
+                    : msg
+                )
+              );
+            }
           } else if (chunk.type === 'done' && chunk.message) {
             receivedChunk = true;
+            // Flush any remaining buffered text before final replace
+            const remaining = streamBuffer.flush();
+            if (remaining) {
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: `${msg.content || ''}${remaining}` }
+                    : msg
+                )
+              );
+            }
             // Enable input immediately
             setIsStreaming(false);
             setIsAiThinking(false);

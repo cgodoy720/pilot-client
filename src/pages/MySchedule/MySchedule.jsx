@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { Calendar, ChevronLeft, ChevronRight, Clock, User, Plus, X, TreePine } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import * as volunteerApi from '../../services/volunteerApi';
@@ -26,6 +27,7 @@ const formatDateKey = (date) => {
 
 function MySchedule() {
     const { user, token } = useAuth();
+    const { canAccessPage } = usePermissions();
     const [currentMonth, setCurrentMonth] = useState(() => {
         const now = new Date();
         return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -218,7 +220,7 @@ function MySchedule() {
     };
 
     // Access check - only volunteers
-    if (user?.role !== 'volunteer') {
+    if (!user || !canAccessPage('my_schedule')) {
         return (
             <div className="min-h-screen bg-[#EFEFEF] p-8">
                 <div className="max-w-4xl mx-auto">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { ChevronLeft, ChevronRight, Users, Calendar, AlertCircle, CheckCircle2, Clock, Plus, XCircle } from 'lucide-react';
 import {
     Select,
@@ -74,6 +75,7 @@ function isClassDay(date, cohortName) {
 
 function VolunteerRoster() {
     const { user, token } = useAuth();
+    const { canAccessPage } = usePermissions();
     const [slots, setSlots] = useState([]);
     const [cohorts, setCohorts] = useState([]);
     const [selectedCohort, setSelectedCohort] = useState('');
@@ -335,7 +337,7 @@ function VolunteerRoster() {
     }, [allDaysFlat, slots]);
 
     // Access check
-    if (user?.role !== 'admin' && user?.role !== 'staff') {
+    if (!user || !canAccessPage('volunteer_management')) {
         return (
             <div className="min-h-screen bg-[#EFEFEF] p-8">
                 <div className="max-w-4xl mx-auto">

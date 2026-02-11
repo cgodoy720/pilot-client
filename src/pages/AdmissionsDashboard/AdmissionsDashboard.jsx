@@ -1,6 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import NotesModal from '../../components/NotesModal';
 import BulkActionsModal from '../../components/BulkActionsModal';
 import Swal from 'sweetalert2';
@@ -17,7 +18,8 @@ const LeadsTab = lazy(() => import('./components/LeadsTab/LeadsTab'));
 const EmailsTab = lazy(() => import('./components/EmailsTab/EmailsTab'));
 
 const AdmissionsDashboard = () => {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
+  const { canAccessPage } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
@@ -267,7 +269,7 @@ const AdmissionsDashboard = () => {
   const [emailMappingsLoading, setEmailMappingsLoading] = useState(false);
 
   // Check if user has admin access
-  const hasAdminAccess = user?.role === 'admin' || user?.role === 'staff';
+  const hasAdminAccess = canAccessPage('admissions');
 
   // Close filter dropdown when clicking outside
   useEffect(() => {

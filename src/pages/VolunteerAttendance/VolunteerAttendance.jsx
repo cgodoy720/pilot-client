@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import {
     Users,
     Calendar,
@@ -23,6 +24,7 @@ import * as volunteerApi from '../../services/volunteerApi';
 
 function VolunteerAttendance() {
     const { user, token } = useAuth();
+    const { canAccessPage } = usePermissions();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [attendanceData, setAttendanceData] = useState(null);
@@ -102,7 +104,7 @@ function VolunteerAttendance() {
     };
 
     // Access check
-    if (user?.role !== 'admin' && user?.role !== 'staff') {
+    if (!user || !canAccessPage('volunteer_management')) {
         return (
             <div className="min-h-screen bg-[#EFEFEF] p-8">
                 <div className="max-w-4xl mx-auto">
