@@ -6,6 +6,7 @@ import {
 } from '../../../../components/ui/sheet';
 import StructuredSubmission from './StructuredSubmission';
 import FlexibleSubmission from './FlexibleSubmission';
+import ImageSubmission from './ImageSubmission';
 
 function DeliverablePanel({
   task,
@@ -20,9 +21,19 @@ function DeliverablePanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (submissionData) => {
+    console.log('📦 DeliverablePanel handleSubmit called');
+    console.log('📦 submissionData:', submissionData);
+    console.log('📦 submissionData type:', typeof submissionData);
+    console.log('📦 submissionData length:', submissionData?.length);
+    
     setIsSubmitting(true);
     try {
+      console.log('📦 Calling onSubmit from Learning.jsx...');
       await onSubmit(submissionData);
+      console.log('📦 onSubmit completed successfully');
+    } catch (error) {
+      console.error('📦 Error in handleSubmit:', error);
+      throw error;
     } finally {
       setIsSubmitting(false);
     }
@@ -68,6 +79,11 @@ function DeliverablePanel({
       return <StructuredSubmission {...commonProps} schema={getVideoSchema()} />;
     }
 
+    // For image deliverable type, use ImageSubmission
+    if (task.deliverable_type === 'image') {
+      return <ImageSubmission {...commonProps} />;
+    }
+
     // For all other standard deliverable types (text, link, document), use FlexibleSubmission
     // This gives builders the 3-option selector (Text, Google Drive Link, Video)
     return <FlexibleSubmission {...commonProps} />;
@@ -96,7 +112,9 @@ function DeliverablePanel({
           
           {/* Deliverable instructions instead of task title */}
           <div className="text-[16px] leading-[22px] font-proxima font-normal text-carbon-black">
-            {task.deliverable || 'Please complete the deliverable for this activity.'}
+            {task.deliverable 
+              ? task.deliverable.charAt(0).toUpperCase() + task.deliverable.slice(1)
+              : 'Please complete the deliverable for this activity.'}
           </div>
         </div>
 

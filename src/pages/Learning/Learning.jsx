@@ -1427,7 +1427,7 @@ function Learning() {
                 <TaskCompletionBar
                   onNextExercise={handleNextExercise}
                   isLastTask={currentTaskIndex === tasks.length - 1}
-                  showViewSubmission={['video', 'document', 'link', 'structured'].includes(tasks[currentTaskIndex]?.deliverable_type)}
+                  showViewSubmission={['video', 'document', 'link', 'structured', 'image'].includes(tasks[currentTaskIndex]?.deliverable_type)}
                   onViewSubmission={() => setIsDeliverableSidebarOpen(true)}
                 />
               ) : (
@@ -1435,7 +1435,7 @@ function Learning() {
                 ref={textareaRef}
                 onSubmit={handleSendMessage}
                 disabled={isSending || isAiThinking || isStreaming || !isActive}
-                showAssignmentButton={['video', 'document', 'link', 'structured'].includes(tasks[currentTaskIndex]?.deliverable_type)}
+                showAssignmentButton={['video', 'document', 'link', 'structured', 'image'].includes(tasks[currentTaskIndex]?.deliverable_type)}
                 onAssignmentClick={() => setIsDeliverableSidebarOpen(true)}
                 showPeerFeedbackButton={isRetrospectiveTask()}
                 onPeerFeedbackClick={() => setIsPeerFeedbackSheetOpen(true)}

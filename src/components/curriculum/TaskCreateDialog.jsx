@@ -131,7 +131,7 @@ const TaskCreateDialog = ({
 
   // Helper function to determine if deliverable type should be analyzed
   const shouldAnalyzeDeliverableType = (deliverableType) => {
-    const analyzableTypes = ['link', 'document', 'video', 'presentation', 'structured', 'assessment', 'feedback', 'commitment'];
+    const analyzableTypes = ['link', 'document', 'video', 'presentation', 'structured', 'assessment', 'feedback', 'commitment', 'image'];
     return analyzableTypes.includes(deliverableType);
   };
 
@@ -851,6 +851,7 @@ const TaskCreateDialog = ({
                         <SelectItem value="link">Link (shows Assignment button)</SelectItem>
                         <SelectItem value="document">Document</SelectItem>
                         <SelectItem value="video">Video</SelectItem>
+                        <SelectItem value="image">Image (shows Assignment button)</SelectItem>
                         <SelectItem value="presentation">Presentation</SelectItem>
                         <SelectItem value="structured">Structured Data</SelectItem>
                       </SelectContent>

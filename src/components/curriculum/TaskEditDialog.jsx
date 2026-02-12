@@ -108,7 +108,7 @@ const TaskEditDialog = ({
   // Helper function to determine if deliverable type should be analyzed
   const shouldAnalyzeDeliverableType = (deliverableType) => {
     // Analyzable types: anything substantial (not text or none)
-    const analyzableTypes = ['link', 'document', 'video', 'presentation', 'structured', 'assessment', 'feedback', 'commitment'];
+    const analyzableTypes = ['link', 'document', 'video', 'presentation', 'structured', 'assessment', 'feedback', 'commitment', 'image'];
     return analyzableTypes.includes(deliverableType);
   };
 
@@ -858,6 +858,7 @@ const TaskEditDialog = ({
                       <SelectItem value="link">Link</SelectItem>
                       <SelectItem value="document">Document</SelectItem>
                       <SelectItem value="video">Video</SelectItem>
+                      <SelectItem value="image">Image</SelectItem>
                       <SelectItem value="presentation">Presentation</SelectItem>
                       <SelectItem value="structured">Structured Data</SelectItem>
                       <SelectItem value="assessment">Assessment</SelectItem>
