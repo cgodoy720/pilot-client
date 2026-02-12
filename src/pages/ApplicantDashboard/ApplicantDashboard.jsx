@@ -75,7 +75,7 @@ const SECTION_CONFIG = [
 function ApplicantDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { setAuthState } = useAuth();
+  const { setAuthState, refreshPermissions } = useAuth();
   const [user, setUser] = useState(null);
   const [currentApplicantId, setCurrentApplicantId] = useState(null);
   const [statuses, setStatuses] = useState({
@@ -560,6 +560,9 @@ function ApplicantDashboard() {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(userData));
       setAuthState(userData, data.token);
+
+      // Fetch effective permissions so PermissionRoute checks pass on navigation
+      await refreshPermissions();
 
       await Swal.fire({
         icon: 'success',
