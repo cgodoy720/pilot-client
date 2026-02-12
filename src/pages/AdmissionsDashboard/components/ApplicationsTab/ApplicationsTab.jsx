@@ -58,6 +58,7 @@ const filterOptions = {
   workshop_status: [
     { value: '', label: 'All' },
     { value: 'pending', label: 'Pending' },
+    { value: 'invited', label: 'Invited' },
     { value: 'registered', label: 'Registered' },
     { value: 'attended', label: 'Attended' },
     { value: 'no_show', label: 'No Show' },

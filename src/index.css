@@ -44,11 +44,11 @@
 @layer utilities {
   @keyframes slide-in-from-right {
     from {
-      transform: translateX(100%);
-      opacity: 0;
+      transform: translate3d(60%, 0, 0);
+      opacity: 1;
     }
     to {
-      transform: translateX(0);
+      transform: translate3d(0, 0, 0);
       opacity: 1;
     }
   }
