@@ -4,7 +4,7 @@ import { Input } from '../../../components/ui/input';
 import { Badge } from '../../../components/ui/badge';
 import { Search, Calendar, ChevronRight } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7001';
 
 function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect, onDaySelect }) {
   const [cohorts, setCohorts] = useState([]);

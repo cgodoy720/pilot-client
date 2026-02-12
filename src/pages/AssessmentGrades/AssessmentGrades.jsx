@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { toast } from 'sonner';
 
 // Import new components
@@ -11,6 +12,7 @@ import MassEmailModal from './MassEmailModal';
 
 const AssessmentGrades = () => {
   const { user, token: authToken } = useAuth();
+  const { canAccessPage } = usePermissions();
   const [assessmentGrades, setAssessmentGrades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -43,14 +45,14 @@ const AssessmentGrades = () => {
 
   // Check if user has admin access
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'staff')) {
-      setError('Access denied. Admin or staff privileges required.');
+    if (!user || !canAccessPage('assessment_grades')) {
+      setError('Access denied. Assessment grades permission required.');
       setLoading(false);
       return;
     }
     
     fetchInitialData();
-  }, [user, authToken]);
+  }, [user, authToken, canAccessPage]);
 
   const fetchInitialData = async () => {
     try {

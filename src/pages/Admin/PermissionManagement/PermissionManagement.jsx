@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../../context/AuthContext';
+import { usePermissions } from '../../../hooks/usePermissions';
 import { Shield, Plus, Trash2, ChevronDown, ChevronRight, Eye, Pencil, Save, X } from 'lucide-react';
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
@@ -201,7 +202,8 @@ function PermissionManagement() {
   // Role deletion
   const [deletingRole, setDeletingRole] = useState(false);
 
-  const isAdmin = user?.role === 'admin';
+  const { canAccessPage } = usePermissions();
+  const isAdmin = canAccessPage('admin_section');
   
   // Core roles that cannot be deleted
   const CORE_ROLES = ['admin', 'staff', 'builder', 'applicant', 'workshop_participant', 'workshop_admin', 'volunteer', 'enterprise_builder', 'enterprise_admin'];
@@ -765,7 +767,7 @@ function PermissionManagement() {
             <Shield className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <CardTitle>Access Denied</CardTitle>
             <CardDescription>
-              Only admins can manage user permissions.
+              You do not have permission to manage user permissions.
             </CardDescription>
           </CardHeader>
         </Card>

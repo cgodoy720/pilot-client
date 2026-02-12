@@ -5,7 +5,6 @@ import { Input } from '../../../../components/ui/input';
 import { Label } from '../../../../components/ui/label';
 import { Badge } from '../../../../components/ui/badge';
 import { Textarea } from '../../../../components/ui/textarea';
-import { Switch } from '../../../../components/ui/switch';
 import {
   Table,
   TableBody,
@@ -58,9 +57,6 @@ const CohortsTab = () => {
   const [uploadErrors, setUploadErrors] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
-
-  // Status toggle state
-  const [togglingStatusCohortId, setTogglingStatusCohortId] = useState(null);
 
   // Fetch cohorts on mount
   useEffect(() => {
@@ -174,85 +170,6 @@ const CohortsTab = () => {
         return <Badge className="bg-purple-100 text-purple-700">Workshop</Badge>;
       default:
         return <Badge className="bg-gray-100 text-gray-700">{type}</Badge>;
-    }
-  };
-
-  // ============================================================================
-  // STATUS TOGGLE
-  // ============================================================================
-
-  const handleStatusToggle = async (cohort) => {
-    const newStatus = !cohort.is_active;
-    const statusText = newStatus ? 'Active' : 'Inactive';
-    const currentStatusText = cohort.is_active ? 'Active' : 'Inactive';
-
-    const result = await Swal.fire({
-      title: 'Change Cohort Status?',
-      html: `
-        <div class="text-left space-y-2">
-          <p>You are about to change the status of <strong>${cohort.name}</strong>:</p>
-          <p class="text-sm">
-            <span class="font-semibold">Current:</span> 
-            <span class="px-2 py-1 rounded ${cohort.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}">${currentStatusText}</span>
-          </p>
-          <p class="text-sm">
-            <span class="font-semibold">New:</span> 
-            <span class="px-2 py-1 rounded ${newStatus ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}">${statusText}</span>
-          </p>
-          ${!newStatus ? '<p class="text-sm text-gray-600 mt-3">⚠️ Inactive cohorts may be hidden from certain views and lists.</p>' : ''}
-        </div>
-      `,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: `Yes, set to ${statusText}`,
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: newStatus ? '#10b981' : '#6b7280',
-      cancelButtonColor: '#6b7280'
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      setTogglingStatusCohortId(cohort.cohort_id);
-      
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/external-cohorts/internal/${cohort.cohort_id}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ is_active: newStatus })
-        }
-      );
-
-      if (response.ok) {
-        Swal.fire({
-          icon: 'success',
-          title: 'Status Updated',
-          text: `${cohort.name} is now ${statusText}`,
-          timer: 2000,
-          showConfirmButton: false
-        });
-        fetchCohorts();
-      } else {
-        const data = await response.json();
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: data.error || 'Failed to update cohort status'
-        });
-      }
-    } catch (error) {
-      console.error('Error updating cohort status:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'An unexpected error occurred'
-      });
-    } finally {
-      setTogglingStatusCohortId(null);
     }
   };
 
@@ -488,24 +405,11 @@ const CohortsTab = () => {
                       {cohort.user_count || 0}
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Switch
-                          checked={cohort.is_active !== false}
-                          onCheckedChange={() => handleStatusToggle(cohort)}
-                          disabled={togglingStatusCohortId === cohort.cohort_id}
-                          className={cohort.is_active !== false ? 'bg-green-600' : 'bg-gray-400'}
-                        />
-                        <span className={`text-sm font-proxima ${cohort.is_active !== false ? 'text-green-700' : 'text-gray-600'}`}>
-                          {togglingStatusCohortId === cohort.cohort_id ? (
-                            <span className="flex items-center gap-1">
-                              <div className="w-3 h-3 border-2 border-[#4242ea] border-t-transparent rounded-full animate-spin"></div>
-                              Updating...
-                            </span>
-                          ) : (
-                            cohort.is_active !== false ? 'Active' : 'Inactive'
-                          )}
-                        </span>
-                      </div>
+                      {cohort.is_active !== false ? (
+                        <Badge className="bg-green-100 text-green-700">Active</Badge>
+                      ) : (
+                        <Badge className="bg-gray-100 text-gray-600">Inactive</Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">

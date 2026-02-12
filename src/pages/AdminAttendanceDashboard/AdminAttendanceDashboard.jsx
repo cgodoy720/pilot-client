@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { fetchUserStats } from '../../utils/statsApi';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import CohortPerformanceDashboard from '../../components/CohortPerformanceDashboard/CohortPerformanceDashboard';
@@ -17,8 +18,8 @@ const AdminAttendanceDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Check if user has admin privileges
-  const isAdmin = user?.role === 'admin' || user?.role === 'staff';
+  const { canAccessPage } = usePermissions();
+  const hasAccess = canAccessPage('admin_attendance');
 
   useEffect(() => {
     const loadUserStats = async () => {
@@ -35,18 +36,18 @@ const AdminAttendanceDashboard = () => {
       }
     };
 
-    if (token && isAdmin) {
+    if (token && hasAccess) {
       loadUserStats();
     }
-  }, [token, isAdmin]);
+  }, [token, hasAccess]);
 
-  if (!isAdmin) {
+  if (!hasAccess) {
     return (
       <div className="min-h-screen bg-slate-50 p-8">
         <div className="max-w-4xl mx-auto">
           <div className="bg-red-50 text-red-600 px-6 py-8 rounded-lg border border-red-200 text-center">
             <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-            <p>Admin or staff privileges required.</p>
+            <p>You do not have permission to view this page.</p>
           </div>
         </div>
       </div>

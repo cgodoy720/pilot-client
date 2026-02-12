@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { ChevronDown } from 'lucide-react';
 import {
     Accordion,
@@ -19,6 +20,7 @@ import { Label } from '../../components/ui/label';
 
 function AdminVolunteerFeedback() {
     const { user, token } = useAuth();
+    const { canAccessPage } = usePermissions();
     const [feedback, setFeedback] = useState([]);
     const [filteredFeedback, setFilteredFeedback] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -120,8 +122,7 @@ function AdminVolunteerFeedback() {
         setExpandedRows(value);
     };
 
-    // Check if user is admin or staff
-    if (user?.role !== 'admin' && user?.role !== 'staff') {
+    if (!user || !canAccessPage('admin_volunteer_feedback')) {
         return (
             <div className="min-h-screen bg-[#EFEFEF] p-8">
                 <div className="max-w-4xl mx-auto">

@@ -88,7 +88,8 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     PAGE_PERMISSIONS.PAST_SESSION,
     PAGE_PERMISSIONS.ACCOUNT,
     PAGE_PERMISSIONS.PAYMENT,
-    PAGE_PERMISSIONS.VOLUNTEER_FEEDBACK, // Builders can give feedback to volunteers
+    // Note: volunteer_feedback, staff, and admin pages are NOT included here.
+    // Builders only see these nav items when granted custom permissions.
   ],
   
   staff: [
@@ -127,6 +128,9 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     // Workshop/Cohort admin (staff can access these)
     PAGE_PERMISSIONS.WORKSHOP_ADMIN,
     PAGE_PERMISSIONS.COHORT_ADMIN,
+
+    // Feature permissions
+    FEATURE_PERMISSIONS.EDIT_CURRICULUM,
   ],
   
   admin: ['*'], // Wildcard = all permissions

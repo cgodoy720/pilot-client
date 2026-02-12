@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import Swal from 'sweetalert2';
 import { formatSalary } from '../../utils/salaryFormatter';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
@@ -27,7 +28,9 @@ import CompanyDetailModal from './components/shared/CompanyDetailModal';
 import { getStageLabel, getWeekDateRange, getMilestoneInfo } from './components/shared/utils';
 
 function PathfinderAdmin() {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
+  const { canAccessPage } = usePermissions();
+  const hasPathfinderAdminAccess = canAccessPage('pathfinder_admin');
   const [overview, setOverview] = useState(null);
   const [builders, setBuilders] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -331,7 +334,7 @@ function PathfinderAdmin() {
 
   // Always fetch overview data on mount and when filters change
   useEffect(() => {
-    if ((user.role === 'staff' || user.role === 'admin') && token) {
+    if (hasPathfinderAdminAccess && token) {
       const fetchOverviewData = async () => {
         setIsLoading(true);
         try {
@@ -349,11 +352,11 @@ function PathfinderAdmin() {
       
       fetchOverviewData();
     }
-  }, [token, cohortFilter, weekOffset]);
+  }, [token, cohortFilter, weekOffset, hasPathfinderAdminAccess]);
 
   // Fetch tab-specific data only when tab is activated
   useEffect(() => {
-    if ((user.role === 'staff' || user.role === 'admin') && token && view !== 'overview') {
+    if (hasPathfinderAdminAccess && token && view !== 'overview') {
       const fetchTabData = async () => {
         // Set loading state for this tab
         const tabKey = view === 'build-projects' ? 'projects' : view === 'prds' ? 'prds' : view;
@@ -396,7 +399,7 @@ function PathfinderAdmin() {
 
       fetchTabData();
     }
-  }, [token, cohortFilter, view]);
+  }, [token, cohortFilter, view, hasPathfinderAdminAccess]);
   
   // Toggle column collapse in Kanban view
   const toggleColumnCollapse = useCallback((stage) => {
@@ -1210,7 +1213,7 @@ function PathfinderAdmin() {
     }
   };
 
-  if (user.role !== 'staff' && user.role !== 'admin') {
+  if (!hasPathfinderAdminAccess) {
     return (
       <div className="w-full h-full bg-gray-50 text-gray-900 overflow-y-auto p-6">
         <div className="max-w-full mx-auto bg-white rounded-lg border border-gray-200 p-8 text-center">
