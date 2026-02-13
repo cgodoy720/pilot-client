@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { getPublicForm, submitForm, generateSessionId } from '../../services/formService';
 import FormQuestion from './components/FormQuestion';
 import ThankYouScreen from './components/ThankYouScreen';
 import FormClosed from './components/FormClosed';
-import { ChevronLeft, ChevronRight, ArrowRight, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import logo from '../../assets/logo-full.png';
 import './PublicFormContainer.css';
@@ -68,7 +68,7 @@ const PublicFormContainer = () => {
   const handleNext = () => {
     if (currentQuestionIndex < form.questions.length - 1) {
       setSlideDirection('forward');
-      setCurrentQuestionIndex((prev) => prev + 1);
+      setTimeout(() => setCurrentQuestionIndex((prev) => prev + 1), 50);
     } else {
       handleSubmit();
     }
@@ -77,7 +77,7 @@ const PublicFormContainer = () => {
   const handleBack = () => {
     if (currentQuestionIndex > 0) {
       setSlideDirection('backward');
-      setCurrentQuestionIndex((prev) => prev - 1);
+      setTimeout(() => setCurrentQuestionIndex((prev) => prev - 1), 50);
     }
   };
 
@@ -208,11 +208,11 @@ const PublicFormContainer = () => {
         <div className="flex-1 flex flex-col items-center justify-center px-8">
           <div className="w-full max-w-[660px]">
             <div className="text-left mb-12">
-              <h2 className="text-white text-base md:text-lg font-bold mb-6">
+              <h2 className="text-white text-2xl md:text-3xl font-bold mb-6">
                 {form.title}
               </h2>
               {form.description && (
-                <p className="text-white/70 text-sm md:text-base leading-tight mb-6">
+                <p className="text-white/70 text-lg md:text-xl leading-tight mb-6">
                   {form.description}
                 </p>
               )}
@@ -291,14 +291,14 @@ const PublicFormContainer = () => {
             </div>
           )}
 
-          <div className="mb-12">
-            {/* Question with slide animation - wrapped in overflow-hidden */}
+          <div className="mb-4">
+            {/* Same slide animation as Signup/MultiStepForm */}
             <div className="overflow-hidden relative">
               <div
                 key={`question-${currentQuestionIndex}`}
-                className={`${
-                  slideDirection === 'forward' 
-                    ? 'animate-slide-in-right' 
+                className={`transition-all duration-500 ease-in-out ${
+                  slideDirection === 'forward'
+                    ? 'animate-slide-in-right'
                     : 'animate-slide-in-left'
                 }`}
               >
@@ -314,7 +314,7 @@ const PublicFormContainer = () => {
           </div>
 
           {/* Navigation Arrows */}
-          <div className="flex gap-2 mt-8">
+          <div className="flex gap-2 mt-2">
             <button
               onClick={handleBack}
               disabled={currentQuestionIndex === 0 || submitting}
@@ -327,7 +327,7 @@ const PublicFormContainer = () => {
               disabled={!isCurrentQuestionAnswered() || submitting}
               className="px-6 py-2 bg-white text-[#4E4DED] hover:bg-gray-100 rounded-lg border border-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-sm"
             >
-              NEXT
+              {currentQuestionIndex === form.questions.length - 1 ? 'SUBMIT' : 'NEXT'}
             </button>
           </div>
         </div>

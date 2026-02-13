@@ -178,6 +178,17 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     PAGE_PERMISSIONS.COHORT_ADMIN,
   ],
   
+  candidate: [
+    // Builder-style experience + selected staff tools
+    PAGE_PERMISSIONS.DASHBOARD,
+    PAGE_PERMISSIONS.LEARNING,
+    PAGE_PERMISSIONS.AI_CHAT,
+    PAGE_PERMISSIONS.CALENDAR,
+    PAGE_PERMISSIONS.ADMIN_ATTENDANCE,
+    PAGE_PERMISSIONS.ASSESSMENT_GRADES,
+    PAGE_PERMISSIONS.ADMIN_DASHBOARD,
+  ],
+  
   applicant: [
     // No authenticated page access - uses separate applicant portal
   ],

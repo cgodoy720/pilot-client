@@ -5,7 +5,7 @@ const ThankYouScreen = ({ message }) => {
   return (
     <div className="min-h-screen h-screen w-screen bg-[#4E4DED] flex items-center justify-center px-16 relative box-border">
       <div className="max-w-full w-full text-center animate-fade-in-scale">
-        <h1 className="text-5xl font-semibold mb-6 text-white leading-tight animate-fade-in-up animation-delay-300">
+        <h1 className="text-5xl font-semibold mb-10 text-white leading-tight animate-fade-in-up animation-delay-300">
           We'll get back to you<br />as soon as we can.
         </h1>
         <p className="text-xl text-white/80 leading-relaxed mb-8 animate-fade-in-up animation-delay-400">
@@ -19,7 +19,7 @@ const ThankYouScreen = ({ message }) => {
             className="text-white hover:text-white/80 transition-colors"
             aria-label="Follow us on Instagram"
           >
-            <Instagram size={32} />
+            <Instagram size={22} />
           </a>
           <a 
             href="https://x.com/joinpursuit" 
@@ -29,8 +29,8 @@ const ThankYouScreen = ({ message }) => {
             aria-label="Follow us on X"
           >
             <svg 
-              width="32" 
-              height="32" 
+              width="22" 
+              height="22" 
               viewBox="0 0 24 24" 
               fill="currentColor"
               xmlns="http://www.w3.org/2000/svg"
@@ -45,7 +45,7 @@ const ThankYouScreen = ({ message }) => {
             className="text-white hover:text-white/80 transition-colors"
             aria-label="Follow us on LinkedIn"
           >
-            <Linkedin size={32} />
+            <Linkedin size={22} />
           </a>
         </div>
       </div>
