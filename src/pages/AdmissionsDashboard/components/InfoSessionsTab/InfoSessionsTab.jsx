@@ -18,6 +18,8 @@ import { formatEventTime, isEventPast, formatEventDate, sortEventsByDate, getSta
 import ManualRegistrationModal from '../shared/ManualRegistrationModal';
 import Swal from 'sweetalert2';
 
+const HQ_ADDRESS = 'Pursuit NYC Campus - 47-10 Austell Pl 2nd floor, Long Island City, NY';
+
 const InfoSessionsTab = ({
   loading,
   infoSessions,
@@ -291,7 +293,7 @@ const InfoSessionsTab = ({
       description: '',
       start_time: '',
       end_time: '',
-      location: '',
+      location: HQ_ADDRESS,
       capacity: 50,
       is_online: false,
       meeting_link: ''
@@ -333,7 +335,7 @@ const InfoSessionsTab = ({
       description: session.description || '',
       start_time: startTimeValue,
       end_time: endTimeValue,
-      location: session.location || '',
+      location: session.location || HQ_ADDRESS,
       capacity: session.capacity || 50,
       is_online: session.is_online || false,
       meeting_link: session.meeting_link || ''
@@ -393,7 +395,19 @@ const InfoSessionsTab = ({
 
   // Handle delete
   const handleDelete = async (sessionId) => {
-    if (!window.confirm('Are you sure you want to delete this info session?')) return;
+    const confirmed = await Swal.fire({
+      title: 'Delete Info Session?',
+      text: 'Are you sure you want to delete this info session? This action cannot be undone.',
+      icon: 'warning',
+      zIndex: 200000,
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (!confirmed.isConfirmed) return;
 
     try {
       const response = await fetch(
@@ -405,10 +419,30 @@ const InfoSessionsTab = ({
       );
 
       if (response.ok) {
+        setInfoSessionModalOpen(false);
         fetchInfoSessions();
+        Swal.fire({
+          icon: 'success',
+          title: 'Deleted',
+          text: 'Info session deleted successfully',
+          timer: 1800,
+          showConfirmButton: false
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: errorData.error || 'Failed to delete info session'
+        });
       }
     } catch (error) {
       console.error('Error deleting info session:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'An unexpected error occurred while deleting the info session'
+      });
     }
   };
 
@@ -788,7 +822,7 @@ const InfoSessionsTab = ({
       )}
 
       {/* Create/Edit Modal */}
-      <Dialog open={infoSessionModalOpen} onOpenChange={setInfoSessionModalOpen}>
+      <Dialog modal={false} open={infoSessionModalOpen} onOpenChange={setInfoSessionModalOpen}>
         <DialogContent className="max-w-md font-proxima">
           <DialogHeader>
             <DialogTitle className="font-proxima-bold">
@@ -860,6 +894,16 @@ const InfoSessionsTab = ({
               </div>
             )}
             <DialogFooter>
+              {editingInfoSession && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleDelete(editingInfoSession.event_id)}
+                  className="font-proxima text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
+                >
+                  Delete
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"

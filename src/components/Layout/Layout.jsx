@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Settings, Award, Users, FileText, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench, Target, ListChecks, ClipboardList, UserCheck, Heart, Building2, Rocket, Shield } from 'lucide-react';
+import { LogOut, Settings, Award, Users, FileText, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench, Target, ListChecks, ClipboardList, UserCheck, Heart, Building2, Rocket, Shield, BarChart3 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import LoadingCurtain from '../LoadingCurtain/LoadingCurtain';
@@ -45,6 +45,7 @@ const Layout = ({ children, isLoading = false }) => {
   const canViewVolunteerManagement = canAccessPage('volunteer_management');
   const canViewVolunteerFeedback = canAccessPage('volunteer_feedback');
   const canViewAdminVolunteerFeedback = canAccessPage('admin_volunteer_feedback');
+  const canViewWeeklyReports = canAccessPage('weekly_reports');
   
   // Check if on Pathfinder pages for light mode styling
   const isPathfinderPage = location.pathname.startsWith('/pathfinder');
@@ -74,6 +75,7 @@ const Layout = ({ children, isLoading = false }) => {
     canViewAdminPrompts && { to: '/admin-prompts', icon: Brain, label: 'AI Prompts' },
     canViewOrganizationManagement && { to: '/admin/organization-management', icon: Building2, label: 'Organizations' },
     canViewPermissionManagement && { to: '/admin/permissions', icon: Shield, label: 'Permissions' },
+    canViewWeeklyReports && { to: '/admin/weekly-reports', icon: BarChart3, label: 'Weekly Reports' },
   ].filter(Boolean) : [];
 
   // Volunteers dropdown -- only for volunteer/staff/admin roles

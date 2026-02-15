@@ -43,6 +43,7 @@ export const PAGE_PERMISSIONS = {
   ADMIN_SECTION: 'page:admin_section',
   ADMIN_PROMPTS: 'page:admin_prompts',
   ORGANIZATION_MANAGEMENT: 'page:organization_management',
+  WEEKLY_REPORTS: 'page:weekly_reports',
   
   // Workshop admin
   WORKSHOP_ADMIN: 'page:workshop_admin',
