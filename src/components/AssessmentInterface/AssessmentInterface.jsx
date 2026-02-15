@@ -104,7 +104,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog';
-import { streamLearningMessage } from '../../utils/api';
 
 function AssessmentInterface({
   taskId,
@@ -227,18 +226,30 @@ function AssessmentInterface({
       setLoading(true);
       setError('');
 
+      // Reset conversation state so stale messages from a previous assessment
+      // don't bleed into the newly-selected one.
+      // (currentSubmission and draftFormData are reset by the key-prop remount
+      // and then set correctly from the backend response below.)
+      setMessages([]);
+      setHasInitialMessage(false);
+      setIsAiThinking(false);
+      setIsStreaming(false);
+      setIsSending(false);
+
       // Load assessment data and task conversation in parallel
       const [assessmentResponse, conversationResponse] = await Promise.all([
-        // Load assessment details
-        fetch(`${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}`, {
+        // Load assessment details — include isPreviewMode so the backend
+        // returns only the correct submission (preview vs real)
+        fetch(`${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}?isPreviewMode=${isPreviewMode}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         }),
-        // Load task conversation (same as regular tasks)
+        // Load task conversation — include isPreviewMode so the backend
+        // queries the correct thread (is_preview = true for ContentPreview)
         fetch(
-          `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${taskId}?dayNumber=${dayNumber}&cohort=${cohort}`,
+          `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${taskId}?dayNumber=${dayNumber}&cohort=${cohort}&isPreviewMode=${isPreviewMode}`,
           {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -397,66 +408,99 @@ function AssessmentInterface({
         }
       ]);
 
-      await streamLearningMessage(
-        trimmedMessage,
-        taskId,
-        token,
+      // Use the dedicated assessment streaming endpoint (GPT-style, no restrictive prompt)
+      const streamResponse = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/learning/assessment/stream`,
         {
-          dayNumber: dayNumber,
-          cohort: cohort,
-          conversationModel: modelFromTextarea || 'anthropic/claude-sonnet-4.5',
-          isPreviewMode: isPreviewMode
-        },
-        (chunk) => {
-          if (chunk.type === 'text') {
-            setMessages(prev =>
-              prev.map(msg =>
-                msg.id === streamingMessageId
-                  ? { ...msg, content: `${msg.content || ''}${chunk.content}` }
-                  : msg
-              )
-            );
-          } else if (chunk.type === 'done' && chunk.message) {
-            // Update content but keep id and isStreaming stable so animation continues
-            setMessages(prev =>
-              prev.map(msg =>
-                msg.id === streamingMessageId
-                  ? { ...msg, content: chunk.message.content }
-                  : msg
-              )
-            );
-            // Enable input immediately
-            setIsStreaming(false);
-            setIsAiThinking(false);
-            setIsSending(false);
-            
-            // Finalize message after animation catches up
-            const finalMessage = chunk.message;
-            setTimeout(() => {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            content: trimmedMessage,
+            taskId: taskId,
+            dayNumber: dayNumber,
+            cohort: cohort,
+            conversationModel: modelFromTextarea || 'anthropic/claude-sonnet-4.5',
+            isPreviewMode: isPreviewMode,
+          }),
+          signal: abortController.signal,
+        }
+      );
+
+      if (!streamResponse.ok) {
+        throw new Error(`API error: ${streamResponse.status}`);
+      }
+
+      const reader = streamResponse.body.getReader();
+      const decoder = new TextDecoder();
+      let sseBuffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split('\n');
+        sseBuffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const chunk = JSON.parse(line.slice(6));
+
+            if (chunk.type === 'text') {
               setMessages(prev =>
                 prev.map(msg =>
                   msg.id === streamingMessageId
-                    ? {
-                        id: finalMessage.message_id,
-                        content: finalMessage.content,
-                        sender: 'ai',
-                        timestamp: finalMessage.timestamp,
-                        isStreaming: false
-                      }
+                    ? { ...msg, content: `${msg.content || ''}${chunk.content}` }
                     : msg
                 )
               );
-            }, 1500);
-          } else if (chunk.type === 'error') {
-            setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId));
-            setIsStreaming(false);
-            setIsAiThinking(false);
-            setIsSending(false);
-            setError(chunk.error || 'Failed to send message. Please try again.');
+            } else if (chunk.type === 'done' && chunk.message) {
+              // Update content but keep id and isStreaming stable so animation continues
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: chunk.message.content }
+                    : msg
+                )
+              );
+              // Enable input immediately
+              setIsStreaming(false);
+              setIsAiThinking(false);
+              setIsSending(false);
+
+              // Finalize message after animation catches up
+              const finalMessage = chunk.message;
+              setTimeout(() => {
+                setMessages(prev =>
+                  prev.map(msg =>
+                    msg.id === streamingMessageId
+                      ? {
+                          id: finalMessage.message_id,
+                          content: finalMessage.content,
+                          sender: 'ai',
+                          timestamp: finalMessage.timestamp,
+                          isStreaming: false,
+                        }
+                      : msg
+                  )
+                );
+              }, 1500);
+            } else if (chunk.type === 'error') {
+              setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId));
+              setIsStreaming(false);
+              setIsAiThinking(false);
+              setIsSending(false);
+              setError(chunk.error || 'Failed to send message. Please try again.');
+            }
+          } catch (parseErr) {
+            // Skip malformed SSE lines
           }
-        },
-        abortController.signal
-      );
+        }
+      }
     } catch (error) {
       // Ignore abort errors - they're expected when switching tasks
       if (error.name === 'AbortError') {
@@ -585,6 +629,7 @@ function AssessmentInterface({
         <SelfAssessmentQuestionnaire
           assessmentId={assessmentId}
           taskId={taskId}
+          isPreviewMode={isPreviewMode}
           onComplete={async () => {
             // Reload submission data
             await loadAssessmentDataAndConversation();

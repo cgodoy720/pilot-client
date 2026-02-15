@@ -1347,6 +1347,7 @@ function Learning() {
           // Assessment Interface
           <div className="flex-1 flex flex-col relative overflow-hidden">
             <AssessmentInterface
+              key={`assessment-${tasks[currentTaskIndex]?.id}`}
               taskId={tasks[currentTaskIndex]?.id}
               assessmentId={tasks[currentTaskIndex]?.assessment_id}
               dayNumber={currentDay?.day_number}
