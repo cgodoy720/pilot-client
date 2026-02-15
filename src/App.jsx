@@ -62,6 +62,9 @@ import FormAnalytics from './pages/FormBuilder/FormAnalytics';
 // Sales Tracker pages
 import SalesTracker from './pages/SalesTracker/SalesTracker';
 
+// Weekly Reports page
+import WeeklyReports from './pages/Admin/WeeklyReports/WeeklyReports';
+
 import { useAuth } from './context/AuthContext';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
@@ -328,6 +331,15 @@ function App() {
           <Layout>
             <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_SECTION}>
               <PermissionManagement />
+            </PermissionRoute>
+          </Layout>
+        } />
+        
+        {/* Weekly Reports Management (Admin + custom permission) */}
+        <Route path="/admin/weekly-reports" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.WEEKLY_REPORTS}>
+              <WeeklyReports />
             </PermissionRoute>
           </Layout>
         } />

@@ -361,7 +361,19 @@ const WorkshopsTab = ({
 
   // Handle delete
   const handleDelete = async (workshopId) => {
-    if (!window.confirm('Are you sure you want to delete this workshop?')) return;
+    const confirmed = await Swal.fire({
+      title: 'Delete Workshop?',
+      text: 'Are you sure you want to delete this workshop? This action cannot be undone.',
+      icon: 'warning',
+      zIndex: 200000,
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (!confirmed.isConfirmed) return;
 
     try {
       const response = await fetch(
@@ -373,10 +385,30 @@ const WorkshopsTab = ({
       );
 
       if (response.ok) {
+        setWorkshopModalOpen(false);
         fetchWorkshops();
+        Swal.fire({
+          icon: 'success',
+          title: 'Deleted',
+          text: 'Workshop deleted successfully',
+          timer: 1800,
+          showConfirmButton: false
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: errorData.error || 'Failed to delete workshop'
+        });
       }
     } catch (error) {
       console.error('Error deleting workshop:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'An unexpected error occurred while deleting the workshop'
+      });
     }
   };
 
@@ -647,7 +679,7 @@ const WorkshopsTab = ({
       )}
 
       {/* Create/Edit Modal */}
-      <Dialog open={workshopModalOpen} onOpenChange={setWorkshopModalOpen}>
+      <Dialog modal={false} open={workshopModalOpen} onOpenChange={setWorkshopModalOpen}>
         <DialogContent className="max-w-md font-proxima">
           <DialogHeader>
             <DialogTitle className="font-proxima-bold">
@@ -754,6 +786,16 @@ const WorkshopsTab = ({
               </div>
             )}
             <DialogFooter>
+              {editingWorkshop && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleDelete(editingWorkshop.event_id)}
+                  className="font-proxima text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
+                >
+                  Delete
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
