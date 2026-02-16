@@ -216,7 +216,7 @@ function Learning() {
   // Input tray height for dynamic message container padding
   const [inputTrayHeight, setInputTrayHeight] = useState(180);
   
-  // Callback for height changes from AutoExpandTextarea
+  const chatTrayRef = useRef(null);
   const handleInputTrayHeightChange = useCallback((height) => {
     setInputTrayHeight(height);
   }, []);
@@ -233,6 +233,28 @@ function Learning() {
   const sendMessageAbortControllerRef = useRef(null);
   const textareaRef = useRef(null);
   const prevMessageCountRef = useRef(0);
+
+  // Track chat tray height changes for dynamic message padding
+  useEffect(() => {
+    if (!chatTrayRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.target.getBoundingClientRect().height;
+        setInputTrayHeight(height + 24); // 24px for bottom-6 spacing
+      }
+    });
+
+    resizeObserver.observe(chatTrayRef.current);
+
+    // Initial height notification
+    const initialHeight = chatTrayRef.current.getBoundingClientRect().height;
+    setInputTrayHeight(initialHeight + 24);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [currentTaskIndex, isTaskComplete, taskCompletionMap]);
 
   // Auto-scroll to bottom only when message count changes
   useEffect(() => {
@@ -1386,7 +1408,7 @@ function Learning() {
         <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
           {/* Messages Area - Scrollable with proper spacing */}
           <div 
-            className="flex-1 min-h-0 overflow-y-auto py-8 px-6 transition-[padding] duration-200 ease-out" 
+            className="flex-1 min-h-0 overflow-y-auto py-8 px-6" 
             style={{ paddingBottom: `${inputTrayHeight}px` }}
           >
             <div className="max-w-2xl mx-auto">
@@ -1441,6 +1463,7 @@ function Learning() {
           {/* Chat Input OR Task Completion Bar - Absolute positioned at bottom */}
           <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
             <div className="max-w-2xl mx-auto pointer-events-auto">
+              <div ref={chatTrayRef}>
               {(isTaskComplete || taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete) ? (
                 <TaskCompletionBar
                   onNextExercise={handleNextExercise}
@@ -1461,6 +1484,7 @@ function Learning() {
                 onHeightChange={handleInputTrayHeightChange}
               />
               )}
+              </div>
             </div>
           </div>
         </div>

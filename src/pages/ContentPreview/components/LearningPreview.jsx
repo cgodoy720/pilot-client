@@ -194,12 +194,38 @@ function LearningPreview({ dayId, cohort, onBack }) {
   const [taskCompletionMap, setTaskCompletionMap] = useState({});
   
   const [inputTrayHeight, setInputTrayHeight] = useState(180);
+  const handleInputTrayHeightChange = useCallback((height) => {
+    setInputTrayHeight(height);
+  }, []);
   
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
   const sendMessageAbortControllerRef = useRef(null);
   const textareaRef = useRef(null);
+  const chatTrayRef = useRef(null);
   const prevMessageCountRef = useRef(0);
+
+  // Track chat tray height changes for dynamic message padding
+  useEffect(() => {
+    if (!chatTrayRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.target.getBoundingClientRect().height;
+        setInputTrayHeight(height + 24); // 24px for bottom-6 spacing
+      }
+    });
+
+    resizeObserver.observe(chatTrayRef.current);
+
+    // Initial height notification
+    const initialHeight = chatTrayRef.current.getBoundingClientRect().height;
+    setInputTrayHeight(initialHeight + 24);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [currentTaskIndex, isTaskComplete, taskCompletionMap]);
 
   // Auto-scroll to bottom only when message count changes (matches Learning.jsx)
   useEffect(() => {
@@ -964,6 +990,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
 
               <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
                 <div className="max-w-2xl mx-auto pointer-events-auto">
+                  <div ref={chatTrayRef}>
                   {(isTaskComplete || taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete) ? (
                     <TaskCompletionBar onNextExercise={handleNextExercise} />
                   ) : (
@@ -976,9 +1003,10 @@ function LearningPreview({ dayId, cohort, onBack }) {
                       showPeerFeedbackButton={isRetrospectiveTask()}
                       onPeerFeedbackClick={() => setIsPeerFeedbackSheetOpen(true)}
                       showLlmDropdown={tasks[currentTaskIndex]?.task_mode === 'conversation'}
-                      onHeightChange={setInputTrayHeight}
+                      onHeightChange={handleInputTrayHeightChange}
                     />
                   )}
+                  </div>
                 </div>
               </div>
             </div>
