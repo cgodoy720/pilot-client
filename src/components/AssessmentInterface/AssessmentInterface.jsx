@@ -130,6 +130,10 @@ function AssessmentInterface({
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [hasInitialMessage, setHasInitialMessage] = useState(false);
+  const [inputTrayHeight, setInputTrayHeight] = useState(180);
+  const handleInputTrayHeightChange = (height) => {
+    setInputTrayHeight(height);
+  };
   
   // UI state
   const [showDeliverablePanel, setShowDeliverablePanel] = useState(false);
@@ -187,6 +191,7 @@ function AssessmentInterface({
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
   const sendMessageAbortControllerRef = useRef(null);
+  const chatTrayRef = useRef(null);
 
   // Check if user has active status
   const isActive = user?.active !== false;
@@ -209,6 +214,28 @@ function AssessmentInterface({
       }
     };
   }, []);
+
+  // Track chat tray height changes for dynamic message padding
+  useEffect(() => {
+    if (!chatTrayRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.target.getBoundingClientRect().height;
+        setInputTrayHeight(height + 24); // 24px for bottom-6 spacing
+      }
+    });
+
+    resizeObserver.observe(chatTrayRef.current);
+
+    // Initial height notification
+    const initialHeight = chatTrayRef.current.getBoundingClientRect().height;
+    setInputTrayHeight(initialHeight + 24);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [assessmentId, isCompleted]);
 
   useEffect(() => {
     if (assessmentId && token && taskId) {
@@ -576,9 +603,9 @@ function AssessmentInterface({
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col relative overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto py-8 px-6" style={{ paddingBottom: '180px' }}>
+        <div className="flex-1 min-h-0 overflow-y-auto py-8 px-6" style={{ paddingBottom: `${inputTrayHeight}px` }}>
           <div className="max-w-2xl mx-auto">
             {/* Loading indicator in chat area */}
             <div className="mb-6">
@@ -688,9 +715,9 @@ function AssessmentInterface({
   }
 
   return (
-    <div className="flex-1 flex flex-col relative overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
       {/* Messages Area - Same as Learning.jsx */}
-      <div className="flex-1 overflow-y-auto py-8 px-6" style={{ paddingBottom: '180px' }}>
+      <div className="flex-1 min-h-0 overflow-y-auto py-8 px-6" style={{ paddingBottom: `${inputTrayHeight}px` }}>
         <div className="max-w-2xl mx-auto">
           {/* Assessment Header - Only shown at top of conversation */}
           {messages.length === 0 && (
@@ -763,6 +790,7 @@ function AssessmentInterface({
       {!isCompleted && (
         <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
           <div className="max-w-2xl mx-auto pointer-events-auto">
+            <div ref={chatTrayRef}>
             <AutoExpandTextarea
               onSubmit={handleSendMessage}
               disabled={isSending || isAiThinking || isStreaming || !isActive}
@@ -772,7 +800,9 @@ function AssessmentInterface({
               showInstructionsButton={true}
               onInstructionsClick={handleShowInstructions}
               showLlmDropdown={false}
+              onHeightChange={handleInputTrayHeightChange}
             />
+            </div>
           </div>
         </div>
       )}
