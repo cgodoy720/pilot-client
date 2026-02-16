@@ -243,7 +243,12 @@ function ContentPreview() {
       deliverable_type: formData.deliverable_type,
       should_analyze: formData.should_analyze,
       analyze_deliverable: formData.analyze_deliverable,
-      task_mode: formData.task_mode
+      task_mode: formData.task_mode,
+      task_type: formData.task_type,
+      feedback_slot: formData.feedback_slot,
+      assessment_id: formData.assessment_id,
+      persona: formData.persona,
+      ai_helper_mode: formData.ai_helper_mode
     };
     
     console.log('Saving task:', taskId, 'with updates:', taskUpdates);
@@ -258,14 +263,18 @@ function ContentPreview() {
     
     console.log('Task update response:', taskResponse.status, taskResponse.data);
     
-    // Update time block if times changed
-    if (formData.start_time || formData.end_time) {
-      const task = dayContent.flattenedTasks?.find(t => t.id === taskId);
-      if (task && task.block_id) {
+    // Update time block only when a time actually changed
+    const task = dayContent.flattenedTasks?.find(t => t.id === taskId);
+    if (task && task.block_id) {
+      const normalizeTime = (value) => (typeof value === 'string' ? value.slice(0, 5) : '');
+      const hasStartTimeChange = normalizeTime(formData.start_time) !== normalizeTime(task.start_time);
+      const hasEndTimeChange = normalizeTime(formData.end_time) !== normalizeTime(task.end_time);
+
+      if (hasStartTimeChange || hasEndTimeChange) {
         const blockUpdates = {};
-        if (formData.start_time) blockUpdates.start_time = formData.start_time;
-        if (formData.end_time) blockUpdates.end_time = formData.end_time;
-        
+        if (hasStartTimeChange) blockUpdates.start_time = formData.start_time;
+        if (hasEndTimeChange) blockUpdates.end_time = formData.end_time;
+
         await axios.put(
           `${API_URL}/api/curriculum/blocks/${task.block_id}/edit?cohort=${encodeURIComponent(selectedCohort?.cohort_name || '')}`,
           blockUpdates,
