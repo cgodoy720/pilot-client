@@ -26,10 +26,24 @@ function formatWeekSchedule(startDay, endDay) {
   return `${DAY_NAMES[startDay].slice(0, 3)} – ${DAY_NAMES[endDay].slice(0, 3)}`;
 }
 
-function formatDate(dateStr) {
-  if (!dateStr) return '—';
-  const d = new Date(dateStr + 'T12:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+function formatDate(dateValue) {
+  if (!dateValue) return '—';
+  // Handle Date objects, ISO strings, and YYYY-MM-DD strings
+  let ds;
+  if (typeof dateValue === 'string') {
+    ds = dateValue.split('T')[0];
+  } else if (dateValue instanceof Date) {
+    const y = dateValue.getUTCFullYear();
+    const m = String(dateValue.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(dateValue.getUTCDate()).padStart(2, '0');
+    ds = `${y}-${m}-${d}`;
+  } else {
+    ds = String(dateValue).split('T')[0];
+  }
+  const [y, m, d] = ds.split('-').map(Number);
+  if (!y || !m || !d) return '—';
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 /**
@@ -477,7 +491,7 @@ function WeeklyReports() {
                                         )}
                                       </TableCell>
                                       <TableCell className="font-proxima text-xs text-slate-400">
-                                        {new Date(log.created_at).toLocaleDateString('en-US', {
+                                        {new Date(log.created_at).toLocaleString('en-US', {
                                           month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
                                         })}
                                       </TableCell>
