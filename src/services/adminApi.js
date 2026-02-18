@@ -532,6 +532,127 @@ export const searchBuilders = async (params = {}, token) => {
 };
 
 /**
+ * Get attendance history for a specific builder/user.
+ * @param {number} userId - Builder user ID
+ * @param {Object} params - Query params (startDate, endDate)
+ * @param {string} token - Admin authentication token
+ * @returns {Promise<Object>} Attendance history payload
+ */
+export const getBuilderAttendanceHistory = async (userId, params = {}, token) => {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params.startDate) queryParams.append('startDate', params.startDate);
+    if (params.endDate) queryParams.append('endDate', params.endDate);
+
+    const url = `${API_URL}/api/admin/attendance/manage/history/${userId}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching builder attendance history:', error);
+    throw error;
+  }
+};
+
+/**
+ * Create a manual attendance record.
+ * @param {Object} data - Record payload
+ * @param {string} token - Admin authentication token
+ * @returns {Promise<Object>} Created record payload
+ */
+export const createManualAttendance = async (data, token) => {
+  try {
+    const response = await fetch(`${API_URL}/api/admin/attendance/manage/record`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error creating manual attendance record:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update an attendance record.
+ * @param {number} attendanceId - Attendance record ID
+ * @param {Object} data - Update payload (status, notes)
+ * @param {string} token - Admin authentication token
+ * @returns {Promise<Object>} Updated record payload
+ */
+export const updateAttendanceRecord = async (attendanceId, data, token) => {
+  try {
+    const response = await fetch(`${API_URL}/api/admin/attendance/manage/record/${attendanceId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating attendance record:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete an attendance record.
+ * @param {number} attendanceId - Attendance record ID
+ * @param {string} token - Admin authentication token
+ * @returns {Promise<Object>} Delete result payload
+ */
+export const deleteAttendanceRecord = async (attendanceId, token) => {
+  try {
+    const response = await fetch(`${API_URL}/api/admin/attendance/manage/record/${attendanceId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error deleting attendance record:', error);
+    throw error;
+  }
+};
+
+/**
  * Export attendance data as CSV
  */
 export const exportAttendanceCSV = async (startDate, endDate, cohort = 'all') => {
@@ -716,6 +837,10 @@ export const adminApi = {
   bulkExcuseCohort,
   getExcuseStatistics,
   searchBuilders,
+  getBuilderAttendanceHistory,
+  createManualAttendance,
+  updateAttendanceRecord,
+  deleteAttendanceRecord,
   exportAttendanceCSV,
   getCsvExportHistory,
   getAllCsvExportHistory,

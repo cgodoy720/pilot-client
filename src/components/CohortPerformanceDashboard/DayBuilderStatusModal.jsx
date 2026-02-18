@@ -59,10 +59,15 @@ const DayBuilderStatusModal = ({
         label: 'Excused',
         order: 3
       },
+      pending: {
+        className: 'bg-slate-100 text-slate-700 border-slate-200',
+        label: 'Pending',
+        order: 4
+      },
       absent: {
         className: 'bg-red-100 text-red-700 border-red-200',
         label: 'Absent',
-        order: 4
+        order: 5
       }
     };
 
@@ -80,7 +85,8 @@ const DayBuilderStatusModal = ({
       present: 1,
       late: 2,
       excused: 3,
-      absent: 4
+      pending: 4,
+      absent: 5
     };
     return statusOrder[status] || 5;
   };
@@ -149,7 +155,7 @@ const DayBuilderStatusModal = ({
 
         {/* Summary Stats */}
         {dayData?.summary && (
-          <div className="grid grid-cols-4 gap-4 p-6 border-b border-slate-200">
+          <div className="grid grid-cols-5 gap-4 p-6 border-b border-slate-200">
             <div className="text-center">
               <p className="text-2xl font-bold text-emerald-600">
                 {dayData.summary.present + dayData.summary.late}
@@ -167,6 +173,12 @@ const DayBuilderStatusModal = ({
                 {dayData.summary.excused}
               </p>
               <p className="text-xs text-slate-600 mt-1">Excused</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-slate-600">
+                {dayData.summary.pending || 0}
+              </p>
+              <p className="text-xs text-slate-600 mt-1">Pending</p>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center gap-1">
