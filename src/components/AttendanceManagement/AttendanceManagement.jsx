@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle,
@@ -136,6 +136,88 @@ const toDisplayablePhotoUrl = (photoUrl) => {
   return photoUrl;
 };
 
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const AttendanceCalendarDayCell = React.memo(function AttendanceCalendarDayCell({
+  day,
+  selectedBuilderInitials,
+  onDayClick
+}) {
+  const record = day.record;
+  const hasSignedIn = !!record && (record.status === 'present' || record.status === 'late');
+  const resolvedPhotoUrl = toDisplayablePhotoUrl(record?.photo_url);
+
+  return (
+    <button
+      onClick={() => onDayClick(day.dateString)}
+      className={`min-h-[118px] border-b border-r border-slate-200 p-2 text-left transition-colors hover:bg-slate-50 ${
+        day.isCurrentMonth ? 'bg-white' : 'bg-slate-100 text-slate-400'
+      } ${day.isToday ? 'ring-2 ring-inset ring-[#4242EA]' : ''}`}
+    >
+      <div className="flex items-start justify-between">
+        <span className="text-xs font-semibold">{day.date.getDate()}</span>
+        {record?.status && (
+          <Badge className={`${getStatusBadgeClasses(record.status)} text-[10px]`}>
+            {record.status}
+          </Badge>
+        )}
+      </div>
+      {hasSignedIn && (
+        <div className="mt-2 flex items-center gap-2">
+          {resolvedPhotoUrl ? (
+            <img
+              src={resolvedPhotoUrl}
+              alt="Check-in"
+              className="h-8 w-8 rounded-full border border-slate-300 object-cover"
+            />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#4242EA] bg-[#4242EA]/10 text-xs font-semibold text-[#4242EA]">
+              {selectedBuilderInitials}
+            </div>
+          )}
+          <span className="text-[11px] text-slate-600">{formatTimeDisplay(record.check_in_time)}</span>
+        </div>
+      )}
+      {!record && day.isCurrentMonth && (
+        <p className="mt-3 text-[11px] text-slate-500">Click to create</p>
+      )}
+    </button>
+  );
+});
+
+const AttendanceCalendarGrid = React.memo(function AttendanceCalendarGrid({
+  historyLoading,
+  calendarDays,
+  selectedBuilderInitials,
+  onDayClick
+}) {
+  return (
+    <div className="rounded-lg border border-slate-200">
+      <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+        {WEEKDAY_LABELS.map((day) => (
+          <div key={day} className="px-3 py-2 text-center text-xs font-semibold text-slate-600">
+            {day}
+          </div>
+        ))}
+      </div>
+      {historyLoading ? (
+        <div className="p-8 text-center text-slate-500">Loading attendance history...</div>
+      ) : (
+        <div className="grid grid-cols-7">
+          {calendarDays.map((day) => (
+            <AttendanceCalendarDayCell
+              key={day.dateString}
+              day={day}
+              selectedBuilderInitials={selectedBuilderInitials}
+              onDayClick={onDayClick}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
 const AttendanceManagement = () => {
   const { token } = useAuth();
 
@@ -260,13 +342,13 @@ const AttendanceManagement = () => {
     setEndDate(end);
   }, [currentMonthDate]);
 
-  const handleSelectBuilder = (builder) => {
+  const handleSelectBuilder = useCallback((builder) => {
     setSelectedBuilder(builder);
     setSearchQuery('');
     setSearchResults([]);
-  };
+  }, []);
 
-  const openCreateDialog = (builderOverride = null, dateOverride = null, statusOverride = 'present') => {
+  const openCreateDialog = useCallback((builderOverride = null, dateOverride = null, statusOverride = 'present') => {
     const selected = builderOverride || selectedBuilder;
     setCreateForm({
       userId: selected?.id ? String(selected.id) : '',
@@ -281,18 +363,9 @@ const AttendanceManagement = () => {
       setSelectedBuilder(builderOverride);
     }
     setCreateDialogOpen(true);
-  };
+  }, [selectedBuilder]);
 
-  const openDayActionDialog = (dateString) => {
-    const existing = attendanceRecords.find((r) => formatDate(r.attendance_date) === dateString && r.attendance_id);
-    if (existing) {
-      openEditDialog(existing);
-      return;
-    }
-    openCreateDialog(selectedBuilder, dateString, 'present');
-  };
-
-  const openEditDialog = (record) => {
+  const openEditDialog = useCallback((record) => {
     setEditForm({
       attendanceId: record.attendance_id,
       attendanceDate: record.attendance_date,
@@ -304,7 +377,32 @@ const AttendanceManagement = () => {
       originalStatus: record.status || 'absent'
     });
     setEditDialogOpen(true);
-  };
+  }, []);
+
+  const openDayActionDialog = useCallback((dateString) => {
+    const existing = attendanceRecords.find((r) => formatDate(r.attendance_date) === dateString && r.attendance_id);
+    if (existing) {
+      openEditDialog(existing);
+      return;
+    }
+    openCreateDialog(selectedBuilder, dateString, 'present');
+  }, [attendanceRecords, openCreateDialog, openEditDialog, selectedBuilder]);
+
+  const handlePrevMonth = useCallback(() => {
+    setCurrentMonthDate((prevMonth) => {
+      const prev = new Date(prevMonth);
+      prev.setMonth(prev.getMonth() - 1);
+      return prev;
+    });
+  }, []);
+
+  const handleNextMonth = useCallback(() => {
+    setCurrentMonthDate((prevMonth) => {
+      const next = new Date(prevMonth);
+      next.setMonth(next.getMonth() + 1);
+      return next;
+    });
+  }, []);
 
   const handleCreateRecord = async () => {
     try {
@@ -532,11 +630,7 @@ const AttendanceManagement = () => {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => {
-                    const prev = new Date(currentMonthDate);
-                    prev.setMonth(prev.getMonth() - 1);
-                    setCurrentMonthDate(prev);
-                  }}
+                  onClick={handlePrevMonth}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -560,11 +654,7 @@ const AttendanceManagement = () => {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => {
-                    const next = new Date(currentMonthDate);
-                    next.setMonth(next.getMonth() + 1);
-                    setCurrentMonthDate(next);
-                  }}
+                  onClick={handleNextMonth}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -611,63 +701,12 @@ const AttendanceManagement = () => {
                 </p>
               </div>
 
-              <div className="rounded-lg border border-slate-200">
-                <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                    <div key={day} className="px-3 py-2 text-center text-xs font-semibold text-slate-600">
-                      {day}
-                    </div>
-                  ))}
-                </div>
-                {historyLoading ? (
-                  <div className="p-8 text-center text-slate-500">Loading attendance history...</div>
-                ) : (
-                  <div className="grid grid-cols-7">
-                    {calendarDays.map((day) => {
-                      const record = day.record;
-                      const hasSignedIn = canShowSignedInAvatar(record);
-                      const resolvedPhotoUrl = toDisplayablePhotoUrl(record?.photo_url);
-                      return (
-                        <button
-                          key={day.dateString}
-                          onClick={() => openDayActionDialog(day.dateString)}
-                          className={`min-h-[118px] border-b border-r border-slate-200 p-2 text-left transition-colors hover:bg-slate-50 ${
-                            day.isCurrentMonth ? 'bg-white' : 'bg-slate-100 text-slate-400'
-                          } ${day.isToday ? 'ring-2 ring-inset ring-[#4242EA]' : ''}`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <span className="text-xs font-semibold">{day.date.getDate()}</span>
-                            {record?.status && (
-                              <Badge className={`${getStatusBadgeClasses(record.status)} text-[10px]`}>
-                                {record.status}
-                              </Badge>
-                            )}
-                          </div>
-                          {hasSignedIn && (
-                            <div className="mt-2 flex items-center gap-2">
-                              {resolvedPhotoUrl ? (
-                                <img
-                                  src={resolvedPhotoUrl}
-                                  alt="Check-in"
-                                  className="h-8 w-8 rounded-full border border-slate-300 object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#4242EA] bg-[#4242EA]/10 text-xs font-semibold text-[#4242EA]">
-                                  {selectedBuilderInitials}
-                                </div>
-                              )}
-                              <span className="text-[11px] text-slate-600">{formatTimeDisplay(record.check_in_time)}</span>
-                            </div>
-                          )}
-                          {!record && day.isCurrentMonth && (
-                            <p className="mt-3 text-[11px] text-slate-500">Click to create</p>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <AttendanceCalendarGrid
+                historyLoading={historyLoading}
+                calendarDays={calendarDays}
+                selectedBuilderInitials={selectedBuilderInitials}
+                onDayClick={openDayActionDialog}
+              />
             </div>
           ) : (
             <div className="py-8 text-center text-slate-600">
