@@ -48,9 +48,11 @@ const CohortPerformanceDashboard = () => {
   });
   const [filteredRiskData, setFilteredRiskData] = useState([]);
 
-  const fetchData = async (forceRefresh = false) => {
+  const fetchData = async (forceRefresh = false, showLoader = true) => {
     try {
-      setLoading(true);
+      if (showLoader) {
+        setLoading(true);
+      }
       setError(null);
       
       const response = await cachedAdminApi.getCachedCohortPerformance(token, { forceRefresh, period: selectedPeriod });
@@ -58,21 +60,22 @@ const CohortPerformanceDashboard = () => {
       setData(response.data);
       setLastUpdated(new Date());
       
-      // Set available cohorts and default to December 2025 (or first one if not available)
+      // Set available cohorts and preserve current selection when possible.
       if (response.data?.availableCohorts && response.data.availableCohorts.length > 0) {
-        setAvailableCohorts(response.data.availableCohorts);
-        
-        // Set default cohort if not already selected
-        if (!selectedCohort && response.data.availableCohorts.length > 0) {
-          // Try to default to December 2025, otherwise use first cohort
-          const decemberCohort = response.data.availableCohorts.find(c => c === 'December 2025');
-          setSelectedCohort(decemberCohort || response.data.availableCohorts[0]);
-        }
+        const cohorts = response.data.availableCohorts;
+        setAvailableCohorts(cohorts);
+        setSelectedCohort((prev) => {
+          if (prev && cohorts.includes(prev)) return prev;
+          const decemberCohort = cohorts.find((c) => c === 'December 2025');
+          return decemberCohort || cohorts[0];
+        });
       }
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
-      setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+      }
     }
   };
 
@@ -116,8 +119,10 @@ const CohortPerformanceDashboard = () => {
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 60000);
+    fetchData(false, true);
+    const interval = setInterval(() => {
+      fetchData(false, false);
+    }, 60000);
     return () => clearInterval(interval);
   }, [token, selectedPeriod]);
 
@@ -147,7 +152,7 @@ const CohortPerformanceDashboard = () => {
 
   const handleRefresh = () => {
     cachedAdminApi.invalidateAllAttendanceCaches();
-    fetchData(true);
+    fetchData(true, true);
     if (selectedCohort) {
       fetchDailyBreakdown(selectedCohort);
     }
