@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { adminApi } from '../../services/adminApi';
 import { cachedAdminApi } from '../../services/cachedAdminApi';
+import { formatAttendanceTimeEST } from '../../utils/dateHelpers';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -107,31 +108,7 @@ const formatDateDisplay = (dateString) => {
 };
 
 const formatTimeDisplay = (timeString) => {
-  if (!timeString) return '--';
-
-  // Use the raw hour/minute from the timestamp string so legacy records
-  // display with straightforward 24h->12h conversion (e.g. 16:35 -> 4:35 PM).
-  if (typeof timeString === 'string') {
-    const match = timeString.match(/T(\d{2}):(\d{2})/);
-    if (match) {
-      const hour24 = parseInt(match[1], 10);
-      const minute = match[2];
-      if (!Number.isNaN(hour24) && hour24 >= 0 && hour24 <= 23) {
-        const suffix = hour24 >= 12 ? 'PM' : 'AM';
-        const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
-        return `${hour12}:${minute} ${suffix}`;
-      }
-    }
-  }
-
-  // Fallback for non-standard values.
-  const d = new Date(timeString);
-  if (Number.isNaN(d.getTime())) return '--';
-  const hour24 = d.getHours();
-  const minute = String(d.getMinutes()).padStart(2, '0');
-  const suffix = hour24 >= 12 ? 'PM' : 'AM';
-  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
-  return `${hour12}:${minute} ${suffix}`;
+  return formatAttendanceTimeEST(timeString);
 };
 
 const getDefaultStartDate = () => {
