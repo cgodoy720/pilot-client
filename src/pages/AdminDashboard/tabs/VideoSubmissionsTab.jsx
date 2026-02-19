@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Video } from 'lucide-react';
+import { fetchPursuitBuilderCohorts } from '../utils/cohortUtils';
+import { useAuth } from '../../../context/AuthContext';
 
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
 const PAGE_SIZE = 15;
@@ -25,7 +27,8 @@ const SortHeader = ({ label, sortKey, sort, onSort, className = '' }) => (
 );
 
 const VideoSubmissionsTab = () => {
-  const [levels, setLevels] = useState([]);
+  const { token } = useAuth();
+  const [cohorts, setCohorts] = useState([]);
   const [selectedLevel, setSelectedLevel] = useState('');
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,14 +39,14 @@ const VideoSubmissionsTab = () => {
   const endDate = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
-    fetch(`${LEGACY_API}/levels`)
-      .then(r => r.json())
+    if (!token) return;
+    fetchPursuitBuilderCohorts(token)
       .then(data => {
-        setLevels(data);
-        if (data.length > 0) setSelectedLevel(data[0]);
+        setCohorts(data);
+        if (data.length > 0) setSelectedLevel(data[0].legacyName);
       })
       .catch(console.error);
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     if (!selectedLevel) return;
@@ -105,7 +108,7 @@ const VideoSubmissionsTab = () => {
             onChange={e => setSelectedLevel(e.target.value)}
             className="px-3 py-1.5 text-sm border border-[#E3E3E3] rounded-md bg-white text-[#1E1E1E] focus:border-[#4242EA] focus:outline-none"
           >
-            {levels.map(l => <option key={l} value={l}>{l}</option>)}
+            {cohorts.map(c => <option key={c.cohort_id || c.name} value={c.legacyName}>{c.name}</option>)}
           </select>
         </div>
         <Badge className="bg-[#EFEFEF] text-slate-600 text-xs h-fit">{videos.length} videos</Badge>

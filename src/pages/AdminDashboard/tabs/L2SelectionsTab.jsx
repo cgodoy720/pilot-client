@@ -4,6 +4,8 @@ import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import BuilderDrawer from '../components/BuilderDrawer';
+import { fetchPursuitBuilderCohorts } from '../utils/cohortUtils';
+import { useAuth } from '../../../context/AuthContext';
 
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
 const PAGE_SIZE = 15;
@@ -60,7 +62,8 @@ const SortHeader = ({ label, sortKey, sort, onSort, className = '' }) => (
 );
 
 const L2SelectionsTab = () => {
-  const [levels, setLevels] = useState([]);
+  const { token } = useAuth();
+  const [cohorts, setCohorts] = useState([]);
   const [selectedLevel, setSelectedLevel] = useState('');
   const [builders, setBuilders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,13 +74,12 @@ const L2SelectionsTab = () => {
   const endDate = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
-    fetch(`${LEGACY_API}/levels`)
-      .then(r => r.json())
+    if (!token) return;
+    fetchPursuitBuilderCohorts(token)
       .then(data => {
-        setLevels(data);
-        // Default to first L1 cohort for L2 selections
-        const l1 = data.find(l => l.includes('L1')) || data[0];
-        if (l1) setSelectedLevel(l1);
+        setCohorts(data);
+        const l1 = data.find(c => c.name.includes('L1')) || data[0];
+        if (l1) setSelectedLevel(l1.legacyName);
       })
       .catch(console.error);
   }, []);
@@ -134,7 +136,7 @@ const L2SelectionsTab = () => {
               onChange={e => setSelectedLevel(e.target.value)}
               className="px-3 py-1.5 text-sm border border-[#E3E3E3] rounded-md bg-white text-[#1E1E1E] focus:border-[#4242EA] focus:outline-none"
             >
-              {levels.map(l => <option key={l} value={l}>{l}</option>)}
+              {cohorts.map(c => <option key={c.cohort_id || c.name} value={c.legacyName}>{c.name}</option>)}
             </select>
           </div>
           <Badge className="bg-[#EFEFEF] text-slate-600 text-xs h-fit">{builders.length} builders</Badge>

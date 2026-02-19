@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import TaskDetailPanel from '../components/TaskDetailPanel';
 import BuilderDrawer from '../components/BuilderDrawer';
+import { fetchPursuitBuilderCohorts, toLegacyFormat } from '../utils/cohortUtils';
+import { useAuth } from '../../../context/AuthContext';
 
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
 const PAGE_SIZE_TASKS = 10;
@@ -114,7 +116,8 @@ const Pagination = ({ page, total, pageSize, onPage }) => {
 };
 
 const SummaryTab = () => {
-  const [levels, setLevels] = useState([]);
+  const { token } = useAuth();
+  const [cohorts, setCohorts] = useState([]);
   const [selectedLevel, setSelectedLevel] = useState('');
   const [startDate, setStartDate] = useState('2025-03-01');
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
@@ -133,16 +136,16 @@ const SummaryTab = () => {
   const [expandedTaskId, setExpandedTaskId] = useState(null);
   const [selectedBuilder, setSelectedBuilder] = useState(null);
 
-  // Fetch levels on mount
+  // Fetch cohorts from org management (Pursuit builder cohorts only)
   useEffect(() => {
-    fetch(`${LEGACY_API}/levels`)
-      .then(r => r.json())
+    if (!token) return;
+    fetchPursuitBuilderCohorts(token)
       .then(data => {
-        setLevels(data);
-        if (data.length > 0) setSelectedLevel(data[0]);
+        setCohorts(data);
+        if (data.length > 0) setSelectedLevel(data[0].legacyName);
       })
       .catch(console.error);
-  }, []);
+  }, [token]);
 
   // Fetch summary data when params change
   useEffect(() => {
@@ -220,7 +223,7 @@ const SummaryTab = () => {
             onChange={e => setSelectedLevel(e.target.value)}
             className="px-3 py-1.5 text-sm border border-[#E3E3E3] rounded-md bg-white text-[#1E1E1E] focus:border-[#4242EA] focus:outline-none"
           >
-            {levels.map(l => <option key={l} value={l}>{l}</option>)}
+            {cohorts.map(c => <option key={c.cohort_id || c.name} value={c.legacyName}>{c.name}</option>)}
           </select>
         </div>
         <div>
