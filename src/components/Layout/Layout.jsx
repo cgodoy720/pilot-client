@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Settings, Award, Users, FileText, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench, Target, ListChecks, ClipboardList, UserCheck, Heart, Building2, Rocket, Shield } from 'lucide-react';
+import { LogOut, Settings, Award, Users, FileText, Brain, MessageCircle, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Wrench, Target, ListChecks, ClipboardList, UserCheck, Heart, Building2, Rocket, Shield, BarChart3 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import LoadingCurtain from '../LoadingCurtain/LoadingCurtain';
@@ -14,8 +14,8 @@ const Layout = ({ children, isLoading = false }) => {
   const [isMobileNavbarOpen, setIsMobileNavbarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null); // Track which dropdown is open
-  const { logout, user } = useAuth();
-  const { canAccessPage, isStaffOrAdmin, isAdmin } = usePermissions();
+  const { logout } = useAuth();
+  const { canAccessPage, userRole } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -25,20 +25,92 @@ const Layout = ({ children, isLoading = false }) => {
   const canViewCalendar = canAccessPage('calendar');
   const canViewPathfinder = canAccessPage('pathfinder');
   const canViewPerformance = canAccessPage('performance');
-  const canViewStaffSection = canAccessPage('staff_section');
-  const canViewAdminSection = canAccessPage('admin_section');
-  const canViewVolunteerSection = canAccessPage('volunteer_section');
   const canViewWorkshopAdmin = canAccessPage('workshop_admin');
   const canViewCohortAdmin = canAccessPage('cohort_admin');
   const canViewMySchedule = canAccessPage('my_schedule');
+  const canViewAdmissions = canAccessPage('admissions');
+  const canViewAssessmentGrades = canAccessPage('assessment_grades');
+  const canViewAdminAttendance = canAccessPage('admin_attendance');
+  const canViewAdminDashboard = canAccessPage('admin_dashboard');
+  const canViewContent = canAccessPage('content');
+  const canViewContentPreview = canAccessPage('content_preview');
+  const canViewExternalCohorts = canAccessPage('external_cohorts');
+  const canViewFormBuilder = canAccessPage('form_builder');
+  const canViewPathfinderAdmin = canAccessPage('pathfinder_admin');
+  const canViewPaymentAdmin = canAccessPage('payment_admin');
+  const canViewSputnik = canAccessPage('sputnik');
+  const canViewAdminPrompts = canAccessPage('admin_prompts');
+  const canViewOrganizationManagement = canAccessPage('organization_management');
+  const canViewPermissionManagement = canAccessPage('admin_section');
+  const canViewVolunteerManagement = canAccessPage('volunteer_management');
+  const canViewVolunteerFeedback = canAccessPage('volunteer_feedback');
+  const canViewAdminVolunteerFeedback = canAccessPage('admin_volunteer_feedback');
+  const canViewWeeklyReports = canAccessPage('weekly_reports');
   
   // Check if on Pathfinder pages for light mode styling
   const isPathfinderPage = location.pathname.startsWith('/pathfinder');
   
-  // Legacy role checks (kept for backwards compatibility where needed)
-  const isVolunteer = user?.role === 'volunteer';
-  const isWorkshopAdmin = user?.role === 'workshop_admin';
-  const isEnterpriseAdmin = user?.role === 'enterprise_admin';
+  // Role flags for dropdown visibility
+  const isAdminRole = userRole === 'admin';
+  const isStaffOrAdminRole = userRole === 'staff' || userRole === 'admin';
+  const isVolunteerOrStaffOrAdmin = userRole === 'volunteer' || isStaffOrAdminRole;
+
+  // Staff dropdown -- only for staff/admin roles
+  const staffDropdownItems = isStaffOrAdminRole ? [
+    canViewAdmissions && { to: '/admissions-dashboard', icon: Users, label: 'Admissions' },
+    canViewAssessmentGrades && { to: '/admin/assessment-grades', icon: Award, label: 'Assessments' },
+    canViewAdminAttendance && { to: '/admin-attendance-dashboard', icon: CalendarIcon, label: 'Attendance' },
+    canViewAdminDashboard && { to: '/admin-dashboard', icon: Settings, label: 'Cohort Stats' },
+    canViewContent && { to: '/content', icon: FileText, label: 'Content' },
+    canViewContentPreview && { to: '/content-preview', icon: Target, label: 'Content Preview' },
+    canViewExternalCohorts && { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
+    canViewFormBuilder && { to: '/forms', icon: ClipboardList, label: 'Form Builder' },
+    canViewPathfinderAdmin && { to: '/pathfinder/admin', icon: ArrowRight, label: 'Pathfinder Admin' },
+    canViewPaymentAdmin && { to: '/payment-admin', icon: Briefcase, label: 'Payment Admin' },
+    canViewSputnik && { to: '/sputnik', icon: Rocket, label: 'Sputnik' },
+  ].filter(Boolean) : [];
+
+  // Admin dropdown -- only for admin role
+  const adminDropdownItems = isAdminRole ? [
+    canViewAdminPrompts && { to: '/admin-prompts', icon: Brain, label: 'AI Prompts' },
+    canViewOrganizationManagement && { to: '/admin/organization-management', icon: Building2, label: 'Organizations' },
+    canViewPermissionManagement && { to: '/admin/permissions', icon: Shield, label: 'Permissions' },
+    canViewWeeklyReports && { to: '/admin/weekly-reports', icon: BarChart3, label: 'Weekly Reports' },
+  ].filter(Boolean) : [];
+
+  // Volunteers dropdown -- only for volunteer/staff/admin roles
+  const volunteerDropdownItems = isVolunteerOrStaffOrAdmin ? [
+    canViewMySchedule && { to: '/my-schedule', icon: CalendarIcon, label: 'My Schedule' },
+    canViewVolunteerManagement && { to: '/volunteer-list', icon: ListChecks, label: 'List' },
+    canViewVolunteerManagement && { to: '/volunteer-roster', icon: ClipboardList, label: 'Calendar' },
+    canViewVolunteerManagement && { to: '/volunteer-attendance', icon: UserCheck, label: 'Attendance' },
+    canViewVolunteerFeedback && { to: '/volunteer-feedback', icon: MessageCircle, label: 'Feedback' },
+    canViewAdminVolunteerFeedback && { to: '/admin-volunteer-feedback', icon: MessageCircle, label: 'Feedback' },
+  ].filter(Boolean) : [];
+
+  // Custom-granted items for builders and other non-staff/non-admin roles
+  // These appear as flat nav links instead of inside role-labeled dropdowns
+  const customGrantedItems = !isStaffOrAdminRole ? [
+    canViewAdmissions && { to: '/admissions-dashboard', icon: Users, label: 'Admissions' },
+    canViewAssessmentGrades && { to: '/admin/assessment-grades', icon: Award, label: 'Assessments' },
+    canViewAdminAttendance && { to: '/admin-attendance-dashboard', icon: CalendarIcon, label: 'Attendance' },
+    canViewAdminDashboard && { to: '/admin-dashboard', icon: Settings, label: 'Cohort Stats' },
+    canViewContent && { to: '/content', icon: FileText, label: 'Content' },
+    canViewContentPreview && { to: '/content-preview', icon: Target, label: 'Content Preview' },
+    canViewExternalCohorts && { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
+    canViewFormBuilder && { to: '/forms', icon: ClipboardList, label: 'Form Builder' },
+    canViewPathfinderAdmin && { to: '/pathfinder/admin', icon: ArrowRight, label: 'Pathfinder Admin' },
+    canViewPaymentAdmin && { to: '/payment-admin', icon: Briefcase, label: 'Payment Admin' },
+    canViewSputnik && { to: '/sputnik', icon: Rocket, label: 'Sputnik' },
+    canViewAdminPrompts && { to: '/admin-prompts', icon: Brain, label: 'AI Prompts' },
+    canViewOrganizationManagement && { to: '/admin/organization-management', icon: Building2, label: 'Organizations' },
+    canViewVolunteerManagement && { to: '/volunteer-list', icon: ListChecks, label: 'Volunteer List' },
+    canViewAdminVolunteerFeedback && { to: '/admin-volunteer-feedback', icon: MessageCircle, label: 'Volunteer Feedback' },
+  ].filter(Boolean) : [];
+
+  const canShowStaffDropdown = staffDropdownItems.length > 0;
+  const canShowAdminDropdown = adminDropdownItems.length > 0;
+  const canShowVolunteerDropdown = volunteerDropdownItems.length > 0;
   
   // Detect mobile vs desktop
   useEffect(() => {
@@ -127,7 +199,7 @@ const Layout = ({ children, isLoading = false }) => {
       '/forms'
     ];
     
-    if (canViewStaffSection) {
+    if (canShowStaffDropdown) {
       // Sputnik gets special rocket icon
       if (location.pathname === '/sputnik' || location.pathname.startsWith('/sputnik')) {
         return <Rocket className="h-4 w-4 text-[#E3E3E3]" />;
@@ -153,7 +225,7 @@ const Layout = ({ children, isLoading = false }) => {
          location.pathname === '/volunteer-list' ||
          location.pathname === '/volunteer-roster' ||
          location.pathname === '/volunteer-attendance') &&
-        canViewVolunteerSection) {
+        canShowVolunteerDropdown) {
       return <Heart className="h-4 w-4 text-[#E3E3E3]" />;
     }
     // Pathfinder routes (for fellows)
@@ -318,20 +390,8 @@ const Layout = ({ children, isLoading = false }) => {
           <NavDropdown
             id="staff"
             trigger={{ icon: Users, label: "Staff" }}
-            items={[
-              { to: '/admissions-dashboard', icon: Users, label: 'Admissions' },
-              { to: '/admin/assessment-grades', icon: Award, label: 'Assessments' },
-              { to: '/admin-attendance-dashboard', icon: CalendarIcon, label: 'Attendance' },
-              { to: '/admin-dashboard', icon: Settings, label: 'Cohort Stats' },
-              { to: '/content', icon: FileText, label: 'Content' },
-              { to: '/content-preview', icon: Target, label: 'Content Preview' },
-              { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
-              { to: '/forms', icon: ClipboardList, label: 'Form Builder' },
-              { to: '/pathfinder/admin', icon: ArrowRight, label: 'Pathfinder Admin' },
-              { to: '/payment-admin', icon: Briefcase, label: 'Payment Admin' },
-              { to: '/sputnik', icon: Rocket, label: 'Sputnik' },
-            ]}
-            condition={canViewStaffSection}
+            items={staffDropdownItems}
+            condition={canShowStaffDropdown}
             isMobile={isMobile}
             isNavbarHovered={isNavbarHovered}
             isMobileNavbarOpen={isMobileNavbarOpen}
@@ -344,12 +404,8 @@ const Layout = ({ children, isLoading = false }) => {
           <NavDropdown
             id="admin"
             trigger={{ icon: Settings, label: "Admin" }}
-            items={[
-              { to: '/admin-prompts', icon: Brain, label: 'AI Prompts' },
-              { to: '/admin/organization-management', icon: Building2, label: 'Organizations' },
-              { to: '/admin/permissions', icon: Shield, label: 'Permissions' },
-            ]}
-            condition={canViewAdminSection}
+            items={adminDropdownItems}
+            condition={canShowAdminDropdown}
             isMobile={isMobile}
             isNavbarHovered={isNavbarHovered}
             isMobileNavbarOpen={isMobileNavbarOpen}
@@ -362,25 +418,8 @@ const Layout = ({ children, isLoading = false }) => {
           <NavDropdown
             id="volunteers"
             trigger={{ icon: Heart, label: "Volunteers" }}
-            items={[
-              // My Schedule - only for volunteers
-              ...(canViewMySchedule && isVolunteer ? [
-                { to: '/my-schedule', icon: CalendarIcon, label: 'My Schedule' },
-              ] : []),
-              // Admin volunteer management - only for staff/admin
-              ...(isStaffOrAdmin ? [
-                { to: '/volunteer-list', icon: ListChecks, label: 'List' },
-                { to: '/volunteer-roster', icon: ClipboardList, label: 'Calendar' },
-                { to: '/volunteer-attendance', icon: UserCheck, label: 'Attendance' },
-              ] : []),
-              // Feedback - different routes for volunteers vs staff/admin
-              { 
-                to: isVolunteer ? '/volunteer-feedback' : '/admin-volunteer-feedback', 
-                icon: MessageCircle, 
-                label: 'Feedback' 
-              },
-            ]}
-            condition={canViewVolunteerSection}
+            items={volunteerDropdownItems}
+            condition={canShowVolunteerDropdown}
             isMobile={isMobile}
             isNavbarHovered={isNavbarHovered}
             isMobileNavbarOpen={isMobileNavbarOpen}
@@ -388,6 +427,12 @@ const Layout = ({ children, isLoading = false }) => {
             isOpen={openDropdown === 'volunteers'}
             onToggle={(id) => setOpenDropdown(openDropdown === id ? null : id)}
           />
+          
+          {/* Custom-granted flat nav links for builders / non-staff roles */}
+          {customGrantedItems.map(item => {
+            const Icon = item.icon;
+            return renderNavLink(item.to, <Icon className="h-4 w-4 text-[#E3E3E3]" />, item.label);
+          })}
         </div>
 
         {/* Account */}

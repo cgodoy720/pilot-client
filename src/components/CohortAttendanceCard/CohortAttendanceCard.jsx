@@ -1,5 +1,6 @@
 import React from 'react';
 import './CohortAttendanceCard.css';
+import { formatAttendanceTimeEST } from '../../utils/dateHelpers';
 
 const CohortAttendanceCard = ({ 
   cohortName, 
@@ -78,25 +79,7 @@ const CohortAttendanceCard = ({
                   {attendee.firstName || 'Unknown'} {attendee.lastName || 'Unknown'}
                 </p>
                 <p className="check-in-time">
-                  {(() => {
-                    try {
-                      const checkInTime = attendee.checkInTime;
-                      if (!checkInTime) return 'Unknown time';
-                      
-                      // The timestamp is already in Eastern time, so we need to parse it as local time
-                      // instead of treating it as UTC
-                      const timeString = checkInTime.replace('Z', ''); // Remove the Z to treat as local time
-                      const date = new Date(timeString);
-                      if (isNaN(date.getTime())) return 'Unknown time';
-                      
-                      return date.toLocaleTimeString([], { 
-                        hour: '2-digit', 
-                        minute: '2-digit'
-                      });
-                    } catch (error) {
-                      return 'Unknown time';
-                    }
-                  })()}
+                  {formatAttendanceTimeEST(attendee.checkInTime)}
                 </p>
               </div>
             </div>

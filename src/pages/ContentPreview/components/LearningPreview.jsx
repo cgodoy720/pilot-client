@@ -19,6 +19,7 @@ import DeliverablePanel from '../../Learning/components/DeliverablePanel/Deliver
 import TaskCompletionBar from '../../../components/TaskCompletionBar/TaskCompletionBar';
 import LoadingCurtain from '../../../components/LoadingCurtain/LoadingCurtain';
 import { streamLearningMessage } from '../../../utils/api';
+import { createStreamBuffer } from '../../../utils/streamBufferUtils';
 
 import '../../Learning/Learning.css';
 import { useStreamingText } from '../../../hooks/useStreamingText';
@@ -37,11 +38,12 @@ const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
   
   // Preprocess content to convert bullet points and URLs to markdown
   let processedContent = displayedContent;
+
+  // Safety-net: never render completion control markers in UI.
+  // Backend should already strip these, but this protects against edge cases.
+  processedContent = processedContent.replace(/\[TASK(?:_| )COMPLETE\]/gi, '').trim();
   
-  // Step 0: Strip all ** (bold markdown) from the content BEFORE processing
-  processedContent = processedContent.replace(/\*\*/g, '');
-  
-  // Step 1: Convert URLs to markdown links FIRST
+  // Step 0: Convert URLs to markdown links FIRST
   processedContent = processedContent.replace(
     /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
     '[$1 ($2)]($4): $3'
@@ -53,7 +55,7 @@ const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
     (url) => `[${url}](${url})`
   );
   
-  // Step 2: Handle inline "Resources:" section
+  // Step 1: Handle inline "Resources:" section
   processedContent = processedContent.replace(
     /Resources:\s*-\s*(.+?)(?=\n\n|$)/gis,
     (match, resourcesText) => {
@@ -67,14 +69,14 @@ const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
     }
   );
   
-  // Step 3: Convert bullet points to markdown
+  // Step 2: Convert bullet points to markdown
   processedContent = processedContent.replace(/^•\s+/gm, '- ');
   processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
   
-  // Step 4: Convert numbered lists
+  // Step 3: Convert numbered lists
   processedContent = processedContent.replace(/^(\d+)\.\s+/gm, '$1. ');
   
-  // Step 5: Format section headers
+  // Step 4: Format section headers
   processedContent = processedContent.replace(
     /\n\n(?!\*\*Resources:\*\*)([A-Z][^:\n]+:)(?!\s*\n\n-)/g,
     '\n\n## $1'
@@ -192,18 +194,46 @@ function LearningPreview({ dayId, cohort, onBack }) {
   const [taskCompletionMap, setTaskCompletionMap] = useState({});
   
   const [inputTrayHeight, setInputTrayHeight] = useState(180);
+  const handleInputTrayHeightChange = useCallback((height) => {
+    setInputTrayHeight(height);
+  }, []);
   
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
   const sendMessageAbortControllerRef = useRef(null);
   const textareaRef = useRef(null);
+  const chatTrayRef = useRef(null);
+  const prevMessageCountRef = useRef(0);
 
-  // Auto-scroll
+  // Track chat tray height changes for dynamic message padding
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (!chatTrayRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.target.getBoundingClientRect().height;
+        setInputTrayHeight(height + 24); // 24px for bottom-6 spacing
+      }
+    });
+
+    resizeObserver.observe(chatTrayRef.current);
+
+    // Initial height notification
+    const initialHeight = chatTrayRef.current.getBoundingClientRect().height;
+    setInputTrayHeight(initialHeight + 24);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [currentTaskIndex, isTaskComplete, taskCompletionMap]);
+
+  // Auto-scroll to bottom only when message count changes (matches Learning.jsx)
+  useEffect(() => {
+    if (messages.length !== prevMessageCountRef.current) {
+      prevMessageCountRef.current = messages.length;
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages.length]);
 
   // Auto-focus input when initial message loads
   useEffect(() => {
@@ -298,6 +328,11 @@ function LearningPreview({ dayId, cohort, onBack }) {
           });
           
           setTasks(allTasks);
+          
+          // Fetch completion status for all tasks on this day (for DailyOverview checkmarks)
+          if (allTasks.length > 0) {
+            fetchTaskCompletionStatus(allTasks.map(t => t.id));
+          }
         }
       } catch (err) {
         console.error('Error loading day data:', err);
@@ -311,6 +346,25 @@ function LearningPreview({ dayId, cohort, onBack }) {
       loadDayData();
     }
   }, [token, dayId, cohort]);
+
+  // Fetch batch completion status for DailyOverview checkmarks (preview-isolated)
+  const fetchTaskCompletionStatus = async (taskIds) => {
+    if (!taskIds || taskIds.length === 0) return;
+    
+    try {
+      const response = await fetch(
+        `${API_URL}/api/learning/batch-completion-status?taskIds=${taskIds.join(',')}&isPreviewMode=true`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setTaskCompletionMap(data.completionStatus);
+      }
+    } catch (error) {
+      console.error('Error fetching batch completion status:', error);
+    }
+  };
 
   // Load task conversation
   const loadTaskConversation = async (task) => {
@@ -334,7 +388,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
     
     try {
       const response = await fetch(
-        `${API_URL}/api/learning/task-messages/${task.id}?dayNumber=${currentDay?.day_number}&cohort=${encodeURIComponent(cohort)}`,
+        `${API_URL}/api/learning/task-messages/${task.id}?dayNumber=${currentDay?.day_number}&cohort=${encodeURIComponent(cohort)}&isPreviewMode=true`,
         { headers: { Authorization: `Bearer ${token}` }, signal: abortController.signal }
       );
       
@@ -365,6 +419,8 @@ function LearningPreview({ dayId, cohort, onBack }) {
     } finally {
       if (!abortController.signal.aborted) {
         setIsAiThinking(false);
+        // Keep preview completion status in sync after loading a task conversation
+        checkTaskCompletion(task.id);
       }
     }
   };
@@ -488,7 +544,9 @@ function LearningPreview({ dayId, cohort, onBack }) {
     sendMessageAbortControllerRef.current = abortController;
 
     try {
+      let receivedChunk = false;
       const streamingMessageId = Date.now() + 1;
+      const streamBuffer = createStreamBuffer();
       setMessages(prev => [
         ...prev,
         {
@@ -522,14 +580,30 @@ function LearningPreview({ dayId, cohort, onBack }) {
           }
 
           if (chunk.type === 'text') {
-            setMessages(prev =>
-              prev.map(msg =>
-                msg.id === streamingMessageId
-                  ? { ...msg, content: `${msg.content || ''}${chunk.content}` }
-                  : msg
-              )
-            );
+            receivedChunk = true;
+            const safeText = streamBuffer.append(chunk.content);
+            if (safeText) {
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: `${msg.content || ''}${safeText}` }
+                    : msg
+                )
+              );
+            }
           } else if (chunk.type === 'done' && chunk.message) {
+            receivedChunk = true;
+            // Flush any remaining buffered text before final replace
+            const remaining = streamBuffer.flush();
+            if (remaining) {
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: `${msg.content || ''}${remaining}` }
+                    : msg
+                )
+              );
+            }
             // Enable input immediately
             setIsStreaming(false);
             setIsAiThinking(false);
@@ -559,6 +633,28 @@ function LearningPreview({ dayId, cohort, onBack }) {
         },
         abortController.signal
       );
+
+      // Fallback: if streaming completed but no chunks were received, re-fetch all messages
+      if (!receivedChunk && !abortController.signal.aborted && tasks[currentTaskIndex]?.id === messageTaskId) {
+        const fallbackResponse = await fetch(
+          `${API_URL}/api/learning/task-messages/${messageTaskId}?dayNumber=${currentDay?.day_number}&cohort=${encodeURIComponent(cohort)}&isPreviewMode=true`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: abortController.signal,
+          }
+        );
+        
+        if (fallbackResponse.ok && !abortController.signal.aborted) {
+          const fallbackData = await fallbackResponse.json();
+          const fallbackMessages = (fallbackData.messages || []).map(msg => ({
+            id: msg.message_id,
+            content: msg.content,
+            sender: msg.role === 'user' ? 'user' : 'ai',
+            timestamp: msg.timestamp,
+          }));
+          setMessages(fallbackMessages);
+        }
+      }
     } catch (err) {
       if (err.name === 'AbortError') return;
       console.error('Error sending message:', err);
@@ -600,25 +696,141 @@ function LearningPreview({ dayId, cohort, onBack }) {
   };
 
   const handleNextExercise = async () => {
-    const nextTaskIndex = currentTaskIndex + 1;
-    if (nextTaskIndex < tasks.length) {
-      await handleTaskChange(nextTaskIndex);
-    } else {
-      toast.success("🎉 You've completed all exercises!");
+    const currentTask = tasks[currentTaskIndex];
+    const isLastTask = currentTaskIndex === tasks.length - 1;
+
+    if (!currentTask?.id) {
+      toast.error("Unable to proceed - current task not found");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/learning/complete-task/${currentTask.id}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            notes: '',
+            isPreviewMode: true
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to mark task as complete');
+      }
+
+      if (isLastTask) {
+        toast.success("🎉 You've completed all exercises!");
+      } else {
+        await handleTaskChange(currentTaskIndex + 1);
+      }
+    } catch (error) {
+      console.error('Error marking task complete in preview:', error);
+      toast.error("Failed to mark task complete. Please try again.");
     }
   };
 
-  // Handle assessment completion (preview mode - local state only)
+  const handleSurveyComplete = async () => {
+    const currentTask = tasks[currentTaskIndex];
+    const isLastTask = currentTaskIndex === tasks.length - 1;
+
+    if (!currentTask?.id) {
+      toast.error("Unable to proceed - current task not found");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/learning/complete-task/${currentTask.id}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            notes: 'Survey completed',
+            isPreviewMode: true
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to mark task as complete');
+      }
+
+      setTaskCompletionMap(prev => ({
+        ...prev,
+        [currentTask.id]: {
+          ...prev[currentTask.id],
+          isComplete: true,
+          reason: 'Survey completed'
+        }
+      }));
+
+      if (isLastTask) {
+        setTimeout(() => {
+          setShowDailyOverview(true);
+        }, 2000);
+      } else {
+        setTimeout(async () => {
+          await handleTaskChange(currentTaskIndex + 1);
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error marking survey complete in preview:', error);
+      toast.error("Failed to mark task complete. Please try again.");
+    }
+  };
+
+  // Handle assessment completion
   const handleAssessmentComplete = async () => {
     const currentTask = tasks[currentTaskIndex];
-    if (!currentTask?.id) return;
-    
-    // Update local state only (no API call in preview mode)
-    setIsTaskComplete(true);
-    setTaskCompletionMap(prev => ({
-      ...prev,
-      [currentTask.id]: { isComplete: true, reason: 'Assessment completed' }
-    }));
+    if (!currentTask?.id) {
+      toast.error("Unable to proceed - current task not found");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/learning/complete-task/${currentTask.id}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            notes: 'Assessment completed',
+            isPreviewMode: true
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to mark task as complete');
+      }
+
+      setIsTaskComplete(true);
+      setTaskCompletionMap(prev => ({
+        ...prev,
+        [currentTask.id]: {
+          ...prev[currentTask.id],
+          isComplete: true,
+          reason: 'Assessment completed'
+        }
+      }));
+
+      await checkTaskCompletion(currentTask.id);
+    } catch (error) {
+      console.error('Error marking assessment complete in preview:', error);
+      toast.error("Failed to mark task complete. Please try again.");
+    }
   };
 
   // Task type checks
@@ -679,16 +891,16 @@ function LearningPreview({ dayId, cohort, onBack }) {
           isWorkshopParticipant={false}
         />
 
-        <div className="flex-1 flex overflow-hidden relative">
+        <div className="flex-1 min-h-0 flex overflow-hidden relative">
           {isCurrentTaskSurvey() ? (
-            <div className="flex-1 flex flex-col relative overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
               <SurveyInterface
                 taskId={tasks[currentTaskIndex]?.id}
                 dayNumber={currentDay?.day_number}
                 cohort={cohort}
                 surveyType={tasks[currentTaskIndex]?.feedback_slot}
-                onComplete={() => {}}
-                isCompleted={false}
+              onComplete={handleSurveyComplete}
+              isCompleted={taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete || false}
                 isLastTask={currentTaskIndex === tasks.length - 1}
                 isPreviewMode={true}
               />
@@ -696,6 +908,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
           ) : isCurrentTaskAssessment() ? (
             <div className="flex-1 flex flex-col relative overflow-hidden">
               <AssessmentInterface
+                key={`assessment-${tasks[currentTaskIndex]?.id}`}
                 taskId={tasks[currentTaskIndex]?.id}
                 assessmentId={tasks[currentTaskIndex]?.assessment_id}
                 dayNumber={currentDay?.day_number}
@@ -730,7 +943,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
           ) : (
             <div className="flex-1 flex flex-col relative overflow-hidden">
               <div 
-                className="flex-1 overflow-y-auto py-8 px-6" 
+                className="flex-1 min-h-0 overflow-y-auto py-8 px-6" 
                 style={{ paddingBottom: `${inputTrayHeight}px` }}
               >
                 <div className="max-w-2xl mx-auto">
@@ -777,6 +990,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
 
               <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
                 <div className="max-w-2xl mx-auto pointer-events-auto">
+                  <div ref={chatTrayRef}>
                   {(isTaskComplete || taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete) ? (
                     <TaskCompletionBar onNextExercise={handleNextExercise} />
                   ) : (
@@ -789,9 +1003,10 @@ function LearningPreview({ dayId, cohort, onBack }) {
                       showPeerFeedbackButton={isRetrospectiveTask()}
                       onPeerFeedbackClick={() => setIsPeerFeedbackSheetOpen(true)}
                       showLlmDropdown={tasks[currentTaskIndex]?.task_mode === 'conversation'}
-                      onHeightChange={setInputTrayHeight}
+                      onHeightChange={handleInputTrayHeightChange}
                     />
                   )}
+                  </div>
                 </div>
               </div>
             </div>

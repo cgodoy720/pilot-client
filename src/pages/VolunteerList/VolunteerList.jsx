@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { Search, Users, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { Input } from '../../components/ui/input';
 import {
@@ -20,6 +21,7 @@ const EXCLUDED_COHORTS = ['December 2025 AI Native', 'December 2025 Workshop'];
 
 function VolunteerList() {
     const { user, token } = useAuth();
+    const { canAccessPage } = usePermissions();
     const [volunteers, setVolunteers] = useState([]);
     const [filteredVolunteers, setFilteredVolunteers] = useState([]);
     const [cohorts, setCohorts] = useState([]);
@@ -155,7 +157,7 @@ function VolunteerList() {
     };
 
     // Access check
-    if (user?.role !== 'admin' && user?.role !== 'staff') {
+    if (!user || !canAccessPage('volunteer_management')) {
         return (
             <div className="min-h-screen bg-[#EFEFEF] p-8">
                 <div className="max-w-4xl mx-auto">

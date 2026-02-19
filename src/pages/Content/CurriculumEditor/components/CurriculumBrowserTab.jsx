@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../../context/AuthContext';
+import { usePermissions } from '../../../../hooks/usePermissions';
 import {
   Select,
   SelectContent,
@@ -30,6 +31,7 @@ import { toast } from 'sonner';
 
 const CurriculumBrowserTab = () => {
   const { token, user } = useAuth();
+  const { canUseFeature } = usePermissions();
   const [loading, setLoading] = useState(false);
   const [cohorts, setCohorts] = useState([]);
   const [selectedCohort, setSelectedCohort] = useState('');
@@ -39,7 +41,7 @@ const CurriculumBrowserTab = () => {
   const [selectedDay, setSelectedDay] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [cohortsLoading, setCohortsLoading] = useState(true);
-  
+
   // Dialog states
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
@@ -52,8 +54,7 @@ const CurriculumBrowserTab = () => {
   const [selectedEntityType, setSelectedEntityType] = useState('task');
   const [selectedEntityId, setSelectedEntityId] = useState(null);
 
-  // Permission check
-  const canEdit = user?.role === 'staff' || user?.role === 'admin';
+  const canEdit = canUseFeature('edit_curriculum');
 
   // Fetch available cohorts
   useEffect(() => {

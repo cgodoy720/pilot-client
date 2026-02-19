@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { Camera, CheckCircle2, Clock, AlertCircle, RefreshCw, X } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import * as volunteerApi from '../../services/volunteerApi';
 
 function VolunteerCheckIn() {
     const { user, token } = useAuth();
+    const { canAccessPage } = usePermissions();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -188,7 +190,7 @@ function VolunteerCheckIn() {
     };
 
     // Access check - only volunteers
-    if (user?.role !== 'volunteer') {
+    if (!user || !canAccessPage('volunteer_section')) {
         return (
             <div className="min-h-screen bg-[#EFEFEF] p-8">
                 <div className="max-w-xl mx-auto">

@@ -1,7 +1,6 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useDeferredValue } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../../../components/ui/button';
-import { Input } from '../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { Badge } from '../../../../components/ui/badge';
@@ -22,6 +21,7 @@ import {
   DropdownMenuSeparator,
 } from '../../../../components/ui/dropdown-menu';
 import { formatPhoneNumber, getStatusBadgeClasses, formatStatus, getColumnLabel } from '../shared/utils';
+import { Input } from '../../../../components/ui/input';
 
 // Filter options for each column
 const filterOptions = {
@@ -58,6 +58,7 @@ const filterOptions = {
   workshop_status: [
     { value: '', label: 'All' },
     { value: 'pending', label: 'Pending' },
+    { value: 'invited', label: 'Invited' },
     { value: 'registered', label: 'Registered' },
     { value: 'attended', label: 'Attended' },
     { value: 'no_show', label: 'No Show' },
@@ -456,14 +457,24 @@ const ApplicationsTab = ({
   }, [navigate]);
 
   // Sort and filter applications
+  // When searching, use the full search index (all applicants) as the data source
+  // When not searching, use the paginated server data as before
+  // useDeferredValue keeps the input responsive while deferring the heavy table re-render
+  const deferredSearchTerm = useDeferredValue(tableSearchTerm);
+  const isSearching = deferredSearchTerm.trim().length > 0;
+
   const sortedApplications = useMemo(() => {
-    if (!applications?.applications || applications.applications.length === 0) return [];
+    const dataSource = isSearching
+      ? (searchIndex || [])
+      : (applications?.applications || []);
     
-    let sorted = [...applications.applications];
+    if (dataSource.length === 0) return [];
     
-    // Apply client-side search filter
-    if (tableSearchTerm.trim()) {
-      const searchLower = tableSearchTerm.toLowerCase().trim();
+    let sorted = [...dataSource];
+    
+    // Apply client-side search filter (only when searching via the search index)
+    if (isSearching) {
+      const searchLower = deferredSearchTerm.toLowerCase().trim();
       sorted = sorted.filter(app => {
         const fullName = `${app.first_name || ''} ${app.last_name || ''}`.toLowerCase();
         const email = (app.email || '').toLowerCase();
@@ -499,7 +510,7 @@ const ApplicationsTab = ({
     }
     
     return sorted;
-  }, [applications, columnSort, tableSearchTerm]);
+  }, [applications, searchIndex, columnSort, deferredSearchTerm, isSearching]);
 
   // Calculate pagination values
   const totalItems = applications?.total || 0;
@@ -863,7 +874,7 @@ const ApplicationsTab = ({
     <div className="flex flex-col h-full">
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3 bg-white p-4 border-b border-gray-200 shrink-0">
-        {/* Real-time Search Filter */}
+        {/* Search all applicants -- uses full search index when typing, paginated data when empty */}
         <div className="relative w-[300px]">
           <Input
             type="text"
@@ -1184,10 +1195,24 @@ const ApplicationsTab = ({
         </div>
       )}
 
-      {/* Footer with Pagination or Load All */}
-      {applications?.applications?.length > 0 && (
+      {/* Footer with Pagination, Load All, or Search Results count */}
+      {(applications?.applications?.length > 0 || isSearching) && (
         <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 shrink-0">
-          {loadAllMode ? (
+          {isSearching ? (
+            /* Search Mode - Show match count and clear button */
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600 font-proxima">
+                Found {sortedApplications.length} matching applicant{sortedApplications.length !== 1 ? 's' : ''}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => setTableSearchTerm('')}
+                className="font-proxima"
+              >
+                ✕ Clear Search
+              </Button>
+            </div>
+          ) : loadAllMode ? (
             /* Load All Mode - Show count and return button */
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600 font-proxima">

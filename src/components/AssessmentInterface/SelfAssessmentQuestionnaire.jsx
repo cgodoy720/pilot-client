@@ -146,7 +146,8 @@ const SelfAssessmentQuestionnaire = ({
   taskId, 
   onComplete, 
   isCompleted = false,
-  onShowInstructions 
+  onShowInstructions,
+  isPreviewMode = false
 }) => {
   const { token, user } = useAuth();
   const isActive = user?.active !== false;
@@ -188,7 +189,7 @@ const SelfAssessmentQuestionnaire = ({
       setIsLoading(true);
       
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}/submissions`,
+        `${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}/submissions?isPreviewMode=${isPreviewMode}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -407,7 +408,8 @@ const SelfAssessmentQuestionnaire = ({
         },
         body: JSON.stringify({
           submission_data: finalFormData,
-          status: status
+          status: status,
+          isPreviewMode: isPreviewMode
         })
       });
       

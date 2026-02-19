@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { TrendingUp, RefreshCw, AlertTriangle, User } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -48,9 +48,11 @@ const CohortPerformanceDashboard = () => {
   });
   const [filteredRiskData, setFilteredRiskData] = useState([]);
 
-  const fetchData = async (forceRefresh = false) => {
+  const fetchData = async (forceRefresh = false, showLoader = true) => {
     try {
-      setLoading(true);
+      if (showLoader) {
+        setLoading(true);
+      }
       setError(null);
       
       const response = await cachedAdminApi.getCachedCohortPerformance(token, { forceRefresh, period: selectedPeriod });
@@ -58,21 +60,22 @@ const CohortPerformanceDashboard = () => {
       setData(response.data);
       setLastUpdated(new Date());
       
-      // Set available cohorts and default to December 2025 (or first one if not available)
+      // Set available cohorts and preserve current selection when possible.
       if (response.data?.availableCohorts && response.data.availableCohorts.length > 0) {
-        setAvailableCohorts(response.data.availableCohorts);
-        
-        // Set default cohort if not already selected
-        if (!selectedCohort && response.data.availableCohorts.length > 0) {
-          // Try to default to December 2025, otherwise use first cohort
-          const decemberCohort = response.data.availableCohorts.find(c => c === 'December 2025');
-          setSelectedCohort(decemberCohort || response.data.availableCohorts[0]);
-        }
+        const cohorts = response.data.availableCohorts;
+        setAvailableCohorts(cohorts);
+        setSelectedCohort((prev) => {
+          if (prev && cohorts.includes(prev)) return prev;
+          const decemberCohort = cohorts.find((c) => c === 'December 2025');
+          return decemberCohort || cohorts[0];
+        });
       }
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
-      setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+      }
     }
   };
 
@@ -116,8 +119,10 @@ const CohortPerformanceDashboard = () => {
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 60000);
+    fetchData(false, true);
+    const interval = setInterval(() => {
+      fetchData(false, false);
+    }, 60000);
     return () => clearInterval(interval);
   }, [token, selectedPeriod]);
 
@@ -147,7 +152,7 @@ const CohortPerformanceDashboard = () => {
 
   const handleRefresh = () => {
     cachedAdminApi.invalidateAllAttendanceCaches();
-    fetchData(true);
+    fetchData(true, true);
     if (selectedCohort) {
       fetchDailyBreakdown(selectedCohort);
     }
@@ -171,6 +176,55 @@ const CohortPerformanceDashboard = () => {
 
   const selectedCohortData = data?.cohorts?.find(c => c.cohort === selectedCohort);
   const requirement = selectedCohort ? getRequirementForCohort(selectedCohort) : 85;
+  const selectedPeriodLabel = {
+    'last-30-days': 'Last 30 Days',
+    'this-week': 'This Week',
+    'last-week': 'Last Week',
+    'this-month': 'This Month',
+    'last-month': 'Last Month'
+  }[selectedPeriod] || 'Selected Period';
+
+  const cohortPeriodStats = useMemo(() => {
+    if (!selectedCohortData || !dailyBreakdown || dailyBreakdown.length === 0) {
+      return {
+        classDays: 0,
+        present: 0,
+        late: 0,
+        excused: 0,
+        absent: 0,
+        attendanceRate: 0
+      };
+    }
+
+    const totals = dailyBreakdown.reduce((acc, day) => {
+      acc.present += day.present || 0;
+      acc.late += day.late || 0;
+      acc.excused += day.excused || 0;
+      acc.absent += day.absent || 0;
+      acc.totalSlots += day.total || selectedCohortData.totalBuilders || 0;
+      return acc;
+    }, {
+      present: 0,
+      late: 0,
+      excused: 0,
+      absent: 0,
+      totalSlots: 0
+    });
+
+    const attended = totals.present + totals.late + totals.excused;
+    const attendanceRate = totals.totalSlots > 0
+      ? Number(((attended / totals.totalSlots) * 100).toFixed(1))
+      : 0;
+
+    return {
+      classDays: dailyBreakdown.length,
+      present: totals.present,
+      late: totals.late,
+      excused: totals.excused,
+      absent: totals.absent,
+      attendanceRate
+    };
+  }, [dailyBreakdown, selectedCohortData]);
 
   if (loading && !data) {
     return (
@@ -210,24 +264,8 @@ const CohortPerformanceDashboard = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-slate-900">Cohort Performance</h2>
-          <p className="text-sm text-slate-600 mt-1">
-            {data?.period?.displayName} • {lastUpdated && `Updated ${lastUpdated.toLocaleTimeString()}`}
-          </p>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-[180px] bg-white border-slate-300">
-              <SelectValue placeholder="Time Period" />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              <SelectItem value="last-30-days">Last 30 Days</SelectItem>
-              <SelectItem value="this-week">This Week</SelectItem>
-              <SelectItem value="last-week">Last Week</SelectItem>
-              <SelectItem value="this-month">This Month</SelectItem>
-              <SelectItem value="last-month">Last Month</SelectItem>
-            </SelectContent>
-          </Select>
-          
           <button
             onClick={handleRefresh}
             disabled={loading}
@@ -239,77 +277,37 @@ const CohortPerformanceDashboard = () => {
         </div>
       </div>
 
-      {/* Summary Metrics - Shows ALL cohorts */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-white border border-slate-200 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">Overall Rate</p>
-                <p className="text-3xl font-bold text-slate-900 mt-1">
-                  {data.summary?.overallAttendanceRate?.toFixed(1) || 0}%
-                </p>
-              </div>
-              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-            <p className="text-xs text-slate-500 mt-2">Average across all cohorts</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-white border border-slate-200 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">Meeting Target</p>
-                <p className="text-3xl font-bold text-slate-900 mt-1">
-                  {data.summary?.cohortsMeetingRequirement || 0} / {data.summary?.totalCohorts || 0}
-                </p>
-              </div>
-              <div className="h-12 w-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-emerald-600" />
-              </div>
-            </div>
-            <p className="text-xs text-slate-500 mt-2">Cohorts above threshold</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-white border border-slate-200 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">At Risk (All)</p>
-                <p className="text-3xl font-bold text-slate-900 mt-1">
-                  {data.summary?.buildersAtRisk || 0}
-                </p>
-              </div>
-              <div className="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-              </div>
-            </div>
-            <p className="text-xs text-slate-500 mt-2">Builders requiring attention</p>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Cohort Selector & Selected Cohort Stats */}
       <Card className="bg-white border border-slate-200 shadow-sm">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-slate-900">Selected Cohort</h3>
-            <Select value={selectedCohort || ''} onValueChange={setSelectedCohort}>
-              <SelectTrigger className="w-[280px] bg-white border-slate-300">
-                <SelectValue placeholder="Select a cohort" />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                {availableCohorts.map((cohort) => (
-                  <SelectItem key={cohort} value={cohort}>
-                    {cohort}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-3">
+              <Select value={selectedCohort || ''} onValueChange={setSelectedCohort}>
+                <SelectTrigger className="w-[280px] bg-white border-slate-300">
+                  <SelectValue placeholder="Select a cohort" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  {availableCohorts.map((cohort) => (
+                    <SelectItem key={cohort} value={cohort}>
+                      {cohort}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                <SelectTrigger className="w-[180px] bg-white border-slate-300">
+                  <SelectValue placeholder="Time Period" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="last-30-days">Last 30 Days</SelectItem>
+                  <SelectItem value="this-week">This Week</SelectItem>
+                  <SelectItem value="last-week">Last Week</SelectItem>
+                  <SelectItem value="this-month">This Month</SelectItem>
+                  <SelectItem value="last-month">Last Month</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {selectedCohortData && (
@@ -317,7 +315,7 @@ const CohortPerformanceDashboard = () => {
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-semibold text-slate-900">{selectedCohortData.cohort}</h4>
                 <Badge className={
-                  selectedCohortData.attendanceRate >= requirement
+                  cohortPeriodStats.attendanceRate >= requirement
                     ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
                     : 'bg-red-100 text-red-700 border-red-200'
                 }>
@@ -327,35 +325,39 @@ const CohortPerformanceDashboard = () => {
               
               <div className="mb-3">
                 <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="text-slate-600">Attendance Rate</span>
-                  <span className="font-semibold text-slate-900">{selectedCohortData.attendanceRate.toFixed(1)}%</span>
+                  <span className="text-slate-600">Attendance Rate ({selectedPeriodLabel})</span>
+                  <span className="font-semibold text-slate-900">{cohortPeriodStats.attendanceRate.toFixed(1)}%</span>
                 </div>
                 <Progress 
-                  value={selectedCohortData.attendanceRate} 
+                  value={cohortPeriodStats.attendanceRate} 
                   className={`h-2 ${
-                    selectedCohortData.attendanceRate >= requirement 
+                    cohortPeriodStats.attendanceRate >= requirement 
                       ? '[&>div]:bg-emerald-500' 
                       : '[&>div]:bg-red-500'
                   }`}
                 />
               </div>
               
-              <div className="grid grid-cols-4 gap-2 text-sm">
+              <div className="grid grid-cols-5 gap-2 text-sm">
                 <div className="bg-slate-50 rounded p-2 text-center">
                   <p className="font-semibold text-slate-900">{selectedCohortData.totalBuilders}</p>
-                  <p className="text-xs text-slate-600">Total</p>
+                  <p className="text-xs text-slate-600">Total Builders</p>
                 </div>
                 <div className="bg-emerald-50 rounded p-2 text-center">
-                  <p className="font-semibold text-emerald-700">{selectedCohortData.presentToday}</p>
-                  <p className="text-xs text-slate-600">Present Today</p>
+                  <p className="font-semibold text-emerald-700">{cohortPeriodStats.present + cohortPeriodStats.late}</p>
+                  <p className="text-xs text-slate-600">Present+Late</p>
                 </div>
                 <div className="bg-red-50 rounded p-2 text-center">
-                  <p className="font-semibold text-red-700">{selectedCohortData.absentToday}</p>
-                  <p className="text-xs text-slate-600">Absent Today</p>
+                  <p className="font-semibold text-red-700">{cohortPeriodStats.absent}</p>
+                  <p className="text-xs text-slate-600">Absent</p>
                 </div>
                 <div className="bg-blue-50 rounded p-2 text-center">
-                  <p className="font-semibold text-blue-700">{selectedCohortData.excusedToday || 0}</p>
-                  <p className="text-xs text-slate-600">Excused Today</p>
+                  <p className="font-semibold text-blue-700">{cohortPeriodStats.excused}</p>
+                  <p className="text-xs text-slate-600">Excused</p>
+                </div>
+                <div className="bg-violet-50 rounded p-2 text-center">
+                  <p className="font-semibold text-violet-700">{cohortPeriodStats.classDays}</p>
+                  <p className="text-xs text-slate-600">Class Days</p>
                 </div>
               </div>
             </div>

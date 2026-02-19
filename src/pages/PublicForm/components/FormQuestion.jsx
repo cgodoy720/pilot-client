@@ -22,37 +22,41 @@ const FormQuestion = ({ question, value, onChange, slideDirection, onEnter }) =>
     switch (question.type) {
       case 'text':
         return (
-          <input
-            type="text"
-            className="w-full px-0 py-2 border-0 border-b-2 border-white/60 bg-transparent text-white text-lg placeholder:text-white/40 focus:border-white focus:ring-0 focus:outline-none rounded-none box-border transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-            value={value || ''}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Type your answer here..."
-            maxLength={question.validation?.max_length}
-            autoFocus
-          />
+          <div className="mb-8">
+            <input
+              type="text"
+              className="w-full px-0 py-2 border-0 border-b-2 border-white/60 bg-transparent text-white text-lg placeholder:text-white/40 focus:border-white focus:ring-0 focus:outline-none rounded-none box-border transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              value={value || ''}
+              onChange={(e) => onChange(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Type your answer here..."
+              maxLength={question.validation?.max_length}
+              autoFocus
+            />
+          </div>
         );
 
       case 'long_text':
         return (
-          <textarea
-            ref={textareaRef}
-            className="w-full px-0 py-2 border-0 border-b-2 border-white/60 bg-transparent text-white text-lg placeholder:text-white/40 focus:border-white focus:ring-0 focus:outline-none rounded-none resize-none box-border transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 overflow-hidden"
-            value={value || ''}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="Type your detailed answer here..."
-            rows={1}
-            maxLength={question.validation?.max_length}
-            autoFocus
-          />
+          <div className="mb-8">
+            <textarea
+              ref={textareaRef}
+              className="w-full px-0 py-2 border-0 border-b-2 border-white/60 bg-transparent text-white text-lg placeholder:text-white/40 focus:border-white focus:ring-0 focus:outline-none rounded-none resize-none box-border transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 overflow-hidden"
+              value={value || ''}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="Type your detailed answer here..."
+              rows={1}
+              maxLength={question.validation?.max_length}
+              autoFocus
+            />
+          </div>
         );
 
       case 'multiple_choice':
         if (question.multiple_select) {
           const selectedValues = value || [];
           return (
-            <div className="flex flex-col gap-3 mb-16 w-full max-w-2xl">
+            <div className="flex flex-col gap-3 mb-4 w-full max-w-2xl">
               {question.options.map((option, index) => {
                 const isSelected = selectedValues.includes(option);
                 return (
@@ -95,7 +99,7 @@ const FormQuestion = ({ question, value, onChange, slideDirection, onEnter }) =>
           );
         } else {
           return (
-            <div className="flex flex-col gap-3 mb-16 w-full max-w-2xl">
+            <div className="flex flex-col gap-3 mb-4 w-full max-w-2xl">
               {question.options.map((option, index) => {
                 const isSelected = value === option;
                 return (

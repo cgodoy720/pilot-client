@@ -28,6 +28,7 @@ import '../../styles/smart-tasks.css';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { streamLearningMessage } from '../../utils/api';
 import { useStreamingText } from '../../hooks/useStreamingText';
+import { createStreamBuffer } from '../../utils/streamBufferUtils';
 
 // Component that wraps ReactMarkdown with streaming text support
 // Uses useStreamingText to smooth out bursty SSE chunks into natural typing flow
@@ -43,11 +44,12 @@ const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
   
   // Preprocess content to convert bullet points and URLs to markdown
   let processedContent = displayedContent;
+
+  // Safety-net: never render completion control markers in UI.
+  // Backend should already strip these, but this protects against edge cases.
+  processedContent = processedContent.replace(/\[TASK(?:_| )COMPLETE\]/gi, '').trim();
   
-  // Step 0: Strip all ** (bold markdown) from the content BEFORE processing
-  processedContent = processedContent.replace(/\*\*/g, '');
-  
-  // Step 1: Convert URLs to markdown links FIRST
+  // Step 0: Convert URLs to markdown links FIRST
   processedContent = processedContent.replace(
     /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
     '[$1 ($2)]($4): $3'
@@ -59,7 +61,7 @@ const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
     (url) => `[${url}](${url})`
   );
   
-  // Step 2: Handle inline "Resources:" section
+  // Step 1: Handle inline "Resources:" section
   processedContent = processedContent.replace(
     /Resources:\s*-\s*(.+?)(?=\n\n|$)/gis,
     (match, resourcesText) => {
@@ -73,14 +75,14 @@ const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
     }
   );
   
-  // Step 3: Convert bullet points to markdown
+  // Step 2: Convert bullet points to markdown
   processedContent = processedContent.replace(/^•\s+/gm, '- ');
   processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
   
-  // Step 4: Convert numbered lists
+  // Step 3: Convert numbered lists
   processedContent = processedContent.replace(/^(\d+)\.\s+/gm, '$1. ');
   
-  // Step 5: Format section headers
+  // Step 4: Format section headers
   processedContent = processedContent.replace(
     /\n\n(?!\*\*Resources:\*\*)([A-Z][^:\n]+:)(?!\s*\n\n-)/g,
     '\n\n## $1'
@@ -214,7 +216,7 @@ function Learning() {
   // Input tray height for dynamic message container padding
   const [inputTrayHeight, setInputTrayHeight] = useState(180);
   
-  // Callback for height changes from AutoExpandTextarea
+  const chatTrayRef = useRef(null);
   const handleInputTrayHeightChange = useCallback((height) => {
     setInputTrayHeight(height);
   }, []);
@@ -231,6 +233,28 @@ function Learning() {
   const sendMessageAbortControllerRef = useRef(null);
   const textareaRef = useRef(null);
   const prevMessageCountRef = useRef(0);
+
+  // Track chat tray height changes for dynamic message padding
+  useEffect(() => {
+    if (!chatTrayRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.target.getBoundingClientRect().height;
+        setInputTrayHeight(height + 24); // 24px for bottom-6 spacing
+      }
+    });
+
+    resizeObserver.observe(chatTrayRef.current);
+
+    // Initial height notification
+    const initialHeight = chatTrayRef.current.getBoundingClientRect().height;
+    setInputTrayHeight(initialHeight + 24);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [currentTaskIndex, isTaskComplete, taskCompletionMap]);
 
   // Auto-scroll to bottom only when message count changes
   useEffect(() => {
@@ -848,6 +872,7 @@ function Learning() {
     try {
       let receivedChunk = false;
       const streamingMessageId = Date.now() + 1;
+      const streamBuffer = createStreamBuffer();
       // Add user message to chat
       const userMessage = {
         id: Date.now(),
@@ -883,15 +908,29 @@ function Learning() {
 
           if (chunk.type === 'text') {
             receivedChunk = true;
-            setMessages(prev =>
-              prev.map(msg =>
-                msg.id === streamingMessageId
-                  ? { ...msg, content: `${msg.content || ''}${chunk.content}` }
-                  : msg
-              )
-            );
+            const safeText = streamBuffer.append(chunk.content);
+            if (safeText) {
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: `${msg.content || ''}${safeText}` }
+                    : msg
+                )
+              );
+            }
           } else if (chunk.type === 'done' && chunk.message) {
             receivedChunk = true;
+            // Flush any remaining buffered text before final replace
+            const remaining = streamBuffer.flush();
+            if (remaining) {
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: `${msg.content || ''}${remaining}` }
+                    : msg
+                )
+              );
+            }
             // Enable input immediately
             setIsStreaming(false);
             setIsAiThinking(false);
@@ -1311,7 +1350,7 @@ function Learning() {
       />
 
       {/* Main Content Area - Takes remaining height */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 min-h-0 flex overflow-hidden relative">
         {/* Survey Interface OR Assessment Interface OR Break Interface OR Chat Interface */}
         {isCurrentTaskSurvey() ? (
           // Survey Interface
@@ -1330,6 +1369,7 @@ function Learning() {
           // Assessment Interface
           <div className="flex-1 flex flex-col relative overflow-hidden">
             <AssessmentInterface
+              key={`assessment-${tasks[currentTaskIndex]?.id}`}
               taskId={tasks[currentTaskIndex]?.id}
               assessmentId={tasks[currentTaskIndex]?.assessment_id}
               dayNumber={currentDay?.day_number}
@@ -1365,10 +1405,10 @@ function Learning() {
           </div>
         ) : (
           // Chat Interface
-        <div className="flex-1 flex flex-col relative overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
           {/* Messages Area - Scrollable with proper spacing */}
           <div 
-            className="flex-1 overflow-y-auto py-8 px-6 transition-[padding] duration-200 ease-out" 
+            className="flex-1 min-h-0 overflow-y-auto py-8 px-6" 
             style={{ paddingBottom: `${inputTrayHeight}px` }}
           >
             <div className="max-w-2xl mx-auto">
@@ -1423,6 +1463,7 @@ function Learning() {
           {/* Chat Input OR Task Completion Bar - Absolute positioned at bottom */}
           <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
             <div className="max-w-2xl mx-auto pointer-events-auto">
+              <div ref={chatTrayRef}>
               {(isTaskComplete || taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete) ? (
                 <TaskCompletionBar
                   onNextExercise={handleNextExercise}
@@ -1443,6 +1484,7 @@ function Learning() {
                 onHeightChange={handleInputTrayHeightChange}
               />
               )}
+              </div>
             </div>
           </div>
         </div>

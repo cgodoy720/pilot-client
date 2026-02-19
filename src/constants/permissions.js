@@ -43,6 +43,7 @@ export const PAGE_PERMISSIONS = {
   ADMIN_SECTION: 'page:admin_section',
   ADMIN_PROMPTS: 'page:admin_prompts',
   ORGANIZATION_MANAGEMENT: 'page:organization_management',
+  WEEKLY_REPORTS: 'page:weekly_reports',
   
   // Workshop admin
   WORKSHOP_ADMIN: 'page:workshop_admin',
@@ -88,7 +89,8 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     PAGE_PERMISSIONS.PAST_SESSION,
     PAGE_PERMISSIONS.ACCOUNT,
     PAGE_PERMISSIONS.PAYMENT,
-    PAGE_PERMISSIONS.VOLUNTEER_FEEDBACK, // Builders can give feedback to volunteers
+    // Note: volunteer_feedback, staff, and admin pages are NOT included here.
+    // Builders only see these nav items when granted custom permissions.
   ],
   
   staff: [
@@ -127,6 +129,9 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     // Workshop/Cohort admin (staff can access these)
     PAGE_PERMISSIONS.WORKSHOP_ADMIN,
     PAGE_PERMISSIONS.COHORT_ADMIN,
+
+    // Feature permissions
+    FEATURE_PERMISSIONS.EDIT_CURRICULUM,
   ],
   
   admin: ['*'], // Wildcard = all permissions
@@ -172,6 +177,17 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     PAGE_PERMISSIONS.AI_CHAT,
     PAGE_PERMISSIONS.CALENDAR,
     PAGE_PERMISSIONS.COHORT_ADMIN,
+  ],
+  
+  candidate: [
+    // Builder-style experience + selected staff tools
+    PAGE_PERMISSIONS.DASHBOARD,
+    PAGE_PERMISSIONS.LEARNING,
+    PAGE_PERMISSIONS.AI_CHAT,
+    PAGE_PERMISSIONS.CALENDAR,
+    PAGE_PERMISSIONS.ADMIN_ATTENDANCE,
+    PAGE_PERMISSIONS.ASSESSMENT_GRADES,
+    PAGE_PERMISSIONS.ADMIN_DASHBOARD,
   ],
   
   applicant: [
