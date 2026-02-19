@@ -573,6 +573,32 @@
   padding-top: 0.5rem;
 }
 
+/* ── Unmet requirements list ──────────────────────────────────────────────── */
+.pf-network__unmet-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  background: #fff8f0;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pf-network__unmet-list li {
+  font-size: 0.82rem;
+  color: #92400e;
+  padding-left: 14px;
+  position: relative;
+}
+
+.pf-network__unmet-list li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+}
+
 /* ── Success state ────────────────────────────────────────────────────────── */
 .pf-network__success {
   display: flex;

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import SearchIcon from '@mui/icons-material/Search';
@@ -611,6 +610,22 @@ export default function PathfinderNetwork() {
                   ))}
                 </div>
               </div>
+
+              {/* Unmet requirements */}
+              {(() => {
+                const unmet = [];
+                if (!formData.staff_user_id) unmet.push('Select a staff member');
+                if (!formData.specific_ask) unmet.push('Select what you are asking for');
+                if (contextLen < 100) unmet.push(`"Why this company?" needs ${100 - contextLen} more char${100 - contextLen !== 1 ? 's' : ''}`);
+                if (prepLen < 80) unmet.push(`"How have you prepared?" needs ${80 - prepLen} more char${80 - prepLen !== 1 ? 's' : ''}`);
+                if (!formData.demo_url) unmet.push('Add a demo / project URL');
+                if (!allReady) unmet.push('Check all readiness items');
+                return unmet.length > 0 ? (
+                  <ul className="pf-network__unmet-list">
+                    {unmet.map((item, i) => <li key={i}>{item}</li>)}
+                  </ul>
+                ) : null;
+              })()}
 
               <div className="pf-network__form-actions">
                 <Button type="button" variant="outline" onClick={() => setShowRequestForm(false)}>
