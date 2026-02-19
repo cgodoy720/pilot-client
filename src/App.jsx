@@ -37,6 +37,9 @@ import PathfinderEventHub from './pages/PathfinderEventHub/PathfinderEventHub';
 import EventDetailPage from './pages/PathfinderEventHub/EventDetailPage';
 import PathfinderAdminDashboard from './pages/PathfinderDashboard';
 import PathfinderAdmin from './pages/PathfinderAdmin';
+import PathfinderNetwork from './pages/PathfinderNetwork';
+import PathfinderJobs from './pages/PathfinderJobs';
+import StaffNetworkDashboard from './pages/StaffNetworkDashboard';
 
 import WorkshopAdminDashboard from './pages/WorkshopAdminDashboard/WorkshopAdminDashboard';
 
@@ -334,6 +337,8 @@ function App() {
           <Route path="projects" element={<PathfinderProjects />} />
           <Route path="events" element={<PathfinderEventHub />} />
           <Route path="events/:eventId" element={<EventDetailPage />} />
+          <Route path="network" element={<PathfinderNetwork />} />
+          <Route path="jobs" element={<PathfinderJobs />} />
         </Route>
         
         {/* Pathfinder admin dashboard - separate route */}
@@ -350,6 +355,15 @@ function App() {
           <Layout>
             <AdminRoute>
               <PathfinderAdmin />
+            </AdminRoute>
+          </Layout>
+        } />
+
+        {/* Employment Engine - Staff Network Dashboard */}
+        <Route path="/pathfinder/staff-network" element={
+          <Layout>
+            <AdminRoute>
+              <StaffNetworkDashboard />
             </AdminRoute>
           </Layout>
         } />

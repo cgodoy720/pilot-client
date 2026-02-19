@@ -65,13 +65,37 @@ function Pathfinder() {
           to="/pathfinder/events"
           className={({ isActive }) =>
             `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
-              isActive 
-                ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]' 
+              isActive
+                ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
                 : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
             }`
           }
         >
           EventHub
+        </NavLink>
+        <NavLink
+          to="/pathfinder/network"
+          className={({ isActive }) =>
+            `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+              isActive
+                ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
+                : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
+            }`
+          }
+        >
+          Network
+        </NavLink>
+        <NavLink
+          to="/pathfinder/jobs"
+          className={({ isActive }) =>
+            `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+              isActive
+                ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
+                : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
+            }`
+          }
+        >
+          Jobs
         </NavLink>
       </nav>
 
