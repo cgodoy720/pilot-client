@@ -11,7 +11,7 @@ import BuilderDrawer from '../components/BuilderDrawer';
 import { fetchPursuitBuilderCohorts, toLegacyFormat } from '../utils/cohortUtils';
 import { useAuth } from '../../../context/AuthContext';
 
-const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
+const API_URL = import.meta.env.VITE_API_URL;
 const PAGE_SIZE_TASKS = 10;
 const PAGE_SIZE_BUILDERS = 10;
 const PAGE_SIZE_FEEDBACK = 10;
@@ -118,13 +118,12 @@ const Pagination = ({ page, total, pageSize, onPage }) => {
 const SummaryTab = () => {
   const { token } = useAuth();
   const [cohorts, setCohorts] = useState([]);
-  const [selectedLevel, setSelectedLevel] = useState('');
+  const [selectedCohortId, setSelectedCohortId] = useState('');
   const [startDate, setStartDate] = useState('2025-03-01');
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
   const [summaryData, setSummaryData] = useState(null);
   const [builders, setBuilders] = useState([]);
-  const [loadingBuilders, setLoadingBuilders] = useState(false);
 
   // Sort and pagination state
   const [taskSort, setTaskSort] = useState({ key: 'assigned_date', dir: 'desc' });
@@ -136,41 +135,53 @@ const SummaryTab = () => {
   const [expandedTaskId, setExpandedTaskId] = useState(null);
   const [selectedBuilder, setSelectedBuilder] = useState(null);
 
+  // Get the selected cohort object (for passing legacyName to BuilderDrawer)
+  const selectedCohort = useMemo(
+    () => cohorts.find(c => c.cohort_id === selectedCohortId),
+    [cohorts, selectedCohortId]
+  );
+
   // Fetch cohorts from org management (Pursuit builder cohorts only)
   useEffect(() => {
     if (!token) return;
     fetchPursuitBuilderCohorts(token)
       .then(data => {
         setCohorts(data);
-        if (data.length > 0) setSelectedLevel(data[0].legacyName);
+        if (data.length > 0) setSelectedCohortId(data[0].cohort_id);
       })
       .catch(console.error);
   }, [token]);
 
-  // Fetch summary data when params change
+  // Fetch cohort summary from native endpoint (replaces both legacy API calls)
   useEffect(() => {
-    if (!selectedLevel) return;
+    if (!selectedCohortId || !token) return;
     setLoading(true);
     setTaskPage(0);
     setFeedbackPage(0);
-    fetch(`${LEGACY_API}/weekly-summary?weekStartDate=${startDate}&weekEndDate=${endDate}&level=${encodeURIComponent(selectedLevel)}`)
-      .then(r => r.json())
-      .then(setSummaryData)
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [selectedLevel, startDate, endDate]);
-
-  // Fetch builders
-  useEffect(() => {
-    if (!selectedLevel) return;
-    setLoadingBuilders(true);
     setBuilderPage(0);
-    fetch(`${LEGACY_API}/builders?startDate=${startDate}&endDate=${endDate}&level=${encodeURIComponent(selectedLevel)}`)
+
+    const url = `${API_URL}/api/admin/dashboard/cohort-summary?cohortId=${selectedCohortId}&startDate=${startDate}&endDate=${endDate}`;
+    fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
       .then(r => r.json())
-      .then(setBuilders)
-      .catch(console.error)
-      .finally(() => setLoadingBuilders(false));
-  }, [selectedLevel, startDate, endDate]);
+      .then(data => {
+        if (data.success) {
+          setSummaryData(data);
+          setBuilders(data.builders || []);
+        } else {
+          console.error('Cohort summary error:', data.error);
+          setSummaryData(null);
+          setBuilders([]);
+        }
+      })
+      .catch(err => {
+        console.error('Cohort summary fetch failed:', err);
+        setSummaryData(null);
+        setBuilders([]);
+      })
+      .finally(() => setLoading(false));
+  }, [selectedCohortId, startDate, endDate, token]);
 
   const summary = summaryData?.summary;
   const tasks = summaryData?.taskDetails ?? [];
@@ -219,11 +230,11 @@ const SummaryTab = () => {
         <div>
           <label className="text-xs text-slate-500 font-medium mb-1 block">Cohort</label>
           <select
-            value={selectedLevel}
-            onChange={e => setSelectedLevel(e.target.value)}
+            value={selectedCohortId}
+            onChange={e => setSelectedCohortId(e.target.value)}
             className="px-3 py-1.5 text-sm border border-[#E3E3E3] rounded-md bg-white text-[#1E1E1E] focus:border-[#4242EA] focus:outline-none"
           >
-            {cohorts.map(c => <option key={c.cohort_id || c.name} value={c.legacyName}>{c.name}</option>)}
+            {cohorts.map(c => <option key={c.cohort_id} value={c.cohort_id}>{c.name}</option>)}
           </select>
         </div>
         <div>
@@ -368,7 +379,7 @@ const SummaryTab = () => {
           </div>
         </CardHeader>
         <CardContent className="pt-3">
-          {loadingBuilders ? (
+          {loading ? (
             <div className="space-y-2">{[1,2,3,4,5].map(i => <div key={i} className="h-8 bg-[#EFEFEF] rounded animate-pulse" />)}</div>
           ) : builders.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-8">No builder data.</p>
@@ -486,7 +497,7 @@ const SummaryTab = () => {
                           <td className="py-2 px-2 text-xs text-slate-600 whitespace-nowrap">{f.recipient_name}</td>
                           <td className="py-2 px-2">
                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${sentimentColor(f.sentiment_category)}`}>
-                              {f.sentiment_category}
+                              {f.sentiment_category || 'N/A'}
                             </span>
                           </td>
                           <td className="py-2 pl-2 text-xs text-slate-600 max-w-[400px]">
@@ -510,7 +521,8 @@ const SummaryTab = () => {
           builder={selectedBuilder}
           startDate={startDate}
           endDate={endDate}
-          selectedLevel={selectedLevel}
+          selectedLevel={selectedCohort?.legacyName || ''}
+          cohortId={selectedCohortId}
           onClose={() => setSelectedBuilder(null)}
         />
       )}

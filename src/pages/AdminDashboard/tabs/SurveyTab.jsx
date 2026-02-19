@@ -53,6 +53,7 @@ const Pagination = ({ page, total, pageSize, onPage }) => {
 const SurveyTab = () => {
   const [startDate, setStartDate] = useState('2025-09-01');
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [npsMode, setNpsMode] = useState('calendar');
   const [npsData, setNpsData] = useState([]);
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,13 +63,13 @@ const SurveyTab = () => {
     setLoading(true);
     setPage(0);
     Promise.all([
-      fetch(`${LEGACY_API}/surveys/nps/weekly-by-cohort?startDate=${startDate}&endDate=${endDate}&mode=calendar`).then(r => r.json()).catch(() => []),
+      fetch(`${LEGACY_API}/surveys/nps/weekly-by-cohort?startDate=${startDate}&endDate=${endDate}&mode=${npsMode}`).then(r => r.json()).catch(() => []),
       fetch(`${LEGACY_API}/surveys/responses?startDate=${startDate}&endDate=${endDate}`).then(r => r.json()).catch(() => []),
     ]).then(([nps, resp]) => {
       setNpsData(Array.isArray(nps) ? nps : []);
       setResponses(Array.isArray(resp) ? resp : []);
     }).finally(() => setLoading(false));
-  }, [startDate, endDate]);
+  }, [startDate, endDate, npsMode]);
 
   // Build chart data: pivot by week, one line per cohort
   const { chartData, cohortNames, cohortSummary } = useMemo(() => {
@@ -77,11 +78,16 @@ const SurveyTab = () => {
     const summaryMap = {};
 
     npsData.forEach((d) => {
-      const weekLabel = d.week_start?.value
-        ? new Date(d.week_start.value + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        : `Week ${d.program_week}`;
-      if (!weekMap[weekLabel]) weekMap[weekLabel] = { week: weekLabel };
-      weekMap[weekLabel][d.cohort] = Math.round(d.nps);
+      // Program mode → "Week 1", "Week 2", etc. Calendar mode → "Dec 13", "Jan 24", etc.
+      const weekLabel = npsMode === 'program'
+        ? `Week ${d.program_week}`
+        : d.week_start?.value
+          ? new Date(d.week_start.value + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          : `Week ${d.program_week}`;
+      // In program mode, key by program_week number so cohorts with the same week # share a row
+      const weekKey = npsMode === 'program' ? `w${d.program_week}` : weekLabel;
+      if (!weekMap[weekKey]) weekMap[weekKey] = { week: weekLabel, _sortKey: d.program_week };
+      weekMap[weekKey][d.cohort] = Math.round(d.nps);
       cohortSet.add(d.cohort);
 
       if (!summaryMap[d.cohort]) summaryMap[d.cohort] = { cohort: d.cohort, allNps: [], latestNps: null };
@@ -96,12 +102,18 @@ const SurveyTab = () => {
       npsAllTime: s.allNps.length > 0 ? Math.round(s.allNps.reduce((a, b) => a + b, 0) / s.allNps.length) : null,
     }));
 
+    // Sort chart data: program mode by week number, calendar mode by date
+    const sortedChart = Object.values(weekMap).sort((a, b) => {
+      if (npsMode === 'program') return (a._sortKey || 0) - (b._sortKey || 0);
+      return (a.week || '').localeCompare(b.week || '');
+    });
+
     return {
-      chartData: Object.values(weekMap),
+      chartData: sortedChart,
       cohortNames: names,
       cohortSummary: summary,
     };
-  }, [npsData]);
+  }, [npsData, npsMode]);
 
   return (
     <div className="space-y-6">
@@ -129,8 +141,27 @@ const SurveyTab = () => {
             {/* Weekly NPS Chart */}
             <Card className="bg-white border border-[#E3E3E3]">
               <CardHeader className="pb-3 border-b border-[#E3E3E3]">
-                <CardTitle className="text-base font-semibold text-[#1E1E1E]">Weekly NPS by Cohort</CardTitle>
-                <CardDescription className="text-slate-400 text-sm">Calendar weeks</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-semibold text-[#1E1E1E]">Weekly NPS by Cohort</CardTitle>
+                    <CardDescription className="text-slate-400 text-sm">{npsMode === 'calendar' ? 'Calendar' : 'Program'} weeks</CardDescription>
+                  </div>
+                  <div className="flex rounded-md border border-[#E3E3E3] overflow-hidden">
+                    {['program', 'calendar'].map(mode => (
+                      <button
+                        key={mode}
+                        onClick={() => setNpsMode(mode)}
+                        className={`px-3 py-1 text-xs font-medium transition-colors ${
+                          npsMode === mode
+                            ? 'bg-[#4242EA] text-white'
+                            : 'bg-white text-slate-500 hover:bg-[#EFEFEF]'
+                        }`}
+                      >
+                        {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="pt-4">
                 {chartData.length === 0 ? (

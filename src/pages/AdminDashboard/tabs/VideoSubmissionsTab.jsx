@@ -6,6 +6,7 @@ import { fetchPursuitBuilderCohorts } from '../utils/cohortUtils';
 import { useAuth } from '../../../context/AuthContext';
 
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
+const API_URL = import.meta.env.VITE_API_URL;
 const PAGE_SIZE = 15;
 
 const scoreColor = (s) => s >= 4 ? 'text-green-600 bg-green-50' : s >= 3 ? 'text-yellow-600 bg-yellow-50' : 'text-red-500 bg-red-50';
@@ -48,17 +49,44 @@ const VideoSubmissionsTab = () => {
       .catch(console.error);
   }, [token]);
 
+  // Get selected cohort object for cohort_id
+  const selectedCohort = useMemo(
+    () => cohorts.find(c => c.legacyName === selectedLevel),
+    [cohorts, selectedLevel]
+  );
+
   useEffect(() => {
     if (!selectedLevel) return;
     setLoading(true);
     setPage(0);
     setExpanded(null);
-    fetch(`${LEGACY_API}/video-analyses?level=${encodeURIComponent(selectedLevel)}&startDate=${startDate}&endDate=${endDate}`)
-      .then(r => r.json())
-      .then(data => setVideos(Array.isArray(data) ? data : []))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [selectedLevel]);
+
+    const cohortId = selectedCohort?.cohort_id;
+
+    // Try native endpoint first (has all PG video submissions), fall back to legacy
+    const fetchNative = cohortId && token
+      ? fetch(`${API_URL}/api/admin/dashboard/cohort-videos?cohortId=${cohortId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then(r => r.ok ? r.json() : null)
+          .then(d => d?.success ? d.data : null)
+          .catch(() => null)
+      : Promise.resolve(null);
+
+    fetchNative.then(nativeData => {
+      if (nativeData && nativeData.length > 0) {
+        setVideos(nativeData);
+        setLoading(false);
+      } else {
+        // Fall back to legacy
+        fetch(`${LEGACY_API}/video-analyses?level=${encodeURIComponent(selectedLevel)}&startDate=${startDate}&endDate=${endDate}`)
+          .then(r => r.json())
+          .then(data => setVideos(Array.isArray(data) ? data : []))
+          .catch(console.error)
+          .finally(() => setLoading(false));
+      }
+    });
+  }, [selectedLevel, selectedCohort?.cohort_id, token]);
 
   const resolveDate = (d) => {
     if (!d) return '';
@@ -161,16 +189,24 @@ const VideoSubmissionsTab = () => {
                               ) : <span className="text-xs text-slate-400">—</span>}
                             </td>
                             <td className="py-2 px-2 text-center">
-                              <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${scoreColor(v.average_score)}`}>{v.average_score}/5</span>
+                              {v.average_score != null ? (
+                                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${scoreColor(v.average_score)}`}>{v.average_score}/5</span>
+                              ) : <span className="text-xs text-slate-300">—</span>}
                             </td>
                             <td className="py-2 px-2 text-center">
-                              <span className={`text-xs font-semibold ${v.technical_score >= 4 ? 'text-green-600' : v.technical_score >= 3 ? 'text-yellow-600' : 'text-red-500'}`}>{v.technical_score}</span>
+                              {v.technical_score != null ? (
+                                <span className={`text-xs font-semibold ${v.technical_score >= 4 ? 'text-green-600' : v.technical_score >= 3 ? 'text-yellow-600' : 'text-red-500'}`}>{v.technical_score}</span>
+                              ) : <span className="text-xs text-slate-300">—</span>}
                             </td>
                             <td className="py-2 px-2 text-center">
-                              <span className={`text-xs font-semibold ${v.business_score >= 4 ? 'text-green-600' : v.business_score >= 3 ? 'text-yellow-600' : 'text-red-500'}`}>{v.business_score}</span>
+                              {v.business_score != null ? (
+                                <span className={`text-xs font-semibold ${v.business_score >= 4 ? 'text-green-600' : v.business_score >= 3 ? 'text-yellow-600' : 'text-red-500'}`}>{v.business_score}</span>
+                              ) : <span className="text-xs text-slate-300">—</span>}
                             </td>
                             <td className="py-2 px-2 text-center">
-                              <span className={`text-xs font-semibold ${v.professional_skills_score >= 4 ? 'text-green-600' : v.professional_skills_score >= 3 ? 'text-yellow-600' : 'text-red-500'}`}>{v.professional_skills_score}</span>
+                              {v.professional_skills_score != null ? (
+                                <span className={`text-xs font-semibold ${v.professional_skills_score >= 4 ? 'text-green-600' : v.professional_skills_score >= 3 ? 'text-yellow-600' : 'text-red-500'}`}>{v.professional_skills_score}</span>
+                              ) : <span className="text-xs text-slate-300">—</span>}
                             </td>
                             <td className="py-2 px-2 text-xs text-slate-500 whitespace-nowrap">{dateStr}</td>
                             <td className="py-2 pl-2">
