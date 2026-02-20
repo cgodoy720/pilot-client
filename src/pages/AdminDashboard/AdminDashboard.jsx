@@ -2,13 +2,11 @@ import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
-import OverviewTab from './tabs/OverviewTab';
-import CohortAnalyticsTab from './tabs/CohortAnalyticsTab';
 import SummaryTab from './tabs/SummaryTab';
 import SurveyTab from './tabs/SurveyTab';
 import L2SelectionsTab from './tabs/L2SelectionsTab';
 import VideoSubmissionsTab from './tabs/VideoSubmissionsTab';
-import { LayoutDashboard, Users, ExternalLink, BarChart3, Star, UserCheck, Video } from 'lucide-react';
+import { ExternalLink, BarChart3, Star, UserCheck, Video } from 'lucide-react';
 
 const LEGACY_URL = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/';
 
@@ -18,7 +16,7 @@ const TAB_TRIGGER_CLASS =
 const AdminDashboard = () => {
   const { user } = useAuth();
   const { canAccessPage } = usePermissions();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('summary');
   const [iframeLoading, setIframeLoading] = useState(true);
 
   if (!canAccessPage('admin_dashboard')) {
@@ -61,14 +59,6 @@ const AdminDashboard = () => {
       <div className="max-w-7xl mx-auto px-8 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="bg-white border border-[#E3E3E3] p-1 mb-6 rounded-lg inline-flex flex-wrap gap-0.5">
-            <TabsTrigger value="overview" className={TAB_TRIGGER_CLASS}>
-              <LayoutDashboard size={14} />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="cohorts" className={TAB_TRIGGER_CLASS}>
-              <Users size={14} />
-              Cohort Analytics
-            </TabsTrigger>
             <TabsTrigger value="summary" className={TAB_TRIGGER_CLASS}>
               <BarChart3 size={14} />
               Summary
@@ -90,14 +80,6 @@ const AdminDashboard = () => {
               Legacy View
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="overview">
-            <OverviewTab />
-          </TabsContent>
-
-          <TabsContent value="cohorts">
-            <CohortAnalyticsTab />
-          </TabsContent>
 
           <TabsContent value="summary">
             <SummaryTab />

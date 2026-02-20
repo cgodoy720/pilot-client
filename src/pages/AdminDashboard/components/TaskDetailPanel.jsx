@@ -35,11 +35,11 @@ const TaskDetailPanel = ({ task }) => {
   const totalGraded = grades.reduce((s, g) => s + g.count, 0);
   const avgGrade = task.avg_score ? letterGrade(task.avg_score) : null;
 
-  // Parse feedback paragraphs (pipe-separated in API)
-  const feedbackParts = (task.all_feedback || '')
-    .split('|')
-    .map(s => s.trim())
-    .filter(Boolean);
+  // Parse feedback — native endpoint returns array, legacy returned pipe-separated string
+  const rawFeedback = task.all_feedback || [];
+  const feedbackParts = Array.isArray(rawFeedback)
+    ? rawFeedback.filter(Boolean)
+    : String(rawFeedback).split('|').map(s => s.trim()).filter(Boolean);
 
   return (
     <div className="bg-[#FAFAFA] border-t border-[#E3E3E3] px-4 py-4 space-y-4 animate-in slide-in-from-top-1 duration-200">
