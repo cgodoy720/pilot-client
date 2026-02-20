@@ -1,11 +1,8 @@
 /* Task Completion Bar - Replaces input tray when task is complete */
 .task-completion-bar {
-  position: absolute;
-  bottom: 24px;
-  left: 24px;
-  right: 24px;
-  z-index: 10;
   animation: slideUpFadeIn 0.4s ease-out;
+  margin-bottom: 24px;
+  padding-top: 12px;
 }
 
 @keyframes slideUpFadeIn {
@@ -93,9 +90,8 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .task-completion-bar {
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
+    margin-bottom: 12px;
+    padding-top: 8px;
   }
 
   .task-completion-bar__content {

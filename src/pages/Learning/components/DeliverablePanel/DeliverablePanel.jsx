@@ -21,18 +21,11 @@ function DeliverablePanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (submissionData) => {
-    console.log('📦 DeliverablePanel handleSubmit called');
-    console.log('📦 submissionData:', submissionData);
-    console.log('📦 submissionData type:', typeof submissionData);
-    console.log('📦 submissionData length:', submissionData?.length);
-    
     setIsSubmitting(true);
     try {
-      console.log('📦 Calling onSubmit from Learning.jsx...');
       await onSubmit(submissionData);
-      console.log('📦 onSubmit completed successfully');
     } catch (error) {
-      console.error('📦 Error in handleSubmit:', error);
+      console.error('Error in handleSubmit:', error);
       throw error;
     } finally {
       setIsSubmitting(false);
@@ -64,10 +57,6 @@ function DeliverablePanel({
       userId,
       taskId
     };
-
-    console.log('DeliverablePanel - task:', task);
-    console.log('DeliverablePanel - deliverable_schema:', task.deliverable_schema);
-    console.log('DeliverablePanel - deliverable_type:', task.deliverable_type);
 
     // Check for structured deliverable first (workshop schema-based custom forms)
     if (task.deliverable_schema) {

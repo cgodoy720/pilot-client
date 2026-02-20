@@ -264,6 +264,16 @@ function Learning() {
     }
   }, [messages.length]);
 
+  // Keep latest content visible when tray height/completion bar state changes
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const timer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 80);
+
+    return () => clearTimeout(timer);
+  }, [messages.length, inputTrayHeight, isTaskComplete, currentTaskIndex]);
+
   // Auto-focus input when initial message loads
   useEffect(() => {
     if (hasInitialMessage && textareaRef.current && !editingMessageId && isActive) {
@@ -558,27 +568,26 @@ function Learning() {
     setCurrentAssessmentType(null); // Reset assessment type for new task
     
     try {
-      // Fetch both conversation history and submission in parallel
-      const [conversationResponse, submissionResponse] = await Promise.all([
-        fetch(
-          `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${task.id}?dayNumber=${currentDay?.day_number}&cohort=${currentDay?.cohort}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-            signal: abortController.signal,
-          }
-        ),
-        fetch(
-          `${import.meta.env.VITE_API_URL}/api/submissions/${task.id}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-            signal: abortController.signal,
-          }
-        ).catch(() => null) // Don't fail if submission doesn't exist
-      ]);
+      // Fetch conversation history (uses abort controller for cancel-on-switch)
+      const conversationResponse = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${task.id}?dayNumber=${currentDay?.day_number}&cohort=${currentDay?.cohort}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          signal: abortController.signal,
+        }
+      );
+
+      // Fetch submission separately (no abort signal — lightweight GET that should always complete)
+      const submissionResponse = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/submissions/${task.id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      ).catch(() => null);
       
       // Check if this request was aborted
       if (abortController.signal.aborted) {
@@ -844,7 +853,8 @@ function Learning() {
     
     // Capture the current task ID at the time of sending
     // This ensures we validate against the correct task even if user switches
-    const messageTaskId = tasks[currentTaskIndex]?.id;
+    const messageTask = tasks[currentTaskIndex];
+    const messageTaskId = messageTask?.id;
     if (!messageTaskId) {
       console.error('No task ID available for message');
       return;
@@ -981,7 +991,52 @@ function Learning() {
             sender: msg.role === 'user' ? 'user' : 'ai',
             timestamp: msg.timestamp,
           }));
-          setMessages(fallbackMessages);
+
+          setMessages(prev => {
+            // Remove transient placeholder before reconciliation.
+            const localMessages = prev.filter(
+              msg => msg.id !== streamingMessageId && !(msg.isStreaming && !msg.content)
+            );
+            const merged = [...fallbackMessages];
+
+            for (const localMessage of localMessages) {
+              const localContent = (localMessage.content || '').trim();
+              const localId = localMessage.id != null ? String(localMessage.id) : null;
+
+              const exists = merged.some(serverMessage => {
+                const serverId = serverMessage.id != null ? String(serverMessage.id) : null;
+                if (serverId && localId && serverId === localId) {
+                  return true;
+                }
+
+                const serverContent = (serverMessage.content || '').trim();
+                if (!serverContent || !localContent) {
+                  return false;
+                }
+
+                return serverMessage.sender === localMessage.sender && serverContent === localContent;
+              });
+
+              if (!exists) {
+                merged.push(localMessage);
+              }
+            }
+
+            // Keep chronological order stable for preserved optimistic messages.
+            return merged
+              .map((msg, idx) => ({ msg, idx }))
+              .sort((a, b) => {
+                const aTs = Date.parse(a.msg.timestamp || '');
+                const bTs = Date.parse(b.msg.timestamp || '');
+                const aValid = Number.isFinite(aTs);
+                const bValid = Number.isFinite(bTs);
+                if (aValid && bValid && aTs !== bTs) return aTs - bTs;
+                if (aValid && !bValid) return -1;
+                if (!aValid && bValid) return 1;
+                return a.idx - b.idx;
+              })
+              .map(entry => entry.msg);
+          });
         }
       }
     } catch (error) {
@@ -1012,8 +1067,6 @@ function Learning() {
     }
     
     try {
-      console.log('📤 Submitting deliverable for task:', currentTask.id, deliverableData);
-      
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions`, {
         method: 'POST',
         headers: {
@@ -1032,22 +1085,12 @@ function Learning() {
       }
       
       const submission = await response.json();
-      console.log('✅ Submission successful:', submission);
       
-      // Update local state with the submission
+      // Update local state with the submission (POST now returns signedUrl for images)
       setTaskSubmissions(prev => ({
         ...prev,
         [currentTask.id]: submission
       }));
-      
-      // Clear draft from localStorage after successful submission
-      try {
-        const draftKey = `deliverable_draft_${user?.id}_${currentTask.id}`;
-        localStorage.removeItem(draftKey);
-        console.log('🗑️ Cleared draft from localStorage');
-      } catch (e) {
-        console.error('Error clearing draft from localStorage:', e);
-      }
       
       // Show success toast
       toast.success("Good job! You just submitted your deliverable.", {
@@ -1061,8 +1104,6 @@ function Learning() {
       // Keep sidebar open so user can see "Submitted" badge
       // setIsDeliverableSidebarOpen(false); // Commented out - keep open
       
-      // NEW: Check if task is now complete (in case conclusion was already reached)
-      console.log('🔍 Checking completion status after deliverable submission...');
       await checkTaskCompletion(currentTask.id);
       
     } catch (error) {

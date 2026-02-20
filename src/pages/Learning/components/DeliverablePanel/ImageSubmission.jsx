@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, X, ImageIcon, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, X, ImageIcon, Loader2 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { cn } from '../../../../lib/utils';
 
@@ -18,56 +18,25 @@ function ImageSubmission({
   const [validationError, setValidationError] = useState('');
   const fileInputRef = useRef(null);
 
-  // Load existing submission or draft from localStorage
+  // Load existing submission to show metadata (image itself is in GCS)
   useEffect(() => {
-    // Always try to load draft first (for updates)
-    const draftData = loadDraftFromLocalStorage();
-    if (draftData) {
-      setImageData(draftData);
-      setImagePreview(draftData.base64);
-      setImageFile({ name: draftData.filename, size: 0 }); // Fake file object for display
-    } else if (currentSubmission?.content) {
+    if (currentSubmission?.content) {
       try {
-        const parsedContent = JSON.parse(currentSubmission.content);
+        const parsedContent = typeof currentSubmission.content === 'string' 
+          ? JSON.parse(currentSubmission.content) 
+          : currentSubmission.content;
         if (parsedContent.type === 'image') {
-          // For existing submissions, we don't have the base64 data anymore (it's in GCS)
-          // Just show that an image was submitted (but allow them to change it)
           setImageData(parsedContent);
+          if (parsedContent.signedUrl) {
+            setImagePreview(parsedContent.signedUrl);
+            setImageFile({ name: parsedContent.filename, size: 0 });
+          }
         }
       } catch (e) {
-        console.error('Error parsing submission content:', e);
+        // Content is not JSON, ignore
       }
     }
-  }, [currentSubmission, userId, taskId]);
-
-  // LocalStorage draft management
-  const getDraftKey = () => `deliverable_draft_${userId}_${taskId}`;
-
-  const saveDraftToLocalStorage = (data) => {
-    try {
-      localStorage.setItem(getDraftKey(), JSON.stringify(data));
-    } catch (e) {
-      console.error('Error saving draft to localStorage:', e);
-    }
-  };
-
-  const loadDraftFromLocalStorage = () => {
-    try {
-      const draft = localStorage.getItem(getDraftKey());
-      return draft ? JSON.parse(draft) : null;
-    } catch (e) {
-      console.error('Error loading draft from localStorage:', e);
-      return null;
-    }
-  };
-
-  const clearDraftFromLocalStorage = () => {
-    try {
-      localStorage.removeItem(getDraftKey());
-    } catch (e) {
-      console.error('Error clearing draft from localStorage:', e);
-    }
-  };
+  }, [currentSubmission]);
 
   // File validation
   const validateFile = (file) => {
@@ -110,9 +79,6 @@ function ImageSubmission({
         base64: base64String
       };
       setImageData(data);
-      
-      // Save to localStorage (for both new and update scenarios)
-      saveDraftToLocalStorage(data);
     };
     reader.readAsDataURL(file);
   };
@@ -130,33 +96,18 @@ function ImageSubmission({
     setImagePreview(null);
     setImageData(null);
     setValidationError('');
-    clearDraftFromLocalStorage();
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
   const handleSubmit = () => {
-    console.log('🖼️ ImageSubmission handleSubmit called');
-    console.log('🖼️ imageData:', imageData);
-    console.log('🖼️ imageData.base64 exists:', !!imageData?.base64);
-    console.log('🖼️ isSubmitting:', isSubmitting);
-    console.log('🖼️ isLocked:', isLocked);
-    
     if (!imageData || !imageData.base64) {
-      console.log('❌ No image data or base64');
       setValidationError('Please select an image to upload');
       return;
     }
 
-    // Clear draft from localStorage before submitting
-    clearDraftFromLocalStorage();
-    
     const submissionString = JSON.stringify(imageData);
-    console.log('🖼️ Submitting image data (length):', submissionString.length);
-    console.log('🖼️ Calling onSubmit...');
-    
-    // Submit as JSON string
     onSubmit(submissionString);
   };
 
