@@ -78,6 +78,12 @@ const filterOptions = {
     { value: 'maybe', label: 'Maybe' },
     { value: 'no', label: 'No' },
   ],
+  structured_task_grade: [
+    { value: '', label: 'All' },
+    { value: 'green', label: 'Green' },
+    { value: 'yellow', label: 'Yellow' },
+    { value: 'red', label: 'Red' },
+  ],
 };
 
 // Column labels for the table
@@ -649,6 +655,7 @@ const ApplicationsTab = ({
       info_session_status: '',
       workshop_status: '',
       program_admission_status: '',
+      structured_task_grade: '',
       deliberation: '',
       offset: 0
     }));
@@ -1031,7 +1038,7 @@ const ApplicationsTab = ({
         </Button>
 
         {/* Active Filters Indicator */}
-        {(applicationFilters.status || applicationFilters.final_status || applicationFilters.info_session_status || applicationFilters.workshop_status || applicationFilters.program_admission_status || applicationFilters.deliberation) && (
+        {(applicationFilters.status || applicationFilters.final_status || applicationFilters.info_session_status || applicationFilters.workshop_status || applicationFilters.program_admission_status || applicationFilters.structured_task_grade || applicationFilters.deliberation) && (
           <div className="flex items-center gap-2 ml-auto">
             <span className="text-sm text-gray-500 font-proxima">Active filters:</span>
             {applicationFilters.status && (
@@ -1052,6 +1059,16 @@ const ApplicationsTab = ({
             {applicationFilters.workshop_status && (
               <Badge className="bg-green-100 text-green-700 font-proxima cursor-pointer hover:bg-green-200" onClick={() => handleClearFilter('workshop_status')}>
                 Workshop: {formatStatus(applicationFilters.workshop_status)} ✕
+              </Badge>
+            )}
+            {applicationFilters.structured_task_grade && (
+              <Badge className={`font-proxima cursor-pointer ${
+                applicationFilters.structured_task_grade === 'green' ? 'bg-green-100 text-green-700 hover:bg-green-200' :
+                applicationFilters.structured_task_grade === 'yellow' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' :
+                applicationFilters.structured_task_grade === 'red' ? 'bg-red-100 text-red-700 hover:bg-red-200' :
+                'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`} onClick={() => handleClearFilter('structured_task_grade')}>
+                Workshop Grade: {applicationFilters.structured_task_grade.charAt(0).toUpperCase() + applicationFilters.structured_task_grade.slice(1)} ✕
               </Badge>
             )}
             {applicationFilters.program_admission_status && (
@@ -1137,7 +1154,9 @@ const ApplicationsTab = ({
                     </TableHead>
                   )}
                   {visibleColumns.structured_task_grade && (
-                    <TableHead className="font-proxima-bold">Workshop Grade</TableHead>
+                    <TableHead>
+                      {renderSortableFilterableHeader('structured_task_grade', 'structured_task_grade', 'Workshop Grade', null)}
+                    </TableHead>
                   )}
                   {visibleColumns.admission && (
                     <TableHead>
@@ -1191,7 +1210,7 @@ const ApplicationsTab = ({
           <div className="text-center">
             <p className="text-gray-500 font-proxima text-lg">No applicants found</p>
             <p className="text-gray-400 font-proxima text-sm mt-1">Try adjusting your filters</p>
-            {(applicationFilters.status || applicationFilters.final_status || applicationFilters.info_session_status || applicationFilters.workshop_status || applicationFilters.program_admission_status || applicationFilters.deliberation) && (
+            {(applicationFilters.status || applicationFilters.final_status || applicationFilters.info_session_status || applicationFilters.workshop_status || applicationFilters.program_admission_status || applicationFilters.structured_task_grade || applicationFilters.deliberation) && (
               <Button
                 variant="outline"
                 className="mt-4 font-proxima"
