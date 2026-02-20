@@ -1219,37 +1219,52 @@ const ApplicationDetail = () => {
 
                             {/* Per-task Breakdown */}
                             {applicant.structured_task_grade.tasks && applicant.structured_task_grade.tasks.length > 0 && (
-                                <Collapsible>
-                                    <CollapsibleTrigger className="flex items-center gap-2 text-[#4242ea] hover:text-[#3333d1] font-proxima-bold text-sm">
-                                        View Task Breakdown
-                                    </CollapsibleTrigger>
-                                    <CollapsibleContent>
-                                        <div className="mt-3 border rounded-lg overflow-hidden">
-                                            <table className="w-full text-sm">
-                                                <thead>
-                                                    <tr className="bg-gray-50 border-b">
-                                                        <th className="text-left px-3 py-2 font-proxima-bold text-gray-700">Task</th>
-                                                        <th className="text-center px-3 py-2 font-proxima-bold text-gray-700">Completion</th>
-                                                        <th className="text-center px-3 py-2 font-proxima-bold text-gray-700">Quality</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {applicant.structured_task_grade.tasks.map((task, idx) => (
-                                                        <tr key={idx} className="border-b last:border-b-0">
-                                                            <td className="px-3 py-2 font-proxima text-gray-800">{task.task_title}</td>
-                                                            <td className="px-3 py-2 text-center font-proxima">
-                                                                {task.completion_score != null ? `${Math.round(task.completion_score * 100)}%` : '—'}
-                                                            </td>
-                                                            <td className="px-3 py-2 text-center font-proxima">
-                                                                {task.quality_score != null ? `${Math.round(task.quality_score * 100)}%` : '—'}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </CollapsibleContent>
-                                </Collapsible>
+                                <div className="space-y-3">
+                                    <p className="text-sm font-proxima-bold text-gray-700">Task Breakdown</p>
+                                    {applicant.structured_task_grade.tasks.map((task, idx) => (
+                                        <Collapsible key={idx} className="border rounded-lg">
+                                            <CollapsibleTrigger className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 rounded-lg">
+                                                <span className="font-proxima-bold text-sm text-gray-800">{task.task_title}</span>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-xs font-proxima text-gray-500">
+                                                        Completion: {task.completion_score != null ? `${Math.round(task.completion_score * 100)}%` : '—'}
+                                                    </span>
+                                                    <span className="text-xs font-proxima text-gray-500">
+                                                        Quality: {task.quality_score != null ? `${Math.round(task.quality_score * 100)}%` : '—'}
+                                                    </span>
+                                                    <span className="text-gray-400 text-xs">▼</span>
+                                                </div>
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent>
+                                                <div className="px-4 pb-4 border-t">
+                                                    {task.conversation && task.conversation.length > 0 ? (
+                                                        <div className="mt-3 space-y-3 max-h-[500px] overflow-y-auto">
+                                                            {task.conversation.map((msg, msgIdx) => (
+                                                                <div key={msgIdx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                                    <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                                                                        msg.role === 'user'
+                                                                            ? 'bg-[#4242ea] text-white'
+                                                                            : 'bg-gray-100 text-gray-800'
+                                                                    }`}>
+                                                                        <p className="font-proxima whitespace-pre-wrap">{msg.content}</p>
+                                                                        <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-blue-200' : 'text-gray-400'}`}>
+                                                                            {new Date(msg.created_at).toLocaleString('en-US', {
+                                                                                month: 'short', day: 'numeric',
+                                                                                hour: 'numeric', minute: '2-digit'
+                                                                            })}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="mt-3 text-sm text-gray-400 italic font-proxima">No conversation available for this task.</p>
+                                                    )}
+                                                </div>
+                                            </CollapsibleContent>
+                                        </Collapsible>
+                                    ))}
+                                </div>
                             )}
                         </CardContent>
                     </Card>
