@@ -235,6 +235,16 @@ function LearningPreview({ dayId, cohort, onBack }) {
     }
   }, [messages.length]);
 
+  // Keep latest content visible when tray height/completion bar state changes
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const timer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 80);
+
+    return () => clearTimeout(timer);
+  }, [messages.length, inputTrayHeight, isTaskComplete, currentTaskIndex]);
+
   // Auto-focus input when initial message loads
   useEffect(() => {
     if (hasInitialMessage && textareaRef.current) {
@@ -386,6 +396,24 @@ function LearningPreview({ dayId, cohort, onBack }) {
     setIsAiThinking(true);
     setIsTaskComplete(false);
     
+    // Fetch existing submission (no abort signal — lightweight GET that should always complete)
+    fetch(`${API_URL}/api/submissions/${task.id}?isPreviewMode=true`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data) {
+          setTaskSubmissions(prev => ({ ...prev, [task.id]: data }));
+        } else {
+          setTaskSubmissions(prev => {
+            const next = { ...prev };
+            delete next[task.id];
+            return next;
+          });
+        }
+      })
+      .catch(() => {});
+
     try {
       const response = await fetch(
         `${API_URL}/api/learning/task-messages/${task.id}?dayNumber=${currentDay?.day_number}&cohort=${encodeURIComponent(cohort)}&isPreviewMode=true`,
@@ -488,16 +516,16 @@ function LearningPreview({ dayId, cohort, onBack }) {
         const data = await response.json();
         console.log(`✅ Preview task ${taskId} completion status:`, data);
         setIsTaskComplete(data.isComplete);
-        if (data.isComplete) {
-          setTaskCompletionMap(prev => ({
-            ...prev,
-            [taskId]: { isComplete: true, reason: data.reason }
-          }));
-        }
+        setTaskCompletionMap(prev => ({
+          ...prev,
+          [taskId]: { isComplete: data.isComplete, reason: data.reason }
+        }));
+        return data;
       }
     } catch (error) {
       console.error('Error checking task completion:', error);
     }
+    return null;
   };
 
   const handleStartActivity = async (task) => {
@@ -525,7 +553,8 @@ function LearningPreview({ dayId, cohort, onBack }) {
     if (!messageContent?.trim() || isSending || isAiThinking || isStreaming) return;
     
     const trimmedMessage = messageContent.trim();
-    const messageTaskId = tasks[currentTaskIndex]?.id;
+    const messageTask = tasks[currentTaskIndex];
+    const messageTaskId = messageTask?.id;
     if (!messageTaskId) return;
     
     setIsSending(true);
@@ -547,14 +576,16 @@ function LearningPreview({ dayId, cohort, onBack }) {
       let receivedChunk = false;
       const streamingMessageId = Date.now() + 1;
       const streamBuffer = createStreamBuffer();
+      const userMessage = {
+        id: Date.now(),
+        content: trimmedMessage,
+        sender: 'user',
+        timestamp: new Date().toISOString(),
+      };
+
       setMessages(prev => [
         ...prev,
-        {
-          id: Date.now(),
-          content: trimmedMessage,
-          sender: 'user',
-          timestamp: new Date().toISOString(),
-        },
+        userMessage,
         {
           id: streamingMessageId,
           content: '',
@@ -652,7 +683,52 @@ function LearningPreview({ dayId, cohort, onBack }) {
             sender: msg.role === 'user' ? 'user' : 'ai',
             timestamp: msg.timestamp,
           }));
-          setMessages(fallbackMessages);
+
+          setMessages(prev => {
+            // Remove transient placeholder before reconciliation.
+            const localMessages = prev.filter(
+              msg => msg.id !== streamingMessageId && !(msg.isStreaming && !msg.content)
+            );
+            const merged = [...fallbackMessages];
+
+            for (const localMessage of localMessages) {
+              const localContent = (localMessage.content || '').trim();
+              const localId = localMessage.id != null ? String(localMessage.id) : null;
+
+              const exists = merged.some(serverMessage => {
+                const serverId = serverMessage.id != null ? String(serverMessage.id) : null;
+                if (serverId && localId && serverId === localId) {
+                  return true;
+                }
+
+                const serverContent = (serverMessage.content || '').trim();
+                if (!serverContent || !localContent) {
+                  return false;
+                }
+
+                return serverMessage.sender === localMessage.sender && serverContent === localContent;
+              });
+
+              if (!exists) {
+                merged.push(localMessage);
+              }
+            }
+
+            // Keep chronological order stable for preserved optimistic messages.
+            return merged
+              .map((msg, idx) => ({ msg, idx }))
+              .sort((a, b) => {
+                const aTs = Date.parse(a.msg.timestamp || '');
+                const bTs = Date.parse(b.msg.timestamp || '');
+                const aValid = Number.isFinite(aTs);
+                const bValid = Number.isFinite(bTs);
+                if (aValid && bValid && aTs !== bTs) return aTs - bTs;
+                if (aValid && !bValid) return -1;
+                if (!aValid && bValid) return 1;
+                return a.idx - b.idx;
+              })
+              .map(entry => entry.msg);
+          });
         }
       }
     } catch (err) {
@@ -681,13 +757,14 @@ function LearningPreview({ dayId, cohort, onBack }) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ taskId: currentTask.id, content: deliverableData }),
+        body: JSON.stringify({ taskId: currentTask.id, content: deliverableData, isPreviewMode: true }),
       });
       
       if (!response.ok) throw new Error('Failed to submit');
       
       const submission = await response.json();
       setTaskSubmissions(prev => ({ ...prev, [currentTask.id]: submission }));
+      await checkTaskCompletion(currentTask.id);
       toast.success("Deliverable submitted!");
     } catch (err) {
       console.error('Error submitting:', err);
@@ -992,13 +1069,18 @@ function LearningPreview({ dayId, cohort, onBack }) {
                 <div className="max-w-2xl mx-auto pointer-events-auto">
                   <div ref={chatTrayRef}>
                   {(isTaskComplete || taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete) ? (
-                    <TaskCompletionBar onNextExercise={handleNextExercise} />
+                    <TaskCompletionBar
+                      onNextExercise={handleNextExercise}
+                      isLastTask={currentTaskIndex === tasks.length - 1}
+                      showViewSubmission={['video', 'document', 'link', 'structured', 'image'].includes(tasks[currentTaskIndex]?.deliverable_type)}
+                      onViewSubmission={() => setIsDeliverableSidebarOpen(true)}
+                    />
                   ) : (
                     <AutoExpandTextarea
                       ref={textareaRef}
                       onSubmit={handleSendMessage}
                       disabled={isSending || isAiThinking}
-                      showAssignmentButton={['video', 'document', 'link', 'structured'].includes(tasks[currentTaskIndex]?.deliverable_type)}
+                      showAssignmentButton={['video', 'document', 'link', 'structured', 'image'].includes(tasks[currentTaskIndex]?.deliverable_type)}
                       onAssignmentClick={() => setIsDeliverableSidebarOpen(true)}
                       showPeerFeedbackButton={isRetrospectiveTask()}
                       onPeerFeedbackClick={() => setIsPeerFeedbackSheetOpen(true)}
@@ -1019,6 +1101,8 @@ function LearningPreview({ dayId, cohort, onBack }) {
               isOpen={isDeliverableSidebarOpen}
               onClose={() => setIsDeliverableSidebarOpen(false)}
               onSubmit={handleDeliverableSubmit}
+              userId={user?.id}
+              taskId={tasks[currentTaskIndex].id}
             />
           )}
 
