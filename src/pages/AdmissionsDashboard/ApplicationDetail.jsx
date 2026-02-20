@@ -786,8 +786,19 @@ const ApplicationDetail = () => {
                                             {applicant.structured_task_grade && (
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-xs text-gray-500 font-proxima">Workshop Grade</span>
-                                                    <Badge variant="outline" className="font-proxima-bold text-[#4242ea] border-[#4242ea]">
-                                                        {applicant.structured_task_grade}
+                                                    <Badge variant="outline" className={`font-proxima-bold ${
+                                                        applicant.structured_task_grade.grade_color === 'green' ? 'text-green-700 border-green-500' :
+                                                        applicant.structured_task_grade.grade_color === 'yellow' ? 'text-yellow-700 border-yellow-500' :
+                                                        applicant.structured_task_grade.grade_color === 'red' ? 'text-red-700 border-red-500' :
+                                                        'text-[#4242ea] border-[#4242ea]'
+                                                    }`}>
+                                                        <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${
+                                                            applicant.structured_task_grade.grade_color === 'green' ? 'bg-green-500' :
+                                                            applicant.structured_task_grade.grade_color === 'yellow' ? 'bg-yellow-500' :
+                                                            applicant.structured_task_grade.grade_color === 'red' ? 'bg-red-500' :
+                                                            'bg-gray-400'
+                                                        }`} />
+                                                        {Math.round(applicant.structured_task_grade.average_score * 100)}%
                                                     </Badge>
                                                 </div>
                                             )}
@@ -1143,6 +1154,106 @@ const ApplicationDetail = () => {
                         )}
                     </CardContent>
                 </Card>
+
+                {/* Workshop Performance - Only show when grade data exists */}
+                {applicant.structured_task_grade && applicant.structured_task_grade.average_score != null && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="font-proxima-bold">Workshop Performance</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-center gap-6 mb-4">
+                                {/* Score Circle */}
+                                <div className="flex flex-col items-center">
+                                    <div className="relative w-24 h-24">
+                                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                            <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="8" />
+                                            <circle
+                                                cx="50"
+                                                cy="50"
+                                                r="40"
+                                                fill="none"
+                                                stroke={
+                                                    applicant.structured_task_grade.grade_color === 'green' ? '#22c55e' :
+                                                    applicant.structured_task_grade.grade_color === 'yellow' ? '#eab308' :
+                                                    applicant.structured_task_grade.grade_color === 'red' ? '#ef4444' :
+                                                    '#6b7280'
+                                                }
+                                                strokeWidth="8"
+                                                strokeDasharray={`${applicant.structured_task_grade.average_score * 251.2} 251.2`}
+                                                strokeLinecap="round"
+                                            />
+                                        </svg>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <span className="text-2xl font-bold text-[#1a1a1a] font-proxima-bold">
+                                                {Math.round(applicant.structured_task_grade.average_score * 100)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs font-semibold text-gray-700 mt-1.5 font-proxima-bold">Avg Score</p>
+                                </div>
+
+                                {/* Grade Info */}
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`inline-block w-3 h-3 rounded-full ${
+                                            applicant.structured_task_grade.grade_color === 'green' ? 'bg-green-500' :
+                                            applicant.structured_task_grade.grade_color === 'yellow' ? 'bg-yellow-500' :
+                                            applicant.structured_task_grade.grade_color === 'red' ? 'bg-red-500' :
+                                            'bg-gray-400'
+                                        }`} />
+                                        <span className={`text-sm font-proxima-bold capitalize ${
+                                            applicant.structured_task_grade.grade_color === 'green' ? 'text-green-700' :
+                                            applicant.structured_task_grade.grade_color === 'yellow' ? 'text-yellow-700' :
+                                            applicant.structured_task_grade.grade_color === 'red' ? 'text-red-700' :
+                                            'text-gray-600'
+                                        }`}>
+                                            {applicant.structured_task_grade.grade_color}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-gray-600 font-proxima">
+                                        {applicant.structured_task_grade.task_count} graded task{applicant.structured_task_grade.task_count !== 1 ? 's' : ''}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Per-task Breakdown */}
+                            {applicant.structured_task_grade.tasks && applicant.structured_task_grade.tasks.length > 0 && (
+                                <Collapsible>
+                                    <CollapsibleTrigger className="flex items-center gap-2 text-[#4242ea] hover:text-[#3333d1] font-proxima-bold text-sm">
+                                        View Task Breakdown
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent>
+                                        <div className="mt-3 border rounded-lg overflow-hidden">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="bg-gray-50 border-b">
+                                                        <th className="text-left px-3 py-2 font-proxima-bold text-gray-700">Task</th>
+                                                        <th className="text-center px-3 py-2 font-proxima-bold text-gray-700">Completion</th>
+                                                        <th className="text-center px-3 py-2 font-proxima-bold text-gray-700">Quality</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {applicant.structured_task_grade.tasks.map((task, idx) => (
+                                                        <tr key={idx} className="border-b last:border-b-0">
+                                                            <td className="px-3 py-2 font-proxima text-gray-800">{task.task_title}</td>
+                                                            <td className="px-3 py-2 text-center font-proxima">
+                                                                {task.completion_score != null ? `${Math.round(task.completion_score * 100)}%` : '—'}
+                                                            </td>
+                                                            <td className="px-3 py-2 text-center font-proxima">
+                                                                {task.quality_score != null ? `${Math.round(task.quality_score * 100)}%` : '—'}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </CollapsibleContent>
+                                </Collapsible>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Application Responses */}
                 <Card>

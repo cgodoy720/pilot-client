@@ -203,8 +203,17 @@ const ApplicationRow = React.memo(({
         </TableCell>
       )}
       {visibleColumns.structured_task_grade && (
-        <TableCell className="font-proxima">
-          {app.structured_task_grade || '-'}
+        <TableCell>
+          {app.structured_task_grade ? (
+            <Badge className={`font-proxima ${
+              app.structured_task_grade === 'green' ? 'bg-green-100 text-green-800' :
+              app.structured_task_grade === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
+              app.structured_task_grade === 'red' ? 'bg-red-100 text-red-800' :
+              'bg-gray-100 text-gray-600'
+            }`}>
+              {app.structured_task_grade}
+            </Badge>
+          ) : '-'}
         </TableCell>
       )}
       {visibleColumns.admission && (
