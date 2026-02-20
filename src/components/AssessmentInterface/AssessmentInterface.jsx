@@ -239,6 +239,7 @@ function AssessmentInterface({
 
   useEffect(() => {
     if (assessmentId && token && taskId) {
+      console.log(`📋 AssessmentInterface mounted/updated - loading data for task ${taskId}, assessment ${assessmentId}, isPreviewMode: ${isPreviewMode}`);
       loadAssessmentDataAndConversation();
     } else {
       if (!assessmentId) {
@@ -316,7 +317,7 @@ function AssessmentInterface({
       if (conversationResponse && conversationResponse.ok) {
         const conversationData = await conversationResponse.json();
         console.log(`📨 Loaded ${conversationData.messages?.length || 0} messages for assessment task ${taskId}`);
-        
+
         if (conversationData.messages && conversationData.messages.length > 0) {
           // Has existing conversation - load it
           const formattedMessages = conversationData.messages.map(msg => ({
@@ -325,13 +326,16 @@ function AssessmentInterface({
             sender: msg.role === 'user' ? 'user' : 'ai',
             timestamp: msg.timestamp,
           }));
-          
+
           setMessages(formattedMessages);
           setHasInitialMessage(true);
         }
         // If no messages, don't auto-start - show instructions and let user initiate
+      } else if (conversationResponse) {
+        console.warn(`⚠️ Conversation fetch for assessment task ${taskId} returned status ${conversationResponse.status}`);
+      } else {
+        console.warn(`⚠️ Conversation fetch for assessment task ${taskId} failed (network error)`);
       }
-      // If no conversation response, don't auto-start either
 
     } catch (err) {
       console.error('❌ Error loading assessment:', err);
@@ -719,7 +723,7 @@ function AssessmentInterface({
       {/* Messages Area - Same as Learning.jsx */}
       <div className="flex-1 min-h-0 overflow-y-auto py-8 px-6" style={{ paddingBottom: `${inputTrayHeight}px` }}>
         <div className="max-w-2xl mx-auto">
-          {/* Assessment Header - Only shown at top of conversation */}
+          {/* Assessment Header - Show when no conversation exists */}
           {messages.length === 0 && (
             <div className="mb-8">
               <div className="bg-white rounded-lg p-6 shadow-sm">
@@ -727,12 +731,19 @@ function AssessmentInterface({
                   <h1 className="text-2xl font-bold text-carbon-black font-proxima">
                     {assessmentData.assessment_name}
                   </h1>
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-proxima bg-blue-50 text-blue-700 border border-blue-200">
-                    <AlertCircle className="w-4 h-4" />
-                    Assessment
-                  </div>
+                  {(isCompleted || currentSubmission?.status === 'submitted') ? (
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-proxima bg-green-50 text-green-700 border border-green-200">
+                      <CheckCircle className="w-4 h-4" />
+                      Submitted
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-proxima bg-blue-50 text-blue-700 border border-blue-200">
+                      <AlertCircle className="w-4 h-4" />
+                      Assessment
+                    </div>
+                  )}
                 </div>
-                
+
                 <div className="text-sm text-carbon-black/60 font-proxima">
                   {assessmentData.assessment_type?.charAt(0).toUpperCase() + assessmentData.assessment_type?.slice(1)} Assessment
                   {assessmentData.assessment_period && ` • ${assessmentData.assessment_period}`}

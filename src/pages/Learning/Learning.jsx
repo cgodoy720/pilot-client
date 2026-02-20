@@ -683,11 +683,15 @@ function Learning() {
           },
         }
       );
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log(`✅ Task ${taskId} completion status:`, data);
         setIsTaskComplete(data.isComplete);
+        setTaskCompletionMap(prev => ({
+          ...prev,
+          [taskId]: { isComplete: data.isComplete, reason: data.reason }
+        }));
       }
     } catch (error) {
       console.error('Error checking task completion:', error);
@@ -1313,10 +1317,7 @@ function Learning() {
           reason: 'Assessment completed'
         }
       }));
-      
-      // Refresh completion status from backend to ensure consistency
-      await checkTaskCompletion(currentTask.id);
-      
+
       // NO AUTO-NAVIGATION - let user click "Next Exercise" manually
       
     } catch (error) {

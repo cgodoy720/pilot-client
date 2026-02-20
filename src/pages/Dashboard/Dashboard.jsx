@@ -1109,11 +1109,11 @@ function Dashboard() {
                                 <div className="dashboard__day-activity-content">
                                   <span className="dashboard__task-title">{task.task_title}</span>
                                   
-                  {/* Deliverable Submit Button */}
+                  {/* Deliverable / Assessment Submit Button */}
                   {completionStatus?.requiresDeliverable && (
-                    <button 
+                    <button
                       className={`dashboard__deliverable-link ${
-                        task.hasSubmission ? 'dashboard__deliverable-link--submitted' : 'dashboard__deliverable-link--pending'
+                        (task.hasSubmission || completionStatus?.isComplete) ? 'dashboard__deliverable-link--submitted' : 'dashboard__deliverable-link--pending'
                       } ${dayIsFuture ? 'dashboard__deliverable-link--disabled' : ''}`}
                       onClick={() => {
                         if (!dayIsFuture) {
@@ -1122,7 +1122,7 @@ function Dashboard() {
                       }}
                       disabled={dayIsFuture}
                     >
-                      {task.hasSubmission ? (
+                      {(task.hasSubmission || completionStatus?.isComplete) ? (
                         <>
                           <svg viewBox="0 0 14 14" className="inline-block w-3 h-3 mr-1 align-middle" style={{ marginTop: '-2px' }}>
                             <polyline points="2.5,6 5.5,9 11.5,3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

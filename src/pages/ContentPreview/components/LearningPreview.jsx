@@ -532,8 +532,15 @@ function LearningPreview({ dayId, cohort, onBack }) {
     setShowDailyOverview(false);
     const taskIndex = tasks.findIndex(t => t.id === task.id);
     if (taskIndex !== -1) setCurrentTaskIndex(taskIndex);
-    
-    if (task?.task_type !== 'assessment') {
+
+    // Check if this is an assessment task
+    const isTaskAssessment = task?.task_type === 'assessment';
+
+    if (isTaskAssessment) {
+      // For assessment tasks, check completion status (AssessmentInterface will load itself)
+      await checkTaskCompletion(task.id);
+    } else {
+      // For regular tasks, load conversation (which will check completion)
       await loadTaskConversation(task);
     }
   };
@@ -542,9 +549,17 @@ function LearningPreview({ dayId, cohort, onBack }) {
     if (newTaskIndex === currentTaskIndex) return;
     setIsTaskComplete(false);
     setCurrentTaskIndex(newTaskIndex);
-    
+
     const newTask = tasks[newTaskIndex];
-    if (newTask?.task_type !== 'assessment') {
+
+    // Check if this is an assessment task
+    const isTaskAssessment = newTask?.task_type === 'assessment';
+
+    if (isTaskAssessment) {
+      // For assessment tasks, check completion status immediately
+      await checkTaskCompletion(newTask.id);
+    } else {
+      // For regular tasks, load conversation (which will check completion)
       await loadTaskConversation(newTask);
     }
   };
@@ -902,8 +917,6 @@ function LearningPreview({ dayId, cohort, onBack }) {
           reason: 'Assessment completed'
         }
       }));
-
-      await checkTaskCompletion(currentTask.id);
     } catch (error) {
       console.error('Error marking assessment complete in preview:', error);
       toast.error("Failed to mark task complete. Please try again.");
