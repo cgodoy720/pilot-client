@@ -108,6 +108,7 @@ const AdmissionsDashboard = () => {
           info_session_status: parsed.applicationFilters?.info_session_status || '',
           workshop_status: parsed.applicationFilters?.workshop_status || '',
           program_admission_status: parsed.applicationFilters?.program_admission_status || '',
+          structured_task_grade: parsed.applicationFilters?.structured_task_grade || '',
           ready_for_workshop_invitation: false,
           name_search: '',
           cohort_id: parsed.applicationFilters?.cohort_id || '',
@@ -125,6 +126,7 @@ const AdmissionsDashboard = () => {
       info_session_status: '',
       workshop_status: '',
       program_admission_status: '',
+      structured_task_grade: '',
       ready_for_workshop_invitation: false,
       name_search: '',
       cohort_id: '',
@@ -627,6 +629,7 @@ const AdmissionsDashboard = () => {
           info_session_status: applicationFilters.info_session_status,
           workshop_status: applicationFilters.workshop_status,
           program_admission_status: applicationFilters.program_admission_status,
+          structured_task_grade: applicationFilters.structured_task_grade,
           cohort_id: applicationFilters.cohort_id,
           deliberation: applicationFilters.deliberation
         },
