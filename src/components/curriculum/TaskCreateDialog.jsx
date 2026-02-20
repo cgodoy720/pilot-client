@@ -119,13 +119,6 @@ const TaskCreateDialog = ({
         should_analyze: true,
         analyze_deliverable: true
       }));
-    } else if (newInterfaceType === 'chat' && formData.task_mode === 'basic') {
-      // Chat interface defaults (only if switching from basic mode)
-      setFormData(prev => ({
-        ...prev,
-        task_mode: 'conversation',
-        deliverable_type: 'text'
-      }));
     }
   }, [formData.task_type, formData.feedback_slot, formData.task_mode]);
 
