@@ -821,7 +821,64 @@ export const getCsvExportStatistics = async (params = {}) => {
   );
 };
 
+/**
+ * Get quick stats for admin dashboard (active builders, active cohorts)
+ * @param {string} token - Admin authentication token
+ * @returns {Promise<Object>} Quick stats data
+ */
+export const getAdminQuickStats = async (token) => {
+  try {
+    const response = await fetch(`${API_URL}/api/admin/dashboard/quick-stats`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching admin quick stats:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get assessment grades summary for admin dashboard
+ * @param {string} token - Admin authentication token
+ * @param {Object} params - Optional query params (cohort, period)
+ * @returns {Promise<Object>} Grades data
+ */
+export const getAssessmentGradesSummary = async (token, params = {}) => {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params.cohort) queryParams.append('cohort', params.cohort);
+    if (params.period) queryParams.append('period', params.period);
+    const url = `${API_URL}/api/admin/assessment-grades${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching assessment grades summary:', error);
+    throw error;
+  }
+};
+
 export const adminApi = {
+  getAdminQuickStats,
+  getAssessmentGradesSummary,
   getTodaysAttendanceOverview,
   getCohortPerformance,
   getCohortDailyBreakdown,
@@ -844,7 +901,9 @@ export const adminApi = {
   exportAttendanceCSV,
   getCsvExportHistory,
   getAllCsvExportHistory,
-  getCsvExportStatistics
+  getCsvExportStatistics,
+  getAdminQuickStats,
+  getAssessmentGradesSummary,
 };
 
 export default adminApi;
