@@ -204,7 +204,7 @@ function GPT() {
     { value: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', description: 'Advanced reasoning' },
     { value: 'anthropic/claude-opus-4.6', label: 'Claude Opus 4.6', description: 'Most capable Claude' },
     { value: 'openai/gpt-5.2', label: 'GPT 5.2', description: 'Latest GPT model' },
-    { value: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash Preview', description: 'Fast & efficient' },
+    { value: 'google/gemini-3-pro-preview', label: 'Gemini 3 Pro Preview', description: 'Advanced reasoning' },
     { value: 'x-ai/grok-4', label: 'Grok 4', description: 'Fast reasoning' },
     { value: 'moonshotai/kimi-k2.5', label: 'Kimi K2.5', description: 'Advanced model' },
     { value: 'minimax/minimax-m2.5', label: 'Minimax M2.5', description: 'Versatile model' },
