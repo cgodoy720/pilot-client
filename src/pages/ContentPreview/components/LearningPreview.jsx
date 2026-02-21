@@ -174,7 +174,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
   const [error, setError] = useState('');
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [hasInitialMessage, setHasInitialMessage] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('anthropic/claude-sonnet-4.5');
+  const [selectedModel, setSelectedModel] = useState('anthropic/claude-sonnet-4.6');
   
   // Day/Task state
   const [currentDay, setCurrentDay] = useState(null);
