@@ -22,7 +22,7 @@ import {
 import { Button } from '../../components/ui/button';
 import * as volunteerApi from '../../services/volunteerApi';
 
-function VolunteerAttendance() {
+function VolunteerAttendance({ embedded = false }) {
     const { user, token } = useAuth();
     const { canAccessPage } = usePermissions();
     const [isLoading, setIsLoading] = useState(true);
@@ -103,8 +103,8 @@ function VolunteerAttendance() {
         });
     };
 
-    // Access check
-    if (!user || !canAccessPage('volunteer_management')) {
+    // Access check (skip when embedded in dashboard)
+    if (!embedded && (!user || !canAccessPage('volunteer_management'))) {
         return (
             <div className="min-h-screen bg-[#EFEFEF] p-8">
                 <div className="max-w-4xl mx-auto">
@@ -119,7 +119,7 @@ function VolunteerAttendance() {
     }
 
     return (
-        <div className="min-h-screen bg-[#EFEFEF]">
+        <div className={embedded ? "" : "min-h-screen bg-[#EFEFEF]"}>
             {/* Header */}
             <div className="border-b border-[#C8C8C8] px-10 py-4">
                 <h1

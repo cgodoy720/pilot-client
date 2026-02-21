@@ -398,7 +398,7 @@ function Dashboard() {
 
   // Navigate to volunteer feedback
   const navigateToVolunteerFeedback = useCallback(() => {
-    navigate('/volunteer-feedback');
+    navigate('/volunteering?tab=feedback');
   }, [navigate]);
 
   // Handle opening missed assignments sidebar
