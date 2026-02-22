@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import {
-  Users, BookOpen, ClipboardCheck, TrendingUp, ChevronUp, ChevronDown,
+  Users, BookOpen, TrendingUp, ChevronUp, ChevronDown,
   ChevronLeft, ChevronRight, Eye, MessageSquare, ThumbsDown, Filter,
 } from 'lucide-react';
 import TaskDetailPanel from '../components/TaskDetailPanel';
@@ -259,16 +259,15 @@ const SummaryTab = () => {
 
       {/* KPI cards */}
       {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1,2,3,4].map(i => <div key={i} className="h-20 bg-[#EFEFEF] rounded-lg animate-pulse" />)}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1,2,3].map(i => <div key={i} className="h-20 bg-[#EFEFEF] rounded-lg animate-pulse" />)}
         </div>
       ) : summary ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           {[
             { icon: Users, label: 'Builders', value: summary.totalBuilders, sub: `${summary.activeBuilders} active` },
             { icon: TrendingUp, label: 'Attendance Rate', value: `${summary.attendanceRate}%`, accent: summary.attendanceRate >= 80 ? 'text-green-600' : summary.attendanceRate >= 60 ? 'text-yellow-600' : 'text-red-500' },
             { icon: BookOpen, label: 'Submission Rate', value: `${Math.round((tasks.filter(t => t.submission_rate > 0).length / Math.max(tasks.length, 1)) * 100)}%` },
-            { icon: ClipboardCheck, label: 'Tasks Graded', value: summary.totalTasksAssigned },
           ].map(({ icon: Icon, label, value, sub, accent }) => (
             <Card key={label} className="bg-white border border-[#E3E3E3]">
               <CardContent className="p-4 flex items-start justify-between">
