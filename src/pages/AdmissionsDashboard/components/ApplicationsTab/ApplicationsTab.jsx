@@ -99,6 +99,7 @@ const columnLabels = {
   structured_task_grade: 'Workshop Grade',
   admission: 'Admission',
   deliberation: 'Deliberation',
+  pledge: 'Pledge Signed',
   notes: 'Notes',
   age: 'Age',
   gender: 'Gender',
@@ -247,6 +248,19 @@ const ApplicationRow = React.memo(({
               <SelectItem value="no">No</SelectItem>
             </SelectContent>
           </Select>
+        </TableCell>
+      )}
+      {visibleColumns.pledge && (
+        <TableCell className="text-center">
+          {app.pledge_completed ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 font-proxima">
+              ✓ Signed
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500 font-proxima">
+              — Not Signed
+            </span>
+          )}
         </TableCell>
       )}
       {visibleColumns.age && (
@@ -458,6 +472,7 @@ const ApplicationsTab = ({
       workshop_grade: visibleColumns.structured_task_grade ?? false,
       admission: visibleColumns.admission ?? true,
       deliberation: visibleColumns.deliberation ?? false,
+    pledge: visibleColumns.pledge ?? false,
       age: visibleColumns.age ?? false,
       gender: visibleColumns.gender ?? false,
       race_ethnicity: visibleColumns.race ?? false,
@@ -1162,6 +1177,16 @@ const ApplicationsTab = ({
                     <TableHead>
                       {renderSortableFilterableHeader('admission', 'program_admission_status', 'Admission', 'program_admission_status')}
                     </TableHead>
+                  )}
+                  {visibleColumns.pledge && (
+                    <th
+                      className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap font-proxima"
+                      onClick={() => onSort('pledge_completed')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Pledge Signed
+                      </div>
+                    </th>
                   )}
                   {visibleColumns.deliberation && (
                     <TableHead>

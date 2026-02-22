@@ -175,6 +175,7 @@ const AdmissionsDashboard = () => {
       admission: true,
       notes: true,
       deliberation: true,
+      pledge: false,
       age: false,
       gender: false,
       race: false,
