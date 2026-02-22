@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { useNavContext } from '../../context/NavContext';
 import Dashboard from './components/Dashboard';
 import AllLeads from './components/AllLeads';
 import JobPostings from './components/JobPostings';
@@ -7,15 +8,18 @@ import Leaderboard from './components/Leaderboard';
 
 const SalesTracker = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const { isSecondaryNavPage } = useNavContext();
 
   return (
     <div className="min-h-screen bg-bg-light">
       {/* Header */}
-      <div className="h-[45px] bg-bg-light border-b border-divider flex items-center px-[25px]">
-        <h1 className="text-[28px] leading-[30px] font-proxima font-normal bg-gradient-to-r from-carbon-black to-pursuit-purple bg-clip-text text-transparent">
-          Pursuit Outreach Tracker
-        </h1>
-      </div>
+      {!isSecondaryNavPage && (
+        <div className="h-[45px] bg-bg-light border-b border-divider flex items-center px-[25px]">
+          <h1 className="text-[28px] leading-[30px] font-proxima font-normal bg-gradient-to-r from-carbon-black to-pursuit-purple bg-clip-text text-transparent">
+            Pursuit Outreach Tracker
+          </h1>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

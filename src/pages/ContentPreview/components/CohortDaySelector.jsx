@@ -2,13 +2,20 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Input } from '../../../components/ui/input';
 import { Badge } from '../../../components/ui/badge';
-import { Search, Calendar, ChevronRight } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from '../../../components/ui/accordion';
+import { Search, ChevronRight, Upload } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7001';
 
-function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect, onDaySelect }) {
+function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect, onDaySelect, onUploadCurriculum, canEdit }) {
   const [cohorts, setCohorts] = useState([]);
-  const [days, setDays] = useState([]);
+  const [weeks, setWeeks] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +27,7 @@ function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect,
     if (selectedCohort) {
       fetchDays(selectedCohort.cohort_name);
     } else {
-      setDays([]);
+      setWeeks([]);
     }
   }, [selectedCohort]);
 
@@ -46,15 +53,20 @@ function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect,
         `${API_URL}/api/curriculum/calendar?cohort=${encodeURIComponent(cohortName)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
-      // The calendar endpoint returns weeks with days
-      const weeks = response.data || [];
-      const allDays = weeks.flatMap(week => week.days || []);
-      setDays(allDays);
+
+      // Keep the week structure from the API
+      setWeeks(response.data || []);
     } catch (error) {
       console.error('Error fetching days:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Expose a refresh function for parent to call after upload
+  const refreshDays = () => {
+    if (selectedCohort) {
+      fetchDays(selectedCohort.cohort_name);
     }
   };
 
@@ -105,43 +117,56 @@ function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect,
                 No cohorts found
               </div>
             ) : (
-              <div className="space-y-4">
+              <Accordion type="multiple" className="space-y-1">
                 {Object.entries(groupedCohorts).map(([org, orgCohorts]) => (
-                  <div key={org}>
-                    <h3 className="text-sm font-semibold text-slate-700 mb-2 font-proxima">
-                      {org}
-                    </h3>
-                    <div className="space-y-2">
-                      {orgCohorts.map(cohort => (
-                        <button
-                          key={cohort.cohort_id}
-                          onClick={() => onCohortSelect(cohort)}
-                          className="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-blue-500 hover:bg-blue-50 transition-colors"
-                        >
-                          <div className="font-medium text-slate-900 font-proxima">
-                            {cohort.cohort_name}
-                          </div>
-                          {cohort.program_name && (
-                            <div className="text-sm text-slate-600 font-proxima">
-                              {cohort.program_name}
+                  <AccordionItem
+                    key={org}
+                    value={org}
+                    className="border border-slate-200 rounded-lg overflow-hidden"
+                  >
+                    <AccordionTrigger className="px-3 py-2.5 hover:no-underline hover:bg-slate-50 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-900 font-proxima">
+                          {org}
+                        </span>
+                        <Badge variant="secondary" className="text-xs font-proxima">
+                          {orgCohorts.length} {orgCohorts.length === 1 ? 'cohort' : 'cohorts'}
+                        </Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-2 pb-2">
+                      <div className="space-y-1.5">
+                        {orgCohorts.map(cohort => (
+                          <button
+                            key={cohort.cohort_id}
+                            onClick={() => onCohortSelect(cohort)}
+                            className="w-full text-left p-2.5 rounded-lg border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                          >
+                            <div className="font-medium text-slate-900 font-proxima text-sm">
+                              {cohort.cohort_name}
                             </div>
-                          )}
-                          <div className="flex items-center gap-2 mt-2">
-                            {cohort.course_level && (
-                              <Badge variant="outline" className="text-xs font-proxima">
-                                {cohort.course_level}
-                              </Badge>
+                            {cohort.program_name && (
+                              <div className="text-xs text-slate-600 font-proxima">
+                                {cohort.program_name}
+                              </div>
                             )}
-                            <Badge variant="secondary" className="text-xs font-proxima">
-                              {cohort.day_count || 0} days
-                            </Badge>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              {cohort.course_level && (
+                                <Badge variant="outline" className="text-xs font-proxima">
+                                  {cohort.course_level}
+                                </Badge>
+                              )}
+                              <Badge variant="secondary" className="text-xs font-proxima">
+                                {cohort.day_count || 0} days
+                              </Badge>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
                 ))}
-              </div>
+              </Accordion>
             )}
           </div>
         </div>
@@ -153,13 +178,26 @@ function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect,
               onClick={() => onCohortSelect(null)}
               className="text-sm text-blue-600 hover:text-blue-700 mb-3 font-proxima flex items-center gap-1"
             >
-              ← Back to Cohorts
+              &larr; Back to Cohorts
             </button>
-            <h2 className="text-lg font-bold text-slate-900 font-proxima">
-              {selectedCohort.cohort_name}
-            </h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-lg font-bold text-slate-900 font-proxima truncate">
+                {selectedCohort.cohort_name}
+              </h2>
+              {canEdit && onUploadCurriculum && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onUploadCurriculum(selectedCohort)}
+                  className="font-proxima shrink-0 text-xs"
+                >
+                  <Upload className="h-3.5 w-3.5 mr-1" />
+                  Upload
+                </Button>
+              )}
+            </div>
             {selectedCohort.program_name && (
-              <p className="text-sm text-slate-600 font-proxima">
+              <p className="text-sm text-slate-600 font-proxima mt-1">
                 {selectedCohort.program_name}
               </p>
             )}
@@ -170,55 +208,82 @@ function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect,
               <div className="text-center py-8 text-slate-500 font-proxima">
                 Loading days...
               </div>
-            ) : days.length === 0 ? (
+            ) : weeks.length === 0 ? (
               <div className="text-center py-8 text-slate-500 font-proxima">
                 No curriculum days found for this cohort
               </div>
             ) : (
-              <div className="space-y-2">
-                {days.map(day => (
-                  <button
-                    key={day.id}
-                    onClick={() => onDaySelect(day)}
-                    className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                      selectedDay?.id === day.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-slate-200 hover:border-blue-400 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="font-medium text-slate-900 font-proxima">
-                          Day {day.day_number}
-                        </div>
-                        <div className="text-sm text-slate-600 font-proxima">
-                          {new Date(day.day_date).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
-                        </div>
-                        {day.daily_goal && (
-                          <div className="text-xs text-slate-500 mt-1 line-clamp-2 font-proxima">
-                            {day.daily_goal}
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge variant="outline" className="text-xs font-proxima">
-                            Week {day.week}
+              <Accordion type="multiple" className="space-y-1">
+                {weeks.map((week) => {
+                  const weekDays = week.days || [];
+                  const weekNumber = week.weekNumber ?? week.week_number ?? week.week;
+
+                  return (
+                    <AccordionItem
+                      key={`week-${weekNumber}`}
+                      value={`week-${weekNumber}`}
+                      className="border border-slate-200 rounded-lg overflow-hidden"
+                    >
+                      <AccordionTrigger className="px-3 py-2.5 hover:no-underline hover:bg-slate-50 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-900 font-proxima">
+                            Week {weekNumber}
+                          </span>
+                          <Badge variant="secondary" className="text-xs font-proxima">
+                            {weekDays.length} {weekDays.length === 1 ? 'day' : 'days'}
                           </Badge>
-                          {day.day_type && (
-                            <Badge variant="secondary" className="text-xs font-proxima">
-                              {day.day_type}
-                            </Badge>
-                          )}
                         </div>
-                      </div>
-                      <ChevronRight className="h-5 w-5 text-slate-400 flex-shrink-0 mt-1" />
-                    </div>
-                  </button>
-                ))}
-              </div>
+                        {(week.weeklyGoal || week.weekly_goal) && (
+                          <span className="text-xs text-slate-500 font-proxima truncate max-w-[120px] ml-auto mr-2">
+                            {week.weeklyGoal || week.weekly_goal}
+                          </span>
+                        )}
+                      </AccordionTrigger>
+                      <AccordionContent className="px-2 pb-2">
+                        <div className="space-y-1.5">
+                          {weekDays.map(day => (
+                            <button
+                              key={day.id}
+                              onClick={() => onDaySelect(day)}
+                              className={`w-full text-left p-2.5 rounded-lg border transition-colors ${
+                                selectedDay?.id === day.id
+                                  ? 'border-blue-500 bg-blue-50'
+                                  : 'border-slate-200 hover:border-blue-400 hover:bg-slate-50'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-slate-900 font-proxima text-sm">
+                                    Day {day.day_number}
+                                  </div>
+                                  <div className="text-xs text-slate-600 font-proxima">
+                                    {new Date(day.day_date).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric'
+                                    })}
+                                  </div>
+                                  {day.daily_goal && (
+                                    <div className="text-xs text-slate-500 mt-1 line-clamp-2 font-proxima">
+                                      {day.daily_goal}
+                                    </div>
+                                  )}
+                                  {day.day_type && (
+                                    <Badge variant="secondary" className="text-xs font-proxima mt-1">
+                                      {day.day_type}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
             )}
           </div>
         </div>

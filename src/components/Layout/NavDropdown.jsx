@@ -19,12 +19,17 @@ const NavDropdown = ({
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Check if a route matches the current pathname (exact or nested child)
+  const isRouteActive = (to) =>
+    location.pathname === to || (to !== '/' && location.pathname.startsWith(to + '/'));
+
   // Check if any of the dropdown items is currently active
-  const isAnyItemActive = items.some(item => {
-    if (item.to === location.pathname) return true;
-    if (item.to !== '/' && location.pathname.startsWith(item.to)) return true;
-    return false;
-  });
+  const isAnyItemActive = items.some(item => isRouteActive(item.to));
+
+  // Find the active item's label for collapsed title display
+  const activeItemLabel = isAnyItemActive
+    ? items.find(item => isRouteActive(item.to))?.label
+    : null;
 
   // Auto-expand when on an active route
   // Must be called before any early returns to follow Rules of Hooks
@@ -32,7 +37,7 @@ const NavDropdown = ({
     if (condition && isAnyItemActive && !isOpen) {
       onToggle(id);
     }
-  }, [location.pathname, condition]); // Only run when pathname or condition changes
+  }, [location.pathname, condition, isNavbarHovered]); // Re-trigger on hover to auto-expand
 
   // Don't render if condition is false
   if (!condition) return null;
@@ -52,12 +57,12 @@ const NavDropdown = ({
   return (
     <>
       {/* Trigger Button */}
-      <button 
-        onClick={() => onToggle(id)} 
+      <button
+        onClick={() => onToggle(id)}
         className={cn(
           "relative flex items-center w-full",
           isMobile ? "h-[53px]" : "h-[44px]",
-          "hover:bg-white/10"
+          isAnyItemActive ? "bg-[#4242EA]" : "hover:bg-white/10"
         )}
       >
         <div className={cn(
@@ -87,12 +92,22 @@ const NavDropdown = ({
 
       {/* Dropdown Items */}
       {isOpen && (
-        <div className="flex flex-col">
+        <div className="flex flex-col relative">
+          {/* Vertical page title overlay — spans full children area when collapsed */}
+          {!isMobile && !isNavbarHovered && activeItemLabel && (
+            <div className="absolute inset-0 w-[50px] flex items-center justify-center z-10 pointer-events-none">
+              <span
+                className="text-white text-xs font-medium tracking-wider whitespace-nowrap"
+                style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+              >
+                {activeItemLabel}
+              </span>
+            </div>
+          )}
+
           {items.map((item) => {
             const ItemIcon = item.icon;
-            const isActive = location.pathname === item.to || 
-                            (item.to !== '/' && location.pathname.startsWith(item.to));
-            
+
             return (
               <button
                 key={item.to}
@@ -100,27 +115,44 @@ const NavDropdown = ({
                 className={cn(
                   "relative flex items-center w-full",
                   isMobile ? "h-[53px]" : "h-[44px]",
-                  isActive ? "bg-[#4242EA]" : "hover:bg-white/10"
+                  "hover:bg-white/10"
                 )}
               >
-                <div className={cn(
-                  "absolute left-0 top-0 flex items-center justify-center",
-                  isMobile ? "w-[60px] h-[53px]" : "w-[50px] h-[44px]"
-                )}>
-                  <ItemIcon className="h-4 w-4 text-[#E3E3E3]" />
-                </div>
-                <div className={cn(
-                  "flex items-center",
-                  isMobile 
-                    ? "ml-[60px]"
-                    : isNavbarHovered 
-                      ? "ml-[50px] opacity-100" 
-                      : "ml-[50px] opacity-0 w-0 overflow-hidden"
-                )}>
-                  <span className="text-white text-sm font-medium whitespace-nowrap">
-                    {item.label}
-                  </span>
-                </div>
+                {ItemIcon ? (
+                  <>
+                    <div className={cn(
+                      "absolute left-0 top-0 flex items-center justify-center",
+                      isMobile ? "w-[60px] h-[53px]" : "w-[50px] h-[44px]"
+                    )}>
+                      <ItemIcon className="h-4 w-4 text-[#E3E3E3]" />
+                    </div>
+                    <div className={cn(
+                      "flex items-center",
+                      isMobile
+                        ? "ml-[60px]"
+                        : isNavbarHovered
+                          ? "ml-[50px] opacity-100"
+                          : "ml-[50px] opacity-0 w-0 overflow-hidden"
+                    )}>
+                      <span className="text-white text-sm font-medium whitespace-nowrap">
+                        {item.label}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className={cn(
+                    "flex items-center",
+                    isMobile
+                      ? "ml-[72px]"
+                      : isNavbarHovered
+                        ? "ml-[62px] opacity-100"
+                        : "ml-[62px] opacity-0 w-0 overflow-hidden"
+                  )}>
+                    <span className="text-white text-sm font-medium whitespace-nowrap">
+                      {item.label}
+                    </span>
+                  </div>
+                )}
               </button>
             );
           })}
@@ -139,7 +171,7 @@ NavDropdown.propTypes = {
   items: PropTypes.arrayOf(
     PropTypes.shape({
       to: PropTypes.string.isRequired,
-      icon: PropTypes.elementType.isRequired,
+      icon: PropTypes.elementType,
       label: PropTypes.string.isRequired,
     })
   ).isRequired,
