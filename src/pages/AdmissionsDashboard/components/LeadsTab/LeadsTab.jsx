@@ -31,12 +31,12 @@ import SourceConfigManager from './SourceConfigManager';
 // Filter options for columns
 const filterOptions = {
   status: [
-    { value: '', label: 'All' },
     { value: 'active', label: 'Active' },
     { value: 'converted', label: 'Converted' },
     { value: 'builder', label: 'Builder' },
     { value: 'withdrawn', label: 'Withdrawn' },
   ],
+
   attended_event: [
     { value: '', label: 'All' },
     { value: 'true', label: 'Yes' },
@@ -184,12 +184,13 @@ const LeadsTab = ({ token }) => {
   
   // Filters
   const [filters, setFilters] = useState({
-    status: '',
+    status: [],
     source_type: '',
     list_id: '',
     attended_event: '',
     search: ''
   });
+
 
   // Column sorting
   const [columnSort, setColumnSort] = useState({ column: 'first_captured_at', direction: 'desc' });
@@ -212,11 +213,14 @@ const LeadsTab = ({ token }) => {
         limit: pagination.limit.toString(),
       });
       
-      if (filters.status) params.append('status', filters.status);
+      if (filters.status && filters.status.length > 0) {
+        filters.status.forEach(s => params.append('status[]', s));
+      }
       if (filters.source_type) params.append('source_type', filters.source_type);
       if (filters.list_id) params.append('list_id', filters.list_id);
       if (filters.attended_event) params.append('attended_event', filters.attended_event);
       if (filters.search) params.append('search', filters.search);
+
       
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/admissions/leads?${params}`,
@@ -324,9 +328,10 @@ const LeadsTab = ({ token }) => {
 
   // Handle clear filter
   const handleClearFilter = useCallback((filterKey) => {
-    setFilters(prev => ({ ...prev, [filterKey]: '' }));
+    setFilters(prev => ({ ...prev, [filterKey]: filterKey === 'status' ? [] : '' }));
     setPagination(prev => ({ ...prev, page: 1 }));
   }, []);
+
 
   // Handle column sort
   const handleColumnSort = useCallback((column) => {
@@ -352,11 +357,10 @@ const LeadsTab = ({ token }) => {
           limit: '10000', // Large limit to get all
           ids_only: 'true' // Signal to backend we only need IDs
         });
-        
-        if (filters.status) params.append('status', filters.status);
-        if (filters.source_type) params.append('source_type', filters.source_type);
-        if (filters.list_id) params.append('list_id', filters.list_id);
-        if (filters.attended_event) params.append('attended_event', filters.attended_event);
+        if (filters.status && filters.status.length > 0) {
+          filters.status.forEach(s => params.append('status[]', s));
+        }
+
         if (filters.search) params.append('search', filters.search);
         
         const response = await fetch(
@@ -565,9 +569,11 @@ const LeadsTab = ({ token }) => {
   };
 
   // Render sortable + filterable column header
-  const renderSortableFilterableHeader = (column, filterKey, label, options, sortKey = null) => {
-    const currentValue = filters[filterKey] || '';
-    const isFiltered = currentValue !== '';
+  // multiSelect=true: filter value is an array, each option toggles independently
+
+  const renderSortableFilterableHeader = (column, filterKey, label, options, sortKey = null, multiSelect = false) => {
+    const currentValue = filters[filterKey];
+    const isFiltered = multiSelect ? currentValue.length > 0 : currentValue !== '';
     const isSortable = sortKey !== null;
     const isSorted = columnSort.column === sortKey;
     
@@ -605,16 +611,36 @@ const LeadsTab = ({ token }) => {
           <DropdownMenuContent align="start" className="w-44 font-proxima">
             <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase">Filter by {label}</div>
             <DropdownMenuSeparator />
-            {options.map((option) => (
-              <DropdownMenuCheckboxItem
-                key={option.value}
-                checked={currentValue === option.value}
-                onCheckedChange={() => handleFilterChange(filterKey, option.value)}
-                onSelect={(e) => e.preventDefault()}
-              >
-                {option.label}
-              </DropdownMenuCheckboxItem>
-            ))}
+            {options.map((option) => {
+              if (multiSelect) {
+                const isChecked = currentValue.includes(option.value);
+                return (
+                  <DropdownMenuCheckboxItem
+                    key={option.value}
+                    checked={isChecked}
+                    onCheckedChange={() => {
+                      const next = isChecked
+                        ? currentValue.filter(v => v !== option.value)
+                        : [...currentValue, option.value];
+                      handleFilterChange(filterKey, next);
+                    }}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    {option.label}
+                  </DropdownMenuCheckboxItem>
+                );
+              }
+              return (
+                <DropdownMenuCheckboxItem
+                  key={option.value}
+                  checked={currentValue === option.value}
+                  onCheckedChange={() => handleFilterChange(filterKey, option.value)}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  {option.label}
+                </DropdownMenuCheckboxItem>
+              );
+            })}
             {isFiltered && (
               <>
                 <DropdownMenuSeparator />
@@ -635,6 +661,7 @@ const LeadsTab = ({ token }) => {
     );
   };
 
+
   // Dynamic source filter options
   const sourceFilterOptions = useMemo(() => {
     const options = [{ value: '', label: 'All' }];
@@ -654,12 +681,13 @@ const LeadsTab = ({ token }) => {
   }, [emailLists]);
 
   // Check if any filters are active
-  const hasActiveFilters = filters.status || filters.source_type || filters.list_id || filters.attended_event;
+  const hasActiveFilters = filters.status.length > 0 || filters.source_type || filters.list_id || filters.attended_event;
+
 
   // Clear all filters
   const handleClearAllFilters = useCallback(() => {
     setFilters({
-      status: '',
+      status: [],
       source_type: '',
       list_id: '',
       attended_event: '',
@@ -667,6 +695,7 @@ const LeadsTab = ({ token }) => {
     });
     setPagination(prev => ({ ...prev, page: 1 }));
   }, [filters.search]);
+
 
   // Loading skeleton
   if (loading && leads.length === 0) {
@@ -883,11 +912,12 @@ const LeadsTab = ({ token }) => {
             </>
           )}
           {hasActiveFilters && <span className="text-sm text-gray-500 font-proxima">Active filters:</span>}
-          {filters.status && (
+          {filters.status.length > 0 && (
             <Badge className="bg-blue-100 text-blue-700 font-proxima cursor-pointer hover:bg-blue-200" onClick={() => handleClearFilter('status')}>
-              Status: {formatStatus(filters.status)} ✕
+              Status: {filters.status.map(s => formatStatus(s)).join(', ')} ✕
             </Badge>
           )}
+
           {filters.source_type && (
             <Badge className="bg-indigo-100 text-indigo-700 font-proxima cursor-pointer hover:bg-indigo-200" onClick={() => handleClearFilter('source_type')}>
               Source: {filters.source_type.replace('_', ' ')} ✕
@@ -966,7 +996,7 @@ const LeadsTab = ({ token }) => {
                   <TableHead className="font-proxima-bold">Email</TableHead>
                   <TableHead className="font-proxima-bold">Phone</TableHead>
                   <TableHead>
-                    {renderSortableFilterableHeader('status', 'status', 'Status', filterOptions.status, 'status')}
+                    {renderSortableFilterableHeader('status', 'status', 'Status', filterOptions.status, 'status', true)}
                   </TableHead>
                   <TableHead>
                     {renderSortableFilterableHeader('email_lists', 'list_id', 'Email Lists', emailListFilterOptions, 'email_lists')}
@@ -974,6 +1004,7 @@ const LeadsTab = ({ token }) => {
                   <TableHead>
                     {renderSortableFilterableHeader('attended_event', 'attended_event', 'Attended Event', filterOptions.attended_event, 'attended_event')}
                   </TableHead>
+
                 </TableRow>
               </TableHeader>
               <TableBody>
