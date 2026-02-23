@@ -29,7 +29,7 @@ const AssessmentGrades = () => {
 
   // Filter states
   const [filters, setFilters] = useState({
-    cohortId: '',
+    assessmentCohort: '',
     assessmentPeriod: ''
   });
   const [availableCohorts, setAvailableCohorts] = useState([]);
@@ -178,7 +178,7 @@ const AssessmentGrades = () => {
 
   const clearFilters = () => {
     setFilters({
-      cohortId: '',
+      assessmentCohort: '',
       assessmentPeriod: ''
     });
     setSelectedUsers(new Set());

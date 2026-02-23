@@ -147,7 +147,7 @@ const GradeViewModal = ({
         // Fetch user submissions - pass assessment_period AND cohort as query params
         const submissionsParams = new URLSearchParams({
           assessmentPeriod: grade.assessment_period || 'Week 8',
-          cohort: grade.cohort || ''
+          cohort: grade.assessment_cohort || grade.cohort || ''
         });
         const submissionsResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/user-submissions/${grade.user_id}?${submissionsParams}`, {
           headers: {
@@ -166,7 +166,7 @@ const GradeViewModal = ({
         // Fetch comprehensive analysis data - pass assessment_period AND cohort as query params
         const analysisParams = new URLSearchParams({
           assessmentPeriod: grade.assessment_period || 'Week 8',
-          cohort: grade.cohort || ''
+          cohort: grade.assessment_cohort || grade.cohort || ''
         });
         const analysisResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/comprehensive-analysis/${grade.user_id}?${analysisParams}`, {
           headers: {
