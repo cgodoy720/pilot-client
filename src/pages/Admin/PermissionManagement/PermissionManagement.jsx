@@ -56,6 +56,55 @@ const ADMIN_PAGE_PERMISSIONS = [
   { key: 'page:weekly_reports', label: 'Weekly Reports' },
 ];
 
+// Human-friendly labels for all permission keys
+const PERMISSION_LABELS = {
+  // Pages
+  'page:dashboard': 'Dashboard',
+  'page:learning': 'Learning',
+  'page:ai_chat': 'AI Chat',
+  'page:calendar': 'Calendar',
+  'page:performance': 'Performance',
+  'page:pathfinder': 'Pathfinder',
+  'page:assessment': 'Assessment',
+  'page:past_session': 'Past Session',
+  'page:account': 'Account',
+  'page:payment': 'Payment',
+  'page:volunteering': 'Volunteering',
+  'page:volunteer_feedback': 'Volunteer Feedback',
+  'page:volunteer_section': 'Volunteer Section',
+  'page:my_schedule': 'My Schedule',
+  'page:staff_section': 'Staff Section',
+  'page:admin_dashboard': 'Admin Dashboard',
+  'page:admin_attendance': 'Attendance Admin',
+  'page:admissions': 'Admissions',
+  'page:content': 'Content',
+  'page:content_preview': 'Content Management',
+  'page:external_cohorts': 'External Cohorts',
+  'page:form_builder': 'Form Builder',
+  'page:pathfinder_admin': 'Pathfinder Admin',
+  'page:payment_admin': 'Payment Admin',
+  'page:sputnik': 'Sputnik',
+  'page:assessment_grades': 'Assessment Grades',
+  'page:admin_volunteer_feedback': 'Admin Volunteer Feedback',
+  'page:volunteer_management': 'Volunteer Management',
+  'page:admin_section': 'Permission Management',
+  'page:admin_prompts': 'AI Prompts',
+  'page:organization_management': 'Organization Management',
+  'page:weekly_reports': 'Weekly Reports',
+  'page:workshop_admin': 'Workshop Admin',
+  'page:cohort_admin': 'Cohort Admin',
+  // Features
+  'feature:edit_curriculum': 'Edit Curriculum',
+  'feature:edit_prompts': 'Edit Prompts',
+  'feature:manage_users': 'Manage Users',
+  'feature:manage_enrollments': 'Manage Enrollments',
+  'feature:view_analytics': 'View Analytics',
+  'feature:export_data': 'Export Data',
+};
+
+const getPermissionLabel = (key) =>
+  PERMISSION_LABELS[key] || key.split(':').pop().split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
 // Get role badge color
 const getRoleBadgeColor = (role) => {
   const colors = {
@@ -1018,7 +1067,7 @@ function PermissionManagement() {
                           : 'bg-red-100 text-red-800 border border-red-200'
                       }`}
                     >
-                      <span>{perm.permission_key}</span>
+                      <span title={perm.permission_key}>{getPermissionLabel(perm.permission_key)}</span>
                       <span className="text-xs">({perm.granted ? 'granted' : 'denied'})</span>
                       <button
                         onClick={(e) => {
@@ -1051,7 +1100,7 @@ function PermissionManagement() {
                       </h6>
                       <div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-1.5">
                         {groupedPerms[category].map((perm) => {
-                          const permName = perm.permission_key.split(':').slice(1).join(':');
+                          const permLabel = getPermissionLabel(perm.permission_key);
                           return (
                             <div
                               key={perm.permission_key}
@@ -1059,12 +1108,12 @@ function PermissionManagement() {
                               title={perm.description || perm.permission_key}
                             >
                               <div className={`w-1.5 h-1.5 rounded-full mr-2 flex-shrink-0 ${
-                                perm.source === 'custom' 
-                                  ? 'bg-blue-500' 
+                                perm.source === 'custom'
+                                  ? 'bg-blue-500'
                                   : 'bg-slate-400'
                               }`} />
                               <span className="text-slate-700 break-words">
-                                {permName || perm.permission_key}
+                                {permLabel}
                               </span>
                               {perm.source === 'custom' && (
                                 <span className="ml-auto text-xs text-blue-600 flex-shrink-0">custom</span>
@@ -1265,7 +1314,7 @@ function PermissionManagement() {
                 <SelectContent>
                   {permissionKeys.map((key) => (
                     <SelectItem key={key.permission_key} value={key.permission_key}>
-                      {key.permission_key}
+                      {getPermissionLabel(key.permission_key)}
                     </SelectItem>
                   ))}
                 </SelectContent>
