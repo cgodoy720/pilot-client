@@ -1,43 +1,32 @@
 /**
  * Shared cohort utilities for the admin dashboard.
- * Single source of truth: org management API filtered by type=builder, org=Pursuit.
+ * Uses the staff-accessible /api/permissions/cohorts endpoint (not admin-only org management).
  * Converts names to legacy format (with dash) for legacy API calls.
  */
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 /**
- * Fetch Pursuit builder cohorts from org management API.
- * Returns array of { name, legacyName, cohort_id, is_active, ... }
+ * Fetch active builder cohorts from the staff-accessible permissions endpoint.
+ * Returns array of { name, legacyName, cohort_id, is_active, curriculum_day_count }
  */
 export const fetchPursuitBuilderCohorts = async (token) => {
-  const res = await fetch(`${API_URL}/api/admin/organization-management/cohorts`, {
+  const res = await fetch(`${API_URL}/api/permissions/cohorts?type=builder`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Cohorts API error: ${res.status}`);
   const data = await res.json();
-  const all = data.cohorts || data.data || data;
-  if (!Array.isArray(all)) return [];
+  const cohorts = data.cohorts || [];
 
-  return all
-    .filter(c =>
-      (c.cohort_type || c.type) === 'builder' &&
-      (c.organization_name || '').toLowerCase() === 'pursuit'
-    )
+  return cohorts
     .map(c => ({
       name: c.name,
       legacyName: toLegacyFormat(c.name),
       cohort_id: c.cohort_id,
-      is_active: c.is_active,
-      course_level: c.course_level,
-      enrolled_count: c.enrolled_count,
+      is_active: true,
       curriculum_day_count: parseInt(c.curriculum_day_count) || 0,
     }))
-    .sort((a, b) => {
-      // Sort active first, then by name descending (newest first)
-      if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
-      return b.name.localeCompare(a.name);
-    });
+    .sort((a, b) => b.name.localeCompare(a.name));
 };
 
 /**
