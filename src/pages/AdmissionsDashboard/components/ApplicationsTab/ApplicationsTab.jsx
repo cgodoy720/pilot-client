@@ -104,8 +104,10 @@ const columnLabels = {
   gender: 'Gender',
   race: 'Race/Ethnicity',
   education: 'Education',
-  referral: 'Referral Source'
+  referral: 'Referral Source',
+  pledge: 'Pledge Signed'
 };
+
 
 // Helper function to calculate age from date of birth
 const calculateAge = (dateOfBirth) => {
@@ -274,6 +276,23 @@ const ApplicationRow = React.memo(({
           {app.referral_source || '-'}
         </TableCell>
       )}
+      {visibleColumns.pledge && (
+        <TableCell>
+          {app.pledge_completed ? (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-proxima bg-green-100 text-green-800"
+              title={app.pledge_completed_at ? `Signed on ${new Date(app.pledge_completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : 'Pledge signed'}
+            >
+              ✓ Signed
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-proxima bg-gray-100 text-gray-500">
+              — Not signed
+            </span>
+          )}
+        </TableCell>
+      )}
+
       {visibleColumns.notes && (
         <TableCell>
           <Button
@@ -1183,9 +1202,13 @@ const ApplicationsTab = ({
                   {visibleColumns.referral && (
                     <TableHead className="font-proxima-bold">Referral</TableHead>
                   )}
+                  {visibleColumns.pledge && (
+                    <TableHead className="font-proxima-bold">Pledge</TableHead>
+                  )}
                   {visibleColumns.notes && (
                     <TableHead className="font-proxima-bold">Notes</TableHead>
                   )}
+
                 </TableRow>
               </TableHeader>
               <TableBody>

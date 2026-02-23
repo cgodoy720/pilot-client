@@ -175,15 +175,14 @@ const AdmissionsDashboard = () => {
       admission: true,
       notes: true,
       deliberation: true,
-      age: false,
-      gender: false,
-      race: false,
       education: false,
-      referral: false
+      referral: false,
+      pledge: false
     };
   });
 
   // Overview quick views state
+
   const [overviewQuickView, setOverviewQuickView] = useState('');
   const [overviewDeliberationFilter, setOverviewDeliberationFilter] = useState('');
 
