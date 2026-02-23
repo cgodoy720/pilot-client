@@ -32,6 +32,15 @@ const STATUS_COLORS = {
   withdrawn: 'bg-gray-100 text-gray-600',
 };
 
+const INDUSTRIES = [
+  'Technology', 'Finance', 'Healthcare', 'Education', 'Government',
+  'Retail', 'Media & Entertainment', 'Manufacturing', 'Real Estate',
+  'Consulting', 'Nonprofit', 'Legal', 'Energy', 'Transportation',
+  'Hospitality', 'Other',
+];
+
+const SIZE_BUCKETS = ['1-10', '11-50', '51-200', '201-1000', '1001-5000', '5000+'];
+
 const READINESS_ITEMS = [
   { key: 'researched_company', label: 'I have researched this company and understand what they do' },
   { key: 'demo_working', label: 'My demo is live and working' },
@@ -64,6 +73,8 @@ export default function PathfinderNetwork() {
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 });
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [industryFilter, setIndustryFilter] = useState('');
+  const [sizeFilter, setSizeFilter] = useState('');
   const [isLoadingContacts, setIsLoadingContacts] = useState(true);
 
   // Contact detail state
@@ -88,7 +99,9 @@ export default function PathfinderNetwork() {
     try {
       setIsLoadingContacts(true);
       const params = new URLSearchParams({ page, limit: 24 });
-      if (searchTerm) params.set('search', searchTerm);
+      if (searchTerm)    params.set('search',   searchTerm);
+      if (industryFilter) params.set('industry', industryFilter);
+      if (sizeFilter)     params.set('size',     sizeFilter);
       const res = await fetch(`${API}/api/employment-engine/network?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -101,9 +114,9 @@ export default function PathfinderNetwork() {
     } finally {
       setIsLoadingContacts(false);
     }
-  }, [token, search]);
+  }, [token, search, industryFilter, sizeFilter]);
 
-  useEffect(() => { fetchContacts(1, search); }, [token, search]);
+  useEffect(() => { fetchContacts(1, search); }, [token, search, industryFilter, sizeFilter]);
 
   // ── Fetch contact detail ────────────────────────────────────────────────────
   const openContact = async (contact) => {
@@ -268,12 +281,32 @@ export default function PathfinderNetwork() {
               />
             </div>
             <Button type="submit" variant="default">Search</Button>
-            {search && (
-              <Button type="button" variant="outline" onClick={() => { setSearch(''); setSearchInput(''); }}>
+            {(search || industryFilter || sizeFilter) && (
+              <Button type="button" variant="outline" onClick={() => { setSearch(''); setSearchInput(''); setIndustryFilter(''); setSizeFilter(''); }}>
                 Clear
               </Button>
             )}
           </form>
+
+          {/* Filters */}
+          <div className="pf-network__filters">
+            <select
+              className="pf-network__filter-select"
+              value={industryFilter}
+              onChange={e => setIndustryFilter(e.target.value)}
+            >
+              <option value="">All industries</option>
+              {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+            </select>
+            <select
+              className="pf-network__filter-select"
+              value={sizeFilter}
+              onChange={e => setSizeFilter(e.target.value)}
+            >
+              <option value="">All company sizes</option>
+              {SIZE_BUCKETS.map(s => <option key={s} value={s}>{s} employees</option>)}
+            </select>
+          </div>
 
           {isLoadingContacts ? (
             <LoadingCurtain isLoading />

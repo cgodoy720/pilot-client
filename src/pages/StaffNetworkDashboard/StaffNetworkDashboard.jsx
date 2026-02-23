@@ -13,6 +13,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
 import WorkIcon from '@mui/icons-material/Work';
 import LinkIcon from '@mui/icons-material/Link';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import './StaffNetworkDashboard.css';
 
 const API = import.meta.env.VITE_API_URL;
@@ -37,7 +39,7 @@ const SPECIFIC_ASK_LABELS = {
 export default function StaffNetworkDashboard() {
   const { token } = useAuth();
 
-  const [activeTab, setActiveTab] = useState('requests'); // 'requests' | 'activity'
+  const [activeTab, setActiveTab] = useState('requests'); // 'requests' | 'activity' | 'network'
 
   // Intro requests state
   const [requests, setRequests] = useState([]);
@@ -47,6 +49,13 @@ export default function StaffNetworkDashboard() {
   const [showResponseModal, setShowResponseModal] = useState(false);
   const [responseNotes, setResponseNotes] = useState('');
   const [isResponding, setIsResponding] = useState(false);
+
+  // My Network tab state
+  const [uploadFile, setUploadFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState(null); // { imported, matched, skipped, total } | { error }
+  const [enrichStatus, setEnrichStatus] = useState(null); // { total, enriched, pending, isEnriching }
+  const [isStartingEnrich, setIsStartingEnrich] = useState(false);
 
   // Builder activity state
   const [activitySummary, setActivitySummary] = useState({});
@@ -109,6 +118,78 @@ export default function StaffNetworkDashboard() {
     if (activeTab === 'activity') fetchActivity();
   }, [activeTab, cohortFilter]);
 
+  // ── My Network: enrich status ───────────────────────────────────────────────
+  const fetchEnrichStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/employment-engine/enrich-status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setEnrichStatus(data);
+    } catch {
+      // silent
+    }
+  }, [token]);
+
+  // Fetch status when tab opens
+  useEffect(() => {
+    if (activeTab !== 'network') return;
+    fetchEnrichStatus();
+  }, [activeTab, token]);
+
+  // Poll every 5s only while enrichment is actually running
+  useEffect(() => {
+    if (!enrichStatus?.isEnriching) return;
+    const interval = setInterval(fetchEnrichStatus, 5000);
+    return () => clearInterval(interval);
+  }, [enrichStatus?.isEnriching, fetchEnrichStatus]);
+
+  const handleUpload = async () => {
+    if (!uploadFile) return;
+    setIsUploading(true);
+    setUploadResult(null);
+    try {
+      const form = new FormData();
+      form.append('file', uploadFile);
+      const res = await fetch(`${API}/api/employment-engine/import-linkedin`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) setUploadResult({ error: data.error || 'Upload failed' });
+      else setUploadResult(data);
+    } catch {
+      setUploadResult({ error: 'Network error — please try again.' });
+    } finally {
+      setIsUploading(false);
+      setUploadFile(null);
+    }
+  };
+
+  const handleEnrich = async () => {
+    const pendingCount = enrichStatus?.pending ?? '?';
+    const confirmed = window.confirm(
+      `This will enrich ${pendingCount} companies using the Claude AI API — it runs in the background and costs API credits.\n\nOnly run this after uploading new connections or when there are genuinely new companies to process.\n\nContinue?`
+    );
+    if (!confirmed) return;
+
+    setIsStartingEnrich(true);
+    try {
+      const res = await fetch(`${API}/api/employment-engine/enrich-companies`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setEnrichStatus(prev => ({ ...prev, ...data }));
+    } catch {
+      // silent
+    } finally {
+      setIsStartingEnrich(false);
+    }
+  };
+
   // ── Respond to a request ────────────────────────────────────────────────────
   const openResponse = (request) => {
     setSelectedRequest(request);
@@ -163,6 +244,12 @@ export default function StaffNetworkDashboard() {
           onClick={() => setActiveTab('activity')}
         >
           <TrendingUpIcon fontSize="small" /> Builder Activity
+        </button>
+        <button
+          className={`snd__tab ${activeTab === 'network' ? 'snd__tab--active' : ''}`}
+          onClick={() => setActiveTab('network')}
+        >
+          <CloudUploadIcon fontSize="small" /> My Network
         </button>
       </div>
 
@@ -391,6 +478,100 @@ export default function StaffNetworkDashboard() {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {/* ── MY NETWORK TAB ── */}
+      {activeTab === 'network' && (
+        <div className="snd__content">
+          {/* Upload card */}
+          <Card className="snd__network-card">
+            <CardHeader>
+              <CardTitle className="snd__network-card-title">
+                <CloudUploadIcon fontSize="small" /> Upload LinkedIn Connections
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="snd__network-instructions">
+                To export: go to LinkedIn →{' '}
+                <strong>Settings → Data privacy → Get a copy of your data</strong>, select
+                <strong> Connections</strong>, and request the archive. LinkedIn will email you a
+                download link (can take up to 24 hours). Unzip the archive, find{' '}
+                <strong>Connections.csv</strong>, and upload it below.
+              </p>
+
+              <div className="snd__upload-row">
+                <label className="snd__upload-label">
+                  <input
+                    type="file"
+                    accept=".csv"
+                    className="snd__upload-input"
+                    onChange={e => { setUploadFile(e.target.files[0] || null); setUploadResult(null); }}
+                  />
+                  {uploadFile ? uploadFile.name : 'Choose CSV file…'}
+                </label>
+                <Button
+                  disabled={!uploadFile || isUploading}
+                  onClick={handleUpload}
+                >
+                  {isUploading ? 'Uploading…' : 'Upload'}
+                </Button>
+              </div>
+
+              {uploadResult && !uploadResult.error && (
+                <div className="snd__upload-success">
+                  <CheckIcon fontSize="small" />
+                  <strong>{uploadResult.imported}</strong> new contacts imported,&nbsp;
+                  <strong>{uploadResult.matched}</strong> already in the network
+                  {uploadResult.skipped > 0 && `, ${uploadResult.skipped} skipped`}.
+                </div>
+              )}
+              {uploadResult?.error && (
+                <div className="snd__upload-error">{uploadResult.error}</div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Enrichment card */}
+          <Card className="snd__network-card">
+            <CardHeader>
+              <CardTitle className="snd__network-card-title">
+                <AutoAwesomeIcon fontSize="small" /> Company Enrichment
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="snd__network-instructions">
+                Enrich company data (industry, size, stage) using AI so builders can filter
+                the network by these dimensions.
+              </p>
+
+              {enrichStatus && (
+                <div className="snd__enrich-progress">
+                  <div className="snd__enrich-bar-wrap">
+                    <div
+                      className="snd__enrich-bar"
+                      style={{ width: enrichStatus.total > 0 ? `${Math.round((enrichStatus.enriched / enrichStatus.total) * 100)}%` : '0%' }}
+                    />
+                  </div>
+                  <p className="snd__enrich-label">
+                    {enrichStatus.enriched} / {enrichStatus.total} companies enriched
+                    {enrichStatus.isEnriching && <span className="snd__enrich-running"> · running…</span>}
+                  </p>
+                </div>
+              )}
+
+              <Button
+                disabled={isStartingEnrich || enrichStatus?.isEnriching || enrichStatus?.pending === 0}
+                onClick={handleEnrich}
+              >
+                {enrichStatus?.isEnriching
+                  ? 'Enriching…'
+                  : enrichStatus?.pending > 0
+                    ? `Enrich ${enrichStatus.pending} new companies`
+                    : 'All companies enriched'}
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       )}
 

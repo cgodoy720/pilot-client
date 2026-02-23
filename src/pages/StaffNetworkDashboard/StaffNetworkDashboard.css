@@ -453,3 +453,104 @@
 
 .snd__decline-btn { border-color: #ef4444 !important; color: #ef4444 !important; }
 .snd__decline-btn:hover { background: #fff5f5 !important; }
+
+/* ── My Network tab ───────────────────────────────────────────────────────── */
+.snd__network-card {
+  margin-bottom: 1.5rem;
+}
+
+.snd__network-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.05rem;
+}
+
+.snd__network-instructions {
+  color: #555;
+  font-size: 0.9rem;
+  margin: 0 0 1.25rem;
+  line-height: 1.5;
+}
+
+.snd__upload-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.snd__upload-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #444;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.snd__upload-label:hover {
+  border-color: #4242ea;
+}
+
+.snd__upload-input {
+  display: none;
+}
+
+.snd__upload-success {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  color: #166534;
+  font-size: 0.875rem;
+}
+
+.snd__upload-error {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  color: #991b1b;
+  font-size: 0.875rem;
+}
+
+.snd__enrich-progress {
+  margin-bottom: 1rem;
+}
+
+.snd__enrich-bar-wrap {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.snd__enrich-bar {
+  height: 100%;
+  background: #4242ea;
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+.snd__enrich-label {
+  font-size: 0.85rem;
+  color: #555;
+  margin: 0;
+}
+
+.snd__enrich-running {
+  color: #4242ea;
+  font-style: italic;
+}
