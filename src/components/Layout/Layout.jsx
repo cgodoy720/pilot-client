@@ -57,6 +57,7 @@ const Layout = ({ children, isLoading = false }) => {
     canViewAssessmentGrades && { to: '/admin/assessment-grades', label: 'Assessments' },
     canViewAdminAttendance && { to: '/admin-attendance-dashboard', label: 'Attendance' },
     canViewAdminDashboard && { to: '/admin-dashboard', label: 'Cohort Stats' },
+    canViewContentPreview && { to: '/content-preview', label: 'Content Mgmt' },
     canViewExternalCohorts && { to: '/external-cohorts', label: 'External Cohorts' },
   ].filter(Boolean) : [];
 
@@ -69,7 +70,6 @@ const Layout = ({ children, isLoading = false }) => {
 
   // Staff dropdown (remaining items) -- staff/admin roles
   const staffDropdownItems = isStaffOrAdminRole ? [
-    canViewContentPreview && { to: '/content-preview', label: 'Content Preview' },
     canViewFormBuilder && { to: '/forms', label: 'Form Builder' },
     canViewVolunteerManagement && { to: '/volunteer-management', label: 'Volunteers' },
   ].filter(Boolean) : [];
@@ -93,7 +93,7 @@ const Layout = ({ children, isLoading = false }) => {
     canViewAdminAttendance && { to: '/admin-attendance-dashboard', icon: CalendarIcon, label: 'Attendance' },
     canViewAdminDashboard && { to: '/admin-dashboard', icon: Settings, label: 'Cohort Stats' },
     canViewCohortAdmin && { to: '/cohort-admin-dashboard', icon: Building2, label: 'Enterprise Admin' },
-    canViewContentPreview && { to: '/content-preview', icon: Target, label: 'Content Preview' },
+    canViewContentPreview && { to: '/content-preview', icon: Target, label: 'Content Mgmt' },
     canViewExternalCohorts && { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
     canViewFormBuilder && { to: '/forms', icon: ClipboardList, label: 'Form Builder' },
     canViewPathfinderAdmin && { to: '/pathfinder/admin', icon: ArrowRight, label: 'Pathfinder Admin' },
@@ -118,7 +118,7 @@ const Layout = ({ children, isLoading = false }) => {
     '/pathfinder/admin': 'Pathfinder',
     '/sputnik': 'Sputnik',
     '/payment-admin': 'Bond',
-    '/content-preview': 'Content Preview',
+    '/content-preview': 'Content Mgmt',
     '/forms': 'Form Builder',
     '/volunteer-management': 'Volunteers',
     '/admin-prompts': 'AI Prompts',
@@ -206,7 +206,7 @@ const Layout = ({ children, isLoading = false }) => {
     };
 
     // Program section routes → BookOpen
-    const programRoutes = ['/admin/assessment-grades', '/admin-attendance-dashboard', '/admin-dashboard', '/external-cohorts'];
+    const programRoutes = ['/admin/assessment-grades', '/admin-attendance-dashboard', '/admin-dashboard', '/content-preview', '/external-cohorts'];
     if (programRoutes.some(route => location.pathname === route || location.pathname.startsWith(route))) {
       return <BookOpen className="h-4 w-4 text-[#E3E3E3]" />;
     }
@@ -228,7 +228,7 @@ const Layout = ({ children, isLoading = false }) => {
     }
 
     // Staff section routes → Users
-    const staffRoutes = ['/content-preview', '/forms', '/volunteer-management'];
+    const staffRoutes = ['/forms', '/volunteer-management'];
     if (staffRoutes.some(route => location.pathname === route || location.pathname.startsWith(route))) {
       return <Users className="h-4 w-4 text-[#E3E3E3]" />;
     }

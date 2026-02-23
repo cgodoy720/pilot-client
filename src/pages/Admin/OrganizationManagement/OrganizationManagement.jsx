@@ -7,6 +7,7 @@ import OrganizationsTab from './components/OrganizationsTab';
 import ProgramsTab from './components/ProgramsTab';
 import CoursesTab from './components/CoursesTab';
 import EnrollmentsTab from './components/EnrollmentsTab';
+import CohortsTab from './components/CohortsTab';
 import LoadingCurtain from '../../../components/LoadingCurtain/LoadingCurtain';
 
 /**
@@ -106,15 +107,7 @@ function OrganizationManagement() {
 
             {/* Cohorts Tab (Linking functionality) */}
             <TabsContent value="cohorts" className="mt-0">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-bold text-slate-900 mb-4 font-proxima">
-                  Cohort Course Linking
-                </h2>
-                <p className="text-slate-600 font-proxima">
-                  This feature allows you to link cohorts to courses in the organizational hierarchy.
-                  Coming soon - for now, use the Courses tab to view linked cohorts.
-                </p>
-              </div>
+              <CohortsTab token={token} setLoading={setLoading} />
             </TabsContent>
 
             {/* Enrollments Tab */}

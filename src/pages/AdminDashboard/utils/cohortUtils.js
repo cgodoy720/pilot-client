@@ -31,6 +31,7 @@ export const fetchPursuitBuilderCohorts = async (token) => {
       is_active: c.is_active,
       course_level: c.course_level,
       enrolled_count: c.enrolled_count,
+      curriculum_day_count: parseInt(c.curriculum_day_count) || 0,
     }))
     .sort((a, b) => {
       // Sort active first, then by name descending (newest first)
