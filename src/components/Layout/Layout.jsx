@@ -52,6 +52,8 @@ const Layout = ({ children, isLoading = false }) => {
   // Role flags for dropdown visibility
   const isAdminRole = userRole === 'admin';
   const isStaffOrAdminRole = userRole === 'staff' || userRole === 'admin';
+  const hasAnyAdminPagePermission = canViewAdminPrompts || canViewOrganizationManagement
+    || canViewPermissionManagement || canViewWeeklyReports;
   // Program dropdown -- staff/admin roles
   const programDropdownItems = isStaffOrAdminRole ? [
     canViewAssessmentGrades && { to: '/admin/assessment-grades', label: 'Assessments' },
@@ -74,8 +76,8 @@ const Layout = ({ children, isLoading = false }) => {
     canViewVolunteerManagement && { to: '/volunteer-management', label: 'Volunteers' },
   ].filter(Boolean) : [];
 
-  // Admin dropdown -- only for admin role (no icons on children)
-  const adminDropdownItems = isAdminRole ? [
+  // Admin dropdown -- admin role, or staff with any admin page permission
+  const adminDropdownItems = (isAdminRole || (isStaffOrAdminRole && hasAnyAdminPagePermission)) ? [
     canViewAdminPrompts && { to: '/admin-prompts', label: 'AI Prompts' },
     canViewOrganizationManagement && { to: '/admin/organization-management', label: 'Organizations' },
     canViewPermissionManagement && { to: '/admin/permissions', label: 'Permissions' },
