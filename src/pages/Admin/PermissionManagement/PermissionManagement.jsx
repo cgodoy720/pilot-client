@@ -48,6 +48,14 @@ const formatRoleName = (role) => {
 // Fallback role list (used until DB roles are loaded)
 const FALLBACK_ROLES = ['admin', 'staff', 'builder', 'volunteer', 'workshop_participant', 'workshop_admin', 'enterprise_builder', 'enterprise_admin', 'applicant'];
 
+// Admin page permissions that can be toggled for staff users
+const ADMIN_PAGE_PERMISSIONS = [
+  { key: 'page:admin_section', label: 'Permission Management' },
+  { key: 'page:admin_prompts', label: 'AI Prompts' },
+  { key: 'page:organization_management', label: 'Organization Management' },
+  { key: 'page:weekly_reports', label: 'Weekly Reports' },
+];
+
 // Get role badge color
 const getRoleBadgeColor = (role) => {
   const colors = {
@@ -201,6 +209,9 @@ function PermissionManagement() {
   
   // Role deletion
   const [deletingRole, setDeletingRole] = useState(false);
+
+  // Admin page permission toggling (per-checkbox loading state)
+  const [togglingAdminPerm, setTogglingAdminPerm] = useState({});
 
   const { canAccessPage } = usePermissions();
   const isAdmin = canAccessPage('admin_section');
@@ -603,6 +614,53 @@ function PermissionManagement() {
     }
   };
 
+  // Toggle an admin page permission for a staff user
+  const handleToggleAdminPermission = async (userId, permissionKey, currentlyGranted) => {
+    setTogglingAdminPerm(prev => ({ ...prev, [permissionKey]: true }));
+    try {
+      if (currentlyGranted) {
+        // Remove the custom permission
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/permissions/users/${userId}/permissions/${encodeURIComponent(permissionKey)}`,
+          {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` },
+          }
+        );
+        if (response.ok) {
+          toast.success(`Removed ${permissionKey}`);
+        } else {
+          toast.error('Failed to remove permission');
+        }
+      } else {
+        // Grant the permission
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/permissions/users/${userId}/grant`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ permissionKey }),
+          }
+        );
+        if (response.ok) {
+          toast.success(`Granted ${permissionKey}`);
+        } else {
+          toast.error('Failed to grant permission');
+        }
+      }
+      // Refresh user permissions after toggle
+      await fetchUserPermissions(userId);
+    } catch (error) {
+      console.error('Error toggling admin permission:', error);
+      toast.error('Failed to update permission');
+    } finally {
+      setTogglingAdminPerm(prev => ({ ...prev, [permissionKey]: false }));
+    }
+  };
+
   // Open role change dialog
   const openRoleChangeDialog = (targetUser) => {
     setRoleChangeTargetUser(targetUser);
@@ -905,6 +963,46 @@ function PermissionManagement() {
                 </Button>
               </div>
             </div>
+
+            {/* Admin Page Permissions — staff only */}
+            {userInfo?.role === 'staff' && (
+              <div className="mb-6 p-4 bg-white rounded-lg border border-slate-200">
+                <h5 className="text-sm font-semibold text-slate-700 mb-3">Admin Page Permissions</h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {ADMIN_PAGE_PERMISSIONS.map((ap) => {
+                    const isGranted = effectivePerms.some(p => p.permission_key === ap.key);
+                    const isCustom = customPerms.some(p => p.permission_key === ap.key);
+                    const isToggling = !!togglingAdminPerm[ap.key];
+                    return (
+                      <label
+                        key={ap.key}
+                        className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                          isGranted
+                            ? 'bg-green-50 border-green-200 hover:bg-green-100'
+                            : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                        } ${isToggling ? 'opacity-60 pointer-events-none' : ''}`}
+                      >
+                        {isToggling ? (
+                          <div className="w-4 h-4 border-2 border-[#4242ea] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                        ) : (
+                          <input
+                            type="checkbox"
+                            className="rounded border-slate-300 text-[#4242ea] focus:ring-[#4242ea] flex-shrink-0"
+                            checked={isGranted}
+                            onChange={() => handleToggleAdminPermission(userId, ap.key, isGranted)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )}
+                        <span className="text-sm text-slate-800">{ap.label}</span>
+                        {isCustom && (
+                          <span className="text-xs text-blue-600 ml-auto">(custom)</span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Custom Permissions Section */}
             {customPerms.length > 0 && (

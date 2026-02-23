@@ -5,6 +5,7 @@ import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
 import { Label } from '../../../../components/ui/label';
 import { Badge } from '../../../../components/ui/badge';
+import { Textarea } from '../../../../components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -28,9 +29,20 @@ import {
   TableHeader,
   TableRow
 } from '../../../../components/ui/table';
-import { Link2, Unlink, Search, GraduationCap } from 'lucide-react';
+import { Link2, Unlink, Search, GraduationCap, Pencil, Trash2, Plus, RotateCcw } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+
+const emptyCohortForm = {
+  name: '',
+  start_date: '',
+  end_date: '',
+  description: '',
+  contact_name: '',
+  contact_email: '',
+  cohort_type: 'builder',
+  is_active: true,
+};
 
 function CohortsTab({ token, setLoading }) {
   const [cohorts, setCohorts] = useState([]);
@@ -38,6 +50,7 @@ function CohortsTab({ token, setLoading }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [linkFilter, setLinkFilter] = useState('all');
   const [courseFilter, setCourseFilter] = useState('all');
+  const [activeFilter, setActiveFilter] = useState('active');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [linkingCohort, setLinkingCohort] = useState(null);
   const [selectedCourseId, setSelectedCourseId] = useState('');
@@ -45,6 +58,10 @@ function CohortsTab({ token, setLoading }) {
   const [selectedCohortIds, setSelectedCohortIds] = useState([]);
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const [bulkCourseId, setBulkCourseId] = useState('');
+  // Cohort CRUD state
+  const [isCohortDialogOpen, setIsCohortDialogOpen] = useState(false);
+  const [editingCohort, setEditingCohort] = useState(null);
+  const [cohortForm, setCohortForm] = useState({ ...emptyCohortForm });
 
   useEffect(() => {
     fetchCohorts();
@@ -78,6 +95,8 @@ function CohortsTab({ token, setLoading }) {
       console.error('Error fetching courses:', error);
     }
   };
+
+  // ---- Link/Unlink handlers ----
 
   const handleLink = (cohort) => {
     setLinkingCohort(cohort);
@@ -202,6 +221,149 @@ function CohortsTab({ token, setLoading }) {
     }
   };
 
+  // ---- Cohort CRUD handlers ----
+
+  const handleCreateCohort = () => {
+    setEditingCohort(null);
+    setCohortForm({ ...emptyCohortForm });
+    setIsCohortDialogOpen(true);
+  };
+
+  const handleEditCohort = (cohort) => {
+    setEditingCohort(cohort);
+    setCohortForm({
+      name: cohort.name || '',
+      start_date: cohort.start_date ? cohort.start_date.split('T')[0] : '',
+      end_date: cohort.end_date ? cohort.end_date.split('T')[0] : '',
+      description: cohort.description || '',
+      contact_name: cohort.contact_name || '',
+      contact_email: cohort.contact_email || '',
+      cohort_type: cohort.cohort_type || 'builder',
+      is_active: cohort.is_active !== false,
+    });
+    setIsCohortDialogOpen(true);
+  };
+
+  const handleCohortSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!cohortForm.name || !cohortForm.start_date || !cohortForm.cohort_type) {
+      Swal.fire('Error', 'Name, start date, and cohort type are required', 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      if (editingCohort) {
+        // Update existing cohort
+        await axios.put(
+          `${API_URL}/api/admin/organization-management/cohorts/${editingCohort.cohort_id}`,
+          cohortForm,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        Swal.fire('Success', 'Cohort updated successfully', 'success');
+      } else {
+        // Create new cohort
+        const response = await axios.post(
+          `${API_URL}/api/admin/organization-management/cohorts`,
+          cohortForm,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const newCohort = response.data.cohort;
+
+        if (newCohort.access_code) {
+          Swal.fire({
+            title: 'Cohort Created!',
+            html: `
+              <p>External cohort <strong>${newCohort.name}</strong> created successfully.</p>
+              <p class="mt-2">Access Code:</p>
+              <code style="font-size: 1.2em; background: #f1f5f9; padding: 4px 12px; border-radius: 4px;">${newCohort.access_code}</code>
+              <p class="mt-2 text-sm text-gray-500">Share this code with external participants to sign up.</p>
+            `,
+            icon: 'success',
+          });
+        } else {
+          Swal.fire('Success', `Cohort "${newCohort.name}" created successfully`, 'success');
+        }
+      }
+
+      setIsCohortDialogOpen(false);
+      fetchCohorts();
+    } catch (error) {
+      console.error('Error saving cohort:', error);
+      Swal.fire('Error', error.response?.data?.error || 'Failed to save cohort', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeactivateCohort = async (cohort) => {
+    const result = await Swal.fire({
+      title: 'Deactivate Cohort?',
+      html: `Are you sure you want to deactivate <strong>${cohort.name}</strong>? Students will no longer be able to sign up.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+      confirmButtonText: 'Yes, deactivate',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      setLoading(true);
+      await axios.delete(
+        `${API_URL}/api/admin/organization-management/cohorts/${cohort.cohort_id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      Swal.fire('Deactivated!', `Cohort "${cohort.name}" has been deactivated`, 'success');
+      fetchCohorts();
+    } catch (error) {
+      console.error('Error deactivating cohort:', error);
+      Swal.fire('Error', error.response?.data?.error || 'Failed to deactivate cohort', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReactivateCohort = async (cohort) => {
+    const result = await Swal.fire({
+      title: 'Reactivate Cohort?',
+      html: `Reactivate <strong>${cohort.name}</strong>?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#4242EA',
+      cancelButtonColor: '#6B7280',
+      confirmButtonText: 'Yes, reactivate',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      setLoading(true);
+      await axios.patch(
+        `${API_URL}/api/admin/organization-management/cohorts/${cohort.cohort_id}/reactivate`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      Swal.fire('Reactivated!', `Cohort "${cohort.name}" has been reactivated`, 'success');
+      fetchCohorts();
+    } catch (error) {
+      console.error('Error reactivating cohort:', error);
+      Swal.fire('Error', error.response?.data?.error || 'Failed to reactivate cohort', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ---- Filtering ----
+
   const filteredCohorts = cohorts.filter(cohort => {
     const matchesSearch =
       cohort.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -218,7 +380,12 @@ function CohortsTab({ token, setLoading }) {
     const matchesCourse =
       courseFilter === 'all' || cohort.course_id === courseFilter;
 
-    return matchesSearch && matchesLink && matchesCourse;
+    const matchesActive =
+      activeFilter === 'all' ||
+      (activeFilter === 'active' && cohort.is_active !== false) ||
+      (activeFilter === 'inactive' && cohort.is_active === false);
+
+    return matchesSearch && matchesLink && matchesCourse && matchesActive;
   });
 
   const getTypeBadge = (type) => {
@@ -240,6 +407,8 @@ function CohortsTab({ token, setLoading }) {
 
   const unlinkedCount = cohorts.filter(c => c.is_unlinked).length;
   const linkedCount = cohorts.filter(c => !c.is_unlinked).length;
+  const activeCount = cohorts.filter(c => c.is_active !== false).length;
+  const inactiveCount = cohorts.filter(c => c.is_active === false).length;
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
@@ -247,7 +416,7 @@ function CohortsTab({ token, setLoading }) {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <GraduationCap className="h-6 w-6 text-[#4242EA]" />
-          <h2 className="text-xl font-bold text-slate-900 font-proxima">Cohort Course Linking</h2>
+          <h2 className="text-xl font-bold text-slate-900 font-proxima">Cohort Management</h2>
           <Badge variant="secondary" className="font-proxima">
             {filteredCohorts.length} total
           </Badge>
@@ -257,15 +426,24 @@ function CohortsTab({ token, setLoading }) {
             </Badge>
           )}
         </div>
-        {selectedCohortIds.length > 0 && (
+        <div className="flex items-center gap-2">
+          {selectedCohortIds.length > 0 && (
+            <Button
+              onClick={handleBulkLink}
+              className="bg-[#4242EA] hover:bg-[#3535BA] text-white font-proxima"
+            >
+              <Link2 className="h-4 w-4 mr-2" />
+              Bulk Link ({selectedCohortIds.length})
+            </Button>
+          )}
           <Button
-            onClick={handleBulkLink}
+            onClick={handleCreateCohort}
             className="bg-[#4242EA] hover:bg-[#3535BA] text-white font-proxima"
           >
-            <Link2 className="h-4 w-4 mr-2" />
-            Bulk Link ({selectedCohortIds.length})
+            <Plus className="h-4 w-4 mr-2" />
+            Create Cohort
           </Button>
-        )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -280,6 +458,16 @@ function CohortsTab({ token, setLoading }) {
             className="pl-10 font-proxima"
           />
         </div>
+        <Select value={activeFilter} onValueChange={setActiveFilter}>
+          <SelectTrigger className="w-[200px] font-proxima">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active" className="font-proxima">Active ({activeCount})</SelectItem>
+            <SelectItem value="inactive" className="font-proxima">Inactive ({inactiveCount})</SelectItem>
+            <SelectItem value="all" className="font-proxima">All Statuses</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={linkFilter} onValueChange={setLinkFilter}>
           <SelectTrigger className="w-[200px] font-proxima">
             <SelectValue placeholder="Link status" />
@@ -406,7 +594,16 @@ function CohortsTab({ token, setLoading }) {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditCohort(cohort)}
+                        className="hover:bg-slate-100 hover:text-slate-700"
+                        title="Edit cohort"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -425,6 +622,27 @@ function CohortsTab({ token, setLoading }) {
                           title="Unlink from course"
                         >
                           <Unlink className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {cohort.is_active !== false ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeactivateCohort(cohort)}
+                          className="hover:bg-red-50 hover:text-red-600"
+                          title="Deactivate cohort"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleReactivateCohort(cohort)}
+                          className="hover:bg-green-50 hover:text-green-600"
+                          title="Reactivate cohort"
+                        >
+                          <RotateCcw className="h-4 w-4" />
                         </Button>
                       )}
                     </div>
@@ -573,6 +791,156 @@ function CohortsTab({ token, setLoading }) {
                 className="bg-[#4242EA] hover:bg-[#3535BA] text-white font-proxima"
               >
                 Link {selectedCohortIds.length} Cohort(s)
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create/Edit Cohort Dialog */}
+      <Dialog open={isCohortDialogOpen} onOpenChange={setIsCohortDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-proxima text-xl">
+              {editingCohort ? 'Edit Cohort' : 'Create Cohort'}
+            </DialogTitle>
+            <DialogDescription className="font-proxima">
+              {editingCohort
+                ? `Editing "${editingCohort.name}"`
+                : 'Create a new cohort'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCohortSubmit}>
+            <div className="grid gap-4 py-4">
+              {/* Cohort Type */}
+              <div>
+                <Label className="font-proxima">
+                  Cohort Type <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={cohortForm.cohort_type}
+                  onValueChange={(val) => setCohortForm(prev => ({ ...prev, cohort_type: val }))}
+                  disabled={!!editingCohort}
+                >
+                  <SelectTrigger className="font-proxima">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="builder" className="font-proxima">Builder</SelectItem>
+                    <SelectItem value="workshop" className="font-proxima">Workshop</SelectItem>
+                    <SelectItem value="external" className="font-proxima">External</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Name */}
+              <div>
+                <Label className="font-proxima">
+                  Name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  value={cohortForm.name}
+                  onChange={(e) => setCohortForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="e.g. Builder Cohort Spring 2026"
+                  className="font-proxima"
+                  required
+                />
+              </div>
+
+              {/* Start Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="font-proxima">
+                    Start Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="date"
+                    value={cohortForm.start_date}
+                    onChange={(e) => setCohortForm(prev => ({ ...prev, start_date: e.target.value }))}
+                    className="font-proxima"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="font-proxima">End Date</Label>
+                  <Input
+                    type="date"
+                    value={cohortForm.end_date}
+                    onChange={(e) => setCohortForm(prev => ({ ...prev, end_date: e.target.value }))}
+                    className="font-proxima"
+                  />
+                </div>
+              </div>
+
+              {/* External-only fields */}
+              {cohortForm.cohort_type === 'external' && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="font-proxima">Contact Name</Label>
+                      <Input
+                        value={cohortForm.contact_name}
+                        onChange={(e) => setCohortForm(prev => ({ ...prev, contact_name: e.target.value }))}
+                        placeholder="Contact person"
+                        className="font-proxima"
+                      />
+                    </div>
+                    <div>
+                      <Label className="font-proxima">Contact Email</Label>
+                      <Input
+                        type="email"
+                        value={cohortForm.contact_email}
+                        onChange={(e) => setCohortForm(prev => ({ ...prev, contact_email: e.target.value }))}
+                        placeholder="contact@example.com"
+                        className="font-proxima"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="font-proxima">Description</Label>
+                    <Textarea
+                      value={cohortForm.description}
+                      onChange={(e) => setCohortForm(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Cohort description..."
+                      className="font-proxima"
+                      rows={3}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Active checkbox (edit mode only) */}
+              {editingCohort && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_active"
+                    checked={cohortForm.is_active}
+                    onChange={(e) => setCohortForm(prev => ({ ...prev, is_active: e.target.checked }))}
+                    className="h-4 w-4 rounded"
+                  />
+                  <Label htmlFor="is_active" className="font-proxima cursor-pointer">
+                    Active
+                  </Label>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsCohortDialogOpen(false)}
+                className="font-proxima"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="bg-[#4242EA] hover:bg-[#3535BA] text-white font-proxima"
+              >
+                {editingCohort ? 'Save Changes' : 'Create Cohort'}
               </Button>
             </DialogFooter>
           </form>
