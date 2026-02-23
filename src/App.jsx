@@ -23,17 +23,12 @@ import AssessmentLayout from './pages/Assessment/components/AssessmentLayout/Ass
 import SelfAssessmentPage from './pages/Assessment/components/SelfAssessmentPage/SelfAssessmentPage';
 import AssessmentGrades from './pages/AssessmentGrades/AssessmentGrades';
 
-import VolunteerFeedback from './pages/VolunteerFeedback/VolunteerFeedback';
-import AdminVolunteerFeedback from './pages/AdminVolunteerFeedback';
 import PaymentAdmin from './pages/PaymentAdmin';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
 
-// Volunteer Management pages
-import VolunteerCheckIn from './pages/VolunteerCheckIn/VolunteerCheckIn';
-import VolunteerAttendance from './pages/VolunteerAttendance/VolunteerAttendance';
-import VolunteerRoster from './pages/VolunteerRoster/VolunteerRoster';
-import VolunteerList from './pages/VolunteerList/VolunteerList';
-import MySchedule from './pages/MySchedule/MySchedule';
+// Volunteering Dashboard (volunteer-facing) and Volunteer Management Dashboard (staff-facing)
+import VolunteeringDashboard from './pages/VolunteeringDashboard/VolunteeringDashboard';
+import VolunteerManagementDashboard from './pages/VolunteerManagementDashboard/VolunteerManagementDashboard';
 
 // Pathfinder pages
 import Pathfinder from './pages/Pathfinder';
@@ -286,13 +281,15 @@ function App() {
             </PermissionRoute>
           </Layout>
         } />
-        <Route path="/admin-volunteer-feedback" element={
+        {/* Volunteer Management Dashboard (staff-facing: List, Calendar, Attendance, Feedback) */}
+        <Route path="/volunteer-management" element={
           <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_VOLUNTEER_FEEDBACK}>
-              <AdminVolunteerFeedback />
+            <PermissionRoute permission={PAGE_PERMISSIONS.VOLUNTEER_MANAGEMENT}>
+              <VolunteerManagementDashboard />
             </PermissionRoute>
           </Layout>
         } />
+        <Route path="/admin-volunteer-feedback" element={<Navigate to="/volunteer-management?tab=feedback" replace />} />
         <Route path="/payment-admin" element={
           <Layout>
             <PermissionRoute permission={PAGE_PERMISSIONS.PAYMENT_ADMIN}>
@@ -419,52 +416,22 @@ function App() {
           </Layout>
         } />
         
-        <Route path="/volunteer-feedback" element={
+        {/* Volunteering Dashboard (volunteer-facing: Schedule, Check In, Feedback) */}
+        <Route path="/volunteering" element={
           <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.VOLUNTEER_FEEDBACK}>
-              <VolunteerFeedback />
+            <PermissionRoute permission={PAGE_PERMISSIONS.VOLUNTEERING}>
+              <VolunteeringDashboard />
             </PermissionRoute>
           </Layout>
         } />
 
-        {/* Volunteer Management routes */}
-        <Route path="/volunteer-checkin" element={
-          <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.VOLUNTEER_SECTION}>
-              <VolunteerCheckIn />
-            </PermissionRoute>
-          </Layout>
-        } />
-        <Route path="/volunteer-attendance" element={
-          <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.VOLUNTEER_MANAGEMENT}>
-              <VolunteerAttendance />
-            </PermissionRoute>
-          </Layout>
-        } />
-        <Route path="/volunteer-roster" element={
-          <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.VOLUNTEER_MANAGEMENT}>
-              <VolunteerRoster />
-            </PermissionRoute>
-          </Layout>
-        } />
-        <Route path="/volunteer-list" element={
-          <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.VOLUNTEER_MANAGEMENT}>
-              <VolunteerList />
-            </PermissionRoute>
-          </Layout>
-        } />
-
-        {/* Volunteer Self-Service Schedule (for volunteer role) */}
-        <Route path="/my-schedule" element={
-          <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.MY_SCHEDULE}>
-              <MySchedule />
-            </PermissionRoute>
-          </Layout>
-        } />
+        {/* Redirects from old volunteer routes to new tabbed dashboards */}
+        <Route path="/volunteer-feedback" element={<Navigate to="/volunteering?tab=feedback" replace />} />
+        <Route path="/volunteer-checkin" element={<Navigate to="/volunteering?tab=checkin" replace />} />
+        <Route path="/my-schedule" element={<Navigate to="/volunteering?tab=schedule" replace />} />
+        <Route path="/volunteer-list" element={<Navigate to="/volunteer-management?tab=list" replace />} />
+        <Route path="/volunteer-roster" element={<Navigate to="/volunteer-management?tab=calendar" replace />} />
+        <Route path="/volunteer-attendance" element={<Navigate to="/volunteer-management?tab=attendance" replace />} />
 
         {/* Form Builder routes (Admin/Staff only) */}
         <Route path="/forms" element={

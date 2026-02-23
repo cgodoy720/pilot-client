@@ -177,7 +177,7 @@ function Learning() {
   const [hasInitialMessage, setHasInitialMessage] = useState(false);
   
   // Model selection state - matches AutoExpandTextarea default
-  const [selectedModel, setSelectedModel] = useState('anthropic/claude-sonnet-4.5');
+  const [selectedModel, setSelectedModel] = useState('anthropic/claude-sonnet-4.6');
   
   // Check if user has active status
   const isActive = user?.active !== false;

@@ -19,6 +19,7 @@ export const PAGE_PERMISSIONS = {
   PAYMENT: 'page:payment',
   
   // Volunteer section
+  VOLUNTEERING: 'page:volunteering',
   VOLUNTEER_FEEDBACK: 'page:volunteer_feedback',
   VOLUNTEER_SECTION: 'page:volunteer_section',
   MY_SCHEDULE: 'page:my_schedule',
@@ -122,6 +123,7 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     PAGE_PERMISSIONS.ASSESSMENT_GRADES,
     
     // Volunteer management
+    PAGE_PERMISSIONS.VOLUNTEERING,
     PAGE_PERMISSIONS.VOLUNTEER_SECTION,
     PAGE_PERMISSIONS.ADMIN_VOLUNTEER_FEEDBACK,
     PAGE_PERMISSIONS.VOLUNTEER_MANAGEMENT,
@@ -140,8 +142,9 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     // Limited access - dashboard + learning to follow content
     PAGE_PERMISSIONS.DASHBOARD,
     PAGE_PERMISSIONS.LEARNING,
-    
+
     // Volunteer-specific
+    PAGE_PERMISSIONS.VOLUNTEERING,
     PAGE_PERMISSIONS.VOLUNTEER_FEEDBACK,
     PAGE_PERMISSIONS.VOLUNTEER_SECTION,
     PAGE_PERMISSIONS.MY_SCHEDULE,

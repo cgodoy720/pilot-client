@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import { useAuth } from '../../context/AuthContext';
+import { useNavContext } from '../../context/NavContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import SummaryTab from './tabs/SummaryTab';
 import SurveyTab from './tabs/SurveyTab';
@@ -16,6 +17,7 @@ const TAB_TRIGGER_CLASS =
 const AdminDashboard = () => {
   const { user } = useAuth();
   const { canAccessPage } = usePermissions();
+  const { isSecondaryNavPage } = useNavContext();
   const [activeTab, setActiveTab] = useState('summary');
   const [iframeLoading, setIframeLoading] = useState(true);
 
@@ -33,27 +35,29 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-[#EFEFEF]">
       {/* Page header */}
-      <div className="bg-white border-b border-[#E3E3E3] px-8 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>
-              Admin Dashboard
-            </h1>
-            <p className="text-slate-500 text-sm mt-0.5">
-              Platform overview for {user?.firstName ? `${user.firstName} ${user.lastName}` : 'administrators'}
-            </p>
+      {!isSecondaryNavPage && (
+        <div className="bg-white border-b border-[#E3E3E3] px-8 py-4">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>
+                Admin Dashboard
+              </h1>
+              <p className="text-slate-500 text-sm mt-0.5">
+                Platform overview for {user?.firstName ? `${user.firstName} ${user.lastName}` : 'administrators'}
+              </p>
+            </div>
+            <a
+              href={LEGACY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#4242EA] transition-colors"
+            >
+              <ExternalLink size={13} />
+              Legacy dashboard
+            </a>
           </div>
-          <a
-            href={LEGACY_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#4242EA] transition-colors"
-          >
-            <ExternalLink size={13} />
-            Legacy dashboard
-          </a>
         </div>
-      </div>
+      )}
 
       {/* Tabs */}
       <div className="max-w-7xl mx-auto px-8 py-6">

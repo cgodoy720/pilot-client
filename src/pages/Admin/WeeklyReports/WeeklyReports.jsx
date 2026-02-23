@@ -3,7 +3,8 @@ import { useAuth } from '../../../context/AuthContext';
 import { usePermissions } from '../../../hooks/usePermissions';
 import {
   BarChart3, Plus, Trash2, Send, Power, PowerOff, Clock,
-  CheckCircle2, XCircle, Mail, ChevronDown, ChevronRight, RefreshCw
+  CheckCircle2, XCircle, Mail, ChevronDown, ChevronRight, RefreshCw,
+  MessageSquare, Hash
 } from 'lucide-react';
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
@@ -16,6 +17,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
 } from '../../../components/ui/dialog';
+import { Switch } from '../../../components/ui/switch';
 import { toast } from 'sonner';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -64,6 +66,9 @@ function WeeklyReports() {
   const [addDialogCohortId, setAddDialogCohortId] = useState(null);
   const [newRecipient, setNewRecipient] = useState({ name: '', email: '' });
   const [triggerLoading, setTriggerLoading] = useState({});
+  const [slackChannels, setSlackChannels] = useState([]);
+  const [slackChannelsLoaded, setSlackChannelsLoaded] = useState(false);
+  const [slackTestLoading, setSlackTestLoading] = useState({});
 
   // Permission check
   const hasAccess = canAccessPage('weekly_reports');
@@ -118,11 +123,28 @@ function WeeklyReports() {
     }
   }, [token]);
 
+  const fetchSlackChannels = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/weekly-reports/slack/channels`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSlackChannels(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching Slack channels:', error);
+    } finally {
+      setSlackChannelsLoaded(true);
+    }
+  }, [token]);
+
   useEffect(() => {
     if (hasAccess) {
       fetchConfigs();
+      fetchSlackChannels();
     }
-  }, [hasAccess, fetchConfigs]);
+  }, [hasAccess, fetchConfigs, fetchSlackChannels]);
 
   // When a cohort is expanded, load its recipients and logs
   useEffect(() => {
@@ -231,7 +253,10 @@ function WeeklyReports() {
   };
 
   const handleTriggerReport = async (cohortId, cohortName) => {
-    if (!window.confirm(`Send a report now for ${cohortName}? This will email all active recipients.`)) return;
+    const config = configs.find(c => c.cohort_id === cohortId);
+    const channels = ['email all active recipients'];
+    if (config?.slack_enabled && config?.slack_channel_id) channels.push('post to Slack');
+    if (!window.confirm(`Send a report now for ${cohortName}? This will ${channels.join(' and ')}.`)) return;
 
     setTriggerLoading(prev => ({ ...prev, [cohortId]: true }));
     try {
@@ -250,6 +275,52 @@ function WeeklyReports() {
       toast.error('Failed to trigger report');
     } finally {
       setTriggerLoading(prev => ({ ...prev, [cohortId]: false }));
+    }
+  };
+
+  // ============================================================
+  // SLACK ACTIONS
+  // ============================================================
+
+  const handleUpdateSlackConfig = async (cohortId, slackChannelId, slackEnabled) => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/weekly-reports/configs/${cohortId}/slack`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ slackChannelId, slackEnabled })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Slack config updated');
+        fetchConfigs();
+      } else {
+        toast.error(data.error || 'Failed to update Slack config');
+      }
+    } catch (error) {
+      toast.error('Failed to update Slack config');
+    }
+  };
+
+  const handleTestSlack = async (cohortId) => {
+    setSlackTestLoading(prev => ({ ...prev, [cohortId]: true }));
+    try {
+      const res = await fetch(`${API_URL}/api/admin/weekly-reports/slack/test/${cohortId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Test message sent to Slack');
+      } else {
+        toast.error(data.error || 'Failed to send test message');
+      }
+    } catch (error) {
+      toast.error('Failed to send Slack test');
+    } finally {
+      setSlackTestLoading(prev => ({ ...prev, [cohortId]: false }));
     }
   };
 
@@ -342,6 +413,11 @@ function WeeklyReports() {
                           Schedule: {formatWeekSchedule(config.week_start_day, config.week_end_day)}
                           {' · '}
                           {config.active_recipients_count} active recipient{config.active_recipients_count !== 1 ? 's' : ''}
+                          {config.slack_enabled && config.slack_channel_id && (
+                            <span className="inline-flex items-center ml-2 text-purple-600">
+                              <MessageSquare className="h-3.5 w-3.5 mr-0.5" /> Slack
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -466,41 +542,126 @@ function WeeklyReports() {
                                   <TableRow className="bg-slate-50">
                                     <TableHead className="font-proxima-bold text-xs">Week</TableHead>
                                     <TableHead className="font-proxima-bold text-xs">Recipients</TableHead>
+                                    <TableHead className="font-proxima-bold text-xs">Channels</TableHead>
                                     <TableHead className="font-proxima-bold text-xs">Status</TableHead>
                                     <TableHead className="font-proxima-bold text-xs">Sent</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {cohortLogs.map(log => (
-                                    <TableRow key={log.log_id}>
-                                      <TableCell className="font-proxima text-sm">
-                                        {formatDate(log.week_start_date)} – {formatDate(log.week_end_date)}
-                                      </TableCell>
-                                      <TableCell className="font-proxima text-sm">{log.recipients_count}</TableCell>
-                                      <TableCell>
-                                        {log.status === 'sent' ? (
-                                          <Badge className="bg-green-100 text-green-800 text-xs">
-                                            <CheckCircle2 className="h-3 w-3 mr-1" /> Sent
-                                          </Badge>
-                                        ) : log.status === 'failed' ? (
-                                          <Badge className="bg-red-100 text-red-800 text-xs">
-                                            <XCircle className="h-3 w-3 mr-1" /> Failed
-                                          </Badge>
-                                        ) : (
-                                          <Badge className="bg-yellow-100 text-yellow-800 text-xs">Pending</Badge>
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="font-proxima text-xs text-slate-400">
-                                        {new Date(log.created_at).toLocaleString('en-US', {
-                                          month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-                                        })}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
+                                  {cohortLogs.map(log => {
+                                    const dc = log.delivery_channels || { email: true };
+                                    return (
+                                      <TableRow key={log.log_id}>
+                                        <TableCell className="font-proxima text-sm">
+                                          {formatDate(log.week_start_date)} – {formatDate(log.week_end_date)}
+                                        </TableCell>
+                                        <TableCell className="font-proxima text-sm">{log.recipients_count}</TableCell>
+                                        <TableCell>
+                                          <div className="flex gap-1">
+                                            {dc.email && (
+                                              <Badge className="bg-blue-100 text-blue-700 text-xs">
+                                                <Mail className="h-3 w-3 mr-0.5" /> Email
+                                              </Badge>
+                                            )}
+                                            {dc.slack === true && (
+                                              <Badge className="bg-purple-100 text-purple-700 text-xs">
+                                                <MessageSquare className="h-3 w-3 mr-0.5" /> Slack
+                                              </Badge>
+                                            )}
+                                            {dc.slack === false && (
+                                              <Badge className="bg-red-100 text-red-600 text-xs" title={dc.slack_error || 'Slack failed'}>
+                                                <MessageSquare className="h-3 w-3 mr-0.5" /> Slack failed
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        </TableCell>
+                                        <TableCell>
+                                          {log.status === 'sent' ? (
+                                            <Badge className="bg-green-100 text-green-800 text-xs">
+                                              <CheckCircle2 className="h-3 w-3 mr-1" /> Sent
+                                            </Badge>
+                                          ) : log.status === 'failed' ? (
+                                            <Badge className="bg-red-100 text-red-800 text-xs">
+                                              <XCircle className="h-3 w-3 mr-1" /> Failed
+                                            </Badge>
+                                          ) : (
+                                            <Badge className="bg-yellow-100 text-yellow-800 text-xs">Pending</Badge>
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="font-proxima text-xs text-slate-400">
+                                          {new Date(log.created_at).toLocaleString('en-US', {
+                                            month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+                                          })}
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
                                 </TableBody>
                               </Table>
                             </div>
                           )}
+                        </div>
+                      </div>
+
+                      {/* Slack Delivery Section */}
+                      <div className="mt-6 pt-6 border-t border-slate-200">
+                        <h4 className="text-sm font-bold text-slate-700 font-proxima uppercase tracking-wide flex items-center gap-2 mb-4">
+                          <MessageSquare className="h-4 w-4" /> Slack Delivery
+                        </h4>
+
+                        <div className="bg-white rounded-lg border border-slate-200 p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                            {/* Enable toggle */}
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={config.slack_enabled || false}
+                                onCheckedChange={(checked) =>
+                                  handleUpdateSlackConfig(config.cohort_id, config.slack_channel_id, checked)
+                                }
+                              />
+                              <span className="text-sm font-proxima text-slate-700">
+                                {config.slack_enabled ? 'Enabled' : 'Disabled'}
+                              </span>
+                            </div>
+
+                            {/* Channel picker */}
+                            <div className="flex-1">
+                              <select
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-proxima text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#4242EA] focus:border-[#4242EA]"
+                                value={config.slack_channel_id || ''}
+                                onChange={(e) =>
+                                  handleUpdateSlackConfig(config.cohort_id, e.target.value, config.slack_enabled || false)
+                                }
+                              >
+                                <option value="">Select a channel…</option>
+                                {slackChannels.map(ch => (
+                                  <option key={ch.id} value={ch.id}>
+                                    #{ch.name} ({ch.num_members} members)
+                                  </option>
+                                ))}
+                              </select>
+                              {slackChannelsLoaded && slackChannels.length === 0 && (
+                                <p className="text-xs text-slate-400 mt-1 font-proxima">
+                                  No channels available. Check that SLACK_BOT_TOKEN and SLACK_REPORT_ENABLED are configured.
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Test button */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="font-proxima"
+                              disabled={!config.slack_channel_id || slackTestLoading[config.cohort_id]}
+                              onClick={() => handleTestSlack(config.cohort_id)}
+                            >
+                              {slackTestLoading[config.cohort_id]
+                                ? <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                                : <Hash className="h-4 w-4 mr-1" />
+                              }
+                              Send Test Message
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>

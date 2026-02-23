@@ -25,7 +25,7 @@ const formatDateKey = (date) => {
     return date.toISOString().split('T')[0];
 };
 
-function MySchedule() {
+function MySchedule({ embedded = false }) {
     const { user, token } = useAuth();
     const { canAccessPage } = usePermissions();
     const [currentMonth, setCurrentMonth] = useState(() => {
@@ -219,8 +219,8 @@ function MySchedule() {
         }
     };
 
-    // Access check - only volunteers
-    if (!user || !canAccessPage('my_schedule')) {
+    // Access check - only volunteers (skip when embedded in dashboard)
+    if (!embedded && (!user || !canAccessPage('my_schedule'))) {
         return (
             <div className="min-h-screen bg-[#EFEFEF] p-8">
                 <div className="max-w-4xl mx-auto">
@@ -234,7 +234,7 @@ function MySchedule() {
     }
 
     return (
-        <div className="min-h-screen bg-[#EFEFEF]">
+        <div className={embedded ? "" : "min-h-screen bg-[#EFEFEF]"}>
             {/* Header */}
             <div className="border-b border-[#C8C8C8] px-10 py-4">
                 <h1

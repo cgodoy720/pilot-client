@@ -5,7 +5,7 @@ import { Camera, CheckCircle2, Clock, AlertCircle, RefreshCw, X } from 'lucide-r
 import { Button } from '../../components/ui/button';
 import * as volunteerApi from '../../services/volunteerApi';
 
-function VolunteerCheckIn() {
+function VolunteerCheckIn({ embedded = false }) {
     const { user, token } = useAuth();
     const { canAccessPage } = usePermissions();
     const [isLoading, setIsLoading] = useState(true);
@@ -189,8 +189,8 @@ function VolunteerCheckIn() {
         setCheckInStatus(null);
     };
 
-    // Access check - only volunteers
-    if (!user || !canAccessPage('volunteer_section')) {
+    // Access check - only volunteers (skip when embedded in dashboard)
+    if (!embedded && (!user || !canAccessPage('volunteer_section'))) {
         return (
             <div className="min-h-screen bg-[#EFEFEF] p-8">
                 <div className="max-w-xl mx-auto">
@@ -208,7 +208,7 @@ function VolunteerCheckIn() {
     // Loading state
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-[#EFEFEF] flex items-center justify-center">
+            <div className={`${embedded ? "" : "min-h-screen"} bg-[#EFEFEF] flex items-center justify-center`}>
                 <div className="text-center">
                     <RefreshCw className="w-8 h-8 animate-spin mx-auto text-[#4242EA]" />
                     <p className="mt-4 text-[#666666]">Loading your assignment...</p>
@@ -220,7 +220,7 @@ function VolunteerCheckIn() {
     // Error state
     if (error) {
         return (
-            <div className="min-h-screen bg-[#EFEFEF] p-8">
+            <div className={`${embedded ? "" : "min-h-screen"} bg-[#EFEFEF] p-8`}>
                 <div className="max-w-xl mx-auto">
                     <div className="bg-red-50 text-red-600 px-6 py-8 rounded-lg border border-red-200 text-center">
                         <AlertCircle className="w-12 h-12 mx-auto mb-4" />
@@ -241,7 +241,7 @@ function VolunteerCheckIn() {
     // No slot assigned for today
     if (!hasSlot) {
         return (
-            <div className="min-h-screen bg-[#EFEFEF] p-8">
+            <div className={`${embedded ? "" : "min-h-screen"} bg-[#EFEFEF] p-8`}>
                 <div className="max-w-xl mx-auto">
                     <div className="bg-white rounded-lg border border-[#C8C8C8] p-8 text-center">
                         <Clock className="w-16 h-16 mx-auto mb-4 text-[#666666]" />
@@ -269,7 +269,7 @@ function VolunteerCheckIn() {
     // Already checked in
     if (alreadyCheckedIn && !checkInResult) {
         return (
-            <div className="min-h-screen bg-[#EFEFEF] p-8">
+            <div className={`${embedded ? "" : "min-h-screen"} bg-[#EFEFEF] p-8`}>
                 <div className="max-w-xl mx-auto">
                     <div className="bg-green-50 rounded-lg border border-green-200 p-8 text-center">
                         <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-green-600" />
@@ -302,7 +302,7 @@ function VolunteerCheckIn() {
     // Check-in success celebration
     if (checkInResult) {
         return (
-            <div className="min-h-screen bg-[#EFEFEF] p-8">
+            <div className={`${embedded ? "" : "min-h-screen"} bg-[#EFEFEF] p-8`}>
                 <div className="max-w-xl mx-auto">
                     <div className="bg-green-50 rounded-lg border border-green-200 p-8 text-center">
                         <div className="text-6xl mb-4">🎉</div>
@@ -341,7 +341,7 @@ function VolunteerCheckIn() {
 
     // Main check-in flow
     return (
-        <div className="min-h-screen bg-[#EFEFEF]">
+        <div className={embedded ? "" : "min-h-screen bg-[#EFEFEF]"}>
             {/* Header */}
             <div className="border-b border-[#C8C8C8] px-10 py-4">
                 <h1

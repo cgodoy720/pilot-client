@@ -1358,4 +1358,51 @@
   .dashboard__tool-description {
     font-size: 13px;
   }
-} 
+}
+
+/* ====================
+   BUILDER VIEW TOGGLE STYLES
+   ==================== */
+
+.dashboard__builder-view-toggle {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px;
+  height: 100%;
+}
+
+.dashboard__builder-view-cohort {
+  display: flex;
+  align-items: center;
+}
+
+.dashboard__builder-view-placeholder {
+  text-align: center;
+  padding: 60px 40px;
+  color: var(--color-text-secondary, #666);
+  font-style: italic;
+  font-size: 16px;
+}
+
+/* Mobile: toggle sits in its own row above content */
+.dashboard__builder-view-toggle--mobile {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-divider);
+  margin-bottom: 10px;
+}
+
+/* Mobile override for builder view toggle */
+@media (max-width: 767px) {
+  .dashboard__builder-view-toggle--mobile {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .dashboard__builder-view-placeholder {
+    padding: 40px 20px;
+    font-size: 14px;
+  }
+}

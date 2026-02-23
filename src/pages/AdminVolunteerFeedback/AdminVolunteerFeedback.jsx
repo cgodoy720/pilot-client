@@ -18,7 +18,7 @@ import {
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 
-function AdminVolunteerFeedback() {
+function AdminVolunteerFeedback({ embedded = false }) {
     const { user, token } = useAuth();
     const { canAccessPage } = usePermissions();
     const [feedback, setFeedback] = useState([]);
@@ -122,7 +122,7 @@ function AdminVolunteerFeedback() {
         setExpandedRows(value);
     };
 
-    if (!user || !canAccessPage('admin_volunteer_feedback')) {
+    if (!embedded && (!user || !canAccessPage('admin_volunteer_feedback'))) {
         return (
             <div className="min-h-screen bg-[#EFEFEF] p-8">
                 <div className="max-w-4xl mx-auto">
@@ -136,7 +136,7 @@ function AdminVolunteerFeedback() {
     }
 
     return (
-        <div className="min-h-screen bg-[#EFEFEF]">
+        <div className={embedded ? "" : "min-h-screen bg-[#EFEFEF]"}>
             {/* Header */}
             <div className="border-b border-[#C8C8C8] px-10 py-4">
                 <h1 

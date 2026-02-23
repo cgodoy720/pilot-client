@@ -6,6 +6,7 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import CohortDaySelector from './components/CohortDaySelector';
+import CurriculumUploadDialog from './components/CurriculumUploadDialog';
 import StaffControlsPanel from './components/StaffControlsPanel';
 import LearningPreview from './components/LearningPreview';
 import { AlertCircle } from 'lucide-react';
@@ -60,6 +61,10 @@ function ContentPreview() {
   const [selectedEntityId, setSelectedEntityId] = useState(null);
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [dayToDelete, setDayToDelete] = useState(null);
+
+  // Upload dialog state
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadCohort, setUploadCohort] = useState(null);
 
   // Check if user has preview access and edit permissions via the permission system
   const { canAccessPage, canUseFeature } = usePermissions();
@@ -531,6 +536,19 @@ function ContentPreview() {
     }
   };
 
+  // Upload curriculum handlers
+  const handleUploadCurriculum = (cohort) => {
+    setUploadCohort(cohort);
+    setUploadDialogOpen(true);
+  };
+
+  const handleUploadComplete = () => {
+    // Re-trigger day fetch by briefly clearing and re-setting selectedCohort
+    const current = selectedCohort;
+    setSelectedCohort(null);
+    setTimeout(() => setSelectedCohort(current), 0);
+  };
+
   // Access denied view
   if (!hasPreviewAccess) {
     return (
@@ -637,6 +655,8 @@ function ContentPreview() {
               selectedDay={selectedDay}
               onCohortSelect={handleCohortSelect}
               onDaySelect={handleDaySelect}
+              onUploadCurriculum={handleUploadCurriculum}
+              canEdit={canEdit}
             />
           </div>
 
@@ -892,6 +912,15 @@ function ContentPreview() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Curriculum Upload Dialog */}
+        <CurriculumUploadDialog
+          open={uploadDialogOpen}
+          onOpenChange={setUploadDialogOpen}
+          cohort={uploadCohort}
+          token={token}
+          onUploadComplete={handleUploadComplete}
+        />
       </div>
     </>
   );

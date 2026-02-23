@@ -19,7 +19,7 @@ import VolunteerProfileModal from './components/VolunteerProfileModal';
 // Cohorts to exclude (duplicate December variations)
 const EXCLUDED_COHORTS = ['December 2025 AI Native', 'December 2025 Workshop'];
 
-function VolunteerList() {
+function VolunteerList({ embedded = false }) {
     const { user, token } = useAuth();
     const { canAccessPage } = usePermissions();
     const [volunteers, setVolunteers] = useState([]);
@@ -156,8 +156,8 @@ function VolunteerList() {
             : <ChevronDown className="w-4 h-4 text-[#4242EA]" />;
     };
 
-    // Access check
-    if (!user || !canAccessPage('volunteer_management')) {
+    // Access check (skip when embedded in dashboard)
+    if (!embedded && (!user || !canAccessPage('volunteer_management'))) {
         return (
             <div className="min-h-screen bg-[#EFEFEF] p-8">
                 <div className="max-w-4xl mx-auto">
@@ -171,7 +171,7 @@ function VolunteerList() {
     }
 
     return (
-        <div className="min-h-screen bg-[#EFEFEF]">
+        <div className={embedded ? "" : "min-h-screen bg-[#EFEFEF]"}>
             {/* Header */}
             <div className="border-b border-[#C8C8C8] px-10 py-4">
                 <h1

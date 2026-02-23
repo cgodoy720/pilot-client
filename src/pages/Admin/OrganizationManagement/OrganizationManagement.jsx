@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
+import { useNavContext } from '../../../context/NavContext';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import OrganizationsTab from './components/OrganizationsTab';
 import ProgramsTab from './components/ProgramsTab';
 import CoursesTab from './components/CoursesTab';
 import EnrollmentsTab from './components/EnrollmentsTab';
+import CohortsTab from './components/CohortsTab';
 import LoadingCurtain from '../../../components/LoadingCurtain/LoadingCurtain';
 
 /**
@@ -16,6 +18,7 @@ import LoadingCurtain from '../../../components/LoadingCurtain/LoadingCurtain';
 function OrganizationManagement() {
   const { user, token } = useAuth();
   const { canAccessPage } = usePermissions();
+  const { isSecondaryNavPage } = useNavContext();
   const [activeTab, setActiveTab] = useState('organizations');
   const [loading, setLoading] = useState(false);
 
@@ -38,16 +41,18 @@ function OrganizationManagement() {
       
       <div className="min-h-screen bg-slate-50">
         {/* Header */}
-        <div className="bg-white border-b border-slate-200 px-8 py-6">
-          <div className="max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold text-slate-900 font-proxima">
-              Organization Management
-            </h1>
-            <p className="text-slate-600 mt-1 font-proxima">
-              Manage organizational hierarchy, programs, courses, and student enrollments
-            </p>
+        {!isSecondaryNavPage && (
+          <div className="bg-white border-b border-slate-200 px-8 py-6">
+            <div className="max-w-7xl mx-auto">
+              <h1 className="text-3xl font-bold text-slate-900 font-proxima">
+                Organization Management
+              </h1>
+              <p className="text-slate-600 mt-1 font-proxima">
+                Manage organizational hierarchy, programs, courses, and student enrollments
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="max-w-7xl mx-auto px-8 py-8">
           {/* Tabs */}
@@ -102,15 +107,7 @@ function OrganizationManagement() {
 
             {/* Cohorts Tab (Linking functionality) */}
             <TabsContent value="cohorts" className="mt-0">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-bold text-slate-900 mb-4 font-proxima">
-                  Cohort Course Linking
-                </h2>
-                <p className="text-slate-600 font-proxima">
-                  This feature allows you to link cohorts to courses in the organizational hierarchy.
-                  Coming soon - for now, use the Courses tab to view linked cohorts.
-                </p>
-              </div>
+              <CohortsTab token={token} setLoading={setLoading} />
             </TabsContent>
 
             {/* Enrollments Tab */}

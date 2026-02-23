@@ -5,7 +5,7 @@ import FeedbackModal from './FeedbackModal';
 import FeedbackList from './FeedbackList';
 import './VolunteerFeedback.css';
 
-function VolunteerFeedback() {
+function VolunteerFeedback({ embedded = false }) {
     const { user, token } = useAuth();
     const { canAccessPage } = usePermissions();
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -62,7 +62,7 @@ function VolunteerFeedback() {
         ));
     };
 
-    if (!user || !canAccessPage('volunteer_feedback')) {
+    if (!embedded && (!user || !canAccessPage('volunteer_feedback'))) {
         return (
             <div className="volunteer-feedback-page">
                 <div className="volunteer-feedback">
@@ -76,7 +76,7 @@ function VolunteerFeedback() {
     }
     
     return (
-        <div className="volunteer-feedback-page">
+        <div className={embedded ? "volunteer-feedback-page volunteer-feedback-page--embedded" : "volunteer-feedback-page"}>
             <div className="volunteer-feedback">
                 <div className="volunteer-feedback__header">
                     <h1>Volunteer Feedback</h1>
