@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { fetchPursuitBuilderCohorts } from '../AdminDashboard/utils/cohortUtils';
+import { toLegacyFormat } from '../AdminDashboard/utils/cohortUtils';
 import './Dashboard.css';
 
 function Dashboard() {
@@ -65,14 +65,26 @@ function Dashboard() {
   const [cohortsLoading, setCohortsLoading] = useState(false);
 
   // Fetch available cohorts for staff/admin builder view
+  // Uses the staff-accessible /api/permissions/cohorts endpoint (not the admin org-management one)
   useEffect(() => {
     if (!isStaffOrAdmin) return;
     const loadCohorts = async () => {
       try {
         setCohortsLoading(true);
-        const cohorts = await fetchPursuitBuilderCohorts(token);
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/permissions/cohorts?type=builder`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error(`Cohorts API error: ${res.status}`);
+        const data = await res.json();
+        const cohorts = (data.cohorts || []).map(c => ({
+          name: c.name,
+          legacyName: toLegacyFormat(c.name),
+          cohort_id: c.cohort_id,
+          is_active: true, // endpoint already filters to active only
+          curriculum_day_count: parseInt(c.curriculum_day_count) || 0,
+        }));
         setAvailableCohorts(cohorts);
-        const activeWithContent = cohorts.filter(c => c.is_active && c.curriculum_day_count > 0);
+        const activeWithContent = cohorts.filter(c => c.curriculum_day_count > 0);
         if (activeWithContent.length > 0 && !builderViewCohort) {
           setBuilderViewCohort(activeWithContent[0].legacyName);
         }
@@ -90,8 +102,9 @@ function Dashboard() {
       fetchDashboardData();
     } else if (isStaffOrAdmin && builderViewCohort) {
       fetchDashboardData();
-    } else if (!(isStaffOrAdmin && !builderViewCohort)) {
-      // Only dismiss loading if we're NOT waiting for cohort auto-selection
+    } else {
+      // Dismiss loading for all other cases (volunteers, inactive users,
+      // or staff/admin still waiting for cohort auto-selection to complete)
       setIsLoading(false);
     }
   }, [token, cohortFilter, selectedCohort, user?.role, isActive, isVolunteer, isStaffOrAdmin, builderViewCohort]);
