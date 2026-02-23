@@ -151,18 +151,7 @@ const AdmissionsDashboard = () => {
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem('admissions-dashboard-filters-v1');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.visibleColumns) {
-          return parsed.visibleColumns;
-        }
-      }
-    } catch (error) {
-      console.error('Error loading saved filters:', error);
-    }
-    return {
+    const defaults = {
       name: true,
       email: true,
       phone: true,
@@ -175,11 +164,28 @@ const AdmissionsDashboard = () => {
       admission: true,
       notes: true,
       deliberation: true,
+      age: false,
+      gender: false,
+      race: false,
       education: false,
       referral: false,
       pledge: false
     };
+    try {
+      const saved = sessionStorage.getItem('admissions-dashboard-filters-v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.visibleColumns) {
+          // Merge: defaults provide any missing keys (e.g. newly added columns)
+          return { ...defaults, ...parsed.visibleColumns };
+        }
+      }
+    } catch (error) {
+      console.error('Error loading saved filters:', error);
+    }
+    return defaults;
   });
+
 
   // Overview quick views state
 
