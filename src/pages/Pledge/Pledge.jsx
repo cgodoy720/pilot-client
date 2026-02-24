@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import pursuitLogoFull from '../../assets/logo-full.png';
 import Swal from 'sweetalert2';
+import { Button } from '../../components/ui/button';
+import { CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import 'animate.css';
-import './Pledge.css';
 
 function Pledge() {
   const navigate = useNavigate();
@@ -74,17 +75,17 @@ function Pledge() {
 
   // Helper function to validate phone number (10 digits)
   const isValidPhoneNumber = (phone) => {
-    const digitsOnly = phone.replace(/\D/g, ''); // Remove all non-digit characters
+    const digitsOnly = phone.replace(/\D/g, '');
     return digitsOnly.length === 10;
   };
 
   // Validation for each step
   const isStepValid = (step) => {
     switch (step) {
-      case 1: return true; // Introduction - no validation needed
-      case 2: return true; // Learning commitments - no validation needed
-      case 3: return codeOfConductAgreed; // Community commitments - requires code of conduct agreement
-      case 4: return true; // Adapting & Building commitments - no validation needed
+      case 1: return true;
+      case 2: return true;
+      case 3: return codeOfConductAgreed;
+      case 4: return true;
       case 5: 
         return formData.fullName && 
                formData.email && 
@@ -102,7 +103,7 @@ function Pledge() {
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext('2d');
-      ctx.strokeStyle = '#FFFFFF'; // Changed to white for better visibility
+      ctx.strokeStyle = '#1E1E1E';
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
     }
@@ -118,13 +119,9 @@ function Pledge() {
 
   // Phone number formatting function
   const formatPhoneNumber = (value) => {
-    // Remove all non-digit characters
     const digitsOnly = value.replace(/\D/g, '');
-    
-    // Limit to 10 digits
     const limitedDigits = digitsOnly.substring(0, 10);
     
-    // Apply formatting based on length
     if (limitedDigits.length <= 3) {
       return limitedDigits;
     } else if (limitedDigits.length <= 6) {
@@ -146,8 +143,7 @@ function Pledge() {
     const rect = canvas.getBoundingClientRect();
     const ctx = canvas.getContext('2d');
     
-    // Ensure white stroke color for visibility
-    ctx.strokeStyle = '#FFFFFF';
+    ctx.strokeStyle = '#1E1E1E';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     
@@ -165,8 +161,7 @@ function Pledge() {
     const rect = canvas.getBoundingClientRect();
     const ctx = canvas.getContext('2d');
     
-    // Ensure white stroke color is maintained
-    ctx.strokeStyle = '#FFFFFF';
+    ctx.strokeStyle = '#1E1E1E';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     
@@ -333,29 +328,23 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
   };
 
   const handleSubmit = async () => {
-    // Validate form
     if (!formData.fullName || !formData.email || !formData.phoneNumber || !formData.dateOfBirth || !formData.printedName || !hasSignature) {
       await Swal.fire({
         icon: 'warning',
         title: 'Incomplete Form',
         text: 'Please fill out all fields and provide your signature.',
         confirmButtonColor: '#4242ea',
-        background: 'var(--color-background-dark)',
-        color: 'var(--color-text-primary)',
         confirmButtonText: 'OK, I\'ll complete it'
       });
       return;
     }
 
-    // Validate phone number
     if (!isValidPhoneNumber(formData.phoneNumber)) {
       await Swal.fire({
         icon: 'warning',
         title: 'Invalid Phone Number',
         text: 'Please enter a valid 10-digit phone number.',
         confirmButtonColor: '#4242ea',
-        background: 'var(--color-background-dark)',
-        color: 'var(--color-text-primary)',
         confirmButtonText: 'OK, I\'ll fix it'
       });
       return;
@@ -364,12 +353,10 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
     setIsSubmitting(true);
     
     try {
-      // Get current applicant ID from user context or localStorage
       let applicantId = null;
       if (user.applicantId) {
         applicantId = user.applicantId;
       } else {
-        // Create or get applicant to get the ID
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/applicant/by-email/${user.email}`);
         if (response.ok) {
           const applicant = await response.json();
@@ -381,11 +368,9 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
         throw new Error('Unable to find your applicant ID');
       }
 
-      // Get signature data from canvas
       const canvas = canvasRef.current;
       const signatureData = canvas.toDataURL('image/png');
       
-      // Submit pledge to backend
       const submitResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/pledge/complete`, {
         method: 'POST',
         headers: {
@@ -405,22 +390,19 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
 
       const result = await submitResponse.json();
       
-      // Show celebratory success notification
       await Swal.fire({
         icon: 'success',
         title: '🎉 Congratulations! 🎉',
         html: `
           <div style="text-align: center;">
             <h3 style="color: #4242ea; margin: 20px 0;">Welcome to the AI-Native Program!</h3>
-            <p style="font-size: 18px; margin: 15px 0; color: var(--color-text-primary);">🚀 Your journey as a Builder starts now! 🚀</p>
-            <p style="font-size: 16px; margin: 10px 0; color: var(--color-text-secondary);">Thank you for making this commitment to transform yourself and shape the future with AI.</p>
-            <p style="font-size: 14px; color: var(--color-text-muted); margin-top: 20px;">Get ready to build, learn, and innovate like never before!</p>
+            <p style="font-size: 18px; margin: 15px 0; color: #1E1E1E;">🚀 Your journey as a Builder starts now! 🚀</p>
+            <p style="font-size: 16px; margin: 10px 0; color: #666;">Thank you for making this commitment to transform yourself and shape the future with AI.</p>
+            <p style="font-size: 14px; color: #999; margin-top: 20px;">Get ready to build, learn, and innovate like never before!</p>
           </div>
         `,
         confirmButtonText: '🎯 Let\'s Build the Future!',
         confirmButtonColor: '#4242ea',
-        background: 'var(--color-background-dark)',
-        color: 'var(--color-text-primary)',
         timer: 6000,
         timerProgressBar: true,
         showClass: {
@@ -431,7 +413,6 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
         }
       });
       
-      // Navigate back to applicant dashboard
       navigate('/apply');
     } catch (error) {
       console.error('Error submitting pledge:', error);
@@ -440,8 +421,6 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
         title: 'Submission Failed',
         text: error.message || 'There was an error submitting your pledge. Please try again.',
         confirmButtonColor: '#4242ea',
-        background: 'var(--color-background-dark)',
-        color: 'var(--color-text-primary)',
         confirmButtonText: 'Try Again'
       });
     } finally {
@@ -457,88 +436,135 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
     navigate('/login');
   };
 
+  // Step labels for progress bar
+  const stepLabels = ['Introduction', 'Learning', 'Community', 'Building', 'Information', 'Signature'];
+
   // Step rendering functions
   const renderStep1 = () => (
-    <div className="pledge__step">
-      <div className="pledge__step-content">
-        <h2>Welcome to the AI-Native Program</h2>
-        <div className="pledge__intro-text">
-          <p>Everyone in the AI-Native Program is a Builder.</p>
-          <p>The world is evolving at an unprecedented pace, driven by technology and innovation. By taking this pledge, you're committing not just to learn, but to drive your own transformation. You'll gain the skills to build powerful apps, harness the potential of AI, and position yourself as a leader in this rapidly changing digital age.</p>
-          <p>This is your opportunity to become not just a consumer of technology, but a creator—an AI-native who shapes the future. Let's embark on this journey together.</p>
-        </div>
+    <div className="animate-fadeIn">
+      <h2 className="text-2xl md:text-3xl font-bold text-[#1E1E1E] mb-6 text-center">
+        Welcome to the AI-Native Program
+      </h2>
+      <div className="space-y-4 text-[#666] text-base md:text-lg leading-relaxed">
+        <p className="font-semibold text-[#1E1E1E] text-lg md:text-xl">
+          Everyone in the AI-Native Program is a Builder.
+        </p>
+        <p>
+          The world is evolving at an unprecedented pace, driven by technology and innovation. By taking this pledge, you're committing not just to learn, but to drive your own transformation. You'll gain the skills to build powerful apps, harness the potential of AI, and position yourself as a leader in this rapidly changing digital age.
+        </p>
+        <p>
+          This is your opportunity to become not just a consumer of technology, but a creator—an AI-native who shapes the future. Let's embark on this journey together.
+        </p>
       </div>
     </div>
   );
 
   const renderStep2 = () => (
-    <div className="pledge__step">
-      <div className="pledge__step-content">
-        <h2>Learning Commitment</h2>
-        <p>As a Builder in the Pursuit AI-native Program, I commit to embracing learning with passion, curiosity, and determination.</p>
-        <div className="pledge__commitments">
-          <br/>
-          <h3>Learning</h3>
-          <ul>
-            <li>Cultivate a growth mindset, and engage deeply with every aspect of the program, such as workshops, projects, and community events.</li>
-            <li>Drive my own learning through consistent practice and research.</li>
-            <li>Share my learning openly and teach others.</li>
-          </ul>
-        </div>
+    <div className="animate-fadeIn">
+      <h2 className="text-2xl md:text-3xl font-bold text-[#1E1E1E] mb-6 text-center">
+        Learning Commitment
+      </h2>
+      <p className="text-[#666] text-base md:text-lg mb-6">
+        As a Builder in the Pursuit AI-native Program, I commit to embracing learning with passion, curiosity, and determination.
+      </p>
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-[#4242EA] mb-4">Learning</h3>
+        <ul className="space-y-3 text-[#1E1E1E]">
+          <li className="flex items-start gap-3">
+            <span className="text-[#4242EA] mt-1">•</span>
+            <span>Cultivate a growth mindset, and engage deeply with every aspect of the program, such as workshops, projects, and community events.</span>
+          </li>
+          <li className="flex items-start gap-3">
+            <span className="text-[#4242EA] mt-1">•</span>
+            <span>Drive my own learning through consistent practice and research.</span>
+          </li>
+          <li className="flex items-start gap-3">
+            <span className="text-[#4242EA] mt-1">•</span>
+            <span>Share my learning openly and teach others.</span>
+          </li>
+        </ul>
       </div>
     </div>
   );
 
   const renderStep3 = () => (
-    <div className="pledge__step">
-      <div className="pledge__step-content">
-        <h2>Community Commitment</h2>
-        <div className="pledge__commitments">
-          <ul>
-            <li>Foster a positive, inclusive, supportive community environment.</li>
-            <li>Uphold Pursuit's <button 
+    <div className="animate-fadeIn">
+      <h2 className="text-2xl md:text-3xl font-bold text-[#1E1E1E] mb-6 text-center">
+        Community Commitment
+      </h2>
+      <div className="bg-purple-50 border border-purple-200 rounded-xl p-6 mb-6">
+        <ul className="space-y-3 text-[#1E1E1E]">
+          <li className="flex items-start gap-3">
+            <span className="text-purple-600 mt-1">•</span>
+            <span>Foster a positive, inclusive, supportive community environment.</span>
+          </li>
+          <li className="flex items-start gap-3">
+            <span className="text-purple-600 mt-1">•</span>
+            <span>
+              Uphold Pursuit's{' '}
+              <button 
                 type="button" 
-                className="code-of-conduct-link" 
+                className="text-[#4242EA] underline hover:text-[#3535D1] font-medium"
                 onClick={() => setShowCodeOfConduct(true)}
               >
                 code of conduct
-              </button></li>
-          </ul>
-        </div>
-        
-        <div className="pledge__agreement-section">
-          <label className="pledge__checkbox-label">
-            <input
-              type="checkbox"
-              checked={codeOfConductAgreed}
-              onChange={(e) => setCodeOfConductAgreed(e.target.checked)}
-              className="pledge__checkbox"
-            />
-            <span className="pledge__checkbox-text">
-              I have read and agree to uphold Pursuit's Code of Conduct
+              </button>
             </span>
-          </label>
-        </div>
+          </li>
+        </ul>
+      </div>
+      
+      <div className="bg-white border-2 border-[#4242EA] rounded-xl p-6">
+        <label className="flex items-start gap-4 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={codeOfConductAgreed}
+            onChange={(e) => setCodeOfConductAgreed(e.target.checked)}
+            className="w-5 h-5 mt-0.5 accent-[#4242EA] cursor-pointer flex-shrink-0"
+          />
+          <span className="text-[#1E1E1E] font-medium">
+            I have read and agree to uphold Pursuit's Code of Conduct
+          </span>
+        </label>
       </div>
     </div>
   );
 
   const renderStep4 = () => (
-    <div className="pledge__step">
-      <div className="pledge__step-content">
-        <h2>Adapting & Building Commitment</h2>
-        <div className="pledge__commitments">
-          <h3>Adapting</h3>
-          <ul>
-            <li>Embrace the uncertainty and fluidity of this ever-evolving program and the AI field itself.</li>
-            <li>Remain resilient in the face of challenges, demonstrating initiative to solve problems.</li>
+    <div className="animate-fadeIn">
+      <h2 className="text-2xl md:text-3xl font-bold text-[#1E1E1E] mb-6 text-center">
+        Adapting & Building Commitment
+      </h2>
+      <div className="space-y-6">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-amber-700 mb-4">Adapting</h3>
+          <ul className="space-y-3 text-[#1E1E1E]">
+            <li className="flex items-start gap-3">
+              <span className="text-amber-600 mt-1">•</span>
+              <span>Embrace the uncertainty and fluidity of this ever-evolving program and the AI field itself.</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="text-amber-600 mt-1">•</span>
+              <span>Remain resilient in the face of challenges, demonstrating initiative to solve problems.</span>
+            </li>
           </ul>
-          <br/>
-          <h3>Building</h3>
-          <ul>
-            <li>Consistently work on projects and apply my learning to real-world scenarios.</li>
-            <li>Be proactive in seeking opportunities to build and create.</li>
-            <li>Embrace a "building in public" approach to share my journey and contribute to the AI community.</li>
+        </div>
+        
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-green-700 mb-4">Building</h3>
+          <ul className="space-y-3 text-[#1E1E1E]">
+            <li className="flex items-start gap-3">
+              <span className="text-green-600 mt-1">•</span>
+              <span>Consistently work on projects and apply my learning to real-world scenarios.</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="text-green-600 mt-1">•</span>
+              <span>Be proactive in seeking opportunities to build and create.</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="text-green-600 mt-1">•</span>
+              <span>Embrace a "building in public" approach to share my journey and contribute to the AI community.</span>
+            </li>
           </ul>
         </div>
       </div>
@@ -546,114 +572,128 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
   );
 
   const renderStep5 = () => (
-    <div className="pledge__step">
-      <div className="pledge__step-content">
-        <h2>Builder Information</h2>
-        <div className="pledge__form-grid">
-          <div className="pledge__form-field">
-            <label>Full Name *</label>
-            <input
-              type="text"
-              value={formData.fullName}
-              onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-              required
-            />
-          </div>
-          <div className="pledge__form-field">
-            <label>Email Address *</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-              required
-            />
-          </div>
-          <div className="pledge__form-field">
-            <label>Phone Number * (10 digits)</label>
-            <input
-              type="tel"
-              value={formData.phoneNumber}
-              onChange={handlePhoneNumberChange}
-              className={formData.phoneNumber && !isValidPhoneNumber(formData.phoneNumber) ? 'invalid' : ''}
-              placeholder="(555) 123-4567"
-              required
-            />
-          </div>
-          <div className="pledge__form-field">
-            <label>Date of Birth *</label>
-            <input
-              type="date"
-              value={formData.dateOfBirth}
-              onChange={(e) => setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-              required
-            />
-          </div>
+    <div className="animate-fadeIn">
+      <h2 className="text-2xl md:text-3xl font-bold text-[#1E1E1E] mb-6 text-center">
+        Builder Information
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-semibold text-[#1E1E1E] mb-2">Full Name *</label>
+          <input
+            type="text"
+            value={formData.fullName}
+            onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
+            required
+            className="w-full px-4 py-3 border border-[#C8C8C8] rounded-xl bg-white text-[#1E1E1E] focus:outline-none focus:ring-2 focus:ring-[#4242EA] focus:border-transparent transition-all"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-[#1E1E1E] mb-2">Email Address *</label>
+          <input
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+            required
+            className="w-full px-4 py-3 border border-[#C8C8C8] rounded-xl bg-white text-[#1E1E1E] focus:outline-none focus:ring-2 focus:ring-[#4242EA] focus:border-transparent transition-all"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-[#1E1E1E] mb-2">Phone Number * (10 digits)</label>
+          <input
+            type="tel"
+            value={formData.phoneNumber}
+            onChange={handlePhoneNumberChange}
+            className={`w-full px-4 py-3 border rounded-xl bg-white text-[#1E1E1E] focus:outline-none focus:ring-2 focus:border-transparent transition-all ${
+              formData.phoneNumber && !isValidPhoneNumber(formData.phoneNumber) 
+                ? 'border-red-500 focus:ring-red-500' 
+                : 'border-[#C8C8C8] focus:ring-[#4242EA]'
+            }`}
+            placeholder="(555) 123-4567"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-[#1E1E1E] mb-2">Date of Birth *</label>
+          <input
+            type="date"
+            value={formData.dateOfBirth}
+            onChange={(e) => setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+            required
+            className="w-full px-4 py-3 border border-[#C8C8C8] rounded-xl bg-white text-[#1E1E1E] focus:outline-none focus:ring-2 focus:ring-[#4242EA] focus:border-transparent transition-all"
+          />
         </div>
       </div>
     </div>
   );
 
   const renderStep6 = () => (
-    <div className="pledge__step">
-      <div className="pledge__step-content">
-        <h2>Signature & Agreement</h2>
-        <div className="pledge__acknowledgment">
-          <p>By signing below, I acknowledge that I understand the <button 
-              type="button" 
-              className="program-details-link" 
-              onClick={() => setShowProgramDetails(true)}
-            >
-              program details
-            </button> and pledge the above to become AI-native, including upholding Pursuit's Code of Conduct.</p>
+    <div className="animate-fadeIn">
+      <h2 className="text-2xl md:text-3xl font-bold text-[#1E1E1E] mb-6 text-center">
+        Signature & Agreement
+      </h2>
+      <div className="bg-[#4242EA]/10 border border-[#4242EA] rounded-xl p-4 mb-6">
+        <p className="text-[#1E1E1E] font-medium text-center">
+          By signing below, I acknowledge that I understand the{' '}
+          <button 
+            type="button" 
+            className="text-[#4242EA] underline hover:text-[#3535D1] font-semibold"
+            onClick={() => setShowProgramDetails(true)}
+          >
+            program details
+          </button>{' '}
+          and pledge the above to become AI-native, including upholding Pursuit's Code of Conduct.
+        </p>
+      </div>
+      
+      <div className="space-y-6">
+        <div>
+          <label className="block text-sm font-semibold text-[#1E1E1E] mb-2">Signature of Builder *</label>
+          <div className="relative inline-block w-full">
+            <canvas
+              ref={canvasRef}
+              className="border-2 border-[#C8C8C8] rounded-xl bg-white cursor-crosshair hover:border-[#4242EA] transition-colors w-full max-w-[400px]"
+              width="400"
+              height="150"
+              onMouseDown={startDrawing}
+              onMouseMove={draw}
+              onMouseUp={stopDrawing}
+              onMouseLeave={stopDrawing}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            />
+            {hasSignature && (
+              <button
+                type="button"
+                onClick={clearSignature}
+                className="absolute top-2 right-2 md:right-auto md:left-[360px] bg-red-500 text-white px-3 py-1 rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
         
-        <div className="pledge__signature-section">
-          <div className="pledge__signature-field">
-            <label>Signature of Builder *</label>
-            <div className="pledge__signature-container">
-              <canvas
-                ref={canvasRef}
-                className="pledge__signature-canvas"
-                width="400"
-                height="200"
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-              />
-              {hasSignature && (
-                <button
-                  type="button"
-                  className="pledge__clear-signature"
-                  onClick={clearSignature}
-                >
-                  Clear
-                </button>
-              )}
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-[#1E1E1E] mb-2">Printed Name *</label>
+            <input
+              type="text"
+              value={formData.printedName}
+              onChange={(e) => setFormData(prev => ({ ...prev, printedName: e.target.value }))}
+              required
+              className="w-full px-4 py-3 border border-[#C8C8C8] rounded-xl bg-white text-[#1E1E1E] focus:outline-none focus:ring-2 focus:ring-[#4242EA] focus:border-transparent transition-all"
+            />
           </div>
-          
-          <div className="pledge__form-grid">
-            <div className="pledge__form-field">
-              <label>Printed Name *</label>
-              <input
-                type="text"
-                value={formData.printedName}
-                onChange={(e) => setFormData(prev => ({ ...prev, printedName: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="pledge__form-field">
-              <label>Date *</label>
-              <input
-                type="text"
-                value={formData.date}
-                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                required
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-semibold text-[#1E1E1E] mb-2">Date *</label>
+            <input
+              type="text"
+              value={formData.date}
+              onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+              required
+              className="w-full px-4 py-3 border border-[#C8C8C8] rounded-xl bg-white text-[#1E1E1E] focus:outline-none focus:ring-2 focus:ring-[#4242EA] focus:border-transparent transition-all"
+            />
           </div>
         </div>
       </div>
@@ -661,104 +701,148 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
   );
 
   if (!user) {
-    return <div className="pledge__loading">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#EFEFEF]">
+        <div className="text-[#1E1E1E] text-xl">Loading...</div>
+      </div>
+    );
   }
 
   return (
-    <div className="admissions-dashboard pledge-page">
-      {/* Top Bar */}
-      <div className="admissions-dashboard__topbar">
-        <div className="admissions-dashboard__topbar-left">
-          <div className="admissions-dashboard__logo-section">
+    <div className="min-h-screen bg-[#EFEFEF] font-sans">
+      {/* Top Bar - Matching ApplicantDashboard */}
+      <div className="bg-white border-b border-[#C8C8C8] px-4 md:px-8 py-2">
+        <div className="max-w-[1400px] mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-3 md:gap-5">
             <Link to="/apply">
-              <img src={pursuitLogoFull} alt="Pursuit Logo" className="admissions-dashboard__logo-full" />
+              <img 
+                src={pursuitLogoFull} 
+                alt="Pursuit Logo" 
+                className="h-8 md:h-10 object-contain cursor-pointer"
+                style={{ filter: 'invert(1)' }}
+              />
             </Link>
+            <div className="text-base md:text-lg font-semibold text-[#1E1E1E]">
+              Welcome, {user.firstName || user.first_name}!
+            </div>
           </div>
-          <div className="admissions-dashboard__welcome-text">
-            Welcome, {user.firstName || user.first_name}!
+          <div className="flex items-center gap-2 md:gap-4">
+            <Link 
+              to="/apply" 
+              className="hidden md:block bg-[#4242EA] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#3535D1] transition-colors"
+            >
+              Apply
+            </Link>
+            <Link 
+              to="/program-details" 
+              className="hidden md:block text-[#666] hover:text-[#1E1E1E] px-4 py-2 rounded-lg font-semibold transition-colors"
+            >
+              Details
+            </Link>
+            <Button 
+              onClick={handleLogout}
+              variant="outline"
+              className="border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white"
+            >
+              Log Out
+            </Button>
           </div>
-        </div>
-        <div className="admissions-dashboard__topbar-right">
-          <Link to="/apply" className="nav-link nav-link--active">Apply</Link>
-          <Link to="/program-details" className="nav-link">Details</Link>
-          <button
-            onClick={handleLogout}
-            className="admissions-dashboard__button--primary"
-          >
-            Log Out
-          </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="pledge__content">
-        <div className="pledge__content-inner">
+      <div className="px-4 md:px-8 py-6">
+        <div className="max-w-[800px] mx-auto">
           {/* Progress Bar */}
-          <div className="pledge__progress">
-            <div className="pledge__progress-bar">
-              {Array.from({ length: totalSteps }, (_, index) => (
-                <div
-                  key={index + 1}
-                  className={`pledge__progress-step ${
-                    index + 1 === currentStep ? 'active' : ''
-                  } ${index + 1 < currentStep ? 'completed' : ''}`}
-                  onClick={() => goToStep(index + 1)}
-                >
-                  <div className="pledge__progress-number">{index + 1}</div>
-                  <div className="pledge__progress-label">
-                    {index === 0 && 'Introduction'}
-                    {index === 1 && 'Learning'}
-                    {index === 2 && 'Community'}
-                    {index === 3 && 'Building'}
-                    {index === 4 && 'Information'}
-                    {index === 5 && 'Signature'}
+          <div className="mb-8">
+            <div className="flex justify-between items-center relative">
+              {/* Progress line background */}
+              <div className="absolute top-5 left-[8%] right-[8%] h-0.5 bg-[#C8C8C8] z-0" />
+              {/* Progress line filled */}
+              <div 
+                className="absolute top-5 left-[8%] h-0.5 bg-[#4242EA] z-0 transition-all duration-300"
+                style={{ width: `${((currentStep - 1) / (totalSteps - 1)) * 84}%` }}
+              />
+              
+              {stepLabels.map((label, index) => {
+                const stepNum = index + 1;
+                const isActive = stepNum === currentStep;
+                const isCompleted = stepNum < currentStep;
+                
+                return (
+                  <div 
+                    key={stepNum}
+                    className="flex flex-col items-center cursor-pointer z-10"
+                    onClick={() => goToStep(stepNum)}
+                  >
+                    <div 
+                      className={`
+                        w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300
+                        ${isCompleted ? 'bg-[#4242EA] text-white' : ''}
+                        ${isActive ? 'bg-[#4242EA] text-white scale-110 shadow-lg' : ''}
+                        ${!isActive && !isCompleted ? 'bg-white border-2 border-[#C8C8C8] text-[#666]' : ''}
+                      `}
+                    >
+                      {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : stepNum}
+                    </div>
+                    <span 
+                      className={`
+                        text-xs mt-2 text-center max-w-[60px] md:max-w-[80px] leading-tight transition-colors
+                        ${isActive ? 'text-[#4242EA] font-semibold' : 'text-[#666]'}
+                        ${isCompleted ? 'text-[#4242EA]' : ''}
+                      `}
+                    >
+                      {label}
+                    </span>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
-          <div className="pledge__main">
-            {/* Render current step */}
-            {currentStep === 1 && renderStep1()}
-            {currentStep === 2 && renderStep2()}
-            {currentStep === 3 && renderStep3()}
-            {currentStep === 4 && renderStep4()}
-            {currentStep === 5 && renderStep5()}
-            {currentStep === 6 && renderStep6()}
+          {/* Step Content Card */}
+          <div className="bg-white rounded-3xl p-6 md:p-8 shadow-lg border border-[#E0E0E0] min-h-[400px] flex flex-col">
+            <div className="flex-1 overflow-y-auto mb-6">
+              {currentStep === 1 && renderStep1()}
+              {currentStep === 2 && renderStep2()}
+              {currentStep === 3 && renderStep3()}
+              {currentStep === 4 && renderStep4()}
+              {currentStep === 5 && renderStep5()}
+              {currentStep === 6 && renderStep6()}
+            </div>
 
             {/* Navigation Buttons */}
-            <div className="pledge__navigation">
-              {currentStep > 1 && (
-                <button
-                  type="button"
-                  className="pledge__button--secondary"
+            <div className="flex justify-between items-center pt-6 border-t border-[#E0E0E0]">
+              {currentStep > 1 ? (
+                <Button
                   onClick={prevStep}
+                  variant="outline"
+                  className="border-[#C8C8C8] text-[#666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E] px-6"
                 >
+                  <ChevronLeft className="w-4 h-4 mr-2" />
                   Previous
-                </button>
+                </Button>
+              ) : (
+                <div />
               )}
               
-              {currentStep < totalSteps && (
-                <button
-                  type="button"
-                  className="pledge__button--primary"
+              {currentStep < totalSteps ? (
+                <Button
                   onClick={nextStep}
                   disabled={!isStepValid(currentStep)}
+                  className="bg-[#4242EA] hover:bg-[#3535D1] text-white px-6 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
-                </button>
-              )}
-              
-              {currentStep === totalSteps && (
-                <button
-                  type="button"
-                  className="pledge__button--primary"
+                  <ChevronRight className="w-4 h-4 ml-2" />
+                </Button>
+              ) : (
+                <Button
                   onClick={handleSubmit}
                   disabled={isSubmitting || !isStepValid(currentStep)}
+                  className="bg-[#4242EA] hover:bg-[#3535D1] text-white px-8 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? 'Submitting...' : 'Submit Pledge'}
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -767,34 +851,44 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
 
       {/* Program Details Modal */}
       {showProgramDetails && (
-        <div className="modal-overlay" onClick={() => setShowProgramDetails(false)}>
-          <div className="modal program-details-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>AI-Native Program Details</h2>
-              <button className="close-btn" onClick={() => setShowProgramDetails(false)}>×</button>
-            </div>
-            <div className="pledge-modal-content">
-              <div className="program-details-content">
-                <div className="program-details-text">
-                  {getProgramDetailsText().split('\n').map((line, index) => (
-                    <p key={index}>{line}</p>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowProgramDetails(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl max-w-[800px] max-h-[90vh] w-full flex flex-col shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-[#E0E0E0] flex justify-between items-center">
+              <h2 className="text-xl font-bold text-[#1E1E1E]">AI-Native Program Details</h2>
               <button 
-                className="pledge__button--secondary"
-                onClick={downloadProgramDetails}
-              >
-                Download Details
-              </button>
-              <button 
-                className="pledge__button--primary"
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F5F5F5] text-[#666] hover:text-[#1E1E1E] text-2xl transition-colors"
                 onClick={() => setShowProgramDetails(false)}
               >
-                Close
+                ×
               </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="prose prose-sm max-w-none text-[#1E1E1E]">
+                {getProgramDetailsText().split('\n').map((line, index) => (
+                  <p key={index} className={line.startsWith('•') ? 'ml-4' : ''}>{line}</p>
+                ))}
+              </div>
+            </div>
+            <div className="p-6 border-t border-[#E0E0E0] flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={downloadProgramDetails}
+                className="border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white"
+              >
+                Download Details
+              </Button>
+              <Button
+                onClick={() => setShowProgramDetails(false)}
+                className="bg-[#4242EA] hover:bg-[#3535D1] text-white"
+              >
+                Close
+              </Button>
             </div>
           </div>
         </div>
@@ -802,72 +896,93 @@ To be clear, signing this pledge does NOT mean you are entering into the Good Jo
 
       {/* Code of Conduct Modal */}
       {showCodeOfConduct && (
-        <div className="modal-overlay" onClick={() => setShowCodeOfConduct(false)}>
-          <div className="modal code-of-conduct-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Pursuit AI Native Program — Code of Conduct</h2>
-              <button className="close-btn" onClick={() => setShowCodeOfConduct(false)}>×</button>
-            </div>
-            <div className="pledge-modal-content">
-              <div className="code-of-conduct-content">
-                <p>The Pursuit AI Native Program is a professional learning environment. All participants are expected to uphold the highest standards of conduct at all times, in the classroom, on the premises (including the lobby and roof), and at any Pursuit-related event or gathering, whether in person or virtual.</p>
-                
-                <p><strong>We expect you to conduct yourself professionally, which includes:</strong></p>
-                <ul>
-                  <li>Cleaning up after yourself</li>
-                  <li>Taking care of shared spaces, materials, and equipment</li>
-                  <li>Maintaining focus during sessions and minimizing disruptions</li>
-                  <li>Respecting the space, staff, volunteers, and your peers</li>
-                </ul>
-
-                <h3>What We Mean by "Showing Respect"</h3>
-                <p>Respect is a core expectation of this program. In this context, it means:</p>
-                <ul>
-                  <li>Listening actively when others are speaking, not interrupting or talking over them</li>
-                  <li>Using appropriate and professional language and tone, both in person and online</li>
-                  <li>Being punctual and prepared for all sessions and activities</li>
-                  <li>Following shared space norms, like cleaning up and not distracting others</li>
-                  <li>Engaging with others with kindness and professionalism, especially during feedback or collaboration</li>
-                  <li>Respecting personal boundaries, including physical space, identity, and personal information</li>
-                </ul>
-
-                <h3>Zero-Tolerance Policy</h3>
-                <p>To maintain a safe and professional environment, Pursuit enforces a zero-tolerance policy for the following behaviors, regardless of your age or legal status:</p>
-                <ul>
-                  <li>Use, possession, or influence of drugs or alcohol in any program space</li>
-                  <li>Violence or threats of any kind, including physical intimidation</li>
-                  <li>Inappropriate, offensive, or discriminatory language</li>
-                  <li>Sexual or romantic advances toward any participant, staff member, or volunteer</li>
-                </ul>
-
-                <h3>Consequences for Violations</h3>
-                <p>Violations of this Code of Conduct will be taken seriously. Consequences may include:</p>
-                <ul>
-                  <li>Immediate suspension from the program, at the discretion of Pursuit staff</li>
-                  <li>Termination of participation in the program without re-entry</li>
-                  <li>Removal from program spaces and events, both in-person and online</li>
-                </ul>
-
-                <p><strong>By participating in the Pursuit AI Native Program, you agree to abide by these expectations and contribute to a safe, respectful, and professional learning community.</strong></p>
-              </div>
-            </div>
-            <div className="modal-footer">
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowCodeOfConduct(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl max-w-[800px] max-h-[90vh] w-full flex flex-col shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-[#E0E0E0] flex justify-between items-center">
+              <h2 className="text-xl font-bold text-[#1E1E1E]">Pursuit AI Native Program — Code of Conduct</h2>
               <button 
-                className="pledge__button--secondary"
-                onClick={downloadCodeOfConduct}
-              >
-                Download Code of Conduct
-              </button>
-              <button 
-                className="pledge__button--primary"
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F5F5F5] text-[#666] hover:text-[#1E1E1E] text-2xl transition-colors"
                 onClick={() => setShowCodeOfConduct(false)}
               >
-                Close
+                ×
               </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1 text-[#1E1E1E]">
+              <p className="mb-4">The Pursuit AI Native Program is a professional learning environment. All participants are expected to uphold the highest standards of conduct at all times, in the classroom, on the premises (including the lobby and roof), and at any Pursuit-related event or gathering, whether in person or virtual.</p>
+              
+              <p className="font-semibold mb-2">We expect you to conduct yourself professionally, which includes:</p>
+              <ul className="list-disc ml-6 mb-4 space-y-1">
+                <li>Cleaning up after yourself</li>
+                <li>Taking care of shared spaces, materials, and equipment</li>
+                <li>Maintaining focus during sessions and minimizing disruptions</li>
+                <li>Respecting the space, staff, volunteers, and your peers</li>
+              </ul>
+
+              <h3 className="text-lg font-semibold text-[#4242EA] mt-6 mb-2">What We Mean by "Showing Respect"</h3>
+              <p className="mb-2">Respect is a core expectation of this program. In this context, it means:</p>
+              <ul className="list-disc ml-6 mb-4 space-y-1">
+                <li>Listening actively when others are speaking, not interrupting or talking over them</li>
+                <li>Using appropriate and professional language and tone, both in person and online</li>
+                <li>Being punctual and prepared for all sessions and activities</li>
+                <li>Following shared space norms, like cleaning up and not distracting others</li>
+                <li>Engaging with others with kindness and professionalism, especially during feedback or collaboration</li>
+                <li>Respecting personal boundaries, including physical space, identity, and personal information</li>
+              </ul>
+
+              <h3 className="text-lg font-semibold text-[#4242EA] mt-6 mb-2">Zero-Tolerance Policy</h3>
+              <p className="mb-2">To maintain a safe and professional environment, Pursuit enforces a zero-tolerance policy for the following behaviors, regardless of your age or legal status:</p>
+              <ul className="list-disc ml-6 mb-4 space-y-1">
+                <li>Use, possession, or influence of drugs or alcohol in any program space</li>
+                <li>Violence or threats of any kind, including physical intimidation</li>
+                <li>Inappropriate, offensive, or discriminatory language</li>
+                <li>Sexual or romantic advances toward any participant, staff member, or volunteer</li>
+              </ul>
+
+              <h3 className="text-lg font-semibold text-[#4242EA] mt-6 mb-2">Consequences for Violations</h3>
+              <p className="mb-2">Violations of this Code of Conduct will be taken seriously. Consequences may include:</p>
+              <ul className="list-disc ml-6 mb-4 space-y-1">
+                <li>Immediate suspension from the program, at the discretion of Pursuit staff</li>
+                <li>Termination of participation in the program without re-entry</li>
+                <li>Removal from program spaces and events, both in-person and online</li>
+              </ul>
+
+              <p className="font-semibold mt-6">By participating in the Pursuit AI Native Program, you agree to abide by these expectations and contribute to a safe, respectful, and professional learning community.</p>
+            </div>
+            <div className="p-6 border-t border-[#E0E0E0] flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={downloadCodeOfConduct}
+                className="border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white"
+              >
+                Download Code of Conduct
+              </Button>
+              <Button
+                onClick={() => setShowCodeOfConduct(false)}
+                className="bg-[#4242EA] hover:bg-[#3535D1] text-white"
+              >
+                Close
+              </Button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Animation styles */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateX(20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.4s ease-in-out;
+        }
+      `}</style>
     </div>
   );
 }

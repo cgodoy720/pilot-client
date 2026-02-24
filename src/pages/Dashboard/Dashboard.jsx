@@ -10,10 +10,13 @@ import { Button } from '../../components/ui/button';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
+import { toLegacyFormat } from '../AdminDashboard/utils/cohortUtils';
 import './Dashboard.css';
 
 function Dashboard() {
@@ -24,6 +27,10 @@ function Dashboard() {
   const isActive = user?.active !== false;
   // Check if user is volunteer
   const isVolunteer = user?.role === 'volunteer';
+  // Check if user is staff or admin
+  const isStaffOrAdmin = user?.role === 'staff' || user?.role === 'admin';
+  // Check if user is a workshop participant (applicant with workshop flag)
+  const isWorkshopParticipant = user?.isWorkshopParticipant === true;
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -42,15 +49,65 @@ function Dashboard() {
   // NEW: Task completion status map for current week
   const [taskCompletionMap, setTaskCompletionMap] = useState({});
 
+  // Cohort info for pre-curriculum countdown display
+  const [cohortInfo, setCohortInfo] = useState(null);
+  
+  // NEW: Enrollments for course switcher (user's enrolled cohorts)
+  const [enrollments, setEnrollments] = useState([]);
+  const [selectedCohort, setSelectedCohort] = useState(null); // Currently selected cohort for viewing
+  
+  // Track user-selected week to preserve it when switching cohorts
+  const [pendingWeek, setPendingWeek] = useState(null);
+
+  // Builder View (staff/admin only)
+  const [builderViewCohort, setBuilderViewCohort] = useState(null);
+  const [availableCohorts, setAvailableCohorts] = useState([]);
+  const [cohortsLoading, setCohortsLoading] = useState(false);
+
+  // Fetch available cohorts for staff/admin builder view
+  // Uses the staff-accessible /api/permissions/cohorts endpoint (not the admin org-management one)
   useEffect(() => {
-    // Only fetch dashboard data if user is active
-    if (isActive) {
+    if (!isStaffOrAdmin) return;
+    const loadCohorts = async () => {
+      try {
+        setCohortsLoading(true);
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/permissions/cohorts?type=builder`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error(`Cohorts API error: ${res.status}`);
+        const data = await res.json();
+        const cohorts = (data.cohorts || []).map(c => ({
+          name: c.name,
+          legacyName: toLegacyFormat(c.name),
+          cohort_id: c.cohort_id,
+          is_active: true, // endpoint already filters to active only
+          curriculum_day_count: parseInt(c.curriculum_day_count) || 0,
+        }));
+        setAvailableCohorts(cohorts);
+        const activeWithContent = cohorts.filter(c => c.curriculum_day_count > 0);
+        if (activeWithContent.length > 0 && !builderViewCohort) {
+          setBuilderViewCohort(activeWithContent[0].legacyName);
+        }
+      } catch (error) {
+        console.error('Error fetching cohorts for builder view:', error);
+      } finally {
+        setCohortsLoading(false);
+      }
+    };
+    loadCohorts();
+  }, [isStaffOrAdmin, token]);
+
+  useEffect(() => {
+    if (isActive && !isVolunteer && !isStaffOrAdmin) {
+      fetchDashboardData();
+    } else if (isStaffOrAdmin && builderViewCohort) {
       fetchDashboardData();
     } else {
-      // If user is inactive, we don't need to load the dashboard data
+      // Dismiss loading for all other cases (volunteers, inactive users,
+      // or staff/admin still waiting for cohort auto-selection to complete)
       setIsLoading(false);
     }
-  }, [token, cohortFilter, user?.role, isActive]);
+  }, [token, cohortFilter, selectedCohort, user?.role, isActive, isVolunteer, isStaffOrAdmin, builderViewCohort]);
 
   const fetchDashboardData = async () => {
     try {
@@ -60,9 +117,14 @@ function Dashboard() {
       // NEW: Single optimized API call for ALL dashboard data
       let url = `${import.meta.env.VITE_API_URL}/api/progress/dashboard-full`;
       
-      // Add cohort parameter for staff/admin if selected
-      if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
+      // Add cohort parameter for staff/admin builder view, staff/admin cohort filter, or course switcher
+      if (isStaffOrAdmin && builderViewCohort) {
+        url += `?cohort=${encodeURIComponent(builderViewCohort)}`;
+      } else if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
         url += `?cohort=${encodeURIComponent(cohortFilter)}`;
+      } else if (selectedCohort) {
+        // User selected a different cohort from their enrollments
+        url += `?cohort=${encodeURIComponent(selectedCohort)}`;
       }
       
       const response = await fetch(url, {
@@ -80,7 +142,22 @@ function Dashboard() {
       
       const data = await response.json();
       
+      // Store enrollments for course switcher (only on initial load, not when switching)
+      if (data.enrollments && data.enrollments.length > 0 && enrollments.length === 0) {
+        setEnrollments(data.enrollments);
+        // Set initial selected cohort to active enrollment
+        const activeEnrollment = data.enrollments.find(e => e.is_active);
+        if (activeEnrollment && !selectedCohort) {
+          setSelectedCohort(activeEnrollment.cohort_name);
+        }
+      }
+      
       if (data.message === 'No schedule for today') {
+        setCohortInfo(data.cohortInfo || null);
+        // Still store enrollments even if no schedule
+        if (data.enrollments && data.enrollments.length > 0) {
+          setEnrollments(data.enrollments);
+        }
         setIsLoading(false);
         return;
       }
@@ -128,8 +205,18 @@ function Dashboard() {
       // Set level, week, and weekly goal
       if (data.day) {
         setCurrentLevel(data.day.level || 1);
-        setCurrentWeek(data.day.week);
-        setWeeklyGoal(data.day.weekly_goal || '');
+        
+        // Use pending week if user explicitly selected one, otherwise use current day's week
+        if (pendingWeek !== null) {
+          setCurrentWeek(pendingWeek);
+          // Find the weekly goal for the selected week
+          const selectedWeekData = (data.weeks || []).find(w => w.weekNumber === pendingWeek);
+          setWeeklyGoal(selectedWeekData?.weeklyGoal || data.day.weekly_goal || '');
+          setPendingWeek(null); // Clear pending week after using it
+        } else {
+          setCurrentWeek(data.day.week);
+          setWeeklyGoal(data.day.weekly_goal || '');
+        }
       }
       
     } catch (error) {
@@ -142,7 +229,7 @@ function Dashboard() {
 
   // Memoized week data for current week - only recalculates when currentWeek or allWeeksData changes
   const weekData = useMemo(() => {
-    if (!currentWeek || !allWeeksData.length) return [];
+    if (currentWeek === null || currentWeek === undefined || !allWeeksData.length) return [];
     const week = allWeeksData.find(w => w.weekNumber === currentWeek);
     return week?.days || [];
   }, [currentWeek, allWeeksData]);
@@ -305,6 +392,22 @@ function Dashboard() {
     };
   };
 
+  // Format card header for workshop participants (Day 1, Day 2, etc.)
+  const formatWorkshopCardHeader = (dayNumber, isToday = false) => {
+    if (isToday) {
+      return {
+        prefix: 'TODAY ',
+        date: `Day ${dayNumber}`,
+        full: `TODAY Day ${dayNumber}`
+      };
+    }
+    return {
+      prefix: '',
+      date: `Day ${dayNumber}`,
+      full: `Day ${dayNumber}`
+    };
+  };
+
   // Check if a date is today
   const isDateToday = (dateString) => {
     if (!dateString) return false;
@@ -337,7 +440,7 @@ function Dashboard() {
 
   // Navigate to volunteer feedback
   const navigateToVolunteerFeedback = useCallback(() => {
-    navigate('/volunteer-feedback');
+    navigate('/volunteering?tab=feedback');
   }, [navigate]);
 
   // Handle opening missed assignments sidebar
@@ -350,7 +453,7 @@ function Dashboard() {
     setIsSidebarOpen(false);
   }, []);
 
-  // Handle navigation from sidebar to specific day/task
+  // Handle navigation from sidebar to specific day/task - DEPRECATED, kept for other uses
   const handleNavigateToDay = useCallback((dayId, taskId) => {
     // Navigate to the day view with the task highlighted
     navigate(`/calendar?day=${dayId}&task=${taskId}`);
@@ -367,13 +470,15 @@ function Dashboard() {
     const params = new URLSearchParams();
     params.append('dayId', dayId);
     
-    // Add cohort for staff/admin
-    if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
+    // Pass cohort for all users when viewing a specific enrolled cohort
+    if (selectedCohort) {
+      params.append('cohort', selectedCohort);
+    } else if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
       params.append('cohort', cohortFilter);
     }
     
     navigate(`/learning?${params.toString()}`);
-  }, [isActive, user?.role, cohortFilter, navigate]);
+  }, [isActive, user?.role, cohortFilter, selectedCohort, navigate]);
 
   // Handle navigation to Learning page for a specific task
   const handleNavigateToTask = useCallback((dayId, taskId) => {
@@ -386,12 +491,15 @@ function Dashboard() {
     params.append('dayId', dayId);
     params.append('taskId', taskId);
     
-    if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
+    // Pass cohort for all users when viewing a specific enrolled cohort
+    if (selectedCohort) {
+      params.append('cohort', selectedCohort);
+    } else if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
       params.append('cohort', cohortFilter);
     }
     
     navigate(`/learning?${params.toString()}`);
-  }, [isActive, user?.role, cohortFilter, navigate]);
+  }, [isActive, user?.role, cohortFilter, selectedCohort, navigate]);
 
   // Render skeleton loading cards
   const renderSkeletonCards = () => {
@@ -465,6 +573,545 @@ function Dashboard() {
     );
   };
 
+  // Render the builder weekly view (reused by both renderDashboardContent and renderStaffAdminView)
+  const renderBuilderWeeklyView = () => {
+    const isExternalCohort = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin';
+    const isStaffBuilderView = isStaffOrAdmin;
+
+    return (
+      <>
+        {/* Top Grid: Today's Goal and Upcoming */}
+        <div className="dashboard__top-grid">
+          {/* Today's Goal Section */}
+          <div className="dashboard__todays-goal">
+            <h2 className="dashboard__section-title">Today's Goal</h2>
+            <p className="dashboard__goal-text">
+              {currentDay?.daily_goal || 'No goal set for today'}
+            </p>
+            {!isStaffBuilderView && (
+              <button className="group relative overflow-hidden inline-flex justify-center items-center px-[30px] py-2.5 w-fit bg-pursuit-purple border border-pursuit-purple rounded-full font-normal text-2xl leading-5 text-white cursor-pointer transition-colors duration-300 animate-breathe hover:animate-none" onClick={handleContinueSession}>
+                <span className="relative z-10 transition-colors duration-300 group-hover:text-pursuit-purple">Start</span>
+                <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+              </button>
+            )}
+          </div>
+
+          {/* Vertical Divider */}
+          <div className="dashboard__vertical-divider"></div>
+
+          {/* Upcoming Section - Hidden until events are available */}
+          <div className="dashboard__upcoming" style={{ visibility: 'hidden' }}>
+            <h2 className="dashboard__section-title">Upcoming</h2>
+            <div className="dashboard__upcoming-list">
+              {upcomingEvents.map((event, index) => (
+                <div key={index} className="dashboard__upcoming-item">
+                  <div className="dashboard__upcoming-content">
+                    <span className="dashboard__upcoming-date">{event.date}</span>
+                    <div className="dashboard__upcoming-details">
+                      <p className="dashboard__upcoming-title">{event.title}</p>
+                      <p className="dashboard__upcoming-time">{event.time}</p>
+                      {event.location && <p className="dashboard__upcoming-location">{event.location}</p>}
+                    </div>
+                  </div>
+                  <button className="dashboard__signup-btn">Sign up</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Divider 2 */}
+        <div className="dashboard__divider-2" />
+
+        {/* Week Header: Title and Date Picker */}
+        <div className="dashboard__week-header-wrapper">
+          <div className="dashboard__week-header">
+            <div className="dashboard__week-title">
+              {isWorkshopParticipant ? (
+                <span className="dashboard__week-label">AI Native Workshop</span>
+              ) : isExternalCohort ? (
+                <span className="dashboard__week-label">{user?.cohort || 'Your Program'}</span>
+              ) : (
+                <span className="dashboard__week-label">
+                  <span className="dashboard__week-level">{currentLevel}</span>: Week {currentWeek}
+                </span>
+              )}
+            </div>
+
+            {/* Hide week navigation for external cohorts and workshop participants */}
+            {!isExternalCohort && !isWorkshopParticipant && (
+            <div className="dashboard__date-picker">
+              <button
+                className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
+                  currentWeek > 1
+                    ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer'
+                    : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
+                }`}
+                style={{ borderRadius: '.5rem' }}
+                onClick={() => navigateToWeek('prev')}
+                disabled={currentWeek <= 1 || slideDirection !== null}
+              >
+                <ChevronLeft className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-white' : ''}`} strokeWidth={0.8} />
+                {currentWeek > 1 && (
+                  <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+                )}
+              </button>
+
+              {/* Week Dropdown - shows cohorts with weeks if multiple enrollments */}
+              <Select
+                value={`${selectedCohort || currentDay?.cohort}|${currentWeek}`}
+                onValueChange={(val) => {
+                  const [cohort, weekStr] = val.split('|');
+                  const targetWeek = parseInt(weekStr);
+
+                  // Check if switching cohorts
+                  const switchingCohort = cohort !== (selectedCohort || currentDay?.cohort);
+
+                  if (switchingCohort) {
+                    // Switching to different cohort - set pending week so fetchDashboardData uses it
+                    setPendingWeek(targetWeek);
+                    setSelectedCohort(cohort);
+                    // Don't set currentWeek here - let fetchDashboardData handle it with pendingWeek
+                  } else if (targetWeek !== currentWeek && !slideDirection) {
+                    // Same cohort, different week
+                    setSlideDirection(targetWeek > currentWeek ? 'out-left' : 'out-right');
+                    setTimeout(() => {
+                      setCurrentWeek(targetWeek);
+                      const newWeekData = allWeeksData.find(w => w.weekNumber === targetWeek);
+                      if (newWeekData) {
+                        setWeeklyGoal(newWeekData.weeklyGoal || '');
+                        if (newWeekData.days && newWeekData.days.length > 0) {
+                          setCurrentLevel(newWeekData.days[0].level || 1);
+                        }
+                      }
+                      setSlideDirection(targetWeek > currentWeek ? 'in-from-right' : 'in-from-left');
+                      setTimeout(() => setSlideDirection(null), 1000);
+                    }, 1000);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[140px] h-10 bg-white px-[10px] border-0 text-[16px] leading-[18px] font-proxima font-normal text-carbon-black justify-center" style={{ borderRadius: '7px' }}>
+                  <SelectValue className="text-center">Week {String(currentWeek).padStart(2, '0')}</SelectValue>
+                </SelectTrigger>
+                <SelectContent className="max-h-[400px] w-[140px]">
+                  {enrollments.length > 1 ? (
+                    // Show cohorts with nested weeks
+                    enrollments.map((enrollment) => (
+                      <SelectGroup key={enrollment.cohort_id}>
+                        <SelectLabel className="text-sm font-bold text-carbon-black text-left px-3 py-1.5">
+                          {enrollment.cohort_name}
+                        </SelectLabel>
+                        {/* Show actual weeks for this cohort */}
+                        {Array.from({ length: enrollment.max_week || 12 }, (_, i) => i + 1).map((week) => (
+                          <SelectItem
+                            key={`${enrollment.cohort_name}|${week}`}
+                            value={`${enrollment.cohort_name}|${week}`}
+                            className="pl-2 justify-center text-center"
+                          >
+                            <span className="w-full text-center">Week {String(week).padStart(2, '0')}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))
+                  ) : (
+                    // Single cohort - show weeks only
+                    Array.from({ length: currentDay?.week || 1 }, (_, i) => i + 1).map((week) => (
+                      <SelectItem key={week} value={`${currentDay?.cohort}|${week}`}>
+                        Week {String(week).padStart(2, '0')}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+
+              <button
+                className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
+                  currentDay?.week && currentWeek < currentDay.week
+                    ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer'
+                    : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
+                }`}
+                style={{ borderRadius: '.5rem' }}
+                onClick={() => navigateToWeek('next')}
+                disabled={!currentDay?.week || currentWeek >= currentDay.week || slideDirection !== null}
+              >
+                <ChevronRight className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-white' : ''}`} strokeWidth={0.8} />
+                {currentDay?.week && currentWeek < currentDay.week && (
+                  <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+                )}
+              </button>
+            </div>
+            )}
+          </div>
+
+          {/* Weekly Goal - separate row below header */}
+          {!isWorkshopParticipant && weeklyGoal && (
+            <div
+              className={`dashboard__week-subtitle ${
+                slideDirection === 'out-left' ? 'animate__animated animate__fadeOutLeft' :
+                slideDirection === 'out-right' ? 'animate__animated animate__fadeOutRight' :
+                slideDirection === 'in-from-left' ? 'animate__animated animate__fadeInLeft' :
+                slideDirection === 'in-from-right' ? 'animate__animated animate__fadeInRight' : ''
+              }`}
+              style={{ animationDuration: '0.6s' }}
+            >
+              {weeklyGoal}
+            </div>
+          )}
+        </div>
+
+        {/* Weekly Agenda Cards */}
+        <div className="dashboard__weekly-grid">
+          {weekData.map((day, index) => {
+            const dayIsToday = isDateToday(day.day_date);
+            const dayIsPast = isDatePast(day.day_date);
+            const dayIsFuture = !dayIsToday && !dayIsPast;
+            const showCheckbox = dayIsPast && !dayIsToday;
+
+            // For future weeks (going forward): out-left and in-from-right flow left-to-right
+            // For past weeks (going back): out-right and in-from-left flow right-to-left (reversed)
+            const isRightToLeft = slideDirection === 'out-right' || slideDirection === 'in-from-left';
+            const cardCount = weekData.length;
+            const delayIndex = isRightToLeft ? (cardCount - 1 - index) : index;
+
+            // Determine Animate.css classes based on slide direction
+            let animateClass = '';
+            if (slideDirection === 'out-left') animateClass = 'animate__animated animate__fadeOutLeft';
+            else if (slideDirection === 'out-right') animateClass = 'animate__animated animate__fadeOutRight';
+            else if (slideDirection === 'in-from-left') animateClass = 'animate__animated animate__fadeInLeft';
+            else if (slideDirection === 'in-from-right') animateClass = 'animate__animated animate__fadeInRight';
+
+            // Calculate completion status for past days
+            const deliverableTasks = day.tasks?.filter(t =>
+              t.deliverable_type && ['video', 'document', 'link', 'structured'].includes(t.deliverable_type)
+            ) || [];
+            const completedDeliverables = deliverableTasks.filter(t => t.hasSubmission);
+            const isComplete = deliverableTasks.length > 0 && deliverableTasks.length === completedDeliverables.length;
+
+            return (
+              <div
+                key={day.id}
+                className={`dashboard__day-card ${dayIsToday ? 'dashboard__day-card--today' : ''} ${animateClass}`}
+                style={{
+                  animationDelay: `${delayIndex * 0.08}s`
+                }}
+              >
+
+                {/* Date */}
+                <div className="dashboard__day-date">
+                  {(() => {
+                    const formattedDate = isWorkshopParticipant
+                      ? formatWorkshopCardHeader(day.day_number, dayIsToday)
+                      : formatDayDate(day.day_date, dayIsToday);
+                    return (
+                      <>
+                        {formattedDate.prefix && <strong>{formattedDate.prefix}</strong>}
+                        {formattedDate.date}
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Separator */}
+                <div className="dashboard__day-separator" />
+
+                {/* Activities */}
+                {day.tasks && day.tasks.length > 0 && (
+                  <div className="dashboard__day-section">
+                    <h4 className="dashboard__day-section-title">Activities</h4>
+                    <div className="dashboard__day-activities">
+                      {day.tasks.map((task, taskIndex) => {
+                        // NEW: Use completion map for all tasks (not just deliverables)
+                        const completionStatus = taskCompletionMap[task.id];
+                        const isComplete = completionStatus?.isComplete || false;
+                        // Only show checkbox for past days on or after 11/1/2025
+                        const showTaskCheckbox = dayIsPast && !dayIsToday && isDateAfterCutoff(day.day_date);
+                        const isBreakTask = task.task_type === 'break';
+
+                        return (
+                          <div key={task.id}>
+                            <div className="dashboard__day-activity">
+                              {/* Task Checkbox - Purple (complete), Pink (incomplete with deliverable), or White circle (incomplete without deliverable) */}
+                              {/* Hide checkbox for break tasks but add spacer to maintain alignment */}
+                              {showTaskCheckbox && !isBreakTask && (
+                                <div className={`dashboard__task-checkbox ${
+                                  isComplete
+                                    ? 'dashboard__task-checkbox--complete'
+                                    : (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze)
+                                      ? 'dashboard__task-checkbox--incomplete'
+                                      : 'dashboard__task-checkbox--empty'
+                                }`}>
+                                  {isComplete ? (
+                                    <svg viewBox="0 0 14 14" className="dashboard__task-checkbox-check">
+                                      <polyline points="2.5,6 5.5,9 11.5,3" />
+                                    </svg>
+                                  ) : (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze) ? (
+                                    <svg viewBox="0 0 8 8" className="dashboard__task-checkbox-x">
+                                      <line x1="1" y1="1" x2="7" y2="7" />
+                                      <line x1="7" y1="1" x2="1" y2="7" />
+                                    </svg>
+                                  ) : null}
+                                </div>
+                              )}
+                              {/* Empty spacer for break tasks to maintain alignment */}
+                              {showTaskCheckbox && isBreakTask && (
+                                <div className="dashboard__task-checkbox" style={{ visibility: 'hidden' }} />
+                              )}
+
+                              <div className="dashboard__day-activity-content">
+                                <span className="dashboard__task-title">{task.task_title}</span>
+
+                {/* Deliverable / Assessment Submit Button */}
+                {completionStatus?.requiresDeliverable && (
+                  <button
+                    className={`dashboard__deliverable-link ${
+                      (task.hasSubmission || completionStatus?.isComplete) ? 'dashboard__deliverable-link--submitted' : 'dashboard__deliverable-link--pending'
+                    } ${dayIsFuture ? 'dashboard__deliverable-link--disabled' : ''}`}
+                    onClick={() => {
+                      if (!dayIsFuture) {
+                        handleNavigateToTask(day.id, task.id);
+                      }
+                    }}
+                    disabled={dayIsFuture}
+                  >
+                    {(task.hasSubmission || completionStatus?.isComplete) ? (
+                      <>
+                        <svg viewBox="0 0 14 14" className="inline-block w-3 h-3 mr-1 align-middle" style={{ marginTop: '-2px' }}>
+                          <polyline points="2.5,6 5.5,9 11.5,3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        {task.deliverable_type.charAt(0).toUpperCase() + task.deliverable_type.slice(1)} Submitted
+                      </>
+                    ) : (
+                      `Submit ${task.deliverable_type}`
+                    )}
+                  </button>
+                )}
+                              </div>
+                            </div>
+                            {taskIndex < day.tasks.length - 1 && (
+                              <div className="dashboard__activity-divider" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+            </div>
+          )}
+
+                {/* Arrow Button in top-right corner — hidden for staff builder view */}
+                {!isStaffBuilderView && dayIsToday && (
+                  <div className="absolute top-[13px] right-3 z-10">
+                    <ArrowButton
+                      onClick={() => handleNavigateToDayLearning(day.id)}
+                      borderColor="#FFFFFF"
+                      backgroundColor="#FFFFFF"
+                      arrowColor="#4242EA"
+                      hoverBackgroundColor="#4242EA"
+                      hoverArrowColor="#FFFFFF"
+                      size="md"
+                      strokeWidth={1}
+                    />
+                  </div>
+                )}
+                {!isStaffBuilderView && !dayIsToday && showCheckbox && (
+                  <div className="absolute top-[13px] right-3 z-10">
+                    <ArrowButton
+                      onClick={() => handleNavigateToDayLearning(day.id)}
+                      borderColor="#4242EA"
+                      backgroundColor="#E3E3E3"
+                      arrowColor="#4242EA"
+                      hoverBackgroundColor="#4242EA"
+                      hoverArrowColor="#E3E3E3"
+                      size="md"
+                      strokeWidth={1}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Divider 3 */}
+        <div className="dashboard__divider-3" />
+      </>
+    );
+  };
+
+  // Render staff/admin dashboard view
+  const renderStaffAdminView = () => {
+    // Determine what content to show
+    const renderBuilderViewContent = () => {
+      if (!builderViewCohort) {
+        return (
+          <div className="dashboard__builder-view-placeholder">
+            Select a cohort to preview the builder dashboard
+          </div>
+        );
+      }
+      if (isLoading) {
+        return (
+          <div className="dashboard__weekly-grid">
+            {renderSkeletonCards()}
+          </div>
+        );
+      }
+      if (!allWeeksData.length) {
+        return (
+          <div className="dashboard__builder-view-placeholder">
+            No curriculum data available for this cohort yet
+          </div>
+        );
+      }
+      return renderBuilderWeeklyView();
+    };
+
+    return (
+      <div className="dashboard">
+        {/* Desktop View */}
+        <div className="dashboard__desktop hidden md:block">
+          {/* Greeting with cohort dropdown */}
+          <div className="dashboard__greeting">
+            <h1 className="dashboard__greeting-text">
+              Welcome back, {user?.firstName || 'there'}!
+            </h1>
+            <div className="dashboard__builder-view-toggle">
+              <div className="dashboard__builder-view-cohort">
+                <Select
+                  value={builderViewCohort || ''}
+                  onValueChange={(val) => setBuilderViewCohort(val)}
+                >
+                  <SelectTrigger className="w-[220px] h-9 bg-white px-3 border border-[#ccc] text-[14px] font-proxima text-carbon-black" style={{ borderRadius: '7px' }}>
+                    <SelectValue placeholder="Select a cohort..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {cohortsLoading ? (
+                      <SelectItem value="__loading" disabled>Loading cohorts...</SelectItem>
+                    ) : (
+                      availableCohorts.filter(c => c.is_active && c.curriculum_day_count > 0).map((cohort) => (
+                        <SelectItem key={cohort.cohort_id} value={cohort.legacyName}>
+                          {cohort.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {renderBuilderViewContent()}
+        </div>
+
+        {/* Mobile View */}
+        <div className="dashboard__mobile block md:hidden">
+          <div className="dashboard__mobile-divider-top" />
+          <div className="dashboard__builder-view-toggle dashboard__builder-view-toggle--mobile">
+            <div className="dashboard__builder-view-cohort">
+              <Select
+                value={builderViewCohort || ''}
+                onValueChange={(val) => setBuilderViewCohort(val)}
+              >
+                <SelectTrigger className="w-[220px] h-9 bg-white px-3 border border-[#ccc] text-[14px] font-proxima text-carbon-black" style={{ borderRadius: '7px' }}>
+                  <SelectValue placeholder="Select a cohort..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {cohortsLoading ? (
+                    <SelectItem value="__loading" disabled>Loading cohorts...</SelectItem>
+                  ) : (
+                    availableCohorts.filter(c => c.is_active && c.curriculum_day_count > 0).map((cohort) => (
+                      <SelectItem key={cohort.cohort_id} value={cohort.legacyName}>
+                        {cohort.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {renderBuilderViewContent()}
+        </div>
+      </div>
+    );
+  };
+
+  // Render pre-curriculum countdown view
+  const renderPreCurriculumView = () => {
+    let daysUntilStart = 0;
+    
+    if (cohortInfo?.start_date) {
+      // Use the same approach as isDateToday - extract components with getDate/getMonth/getFullYear
+      const startDateObj = new Date(cohortInfo.start_date);
+      const today = new Date();
+      
+      // Create local midnight dates using extracted components
+      const startLocal = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
+      const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      
+      const diffMs = startLocal.getTime() - todayLocal.getTime();
+      daysUntilStart = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    }
+    
+    const cohortName = cohortInfo?.cohort_name || 'your program';
+    
+    return (
+      <div className="dashboard">
+        {/* Desktop View */}
+        <div className="dashboard__desktop hidden md:block">
+          {/* Greeting */}
+          <div className="dashboard__greeting">
+            <h1 className="dashboard__greeting-text">
+              Welcome, {user?.firstName || 'there'}!
+            </h1>
+          </div>
+          
+          {/* Countdown Section */}
+          <div className="dashboard__countdown-section">
+            <div className="dashboard__countdown-number">{daysUntilStart}</div>
+            <div className="dashboard__countdown-label">
+              {daysUntilStart === 1 ? 'day' : 'days'} until we begin!
+            </div>
+            <p className="dashboard__countdown-message">
+              Get ready! Your learning journey starts soon.
+            </p>
+          </div>
+          
+          <div className="dashboard__divider-2" />
+          
+          {/* Placeholder for schedule area */}
+          <div className="dashboard__schedule-placeholder">
+            <p>Your schedule will appear here.</p>
+          </div>
+        </div>
+        
+        {/* Mobile View */}
+        <div className="dashboard__mobile block md:hidden">
+          {/* Divider at top */}
+          <div className="dashboard__mobile-divider-top" />
+
+          {/* Countdown Section */}
+          <div className="dashboard__countdown-section">
+            <div className="dashboard__countdown-number">{daysUntilStart}</div>
+            <div className="dashboard__countdown-label">
+              {daysUntilStart === 1 ? 'day' : 'days'} until we begin!
+            </div>
+            <p className="dashboard__countdown-message">
+              Get ready! Your learning journey starts soon.
+            </p>
+          </div>
+
+          {/* Divider */}
+          <div className="dashboard__mobile-divider-2" />
+
+          {/* Placeholder for schedule area */}
+          <div className="dashboard__schedule-placeholder">
+            <p>Your schedule will appear here once {cohortName} begins.</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Mock data for the Figma wireframe
   const upcomingEvents = [
     {
@@ -489,6 +1136,9 @@ function Dashboard() {
 
   // Render regular dashboard content matching the Figma wireframe
   const renderDashboardContent = () => {
+    // Check if user is in external cohort (enterprise users don't use Level/Week format)
+    const isExternalCohort = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin';
+    
     return (
       <div className="dashboard">
         {/* Desktop View */}
@@ -506,313 +1156,10 @@ function Dashboard() {
               <span>( {missedAssignmentsCount} ) missed assignments</span>
             </button>
           </div>
-          
-          {/* Top Grid: Today's Goal and Upcoming */}
-          <div className="dashboard__top-grid">
-            {/* Today's Goal Section */}
-            <div className="dashboard__todays-goal">
-              <h2 className="dashboard__section-title">Today's Goal</h2>
-              <p className="dashboard__goal-text">
-                {currentDay?.daily_goal || 'No goal set for today'}
-              </p>
-              <button className="group relative overflow-hidden inline-flex justify-center items-center px-[30px] py-2.5 w-fit bg-pursuit-purple border border-pursuit-purple rounded-full font-normal text-2xl leading-5 text-white cursor-pointer transition-colors duration-300 animate-breathe hover:animate-none" onClick={handleContinueSession}>
-                <span className="relative z-10 transition-colors duration-300 group-hover:text-pursuit-purple">Start</span>
-                <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
-              </button>
-            </div>
 
-            {/* Vertical Divider */}
-            <div className="dashboard__vertical-divider"></div>
-
-            {/* Upcoming Section - Hidden until events are available */}
-            <div className="dashboard__upcoming" style={{ visibility: 'hidden' }}>
-              <h2 className="dashboard__section-title">Upcoming</h2>
-              <div className="dashboard__upcoming-list">
-                {upcomingEvents.map((event, index) => (
-                  <div key={index} className="dashboard__upcoming-item">
-                    <div className="dashboard__upcoming-content">
-                      <span className="dashboard__upcoming-date">{event.date}</span>
-                      <div className="dashboard__upcoming-details">
-                        <p className="dashboard__upcoming-title">{event.title}</p>
-                        <p className="dashboard__upcoming-time">{event.time}</p>
-                        {event.location && <p className="dashboard__upcoming-location">{event.location}</p>}
-                      </div>
-                    </div>
-                    <button className="dashboard__signup-btn">Sign up</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Divider 2 */}
-          <div className="dashboard__divider-2" />
-
-          {/* Week Header: Title and Date Picker */}
-          <div className="dashboard__week-header items-end">
-            <div className="dashboard__week-title">
-              <span className="dashboard__week-label">
-                <span className="dashboard__week-level">{currentLevel}</span>: Week {currentWeek}
-              </span>
-              <span 
-                className={`dashboard__week-subtitle ${
-                  slideDirection === 'out-left' ? 'animate__animated animate__fadeOutLeft' :
-                  slideDirection === 'out-right' ? 'animate__animated animate__fadeOutRight' :
-                  slideDirection === 'in-from-left' ? 'animate__animated animate__fadeInLeft' :
-                  slideDirection === 'in-from-right' ? 'animate__animated animate__fadeInRight' : ''
-                }`}
-                style={{ animationDuration: '0.6s' }}
-              >
-                {weeklyGoal}
-              </span>
-            </div>
-
-            <div className="dashboard__date-picker">
-              <button
-                className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
-                  currentWeek > 1 
-                    ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer' 
-                    : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
-                }`}
-                style={{ borderRadius: '.5rem' }}
-                onClick={() => navigateToWeek('prev')}
-                disabled={currentWeek <= 1 || slideDirection !== null}
-              >
-                <ChevronLeft className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-white' : ''}`} strokeWidth={0.8} />
-                {currentWeek > 1 && (
-                  <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
-                )}
-              </button>
-              
-              {/* Week Dropdown */}
-              <Select 
-                value={String(currentWeek)} 
-                onValueChange={(val) => {
-                  const targetWeek = parseInt(val);
-                  if (targetWeek !== currentWeek && !slideDirection) {
-                    // Future week: slide out LEFT, slide in from RIGHT
-                    // Past week: slide out RIGHT, slide in from LEFT
-                    setSlideDirection(targetWeek > currentWeek ? 'out-left' : 'out-right');
-                    setTimeout(() => {
-                      setCurrentWeek(targetWeek);
-                      const newWeekData = allWeeksData.find(w => w.weekNumber === targetWeek);
-                      if (newWeekData) {
-                        setWeeklyGoal(newWeekData.weeklyGoal || '');
-                        // Update level based on the first day of the new week
-                        if (newWeekData.days && newWeekData.days.length > 0) {
-                          setCurrentLevel(newWeekData.days[0].level || 1);
-                        }
-                      }
-                      setSlideDirection(targetWeek > currentWeek ? 'in-from-right' : 'in-from-left');
-                      setTimeout(() => setSlideDirection(null), 1000);
-                    }, 1000);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-[100px] h-10 bg-white px-[10px] border-0 text-[16px] leading-[18px] font-proxima font-normal text-carbon-black" style={{ borderRadius: '7px' }}>
-                  <SelectValue>Week {String(currentWeek).padStart(2, '0')}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: currentDay?.week || 1 }, (_, i) => i + 1).map((week) => (
-                    <SelectItem key={week} value={String(week)}>
-                      Week {String(week).padStart(2, '0')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <button
-                className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
-                  currentDay?.week && currentWeek < currentDay.week
-                    ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer' 
-                    : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
-                }`}
-                style={{ borderRadius: '.5rem' }}
-                onClick={() => navigateToWeek('next')}
-                disabled={!currentDay?.week || currentWeek >= currentDay.week || slideDirection !== null}
-              >
-                <ChevronRight className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-white' : ''}`} strokeWidth={0.8} />
-                {currentDay?.week && currentWeek < currentDay.week && (
-                  <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Weekly Agenda Cards */}
-          <div className="dashboard__weekly-grid">
-            {weekData.map((day, index) => {
-              const dayIsToday = isDateToday(day.day_date);
-              const dayIsPast = isDatePast(day.day_date);
-              const dayIsFuture = !dayIsToday && !dayIsPast;
-              const showCheckbox = dayIsPast && !dayIsToday;
-              
-              // For future weeks (going forward): out-left and in-from-right flow left-to-right
-              // For past weeks (going back): out-right and in-from-left flow right-to-left (reversed)
-              const isRightToLeft = slideDirection === 'out-right' || slideDirection === 'in-from-left';
-              const cardCount = weekData.length;
-              const delayIndex = isRightToLeft ? (cardCount - 1 - index) : index;
-              
-              // Determine Animate.css classes based on slide direction
-              let animateClass = '';
-              if (slideDirection === 'out-left') animateClass = 'animate__animated animate__fadeOutLeft';
-              else if (slideDirection === 'out-right') animateClass = 'animate__animated animate__fadeOutRight';
-              else if (slideDirection === 'in-from-left') animateClass = 'animate__animated animate__fadeInLeft';
-              else if (slideDirection === 'in-from-right') animateClass = 'animate__animated animate__fadeInRight';
-              
-              // Calculate completion status for past days
-              const deliverableTasks = day.tasks?.filter(t => 
-                t.deliverable_type && ['video', 'document', 'link', 'structured'].includes(t.deliverable_type)
-              ) || [];
-              const completedDeliverables = deliverableTasks.filter(t => t.hasSubmission);
-              const isComplete = deliverableTasks.length > 0 && deliverableTasks.length === completedDeliverables.length;
-              
-              return (
-                <div 
-                  key={day.id} 
-                  className={`dashboard__day-card ${dayIsToday ? 'dashboard__day-card--today' : ''} ${animateClass}`}
-                  style={{ 
-                    animationDelay: `${delayIndex * 0.08}s`
-                  }}
-                >
-                  
-                  {/* Date */}
-                  <div className="dashboard__day-date">
-                    {(() => {
-                      const formattedDate = formatDayDate(day.day_date, dayIsToday);
-                      return (
-                        <>
-                          {formattedDate.prefix && <strong>{formattedDate.prefix}</strong>}
-                          {formattedDate.date}
-                        </>
-                      );
-                    })()}
-                  </div>
-                  
-                  {/* Separator */}
-                  <div className="dashboard__day-separator" />
-                  
-                  {/* Activities */}
-                  {day.tasks && day.tasks.length > 0 && (
-                    <div className="dashboard__day-section">
-                      <h4 className="dashboard__day-section-title">Activities</h4>
-                      <div className="dashboard__day-activities">
-                        {day.tasks.map((task, taskIndex) => {
-                          // NEW: Use completion map for all tasks (not just deliverables)
-                          const completionStatus = taskCompletionMap[task.id];
-                          const isComplete = completionStatus?.isComplete || false;
-                          // Only show checkbox for past days on or after 11/1/2025
-                          const showTaskCheckbox = dayIsPast && !dayIsToday && isDateAfterCutoff(day.day_date);
-                          const isBreakTask = task.task_type === 'break';
-                          
-                          return (
-                            <div key={task.id}>
-                              <div className="dashboard__day-activity">
-                                {/* Task Checkbox - Purple (complete), Pink (incomplete with deliverable), or White circle (incomplete without deliverable) */}
-                                {/* Hide checkbox for break tasks but add spacer to maintain alignment */}
-                                {showTaskCheckbox && !isBreakTask && (
-                                  <div className={`dashboard__task-checkbox ${
-                                    isComplete 
-                                      ? 'dashboard__task-checkbox--complete' 
-                                      : (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze)
-                                        ? 'dashboard__task-checkbox--incomplete' 
-                                        : 'dashboard__task-checkbox--empty'
-                                  }`}>
-                                    {isComplete ? (
-                                      <svg viewBox="0 0 14 14" className="dashboard__task-checkbox-check">
-                                        <polyline points="2.5,6 5.5,9 11.5,3" />
-                                      </svg>
-                                    ) : (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze) ? (
-                                      <svg viewBox="0 0 8 8" className="dashboard__task-checkbox-x">
-                                        <line x1="1" y1="1" x2="7" y2="7" />
-                                        <line x1="7" y1="1" x2="1" y2="7" />
-                                      </svg>
-                                    ) : null}
-                                  </div>
-                                )}
-                                {/* Empty spacer for break tasks to maintain alignment */}
-                                {showTaskCheckbox && isBreakTask && (
-                                  <div className="dashboard__task-checkbox" style={{ visibility: 'hidden' }} />
-                                )}
-                                
-                                <div className="dashboard__day-activity-content">
-                                  <span className="dashboard__task-title">{task.task_title}</span>
-                                  
-                  {/* Deliverable Submit Button */}
-                  {completionStatus?.requiresDeliverable && (
-                    <button 
-                      className={`dashboard__deliverable-link ${
-                        task.hasSubmission ? 'dashboard__deliverable-link--submitted' : 'dashboard__deliverable-link--pending'
-                      } ${dayIsFuture ? 'dashboard__deliverable-link--disabled' : ''}`}
-                      onClick={() => {
-                        if (!dayIsFuture) {
-                          handleNavigateToTask(day.id, task.id);
-                        }
-                      }}
-                      disabled={dayIsFuture}
-                    >
-                      {task.hasSubmission ? (
-                        <>
-                          <svg viewBox="0 0 14 14" className="inline-block w-3 h-3 mr-1 align-middle" style={{ marginTop: '-2px' }}>
-                            <polyline points="2.5,6 5.5,9 11.5,3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                          {task.deliverable_type.charAt(0).toUpperCase() + task.deliverable_type.slice(1)} Submitted
-                        </>
-                      ) : (
-                        `Submit ${task.deliverable_type}`
-                      )}
-                    </button>
-                  )}
-                                </div>
-                              </div>
-                              {taskIndex < day.tasks.length - 1 && (
-                                <div className="dashboard__activity-divider" />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-              </div>
-            )}
-
-                  {/* Arrow Button in top-right corner */}
-                  {dayIsToday && (
-                    <div className="absolute top-[13px] right-3 z-10">
-                      <ArrowButton
-                        onClick={() => handleNavigateToDayLearning(day.id)}
-                        borderColor="#FFFFFF"
-                        backgroundColor="#FFFFFF"
-                        arrowColor="#4242EA"
-                        hoverBackgroundColor="#4242EA"
-                        hoverArrowColor="#FFFFFF"
-                        size="md"
-                        strokeWidth={1}
-                      />
-                    </div>
-                  )}
-                  {!dayIsToday && showCheckbox && (
-                    <div className="absolute top-[13px] right-3 z-10">
-                      <ArrowButton
-                        onClick={() => handleNavigateToDayLearning(day.id)}
-                        borderColor="#4242EA"
-                        backgroundColor="#E3E3E3"
-                        arrowColor="#4242EA"
-                        hoverBackgroundColor="#4242EA"
-                        hoverArrowColor="#E3E3E3"
-                        size="md"
-                        strokeWidth={1}
-                      />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Divider 3 */}
-          <div className="dashboard__divider-3" />
+          {renderBuilderWeeklyView()}
         </div>
-        
+
         {/* Mobile View */}
         <div className="dashboard__mobile block md:hidden">
           {/* Divider at top */}
@@ -832,16 +1179,23 @@ function Dashboard() {
             <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
           </button>
 
-          {/* L1 Week 5 Title */}
+          {/* Week Title - different for external cohorts */}
           <div className="dashboard__mobile-week-title">
-            {currentLevel}: Week {currentWeek} <br />
-            {weeklyGoal}
+            {isWorkshopParticipant ? (
+              <>AI Native Workshop</>
+            ) : isExternalCohort ? (
+              <>{user?.cohort || 'Your Program'}</>
+            ) : (
+              <>{currentLevel}: Week {currentWeek} <br />
+              {weeklyGoal}</>
+            )}
           </div>
 
           {/* Divider 2 */}
           <div className="dashboard__mobile-divider-2" />
 
-          {/* Date Picker */}
+          {/* Date Picker - hidden for external cohorts and workshop participants */}
+          {!isExternalCohort && !isWorkshopParticipant && (
           <div className="dashboard__mobile-date-picker">
             <button
               className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
@@ -910,6 +1264,7 @@ function Dashboard() {
               )}
             </button>
           </div>
+          )}
 
           {/* Weekly Agenda - Mobile */}
           <div className="dashboard__mobile-agenda">
@@ -1014,15 +1369,17 @@ function Dashboard() {
         )}
       
       {/* Conditionally render based on user status and role */}
-      {!isActive ? renderHistoricalView() : 
+      {isStaffOrAdmin ? renderStaffAdminView() :
+       !isActive ? renderHistoricalView() : 
        isVolunteer ? renderVolunteerView() : 
+       !currentDay && cohortInfo ? renderPreCurriculumView() :
        renderDashboardContent()}
 
       {/* Missed Assignments Sidebar */}
       <MissedAssignmentsSidebar
         isOpen={isSidebarOpen}
         onClose={handleCloseSidebar}
-        onNavigateToDay={handleNavigateToDay}
+        onNavigateToDay={handleNavigateToTask}
       />
     </Layout>
   );

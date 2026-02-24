@@ -142,6 +142,15 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.volunteer-badge {
+  font-size: 0.75rem;
+  flex-shrink: 0;
 }
 
 .thumbnail-info .check-in-time {

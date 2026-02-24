@@ -95,7 +95,7 @@
   width: 100%;
   height: 1px;
   background: var(--color-divider);
-  margin: 15px 0 15px 0;
+  margin: 15px 0 10px 0;
 }
 
 .dashboard__divider-3 {
@@ -242,26 +242,29 @@
 }
 
 /* Week Title Section */
+.dashboard__week-header-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 0 40px;
+}
+
 .dashboard__week-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 20px;
-  padding: 0 40px;
+  align-items: center;
 }
 
 .dashboard__week-title {
   font-weight: 700;
   font-size: 28px;
-  line-height: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  line-height: 34px;
 }
 
 .dashboard__week-label {
   color: var(--color-carbon-black);
   font-family: "Proxima Nova Bold";
-  line-height: 34px;
 }
 
 .dashboard__week-level {
@@ -272,6 +275,8 @@
   color: var(--color-carbon-black);
   font-size: 28px;
   font-weight: 400;
+  line-height: .95;
+  padding: 0;
 }
 
 /* Override animate.css fadeOutRight for weekly goal */
@@ -719,7 +724,7 @@
   }
   
   .dashboard__top-grid,
-  .dashboard__week-header,
+  .dashboard__week-header-wrapper,
   .dashboard__weekly-grid {
     padding: 0 50px;
   }
@@ -755,7 +760,7 @@
   }
   
   .dashboard__top-grid,
-  .dashboard__week-header,
+  .dashboard__week-header-wrapper,
   .dashboard__weekly-grid {
     padding: 0 60px;
   }
@@ -1095,4 +1100,309 @@
   color: var(--color-pursuit-purple);
   cursor: pointer;
   white-space: nowrap;
-} 
+}
+
+/* ====================
+   PRE-CURRICULUM COUNTDOWN STYLES
+   ==================== */
+
+.dashboard__countdown-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.dashboard__countdown-number {
+  font-family: 'Proxima Nova', sans-serif;
+  font-size: 120px;
+  font-weight: 700;
+  color: var(--color-pursuit-purple);
+  line-height: 1;
+}
+
+.dashboard__countdown-label {
+  font-family: 'Proxima Nova', sans-serif;
+  font-size: 24px;
+  color: var(--color-carbon-black);
+  margin-top: 10px;
+}
+
+.dashboard__countdown-message {
+  font-size: 16px;
+  color: var(--color-text-secondary, #666);
+  margin-top: 20px;
+}
+
+.dashboard__schedule-placeholder {
+  text-align: center;
+  padding: 40px;
+  color: var(--color-text-secondary, #666);
+  font-style: italic;
+}
+
+/* Mobile countdown adjustments */
+@media (max-width: 767px) {
+  .dashboard__countdown-section {
+    padding: 40px 20px;
+  }
+
+  .dashboard__countdown-number {
+    font-size: 80px;
+  }
+
+  .dashboard__countdown-label {
+    font-size: 18px;
+  }
+
+  .dashboard__countdown-message {
+    font-size: 14px;
+  }
+
+  .dashboard__schedule-placeholder {
+    padding: 30px 20px;
+    font-size: 14px;
+  }
+}
+
+/* ====================
+   STAFF/ADMIN DASHBOARD STYLES
+   ==================== */
+
+.dashboard__stats-section {
+  margin: 30px 0;
+}
+
+.dashboard__stats-section .dashboard__section-title {
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 24px;
+  color: var(--color-carbon-black);
+  margin-bottom: 20px;
+  padding-left: 40px;
+}
+
+.dashboard__stats-section .dashboard__mobile-section-title {
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 22px;
+  color: var(--color-carbon-black);
+  margin-bottom: 15px;
+  padding-left: 20px;
+}
+
+.dashboard__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  padding: 0 40px;
+}
+
+.dashboard__stat-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-divider);
+  border-radius: 10px;
+  padding: 30px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.dashboard__stat-card:hover {
+  border-color: var(--color-pursuit-purple);
+  box-shadow: 0 4px 12px rgba(66, 66, 234, 0.1);
+}
+
+.dashboard__stat-label {
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 20px;
+  color: var(--color-carbon-black);
+  margin-bottom: 15px;
+}
+
+.dashboard__stat-number {
+  font-weight: 700;
+  font-size: 48px;
+  line-height: 1;
+  color: var(--color-pursuit-purple);
+}
+
+.dashboard__tools-section {
+  margin: 30px 0;
+}
+
+.dashboard__tools-section .dashboard__section-title {
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 24px;
+  color: var(--color-carbon-black);
+  margin-bottom: 20px;
+  padding-left: 40px;
+}
+
+.dashboard__tools-section .dashboard__mobile-section-title {
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 22px;
+  color: var(--color-carbon-black);
+  margin-bottom: 15px;
+  padding-left: 20px;
+}
+
+.dashboard__tools-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  padding: 0 40px;
+}
+
+.dashboard__tool-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-divider);
+  border-radius: 10px;
+  padding: 30px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dashboard__tool-card:hover {
+  border-color: var(--color-pursuit-purple);
+  background: linear-gradient(135deg, rgba(66, 66, 234, 0.02) 0%, rgba(66, 66, 234, 0.05) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(66, 66, 234, 0.15);
+}
+
+.dashboard__tool-icon {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-pursuit-purple);
+  border-radius: 10px;
+  color: var(--color-white);
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.dashboard__tool-card:hover .dashboard__tool-icon {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(66, 66, 234, 0.3);
+}
+
+.dashboard__tool-content {
+  flex: 1;
+}
+
+.dashboard__tool-name {
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 22px;
+  color: var(--color-carbon-black);
+  margin: 0 0 5px 0;
+}
+
+.dashboard__tool-description {
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 18px;
+  color: var(--color-text-secondary, #666);
+  margin: 0;
+}
+
+/* Mobile styles for staff/admin dashboard */
+@media (max-width: 767px) {
+  .dashboard__stats-section .dashboard__section-title,
+  .dashboard__tools-section .dashboard__section-title {
+    padding-left: 20px;
+  }
+
+  .dashboard__stats-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+    padding: 0 20px;
+  }
+
+  .dashboard__stat-card {
+    padding: 25px;
+  }
+
+  .dashboard__stat-number {
+    font-size: 40px;
+  }
+
+  .dashboard__tools-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+    padding: 0 20px;
+  }
+
+  .dashboard__tool-card {
+    padding: 20px;
+  }
+
+  .dashboard__tool-icon {
+    width: 45px;
+    height: 45px;
+  }
+
+  .dashboard__tool-name {
+    font-size: 16px;
+  }
+
+  .dashboard__tool-description {
+    font-size: 13px;
+  }
+}
+
+/* ====================
+   BUILDER VIEW TOGGLE STYLES
+   ==================== */
+
+.dashboard__builder-view-toggle {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px;
+  height: 100%;
+}
+
+.dashboard__builder-view-cohort {
+  display: flex;
+  align-items: center;
+}
+
+.dashboard__builder-view-placeholder {
+  text-align: center;
+  padding: 60px 40px;
+  color: var(--color-text-secondary, #666);
+  font-style: italic;
+  font-size: 16px;
+}
+
+/* Mobile: toggle sits in its own row above content */
+.dashboard__builder-view-toggle--mobile {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-divider);
+  margin-bottom: 10px;
+}
+
+/* Mobile override for builder view toggle */
+@media (max-width: 767px) {
+  .dashboard__builder-view-toggle--mobile {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .dashboard__builder-view-placeholder {
+    padding: 40px 20px;
+    font-size: 14px;
+  }
+}

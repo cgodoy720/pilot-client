@@ -17,6 +17,7 @@ import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import MyStrategy from './MyStrategy';
 import MyResumes from './MyResumes';
+import './PathfinderApplications.css';
 
 // Helper function to get local date in YYYY-MM-DD format
 const getLocalDate = () => {

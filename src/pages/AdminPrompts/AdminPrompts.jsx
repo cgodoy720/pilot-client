@@ -7,10 +7,13 @@ import ProgramContextsTab from './components/ProgramContextsTab';
 import ModesTab from './components/ModesTab';
 import ContentGenerationPromptsTab from './components/ContentGenerationPromptsTab';
 import StatusTab from './components/StatusTab';
+import { usePermissions } from '../../hooks/usePermissions';
 import './AdminPrompts.css';
 
 const AdminPrompts = () => {
   const [loading, setLoading] = useState(false);
+  const { canUseFeature } = usePermissions();
+  const canEditPrompts = canUseFeature('edit_prompts');
 
   const showNotification = (message, severity = 'success') => {
     if (severity === 'error') {
@@ -93,6 +96,7 @@ const AdminPrompts = () => {
               <BasePromptsTab 
                 showNotification={showNotification}
                 reloadPrompts={reloadPrompts}
+                canEdit={canEditPrompts}
               />
             </TabsContent>
 
@@ -100,6 +104,7 @@ const AdminPrompts = () => {
               <PersonasTab 
                 showNotification={showNotification}
                 reloadPrompts={reloadPrompts}
+                canEdit={canEditPrompts}
               />
             </TabsContent>
 
@@ -107,6 +112,7 @@ const AdminPrompts = () => {
               <ProgramContextsTab 
                 showNotification={showNotification}
                 reloadPrompts={reloadPrompts}
+                canEdit={canEditPrompts}
               />
             </TabsContent>
 
@@ -114,6 +120,7 @@ const AdminPrompts = () => {
               <ModesTab 
                 showNotification={showNotification}
                 reloadPrompts={reloadPrompts}
+                canEdit={canEditPrompts}
               />
             </TabsContent>
 
@@ -121,6 +128,7 @@ const AdminPrompts = () => {
               <ContentGenerationPromptsTab 
                 showNotification={showNotification}
                 reloadPrompts={reloadPrompts}
+                canEdit={canEditPrompts}
               />
             </TabsContent>
 
@@ -128,6 +136,7 @@ const AdminPrompts = () => {
               <StatusTab 
                 showNotification={showNotification}
                 reloadPrompts={reloadPrompts}
+                canEdit={canEditPrompts}
               />
             </TabsContent>
           </div>

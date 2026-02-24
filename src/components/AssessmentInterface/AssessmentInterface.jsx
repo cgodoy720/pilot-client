@@ -7,6 +7,97 @@ import ReactMarkdown from 'react-markdown';
 import AutoExpandTextarea from '../../components/AutoExpandTextarea';
 import AssessmentDeliverablePanel from './AssessmentDeliverablePanel';
 import SelfAssessmentQuestionnaire from './SelfAssessmentQuestionnaire';
+
+import { useStreamingText } from '../../hooks/useStreamingText';
+
+// Component that wraps ReactMarkdown with streaming text support
+// Uses useStreamingText to smooth out bursty SSE chunks into natural typing flow
+const StreamingMarkdownMessage = ({ content }) => {
+  const displayedContent = useStreamingText(content || '');
+  
+  // Preprocess content to convert bullet points and URLs to markdown
+  let processedContent = displayedContent;
+  
+  // Strip all ** (bold markdown) from the content BEFORE processing
+  processedContent = processedContent.replace(/\*\*/g, '');
+  
+  // Convert URLs to markdown links
+  processedContent = processedContent.replace(
+    /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
+    '[$1 ($2)]($4): $3'
+  );
+  
+  // Fallback: Convert any remaining bare URLs to clickable links
+  processedContent = processedContent.replace(
+    /(?<!\()(?<!]\()https?:\/\/[^\s)]+/g,
+    (url) => `[${url}](${url})`
+  );
+  
+  // Convert bullet points to markdown
+  processedContent = processedContent.replace(/^•\s+/gm, '- ');
+  processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
+  
+  return (
+    <div className="text-carbon-black leading-relaxed text-base">
+      <ReactMarkdown
+        components={{
+          p: ({ node, children, ...props }) => (
+            <p className="mb-4" {...props}>{children}</p>
+          ),
+          h1: ({ node, children, ...props }) => (
+            <h1 className="text-xl font-semibold mt-6 mb-4 first:mt-0 text-carbon-black" {...props}>{children}</h1>
+          ),
+          h2: ({ node, children, ...props }) => (
+            <h2 className="text-lg font-semibold mt-5 mb-3 first:mt-0 text-carbon-black" {...props}>{children}</h2>
+          ),
+          h3: ({ node, children, ...props }) => (
+            <h3 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-carbon-black" {...props}>{children}</h3>
+          ),
+          ul: ({ node, children, ...props }) => (
+            <ul className="list-disc pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ul>
+          ),
+          ol: ({ node, children, ...props }) => (
+            <ol className="list-decimal pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ol>
+          ),
+          li: ({ node, children, ...props }) => (
+            <li className="text-carbon-black" {...props}>{children}</li>
+          ),
+          a: ({ node, children, ...props }) => (
+            <a className="text-blue-500 hover:underline break-all" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+          ),
+          code: ({ node, inline, className, children, ...props }) => {
+            if (inline) {
+              return (
+                <code className="px-1.5 py-0.5 rounded text-sm font-mono bg-gray-200 text-carbon-black" {...props}>
+                  {children}
+                </code>
+              );
+            }
+            return (
+              <code className="block" {...props}>
+                {children}
+              </code>
+            );
+          },
+          pre: ({ node, children, ...props }) => (
+            <pre className="p-4 rounded-lg my-4 overflow-x-auto text-sm font-mono bg-gray-100 text-carbon-black" {...props}>
+              {children}
+            </pre>
+          ),
+          strong: ({ node, children, ...props }) => (
+            <strong className="font-semibold text-carbon-black" {...props}>{children}</strong>
+          ),
+          em: ({ node, children, ...props }) => (
+            <em className="italic text-carbon-black" {...props}>{children}</em>
+          ),
+        }}
+      >
+        {processedContent}
+      </ReactMarkdown>
+    </div>
+  );
+};
+
 import {
   Dialog,
   DialogContent,
@@ -21,7 +112,11 @@ function AssessmentInterface({
   cohort,
   onComplete,
   isCompleted = false,
-  isLastTask = false
+  isLastTask = false,
+  externalPanelOpen = false,
+  onExternalPanelOpenChange = null,
+  onAssessmentTypeLoaded = null,
+  isPreviewMode = false
 }) {
   const { token, user } = useAuth();
   const [assessmentData, setAssessmentData] = useState(null);
@@ -33,15 +128,70 @@ function AssessmentInterface({
   const [messages, setMessages] = useState([]);
   const [isSending, setIsSending] = useState(false);
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [hasInitialMessage, setHasInitialMessage] = useState(false);
+  const [inputTrayHeight, setInputTrayHeight] = useState(180);
+  const handleInputTrayHeightChange = (height) => {
+    setInputTrayHeight(height);
+  };
   
   // UI state
   const [showDeliverablePanel, setShowDeliverablePanel] = useState(false);
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
+  const [hasViewedInstructions, setHasViewedInstructions] = useState(false);
+  
+  // Draft form data - persists when sidebar closes (cleared on successful submission)
+  const [draftFormData, setDraftFormData] = useState(null);
+  
+  // Check localStorage for instructions viewed status on mount
+  useEffect(() => {
+    if (assessmentId) {
+      const storageKey = `assessment_instructions_viewed_${assessmentId}`;
+      const viewed = localStorage.getItem(storageKey) === 'true';
+      setHasViewedInstructions(viewed);
+    }
+  }, [assessmentId]);
+  
+  // Mark instructions as viewed in localStorage
+  const markInstructionsViewed = () => {
+    if (assessmentId) {
+      const storageKey = `assessment_instructions_viewed_${assessmentId}`;
+      localStorage.setItem(storageKey, 'true');
+      setHasViewedInstructions(true);
+    }
+  };
+  
+  // Auto-open instructions modal on first visit (after data loads)
+  useEffect(() => {
+    if (!loading && assessmentData && !hasViewedInstructions && !isCompleted) {
+      // Small delay to ensure component is fully rendered
+      const timer = setTimeout(() => {
+        setShowInstructionsModal(true);
+        markInstructionsViewed();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, assessmentData, hasViewedInstructions, isCompleted]);
+  
+  // Sync external panel state with internal state
+  useEffect(() => {
+    if (externalPanelOpen && !showDeliverablePanel) {
+      setShowDeliverablePanel(true);
+    }
+  }, [externalPanelOpen]);
+  
+  // Handle panel close - notify parent if external control is used
+  const handlePanelClose = () => {
+    setShowDeliverablePanel(false);
+    if (onExternalPanelOpenChange) {
+      onExternalPanelOpenChange(false);
+    }
+  };
   
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
   const sendMessageAbortControllerRef = useRef(null);
+  const chatTrayRef = useRef(null);
 
   // Check if user has active status
   const isActive = user?.active !== false;
@@ -65,8 +215,31 @@ function AssessmentInterface({
     };
   }, []);
 
+  // Track chat tray height changes for dynamic message padding
+  useEffect(() => {
+    if (!chatTrayRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.target.getBoundingClientRect().height;
+        setInputTrayHeight(height + 24); // 24px for bottom-6 spacing
+      }
+    });
+
+    resizeObserver.observe(chatTrayRef.current);
+
+    // Initial height notification
+    const initialHeight = chatTrayRef.current.getBoundingClientRect().height;
+    setInputTrayHeight(initialHeight + 24);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [assessmentId, isCompleted]);
+
   useEffect(() => {
     if (assessmentId && token && taskId) {
+      console.log(`📋 AssessmentInterface mounted/updated - loading data for task ${taskId}, assessment ${assessmentId}, isPreviewMode: ${isPreviewMode}`);
       loadAssessmentDataAndConversation();
     } else {
       if (!assessmentId) {
@@ -81,18 +254,30 @@ function AssessmentInterface({
       setLoading(true);
       setError('');
 
+      // Reset conversation state so stale messages from a previous assessment
+      // don't bleed into the newly-selected one.
+      // (currentSubmission and draftFormData are reset by the key-prop remount
+      // and then set correctly from the backend response below.)
+      setMessages([]);
+      setHasInitialMessage(false);
+      setIsAiThinking(false);
+      setIsStreaming(false);
+      setIsSending(false);
+
       // Load assessment data and task conversation in parallel
       const [assessmentResponse, conversationResponse] = await Promise.all([
-        // Load assessment details
-        fetch(`${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}`, {
+        // Load assessment details — include isPreviewMode so the backend
+        // returns only the correct submission (preview vs real)
+        fetch(`${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}?isPreviewMode=${isPreviewMode}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         }),
-        // Load task conversation (same as regular tasks)
+        // Load task conversation — include isPreviewMode so the backend
+        // queries the correct thread (is_preview = true for ContentPreview)
         fetch(
-          `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${taskId}?dayNumber=${dayNumber}&cohort=${cohort}`,
+          `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${taskId}?dayNumber=${dayNumber}&cohort=${cohort}&isPreviewMode=${isPreviewMode}`,
           {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -120,12 +305,19 @@ function AssessmentInterface({
 
       setAssessmentData(assessmentData.assessment);
       setCurrentSubmission(assessmentData.submission);
+      
+      // Report assessment type to parent (for showing/hiding View Submission button)
+      if (onAssessmentTypeLoaded) {
+        onAssessmentTypeLoaded(assessmentData.assessment?.assessment_type);
+      }
 
       // Handle conversation data
+      // For assessments, we DON'T auto-start conversations - user sees instructions first
+      // and can optionally chat with the LLM when they send a message
       if (conversationResponse && conversationResponse.ok) {
         const conversationData = await conversationResponse.json();
         console.log(`📨 Loaded ${conversationData.messages?.length || 0} messages for assessment task ${taskId}`);
-        
+
         if (conversationData.messages && conversationData.messages.length > 0) {
           // Has existing conversation - load it
           const formattedMessages = conversationData.messages.map(msg => ({
@@ -134,16 +326,15 @@ function AssessmentInterface({
             sender: msg.role === 'user' ? 'user' : 'ai',
             timestamp: msg.timestamp,
           }));
-          
+
           setMessages(formattedMessages);
           setHasInitialMessage(true);
-        } else {
-          // No messages yet - start conversation
-          await startTaskConversation();
         }
+        // If no messages, don't auto-start - show instructions and let user initiate
+      } else if (conversationResponse) {
+        console.warn(`⚠️ Conversation fetch for assessment task ${taskId} returned status ${conversationResponse.status}`);
       } else {
-        // No conversation yet - start new one
-        await startTaskConversation();
+        console.warn(`⚠️ Conversation fetch for assessment task ${taskId} failed (network error)`);
       }
 
     } catch (err) {
@@ -172,6 +363,7 @@ function AssessmentInterface({
             dayNumber: dayNumber,
             cohort: cohort,
             conversationModel: 'anthropic/claude-sonnet-4.5',
+            isPreviewMode: isPreviewMode,
           }),
         }
       );
@@ -206,14 +398,15 @@ function AssessmentInterface({
     }
   };
 
-  // Send message using existing Learning page pattern
+  // Send message using streaming endpoint
   const handleSendMessage = async (messageContent, modelFromTextarea) => {
-    if (!messageContent || !messageContent.trim() || isSending || isAiThinking) return;
+    if (!messageContent || !messageContent.trim() || isSending || isAiThinking || isStreaming) return;
     
     const trimmedMessage = messageContent.trim();
     
     setIsSending(true);
     setIsAiThinking(true);
+    setIsStreaming(true);
     setError('');
     
     // Abort any previous message send request
@@ -226,6 +419,7 @@ function AssessmentInterface({
     sendMessageAbortControllerRef.current = abortController;
 
     try {
+      const streamingMessageId = Date.now() + 1;
       // Add user message to chat
       const userMessage = {
         id: Date.now(),
@@ -233,46 +427,110 @@ function AssessmentInterface({
         sender: 'user',
         timestamp: new Date().toISOString(),
       };
-      setMessages(prev => [...prev, userMessage]);
-
-      // Send to AI using task conversation endpoint
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages/continue`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          content: trimmedMessage,
-          taskId: taskId,
-          dayNumber: dayNumber,
-          cohort: cohort,
-          conversationModel: modelFromTextarea || 'anthropic/claude-sonnet-4.5',
-        }),
-        signal: abortController.signal,
-      });
-      
-      // Check if this request was aborted
-      if (abortController.signal.aborted) {
-        console.log('🚫 Message send aborted');
-        return;
-      }
-
-      if (response.ok) {
-        const data = await response.json();
-        const aiMessage = {
-          id: Date.now() + 1,
-          content: data.content || data.response || data.message,
+      setMessages(prev => [
+        ...prev,
+        userMessage,
+        {
+          id: streamingMessageId,
+          content: '',
           sender: 'ai',
           timestamp: new Date().toISOString(),
-        };
-        
-        if (!abortController.signal.aborted) {
-          setMessages(prev => [...prev, aiMessage]);
+          isStreaming: true
         }
-      } else {
-        const errorData = await response.json();
-        setError(errorData.error || 'Failed to send message. Please try again.');
+      ]);
+
+      // Use the dedicated assessment streaming endpoint (GPT-style, no restrictive prompt)
+      const streamResponse = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/learning/assessment/stream`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            content: trimmedMessage,
+            taskId: taskId,
+            dayNumber: dayNumber,
+            cohort: cohort,
+            conversationModel: modelFromTextarea || 'anthropic/claude-sonnet-4.5',
+            isPreviewMode: isPreviewMode,
+          }),
+          signal: abortController.signal,
+        }
+      );
+
+      if (!streamResponse.ok) {
+        throw new Error(`API error: ${streamResponse.status}`);
+      }
+
+      const reader = streamResponse.body.getReader();
+      const decoder = new TextDecoder();
+      let sseBuffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split('\n');
+        sseBuffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const chunk = JSON.parse(line.slice(6));
+
+            if (chunk.type === 'text') {
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: `${msg.content || ''}${chunk.content}` }
+                    : msg
+                )
+              );
+            } else if (chunk.type === 'done' && chunk.message) {
+              // Update content but keep id and isStreaming stable so animation continues
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: chunk.message.content }
+                    : msg
+                )
+              );
+              // Enable input immediately
+              setIsStreaming(false);
+              setIsAiThinking(false);
+              setIsSending(false);
+
+              // Finalize message after animation catches up
+              const finalMessage = chunk.message;
+              setTimeout(() => {
+                setMessages(prev =>
+                  prev.map(msg =>
+                    msg.id === streamingMessageId
+                      ? {
+                          id: finalMessage.message_id,
+                          content: finalMessage.content,
+                          sender: 'ai',
+                          timestamp: finalMessage.timestamp,
+                          isStreaming: false,
+                        }
+                      : msg
+                  )
+                );
+              }, 1500);
+            } else if (chunk.type === 'error') {
+              setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId));
+              setIsStreaming(false);
+              setIsAiThinking(false);
+              setIsSending(false);
+              setError(chunk.error || 'Failed to send message. Please try again.');
+            }
+          } catch (parseErr) {
+            // Skip malformed SSE lines
+          }
+        }
       }
     } catch (error) {
       // Ignore abort errors - they're expected when switching tasks
@@ -288,6 +546,7 @@ function AssessmentInterface({
       if (!abortController.signal.aborted) {
         setIsSending(false);
         setIsAiThinking(false);
+        setIsStreaming(false);
       }
     }
   };
@@ -309,7 +568,8 @@ function AssessmentInterface({
         },
         body: JSON.stringify({
           submission_data: submissionData,
-          status: 'submitted'
+          status: 'submitted',
+          isPreviewMode: isPreviewMode
         }),
       });
 
@@ -322,6 +582,7 @@ function AssessmentInterface({
       console.log('✅ Assessment submission successful:', submission);
 
       setCurrentSubmission(submission.submission);
+      setDraftFormData(null); // Clear draft data after successful submission
       
       toast.success("Assessment submitted successfully!", {
         duration: 4000,
@@ -346,9 +607,9 @@ function AssessmentInterface({
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col relative overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto py-8 px-6" style={{ paddingBottom: '180px' }}>
+        <div className="flex-1 min-h-0 overflow-y-auto py-8 px-6" style={{ paddingBottom: `${inputTrayHeight}px` }}>
           <div className="max-w-2xl mx-auto">
             {/* Loading indicator in chat area */}
             <div className="mb-6">
@@ -399,6 +660,7 @@ function AssessmentInterface({
         <SelfAssessmentQuestionnaire
           assessmentId={assessmentId}
           taskId={taskId}
+          isPreviewMode={isPreviewMode}
           onComplete={async () => {
             // Reload submission data
             await loadAssessmentDataAndConversation();
@@ -457,11 +719,11 @@ function AssessmentInterface({
   }
 
   return (
-    <div className="flex-1 flex flex-col relative overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
       {/* Messages Area - Same as Learning.jsx */}
-      <div className="flex-1 overflow-y-auto py-8 px-6" style={{ paddingBottom: '180px' }}>
+      <div className="flex-1 min-h-0 overflow-y-auto py-8 px-6" style={{ paddingBottom: `${inputTrayHeight}px` }}>
         <div className="max-w-2xl mx-auto">
-          {/* Assessment Header - Only shown at top of conversation */}
+          {/* Assessment Header - Show when no conversation exists */}
           {messages.length === 0 && (
             <div className="mb-8">
               <div className="bg-white rounded-lg p-6 shadow-sm">
@@ -469,136 +731,57 @@ function AssessmentInterface({
                   <h1 className="text-2xl font-bold text-carbon-black font-proxima">
                     {assessmentData.assessment_name}
                   </h1>
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-proxima bg-blue-50 text-blue-700 border border-blue-200">
-                    <AlertCircle className="w-4 h-4" />
-                    Assessment
-                  </div>
-                </div>
-                
-                <div className="text-sm text-carbon-black/60 font-proxima mb-4">
-                  {assessmentData.assessment_type?.charAt(0).toUpperCase() + assessmentData.assessment_type?.slice(1)} Assessment
-                  {assessmentData.assessment_period && ` • ${assessmentData.assessment_period}`}
+                  {(isCompleted || currentSubmission?.status === 'submitted') ? (
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-proxima bg-green-50 text-green-700 border border-green-200">
+                      <CheckCircle className="w-4 h-4" />
+                      Submitted
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-proxima bg-blue-50 text-blue-700 border border-blue-200">
+                      <AlertCircle className="w-4 h-4" />
+                      Assessment
+                    </div>
+                  )}
                 </div>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="text-base font-semibold text-carbon-black mb-3 font-proxima flex items-center gap-2">
-                    <FaInfoCircle className="w-4 h-4 text-blue-600" />
-                    Instructions
-                  </h3>
-                  <div className="text-sm text-carbon-black font-proxima">
-                    {assessmentData.instructions?.split('\n').map((paragraph, index) => (
-                      <p key={index} className="mb-2 last:mb-0">
-                        {paragraph}
-                      </p>
-                    ))}
-                  </div>
+                <div className="text-sm text-carbon-black/60 font-proxima">
+                  {assessmentData.assessment_type?.charAt(0).toUpperCase() + assessmentData.assessment_type?.slice(1)} Assessment
+                  {assessmentData.assessment_period && ` • ${assessmentData.assessment_period}`}
                 </div>
               </div>
             </div>
           )}
 
           {/* Chat Messages - Same format as Learning.jsx */}
-          {messages.map((message, index) => (
-            <div key={message.id || index} className="mb-6">
-              {message.sender === 'user' ? (
-                // User message with avatar inside
-                <div className="bg-stardust rounded-lg px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-                      <span className="text-pursuit-purple text-sm font-proxima font-semibold">
-                        {user?.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
-                      </span>
-                    </div>
-                    <div className="flex-1 text-carbon-black leading-relaxed text-base font-proxima">
-                      {message.content}
+          {messages.map((message, index) => {
+            const isStreamingMessage = message.isStreaming === true;
+            
+            return (
+              <div key={message.id || index} className="mb-6">
+                {message.sender === 'user' ? (
+                  // User message with avatar inside
+                  <div className="bg-stardust rounded-lg px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+                        <span className="text-pursuit-purple text-sm font-proxima font-semibold">
+                          {user?.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
+                        </span>
+                      </div>
+                      <div className="flex-1 text-carbon-black leading-relaxed text-base font-proxima">
+                        {message.content}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                // AI/System message (no avatar) - Same as Learning.jsx
-                <div className="text-carbon-black leading-relaxed text-base">
-                  <ReactMarkdown
-                    components={{
-                      p: ({ node, children, ...props }) => (
-                        <p className="mb-4" {...props}>{children}</p>
-                      ),
-                      h1: ({ node, children, ...props }) => (
-                        <h1 className="text-xl font-semibold mt-6 mb-4 first:mt-0 text-carbon-black" {...props}>{children}</h1>
-                      ),
-                      h2: ({ node, children, ...props }) => (
-                        <h2 className="text-lg font-semibold mt-5 mb-3 first:mt-0 text-carbon-black" {...props}>{children}</h2>
-                      ),
-                      h3: ({ node, children, ...props }) => (
-                        <h3 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-carbon-black" {...props}>{children}</h3>
-                      ),
-                      ul: ({ node, children, ...props }) => (
-                        <ul className="list-disc pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ul>
-                      ),
-                      ol: ({ node, children, ...props }) => (
-                        <ol className="list-decimal pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ol>
-                      ),
-                      li: ({ node, children, ...props }) => (
-                        <li className="text-carbon-black" {...props}>{children}</li>
-                      ),
-                      a: ({ node, children, ...props }) => (
-                        <a className="text-blue-500 hover:underline break-all" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
-                      ),
-                      code: ({ node, inline, className, children, ...props }) => {
-                        if (inline) {
-                          return (
-                            <code className="px-1.5 py-0.5 rounded text-sm font-mono bg-gray-200 text-carbon-black" {...props}>
-                              {children}
-                            </code>
-                          );
-                        }
-                        return (
-                          <code className="block" {...props}>
-                            {children}
-                          </code>
-                        );
-                      },
-                      pre: ({ node, children, ...props }) => (
-                        <pre className="p-4 rounded-lg my-4 overflow-x-auto text-sm font-mono bg-gray-100 text-carbon-black" {...props}>
-                          {children}
-                        </pre>
-                      ),
-                      strong: ({ node, children, ...props }) => (
-                        <strong className="font-semibold text-carbon-black" {...props}>{children}</strong>
-                      ),
-                      em: ({ node, children, ...props }) => (
-                        <em className="italic text-carbon-black" {...props}>{children}</em>
-                      ),
-                    }}
-                  >
-                    {(() => {
-                      // Same content processing as Learning.jsx
-                      let processedContent = message.content;
-                      
-                      processedContent = processedContent.replace(/\*\*/g, '');
-                      
-                      processedContent = processedContent.replace(
-                        /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
-                        '[$1 ($2)]($4): $3'
-                      );
-                      
-                      processedContent = processedContent.replace(
-                        /(?<!\()(?<!]\()https?:\/\/[^\s)]+/g,
-                        (url) => `[${url}](${url})`
-                      );
-                      
-                      processedContent = processedContent.replace(/^•\s+/gm, '- ');
-                      processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
-                      
-                      return processedContent;
-                    })()}
-                  </ReactMarkdown>
-                </div>
-              )}
-            </div>
-          ))}
+                ) : (
+                  // AI message - StreamingMarkdownMessage handles both streaming and static
+                  <StreamingMarkdownMessage content={message.content} />
+                )}
+              </div>
+            );
+          })}
           
           {/* Loading indicator */}
-          {isAiThinking && (
+          {(isAiThinking && !isStreaming) || (isStreaming && messages.length > 0 && messages[messages.length - 1]?.sender === 'ai' && !messages[messages.length - 1]?.content) ? (
             <div className="mb-6">
               <img 
                 src="/preloader.gif" 
@@ -606,7 +789,7 @@ function AssessmentInterface({
                 className="w-8 h-8"
               />
             </div>
-          )}
+          ) : null}
           
           {/* Invisible element for auto-scroll */}
           <div ref={messagesEndRef} />
@@ -618,16 +801,19 @@ function AssessmentInterface({
       {!isCompleted && (
         <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
           <div className="max-w-2xl mx-auto pointer-events-auto">
+            <div ref={chatTrayRef}>
             <AutoExpandTextarea
               onSubmit={handleSendMessage}
-              disabled={isSending || isAiThinking || !isActive}
+              disabled={isSending || isAiThinking || isStreaming || !isActive}
               showAssignmentButton={true}
               onAssignmentClick={() => setShowDeliverablePanel(true)}
               assignmentButtonText="Submit Assessment"
               showInstructionsButton={true}
               onInstructionsClick={handleShowInstructions}
               showLlmDropdown={false}
+              onHeightChange={handleInputTrayHeightChange}
             />
+            </div>
           </div>
         </div>
       )}
@@ -637,9 +823,12 @@ function AssessmentInterface({
         <AssessmentDeliverablePanel
           assessmentType={assessmentData.assessment_type}
           assessmentName={assessmentData.assessment_name}
+          assessmentData={assessmentData}
           currentSubmission={currentSubmission}
+          draftFormData={draftFormData}
+          onDraftUpdate={setDraftFormData}
           isOpen={showDeliverablePanel}
-          onClose={() => setShowDeliverablePanel(false)}
+          onClose={handlePanelClose}
           onSubmit={handleAssessmentSubmit}
           isLocked={!isActive || (currentSubmission?.status === 'submitted' && !currentSubmission?.resubmission_allowed)}
         />
@@ -658,7 +847,6 @@ function AssessmentInterface({
           <div className="space-y-4 text-carbon-black font-proxima">
             {/* Assessment Info */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="font-semibold text-lg mb-2">{assessmentData?.assessment_name}</h3>
               <p className="text-sm text-carbon-black/70">
                 {assessmentData?.assessment_type?.charAt(0).toUpperCase() + assessmentData?.assessment_type?.slice(1)} Assessment
                 {assessmentData?.assessment_period && ` • ${assessmentData?.assessment_period}`}
@@ -666,12 +854,10 @@ function AssessmentInterface({
             </div>
 
             {/* Instructions Content */}
-            <div className="prose prose-sm max-w-none">
-              {assessmentData?.instructions?.split('\n').map((paragraph, index) => (
-                <p key={index} className="mb-3 last:mb-0 text-carbon-black leading-relaxed">
-                  {paragraph}
-                </p>
-              ))}
+            <div className="prose prose-sm max-w-none text-carbon-black leading-relaxed">
+              <ReactMarkdown>
+                {assessmentData?.instructions || ''}
+              </ReactMarkdown>
             </div>
 
             {/* Action Button */}
