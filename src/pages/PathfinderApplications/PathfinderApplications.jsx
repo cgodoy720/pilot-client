@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import MyStrategy from './MyStrategy';
+import MyResumes from './MyResumes';
 
 // Helper function to get local date in YYYY-MM-DD format
 const getLocalDate = () => {
@@ -74,7 +76,8 @@ function PathfinderApplications() {
     finalSalary: '',
     startDate: '',
     jobType: '',
-    acceptanceNotes: ''
+    acceptanceNotes: '',
+    resumeId: null
   });
 
   // Filter state
@@ -130,10 +133,14 @@ function PathfinderApplications() {
   // Collapsed columns state
   const [collapsedColumns, setCollapsedColumns] = useState({});
 
+  // Resumes list — used to populate the "Resume Used" dropdown in the application form
+  const [resumes, setResumes] = useState([]);
+
   useEffect(() => {
     fetchApplications();
     fetchActivityCounts();
     fetchBuildCounts();
+    fetchResumes();
   }, [token]);
 
   // Check if we should auto-open the modal (coming from dashboard)
@@ -243,6 +250,20 @@ function PathfinderApplications() {
       }
     } catch (err) {
       console.error('Error fetching build counts:', err);
+    }
+  };
+
+  const fetchResumes = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/pathfinder/resumes`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setResumes(data);
+      }
+    } catch (err) {
+      console.error('Error fetching resumes:', err);
     }
   };
 
@@ -447,7 +468,8 @@ function PathfinderApplications() {
       salaryRange: application.salary_range || '',
       salary: application.salary || '',
       companyLogo: application.company_logo || '',
-      withdrawalReason: application.withdrawal_reason || ''
+      withdrawalReason: application.withdrawal_reason || '',
+      resumeId: application.resume_id || null
     });
     setShowForm(true);
 
@@ -557,7 +579,8 @@ function PathfinderApplications() {
       location: '',
       salaryRange: '',
       salary: '',
-      companyLogo: ''
+      companyLogo: '',
+      resumeId: null
     });
     setShowForm(false);
     setIsEditing(false);
@@ -1054,6 +1077,8 @@ function PathfinderApplications() {
   return (
     <div className="w-full max-w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto overflow-x-hidden p-0 px-6 pb-6 box-border relative">
       <div className="max-w-full w-full mx-auto box-border flex flex-col overflow-x-hidden">
+        <MyStrategy />
+        <MyResumes />
         <div className="flex justify-between items-center mb-4 gap-4 flex-wrap max-w-full w-full relative">
           <Button 
             className="px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] relative overflow-hidden flex-shrink-0 whitespace-nowrap hover:bg-[#3333d1] hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_6px_20px_rgba(66,66,234,0.4)] active:translate-y-0 active:scale-100 active:shadow-[0_2px_8px_rgba(66,66,234,0.2)]"
@@ -1305,6 +1330,35 @@ function PathfinderApplications() {
                           </div>
                         </div>
 
+                        {/* Resume Used */}
+                        <div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Resume Used</label>
+                          {resumes.length === 0 ? (
+                            <p className="text-sm text-[#999999] py-1">
+                              Add a resume to track which version you're using.
+                            </p>
+                          ) : (
+                            <Select
+                              value={formData.resumeId ? String(formData.resumeId) : 'none'}
+                              onValueChange={(v) =>
+                                setFormData((prev) => ({ ...prev, resumeId: v === 'none' ? null : parseInt(v) }))
+                              }
+                            >
+                              <SelectTrigger className="w-full border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm">
+                                <SelectValue placeholder="Select resume..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">No resume selected</SelectItem>
+                                {resumes.map((resume) => (
+                                  <SelectItem key={resume.id} value={String(resume.id)}>
+                                    {resume.name}{resume.is_primary ? ' (Primary)' : ''}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+
                         <div>
                           <label className="block text-sm font-medium text-[#1a1a1a] mb-2">
                             Job Description
@@ -1521,6 +1575,33 @@ function PathfinderApplications() {
                                     placeholder="e.g., New York, NY or Remote"
                                   />
                                 </div>
+                              </div>
+
+                              {/* Resume Used */}
+                              <div className="pathfinder-applications__form-group">
+                                <label>Resume Used</label>
+                                {resumes.length === 0 ? (
+                                  <p className="text-sm text-[#999999] py-1">
+                                    Add a resume to track which version you're using.
+                                  </p>
+                                ) : (
+                                  <select
+                                    value={formData.resumeId || ''}
+                                    onChange={(e) =>
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        resumeId: e.target.value === '' ? null : parseInt(e.target.value)
+                                      }))
+                                    }
+                                  >
+                                    <option value="">No resume selected</option>
+                                    {resumes.map((resume) => (
+                                      <option key={resume.id} value={resume.id}>
+                                        {resume.name}{resume.is_primary ? ' (Primary)' : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
                               </div>
 
                               <div className="pathfinder-applications__form-group">
