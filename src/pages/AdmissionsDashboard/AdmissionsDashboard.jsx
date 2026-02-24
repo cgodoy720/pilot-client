@@ -150,36 +150,44 @@ const AdmissionsDashboard = () => {
   });
 
   // Column visibility state
+  const defaultVisibleColumns = {
+    name: true,
+    email: true,
+    phone: true,
+    app_start_date: false,
+    status: true,
+    assessment: true,
+    info_session: true,
+    workshop: true,
+    structured_task_grade: true,
+    admission: true,
+    notes: true,
+    deliberation: true,
+    age: false,
+    gender: false,
+    race: false,
+    education: false,
+    referral: false,
+    pledge: false,
+    income: false
+  };
+
   const [visibleColumns, setVisibleColumns] = useState(() => {
     try {
       const saved = sessionStorage.getItem('admissions-dashboard-filters-v1');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.visibleColumns) {
-          return parsed.visibleColumns;
+          // Merge saved state with defaults so new columns are always present
+          return { ...defaultVisibleColumns, ...parsed.visibleColumns };
         }
       }
     } catch (error) {
       console.error('Error loading saved filters:', error);
     }
-    return {
-      name: true,
-      email: true,
-      phone: true,
-      app_start_date: false,
-      status: true,
-      assessment: true,
-      info_session: true,
-      workshop: true,
-      structured_task_grade: true,
-      admission: true,
-      notes: true,
-      deliberation: true,
-      education: false,
-      referral: false,
-      pledge: false
-    };
+    return defaultVisibleColumns;
   });
+
 
   // Overview quick views state
 

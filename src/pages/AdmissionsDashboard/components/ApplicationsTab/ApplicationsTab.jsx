@@ -105,7 +105,9 @@ const columnLabels = {
   race: 'Race/Ethnicity',
   education: 'Education',
   referral: 'Referral Source',
-  pledge: 'Pledge Signed'
+  pledge: 'Pledge Signed',
+  income: 'Pre-Program Income'
+
 };
 
 
@@ -292,6 +294,13 @@ const ApplicationRow = React.memo(({
           )}
         </TableCell>
       )}
+
+      {visibleColumns.income && (
+        <TableCell className="font-proxima text-gray-600 max-w-[160px] truncate" title={app.personal_income}>
+          {app.personal_income || '-'}
+        </TableCell>
+      )}
+
 
       {visibleColumns.notes && (
         <TableCell>
@@ -589,7 +598,9 @@ const ApplicationsTab = ({
     gender: { label: 'Gender', getValue: (app) => app.demographics?.gender || app.gender || '' },
     race_ethnicity: { label: 'Race/Ethnicity', getValue: (app) => app.demographics?.race_ethnicity || app.race_ethnicity || '' },
     education: { label: 'Education', getValue: (app) => app.demographics?.education_level || app.education_level || '' },
-    referral: { label: 'Referral Source', getValue: (app) => app.demographics?.reason_for_applying || app.demographics?.referral_source || app.referral_source || '' }
+    referral: { label: 'Referral Source', getValue: (app) => app.demographics?.reason_for_applying || app.demographics?.referral_source || app.referral_source || '' },
+    income: { label: 'Pre-Program Income', getValue: (app) => app.personal_income || '' }
+
   };
 
   // Handle CSV export
@@ -1205,6 +1216,10 @@ const ApplicationsTab = ({
                   {visibleColumns.pledge && (
                     <TableHead className="font-proxima-bold">Pledge</TableHead>
                   )}
+                  {visibleColumns.income && (
+                    <TableHead className="font-proxima-bold">Pre-Program Income</TableHead>
+                  )}
+
                   {visibleColumns.notes && (
                     <TableHead className="font-proxima-bold">Notes</TableHead>
                   )}

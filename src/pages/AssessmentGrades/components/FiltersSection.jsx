@@ -20,8 +20,8 @@ const FiltersSection = ({
             Cohort:
           </Label>
           <Select
-            value={filters.assessmentCohort || "__ALL_COHORTS__"}
-            onValueChange={(value) => onFilterChange('assessmentCohort', value === "__ALL_COHORTS__" ? '' : value)}
+            value={filters.cohort || "__ALL_COHORTS__"}
+            onValueChange={(value) => onFilterChange('cohort', value === "__ALL_COHORTS__" ? '' : value)}
           >
             <SelectTrigger id="cohort">
               <SelectValue placeholder="All Cohorts" />
