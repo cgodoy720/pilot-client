@@ -51,14 +51,14 @@ const GradesTable = ({
               <TableHead className="w-12">
                 <Checkbox
                   checked={selectedUsers.size === assessmentGrades.length && assessmentGrades.length > 0}
-                  onCheckedChange={onSelectAll}
+                  onCheckedChange={(checked) => onSelectAll(!!checked)}
                   aria-label="Select all rows"
                 />
               </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Cohort</TableHead>
-              <TableHead>Assessment Type</TableHead>
+              <TableHead>Level</TableHead>
               <TableHead>Assessment Period</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -83,9 +83,9 @@ const GradesTable = ({
                 <TableCell>
                   <Badge 
                     variant="outline" 
-                    className="bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100"
+                    className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
                   >
-                    holistic
+                    {grade.level || 'N/A'}
                   </Badge>
                 </TableCell>
                 <TableCell>{grade.assessment_period || 'N/A'}</TableCell>

@@ -17,10 +17,10 @@ const ActionsBar = ({
       <div className="flex items-center gap-4">
         <Button
           variant="outline"
-          onClick={onSelectAll}
+          onClick={() => onSelectAll(selectedUsers.size !== assessmentGrades.length)}
           size="sm"
         >
-          {selectedUsers.size === assessmentGrades.length ? 'Deselect All' : 'Select All'}
+          {selectedUsers.size === assessmentGrades.length && assessmentGrades.length > 0 ? 'Deselect All' : 'Select All'}
         </Button>
         <span className="text-sm text-muted-foreground">
           {selectedUsers.size} user{selectedUsers.size !== 1 ? 's' : ''} selected
