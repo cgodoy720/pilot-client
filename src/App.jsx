@@ -436,9 +436,9 @@ function App() {
         {/* Employment Engine - Staff Network Dashboard */}
         <Route path="/pathfinder/staff-network" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.PATHFINDER_ADMIN}>
               <StaffNetworkDashboard />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
         
