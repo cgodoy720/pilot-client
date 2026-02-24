@@ -45,6 +45,7 @@ const Layout = ({ children, isLoading = false }) => {
   const canViewVolunteerManagement = canAccessPage('volunteer_management');
   const canViewVolunteerFeedback = canAccessPage('volunteer_feedback');
   const canViewWeeklyReports = canAccessPage('weekly_reports');
+  const canViewPlatformAnalytics = canAccessPage('platform_analytics');
   
   // Check if on Pathfinder pages for light mode styling
   const isPathfinderPage = location.pathname.startsWith('/pathfinder');
@@ -53,7 +54,7 @@ const Layout = ({ children, isLoading = false }) => {
   const isAdminRole = userRole === 'admin';
   const isStaffOrAdminRole = userRole === 'staff' || userRole === 'admin';
   const hasAnyAdminPagePermission = canViewAdminPrompts || canViewOrganizationManagement
-    || canViewPermissionManagement || canViewWeeklyReports;
+    || canViewPermissionManagement || canViewWeeklyReports || canViewPlatformAnalytics;
   // Program dropdown -- staff/admin roles
   const programDropdownItems = isStaffOrAdminRole ? [
     canViewAssessmentGrades && { to: '/admin/assessment-grades', label: 'Assessments' },
@@ -81,6 +82,7 @@ const Layout = ({ children, isLoading = false }) => {
     canViewAdminPrompts && { to: '/admin-prompts', label: 'AI Prompts' },
     canViewOrganizationManagement && { to: '/admin/organization-management', label: 'Organizations' },
     canViewPermissionManagement && { to: '/admin/permissions', label: 'Permissions' },
+    canViewPlatformAnalytics && { to: '/admin/platform-analytics', label: 'Platform Analytics' },
     canViewWeeklyReports && { to: '/admin/weekly-reports', label: 'Weekly Reports' },
   ].filter(Boolean) : [];
 
@@ -126,6 +128,7 @@ const Layout = ({ children, isLoading = false }) => {
     '/admin-prompts': 'AI Prompts',
     '/admin/organization-management': 'Organizations',
     '/admin/permissions': 'Permissions',
+    '/admin/platform-analytics': 'Platform Analytics',
     '/admin/weekly-reports': 'Weekly Reports',
   };
   const matchedSecondaryRoute = Object.keys(secondaryPageTitles).find(
@@ -236,7 +239,7 @@ const Layout = ({ children, isLoading = false }) => {
     }
 
     // Admin section routes → Settings
-    const adminRoutes = ['/admin-prompts', '/admin/organization-management', '/admin/permissions', '/admin/weekly-reports'];
+    const adminRoutes = ['/admin-prompts', '/admin/organization-management', '/admin/permissions', '/admin/platform-analytics', '/admin/weekly-reports'];
     if (adminRoutes.some(route => location.pathname === route || location.pathname.startsWith(route))) {
       return <Settings className="h-4 w-4 text-[#E3E3E3]" />;
     }

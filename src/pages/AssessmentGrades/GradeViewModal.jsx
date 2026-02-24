@@ -144,10 +144,9 @@ const GradeViewModal = ({
       try {
         setLoading(true);
         
-        // Fetch user submissions - pass assessment_period AND cohort as query params
         const submissionsParams = new URLSearchParams({
           assessmentPeriod: grade.assessment_period || 'Week 8',
-          cohort: grade.assessment_cohort || grade.cohort || ''
+          level: grade.level || ''
         });
         const submissionsResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/user-submissions/${grade.user_id}?${submissionsParams}`, {
           headers: {
@@ -159,14 +158,12 @@ const GradeViewModal = ({
         if (submissionsResponse.ok) {
           const submissionsData = await submissionsResponse.json();
           console.log('🔍 User Submissions API Response:', submissionsData);
-          console.log('🔍 Submissions Array:', submissionsData.submissions);
           setUserSubmissions(submissionsData.submissions || []);
         }
         
-        // Fetch comprehensive analysis data - pass assessment_period AND cohort as query params
         const analysisParams = new URLSearchParams({
           assessmentPeriod: grade.assessment_period || 'Week 8',
-          cohort: grade.assessment_cohort || grade.cohort || ''
+          level: grade.level || ''
         });
         const analysisResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/comprehensive-analysis/${grade.user_id}?${analysisParams}`, {
           headers: {
@@ -191,7 +188,7 @@ const GradeViewModal = ({
     };
     
     fetchUserData();
-  }, [grade?.user_id, grade?.assessment_period, grade?.cohort, authToken, isOpen]);
+  }, [grade?.user_id, grade?.assessment_period, grade?.level, authToken, isOpen]);
 
   // Generate website preview when technical submission data is available
   useEffect(() => {
