@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import DayCell from './DayCell';
 
-const WeekView = ({ weekNumber, weeklyGoal, days = [], onDayClick, currentDayId, userProgress = {}, currentMonth, currentYear }) => {
+const WeekView = ({ weekNumber, weeklyGoal, days = [], onDayClick, currentDayId, currentMonth, currentYear }) => {
+  
   // Days are already in order from Calendar.jsx (Sat-Fri)
   // Each day object has the enhanced structure with date, curriculumDay, hasClass, etc.
   
@@ -30,19 +31,26 @@ const WeekView = ({ weekNumber, weeklyGoal, days = [], onDayClick, currentDayId,
     return compareDate > today;
   };
   
-  // Check if day has ACTUAL deliverable tasks (not just text/none)
-  // Deliverables that need submission: 'video', 'link', 'document', 'structured'
-  // NOT deliverables (auto-complete): 'text', 'none'
-  const hasDeliverables = (dateObj) => {
+  // Check if day has tasks that REQUIRE completion
+  // Tasks require completion if they have:
+  // - deliverable_type (video/document/link/structured) - needs submission
+  // - should_analyze = true - needs conversation conclusion
+  // - feedback_slot - survey needs submission
+  // - task_mode = 'assessment' - assessment needs submission
+  const hasRequiredTasks = (dateObj) => {
     if (!dateObj.hasClass || !dateObj.tasks) return false;
-    return dateObj.tasks.some(t => 
-      t.deliverable_type && 
-      t.deliverable_type !== 'text' && 
-      t.deliverable_type !== 'none'
-    );
+    return dateObj.tasks.some(t => {
+      const hasDeliverable = t.deliverable_type && 
+                            ['video', 'document', 'link', 'structured'].includes(t.deliverable_type);
+      const needsAnalysis = t.should_analyze === true;
+      const isSurvey = !!t.feedback_slot;
+      const isAssessment = t.task_mode === 'assessment';
+      return hasDeliverable || needsAnalysis || isSurvey || isAssessment;
+    });
   };
   
-  // Check if day is complete (all deliverable tasks submitted)
+  // Check if day is complete (all required tasks completed)
+  // Uses isComplete from backend which already considers all completion conditions
   const isComplete = (dateObj) => {
     if (!dateObj.hasClass) {
       // No class days are automatically "complete" when past
@@ -52,35 +60,53 @@ const WeekView = ({ weekNumber, weeklyGoal, days = [], onDayClick, currentDayId,
     const curriculumDay = dateObj.curriculumDay;
     if (!curriculumDay) return false;
     
-    // Check for ACTUAL deliverables FIRST (video, link, document, structured)
-    const deliverableTasks = dateObj.tasks?.filter(t => 
-      t.deliverable_type && 
-      t.deliverable_type !== 'text' && 
-      t.deliverable_type !== 'none'
-    ) || [];
+    // Get tasks that require completion
+    const requiredTasks = dateObj.tasks?.filter(t => {
+      const hasDeliverable = t.deliverable_type && 
+                            ['video', 'document', 'link', 'structured'].includes(t.deliverable_type);
+      const needsAnalysis = t.should_analyze === true;
+      const isSurvey = !!t.feedback_slot;
+      const isAssessment = t.task_mode === 'assessment';
+      return hasDeliverable || needsAnalysis || isSurvey || isAssessment;
+    }) || [];
     
-    // If no ACTUAL deliverable tasks, automatically complete (nothing to submit)
-    if (deliverableTasks.length === 0) return true;
+    // If no required tasks, automatically complete (nothing to do)
+    if (requiredTasks.length === 0) return true;
     
-    // Has deliverables - need to check progress
-    const progress = userProgress[curriculumDay.id];
-    if (!progress || progress.length === 0) {
-      // Has deliverables but no progress = incomplete
-      return false;
-    }
+    // Check if ALL required tasks are complete (using isComplete from backend)
+    const completedTasks = requiredTasks.filter(t => t.isComplete);
     
-    // Check if ALL deliverable tasks are completed
-    const completedTasks = deliverableTasks.filter(t => 
-      progress.find(p => p.task_id === t.id && p.status === 'completed')
-    );
-    
-    return completedTasks.length === deliverableTasks.length;
+    return completedTasks.length === requiredTasks.length;
   };
+  
+  // Debug: Log first 5 past days with their completion data
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useMemo(() => {
+    const pastDaysWithClass = days.filter(d => isPast(d) && d.hasClass).slice(0, 5);
+    if (pastDaysWithClass.length > 0) {
+      console.log('📊 Calendar Debug - Sample past days:', pastDaysWithClass.map(d => ({
+        dayId: d.curriculumDay?.id,
+        date: d.date?.toLocaleDateString(),
+        taskCount: d.tasks?.length,
+        tasks: d.tasks?.map(t => ({
+          id: t.id,
+          title: t.task_title?.substring(0, 30),
+          deliverable_type: t.deliverable_type,
+          should_analyze: t.should_analyze,
+          feedback_slot: t.feedback_slot,
+          task_mode: t.task_mode,
+          isComplete: t.isComplete
+        })),
+        hasRequiredTasks: hasRequiredTasks(d),
+        dayIsComplete: isComplete(d)
+      })));
+    }
+  }, [days]);
 
   return (
     <div className="flex flex-col gap-[7px]">
       {/* Week Header - Only show if this week has a week number */}
-      {weekNumber && (
+      {(weekNumber !== null && weekNumber !== undefined) && (
       <div className="flex items-center gap-[10px]">
         <h3 className="text-[16px] leading-[18px] font-proxima font-bold text-pursuit-purple">
             Week {weekNumber} {weeklyGoal || ''}
@@ -97,7 +123,7 @@ const WeekView = ({ weekNumber, weeklyGoal, days = [], onDayClick, currentDayId,
             isToday={isToday(dateObj)}
             isPast={isPast(dateObj)}
             isFuture={isFuture(dateObj)}
-            hasDeliverables={hasDeliverables(dateObj)}
+            hasDeliverables={hasRequiredTasks(dateObj)}
             isComplete={isComplete(dateObj)}
             onClick={() => dateObj.hasClass && dateObj.curriculumDay && onDayClick(dateObj.curriculumDay.id)}
           />

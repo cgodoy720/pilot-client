@@ -6,6 +6,7 @@ import {
 } from '../../../../components/ui/sheet';
 import StructuredSubmission from './StructuredSubmission';
 import FlexibleSubmission from './FlexibleSubmission';
+import ImageSubmission from './ImageSubmission';
 
 function DeliverablePanel({
   task,
@@ -13,7 +14,9 @@ function DeliverablePanel({
   isOpen,
   onClose,
   onSubmit,
-  isLocked = false
+  isLocked = false,
+  userId,
+  taskId
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -21,6 +24,9 @@ function DeliverablePanel({
     setIsSubmitting(true);
     try {
       await onSubmit(submissionData);
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
+      throw error;
     } finally {
       setIsSubmitting(false);
     }
@@ -47,12 +53,10 @@ function DeliverablePanel({
       currentSubmission,
       isSubmitting,
       isLocked,
-      onSubmit: handleSubmit
+      onSubmit: handleSubmit,
+      userId,
+      taskId
     };
-
-    console.log('DeliverablePanel - task:', task);
-    console.log('DeliverablePanel - deliverable_schema:', task.deliverable_schema);
-    console.log('DeliverablePanel - deliverable_type:', task.deliverable_type);
 
     // Check for structured deliverable first (workshop schema-based custom forms)
     if (task.deliverable_schema) {
@@ -62,6 +66,11 @@ function DeliverablePanel({
     // For video deliverable type, use StructuredSubmission with Loom schema
     if (task.deliverable_type === 'video') {
       return <StructuredSubmission {...commonProps} schema={getVideoSchema()} />;
+    }
+
+    // For image deliverable type, use ImageSubmission
+    if (task.deliverable_type === 'image') {
+      return <ImageSubmission {...commonProps} />;
     }
 
     // For all other standard deliverable types (text, link, document), use FlexibleSubmission
@@ -92,7 +101,9 @@ function DeliverablePanel({
           
           {/* Deliverable instructions instead of task title */}
           <div className="text-[16px] leading-[22px] font-proxima font-normal text-carbon-black">
-            {task.deliverable || 'Please complete the deliverable for this activity.'}
+            {task.deliverable 
+              ? task.deliverable.charAt(0).toUpperCase() + task.deliverable.slice(1)
+              : 'Please complete the deliverable for this activity.'}
           </div>
         </div>
 

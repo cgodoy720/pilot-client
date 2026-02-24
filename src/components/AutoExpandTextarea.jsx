@@ -12,12 +12,15 @@ import ArrowButton from './ArrowButton/ArrowButton';
 
 // Available LLM models
 const LLM_MODELS = [
+  { value: 'anthropic/claude-sonnet-4.6', label: 'Claude Sonnet 4.6', description: 'Latest Claude model' },
   { value: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', description: 'Advanced reasoning' },
-  { value: 'anthropic/claude-haiku-4.5', label: 'Claude Haiku 4.5', description: 'Fast & efficient' },
-  { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini', description: 'Quick responses' },
-  { value: 'google/gemini-2.5-flash-lite', label: 'Gemini Flash 2.5 Lite', description: 'Fast & efficient' },
-  { value: 'deepseek/deepseek-chat', label: 'DeepSeek Chat', description: 'Code specialist' },
-  { value: 'x-ai/grok-4-fast', label: 'Grok 4 Fast', description: 'Fast reasoning' }
+  { value: 'anthropic/claude-opus-4.6', label: 'Claude Opus 4.6', description: 'Most capable Claude' },
+  { value: 'openai/gpt-5.2', label: 'GPT 5.2', description: 'Latest GPT model' },
+  { value: 'google/gemini-3-pro-preview', label: 'Gemini 3 Pro Preview', description: 'Advanced reasoning' },
+  { value: 'x-ai/grok-4', label: 'Grok 4', description: 'Fast reasoning' },
+  { value: 'moonshotai/kimi-k2.5', label: 'Kimi K2.5', description: 'Advanced model' },
+  { value: 'minimax/minimax-m2.5', label: 'Minimax M2.5', description: 'Versatile model' },
+  { value: 'deepseek/deepseek-v3.2', label: 'Deepseek V3.2', description: 'Code specialist' }
 ];
 
 const AutoExpandTextarea = forwardRef(({ 
@@ -29,10 +32,15 @@ const AutoExpandTextarea = forwardRef(({
   assignmentButtonText = "Assignment",
   showInstructionsButton = false,
   onInstructionsClick,
+  showPeerFeedbackButton = false,
+  onPeerFeedbackClick,
+  peerFeedbackButtonText = "Peer Feedback",
   showLlmDropdown = false,
-  shouldFocus = false
+  shouldFocus = false,
+  onHeightChange
 }, ref) => {
   const textareaRef = useRef(null);
+  const containerRef = useRef(null);
   const [localModel, setLocalModel] = useState(LLM_MODELS[0].value);
   const [hasContent, setHasContent] = useState(false);
 
@@ -50,6 +58,15 @@ const AutoExpandTextarea = forwardRef(({
       
       const newHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
       textarea.style.height = `${newHeight}px`;
+      
+      // Notify parent of height change after textarea resizes
+      if (containerRef.current && onHeightChange) {
+        // Use requestAnimationFrame to ensure DOM has updated
+        requestAnimationFrame(() => {
+          const height = containerRef.current.getBoundingClientRect().height;
+          onHeightChange(height + 24);
+        });
+      }
     }
   };
 
@@ -84,6 +101,28 @@ const AutoExpandTextarea = forwardRef(({
     }
   }, [shouldFocus, disabled]);
 
+  // Track container height and notify parent of changes
+  useEffect(() => {
+    if (!containerRef.current || !onHeightChange) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.target.getBoundingClientRect().height;
+        onHeightChange(height + 24);
+      }
+    });
+
+    resizeObserver.observe(containerRef.current);
+
+    // Initial height notification
+    const initialHeight = containerRef.current.getBoundingClientRect().height;
+    onHeightChange(initialHeight + 24);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [onHeightChange]);
+
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -108,7 +147,7 @@ const AutoExpandTextarea = forwardRef(({
   };
 
   return (
-    <div className="bg-stardust shadow-lg rounded-t-[20px] p-4">
+    <div ref={containerRef} className="bg-stardust shadow-lg rounded-t-[20px] p-4">
       <div className="flex flex-col gap-2">
         {/* Main input area */}
         <div className="bg-white rounded-md p-3 mb-2">
@@ -125,7 +164,7 @@ const AutoExpandTextarea = forwardRef(({
 
         {/* Bottom row with buttons */}
         <div className="flex justify-between items-center">
-          {/* Left side - Assignment and Instructions buttons */}
+          {/* Left side - Assignment, Instructions, and Peer Feedback buttons */}
           <div className="flex gap-2">
             {showInstructionsButton && (
               <Button
@@ -143,6 +182,15 @@ const AutoExpandTextarea = forwardRef(({
                 className="bg-pursuit-purple hover:bg-pursuit-purple/90 text-stardust text-xs px-3 py-1 h-6 rounded-full"
               >
                 {assignmentButtonText}
+              </Button>
+            )}
+            {showPeerFeedbackButton && (
+              <Button
+                onClick={onPeerFeedbackClick}
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 h-6 rounded-full"
+              >
+                {peerFeedbackButtonText}
               </Button>
             )}
           </div>

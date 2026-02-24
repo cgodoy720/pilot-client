@@ -7,7 +7,7 @@ import LoadingState from './shared/LoadingState';
 import EmptyState from './shared/EmptyState';
 import DeleteConfirmDialog from './shared/DeleteConfirmDialog';
 
-const BasePromptsTab = ({ showNotification, reloadPrompts }) => {
+const BasePromptsTab = ({ showNotification, reloadPrompts, canEdit }) => {
   const [prompts, setPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -185,13 +185,15 @@ const BasePromptsTab = ({ showNotification, reloadPrompts }) => {
             Core system prompts that define the AI's fundamental behavior and context.
           </p>
         </div>
-        <Button
-          onClick={handleCreate}
-          className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create Base Prompt
-        </Button>
+        {canEdit && (
+          <Button
+            onClick={handleCreate}
+            className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Base Prompt
+          </Button>
+        )}
       </div>
 
       {/* Prompts List */}
@@ -200,8 +202,8 @@ const BasePromptsTab = ({ showNotification, reloadPrompts }) => {
           icon="📝"
           title="No base prompts found"
           description="Create your first base prompt to get started."
-          actionLabel="Create Base Prompt"
-          onAction={handleCreate}
+          actionLabel={canEdit ? 'Create Base Prompt' : undefined}
+          onAction={canEdit ? handleCreate : undefined}
         />
       ) : (
         <div className="space-y-4">
@@ -212,6 +214,7 @@ const BasePromptsTab = ({ showNotification, reloadPrompts }) => {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onSetDefault={handleSetDefault}
+              showActions={canEdit}
             />
           ))}
         </div>

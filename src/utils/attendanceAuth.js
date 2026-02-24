@@ -11,8 +11,8 @@ const STORAGE_KEYS = {
   LAST_ACTIVITY: 'attendanceLastActivity'
 };
 
-// Session timeout (8 hours in milliseconds)
-const SESSION_TIMEOUT = 8 * 60 * 60 * 1000;
+// Session timeout (7 days in milliseconds)
+const SESSION_TIMEOUT = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Store authentication data securely

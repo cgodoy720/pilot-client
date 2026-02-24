@@ -23,9 +23,12 @@ import AssessmentLayout from './pages/Assessment/components/AssessmentLayout/Ass
 import SelfAssessmentPage from './pages/Assessment/components/SelfAssessmentPage/SelfAssessmentPage';
 import AssessmentGrades from './pages/AssessmentGrades/AssessmentGrades';
 
-import VolunteerFeedback from './pages/VolunteerFeedback/VolunteerFeedback';
-import AdminVolunteerFeedback from './pages/AdminVolunteerFeedback';
+import PaymentAdmin from './pages/PaymentAdmin';
 import ExpiredTokenModal from './components/ExpiredTokenModal/ExpiredTokenModal';
+
+// Volunteering Dashboard (volunteer-facing) and Volunteer Management Dashboard (staff-facing)
+import VolunteeringDashboard from './pages/VolunteeringDashboard/VolunteeringDashboard';
+import VolunteerManagementDashboard from './pages/VolunteerManagementDashboard/VolunteerManagementDashboard';
 
 // Pathfinder pages
 import Pathfinder from './pages/Pathfinder';
@@ -42,6 +45,11 @@ import PathfinderJobs from './pages/PathfinderJobs';
 import StaffNetworkDashboard from './pages/StaffNetworkDashboard';
 
 import WorkshopAdminDashboard from './pages/WorkshopAdminDashboard/WorkshopAdminDashboard';
+import ExternalCohortsDashboard from './pages/ExternalCohortsDashboard/ExternalCohortsDashboard';
+import CohortAdminDashboard from './pages/CohortAdminDashboard/CohortAdminDashboard';
+import OrganizationManagement from './pages/Admin/OrganizationManagement/OrganizationManagement';
+import PermissionManagement from './pages/Admin/PermissionManagement';
+import ContentPreview from './pages/ContentPreview';
 
 // Form Builder pages
 import FormBuilderDashboard from './pages/FormBuilder/FormBuilderDashboard';
@@ -49,14 +57,30 @@ import FormEditor from './pages/FormBuilder/FormEditor';
 import FormSubmissions from './pages/FormBuilder/FormSubmissions';
 import FormAnalytics from './pages/FormBuilder/FormAnalytics';
 
+// Sales Tracker pages
+import SalesTracker from './pages/SalesTracker/SalesTracker';
+
+// Weekly Reports page
+import WeeklyReports from './pages/Admin/WeeklyReports/WeeklyReports';
+
+// Platform Analytics page
+import PlatformAnalytics from './pages/Admin/PlatformAnalytics/PlatformAnalytics';
+
 import { useAuth } from './context/AuthContext';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
+import { Toaster } from './components/ui/sonner';
+import {
+  PermissionRoute,
+  WorkshopAdminRoute,
+  EnterpriseAdminRoute
+} from './components/RouteGuards';
+import { PAGE_PERMISSIONS } from './constants/permissions';
 
 import './App.css';
 
 function App() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   
   // Modal state
   const [modalConfig, setModalConfig] = useState({
@@ -118,7 +142,7 @@ function App() {
     window.location.href = '/login';
   };
 
-  // Protected route component
+  // Protected route component (basic auth check)
   const ProtectedRoute = ({ children }) => {
     if (isLoading) {
       return <div>Loading...</div>;
@@ -130,41 +154,6 @@ function App() {
     
     return children;
   };
-  
-  // Active user route protection component
-  const ActiveUserRoute = ({ children }) => {
-    const isActive = user?.active !== false;
-    
-    if (!isActive) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    
-    return children;
-  };
-
-  // Admin route protection component
-  const AdminRoute = ({ children }) => {
-    const isAdmin = user?.role === 'admin' || user?.role === 'staff';
-    
-    if (!isAdmin) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    
-    return children;
-  };
-
-  // Workshop Admin route protection component
-  const WorkshopAdminRoute = ({ children }) => {
-    const isWorkshopAdmin = user?.role === 'workshop_admin' || user?.role === 'admin' || user?.role === 'staff';
-    
-    if (!isWorkshopAdmin) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    
-    return children;
-  };
-
-
 
   // If auth is still loading, show a minimal loading state
   if (isLoading) {
@@ -182,123 +171,136 @@ function App() {
         } />
         <Route path="/ai-chat" element={
           <Layout>
-            <GPT />
+            <PermissionRoute permission={PAGE_PERMISSIONS.AI_CHAT}>
+              <GPT />
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/calendar" element={
           <Layout>
-            <Calendar />
+            <PermissionRoute permission={PAGE_PERMISSIONS.CALENDAR}>
+              <Calendar />
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/learning" element={
           <Layout>
-            <ActiveUserRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.LEARNING}>
               <Learning />
-            </ActiveUserRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/past-session" element={
           <Layout>
-            <PastSession />
+            <PermissionRoute permission={PAGE_PERMISSIONS.PAST_SESSION}>
+              <PastSession />
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/assessment" element={
           <Layout>
-            <ActiveUserRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ASSESSMENT}>
               <Assessment />
-            </ActiveUserRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/assessment/:period/:assessmentType/:assessmentId" element={
           <Layout>
-            <ActiveUserRoute>
-              {/* Use SelfAssessmentPage for self assessments, otherwise use AssessmentLayout */}
+            <PermissionRoute permission={PAGE_PERMISSIONS.ASSESSMENT}>
               <RouteResolver
                 selfComponent={<SelfAssessmentPage />}
                 defaultComponent={<AssessmentLayout />}
               />
-            </ActiveUserRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/assessment/:period/:assessmentType/:assessmentId/readonly" element={
           <Layout>
-            <ActiveUserRoute>
-              {/* Use SelfAssessmentPage for self assessments in readonly mode, otherwise use AssessmentLayout */}
+            <PermissionRoute permission={PAGE_PERMISSIONS.ASSESSMENT}>
               <RouteResolver
                 selfComponent={<SelfAssessmentPage />}
                 defaultComponent={<AssessmentLayout readonly={true} />}
               />
-            </ActiveUserRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/admin-dashboard" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_DASHBOARD}>
               <AdminDashboard />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/admin" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_DASHBOARD}>
               <AdminDashboard />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/admin/assessment-grades" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ASSESSMENT_GRADES}>
               <AssessmentGrades />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/admin-attendance-dashboard" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_ATTENDANCE}>
               <AdminAttendanceDashboard />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/admissions-dashboard" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ADMISSIONS}>
               <AdmissionsDashboard />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
-        <Route path="/admissions-dashboard/application/:applicationId" element={
+        <Route path="/admissions-dashboard/applicant/:applicantId" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ADMISSIONS}>
               <ApplicationDetail />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/content/*" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.CONTENT}>
               <Content />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/admin-prompts" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_PROMPTS}>
               <AdminPrompts />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/facilitator-view" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.STAFF_SECTION}>
               <FacilitatorView />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
-        <Route path="/admin-volunteer-feedback" element={
+        {/* Volunteer Management Dashboard (staff-facing: List, Calendar, Attendance, Feedback) */}
+        <Route path="/volunteer-management" element={
           <Layout>
-            <AdminRoute>
-              <AdminVolunteerFeedback />
-            </AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.VOLUNTEER_MANAGEMENT}>
+              <VolunteerManagementDashboard />
+            </PermissionRoute>
+          </Layout>
+        } />
+        <Route path="/admin-volunteer-feedback" element={<Navigate to="/volunteer-management?tab=feedback" replace />} />
+        <Route path="/payment-admin" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.PAYMENT_ADMIN}>
+              <PaymentAdmin />
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/workshop-admin-dashboard" element={
@@ -308,27 +310,99 @@ function App() {
             </WorkshopAdminRoute>
           </Layout>
         } />
+        
+        {/* External Cohorts Management (Admin/Staff only) */}
+        <Route path="/external-cohorts" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.EXTERNAL_COHORTS}>
+              <ExternalCohortsDashboard />
+            </PermissionRoute>
+          </Layout>
+        } />
+        
+        {/* Organization Management (Admin only) */}
+        <Route path="/admin/organization-management" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ORGANIZATION_MANAGEMENT}>
+              <OrganizationManagement />
+            </PermissionRoute>
+          </Layout>
+        } />
+        
+        {/* Permission Management (Admin only) */}
+        <Route path="/admin/permissions" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_SECTION}>
+              <PermissionManagement />
+            </PermissionRoute>
+          </Layout>
+        } />
+        
+        {/* Weekly Reports Management (Admin + custom permission) */}
+        <Route path="/admin/weekly-reports" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.WEEKLY_REPORTS}>
+              <WeeklyReports />
+            </PermissionRoute>
+          </Layout>
+        } />
+
+        {/* Platform Analytics (Admin only) */}
+        <Route path="/admin/platform-analytics" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.PLATFORM_ANALYTICS}>
+              <PlatformAnalytics />
+            </PermissionRoute>
+          </Layout>
+        } />
+        
+        {/* Content Preview (Staff/Admin/Volunteer - permission-based) */}
+        <Route path="/content-preview" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.CONTENT_PREVIEW}>
+              <ContentPreview />
+            </PermissionRoute>
+          </Layout>
+        } />
+        
+        {/* Enterprise Admin Dashboard (for enterprise admins) */}
+        <Route path="/cohort-admin-dashboard" element={
+          <Layout>
+            <EnterpriseAdminRoute>
+              <CohortAdminDashboard />
+            </EnterpriseAdminRoute>
+          </Layout>
+        } />
+        
         <Route path="/stats" element={<Navigate to="/performance" replace />} />
         <Route path="/performance" element={
           <Layout>
-            <Performance />
+            <PermissionRoute permission={PAGE_PERMISSIONS.PERFORMANCE}>
+              <Performance />
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/account" element={
           <Layout>
-            <Account />
+            <PermissionRoute permission={PAGE_PERMISSIONS.ACCOUNT}>
+              <Account />
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/payment" element={
           <Layout>
-            <Payment />
+            <PermissionRoute permission={PAGE_PERMISSIONS.PAYMENT}>
+              <Payment />
+            </PermissionRoute>
           </Layout>
         } />
         
         {/* Pathfinder routes - personal view with nested routes */}
         <Route path="/pathfinder/*" element={
           <Layout>
-            <Pathfinder />
+            <PermissionRoute permission={PAGE_PERMISSIONS.PATHFINDER}>
+              <Pathfinder />
+            </PermissionRoute>
           </Layout>
         }>
           <Route path="dashboard" element={<PathfinderPersonalDashboard />} />
@@ -344,18 +418,18 @@ function App() {
         {/* Pathfinder admin dashboard - separate route */}
         <Route path="/pathfinder-admin" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.PATHFINDER_ADMIN}>
               <PathfinderAdminDashboard />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
 
         {/* New Pathfinder Admin page */}
         <Route path="/pathfinder/admin" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.PATHFINDER_ADMIN}>
               <PathfinderAdmin />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
 
@@ -368,46 +442,66 @@ function App() {
           </Layout>
         } />
         
-        <Route path="/volunteer-feedback" element={
+        {/* Volunteering Dashboard (volunteer-facing: Schedule, Check In, Feedback) */}
+        <Route path="/volunteering" element={
           <Layout>
-            <VolunteerFeedback />
+            <PermissionRoute permission={PAGE_PERMISSIONS.VOLUNTEERING}>
+              <VolunteeringDashboard />
+            </PermissionRoute>
           </Layout>
         } />
+
+        {/* Redirects from old volunteer routes to new tabbed dashboards */}
+        <Route path="/volunteer-feedback" element={<Navigate to="/volunteering?tab=feedback" replace />} />
+        <Route path="/volunteer-checkin" element={<Navigate to="/volunteering?tab=checkin" replace />} />
+        <Route path="/my-schedule" element={<Navigate to="/volunteering?tab=schedule" replace />} />
+        <Route path="/volunteer-list" element={<Navigate to="/volunteer-management?tab=list" replace />} />
+        <Route path="/volunteer-roster" element={<Navigate to="/volunteer-management?tab=calendar" replace />} />
+        <Route path="/volunteer-attendance" element={<Navigate to="/volunteer-management?tab=attendance" replace />} />
 
         {/* Form Builder routes (Admin/Staff only) */}
         <Route path="/forms" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.FORM_BUILDER}>
               <FormBuilderDashboard />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/forms/new" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.FORM_BUILDER}>
               <FormEditor />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/forms/:formId/edit" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.FORM_BUILDER}>
               <FormEditor />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/forms/:formId/submissions" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.FORM_BUILDER}>
               <FormSubmissions />
-            </AdminRoute>
+            </PermissionRoute>
           </Layout>
         } />
         <Route path="/forms/:formId/analytics" element={
           <Layout>
-            <AdminRoute>
+            <PermissionRoute permission={PAGE_PERMISSIONS.FORM_BUILDER}>
               <FormAnalytics />
-            </AdminRoute>
+            </PermissionRoute>
+          </Layout>
+        } />
+
+        {/* Sputnik routes (Admin/Staff only) */}
+        <Route path="/sputnik" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.SPUTNIK}>
+              <SalesTracker />
+            </PermissionRoute>
           </Layout>
         } />
 
@@ -421,6 +515,9 @@ function App() {
         message={modalConfig.message}
         onRedirect={handleModalRedirect}
       />
+      
+      {/* Toast Notifications */}
+      <Toaster />
     </>
   );
 }

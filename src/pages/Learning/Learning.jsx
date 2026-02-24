@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt, FaEdit, FaCheck, FaTimes, FaFileAlt, FaVideo, FaBrain, FaComments, FaClipboardList, FaLock } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../../context/AuthContext';
@@ -14,7 +14,7 @@ import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
 
 // Existing Components
-import PeerFeedbackForm from '../../components/PeerFeedbackForm';
+import PeerFeedbackSheet from '../../components/PeerFeedbackSheet';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
 import AnalysisModal from '../../components/AnalysisModal/AnalysisModal';
 import SurveyInterface from '../../components/SurveyInterface/SurveyInterface';
@@ -26,6 +26,142 @@ import TaskCompletionBar from '../../components/TaskCompletionBar/TaskCompletion
 import './Learning.css';
 import '../../styles/smart-tasks.css';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
+import { streamLearningMessage } from '../../utils/api';
+import { useStreamingText } from '../../hooks/useStreamingText';
+import { createStreamBuffer } from '../../utils/streamBufferUtils';
+
+// Component that wraps ReactMarkdown with streaming text support
+// Uses useStreamingText to smooth out bursty SSE chunks into natural typing flow
+const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  const effectiveContent = animateOnMount && !hasMounted ? '' : (content || '');
+  const displayedContent = useStreamingText(effectiveContent);
+  
+  // Preprocess content to convert bullet points and URLs to markdown
+  let processedContent = displayedContent;
+
+  // Safety-net: never render completion control markers in UI.
+  // Backend should already strip these, but this protects against edge cases.
+  processedContent = processedContent.replace(/\[TASK(?:_| )COMPLETE\]/gi, '').trim();
+  
+  // Step 0: Convert URLs to markdown links FIRST
+  processedContent = processedContent.replace(
+    /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
+    '[$1 ($2)]($4): $3'
+  );
+  
+  // Fallback: Convert any remaining bare URLs to clickable links
+  processedContent = processedContent.replace(
+    /(?<!\()(?<!]\()https?:\/\/[^\s)]+/g,
+    (url) => `[${url}](${url})`
+  );
+  
+  // Step 1: Handle inline "Resources:" section
+  processedContent = processedContent.replace(
+    /Resources:\s*-\s*(.+?)(?=\n\n|$)/gis,
+    (match, resourcesText) => {
+      const items = resourcesText.split(/\s+-\s+(?=\[)/);
+      const formattedItems = items
+        .map(item => item.trim())
+        .filter(item => item.length > 0)
+        .map(item => `- ${item}`)
+        .join('\n');
+      return `**Resources:**\n\n${formattedItems}`;
+    }
+  );
+  
+  // Step 2: Convert bullet points to markdown
+  processedContent = processedContent.replace(/^•\s+/gm, '- ');
+  processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
+  
+  // Step 3: Convert numbered lists
+  processedContent = processedContent.replace(/^(\d+)\.\s+/gm, '$1. ');
+  
+  // Step 4: Format section headers
+  processedContent = processedContent.replace(
+    /\n\n(?!\*\*Resources:\*\*)([A-Z][^:\n]+:)(?!\s*\n\n-)/g,
+    '\n\n## $1'
+  );
+  
+  return (
+    <div className="text-carbon-black leading-relaxed text-base">
+      <ReactMarkdown
+        components={{
+          p: ({ node, children, ...props }) => (
+            <p className="mb-4" {...props}>{children}</p>
+          ),
+          h1: ({ node, children, ...props }) => (
+            <h1 className="text-xl font-semibold mt-6 mb-4 first:mt-0 text-carbon-black" {...props}>{children}</h1>
+          ),
+          h2: ({ node, children, ...props }) => (
+            <h2 className="text-lg font-semibold mt-5 mb-3 first:mt-0 text-carbon-black" {...props}>{children}</h2>
+          ),
+          h3: ({ node, children, ...props }) => (
+            <h3 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-carbon-black" {...props}>{children}</h3>
+          ),
+          ul: ({ node, children, ...props }) => (
+            <ul className="list-disc pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ul>
+          ),
+          ol: ({ node, children, ...props }) => (
+            <ol className="list-decimal pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ol>
+          ),
+          li: ({ node, children, ...props }) => (
+            <li className="text-carbon-black" {...props}>{children}</li>
+          ),
+          a: ({ node, children, ...props }) => (
+            <a className="text-blue-500 hover:underline break-all" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+          ),
+          code: ({ node, inline, className, children, ...props }) => {
+            if (inline) {
+              return (
+                <code
+                  className="px-1.5 py-0.5 rounded text-sm font-mono bg-gray-200 text-carbon-black"
+                  {...props}
+                >
+                  {children}
+                </code>
+              );
+            }
+            return (
+              <code className="block" {...props}>
+                {children}
+              </code>
+            );
+          },
+          pre: ({ node, children, ...props }) => (
+            <pre
+              className="p-4 rounded-lg my-4 overflow-x-auto text-sm font-mono bg-gray-100 text-carbon-black"
+              {...props}
+            >
+              {children}
+            </pre>
+          ),
+          blockquote: ({ node, children, ...props }) => (
+            <blockquote
+              className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-700"
+              {...props}
+            >
+              {children}
+            </blockquote>
+          ),
+          strong: ({ node, children, ...props }) => (
+            <strong className="font-semibold text-carbon-black" {...props}>{children}</strong>
+          ),
+          em: ({ node, children, ...props }) => (
+            <em className="italic text-carbon-black" {...props}>{children}</em>
+          ),
+        }}
+      >
+        {processedContent}
+      </ReactMarkdown>
+    </div>
+  );
+};
 
 function Learning() {
   const { token, user } = useAuth();
@@ -34,16 +170,20 @@ function Learning() {
   const [messages, setMessages] = useState([]);
   const [isSending, setIsSending] = useState(false);
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState('');
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isMessagesLoading, setIsMessagesLoading] = useState(false);
   const [hasInitialMessage, setHasInitialMessage] = useState(false);
   
   // Model selection state - matches AutoExpandTextarea default
-  const [selectedModel, setSelectedModel] = useState('anthropic/claude-sonnet-4.5');
+  const [selectedModel, setSelectedModel] = useState('anthropic/claude-sonnet-4.6');
   
   // Check if user has active status
   const isActive = user?.active !== false;
+  
+  // Check if user is a workshop participant
+  const isWorkshopParticipant = user?.isWorkshopParticipant === true;
   
   // Add state variables for message editing
   const [editingMessageId, setEditingMessageId] = useState(null);
@@ -59,6 +199,9 @@ function Learning() {
   // New state for daily overview vs activity interface
   const [showDailyOverview, setShowDailyOverview] = useState(true);
   const [isDeliverableSidebarOpen, setIsDeliverableSidebarOpen] = useState(false);
+  const [isAssessmentPanelOpen, setIsAssessmentPanelOpen] = useState(false);
+  const [currentAssessmentType, setCurrentAssessmentType] = useState(null);
+  const [isPeerFeedbackSheetOpen, setIsPeerFeedbackSheetOpen] = useState(false);
   
   // Submission tracking state
   const [taskSubmissions, setTaskSubmissions] = useState({});
@@ -69,6 +212,14 @@ function Learning() {
   
   // Task completion map from backend (for DailyOverview checkmarks)
   const [taskCompletionMap, setTaskCompletionMap] = useState({});
+  
+  // Input tray height for dynamic message container padding
+  const [inputTrayHeight, setInputTrayHeight] = useState(180);
+  
+  const chatTrayRef = useRef(null);
+  const handleInputTrayHeightChange = useCallback((height) => {
+    setInputTrayHeight(height);
+  }, []);
   
   // Get dayId from URL query parameters
   const queryParams = new URLSearchParams(location.search);
@@ -81,13 +232,47 @@ function Learning() {
   const abortControllerRef = useRef(null);
   const sendMessageAbortControllerRef = useRef(null);
   const textareaRef = useRef(null);
+  const prevMessageCountRef = useRef(0);
 
-  // Auto-scroll to bottom when messages change
+  // Track chat tray height changes for dynamic message padding
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (!chatTrayRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.target.getBoundingClientRect().height;
+        setInputTrayHeight(height + 24); // 24px for bottom-6 spacing
+      }
+    });
+
+    resizeObserver.observe(chatTrayRef.current);
+
+    // Initial height notification
+    const initialHeight = chatTrayRef.current.getBoundingClientRect().height;
+    setInputTrayHeight(initialHeight + 24);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [currentTaskIndex, isTaskComplete, taskCompletionMap]);
+
+  // Auto-scroll to bottom only when message count changes
+  useEffect(() => {
+    if (messages.length !== prevMessageCountRef.current) {
+      prevMessageCountRef.current = messages.length;
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages.length]);
+
+  // Keep latest content visible when tray height/completion bar state changes
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const timer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 80);
+
+    return () => clearTimeout(timer);
+  }, [messages.length, inputTrayHeight, isTaskComplete, currentTaskIndex]);
 
   // Auto-focus input when initial message loads
   useEffect(() => {
@@ -101,7 +286,7 @@ function Learning() {
 
   // Auto-focus input when AI response arrives
   useEffect(() => {
-    if (messages.length > 0 && !isAiThinking && !isSending) {
+    if (messages.length > 0 && !isAiThinking && !isSending && !isStreaming) {
       const lastMessage = messages[messages.length - 1];
       // Focus when last message is from AI and input is not disabled
       if (lastMessage.sender === 'ai' && textareaRef.current && !editingMessageId && isActive) {
@@ -111,7 +296,7 @@ function Learning() {
         }, 300);
       }
     }
-  }, [messages, isAiThinking, isSending, editingMessageId, isActive]);
+  }, [messages, isAiThinking, isSending, isStreaming, editingMessageId, isActive]);
   
   // Cleanup: abort any pending requests when component unmounts
   useEffect(() => {
@@ -135,8 +320,11 @@ function Learning() {
         let data;
         
         if (dayId) {
-          // Fetch day details
+          // Fetch day details - include cohort param if provided (for enrollment-based access)
           endpoint = `${import.meta.env.VITE_API_URL}/api/curriculum/days/${dayId}/full-details`;
+          if (cohort) {
+            endpoint += `?cohort=${encodeURIComponent(cohort)}`;
+          }
           const response = await fetch(endpoint, {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -377,29 +565,29 @@ function Learning() {
     
     // Reset task completion state when switching tasks
     setIsTaskComplete(false);
+    setCurrentAssessmentType(null); // Reset assessment type for new task
     
     try {
-      // Fetch both conversation history and submission in parallel
-      const [conversationResponse, submissionResponse] = await Promise.all([
-        fetch(
-          `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${task.id}?dayNumber=${currentDay?.day_number}&cohort=${currentDay?.cohort}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-            signal: abortController.signal,
-          }
-        ),
-        fetch(
-          `${import.meta.env.VITE_API_URL}/api/submissions/${task.id}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-            signal: abortController.signal,
-          }
-        ).catch(() => null) // Don't fail if submission doesn't exist
-      ]);
+      // Fetch conversation history (uses abort controller for cancel-on-switch)
+      const conversationResponse = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${task.id}?dayNumber=${currentDay?.day_number}&cohort=${currentDay?.cohort}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          signal: abortController.signal,
+        }
+      );
+
+      // Fetch submission separately (no abort signal — lightweight GET that should always complete)
+      const submissionResponse = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/submissions/${task.id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      ).catch(() => null);
       
       // Check if this request was aborted
       if (abortController.signal.aborted) {
@@ -495,11 +683,15 @@ function Learning() {
           },
         }
       );
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log(`✅ Task ${taskId} completion status:`, data);
         setIsTaskComplete(data.isComplete);
+        setTaskCompletionMap(prev => ({
+          ...prev,
+          [taskId]: { isComplete: data.isComplete, reason: data.reason }
+        }));
       }
     } catch (error) {
       console.error('Error checking task completion:', error);
@@ -553,6 +745,7 @@ function Learning() {
             content: data.content,
             sender: 'ai',
             timestamp: data.timestamp,
+            shouldAnimate: true,
           };
           setMessages([firstMessage]);
           setHasInitialMessage(true);
@@ -624,6 +817,7 @@ function Learning() {
           content: combinedContent,
           sender: 'ai',
           timestamp: new Date().toISOString(),
+          shouldAnimate: true,
         };
         setMessages([message]);
       }
@@ -657,13 +851,14 @@ function Learning() {
   };
 
   const handleSendMessage = async (messageContent, modelFromTextarea) => {
-    if (!messageContent || !messageContent.trim() || isSending || isAiThinking) return;
+    if (!messageContent || !messageContent.trim() || isSending || isAiThinking || isStreaming) return;
     
     const trimmedMessage = messageContent.trim();
     
     // Capture the current task ID at the time of sending
     // This ensures we validate against the correct task even if user switches
-    const messageTaskId = tasks[currentTaskIndex]?.id;
+    const messageTask = tasks[currentTaskIndex];
+    const messageTaskId = messageTask?.id;
     if (!messageTaskId) {
       console.error('No task ID available for message');
       return;
@@ -671,6 +866,7 @@ function Learning() {
     
     setIsSending(true);
     setIsAiThinking(true);
+    setIsStreaming(true);
     setError('');
     
     // Update the selected model if it changed
@@ -688,6 +884,9 @@ function Learning() {
     sendMessageAbortControllerRef.current = abortController;
 
     try {
+      let receivedChunk = false;
+      const streamingMessageId = Date.now() + 1;
+      const streamBuffer = createStreamBuffer();
       // Add user message to chat
       const userMessage = {
         id: Date.now(),
@@ -695,57 +894,154 @@ function Learning() {
         sender: 'user',
         timestamp: new Date().toISOString(),
       };
-      setMessages(prev => [...prev, userMessage]);
-
-      // Send to AI using correct backend endpoint
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/learning/messages/continue`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          content: trimmedMessage,
-          taskId: messageTaskId,
-          dayNumber: currentDay?.day_number,
-          cohort: currentDay?.cohort,
-          conversationModel: modelFromTextarea || selectedModel,
-        }),
-        signal: abortController.signal,
-      });
-      
-      // Check if this request was aborted
-      if (abortController.signal.aborted) {
-        console.log('🚫 Message send aborted - user switched tasks');
-        return;
-      }
-      
-      // Verify we're still on the same task before adding the response
-      if (tasks[currentTaskIndex]?.id !== messageTaskId) {
-        console.log('⚠️ Task changed during message send - ignoring response');
-        return;
-      }
-
-      if (response.ok) {
-        const data = await response.json();
-        const aiMessage = {
-          id: Date.now() + 1,
-          content: data.content || data.response || data.message,
+      setMessages(prev => [
+        ...prev,
+        userMessage,
+        {
+          id: streamingMessageId,
+          content: '',
           sender: 'ai',
           timestamp: new Date().toISOString(),
-        };
-        
-        // Double-check we're still on the same task before adding AI response
-        if (tasks[currentTaskIndex]?.id === messageTaskId && !abortController.signal.aborted) {
-          setMessages(prev => [...prev, aiMessage]);
-          // Check if task is now complete after receiving AI response
-          checkTaskCompletion(messageTaskId);
-        } else {
-          console.log('⚠️ Task changed before AI response - ignoring message');
+          isStreaming: true
         }
-      } else {
-        const errorData = await response.json();
-        setError(errorData.error || 'Failed to send message. Please try again.');
+      ]);
+
+      await streamLearningMessage(
+        trimmedMessage,
+        messageTaskId,
+        token,
+        {
+          dayNumber: currentDay?.day_number,
+          cohort: currentDay?.cohort,
+          conversationModel: modelFromTextarea || selectedModel
+        },
+        (chunk) => {
+          if (tasks[currentTaskIndex]?.id !== messageTaskId) {
+            return;
+          }
+
+          if (chunk.type === 'text') {
+            receivedChunk = true;
+            const safeText = streamBuffer.append(chunk.content);
+            if (safeText) {
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: `${msg.content || ''}${safeText}` }
+                    : msg
+                )
+              );
+            }
+          } else if (chunk.type === 'done' && chunk.message) {
+            receivedChunk = true;
+            // Flush any remaining buffered text before final replace
+            const remaining = streamBuffer.flush();
+            if (remaining) {
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: `${msg.content || ''}${remaining}` }
+                    : msg
+                )
+              );
+            }
+            // Enable input immediately
+            setIsStreaming(false);
+            setIsAiThinking(false);
+            setIsSending(false);
+            checkTaskCompletion(messageTaskId);
+
+            const finalMessage = chunk.message;
+            setMessages(prev =>
+              prev.map(msg =>
+                msg.id === streamingMessageId
+                  ? {
+                      ...msg,
+                      content: finalMessage.content,
+                      sender: 'ai',
+                      timestamp: finalMessage.timestamp,
+                      isStreaming: false,
+                    }
+                  : msg
+              )
+            );
+          } else if (chunk.type === 'error') {
+            setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId));
+            setIsStreaming(false);
+            setIsAiThinking(false);
+            setIsSending(false);
+            setError(chunk.error || 'Failed to send message. Please try again.');
+          }
+        },
+        abortController.signal
+      );
+
+      if (!receivedChunk && !abortController.signal.aborted && tasks[currentTaskIndex]?.id === messageTaskId) {
+        const fallbackResponse = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/learning/task-messages/${messageTaskId}?dayNumber=${currentDay?.day_number}&cohort=${currentDay?.cohort}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+            signal: abortController.signal,
+          }
+        );
+        
+        if (fallbackResponse.ok && !abortController.signal.aborted) {
+          const fallbackData = await fallbackResponse.json();
+          const fallbackMessages = (fallbackData.messages || []).map(msg => ({
+            id: msg.message_id,
+            content: msg.content,
+            sender: msg.role === 'user' ? 'user' : 'ai',
+            timestamp: msg.timestamp,
+          }));
+
+          setMessages(prev => {
+            // Remove transient placeholder before reconciliation.
+            const localMessages = prev.filter(
+              msg => msg.id !== streamingMessageId && !(msg.isStreaming && !msg.content)
+            );
+            const merged = [...fallbackMessages];
+
+            for (const localMessage of localMessages) {
+              const localContent = (localMessage.content || '').trim();
+              const localId = localMessage.id != null ? String(localMessage.id) : null;
+
+              const exists = merged.some(serverMessage => {
+                const serverId = serverMessage.id != null ? String(serverMessage.id) : null;
+                if (serverId && localId && serverId === localId) {
+                  return true;
+                }
+
+                const serverContent = (serverMessage.content || '').trim();
+                if (!serverContent || !localContent) {
+                  return false;
+                }
+
+                return serverMessage.sender === localMessage.sender && serverContent === localContent;
+              });
+
+              if (!exists) {
+                merged.push(localMessage);
+              }
+            }
+
+            // Keep chronological order stable for preserved optimistic messages.
+            return merged
+              .map((msg, idx) => ({ msg, idx }))
+              .sort((a, b) => {
+                const aTs = Date.parse(a.msg.timestamp || '');
+                const bTs = Date.parse(b.msg.timestamp || '');
+                const aValid = Number.isFinite(aTs);
+                const bValid = Number.isFinite(bTs);
+                if (aValid && bValid && aTs !== bTs) return aTs - bTs;
+                if (aValid && !bValid) return -1;
+                if (!aValid && bValid) return 1;
+                return a.idx - b.idx;
+              })
+              .map(entry => entry.msg);
+          });
+        }
       }
     } catch (error) {
       // Ignore abort errors - they're expected when switching tasks
@@ -761,6 +1057,7 @@ function Learning() {
       if (!abortController.signal.aborted) {
         setIsSending(false);
         setIsAiThinking(false);
+        setIsStreaming(false);
       }
     }
   };
@@ -774,8 +1071,6 @@ function Learning() {
     }
     
     try {
-      console.log('📤 Submitting deliverable for task:', currentTask.id, deliverableData);
-      
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submissions`, {
         method: 'POST',
         headers: {
@@ -794,9 +1089,8 @@ function Learning() {
       }
       
       const submission = await response.json();
-      console.log('✅ Submission successful:', submission);
       
-      // Update local state with the submission
+      // Update local state with the submission (POST now returns signedUrl for images)
       setTaskSubmissions(prev => ({
         ...prev,
         [currentTask.id]: submission
@@ -814,8 +1108,6 @@ function Learning() {
       // Keep sidebar open so user can see "Submitted" badge
       // setIsDeliverableSidebarOpen(false); // Commented out - keep open
       
-      // NEW: Check if task is now complete (in case conclusion was already reached)
-      console.log('🔍 Checking completion status after deliverable submission...');
       await checkTaskCompletion(currentTask.id);
       
     } catch (error) {
@@ -908,6 +1200,18 @@ function Learning() {
     
     // Break detection based on task_type
     return currentTask?.task_type === 'break';
+  };
+
+  // Check if current task is a retrospective (for peer feedback)
+  const isRetrospectiveTask = () => {
+    const currentTask = tasks[currentTaskIndex];
+    
+    if (!currentTask) {
+      return false;
+    }
+    
+    // Check if task title contains "retro" (case-insensitive)
+    return currentTask?.task_title?.toLowerCase().includes('retro') || false;
   };
 
   // Handle survey completion
@@ -1013,10 +1317,7 @@ function Learning() {
           reason: 'Assessment completed'
         }
       }));
-      
-      // Refresh completion status from backend to ensure consistency
-      await checkTaskCompletion(currentTask.id);
-      
+
       // NO AUTO-NAVIGATION - let user click "Next Exercise" manually
       
     } catch (error) {
@@ -1049,6 +1350,7 @@ function Learning() {
           onStartActivity={handleStartActivity}
           isPageLoading={isPageLoading}
           navigate={navigate}
+          isWorkshopParticipant={isWorkshopParticipant}
         />
         {/* Loading Curtain */}
         <LoadingCurtain isLoading={isPageLoading} />
@@ -1086,10 +1388,11 @@ function Learning() {
         tasks={tasks}
         currentTaskIndex={currentTaskIndex}
         onTaskChange={handleTaskChange}
+        isWorkshopParticipant={isWorkshopParticipant}
       />
 
       {/* Main Content Area - Takes remaining height */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 min-h-0 flex overflow-hidden relative">
         {/* Survey Interface OR Assessment Interface OR Break Interface OR Chat Interface */}
         {isCurrentTaskSurvey() ? (
           // Survey Interface
@@ -1108,6 +1411,7 @@ function Learning() {
           // Assessment Interface
           <div className="flex-1 flex flex-col relative overflow-hidden">
             <AssessmentInterface
+              key={`assessment-${tasks[currentTaskIndex]?.id}`}
               taskId={tasks[currentTaskIndex]?.id}
               assessmentId={tasks[currentTaskIndex]?.assessment_id}
               dayNumber={currentDay?.day_number}
@@ -1115,6 +1419,9 @@ function Learning() {
               onComplete={handleAssessmentComplete}
               isCompleted={taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete || false}
               isLastTask={currentTaskIndex === tasks.length - 1}
+              externalPanelOpen={isAssessmentPanelOpen}
+              onExternalPanelOpenChange={setIsAssessmentPanelOpen}
+              onAssessmentTypeLoaded={setCurrentAssessmentType}
             />
             
             {/* Assessment Task Completion Bar - Same as chat interface */}
@@ -1124,8 +1431,8 @@ function Learning() {
                   <TaskCompletionBar
                     onNextExercise={handleNextExercise}
                     isLastTask={currentTaskIndex === tasks.length - 1}
-                    showViewSubmission={['video', 'document', 'link', 'structured'].includes(tasks[currentTaskIndex]?.deliverable_type)}
-                    onViewSubmission={() => setIsDeliverableSidebarOpen(true)}
+                    showViewSubmission={currentAssessmentType !== 'self'}
+                    onViewSubmission={() => setIsAssessmentPanelOpen(true)}
                   />
                 )}
               </div>
@@ -1140,165 +1447,53 @@ function Learning() {
           </div>
         ) : (
           // Chat Interface
-        <div className="flex-1 flex flex-col relative overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
           {/* Messages Area - Scrollable with proper spacing */}
-          <div className="flex-1 overflow-y-auto py-8 px-6" style={{ paddingBottom: '180px' }}>
+          <div 
+            className="flex-1 min-h-0 overflow-y-auto py-8 px-6" 
+            style={{ paddingBottom: `${inputTrayHeight}px` }}
+          >
             <div className="max-w-2xl mx-auto">
-              {messages.map((message, index) => (
-                <div key={message.id || index} className="mb-6">
-                  {message.sender === 'user' ? (
-                    // User message with avatar inside
-                    <div className="bg-stardust rounded-lg px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-                          <span className="text-pursuit-purple text-sm font-proxima font-semibold">
-                            {user?.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
-                          </span>
-                        </div>
-                        <div className="flex-1 text-carbon-black leading-relaxed text-base font-proxima">
-                          {message.content}
+              {messages.map((message, index) => {
+                const isStreamingMessage = message.isStreaming === true;
+                
+                return (
+                  <div key={message.id || index} className="mb-6">
+                    {message.sender === 'user' ? (
+                      // User message with avatar inside
+                      <div className="bg-stardust rounded-lg px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+                            <span className="text-pursuit-purple text-sm font-proxima font-semibold">
+                              {user?.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
+                            </span>
+                          </div>
+                          <div className="flex-1 text-carbon-black leading-relaxed text-base font-proxima">
+                            {message.content}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    // AI/System message (no avatar)
-                  <div className="text-carbon-black leading-relaxed text-base">
-                    <ReactMarkdown
-                      components={{
-                        p: ({ node, children, ...props }) => (
-                          <p className="mb-4" {...props}>{children}</p>
-                        ),
-                        h1: ({ node, children, ...props }) => (
-                          <h1 className="text-xl font-semibold mt-6 mb-4 first:mt-0 text-carbon-black" {...props}>{children}</h1>
-                        ),
-                        h2: ({ node, children, ...props }) => (
-                          <h2 className="text-lg font-semibold mt-5 mb-3 first:mt-0 text-carbon-black" {...props}>{children}</h2>
-                        ),
-                        h3: ({ node, children, ...props }) => (
-                          <h3 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-carbon-black" {...props}>{children}</h3>
-                        ),
-                        ul: ({ node, children, ...props }) => (
-                          <ul className="list-disc pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ul>
-                        ),
-                        ol: ({ node, children, ...props }) => (
-                          <ol className="list-decimal pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ol>
-                        ),
-                        li: ({ node, children, ...props }) => (
-                          <li className="text-carbon-black" {...props}>{children}</li>
-                        ),
-                        a: ({ node, children, ...props }) => (
-                          <a className="text-blue-500 hover:underline break-all" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
-                        ),
-                        code: ({ node, inline, className, children, ...props }) => {
-                          if (inline) {
-                            return (
-                              <code
-                                className="px-1.5 py-0.5 rounded text-sm font-mono bg-gray-200 text-carbon-black"
-                                {...props}
-                              >
-                                {children}
-                              </code>
-                            );
-                          }
-                          return (
-                            <code className="block" {...props}>
-                              {children}
-                            </code>
-                          );
-                        },
-                        pre: ({ node, children, ...props }) => (
-                          <pre
-                            className="p-4 rounded-lg my-4 overflow-x-auto text-sm font-mono bg-gray-100 text-carbon-black"
-                            {...props}
-                          >
-                            {children}
-                          </pre>
-                        ),
-                        blockquote: ({ node, children, ...props }) => (
-                          <blockquote
-                            className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-700"
-                            {...props}
-                          >
-                            {children}
-                          </blockquote>
-                        ),
-                        strong: ({ node, children, ...props }) => (
-                          <strong className="font-semibold text-carbon-black" {...props}>{children}</strong>
-                        ),
-                        em: ({ node, children, ...props }) => (
-                          <em className="italic text-carbon-black" {...props}>{children}</em>
-                        ),
-                      }}
-                    >
-                      {(() => {
-                        // Preprocess content to convert bullet points and URLs to markdown
-                        let processedContent = message.content;
-                        
-                        // Step 0: Strip all ** (bold markdown) from the content BEFORE processing
-                        // This prevents ** from appearing in link text or anywhere else
-                        processedContent = processedContent.replace(/\*\*/g, '');
-                        
-                        // Step 1: Convert URLs to markdown links FIRST (before any text manipulation)
-                        // Pattern: "Title (Type): Description URL" - structured resource links
-                        processedContent = processedContent.replace(
-                          /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
-                          '[$1 ($2)]($4): $3'
-                        );
-                        
-                        // Fallback: Convert any remaining bare URLs to clickable links
-                        processedContent = processedContent.replace(
-                          /(?<!\()(?<!]\()https?:\/\/[^\s)]+/g,
-                          (url) => `[${url}](${url})`
-                        );
-                        
-                        // Step 2: Handle inline "Resources:" section - convert to proper bulleted list
-                        // Match "Resources: - Item1 - Item2" pattern and split into list
-                        processedContent = processedContent.replace(
-                          /Resources:\s*-\s*(.+?)(?=\n\n|$)/gis,
-                          (match, resourcesText) => {
-                            // Split by " - " pattern that precedes a markdown link [
-                            const items = resourcesText.split(/\s+-\s+(?=\[)/);
-                            
-                            // Format each item as a bullet
-                            const formattedItems = items
-                              .map(item => item.trim())
-                              .filter(item => item.length > 0)
-                              .map(item => `- ${item}`)
-                              .join('\n');
-                            
-                            return `**Resources:**\n\n${formattedItems}`;
-                          }
-                        );
-                        
-                        // Step 3: Convert bullet points to markdown (preserves links)
-                        processedContent = processedContent.replace(/^•\s+/gm, '- ');
-                        processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
-                        
-                        // Step 4: Convert numbered lists
-                        processedContent = processedContent.replace(/^(\d+)\.\s+/gm, '$1. ');
-                        
-                        // Step 5: Format section headers (exclude Resources: which is already bold)
-                        processedContent = processedContent.replace(
-                          /\n\n(?!\*\*Resources:\*\*)([A-Z][^:\n]+:)(?!\s*\n\n-)/g,
-                          '\n\n## $1'
-                        );
-                        
-                        return processedContent;
-                      })()}
-                    </ReactMarkdown>
+                    ) : message.isStreaming && !message.content ? (
+                      // Streaming AI message waiting for first chunk — show preloader inline
+                      // Keeps preloader inside the same wrapper div so no layout shift when text arrives
+                      <img src="/preloader.gif" alt="Loading..." className="w-8 h-8" />
+                    ) : (
+                      // AI message - StreamingMarkdownMessage handles both streaming and static
+                      // DB messages show instantly (hook inits with full content)
+                      // Streaming messages animate smoothly (hook reveals new chars)
+                      <StreamingMarkdownMessage
+                        content={message.content}
+                        animateOnMount={!!message.shouldAnimate}
+                      />
+                    )}
                   </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
               
-              {/* Loading indicator */}
-              {isAiThinking && (
+              {/* Loading indicator — only for non-streaming thinking (conversation loading) */}
+              {isAiThinking && !isStreaming && (
                 <div className="mb-6">
-                  <img 
-                    src="/preloader.gif" 
-                    alt="Loading..." 
-                    className="w-8 h-8"
-                  />
+                  <img src="/preloader.gif" alt="Loading..." className="w-8 h-8" />
                 </div>
               )}
               
@@ -1310,23 +1505,28 @@ function Learning() {
           {/* Chat Input OR Task Completion Bar - Absolute positioned at bottom */}
           <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
             <div className="max-w-2xl mx-auto pointer-events-auto">
+              <div ref={chatTrayRef}>
               {(isTaskComplete || taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete) ? (
                 <TaskCompletionBar
                   onNextExercise={handleNextExercise}
                   isLastTask={currentTaskIndex === tasks.length - 1}
-                  showViewSubmission={['video', 'document', 'link', 'structured'].includes(tasks[currentTaskIndex]?.deliverable_type)}
+                  showViewSubmission={['video', 'document', 'link', 'structured', 'image'].includes(tasks[currentTaskIndex]?.deliverable_type)}
                   onViewSubmission={() => setIsDeliverableSidebarOpen(true)}
                 />
               ) : (
               <AutoExpandTextarea
                 ref={textareaRef}
                 onSubmit={handleSendMessage}
-                disabled={isSending || isAiThinking || !isActive}
-                showAssignmentButton={['video', 'document', 'link', 'structured'].includes(tasks[currentTaskIndex]?.deliverable_type)}
+                disabled={isSending || isAiThinking || isStreaming || !isActive}
+                showAssignmentButton={['video', 'document', 'link', 'structured', 'image'].includes(tasks[currentTaskIndex]?.deliverable_type)}
                 onAssignmentClick={() => setIsDeliverableSidebarOpen(true)}
+                showPeerFeedbackButton={isRetrospectiveTask()}
+                onPeerFeedbackClick={() => setIsPeerFeedbackSheetOpen(true)}
                 showLlmDropdown={tasks[currentTaskIndex]?.task_mode === 'conversation'}
+                onHeightChange={handleInputTrayHeightChange}
               />
               )}
+              </div>
             </div>
           </div>
         </div>
@@ -1340,6 +1540,19 @@ function Learning() {
             isOpen={isDeliverableSidebarOpen}
             onClose={() => setIsDeliverableSidebarOpen(false)}
             onSubmit={handleDeliverableSubmit}
+            userId={user?.id}
+            taskId={tasks[currentTaskIndex].id}
+          />
+        )}
+
+        {/* Peer Feedback Sheet - Show for retrospective tasks */}
+        {tasks[currentTaskIndex] && isRetrospectiveTask() && (
+          <PeerFeedbackSheet
+            isOpen={isPeerFeedbackSheetOpen}
+            onClose={() => setIsPeerFeedbackSheetOpen(false)}
+            dayNumber={currentDay?.day_number}
+            cohort={currentDay?.cohort}
+            token={token}
           />
         )}
       </div>

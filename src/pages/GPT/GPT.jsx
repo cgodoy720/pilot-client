@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './GPT.css';
 import { useAuth } from '../../context/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { getThreads, getThreadMessages, createThread, sendMessageToGPT } from '../../utils/api';
+import { getThreads, getThreadMessages, createThread, sendMessageToGPT, streamMessageToGPT } from '../../utils/api';
 import SummaryModal from '../../components/SummaryModal/SummaryModal';
 import ReactMarkdown from 'react-markdown';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
@@ -40,6 +40,136 @@ import {
 } from '../../components/ui/select';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import { useStreamingText } from '../../hooks/useStreamingText';
+
+// Component that wraps ReactMarkdown with streaming text support
+// Uses useStreamingText to smooth out bursty SSE chunks into natural typing flow
+const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  const effectiveContent = animateOnMount && !hasMounted ? '' : (content || '');
+  const displayedContent = useStreamingText(effectiveContent);
+  
+  // Preprocess content to convert bullet points and URLs to markdown
+  let processedContent = displayedContent;
+  
+  // Step 0: Convert URLs to markdown links FIRST
+  processedContent = processedContent.replace(
+    /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
+    '[$1 ($2)]($4): $3'
+  );
+  
+  // Fallback: Convert any remaining bare URLs to clickable links
+  processedContent = processedContent.replace(
+    /(?<!\()(?<!]\()https?:\/\/[^\s)]+/g,
+    (url) => `[${url}](${url})`
+  );
+  
+  // Step 1: Handle inline "Resources:" section
+  processedContent = processedContent.replace(
+    /Resources:\s*-\s*(.+?)(?=\n\n|$)/gis,
+    (match, resourcesText) => {
+      const items = resourcesText.split(/\s+-\s+(?=\[)/);
+      const formattedItems = items
+        .map(item => item.trim())
+        .filter(item => item.length > 0)
+        .map(item => `- ${item}`)
+        .join('\n');
+      return `**Resources:**\n\n${formattedItems}`;
+    }
+  );
+  
+  // Step 2: Convert bullet points to markdown
+  processedContent = processedContent.replace(/^•\s+/gm, '- ');
+  processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
+  
+  // Step 3: Convert numbered lists
+  processedContent = processedContent.replace(/^(\d+)\.\s+/gm, '$1. ');
+  
+  // Step 4: Format section headers
+  processedContent = processedContent.replace(
+    /\n\n(?!\*\*Resources:\*\*)([A-Z][^:\n]+:)(?!\s*\n\n-)/g,
+    '\n\n## $1'
+  );
+  
+  return (
+    <div className="text-carbon-black leading-relaxed text-base">
+      <ReactMarkdown
+        components={{
+          p: ({ node, children, ...props }) => (
+            <p className="mb-4" {...props}>{children}</p>
+          ),
+          h1: ({ node, children, ...props }) => (
+            <h1 className="text-xl font-semibold mt-6 mb-4 first:mt-0 text-carbon-black" {...props}>{children}</h1>
+          ),
+          h2: ({ node, children, ...props }) => (
+            <h2 className="text-lg font-semibold mt-5 mb-3 first:mt-0 text-carbon-black" {...props}>{children}</h2>
+          ),
+          h3: ({ node, children, ...props }) => (
+            <h3 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-carbon-black" {...props}>{children}</h3>
+          ),
+          ul: ({ node, children, ...props }) => (
+            <ul className="list-disc pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ul>
+          ),
+          ol: ({ node, children, ...props }) => (
+            <ol className="list-decimal pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ol>
+          ),
+          li: ({ node, children, ...props }) => (
+            <li className="text-carbon-black" {...props}>{children}</li>
+          ),
+          a: ({ node, children, ...props }) => (
+            <a className="text-blue-500 hover:underline break-all" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+          ),
+          code: ({ node, inline, className, children, ...props }) => {
+            if (inline) {
+              return (
+                <code
+                  className="px-1.5 py-0.5 rounded text-sm font-mono bg-gray-200 text-carbon-black"
+                  {...props}
+                >
+                  {children}
+                </code>
+              );
+            }
+            return (
+              <code className="block" {...props}>
+                {children}
+              </code>
+            );
+          },
+          pre: ({ node, children, ...props }) => (
+            <pre
+              className="p-4 rounded-lg my-4 overflow-x-auto text-sm font-mono bg-gray-100 text-carbon-black"
+              {...props}
+            >
+              {children}
+            </pre>
+          ),
+          blockquote: ({ node, children, ...props }) => (
+            <blockquote
+              className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-700"
+              {...props}
+            >
+              {children}
+            </blockquote>
+          ),
+          strong: ({ node, children, ...props }) => (
+            <strong className="font-semibold text-carbon-black" {...props}>{children}</strong>
+          ),
+          em: ({ node, children, ...props }) => (
+            <em className="italic text-carbon-black" {...props}>{children}</em>
+          ),
+        }}
+      >
+        {processedContent}
+      </ReactMarkdown>
+    </div>
+  );
+};
 
 function GPT() {
   const { token, user } = useAuth();
@@ -63,16 +193,22 @@ function GPT() {
   const [modalSummaryData, setModalSummaryData] = useState(null);
   
   // Model selection state
-  const [selectedModel, setSelectedModel] = useState('anthropic/claude-sonnet-4.5');
+  const [selectedModel, setSelectedModel] = useState('openai/gpt-5.2');
+  
+  // Input tray height for dynamic message container padding
+  const [inputTrayHeight, setInputTrayHeight] = useState(180);
   
   // Available LLM models - matches Learning page
   const LLM_MODELS = [
+    { value: 'anthropic/claude-sonnet-4.6', label: 'Claude Sonnet 4.6', description: 'Latest Claude model' },
     { value: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', description: 'Advanced reasoning' },
-    { value: 'anthropic/claude-haiku-4.5', label: 'Claude Haiku 4.5', description: 'Fast & efficient' },
-    { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini', description: 'Quick responses' },
-    { value: 'google/gemini-2.5-flash-lite', label: 'Gemini Flash 2.5 Lite', description: 'Fast & efficient' },
-    { value: 'deepseek/deepseek-chat', label: 'DeepSeek Chat', description: 'Code specialist' },
-    { value: 'x-ai/grok-4-fast', label: 'Grok 4 Fast', description: 'Fast reasoning' }
+    { value: 'anthropic/claude-opus-4.6', label: 'Claude Opus 4.6', description: 'Most capable Claude' },
+    { value: 'openai/gpt-5.2', label: 'GPT 5.2', description: 'Latest GPT model' },
+    { value: 'google/gemini-3-pro-preview', label: 'Gemini 3 Pro Preview', description: 'Advanced reasoning' },
+    { value: 'x-ai/grok-4', label: 'Grok 4', description: 'Fast reasoning' },
+    { value: 'moonshotai/kimi-k2.5', label: 'Kimi K2.5', description: 'Advanced model' },
+    { value: 'minimax/minimax-m2.5', label: 'Minimax M2.5', description: 'Versatile model' },
+    { value: 'deepseek/deepseek-v3.2', label: 'Deepseek V3.2', description: 'Code specialist' }
   ];
   
   // Search state
@@ -88,12 +224,19 @@ function GPT() {
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   
+  // Streaming message state
+  const [streamingContent, setStreamingContent] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const abortControllerRef = useRef(null);
   const fetchThreadsAbortControllerRef = useRef(null);
   const fetchMessagesAbortControllerRef = useRef(null);
   const textareaRef = useRef(null);
+  const chatTrayRef = useRef(null);
+  const skipNextFetchRef = useRef(false); // Skip fetch after sending to new thread
+  const prevMessageCountRef = useRef(0);
 
   // Check if user is inactive (in historical access mode)
   const isInactiveUser = user && user.active === false;
@@ -197,6 +340,11 @@ function GPT() {
   // Fetch messages when active thread changes
   useEffect(() => {
     if (activeThread && token) {
+      // Skip fetch if we just sent a message to a new thread (messages already in state)
+      if (skipNextFetchRef.current) {
+        skipNextFetchRef.current = false;
+        return;
+      }
       fetchMessages(activeThread);
     } else {
       setMessages([]);
@@ -205,7 +353,7 @@ function GPT() {
 
   // Poll for new messages when waiting for AI response
   useEffect(() => {
-    if (!isAiThinking || !activeThread || !token) return;
+    if (!isAiThinking || !activeThread || !token || isStreaming) return;
 
     let pollCount = 0;
     const maxPolls = 30; // Stop polling after 60 seconds (30 * 2s)
@@ -224,7 +372,7 @@ function GPT() {
     }, 2000); // Poll every 2 seconds
 
     return () => clearInterval(pollInterval);
-  }, [isAiThinking, activeThread, token]);
+  }, [isAiThinking, activeThread, token, isStreaming]);
 
   // Clear summary data when switching to a thread without summary
   useEffect(() => {
@@ -235,12 +383,13 @@ function GPT() {
     setModalSummaryData(null);
   }, [activeThread, summaryThreadId]);
 
-  // Scroll to bottom when messages change
+  // Auto-scroll to bottom only when message count changes
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length !== prevMessageCountRef.current) {
+      prevMessageCountRef.current = messages.length;
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages.length]);
 
   // Auto-focus input when messages load after thread selection
   useEffect(() => {
@@ -254,7 +403,7 @@ function GPT() {
 
   // Auto-focus input when AI response arrives
   useEffect(() => {
-    if (messages.length > 0 && !isAiThinking && !isSending && textareaRef.current && !isInactiveUser) {
+    if (messages.length > 0 && !isAiThinking && !isSending && !isStreaming && textareaRef.current && !isInactiveUser) {
       const lastMessage = messages[messages.length - 1];
       const lastMessageRole = lastMessage.message_role || lastMessage.role;
       // Focus when last message is from AI/assistant
@@ -281,12 +430,42 @@ function GPT() {
       
       const newHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
       textarea.style.height = `${newHeight}px`;
+      
+      // Update input tray height for messages container padding
+      if (chatTrayRef.current) {
+        requestAnimationFrame(() => {
+          const trayHeight = chatTrayRef.current.getBoundingClientRect().height;
+          setInputTrayHeight(trayHeight + 24); // 24px for bottom-6 spacing
+        });
+      }
     }
   };
 
   // Initial resize on mount
   useEffect(() => {
     handleTextareaResize();
+  }, []);
+
+  // Track chat tray height changes for dynamic message padding
+  useEffect(() => {
+    if (!chatTrayRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.target.getBoundingClientRect().height;
+        setInputTrayHeight(height + 24); // 24px for bottom-6 spacing
+      }
+    });
+
+    resizeObserver.observe(chatTrayRef.current);
+
+    // Initial height notification
+    const initialHeight = chatTrayRef.current.getBoundingClientRect().height;
+    setInputTrayHeight(initialHeight + 24);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, []);
 
   const fetchThreads = async () => {
@@ -385,21 +564,16 @@ function GPT() {
         return message;
       });
       
-      // When polling, only update messages if they've actually changed (to prevent flashing)
+      // When polling, replace messages with server data in a single update (no flash)
       if (isPolling) {
-        // Compare message count and last message ID to avoid unnecessary updates
-        const currentLastMessageId = messages.length > 0 ? getMessageId(messages[messages.length - 1]) : null;
-        const newLastMessageId = messagesArray.length > 0 ? getMessageId(messagesArray[messagesArray.length - 1]) : null;
+        setMessages(messagesArray);
         
-        // Only update if messages actually changed
-        if (currentLastMessageId !== newLastMessageId || messages.length !== messagesArray.length) {
-          setMessages(messagesArray);
-          
-          // Update isAiThinking based on last message role
-          if (messagesArray.length > 0) {
-            const lastMessage = messagesArray[messagesArray.length - 1];
-            const lastMessageRole = getMessageRole(lastMessage);
-            setIsAiThinking(lastMessageRole === 'user');
+        // If last message is from AI, we're done waiting
+        if (messagesArray.length > 0) {
+          const lastMessage = messagesArray[messagesArray.length - 1];
+          const lastMessageRole = getMessageRole(lastMessage);
+          if (lastMessageRole === 'assistant' || lastMessageRole === 'ai') {
+            setIsAiThinking(false);
           }
         }
       } else {
@@ -503,6 +677,8 @@ function GPT() {
           // Now send the message to the new thread
           await sendMessageToNewThread(newThreadId);
           
+          // Skip the next fetch since we already have messages in state
+          skipNextFetchRef.current = true;
           // Now set the active thread after message is sent
           setActiveThread(newThreadId);
         }
@@ -532,58 +708,105 @@ function GPT() {
     
     const messageToSend = newMessage;
     const tempUserMessageId = Date.now();
+    const streamingMessageId = tempUserMessageId + 1;
     const tempUserMessage = {
       message_id: tempUserMessageId,
       content: messageToSend,
       message_role: 'user',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      isTemp: true
     };
     
     setMessages(prevMessages => [...prevMessages, tempUserMessage]);
     setNewMessage('');
-    handleTextareaResize(); // Reset height after clearing
+    handleTextareaResize();
     setIsSending(true);
     setIsAiThinking(true);
+    setIsStreaming(true);
+    setStreamingContent('');
 
     try {
-      const response = await sendMessageToGPT(messageToSend, threadId, token, selectedModel, abortController.signal);
-      
-      // Check if this request was aborted
-      if (abortController.signal.aborted) {
-        return;
-      }
+      // Add a placeholder streaming message
+      setMessages(prevMessages => [
+        ...prevMessages.map(msg =>
+          msg.message_id === tempUserMessageId ? { ...msg, isTemp: false } : msg
+        ),
+        {
+          message_id: streamingMessageId,
+          content: '',
+          message_role: 'assistant',
+          created_at: new Date().toISOString(),
+          isStreaming: true
+        }
+      ]);
+
+      await streamMessageToGPT(
+        messageToSend,
+        threadId,
+        token,
+        selectedModel,
+        (chunk) => {
+          if (chunk.type === 'text') {
+            setStreamingContent(prev => prev + chunk.content);
+            // Update the streaming message content
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.message_id === streamingMessageId 
+                  ? { ...msg, content: (msg.content || '') + chunk.content }
+                  : msg
+              )
+            );
+          } else if (chunk.type === 'done' && chunk.message) {
+            // Enable input immediately
+            setIsStreaming(false);
+            setIsSending(false);
+            setIsAiThinking(false);
+            setStreamingContent('');
+
+            const finalMessage = chunk.message;
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.message_id === streamingMessageId 
+                  ? { ...msg, content: finalMessage.content, isStreaming: false }
+                  : msg
+              )
+            );
+          } else if (chunk.type === 'error') {
+            console.error('Stream error:', chunk.error);
+            setError(chunk.error || 'Failed to get response');
+            // Remove the streaming message on error
+            setMessages(prevMessages => 
+              prevMessages.filter(msg => msg.message_id !== streamingMessageId)
+            );
+            setIsStreaming(false);
+            setIsSending(false);
+            setIsAiThinking(false);
+            setStreamingContent('');
+          }
+        },
+        abortController.signal
+      );
       
       setTimeout(() => {
         fetchThreads();
       }, 1000);
       
-      if (response && response.reply) {
-        setMessages(prevMessages => [
-          ...prevMessages.filter(msg => msg.message_id !== tempUserMessageId),
-          tempUserMessage,
-          response.reply
-        ]);
-      } else {
-        await fetchMessages(threadId);
-      }
-      
       setError('');
     } catch (err) {
-      // Ignore abort errors
       if (err.name === 'AbortError') {
         return;
       }
       console.error('Error sending message:', err);
       setError('Failed to send message. Please try again.');
       setMessages(prevMessages => 
-        prevMessages.filter(msg => msg.message_id !== tempUserMessageId)
+        prevMessages.filter(msg => 
+          msg.message_id !== tempUserMessageId && msg.message_id !== streamingMessageId
+        )
       );
-    } finally {
-      // Only update state if not aborted
-      if (!abortController.signal.aborted) {
       setIsSending(false);
+      setIsStreaming(false);
       setIsAiThinking(false);
-      }
+      setStreamingContent('');
     }
   };
 
@@ -599,27 +822,86 @@ function GPT() {
     
     const messageToSend = newMessage;
     const tempUserMessageId = Date.now();
+    const streamingMessageId = tempUserMessageId + 1;
     const tempUserMessage = {
       message_id: tempUserMessageId,
       content: messageToSend,
       message_role: 'user',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      isTemp: true
     };
     
     setMessages(prevMessages => [...prevMessages, tempUserMessage]);
     setNewMessage('');
-    handleTextareaResize(); // Reset height after clearing
+    handleTextareaResize();
     setIsSending(true);
     setIsAiThinking(true);
+    setIsStreaming(true);
+    setStreamingContent('');
 
     try {
       const isFirstMessage = messages.length === 0;
-      const response = await sendMessageToGPT(messageToSend, activeThread, token, selectedModel, abortController.signal);
       
-      // Check if this request was aborted
-      if (abortController.signal.aborted) {
-        return;
-      }
+      // Add a placeholder streaming message
+      setMessages(prevMessages => [
+        ...prevMessages.map(msg =>
+          msg.message_id === tempUserMessageId ? { ...msg, isTemp: false } : msg
+        ),
+        {
+          message_id: streamingMessageId,
+          content: '',
+          message_role: 'assistant',
+          created_at: new Date().toISOString(),
+          isStreaming: true
+        }
+      ]);
+
+      await streamMessageToGPT(
+        messageToSend,
+        activeThread,
+        token,
+        selectedModel,
+        (chunk) => {
+          if (chunk.type === 'text') {
+            setStreamingContent(prev => prev + chunk.content);
+            // Update the streaming message content
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.message_id === streamingMessageId 
+                  ? { ...msg, content: (msg.content || '') + chunk.content }
+                  : msg
+              )
+            );
+          } else if (chunk.type === 'done' && chunk.message) {
+            // Enable input immediately
+            setIsStreaming(false);
+            setIsSending(false);
+            setIsAiThinking(false);
+            setStreamingContent('');
+
+            const finalMessage = chunk.message;
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.message_id === streamingMessageId 
+                  ? { ...msg, content: finalMessage.content, isStreaming: false }
+                  : msg
+              )
+            );
+          } else if (chunk.type === 'error') {
+            console.error('Stream error:', chunk.error);
+            setError(chunk.error || 'Failed to get response');
+            // Remove the streaming message on error
+            setMessages(prevMessages => 
+              prevMessages.filter(msg => msg.message_id !== streamingMessageId)
+            );
+            setIsStreaming(false);
+            setIsSending(false);
+            setIsAiThinking(false);
+            setStreamingContent('');
+          }
+        },
+        abortController.signal
+      );
       
       if (isFirstMessage) {
         setTimeout(() => {
@@ -627,33 +909,22 @@ function GPT() {
         }, 1000);
       }
       
-      if (response && response.reply) {
-        setMessages(prevMessages => [
-          ...prevMessages.filter(msg => msg.message_id !== tempUserMessageId),
-          tempUserMessage,
-          response.reply
-        ]);
-      } else {
-        await fetchMessages(activeThread);
-      }
-      
       setError('');
     } catch (err) {
-      // Ignore abort errors
       if (err.name === 'AbortError') {
         return;
       }
       console.error('Error sending message:', err);
       setError('Failed to send message. Please try again.');
       setMessages(prevMessages => 
-        prevMessages.filter(msg => msg.message_id !== tempUserMessageId)
+        prevMessages.filter(msg => 
+          msg.message_id !== tempUserMessageId && msg.message_id !== streamingMessageId
+        )
       );
-    } finally {
-      // Only update state if not aborted
-      if (!abortController.signal.aborted) {
       setIsSending(false);
+      setIsStreaming(false);
       setIsAiThinking(false);
-      }
+      setStreamingContent('');
     }
   };
 
@@ -1016,11 +1287,11 @@ function GPT() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 min-h-0 overflow-hidden relative">
         {/* Chat Interface */}
-        <div className="flex-1 flex flex-col relative overflow-hidden">
+        <div className="h-full min-h-0 flex flex-col relative overflow-hidden">
           {/* Empty State or Messages Area */}
-          <div className="flex-1 overflow-y-auto py-8 px-6" style={{ paddingBottom: '180px' }}>
+          <div className="flex-1 min-h-0 overflow-y-auto py-8 px-6 transition-[padding] duration-200 ease-out" style={{ paddingBottom: `${inputTrayHeight}px` }}>
             {!activeThread && messages.length === 0 ? (
               <div className="max-w-2xl mx-auto pt-[50px]">
                 <h2 className="text-[18px] leading-[26px] font-proxima font-normal text-black mb-6">
@@ -1046,6 +1317,7 @@ function GPT() {
                   <>
                     {messages.map((message, index) => {
                       const role = getMessageRole(message);
+                      const isStreamingMessage = message.isStreaming === true;
                       
                       // Handle content source messages with MessageBubble component
                       if (role === 'content_source' || role === 'system_content_summary') {
@@ -1076,145 +1348,24 @@ function GPT() {
                                 </div>
                               </div>
                             </div>
+                          ) : message.isStreaming && !message.content ? (
+                            // Streaming AI message waiting for first chunk — show preloader inline
+                            // Keeps preloader inside the same wrapper div so no layout shift when text arrives
+                            <img src="/preloader.gif" alt="Loading..." className="w-8 h-8" />
                           ) : (
-                            // AI/System message (no avatar) - matches Learning page
-                            <div className="text-carbon-black leading-relaxed text-base">
-                              <ReactMarkdown
-                                components={{
-                                  p: ({ node, children, ...props }) => (
-                                    <p className="mb-4" {...props}>{children}</p>
-                                  ),
-                                  h1: ({ node, children, ...props }) => (
-                                    <h1 className="text-xl font-semibold mt-6 mb-4 first:mt-0 text-carbon-black" {...props}>{children}</h1>
-                                  ),
-                                  h2: ({ node, children, ...props }) => (
-                                    <h2 className="text-lg font-semibold mt-5 mb-3 first:mt-0 text-carbon-black" {...props}>{children}</h2>
-                                  ),
-                                  h3: ({ node, children, ...props }) => (
-                                    <h3 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-carbon-black" {...props}>{children}</h3>
-                                  ),
-                                  ul: ({ node, children, ...props }) => (
-                                    <ul className="list-disc pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ul>
-                                  ),
-                                  ol: ({ node, children, ...props }) => (
-                                    <ol className="list-decimal pl-6 my-4 space-y-1 text-carbon-black" {...props}>{children}</ol>
-                                  ),
-                                  li: ({ node, children, ...props }) => (
-                                    <li className="text-carbon-black" {...props}>{children}</li>
-                                  ),
-                                  a: ({ node, children, ...props }) => (
-                                    <a className="text-blue-500 hover:underline break-all" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
-                                  ),
-                                  code: ({ node, inline, className, children, ...props }) => {
-                                    if (inline) {
-                                      return (
-                                        <code
-                                          className="px-1.5 py-0.5 rounded text-sm font-mono bg-gray-200 text-carbon-black"
-                                          {...props}
-                                        >
-                                          {children}
-                                        </code>
-                                      );
-                                    }
-                                    return (
-                                      <code className="block" {...props}>
-                                        {children}
-                                      </code>
-                                    );
-                                  },
-                                  pre: ({ node, children, ...props }) => (
-                                    <pre
-                                      className="p-4 rounded-lg my-4 overflow-x-auto text-sm font-mono bg-gray-100 text-carbon-black"
-                                      {...props}
-                                    >
-                                      {children}
-                                    </pre>
-                                  ),
-                                  blockquote: ({ node, children, ...props }) => (
-                                    <blockquote
-                                      className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-700"
-                                      {...props}
-                                    >
-                                      {children}
-                                    </blockquote>
-                                  ),
-                                  strong: ({ node, children, ...props }) => (
-                                    <strong className="font-semibold text-carbon-black" {...props}>{children}</strong>
-                                  ),
-                                  em: ({ node, children, ...props }) => (
-                                    <em className="italic text-carbon-black" {...props}>{children}</em>
-                                  ),
-                                }}
-                              >
-                                {(() => {
-                                  // Preprocess content to convert bullet points and URLs to markdown
-                                  let processedContent = message.content;
-                                  
-                                  // Step 0: Strip all ** (bold markdown) from the content BEFORE processing
-                                  // This prevents ** from appearing in link text or anywhere else
-                                  processedContent = processedContent.replace(/\*\*/g, '');
-                                  
-                                  // Step 1: Convert URLs to markdown links FIRST (before any text manipulation)
-                                  // Pattern: "Title (Type): Description URL" - structured resource links
-                                  processedContent = processedContent.replace(
-                                    /([A-Z][^\n(]+?)\s+\(([^)]+)\):\s+([^\n]+?)\s+(https?:\/\/[^\s\n]+)/g,
-                                    '[$1 ($2)]($4): $3'
-                                  );
-                                  
-                                  // Fallback: Convert any remaining bare URLs to clickable links
-                                  processedContent = processedContent.replace(
-                                    /(?<!\()(?<!]\()https?:\/\/[^\s)]+/g,
-                                    (url) => `[${url}](${url})`
-                                  );
-                                  
-                                  // Step 2: Handle inline "Resources:" section - convert to proper bulleted list
-                                  // Match "Resources: - Item1 - Item2" pattern and split into list
-                                  processedContent = processedContent.replace(
-                                    /Resources:\s*-\s*(.+?)(?=\n\n|$)/gis,
-                                    (match, resourcesText) => {
-                                      // Split by " - " pattern that precedes a markdown link [
-                                      const items = resourcesText.split(/\s+-\s+(?=\[)/);
-                                      
-                                      // Format each item as a bullet
-                                      const formattedItems = items
-                                        .map(item => item.trim())
-                                        .filter(item => item.length > 0)
-                                        .map(item => `- ${item}`)
-                                        .join('\n');
-                                      
-                                      return `**Resources:**\n\n${formattedItems}`;
-                                    }
-                                  );
-                                  
-                                  // Step 3: Convert bullet points to markdown (preserves links)
-                                  processedContent = processedContent.replace(/^•\s+/gm, '- ');
-                                  processedContent = processedContent.replace(/\n•\s+/g, '\n- ');
-                                  
-                                  // Step 4: Convert numbered lists
-                                  processedContent = processedContent.replace(/^(\d+)\.\s+/gm, '$1. ');
-                                  
-                                  // Step 5: Format section headers (exclude Resources: which is already bold)
-                                  processedContent = processedContent.replace(
-                                    /\n\n(?!\*\*Resources:\*\*)([A-Z][^:\n]+:)(?!\s*\n\n-)/g,
-                                    '\n\n## $1'
-                                  );
-                                  
-                                  return processedContent;
-                                })()}
-                              </ReactMarkdown>
-                            </div>
+                            // AI message - StreamingMarkdownMessage handles both streaming and static
+                            <StreamingMarkdownMessage
+                              content={message.content}
+                              animateOnMount={!!message.shouldAnimate}
+                            />
                           )}
                         </div>
                       );
                     })}
                     
-                    {isAiThinking && (
+                    {isAiThinking && !isStreaming && (
                       <div className="mb-6">
-                        <img 
-                          src="/preloader.gif" 
-                          alt="Loading..." 
-                          className="w-8 h-8"
-                        />
+                        <img src="/preloader.gif" alt="Loading..." className="w-8 h-8" />
                       </div>
                     )}
                     
@@ -1229,7 +1380,7 @@ function GPT() {
           <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
             <div className="pointer-events-auto max-w-2xl mx-auto">
               {/* Chat Tray */}
-              <div className="bg-stardust rounded-[20px] p-[10px_15px] shadow-[4px_4px_10px_rgba(0,0,0,0.15)] flex flex-col gap-[10px]">
+              <div ref={chatTrayRef} className="bg-stardust rounded-[20px] p-[10px_15px] shadow-[4px_4px_10px_rgba(0,0,0,0.15)] flex flex-col gap-[10px]">
                 {/* Input Area */}
                 <div className="flex flex-col gap-2">
                   {/* Text Input */}

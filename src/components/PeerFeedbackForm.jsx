@@ -53,8 +53,11 @@ const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
         
         const data = await response.json();
         
+        // Handle both array and object response formats
+        const usersList = data.users || data;
+        
         // Filter out the current user (they shouldn't give feedback to themselves)
-        const otherUsers = data.filter(u => u.user_id !== user.user_id);
+        const otherUsers = usersList.filter(u => u.user_id !== user.user_id);
         
         // Check if there are any other users in this cohort
         if (otherUsers.length === 0) {

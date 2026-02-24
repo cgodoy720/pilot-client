@@ -6,7 +6,7 @@ import { ScrollArea } from '../../../components/ui/scroll-area';
 import { RefreshCw } from 'lucide-react';
 import LoadingState from './shared/LoadingState';
 
-const StatusTab = ({ showNotification, reloadPrompts }) => {
+const StatusTab = ({ showNotification, reloadPrompts, canEdit }) => {
   const [currentPrompt, setCurrentPrompt] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -69,14 +69,16 @@ const StatusTab = ({ showNotification, reloadPrompts }) => {
             This is the complete assembled prompt that gets sent to the AI API for a sample task.
           </p>
         </div>
-        <Button
-          onClick={handleReload}
-          variant="outline"
-          className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3]"
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Reload & Refresh
-        </Button>
+        {canEdit && (
+          <Button
+            onClick={handleReload}
+            variant="outline"
+            className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3]"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Reload & Refresh
+          </Button>
+        )}
       </div>
 
       {/* Current Assembled Prompt */}
