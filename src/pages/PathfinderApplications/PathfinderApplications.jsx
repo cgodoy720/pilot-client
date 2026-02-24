@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import MyStrategy from './MyStrategy';
+import MyResumes from './MyResumes';
 import './PathfinderApplications.css';
 
 // Helper function to get local date in YYYY-MM-DD format
@@ -75,7 +77,8 @@ function PathfinderApplications() {
     finalSalary: '',
     startDate: '',
     jobType: '',
-    acceptanceNotes: ''
+    acceptanceNotes: '',
+    resumeId: null
   });
 
   // Filter state
@@ -131,10 +134,14 @@ function PathfinderApplications() {
   // Collapsed columns state
   const [collapsedColumns, setCollapsedColumns] = useState({});
 
+  // Resumes list — used to populate the "Resume Used" dropdown in the application form
+  const [resumes, setResumes] = useState([]);
+
   useEffect(() => {
     fetchApplications();
     fetchActivityCounts();
     fetchBuildCounts();
+    fetchResumes();
   }, [token]);
 
   // Check if we should auto-open the modal (coming from dashboard)
@@ -244,6 +251,20 @@ function PathfinderApplications() {
       }
     } catch (err) {
       console.error('Error fetching build counts:', err);
+    }
+  };
+
+  const fetchResumes = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/pathfinder/resumes`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setResumes(data);
+      }
+    } catch (err) {
+      console.error('Error fetching resumes:', err);
     }
   };
 
@@ -448,7 +469,8 @@ function PathfinderApplications() {
       salaryRange: application.salary_range || '',
       salary: application.salary || '',
       companyLogo: application.company_logo || '',
-      withdrawalReason: application.withdrawal_reason || ''
+      withdrawalReason: application.withdrawal_reason || '',
+      resumeId: application.resume_id || null
     });
     setShowForm(true);
 
@@ -558,7 +580,8 @@ function PathfinderApplications() {
       location: '',
       salaryRange: '',
       salary: '',
-      companyLogo: ''
+      companyLogo: '',
+      resumeId: null
     });
     setShowForm(false);
     setIsEditing(false);
@@ -1055,6 +1078,8 @@ function PathfinderApplications() {
   return (
     <div className="w-full max-w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto overflow-x-hidden p-0 px-6 pb-6 box-border relative">
       <div className="max-w-full w-full mx-auto box-border flex flex-col overflow-x-hidden">
+        <MyStrategy />
+        <MyResumes />
         <div className="flex justify-between items-center mb-4 gap-4 flex-wrap max-w-full w-full relative">
           <Button 
             className="px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] relative overflow-hidden flex-shrink-0 whitespace-nowrap hover:bg-[#3333d1] hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_6px_20px_rgba(66,66,234,0.4)] active:translate-y-0 active:scale-100 active:shadow-[0_2px_8px_rgba(66,66,234,0.2)]"
@@ -1138,8 +1163,8 @@ function PathfinderApplications() {
         {/* Add/Edit Form Modal */}
         <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()}>
           <DialogContent className="max-w-[1200px] p-0 flex flex-col max-h-[90vh] overflow-hidden">
-            <DialogHeader className="flex flex-row justify-between items-center px-6 py-4 border-b border-[#e0e0e0] flex-shrink-0">
-              <DialogTitle className="m-0 text-[#1a1a1a] text-lg font-semibold">
+            <DialogHeader className="flex flex-row justify-between items-center p-6 border-b-2 border-[#e0e0e0] flex-shrink-0">
+              <DialogTitle className="m-0 text-[#1a1a1a] text-2xl font-semibold">
                 {isEditing ? 'Edit Job' : 'Add New Job'}
               </DialogTitle>
             </DialogHeader>
@@ -1216,7 +1241,6 @@ function PathfinderApplications() {
                                 value={formData.companyName}
                                 onChange={(value) => setFormData(prev => ({ ...prev, companyName: value }))}
                                 required
-                                className="!p-2 !pr-10"
                               />
                               {formData.companyLogo && (
                                 <img 
@@ -1305,6 +1329,35 @@ function PathfinderApplications() {
                               className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                             />
                           </div>
+                        </div>
+
+                        {/* Resume Used */}
+                        <div>
+                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Resume Used</label>
+                          {resumes.length === 0 ? (
+                            <p className="text-sm text-[#999999] py-1">
+                              Add a resume to track which version you're using.
+                            </p>
+                          ) : (
+                            <Select
+                              value={formData.resumeId ? String(formData.resumeId) : 'none'}
+                              onValueChange={(v) =>
+                                setFormData((prev) => ({ ...prev, resumeId: v === 'none' ? null : parseInt(v) }))
+                              }
+                            >
+                              <SelectTrigger className="w-full border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm">
+                                <SelectValue placeholder="Select resume..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">No resume selected</SelectItem>
+                                {resumes.map((resume) => (
+                                  <SelectItem key={resume.id} value={String(resume.id)}>
+                                    {resume.name}{resume.is_primary ? ' (Primary)' : ''}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         </div>
 
                         <div>
@@ -1401,472 +1454,469 @@ function PathfinderApplications() {
                 </div>
               ) : (
                   // For EDITING jobs: show tabbed form on left, timeline on right
-                  <div className="grid grid-cols-1 lg:grid-cols-[1fr_500px] flex-1 min-h-0 overflow-hidden">
+                  <div className="pathfinder-applications__content-wrapper">
                     {/* Left Section: Tabs + Form Panel */}
-                    <div className="flex flex-col border-r border-[#e0e0e0] min-h-0">
+                    <div className="pathfinder-applications__left-section">
                       {/* Tab Navigation */}
-                      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-                        <TabsList className="w-full justify-start rounded-none border-b border-[#e0e0e0] bg-white p-0 h-auto flex-shrink-0">
-                          <TabsTrigger 
-                            value="job-info" 
-                            className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#4242ea] data-[state=active]:bg-[rgba(66,66,234,0.05)] px-6 py-2.5 font-semibold data-[state=active]:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                          >
-                            Job Info
-                          </TabsTrigger>
-                          <TabsTrigger 
-                            value="contacts"
-                            className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#4242ea] data-[state=active]:bg-[rgba(66,66,234,0.05)] px-6 py-2.5 font-semibold data-[state=active]:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                          >
-                            Contacts
-                          </TabsTrigger>
-                          <TabsTrigger 
-                            value="notes"
-                            className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#4242ea] data-[state=active]:bg-[rgba(66,66,234,0.05)] px-6 py-2.5 font-semibold data-[state=active]:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                          >
-                            Notes
-                          </TabsTrigger>
-                        </TabsList>
+                      <div className="pathfinder-applications__tabs">
+                        <button
+                          type="button"
+                          className={`pathfinder-applications__tab ${activeTab === 'job-info' ? 'pathfinder-applications__tab--active' : ''}`}
+                          onClick={() => setActiveTab('job-info')}
+                        >
+                          Job Info
+                        </button>
+                        <button
+                          type="button"
+                          className={`pathfinder-applications__tab ${activeTab === 'contacts' ? 'pathfinder-applications__tab--active' : ''}`}
+                          onClick={() => setActiveTab('contacts')}
+                        >
+                          Contacts
+                        </button>
+                        <button
+                          type="button"
+                          className={`pathfinder-applications__tab ${activeTab === 'notes' ? 'pathfinder-applications__tab--active' : ''}`}
+                          onClick={() => setActiveTab('notes')}
+                        >
+                          Notes
+                        </button>
+                      </div>
 
-                        {/* Form Panel - inside left section with proper scrolling */}
-                        <div className="flex-1 overflow-y-auto min-h-0 bg-white">
-                          <div className="p-6">
+                      {/* Form Panel - inside left section */}
+                      <div className="pathfinder-applications__form-panel pathfinder-applications__form-panel--left">
                           {/* Job Info Tab */}
-                          <TabsContent value="job-info" className="mt-0 space-y-6">
-                            {/* Row 1: Company Name, Role Title */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Company Name *</label>
-                                <div className="relative">
-                                  <CompanyAutocomplete
-                                    value={formData.companyName}
-                                    onChange={(value) => setFormData(prev => ({ ...prev, companyName: value }))}
-                                    required
-                                    className="!p-2 !pr-10"
-                                  />
-                                  {formData.companyLogo && (
-                                    <img 
-                                      src={formData.companyLogo} 
-                                      alt={formData.companyName}
-                                      className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 object-contain pointer-events-none"
-                                      onError={(e) => {
-                                        e.target.style.display = 'none';
-                                      }}
+                          {activeTab === 'job-info' && (
+                            <>
+                              {/* Row 1: Company Name, Role Title */}
+                              <div className="pathfinder-applications__form-row">
+                                <div className="pathfinder-applications__form-group">
+                                  <label>Company Name *</label>
+                                  <div className="pathfinder-applications__company-input-wrapper">
+                                    <CompanyAutocomplete
+                                      value={formData.companyName}
+                                      onChange={(value) => setFormData(prev => ({ ...prev, companyName: value }))}
+                                      required
                                     />
-                                  )}
+                                    {formData.companyLogo && (
+                                      <img 
+                                        src={formData.companyLogo} 
+                                        alt={formData.companyName}
+                                        className="pathfinder-applications__company-input-logo"
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                        }}
+                                      />
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="pathfinder-applications__form-group">
+                                  <label>Role Title *</label>
+                                  <input
+                                    type="text"
+                                    name="roleTitle"
+                                    value={formData.roleTitle}
+                                    onChange={handleInputChange}
+                                    required
+                                  />
                                 </div>
                               </div>
-                              <div>
-                                <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Role Title *</label>
-                                <Input
-                                  type="text"
-                                  name="roleTitle"
-                                  value={formData.roleTitle}
-                                  onChange={handleInputChange}
-                                  required
-                                  className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
-                                />
-                              </div>
-                            </div>
 
-                            {/* Row 2: Source URL, Source Type */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Source URL</label>
-                                <Input
-                                  type="url"
-                                  name="source"
-                                  value={formData.source}
-                                  onChange={handleInputChange}
-                                  placeholder="https://..."
-                                  className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
-                                />
+                              {/* Row 2: Source URL, Source Type */}
+                              <div className="pathfinder-applications__form-row">
+                                <div className="pathfinder-applications__form-group">
+                                  <label>Source URL</label>
+                                  <input
+                                    type="url"
+                                    name="source"
+                                    value={formData.source}
+                                    onChange={handleInputChange}
+                                    placeholder="https://..."
+                                  />
+                                </div>
+                                <div className="pathfinder-applications__form-group">
+                                  <label>Source Type</label>
+                                  <select
+                                    name="sourceType"
+                                    value={formData.sourceType}
+                                    onChange={handleInputChange}
+                                  >
+                                    <option value="">Select source...</option>
+                                    <option value="LinkedIn">LinkedIn</option>
+                                    <option value="Greenhouse">Greenhouse</option>
+                                    <option value="Indeed">Indeed</option>
+                                    <option value="Lever">Lever</option>
+                                    <option value="Company Website">Company Website</option>
+                                    <option value="Referral">Referral</option>
+                                    <option value="Recruiter">Recruiter</option>
+                                    <option value="Job Board">Job Board</option>
+                                    <option value="Other">Other</option>
+                                  </select>
+                                </div>
                               </div>
-                              <div>
-                                <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Source Type</label>
-                                <Select
-                                  name="sourceType"
-                                  value={formData.sourceType}
-                                  onValueChange={(value) => handleInputChange({ target: { name: 'sourceType', value } })}
-                                >
-                                  <SelectTrigger className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent">
-                                    <SelectValue placeholder="Select source..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="LinkedIn">LinkedIn</SelectItem>
-                                    <SelectItem value="Greenhouse">Greenhouse</SelectItem>
-                                    <SelectItem value="Indeed">Indeed</SelectItem>
-                                    <SelectItem value="Lever">Lever</SelectItem>
-                                    <SelectItem value="Company Website">Company Website</SelectItem>
-                                    <SelectItem value="Referral">Referral</SelectItem>
-                                    <SelectItem value="Recruiter">Recruiter</SelectItem>
-                                    <SelectItem value="Job Board">Job Board</SelectItem>
-                                    <SelectItem value="Other">Other</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
 
-                            {/* Row 3: Salary, Location */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Salary</label>
-                                <Input
-                                  type="text"
-                                  name="salary"
-                                  value={formData.salary}
-                                  onChange={handleInputChange}
-                                  placeholder="e.g., $80,000 - $100,000"
-                                  className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
-                                />
+                              {/* Row 3: Salary, Location */}
+                              <div className="pathfinder-applications__form-row">
+                                <div className="pathfinder-applications__form-group">
+                                  <label>Salary</label>
+                                  <input
+                                    type="text"
+                                    name="salary"
+                                    value={formData.salary}
+                                    onChange={handleInputChange}
+                                    placeholder="e.g., $80,000 - $100,000"
+                                  />
+                                </div>
+                                <div className="pathfinder-applications__form-group">
+                                  <label>Location</label>
+                                  <input
+                                    type="text"
+                                    name="location"
+                                    value={formData.location}
+                                    onChange={handleInputChange}
+                                    placeholder="e.g., New York, NY or Remote"
+                                  />
+                                </div>
                               </div>
-                              <div>
-                                <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Location</label>
-                                <Input
-                                  type="text"
-                                  name="location"
-                                  value={formData.location}
-                                  onChange={handleInputChange}
-                                  placeholder="e.g., New York, NY or Remote"
-                                  className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
-                                />
-                              </div>
-                            </div>
 
-                            <div>
-                              <label className="block text-sm font-medium text-[#1a1a1a] mb-2">
-                                Job Description
-                                {formData.jobDescription && (
-                                  <span className="ml-2 text-xs text-[#666666]">
-                                    ({formData.jobDescription.length.toLocaleString()} characters)
-                                  </span>
+                              {/* Resume Used */}
+                              <div className="pathfinder-applications__form-group">
+                                <label>Resume Used</label>
+                                {resumes.length === 0 ? (
+                                  <p className="text-sm text-[#999999] py-1">
+                                    Add a resume to track which version you're using.
+                                  </p>
+                                ) : (
+                                  <select
+                                    value={formData.resumeId || ''}
+                                    onChange={(e) =>
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        resumeId: e.target.value === '' ? null : parseInt(e.target.value)
+                                      }))
+                                    }
+                                  >
+                                    <option value="">No resume selected</option>
+                                    {resumes.map((resume) => (
+                                      <option key={resume.id} value={resume.id}>
+                                        {resume.name}{resume.is_primary ? ' (Primary)' : ''}
+                                      </option>
+                                    ))}
+                                  </select>
                                 )}
-                                <span className="ml-2 text-xs text-[#666666]">
-                                  💡 Saved for reference after job posting is taken down
-                                </span>
-                              </label>
-                              <RichTextEditor
-                                value={formData.jobDescription}
-                                onChange={(value) => setFormData(prev => ({ ...prev, jobDescription: value }))}
-                                placeholder="Paste or enter the full job description here... (auto-filled when fetching from URL)"
-                              />
-                            </div>
+                              </div>
 
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                id="internalReferral-edit"
-                                name="internalReferral"
-                                checked={formData.internalReferral}
-                                onChange={(e) => setFormData(prev => ({ ...prev, internalReferral: e.target.checked }))}
-                                className="w-4 h-4 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-2"
-                              />
-                              <label htmlFor="internalReferral-edit" className="text-sm text-[#1a1a1a] cursor-pointer">Internal Referral</label>
-                            </div>
-                          </TabsContent>
+                              <div className="pathfinder-applications__form-group">
+                                <label>
+                                  Job Description
+                                  {formData.jobDescription && (
+                                    <span className="pathfinder-applications__char-count">
+                                      ({formData.jobDescription.length.toLocaleString()} characters)
+                                    </span>
+                                  )}
+                                  <span className="pathfinder-applications__field-hint">
+                                    💡 Saved for reference after job posting is taken down
+                                  </span>
+                                </label>
+                                <RichTextEditor
+                                  value={formData.jobDescription}
+                                  onChange={(value) => setFormData(prev => ({ ...prev, jobDescription: value }))}
+                                  placeholder="Paste or enter the full job description here... (auto-filled when fetching from URL)"
+                                />
+                              </div>
+
+                              <div className="pathfinder-applications__form-checkbox">
+                                <input
+                                  type="checkbox"
+                                  id="internalReferral-edit"
+                                  name="internalReferral"
+                                  checked={formData.internalReferral}
+                                  onChange={(e) => setFormData(prev => ({ ...prev, internalReferral: e.target.checked }))}
+                                />
+                                <label htmlFor="internalReferral-edit">Internal Referral</label>
+                              </div>
+                            </>
+                          )}
 
                           {/* Contacts Tab */}
-                          <TabsContent value="contacts" className="mt-0 space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                              <div>
-                                <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Name</label>
-                                <Input
-                                  type="text"
-                                  name="contactName"
-                                  value={formData.contactName}
-                                  onChange={handleInputChange}
-                                  className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
-                                />
+                          {activeTab === 'contacts' && (
+                            <>
+                              <div className="pathfinder-applications__form-row pathfinder-applications__form-row--four-col">
+                                <div className="pathfinder-applications__form-group">
+                                  <label>Contact Name</label>
+                                  <input
+                                    type="text"
+                                    name="contactName"
+                                    value={formData.contactName}
+                                    onChange={handleInputChange}
+                                  />
+                                </div>
+                                <div className="pathfinder-applications__form-group">
+                                  <label>Contact Title</label>
+                                  <input
+                                    type="text"
+                                    name="contactTitle"
+                                    value={formData.contactTitle}
+                                    onChange={handleInputChange}
+                                  />
+                                </div>
+                                <div className="pathfinder-applications__form-group">
+                                  <label>Contact Email</label>
+                                  <input
+                                    type="email"
+                                    name="contactEmail"
+                                    value={formData.contactEmail}
+                                    onChange={handleInputChange}
+                                  />
+                                </div>
+                                <div className="pathfinder-applications__form-group">
+                                  <label>Contact Phone</label>
+                                  <input
+                                    type="tel"
+                                    name="contactPhone"
+                                    value={formData.contactPhone}
+                                    onChange={handleInputChange}
+                                    placeholder="(555) 555-5555"
+                                  />
+                                </div>
                               </div>
-                              <div>
-                                <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Title</label>
-                                <Input
-                                  type="text"
-                                  name="contactTitle"
-                                  value={formData.contactTitle}
-                                  onChange={handleInputChange}
-                                  className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Email</label>
-                                <Input
-                                  type="email"
-                                  name="contactEmail"
-                                  value={formData.contactEmail}
-                                  onChange={handleInputChange}
-                                  className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Phone</label>
-                                <Input
-                                  type="tel"
-                                  name="contactPhone"
-                                  value={formData.contactPhone}
-                                  onChange={handleInputChange}
-                                  placeholder="(555) 555-5555"
-                                  className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
-                                />
-                              </div>
-                            </div>
-                          </TabsContent>
+                            </>
+                          )}
 
                           {/* Notes Tab */}
-                          <TabsContent value="notes" className="mt-0 space-y-6">
-                            <div>
-                              <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Notes</label>
-                              <textarea
-                                name="notes"
-                                value={formData.notes}
-                                onChange={handleInputChange}
-                                rows="10"
-                                placeholder="Add any additional notes, insights, or follow-up actions..."
-                                className="w-full p-3 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
-                              />
-                            </div>
-                          </TabsContent>
-                        </div>
-                        </div>
-                      </Tabs>
+                          {activeTab === 'notes' && (
+                            <>
+                              <div className="pathfinder-applications__form-group">
+                                <label>Notes</label>
+                                <textarea
+                                  name="notes"
+                                  value={formData.notes}
+                                  onChange={handleInputChange}
+                                  rows="10"
+                                  placeholder="Add any additional notes, insights, or follow-up actions..."
+                                />
+                              </div>
+                            </>
+                          )}
+                      </div>
                     </div> {/* End left-section */}
 
                     {/* Right Panel - Activity Timeline (only when editing) */}
                     {formData.stageHistory && formData.stageHistory.length > 0 && (
-                      <div className="flex flex-col min-h-0 bg-[#fafafa] overflow-hidden">
-                        <div className="flex-1 overflow-y-auto p-6">
-                          <h3 className="text-lg font-semibold text-[#1a1a1a] mb-4">Activity Timeline</h3>
-                          <div className="relative pl-6 space-y-4">
-                            {/* Vertical line */}
-                            <div className="absolute left-2 top-3 bottom-4 w-0.5 bg-[#d0d0d0]"></div>
-                            
-                            {formData.stageHistory.map((entry, index) => (
-                              <div key={index} className="relative flex items-center gap-3">
-                                {/* Timeline marker (dot) */}
-                                <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[#4242ea] border-[3px] border-[#fafafa] z-10"></div>
-                                
-                                <div className="flex-1 flex items-center gap-2">
-                                  <Select
-                                    value={entry.stage}
-                                    onValueChange={(value) => {
-                                      const newHistory = [...formData.stageHistory];
-                                      newHistory[index].stage = value;
-                                      
-                                      // If this is the last (most recent) stage, update the main stage field too
-                                      if (index === newHistory.length - 1) {
-                                        setFormData(prev => ({ ...prev, stageHistory: newHistory, stage: value }));
-                                      } else {
-                                        setFormData(prev => ({ ...prev, stageHistory: newHistory }));
-                                      }
-                                    }}
-                                  >
-                                    <SelectTrigger className="w-auto px-3 py-1.5 text-sm border-[#d1d5db] bg-white">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="prospect">Prospect</SelectItem>
-                                      <SelectItem value="applied">Applied</SelectItem>
-                                      <SelectItem value="screen">Phone Screen</SelectItem>
-                                      <SelectItem value="oa">Online Assessment</SelectItem>
-                                      <SelectItem value="interview">Interview</SelectItem>
-                                      <SelectItem value="offer">Offer</SelectItem>
-                                      <SelectItem value="rejected">Rejected</SelectItem>
-                                      <SelectItem value="withdrawn">Withdrawn</SelectItem>
-                                    </SelectContent>
-                                  </Select>
+                  <div className="pathfinder-applications__form-panel pathfinder-applications__form-panel--right">
+                    <h3 className="pathfinder-applications__panel-title">Activity Timeline</h3>
+                    <div className="pathfinder-applications__timeline">
+                      {formData.stageHistory.map((entry, index) => (
+                        <div key={index} className="pathfinder-applications__timeline-item">
+                          <div className="pathfinder-applications__timeline-marker"></div>
+                          <div className="pathfinder-applications__timeline-content">
+                            <div className="pathfinder-applications__timeline-header">
+                              <select
+                                value={entry.stage}
+                                onChange={(e) => {
+                                  const newHistory = [...formData.stageHistory];
+                                  newHistory[index].stage = e.target.value;
                                   
-                                  <Input
-                                    type="date"
-                                    value={entry.date ? entry.date.split('T')[0] : ''}
-                                    onChange={(e) => {
-                                      const newHistory = [...formData.stageHistory];
-                                      newHistory[index].date = e.target.value;
+                                  // If this is the last (most recent) stage, update the main stage field too
+                                  if (index === newHistory.length - 1) {
+                                    setFormData(prev => ({ ...prev, stageHistory: newHistory, stage: e.target.value }));
+                                  } else {
+                                    setFormData(prev => ({ ...prev, stageHistory: newHistory }));
+                                  }
+                                }}
+                                className="pathfinder-applications__timeline-stage-select"
+                              >
+                                <option value="prospect">Prospect</option>
+                                <option value="applied">Applied</option>
+                                <option value="screen">Phone Screen</option>
+                                <option value="oa">Online Assessment</option>
+                                <option value="interview">Interview</option>
+                                <option value="offer">Offer</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="withdrawn">Withdrawn</option>
+                              </select>
+                              <div className="pathfinder-applications__timeline-actions">
+                                <input
+                                  type="date"
+                                  value={entry.date ? entry.date.split('T')[0] : ''}
+                                  onChange={(e) => {
+                                    const newHistory = [...formData.stageHistory];
+                                    newHistory[index].date = e.target.value;
+                                    setFormData(prev => ({ ...prev, stageHistory: newHistory }));
+                                  }}
+                                  className="pathfinder-applications__timeline-date-input"
+                                />
+                                {index > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newHistory = formData.stageHistory.filter((_, i) => i !== index);
                                       setFormData(prev => ({ ...prev, stageHistory: newHistory }));
                                     }}
-                                    className="w-[130px] p-1.5 text-sm text-center border-[#d1d5db]"
-                                  />
-                                  
-                                  {index > 0 && (
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        const newHistory = formData.stageHistory.filter((_, i) => i !== index);
-                                        setFormData(prev => ({ ...prev, stageHistory: newHistory }));
-                                      }}
-                                      className="h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600"
-                                      title="Remove"
-                                    >
-                                      ✕
-                                    </Button>
-                                  )}
-                                </div>
+                                    className="pathfinder-applications__timeline-delete-btn"
+                                    title="Remove"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
                               </div>
-                            ))}
-                          </div>
-                          
-                          <Button
-                            type="button"
-                            onClick={() => {
-                              // Use the current main stage as the new stage to add
-                              const newStage = formData.stage;
-                              const newHistory = [...formData.stageHistory, {
-                                stage: newStage,
-                                date: getLocalDate(),
-                                notes: null
-                              }];
-                              // Update both stage history and ensure main stage is set to this new stage
-                              setFormData(prev => ({ ...prev, stageHistory: newHistory, stage: newStage }));
-                            }}
-                            className="w-auto bg-[#4242ea] text-white hover:bg-[#3535d1] mt-4"
-                          >
-                            + Add Activity
-                          </Button>
-
-                          {/* Associated Hustle Section */}
-                          <div className="mt-6 pt-6 border-t border-[#e0e0e0]">
-                            <h4 className="text-base font-semibold text-[#1a1a1a] mb-3">Associated Hustle</h4>
-                            {linkedActivities.length > 0 ? (
-                              <div className="space-y-3">
-                                {linkedActivities.map((activity) => (
-                                  <Card key={activity.networking_activity_id} className="p-3 bg-white border-[#e0e0e0]">
-                                    <div className="flex justify-between items-center mb-2 pb-2 border-b border-[#e0e0e0]">
-                                      <span className="text-xs font-semibold text-[#4242ea]">
-                                        {activity.type === 'digital' ? '💻' : '👥'} {activity.type?.toUpperCase()}
-                                      </span>
-                                      <span className="text-xs text-[#666666]">
-                                        {formatShortDate(activity.date ? activity.date.split('T')[0] : '')}
-                                      </span>
-                                    </div>
-                                    <div className="space-y-1 text-sm">
-                                      {activity.platform && (
-                                        <div className="text-[#1a1a1a]">
-                                          <strong>{activity.platform}</strong>
-                                          {activity.sub_type && ` - ${activity.sub_type.replace(/_/g, ' ')}`}
-                                        </div>
-                                      )}
-                                      {activity.event_name && (
-                                        <div className="text-[#1a1a1a]">
-                                          <strong className="text-[#666666] font-medium">Event:</strong> {activity.event_name}
-                                        </div>
-                                      )}
-                                      {activity.contact_name && (
-                                        <div className="text-[#1a1a1a]">
-                                          <strong className="text-[#666666] font-medium">Contact:</strong> {activity.contact_name}
-                                          {activity.company && ` at ${activity.company}`}
-                                        </div>
-                                      )}
-                                      {activity.direction && (
-                                        <div className="text-[#1a1a1a]">
-                                          <strong className="text-[#666666] font-medium">Direction:</strong> {activity.direction === 'inbound' ? '← Inbound' : '→ Outbound'}
-                                        </div>
-                                      )}
-                                      {activity.outcome && activity.outcome !== 'pending' && (
-                                        <div className="text-[#1a1a1a]">
-                                          <strong className="text-[#666666] font-medium">Outcome:</strong> {activity.outcome.replace(/_/g, ' ')}
-                                        </div>
-                                      )}
-                                      {activity.notes && (
-                                        <div className="mt-2 p-2 bg-white border border-[#e0e0e0] rounded text-xs text-[#666666]">
-                                          {activity.notes}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </Card>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-center p-6 bg-[#fafafa] border border-dashed border-[#d0d0d0] rounded-lg">
-                                <p className="text-sm text-[#666666] mb-3">
-                                  You haven't hustled yet for this job. Brainstorm some ideas and start tracking your Hustle!
-                                </p>
-                                <Button
-                                  type="button"
-                                  className="bg-[#4242ea] text-white hover:bg-[#3535d1]"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    window.location.href = '/pathfinder/networking';
-                                  }}
-                                >
-                                  Go to Hustle Tracker
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Associated Builds Section */}
-                          <div className="mt-6 pt-6 border-t border-[#e0e0e0]">
-                            <h4 className="text-base font-semibold text-[#1a1a1a] mb-3">Associated Builds</h4>
-                            {linkedBuilds.length > 0 ? (
-                              <div className="space-y-3">
-                                {linkedBuilds.map((build) => (
-                                  <Card key={build.project_id} className="p-3 bg-[#f9fafb] border-[#e5e7eb] hover:bg-[#f3f4f6] transition-colors">
-                                    <div className="flex items-center justify-between mb-2">
-                                      <span className="font-semibold text-[#1a1a1a]">
-                                        {build.project_name}
-                                      </span>
-                                      <Badge className={`text-xs font-semibold uppercase ${
-                                        build.stage === 'ideation' ? 'bg-gray-100 text-gray-700' :
-                                        build.stage === 'planning' ? 'bg-blue-100 text-blue-700' :
-                                        build.stage === 'development' ? 'bg-yellow-100 text-yellow-700' :
-                                        build.stage === 'testing' ? 'bg-orange-100 text-orange-700' :
-                                        build.stage === 'launch' ? 'bg-green-100 text-green-700' :
-                                        'bg-gray-100 text-gray-700'
-                                      }`}>
-                                        {build.stage.charAt(0).toUpperCase() + build.stage.slice(1)}
-                                      </Badge>
-                                    </div>
-                                    {build.target_date && (
-                                      <div className="text-sm text-[#6b7280] mb-1">
-                                        Target: {new Date(build.target_date).toLocaleDateString()}
-                                      </div>
-                                    )}
-                                    {build.deployment_url && (
-                                      <div className="mt-2">
-                                        <a 
-                                          href={build.deployment_url} 
-                                          target="_blank" 
-                                          rel="noopener noreferrer"
-                                          className="text-sm font-medium text-[#4242ea] hover:text-[#3232ba] hover:underline"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          🔗 View Live App
-                                        </a>
-                                      </div>
-                                    )}
-                                    {build.notes && (
-                                      <div className="mt-2 text-sm text-[#6b7280]">
-                                        {build.notes}
-                                      </div>
-                                    )}
-                                  </Card>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-center p-6 bg-[#fafafa] border border-dashed border-[#d0d0d0] rounded-lg">
-                                <p className="text-sm text-[#666666] mb-3">
-                                  No projects linked to this job yet. Build something that links your skills to this job!
-                                </p>
-                                <Button
-                                  type="button"
-                                  className="bg-[#4242ea] text-white hover:bg-[#3535d1]"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    window.location.href = '/pathfinder/projects';
-                                  }}
-                                >
-                                  Go to Build Tracker
-                                </Button>
-                              </div>
-                            )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Use the current main stage as the new stage to add
+                        const newStage = formData.stage;
+                        const newHistory = [...formData.stageHistory, {
+                          stage: newStage,
+                          date: getLocalDate(),
+                          notes: null
+                        }];
+                        // Update both stage history and ensure main stage is set to this new stage
+                        setFormData(prev => ({ ...prev, stageHistory: newHistory, stage: newStage }));
+                      }}
+                      className="pathfinder-applications__add-stage-btn"
+                    >
+                      + Add Activity
+                    </button>
+
+                    {/* Associated Hustle Section */}
+                    <div className="pathfinder-applications__hustle-section">
+                      <h4 className="pathfinder-applications__hustle-title">Associated Hustle</h4>
+                      {linkedActivities.length > 0 ? (
+                        <div className="pathfinder-applications__hustle-list">
+                          {linkedActivities.map((activity) => (
+                            <div key={activity.networking_activity_id} className="pathfinder-applications__hustle-item">
+                              <div className="pathfinder-applications__hustle-header">
+                                <span className="pathfinder-applications__hustle-type">
+                                  {activity.type === 'digital' ? '💻' : '👥'} {activity.type?.toUpperCase()}
+                                </span>
+                                <span className="pathfinder-applications__hustle-date">
+                                  {formatShortDate(activity.date ? activity.date.split('T')[0] : '')}
+                                </span>
+                              </div>
+                              <div className="pathfinder-applications__hustle-content">
+                                {activity.platform && (
+                                  <div className="pathfinder-applications__hustle-platform">
+                                    <strong>{activity.platform}</strong>
+                                    {activity.sub_type && ` - ${activity.sub_type.replace(/_/g, ' ')}`}
+                                  </div>
+                                )}
+                                {activity.event_name && (
+                                  <div className="pathfinder-applications__hustle-event">
+                                    <strong>Event:</strong> {activity.event_name}
+                                  </div>
+                                )}
+                                {activity.contact_name && (
+                                  <div className="pathfinder-applications__hustle-contact">
+                                    <strong>Contact:</strong> {activity.contact_name}
+                                    {activity.company && ` at ${activity.company}`}
+                                  </div>
+                                )}
+                                {activity.direction && (
+                                  <div className="pathfinder-applications__hustle-direction">
+                                    <strong>Direction:</strong> {activity.direction === 'inbound' ? '← Inbound' : '→ Outbound'}
+                                  </div>
+                                )}
+                                {activity.outcome && activity.outcome !== 'pending' && (
+                                  <div className="pathfinder-applications__hustle-outcome">
+                                    <strong>Outcome:</strong> {activity.outcome.replace(/_/g, ' ')}
+                                  </div>
+                                )}
+                                {activity.notes && (
+                                  <div className="pathfinder-applications__hustle-notes">
+                                    {activity.notes}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="pathfinder-applications__hustle-empty">
+                          <p className="pathfinder-applications__hustle-empty-text">
+                            You haven't hustled yet for this job. Brainstorm some ideas and start tracking your Hustle!
+                          </p>
+                          <a 
+                            href="/pathfinder/networking"
+                            className="pathfinder-applications__hustle-empty-btn"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              window.location.href = '/pathfinder/networking';
+                            }}
+                          >
+                            Go to Hustle Tracker
+                          </a>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Associated Builds Section */}
+                    <div className="pathfinder-applications__builds-section">
+                      <h4 className="pathfinder-applications__builds-title">Associated Builds</h4>
+                      {linkedBuilds.length > 0 ? (
+                        <div className="pathfinder-applications__builds-list">
+                          {linkedBuilds.map((build) => (
+                            <div key={build.project_id} className="pathfinder-applications__build-item">
+                              <div className="pathfinder-applications__build-header">
+                                <span className="pathfinder-applications__build-name">
+                                  {build.project_name}
+                                </span>
+                                <span className={`pathfinder-applications__build-stage pathfinder-applications__build-stage--${build.stage}`}>
+                                  {build.stage.charAt(0).toUpperCase() + build.stage.slice(1)}
+                                </span>
+                              </div>
+                              {build.target_date && (
+                                <div className="pathfinder-applications__build-date">
+                                  Target: {new Date(build.target_date).toLocaleDateString()}
+                                </div>
+                              )}
+                              {build.deployment_url && (
+                                <div className="pathfinder-applications__build-link">
+                                  <a 
+                                    href={build.deployment_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    🔗 View Live App
+                                  </a>
+                                </div>
+                              )}
+                              {build.notes && (
+                                <div className="pathfinder-applications__build-notes">
+                                  {build.notes}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="pathfinder-applications__builds-empty">
+                          <p className="pathfinder-applications__builds-empty-text">
+                            No projects linked to this job yet. Build something that links your skills to this job!
+                          </p>
+                          <a 
+                            href="/pathfinder/projects"
+                            className="pathfinder-applications__builds-empty-btn"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              window.location.href = '/pathfinder/projects';
+                            }}
+                          >
+                            Go to Build Tracker
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                   </div>
                 )}
               
-              <DialogFooter className="flex justify-end px-6 py-3 border-t border-[#e0e0e0] bg-white flex-shrink-0 gap-2">
+              <DialogFooter className="flex justify-end p-6 border-t-2 border-[#e0e0e0] bg-white flex-shrink-0 gap-2">
                 <Button type="button" variant="outline" onClick={resetForm}>
                   Cancel
                 </Button>
@@ -2209,114 +2259,118 @@ function PathfinderApplications() {
       </div>
 
       {/* Withdrawal Reason Modal */}
-      <Dialog open={showWithdrawalModal} onOpenChange={setShowWithdrawalModal}>
-        <DialogContent className="max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="text-xl">
-              Why are you withdrawing from {pendingWithdrawal?.app.company_name}?
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-[#6b7280]">
-              Select a reason to help track patterns in your job search journey.
-            </p>
+      {showWithdrawalModal && (
+        <div className="pathfinder-applications__modal-overlay" onClick={handleWithdrawalCancel}>
+          <div className="pathfinder-applications__withdrawal-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pathfinder-applications__withdrawal-modal-header">
+              <h2>Why are you withdrawing from {pendingWithdrawal?.app.company_name}?</h2>
+              <button 
+                className="pathfinder-applications__modal-close"
+                onClick={handleWithdrawalCancel}
+              >
+                ×
+              </button>
+            </div>
             
-            <Select value={withdrawalReason} onValueChange={setWithdrawalReason}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a reason..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Not a Good Fit">Not a Good Fit</SelectItem>
-                <SelectItem value="Compensation & Benefits">Compensation & Benefits</SelectItem>
-                <SelectItem value="Better Opportunity">Better Opportunity</SelectItem>
-                <SelectItem value="Personal Reasons">Personal Reasons</SelectItem>
-                <SelectItem value="Company/Role Concerns">Company/Role Concerns</SelectItem>
-                <SelectItem value="Process Issues">Process Issues</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="pathfinder-applications__withdrawal-modal-content">
+              <p className="pathfinder-applications__withdrawal-modal-description">
+                Select a reason to help track patterns in your job search journey.
+              </p>
+              
+              <select 
+                className="pathfinder-applications__withdrawal-select"
+                value={withdrawalReason}
+                onChange={(e) => setWithdrawalReason(e.target.value)}
+              >
+                <option value="">Select a reason...</option>
+                <option value="Not a Good Fit">Not a Good Fit</option>
+                <option value="Compensation & Benefits">Compensation & Benefits</option>
+                <option value="Better Opportunity">Better Opportunity</option>
+                <option value="Personal Reasons">Personal Reasons</option>
+                <option value="Company/Role Concerns">Company/Role Concerns</option>
+                <option value="Process Issues">Process Issues</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            
+            <div className="pathfinder-applications__withdrawal-modal-actions">
+              <button 
+                className="pathfinder-applications__withdrawal-btn-cancel"
+                onClick={handleWithdrawalCancel}
+              >
+                Cancel
+              </button>
+              <button 
+                className="pathfinder-applications__withdrawal-btn-confirm"
+                onClick={handleWithdrawalConfirm}
+                disabled={!withdrawalReason}
+              >
+                Confirm Withdrawal
+              </button>
+            </div>
           </div>
-          
-          <DialogFooter className="gap-2">
-            <Button 
-              type="button"
-              variant="outline"
-              onClick={handleWithdrawalCancel}
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="button"
-              onClick={handleWithdrawalConfirm}
-              disabled={!withdrawalReason}
-              className="bg-[#4242ea] text-white hover:bg-[#3333d1] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Confirm Withdrawal
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
       {/* Acceptance Details Modal */}
-      <Dialog open={showAcceptanceModal} onOpenChange={setShowAcceptanceModal}>
-        <DialogContent className="max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="text-xl">
-              🎉 Congratulations!
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-[#6b7280]">
-              Track your accepted offer details to reference later!
-            </p>
+      {showAcceptanceModal && (
+        <div className="pathfinder-applications__modal-overlay" onClick={handleAcceptanceCancel}>
+          <div className="pathfinder-applications__withdrawal-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pathfinder-applications__withdrawal-modal-header">
+              <h2>🎉 Congratulations!</h2>
+              <button 
+                className="pathfinder-applications__withdrawal-modal-close"
+                onClick={handleAcceptanceCancel}
+              >
+                ×
+              </button>
+            </div>
             
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Final Salary/Compensation</label>
-                <Input
+            <div className="pathfinder-applications__withdrawal-modal-content">
+              <p className="pathfinder-applications__withdrawal-modal-description">
+                Track your accepted offer details to reference later!
+              </p>
+              
+              <div className="pathfinder-applications__form-group">
+                <label>Final Salary/Compensation</label>
+                <input
                   type="text"
+                  className="pathfinder-applications__withdrawal-select"
                   placeholder="e.g., $120,000/year, $60/hour"
                   value={acceptanceDetails.finalSalary}
                   onChange={(e) => setAcceptanceDetails(prev => ({ ...prev, finalSalary: e.target.value }))}
-                  className="w-full"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Start Date</label>
-                <Input
+              <div className="pathfinder-applications__form-group">
+                <label>Start Date</label>
+                <input
                   type="date"
+                  className="pathfinder-applications__withdrawal-select"
                   value={acceptanceDetails.startDate}
                   onChange={(e) => setAcceptanceDetails(prev => ({ ...prev, startDate: e.target.value }))}
-                  className="w-full"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Job Type</label>
-                <Select 
+              <div className="pathfinder-applications__form-group">
+                <label>Job Type</label>
+                <select 
+                  className="pathfinder-applications__withdrawal-select"
                   value={acceptanceDetails.jobType}
-                  onValueChange={(value) => setAcceptanceDetails(prev => ({ ...prev, jobType: value }))}
+                  onChange={(e) => setAcceptanceDetails(prev => ({ ...prev, jobType: e.target.value }))}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="full-time">Full-Time</SelectItem>
-                    <SelectItem value="part-time">Part-Time</SelectItem>
-                    <SelectItem value="contract">Contract</SelectItem>
-                    <SelectItem value="internship">Internship</SelectItem>
-                    <SelectItem value="freelance">Freelance</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <option value="full-time">Full-Time</option>
+                  <option value="part-time">Part-Time</option>
+                  <option value="contract">Contract</option>
+                  <option value="internship">Internship</option>
+                  <option value="freelance">Freelance</option>
+                </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Notes (Benefits, Negotiations, etc.)</label>
+              <div className="pathfinder-applications__form-group">
+                <label>Notes (Benefits, Negotiations, etc.)</label>
                 <textarea
-                  className="w-full p-3 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                  className="pathfinder-applications__withdrawal-select"
                   rows="3"
                   placeholder="Add any notes about the offer, benefits, negotiations, etc."
                   value={acceptanceDetails.acceptanceNotes}
@@ -2324,113 +2378,111 @@ function PathfinderApplications() {
                 />
               </div>
             </div>
+            
+            <div className="pathfinder-applications__withdrawal-modal-actions">
+              <button 
+                className="pathfinder-applications__withdrawal-btn-cancel"
+                onClick={handleAcceptanceCancel}
+              >
+                Cancel
+              </button>
+              <button 
+                className="pathfinder-applications__withdrawal-btn-confirm"
+                onClick={handleAcceptanceConfirm}
+              >
+                Confirm Acceptance
+              </button>
+            </div>
           </div>
-          
-          <DialogFooter className="gap-2">
-            <Button 
-              type="button"
-              variant="outline"
-              onClick={handleAcceptanceCancel}
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="button"
-              onClick={handleAcceptanceConfirm}
-              className="bg-[#4242ea] text-white hover:bg-[#3333d1]"
-            >
-              Confirm Acceptance
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
       {/* Victory Celebration Modal */}
-      <Dialog open={showVictoryModal} onOpenChange={setShowVictoryModal}>
-        <DialogContent className="max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">
-              Job Accepted
-            </DialogTitle>
-          </DialogHeader>
+      {showVictoryModal && acceptedJob && jobJourneyStats && (
+        <div className="pathfinder-applications__victory-modal-overlay" onClick={() => setShowVictoryModal(false)}>
+          <div className="pathfinder-applications__victory-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pathfinder-applications__victory-modal-header">
+              <h2>Job Accepted</h2>
+              <button
+                className="pathfinder-applications__victory-modal-close"
+                onClick={() => setShowVictoryModal(false)}
+              >
+                ×
+              </button>
+            </div>
 
-          {acceptedJob && jobJourneyStats && (
-            <div className="space-y-6 py-4">
-              <div className="pb-6 border-b border-[#e0e0e0]">
-                <div className="text-2xl font-semibold text-[#1a1a1a] mb-2">
+            <div className="pathfinder-applications__victory-modal-content">
+              <div className="pathfinder-applications__victory-company-info">
+                <div className="pathfinder-applications__victory-company-name">
                   {acceptedJob.company_name}
                 </div>
-                <div className="text-base text-[#666666]">
+                <div className="pathfinder-applications__victory-role-title">
                   {acceptedJob.role_title}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <div className="text-xs font-semibold text-[#999999] uppercase tracking-wider">Journey Time</div>
-                  <div className="text-lg font-semibold text-[#1a1a1a]">
+              <div className="pathfinder-applications__victory-stats">
+                <div className="pathfinder-applications__victory-stat">
+                  <div className="pathfinder-applications__victory-stat-label">Journey Time</div>
+                  <div className="pathfinder-applications__victory-stat-value">
                     {jobJourneyStats.daysToAcceptance} {jobJourneyStats.daysToAcceptance === 1 ? 'day' : 'days'}
                   </div>
                 </div>
                 
                 {acceptedJob.finalSalary && (
-                  <div className="space-y-1">
-                    <div className="text-xs font-semibold text-[#999999] uppercase tracking-wider">Compensation</div>
-                    <div className="text-lg font-semibold text-[#1a1a1a]">
+                  <div className="pathfinder-applications__victory-stat">
+                    <div className="pathfinder-applications__victory-stat-label">Compensation</div>
+                    <div className="pathfinder-applications__victory-stat-value">
                       {acceptedJob.finalSalary}
                     </div>
                   </div>
                 )}
                 
                 {acceptedJob.startDate && (
-                  <div className="space-y-1">
-                    <div className="text-xs font-semibold text-[#999999] uppercase tracking-wider">Start Date</div>
-                    <div className="text-lg font-semibold text-[#1a1a1a]">
+                  <div className="pathfinder-applications__victory-stat">
+                    <div className="pathfinder-applications__victory-stat-label">Start Date</div>
+                    <div className="pathfinder-applications__victory-stat-value">
                       {new Date(acceptedJob.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center justify-center gap-6 p-4 bg-[#f9fafb] rounded-md">
-                <div className="flex flex-col gap-1 text-center">
-                  <div className="text-xs font-semibold text-[#999999] uppercase tracking-wider">Applied</div>
-                  <div className="text-sm text-[#1a1a1a] font-medium">
-                    {new Date(jobJourneyStats.appliedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </div>
+              <div className="pathfinder-applications__victory-timeline">
+                <div className="pathfinder-applications__victory-timeline-item">
+                  <div className="pathfinder-applications__victory-timeline-label">Applied</div>
+                  <div className="pathfinder-applications__victory-timeline-date">{new Date(jobJourneyStats.appliedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
                 </div>
-                <div className="text-xl text-[#4242ea] font-semibold">→</div>
-                <div className="flex flex-col gap-1 text-center">
-                  <div className="text-xs font-semibold text-[#999999] uppercase tracking-wider">Accepted</div>
-                  <div className="text-sm text-[#1a1a1a] font-medium">
-                    {new Date(jobJourneyStats.acceptedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </div>
+                <div className="pathfinder-applications__victory-timeline-arrow">→</div>
+                <div className="pathfinder-applications__victory-timeline-item">
+                  <div className="pathfinder-applications__victory-timeline-label">Accepted</div>
+                  <div className="pathfinder-applications__victory-timeline-date">{new Date(jobJourneyStats.acceptedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
                 </div>
               </div>
 
               {(activityCounts[acceptedJob.job_application_id] > 0 || buildCounts[acceptedJob.job_application_id] > 0) && (
-                <div className="p-3 bg-[#f9fafb] rounded-md">
-                  <div className="text-xs font-semibold text-[#999999] uppercase tracking-wider mb-2">
+                <div className="pathfinder-applications__victory-contributions">
+                  <div className="pathfinder-applications__victory-contributions-title">
                     Related Activity
                   </div>
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="pathfinder-applications__victory-contributions-items">
                     {activityCounts[acceptedJob.job_application_id] > 0 && (
-                      <Badge variant="secondary" className="text-sm px-3 py-1">
+                      <div className="pathfinder-applications__victory-contribution-badge">
                         {activityCounts[acceptedJob.job_application_id]} {activityCounts[acceptedJob.job_application_id] === 1 ? 'Hustle' : 'Hustles'}
-                      </Badge>
+                      </div>
                     )}
                     {buildCounts[acceptedJob.job_application_id] > 0 && (
-                      <Badge variant="secondary" className="text-sm px-3 py-1">
+                      <div className="pathfinder-applications__victory-contribution-badge">
                         {buildCounts[acceptedJob.job_application_id]} {buildCounts[acceptedJob.job_application_id] === 1 ? 'Build' : 'Builds'}
-                      </Badge>
+                      </div>
                     )}
                   </div>
                 </div>
               )}
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+      )}
       
       {/* Loading Curtain */}
       <LoadingCurtain isLoading={isLoading} />
