@@ -189,7 +189,6 @@ const AdmissionsDashboard = () => {
   });
 
 
-
   // Overview quick views state
 
   const [overviewQuickView, setOverviewQuickView] = useState('');
