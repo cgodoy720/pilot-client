@@ -64,8 +64,8 @@ const GradesTable = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {assessmentGrades.map((grade) => (
-              <TableRow key={grade.user_id}>
+            {assessmentGrades.map((grade, index) => (
+              <TableRow key={`${grade.user_id}-${grade.level || 'NA'}-${grade.assessment_period || 'NA'}-${grade.cohort || 'NA'}-${index}`}>
                 <TableCell>
                   <Checkbox
                     checked={selectedUsers.has(grade.user_id)}

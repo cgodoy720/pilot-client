@@ -121,7 +121,7 @@ const AssessmentGrades = () => {
     }
   };
 
-  const fetchAssessmentGrades = async (resetOffset = false, filtersToUse = filters) => {
+  const fetchAssessmentGrades = async (resetOffset = false, filtersToUse = filters, offsetOverride = null) => {
     const requestId = ++latestGradesRequestIdRef.current;
 
     // Cancel older in-flight request so only the latest filter/query wins
@@ -133,7 +133,7 @@ const AssessmentGrades = () => {
 
     try {
       setLoading(true);
-      const currentOffset = resetOffset ? 0 : pagination.offset;
+      const currentOffset = resetOffset ? 0 : (offsetOverride ?? pagination.offset);
       
       const queryParams = new URLSearchParams({
         limit: pagination.limit.toString(),
@@ -182,7 +182,18 @@ const AssessmentGrades = () => {
         setAssessmentGrades(data.data || []);
         setPagination(prev => ({ ...prev, offset: 0, ...data.pagination }));
       } else {
-        setAssessmentGrades(prev => [...prev, ...(data.data || [])]);
+        setAssessmentGrades(prev => {
+          const merged = [...prev, ...(data.data || [])];
+          const uniqueByUserId = new Map();
+
+          for (const grade of merged) {
+            if (!uniqueByUserId.has(grade.user_id)) {
+              uniqueByUserId.set(grade.user_id, grade);
+            }
+          }
+
+          return Array.from(uniqueByUserId.values());
+        });
         setPagination(prev => ({ ...prev, ...data.pagination }));
       }
       
@@ -316,8 +327,9 @@ const AssessmentGrades = () => {
 
   const loadMore = () => {
     if (pagination.hasMore && !loading) {
-      setPagination(prev => ({ ...prev, offset: prev.offset + prev.limit }));
-      fetchAssessmentGrades(false, appliedFiltersRef.current);
+      const nextOffset = pagination.offset + pagination.limit;
+      setPagination(prev => ({ ...prev, offset: nextOffset }));
+      fetchAssessmentGrades(false, appliedFiltersRef.current, nextOffset);
     }
   };
 
@@ -374,6 +386,13 @@ const AssessmentGrades = () => {
       setLoading(false);
     }
   };
+
+  const renderedCohorts = Array.from(
+    new Set((assessmentGrades || []).map((grade) => grade?.cohort).filter(Boolean))
+  );
+  const hasCohortMismatch =
+    !!appliedFiltersRef.current.cohort &&
+    renderedCohorts.some((cohortName) => cohortName !== appliedFiltersRef.current.cohort);
 
   // Overview editing functions
   const handleStartEditing = (grade) => {
@@ -481,6 +500,14 @@ const AssessmentGrades = () => {
           onExportData={exportData}
           onRefresh={() => fetchAssessmentGrades(true, appliedFiltersRef.current)}
         />
+
+        {appliedFiltersRef.current.cohort && (
+          <div className={`border rounded-lg p-3 text-sm ${hasCohortMismatch ? 'border-destructive bg-destructive/10 text-destructive' : 'border-border bg-muted/40 text-muted-foreground'}`}>
+            <span className="font-medium">Applied cohort:</span> {appliedFiltersRef.current.cohort} •{' '}
+            <span className="font-medium">Rendered rows:</span> {assessmentGrades.length} •{' '}
+            <span className="font-medium">Rendered cohorts:</span> {renderedCohorts.length > 0 ? renderedCohorts.join(', ') : 'None'}
+          </div>
+        )}
 
         {/* Pagination Info */}
         {assessmentGrades.length > 0 && (
