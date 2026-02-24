@@ -31,10 +31,6 @@ function ProgramDetails({ task, onComplete }) {
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
           <h3 className="font-semibold text-blue-900 mb-2">Program Kickoff Details</h3>
           <div className="text-blue-800 space-y-1">
-            <p><strong>Start Date:</strong> December 6th, 2025</p>
-            <p><strong>Arrival Time:</strong> 9:30 AM</p>
-            <p className="text-sm">(If you have requested a loaner laptop, please arrive at 9:15 AM)</p>
-            <p><strong>Program Start Time:</strong> 10:00 AM</p>
             <p><strong>Location:</strong> Pursuit HQ, 47-10 Austell Pl 2nd floor, Long Island City, NY 11101</p>
           </div>
         </div>

@@ -276,13 +276,7 @@ The Pursuit AI-Native Program is an intensive program designed to empower indivi
 • Adaptive Approach to Learning: Continuously adjusting the curriculum and approach based on real-time feedback and the evolving AI landscape.
 
 II. Program Schedule & Calendar
-Program Start Date: Saturday, December 6, 2025
 Program Duration: 2 months in AI Literacy, with the opportunity to continue for up to 7 months in AI Build and AI Showcase if selected. Please note that there may be breaks between program phases.
-
-Weekly Schedule:
-• Monday – Wednesday: 6:30 PM – 10:00 PM (In-Person, Long Island City)
-• Saturday – Sunday: 10:00 AM – 4:00 PM (In-Person, Long Island City)
-• Plus, dedicated time for self-directed learning and project development.
 
 Program Breakdown:
 Months 1-2: AI Literacy:
@@ -296,10 +290,6 @@ Months 3-4: AI Build:
 Months 5-7: AI Showcase:
 • Focus: Showcasing your skills, building your network, and securing employment opportunities.
 • Activities: Portfolio development, building in public, job searching, and interview preparation.
-
-Key Dates:
-• Commitment Ceremony & Launch Event: December 6, 2025
-• Good Job Agreement Start: If you proceed to the second stage of the program (L2), you will be subject to the payment obligations of the Good Job Agreement.
 
 III. Laptops & Space
 Builders are expected to bring their laptops if they have one. Those who need to borrow a laptop from Pursuit must sign a separate agreement on Launch Day. Borrowed laptops must remain at Pursuit's HQ and cannot be taken off-site.
