@@ -105,8 +105,11 @@ const columnLabels = {
   race: 'Race/Ethnicity',
   education: 'Education',
   referral: 'Referral Source',
-  pledge: 'Pledge Signed'
+  pledge: 'Pledge Signed',
+  preProgramIncome: 'Pre-Program Income'
 };
+
+
 
 
 // Helper function to calculate age from date of birth
@@ -292,6 +295,13 @@ const ApplicationRow = React.memo(({
           )}
         </TableCell>
       )}
+
+      {visibleColumns.preProgramIncome && (
+        <TableCell className="font-proxima text-gray-600 max-w-[160px] truncate" title={app.personal_income}>
+          {app.personal_income || '-'}
+        </TableCell>
+      )}
+
 
       {visibleColumns.notes && (
         <TableCell>
@@ -1205,7 +1215,11 @@ const ApplicationsTab = ({
                   {visibleColumns.pledge && (
                     <TableHead className="font-proxima-bold">Pledge</TableHead>
                   )}
+                  {visibleColumns.preProgramIncome && (
+                    <TableHead className="font-proxima-bold">Pre-Program Income</TableHead>
+                  )}
                   {visibleColumns.notes && (
+
                     <TableHead className="font-proxima-bold">Notes</TableHead>
                   )}
 
