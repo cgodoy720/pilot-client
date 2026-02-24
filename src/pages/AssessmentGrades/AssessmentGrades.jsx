@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { toast } from 'sonner';
@@ -29,9 +29,13 @@ const AssessmentGrades = () => {
 
   // Filter states
   const [filters, setFilters] = useState({
-    assessmentCohort: '',
+    cohort: '',
     assessmentPeriod: ''
   });
+  const filtersRef = useRef(filters);
+  const appliedFiltersRef = useRef(filters);
+  const latestGradesRequestIdRef = useRef(0);
+  const activeGradesRequestControllerRef = useRef(null);
   const [availableCohorts, setAvailableCohorts] = useState([]);
   const [availablePeriods, setAvailablePeriods] = useState([]);
 
@@ -53,6 +57,14 @@ const AssessmentGrades = () => {
     
     fetchInitialData();
   }, [user, authToken, canAccessPage]);
+
+  useEffect(() => {
+    return () => {
+      if (activeGradesRequestControllerRef.current) {
+        activeGradesRequestControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const fetchInitialData = async () => {
     try {
@@ -109,7 +121,16 @@ const AssessmentGrades = () => {
     }
   };
 
-  const fetchAssessmentGrades = async (resetOffset = false) => {
+  const fetchAssessmentGrades = async (resetOffset = false, filtersToUse = filters) => {
+    const requestId = ++latestGradesRequestIdRef.current;
+
+    // Cancel older in-flight request so only the latest filter/query wins
+    if (activeGradesRequestControllerRef.current) {
+      activeGradesRequestControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    activeGradesRequestControllerRef.current = controller;
+
     try {
       setLoading(true);
       const currentOffset = resetOffset ? 0 : pagination.offset;
@@ -120,7 +141,7 @@ const AssessmentGrades = () => {
       });
 
       // Add filters
-      Object.entries(filters).forEach(([key, value]) => {
+      Object.entries(filtersToUse).forEach(([key, value]) => {
         if (value) {
           queryParams.append(key, value);
         }
@@ -130,7 +151,8 @@ const AssessmentGrades = () => {
         headers: {
           'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json'
-        }
+        },
+        signal: controller.signal
       });
 
       if (!response.ok) {
@@ -138,6 +160,11 @@ const AssessmentGrades = () => {
       }
 
       const data = await response.json();
+
+      // Ignore stale responses that return out of order
+      if (requestId !== latestGradesRequestIdRef.current) {
+        return;
+      }
       
       // Debug pagination
       console.log('📊 Pagination Debug:', {
@@ -147,7 +174,7 @@ const AssessmentGrades = () => {
         receivedRecords: data.data?.length || 0,
         currentTotal: assessmentGrades.length,
         paginationData: data.pagination,
-        filters: filters,
+        filters: filtersToUse,
         queryUrl: `${import.meta.env.VITE_API_URL}/api/admin/assessment-grades?${queryParams}`
       });
       
@@ -160,29 +187,42 @@ const AssessmentGrades = () => {
       }
       
     } catch (err) {
+      if (err.name === 'AbortError') {
+        return;
+      }
       console.error('Error fetching assessment grades:', err);
       setError('Failed to fetch assessment grades');
     } finally {
-      setLoading(false);
+      if (requestId === latestGradesRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters(prev => {
+      const nextFilters = { ...prev, [key]: value };
+      filtersRef.current = nextFilters;
+      return nextFilters;
+    });
   };
 
   const applyFilters = () => {
+    appliedFiltersRef.current = { ...filtersRef.current };
     setSelectedUsers(new Set());
-    fetchAssessmentGrades(true);
+    fetchAssessmentGrades(true, appliedFiltersRef.current);
   };
 
   const clearFilters = () => {
-    setFilters({
-      assessmentCohort: '',
+    const resetFilters = {
+      cohort: '',
       assessmentPeriod: ''
-    });
+    };
+    setFilters(resetFilters);
+    filtersRef.current = resetFilters;
+    appliedFiltersRef.current = resetFilters;
     setSelectedUsers(new Set());
-    fetchAssessmentGrades(true);
+    fetchAssessmentGrades(true, resetFilters);
   };
 
   const handleUserSelection = (userId, isSelected) => {
@@ -197,11 +237,11 @@ const AssessmentGrades = () => {
     });
   };
 
-  const handleSelectAll = () => {
-    if (selectedUsers.size === assessmentGrades.length) {
-      setSelectedUsers(new Set());
-    } else {
+  const handleSelectAll = (selectAll) => {
+    if (selectAll) {
       setSelectedUsers(new Set(assessmentGrades.map(grade => grade.user_id)));
+    } else {
+      setSelectedUsers(new Set());
     }
   };
 
@@ -226,7 +266,7 @@ const AssessmentGrades = () => {
       const queryParams = new URLSearchParams({ format });
       
       // Add current filters to export
-      Object.entries(filters).forEach(([key, value]) => {
+      Object.entries(appliedFiltersRef.current).forEach(([key, value]) => {
         if (value) {
           queryParams.append(key, value);
         }
@@ -277,7 +317,7 @@ const AssessmentGrades = () => {
   const loadMore = () => {
     if (pagination.hasMore && !loading) {
       setPagination(prev => ({ ...prev, offset: prev.offset + prev.limit }));
-      fetchAssessmentGrades(false);
+      fetchAssessmentGrades(false, appliedFiltersRef.current);
     }
   };
 
@@ -291,7 +331,7 @@ const AssessmentGrades = () => {
       const queryParams = new URLSearchParams();
 
       // Add filters but NO limit/offset
-      Object.entries(filters).forEach(([key, value]) => {
+      Object.entries(appliedFiltersRef.current).forEach(([key, value]) => {
         if (value) {
           queryParams.append(key, value);
         }
@@ -439,7 +479,7 @@ const AssessmentGrades = () => {
           onSendEmails={handleSendEmails}
           onLoadAllRecords={loadAllRecords}
           onExportData={exportData}
-          onRefresh={() => fetchAssessmentGrades(true)}
+          onRefresh={() => fetchAssessmentGrades(true, appliedFiltersRef.current)}
         />
 
         {/* Pagination Info */}

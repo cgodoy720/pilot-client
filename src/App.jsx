@@ -60,6 +60,9 @@ import SalesTracker from './pages/SalesTracker/SalesTracker';
 // Weekly Reports page
 import WeeklyReports from './pages/Admin/WeeklyReports/WeeklyReports';
 
+// Platform Analytics page
+import PlatformAnalytics from './pages/Admin/PlatformAnalytics/PlatformAnalytics';
+
 import { useAuth } from './context/AuthContext';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
@@ -337,6 +340,15 @@ function App() {
           <Layout>
             <PermissionRoute permission={PAGE_PERMISSIONS.WEEKLY_REPORTS}>
               <WeeklyReports />
+            </PermissionRoute>
+          </Layout>
+        } />
+
+        {/* Platform Analytics (Admin only) */}
+        <Route path="/admin/platform-analytics" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.PLATFORM_ANALYTICS}>
+              <PlatformAnalytics />
             </PermissionRoute>
           </Layout>
         } />
