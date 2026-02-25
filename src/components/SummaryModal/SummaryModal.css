@@ -1,11 +1,13 @@
-/* Summary Modal Styles */
+/* Summary Modal Styles - Light Theme */
+/* Matches app theme: bg-light (#EFEFEF), white, carbon-black (#1E1E1E), pursuit-purple (#4242EA) */
+
 .summary-modal__overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: rgba(30, 30, 30, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -29,16 +31,17 @@
 }
 
 .summary-modal__container {
-  background-color: var(--color-background-dark);
-  border-radius: 8px;
+  background-color: #FFFFFF;
+  border-radius: 12px;
   max-width: 850px;
   width: 95%;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(30, 30, 30, 0.15);
   overflow: hidden;
   animation: slideIn 0.2s ease-out;
+  border: 1px solid #C8C8C8;
 }
 
 @keyframes slideIn {
@@ -51,10 +54,10 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--color-border);
-  background-color: var(--color-background-darker);
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
+  border-bottom: 1px solid #C8C8C8;
+  background-color: #EFEFEF;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
 }
 
 .summary-modal__title-section {
@@ -67,7 +70,8 @@
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: #1E1E1E;
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .summary-modal__cached-badge {
@@ -75,7 +79,7 @@
   align-items: center;
   gap: 4px;
   background: rgba(76, 175, 80, 0.1);
-  color: #4CAF50;
+  color: #2E7D32;
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 0.75rem;
@@ -86,16 +90,18 @@
 .summary-modal__close-btn {
   background: none;
   border: none;
-  padding: 0;
+  padding: 8px;
   cursor: pointer;
-  color: var(--color-text-secondary);
-  font-size: 1.5rem;
+  color: #6B6B6B;
+  font-size: 1.25rem;
   line-height: 1;
-  transition: color 0.2s;
+  transition: color 0.2s, background-color 0.2s;
+  border-radius: 6px;
 }
 
 .summary-modal__close-btn:hover {
-  color: var(--color-text-primary);
+  color: #1E1E1E;
+  background-color: #E3E3E3;
 }
 
 .summary-modal__close-btn--error {
@@ -124,24 +130,25 @@
   flex: 1;
   overflow-y: auto;
   padding: 24px 28px;
+  background-color: #FFFFFF;
 }
 
 .summary-modal__body::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .summary-modal__body::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 3px;
+  background: #EFEFEF;
+  border-radius: 4px;
 }
 
 .summary-modal__body::-webkit-scrollbar-thumb {
-  background-color: var(--color-primary);
-  border-radius: 3px;
+  background-color: #4242EA;
+  border-radius: 4px;
 }
 
 .summary-modal__body::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-primary-hover);
+  background-color: #3535C7;
 }
 
 .summary-modal__loading {
@@ -152,8 +159,8 @@
 .summary-modal__loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid rgba(255, 255, 255, 0.1);
-  border-top: 3px solid var(--color-primary);
+  border: 3px solid #E3E3E3;
+  border-top: 3px solid #4242EA;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 16px;
@@ -168,37 +175,39 @@
   margin: 0 0 8px 0;
   font-size: 1.1rem;
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: #1E1E1E;
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .summary-modal__loading small {
-  color: var(--color-text-secondary);
+  color: #6B6B6B;
   font-size: 0.9rem;
 }
 
 .summary-modal__error {
   text-align: center;
   padding: 40px 20px;
-  background-color: rgba(231, 76, 60, 0.1);
+  background-color: rgba(231, 76, 60, 0.08);
   border-radius: 8px;
-  border: 1px solid rgba(231, 76, 60, 0.3);
+  border: 1px solid rgba(231, 76, 60, 0.2);
 }
 
 .summary-modal__error h4 {
   margin: 0 0 12px 0;
   font-size: 1.2rem;
   font-weight: 600;
-  color: #e74c3c;
+  color: #c0392b;
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .summary-modal__error p {
   margin: 0 0 12px 0;
   font-size: 1rem;
-  color: var(--color-text-primary);
+  color: #1E1E1E;
 }
 
 .summary-modal__error small {
-  color: var(--color-text-secondary);
+  color: #6B6B6B;
   font-size: 0.85rem;
   display: block;
   margin-top: 8px;
@@ -211,7 +220,7 @@
 }
 
 .summary-modal__error-close-btn {
-  background: var(--color-primary);
+  background: #4242EA;
   color: white;
   border: none;
   padding: 10px 20px;
@@ -220,36 +229,38 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .summary-modal__error-close-btn:hover {
-  background: var(--color-primary-hover);
+  background: #3535C7;
   transform: translateY(-1px);
 }
 
 .summary-modal__article-info {
   margin-bottom: 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid #C8C8C8;
 }
 
 .summary-modal__article-title {
   margin: 0 0 8px 0;
   font-size: 1.2rem;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: #1E1E1E;
   line-height: 1.3;
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .summary-modal__source-info {
   margin: 0 0 12px 0;
   font-size: 0.9rem;
-  color: var(--color-text-secondary);
+  color: #6B6B6B;
   font-style: italic;
 }
 
 .summary-modal__article-link {
-  color: var(--color-primary);
+  color: #4242EA;
   text-decoration: none;
   font-weight: 500;
   font-size: 0.95rem;
@@ -257,7 +268,7 @@
 }
 
 .summary-modal__article-link:hover {
-  color: var(--color-primary-hover);
+  color: #3535C7;
   text-decoration: underline;
 }
 
@@ -272,7 +283,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--color-primary);
+  background: #4242EA;
   color: white;
   border: none;
   padding: 10px 16px;
@@ -283,16 +294,17 @@
   transition: all 0.2s ease;
   text-decoration: none;
   white-space: nowrap;
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .summary-modal__discuss-btn:hover:not(:disabled) {
-  background: var(--color-primary-hover);
+  background: #3535C7;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(66, 66, 234, 0.3);
 }
 
 .summary-modal__discuss-btn:disabled {
-  background: var(--color-text-secondary);
+  background: #C8C8C8;
   cursor: not-allowed;
   opacity: 0.7;
 }
@@ -307,11 +319,12 @@
 }
 
 .summary-modal__heading {
-  color: var(--color-text-primary);
+  color: #1E1E1E;
   font-weight: 600;
   margin: 24px 0 12px 0;
   line-height: 1.3;
   text-align: left;
+  font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .summary-modal__heading:first-child {
@@ -320,7 +333,7 @@
 
 .summary-modal__paragraph {
   margin: 0 0 16px 0;
-  color: var(--color-text-secondary);
+  color: #4A4A4A;
   line-height: 1.7;
   text-align: left;
 }
@@ -333,7 +346,7 @@
 
 .summary-modal__list-item {
   margin-bottom: 8px;
-  color: var(--color-text-secondary);
+  color: #4A4A4A;
   line-height: 1.6;
   text-align: left;
 }
@@ -348,12 +361,12 @@
 
 .summary-modal__list-item--section-title .summary-modal__bold {
   font-size: 1.1em;
-  color: var(--color-text-primary);
+  color: #1E1E1E;
 }
 
 .summary-modal__bold {
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: #1E1E1E;
 }
 
 .summary-modal__italic {
@@ -361,36 +374,36 @@
 }
 
 .summary-modal__inline-code {
-  background: var(--color-background-darker);
-  border: 1px solid var(--color-border);
+  background: #EFEFEF;
+  border: 1px solid #C8C8C8;
   border-radius: 4px;
   padding: 2px 6px;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 0.9em;
-  color: var(--color-primary);
+  color: #4242EA;
 }
 
 .summary-modal__code-block {
   display: block;
-  background: var(--color-background-darker);
-  border: 1px solid var(--color-border);
+  background: #EFEFEF;
+  border: 1px solid #C8C8C8;
   border-radius: 6px;
   padding: 12px;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 0.9em;
   overflow-x: auto;
   margin: 16px 0;
-  color: var(--color-text-secondary);
+  color: #1E1E1E;
 }
 
 .summary-modal__footer {
   padding: 16px 24px;
-  border-top: 1px solid var(--color-border);
-  background: var(--color-background-darker);
+  border-top: 1px solid #C8C8C8;
+  background: #EFEFEF;
 }
 
 .summary-modal__disclaimer {
-  color: var(--color-text-secondary);
+  color: #6B6B6B;
   font-size: 0.85rem;
   margin: 0;
   text-align: center;
@@ -437,4 +450,4 @@
     width: 100%;
     justify-content: center;
   }
-} 
+}

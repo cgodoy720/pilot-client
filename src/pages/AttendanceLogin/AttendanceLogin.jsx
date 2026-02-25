@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import logoFull from '../../assets/logo-full.png';
 import { storeAuthData, isAuthenticated, validateToken } from '../../utils/attendanceAuth';
-import './AttendanceLogin.css';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import ArrowButton from '../../components/ArrowButton/ArrowButton';
 
 const AttendanceLogin = () => {
   const [email, setEmail] = useState('');
@@ -166,98 +168,157 @@ const AttendanceLogin = () => {
   };
 
   return (
-    <div className="attendance-login-container">
-      <div className="attendance-login-form-container">
-        <div className="attendance-login-logo-container">
-          <img src={logoFull} alt="Pursuit Logo" className="attendance-login-logo" />
-        </div>
-        
-        <div className="attendance-login-headline">
-          <h1>ATTENDANCE<br />MANAGEMENT<br />SYSTEM</h1>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="attendance-login-form">
-          {error && <div className="attendance-login-error">{error}</div>}
-          {successMessage && (
-            <div className={`attendance-login-success ${isRedirecting ? 'redirecting' : ''}`}>
-              {successMessage}
-              {isRedirecting && <div className="redirect-spinner"></div>}
-            </div>
-          )}
-          
-          <div className="attendance-login-input-group">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Admin Email"
-              required
-              className="attendance-login-input"
-              disabled={isSubmitting || isRedirecting}
-              aria-label="Admin email address"
-            />
+    <div 
+      className="min-h-screen relative flex flex-col font-sans"
+      style={{
+        background: 'linear-gradient(158.49deg, #4242EA 29.85%, #FFD3C2 116.57%)'
+      }}
+    >
+      {/* Header */}
+      <div className="absolute top-5 left-8">
+        <h1 className="text-white text-xl md:text-2xl font-sans leading-tight">
+          Attendance Management System
+        </h1>
+      </div>
+      
+      {/* Top Right - Back to Main */}
+      <div className="absolute top-7 right-8 flex items-center gap-2">
+        <span className="text-white text-sm font-sans">
+          Back to main app
+        </span>
+        <Link to="/login">
+          <ArrowButton 
+            size="sm"
+            borderColor="white"
+            arrowColor="white"
+            backgroundColor="transparent"
+            hoverBackgroundColor="white"
+            hoverArrowColor="#4242EA"
+          />
+        </Link>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col items-center justify-center px-8">
+        <div className="w-full max-w-md">
+          {/* Logo */}
+          <div className="flex justify-center mb-8">
+            <img src={logoFull} alt="Pursuit Logo" className="h-12 w-auto" />
           </div>
           
-          <div className="attendance-login-input-group password-input-group">
-            <input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              required
-              className="attendance-login-input"
-              disabled={isSubmitting || isRedirecting}
-              aria-label="Admin password"
-            />
-            <button 
-              type="button" 
-              className="password-toggle"
-              onClick={() => setShowPassword(!showPassword)}
-              disabled={isSubmitting || isRedirecting}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? "Hide" : "Show"}
-            </button>
+          {/* Title */}
+          <div className="text-center mb-10">
+            <h2 className="text-white text-3xl md:text-4xl font-bold font-sans leading-tight">
+              Staff Sign In
+            </h2>
+            <p className="text-white/80 text-base mt-2 font-sans">
+              Access the attendance dashboard
+            </p>
           </div>
-          
-          <div className="attendance-login-button-group">
-            <button 
-              type="submit" 
-              className="attendance-login-button"
-              disabled={isSubmitting || isRedirecting}
-              aria-label="Sign in to attendance system"
-            >
-              {isSubmitting ? (
-                <>
-                  <span className="button-spinner"></span>
-                  Signing In...
-                </>
-              ) : isRedirecting ? (
-                'Redirecting...'
-              ) : (
-                'Sign In'
-              )}
-            </button>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-500/20 border border-red-400/50 text-white px-4 py-3 rounded-lg text-sm text-center">
+                {error}
+              </div>
+            )}
             
-            {!isSubmitting && !isRedirecting && (
+            {/* Success Message */}
+            {successMessage && (
+              <div className="bg-green-500/20 border border-green-400/50 text-white px-4 py-3 rounded-lg text-sm text-center flex items-center justify-center gap-2">
+                {successMessage}
+                {isRedirecting && (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                )}
+              </div>
+            )}
+            
+            {/* Email Input */}
+            <div>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Admin Email"
+                required
+                disabled={isSubmitting || isRedirecting}
+                className="w-full bg-white/10 border-white/30 text-white placeholder:text-white/50 focus:border-white focus:ring-white/50 h-12 text-base"
+              />
+            </div>
+            
+            {/* Password Input */}
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                required
+                disabled={isSubmitting || isRedirecting}
+                className="w-full bg-white/10 border-white/30 text-white placeholder:text-white/50 focus:border-white focus:ring-white/50 h-12 text-base pr-16"
+              />
               <button 
                 type="button" 
-                className="attendance-login-reset-button"
-                onClick={handleReset}
-                aria-label="Clear form"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-sm font-medium transition-colors"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={isSubmitting || isRedirecting}
               >
-                Clear Form
+                {showPassword ? "Hide" : "Show"}
               </button>
-            )}
+            </div>
+            
+            {/* Buttons */}
+            <div className="space-y-3 pt-2">
+              <Button 
+                type="submit" 
+                disabled={isSubmitting || isRedirecting}
+                className="w-full bg-white text-[#4242EA] hover:bg-white/90 h-12 text-base font-semibold rounded-full"
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-[#4242EA]/30 border-t-[#4242EA] rounded-full animate-spin" />
+                    Signing In...
+                  </span>
+                ) : isRedirecting ? (
+                  'Redirecting...'
+                ) : (
+                  'Sign In'
+                )}
+              </Button>
+              
+              {!isSubmitting && !isRedirecting && (
+                <button 
+                  type="button" 
+                  className="w-full text-white/70 hover:text-white text-sm font-medium transition-colors py-2"
+                  onClick={handleReset}
+                >
+                  Clear Form
+                </button>
+              )}
+            </div>
+          </form>
+          
+          {/* Footer */}
+          <div className="mt-10 text-center">
+            <p className="text-white/60 text-sm font-sans">
+              Staff and admin access only
+            </p>
+            <p className="text-white/40 text-xs mt-2 font-sans">
+              Having trouble? Contact your system administrator
+            </p>
           </div>
-        </form>
-        
-        <div className="attendance-login-footer">
-          <p>Staff and admin access only</p>
-          <p className="attendance-login-help">
-            Having trouble? Contact your system administrator
-          </p>
         </div>
+      </div>
+
+      {/* Bottom Right Logo */}
+      <div className="absolute bottom-8 right-8 hidden md:block">
+        <img 
+          src={logoFull} 
+          alt="Pursuit Logo" 
+          className="h-[71.93px] w-[280px] opacity-50" 
+        />
       </div>
     </div>
   );

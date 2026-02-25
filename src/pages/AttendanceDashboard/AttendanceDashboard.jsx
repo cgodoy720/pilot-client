@@ -11,6 +11,7 @@ import {
 import './AttendanceDashboard.css';
 import logoImage from '../../assets/logo.png';
 import CohortAttendanceCard from '../../components/CohortAttendanceCard/CohortAttendanceCard';
+import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 
 
 const AttendanceDashboard = () => {
@@ -21,9 +22,8 @@ const AttendanceDashboard = () => {
   
   // Check-in workflow states
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
+  const [allBuilders, setAllBuilders] = useState([]);
   const [selectedBuilder, setSelectedBuilder] = useState(null);
-  const [isSearching, setIsSearching] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState(null);
@@ -69,8 +69,11 @@ const AttendanceDashboard = () => {
       const session = getSessionInfo();
       setSessionInfo(session);
 
-      // Load today's attendance
-      await loadTodayAttendance();
+      // Load today's attendance and all builders
+      await Promise.all([
+        loadTodayAttendance(),
+        loadAllBuilders()
+      ]);
 
       setIsLoading(false);
 
@@ -104,20 +107,17 @@ const AttendanceDashboard = () => {
     }
   }, [isLoading]);
 
-  // Search builders as user types
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchQuery.trim().length >= 2) {
-        searchBuilders(searchQuery);
-      } else {
-        setSearchResults([]);
-      }
-    }, 300); // Increased delay to reduce API calls and prevent focus disruption
-
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
-
-  // Removed aggressive focus restoration that was interfering with natural typing
+  // Filter builders client-side based on search query
+  const filteredBuilders = searchQuery.trim().length >= 2
+    ? allBuilders.filter(builder => {
+        const query = searchQuery.toLowerCase();
+        const firstName = (builder.firstName || '').toLowerCase();
+        const lastName = (builder.lastName || '').toLowerCase();
+        const fullName = `${firstName} ${lastName}`;
+        const cohort = (builder.cohort || '').toLowerCase();
+        return firstName.includes(query) || lastName.includes(query) || fullName.includes(query) || cohort.includes(query);
+      })
+    : [];
 
   // Cleanup camera on component unmount
   useEffect(() => {
@@ -266,10 +266,9 @@ const AttendanceDashboard = () => {
     }
   };
 
-  const searchBuilders = async (query) => {
-    setIsSearching(true);
+  const loadAllBuilders = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/attendance/builders?search=${encodeURIComponent(query)}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/attendance/builders`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('attendanceToken')}`,
           'Content-Type': 'application/json'
@@ -278,19 +277,16 @@ const AttendanceDashboard = () => {
       
       if (response.ok) {
         const data = await response.json();
-        setSearchResults(data.builders || []);
+        setAllBuilders(data.builders || []);
       }
     } catch (error) {
-      console.error('Error searching builders:', error);
-    } finally {
-      setIsSearching(false);
+      console.error('Error loading builders:', error);
     }
   };
 
   const handleBuilderSelect = (builder) => {
     setSelectedBuilder(builder);
     setSearchQuery(`${builder.firstName} ${builder.lastName}`);
-    setSearchResults([]);
     // Don't automatically show camera - let user continue typing if they want
   };
 
@@ -452,30 +448,49 @@ const AttendanceDashboard = () => {
     console.log('🔍 User ID from id:', selectedBuilder.id);
     console.log('🔍 User ID from user_id:', selectedBuilder.user_id);
     console.log('🔍 User ID from userId:', selectedBuilder.userId);
+    console.log('🔍 User Type:', selectedBuilder.userType);
+    console.log('🔍 Slot ID:', selectedBuilder.slotId);
     
     setIsSubmitting(true);
     try {
+      // Build request body - include userType and slotId for volunteers
+      const requestBody = {
+        userId: selectedBuilder.id || selectedBuilder.user_id || selectedBuilder.userId,
+        photoData: capturedPhoto
+      };
+
+      // If this is a volunteer, include their userType and slotId
+      if (selectedBuilder.userType === 'volunteer' && selectedBuilder.slotId) {
+        requestBody.userType = 'volunteer';
+        requestBody.slotId = selectedBuilder.slotId;
+        console.log('📋 Processing VOLUNTEER check-in with slotId:', selectedBuilder.slotId);
+      }
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/attendance/checkin`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('attendanceToken')}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          userId: selectedBuilder.id || selectedBuilder.user_id || selectedBuilder.userId,
-          photoData: capturedPhoto
-        })
+        body: JSON.stringify(requestBody)
       });
       
       if (response.ok) {
         const data = await response.json();
         setCheckInStatus({ type: 'success', message: 'Check-in successful!' });
         
+        // Custom message for volunteers
+        const displayName = data.userType === 'volunteer'
+          ? `Volunteer ${selectedBuilder.firstName} ${selectedBuilder.lastName}`
+          : `${selectedBuilder.firstName} ${selectedBuilder.lastName}`;
+
         // Start celebratory sequence
-        startCelebratorySequence(`${selectedBuilder.firstName} ${selectedBuilder.lastName}`);
+        startCelebratorySequence(displayName);
         
         // Refresh attendance data immediately
         loadTodayAttendance();
+        // Also refresh builders list to remove checked-in volunteer
+        loadAllBuilders();
       } else {
         const errorData = await response.json();
         setCheckInStatus({ type: 'error', message: errorData.error || 'Check-in failed' });
@@ -492,9 +507,11 @@ const AttendanceDashboard = () => {
     // Stop camera if running
     stopCamera();
     
+    // Reset search and selection
     setSearchQuery('');
-    setSearchResults([]);
     setSelectedBuilder(null);
+    
+    // Reset camera and photo states
     setShowCamera(false);
     setCapturedPhoto(null);
     setCheckInStatus(null);
@@ -535,25 +552,27 @@ const AttendanceDashboard = () => {
     // Start scan animation
     setShowScanAnimation(true);
     
-    // After 0.3s, automatically show welcome celebration
+    // After 0.8s, automatically show welcome celebration
     setTimeout(() => {
       setShowScanAnimation(false);
       setShowWelcomeCelebration(true);
       
-      // After 1s, show photo transport
+      // After 1.5s, show photo transport
       setTimeout(() => {
         setShowPhotoTransport(true);
         
-        // After 0.5s, hide photo transport but keep welcome celebration
+        // After 1s, hide photo transport but keep welcome celebration
         setTimeout(() => {
           setShowPhotoTransport(false);
-          // Keep welcome celebration visible for 2 more seconds so button can appear
+          // Keep welcome celebration visible for 2.5 more seconds, then auto-reset
           setTimeout(() => {
             setShowWelcomeCelebration(false);
-          }, 2000);
-        }, 500);
-      }, 1000);
-    }, 300);
+            // Auto-reset for next builder
+            resetCheckInForm();
+          }, 2500);
+        }, 1000);
+      }, 1500);
+    }, 800);
   };
 
   const handleLogout = () => {
@@ -596,14 +615,6 @@ const AttendanceDashboard = () => {
     // Convert to cohort data structure
     const cohortData = [];
     
-    // Map cohort names to display names
-    const cohortMapping = {
-      'March 2025': { name: 'Pilot', level: 'L3' },
-      'June 2025': { name: 'June 2025', level: 'L2' },
-      'September 2025': { name: 'September', level: 'L1' },
-      'Unknown Cohort': { name: 'Unknown', level: 'L?' }
-    };
-
     cohortsData.forEach(cohortGroup => {
       console.log('🔍 Processing cohort group:', cohortGroup);
       
@@ -635,12 +646,10 @@ const AttendanceDashboard = () => {
         };
       });
       
-      const mapping = cohortMapping[cohortName] || { name: cohortName, level: 'L?' };
-      console.log(`Creating cohort card for ${cohortName} -> ${mapping.name} ${mapping.level} with ${normalizedAttendees.length} attendees`);
+      console.log(`Creating cohort card for ${cohortName} with ${normalizedAttendees.length} attendees`);
       
       cohortData.push({
-        cohortName: mapping.name,
-        cohortLevel: mapping.level,
+        cohortName: cohortName,
         attendees: normalizedAttendees
       });
     });
@@ -660,30 +669,11 @@ const AttendanceDashboard = () => {
     return '#c53030'; // Dark red
   };
 
-  if (isLoading) {
-    return (
-      <div className="attendance-dashboard-loading">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoggingOut) {
-    return (
-      <div className="attendance-dashboard-loading">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Logging out...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="attendance-dashboard">
+    <>
+      <LoadingCurtain isLoading={isLoading || isLoggingOut} />
+      {!isLoading && !isLoggingOut && (
+        <div className="attendance-dashboard">
       <div className="attendance-dashboard-header">
         <div className="attendance-dashboard-title">
           <h1>AI-Native Builder Sign In</h1>
@@ -748,14 +738,12 @@ const AttendanceDashboard = () => {
                     onBlur={handleSearchBlur}
                     placeholder="Type builder name to search..."
                     className="builder-search-input"
-                    disabled={isSearching}
                     autoComplete="off"
                   />
-                  {isSearching && <div className="search-spinner"></div>}
                   
-                                  {searchResults.length > 0 && (
+                  {filteredBuilders.length > 0 && !selectedBuilder && (
                   <div className="search-results">
-                    {searchResults.map((builder) => (
+                    {filteredBuilders.map((builder) => (
                         <button
                           key={builder.id}
                           onClick={() => handleBuilderSelect(builder)}
@@ -770,7 +758,7 @@ const AttendanceDashboard = () => {
                   )}
                 </div>
                 
-                {searchQuery && searchResults.length === 0 && !isSearching && !selectedBuilder && (
+                {searchQuery.trim().length >= 2 && filteredBuilders.length === 0 && !selectedBuilder && (
                   <div className="no-results">
                     No builders found matching "{searchQuery}"
                   </div>
@@ -1004,9 +992,8 @@ const AttendanceDashboard = () => {
             console.log('🔍 Rendering cohort cards, data:', cohortData);
             return cohortData.map((cohort, index) => (
               <CohortAttendanceCard
-                key={`${cohort.cohortLevel}-${cohort.cohortName}-${index}`}
+                key={`${cohort.cohortName}-${index}`}
                 cohortName={cohort.cohortName}
-                cohortLevel={cohort.cohortLevel}
                 attendees={cohort.attendees}
                 className="cohort-card"
               />
@@ -1042,16 +1029,13 @@ const AttendanceDashboard = () => {
       
       {/* Photo Scan Animation */}
       {showScanAnimation && (
-        <div 
-          className="scan-animation-overlay"
-        >
+        <div className="scan-animation-overlay">
           <div className="scan-animation-content">
             <div className="scan-flash"></div>
             <div className="logo-spin-container">
               <img 
                 src={logoImage} 
                 alt="Pursuit Logo" 
-                className="spinning-logo"
               />
             </div>
             <div className="scan-text">Processing...</div>
@@ -1104,6 +1088,8 @@ const AttendanceDashboard = () => {
         </div>
       )}
     </div>
+      )}
+    </>
   );
 };
 

@@ -1,9 +1,11 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
-import './Pathfinder.css';
+import { useAuth } from '../../context/AuthContext';
 
 function Pathfinder() {
   const location = useLocation();
+  const { user } = useAuth();
+  const isStaff = user?.role === 'staff' || user?.role === 'admin';
   
   // Redirect to dashboard if on /pathfinder root
   if (location.pathname === '/pathfinder' || location.pathname === '/pathfinder/') {
@@ -11,13 +13,17 @@ function Pathfinder() {
   }
 
   return (
-    <div className="pathfinder">
+    <div className="w-full max-w-full mx-auto overflow-x-hidden bg-[#f5f5f5] min-h-screen text-[#1a1a1a]">
       {/* Secondary Navigation */}
-      <nav className="pathfinder__nav">
+      <nav className="h-[45px] flex gap-0 border-b-2 border-[#e0e0e0] mb-8 bg-[#f5f5f5]">
         <NavLink
           to="/pathfinder/dashboard"
           className={({ isActive }) =>
-            `pathfinder__nav-link ${isActive ? 'pathfinder__nav-link--active' : ''}`
+            `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+              isActive 
+                ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]' 
+                : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
+            }`
           }
         >
           Dashboard
@@ -25,7 +31,11 @@ function Pathfinder() {
         <NavLink
           to="/pathfinder/networking"
           className={({ isActive }) =>
-            `pathfinder__nav-link ${isActive ? 'pathfinder__nav-link--active' : ''}`
+            `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+              isActive 
+                ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]' 
+                : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
+            }`
           }
         >
           Hustle Tracker
@@ -33,7 +43,11 @@ function Pathfinder() {
         <NavLink
           to="/pathfinder/projects"
           className={({ isActive }) =>
-            `pathfinder__nav-link ${isActive ? 'pathfinder__nav-link--active' : ''}`
+            `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+              isActive 
+                ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]' 
+                : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
+            }`
           }
         >
           Build Tracker
@@ -41,15 +55,58 @@ function Pathfinder() {
         <NavLink
           to="/pathfinder/applications"
           className={({ isActive }) =>
-            `pathfinder__nav-link ${isActive ? 'pathfinder__nav-link--active' : ''}`
+            `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+              isActive 
+                ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]' 
+                : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
+            }`
           }
         >
           Job Tracker
         </NavLink>
+        <NavLink
+          to="/pathfinder/events"
+          className={({ isActive }) =>
+            `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+              isActive
+                ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
+                : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
+            }`
+          }
+        >
+          EventHub
+        </NavLink>
+        <NavLink
+          to="/pathfinder/network"
+          className={({ isActive }) =>
+            `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+              isActive
+                ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
+                : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
+            }`
+          }
+        >
+          Network
+        </NavLink>
+        {/* Jobs tab hidden for now — re-enable when ready */}
+        {isStaff && (
+          <NavLink
+            to="/pathfinder/staff-network"
+            className={({ isActive }) =>
+              `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+                isActive
+                  ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
+                  : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
+              }`
+            }
+          >
+            Staff Inbox
+          </NavLink>
+        )}
       </nav>
 
       {/* Content Area */}
-      <div className="pathfinder__content">
+      <div className="w-full max-w-full overflow-x-hidden">
         <Outlet />
       </div>
     </div>

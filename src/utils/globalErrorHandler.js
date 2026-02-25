@@ -27,6 +27,18 @@ const enhancedFetch = async (...args) => {
           console.log('📧 Email verification error detected, skipping global handler...');
           return response;
         }
+        
+        // Skip global handling for assessment API errors - let component handle it
+        if (url.includes('/api/assessments/')) {
+          console.log('🎯 Assessment API error detected, letting component handle it...');
+          localStorage.setItem('lastGlobalErrorBypass', JSON.stringify({
+            timestamp: new Date().toISOString(),
+            url,
+            status: response.status,
+            reason: 'assessment_api_bypass'
+          }));
+          return response;
+        }
       } catch (parseError) {
         // If we can't parse the error, continue with normal global handling
         console.log('⚠️ Could not parse error data for verification check');

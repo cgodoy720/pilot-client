@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App.jsx'
 import Login from './pages/Login/Login.jsx'
 import Signup from './pages/Signup/Signup.jsx'
@@ -18,23 +19,31 @@ import ApplicationForm from './pages/ApplicationForm/index.js'
 import InfoSessions from './pages/InfoSessions/index.js'
 import Workshops from './pages/Workshops/index.js'
 import ProgramDetails from './pages/ProgramDetails/index.js'
+import PaymentTerms from './pages/PaymentTerms/index.js'
 import Pledge from './pages/Pledge/index.js'
 import Onboarding from './pages/Onboarding/Onboarding.jsx'
-import OnboardingGuide from './pages/Onboarding/OnboardingGuide.jsx'
-import AttendancePolicy from './pages/Onboarding/AttendancePolicy.jsx'
-import PursuitEmail from './pages/Onboarding/PursuitEmail.jsx'
-import GoogleCalendar from './pages/Onboarding/GoogleCalendar.jsx'
-import Slack from './pages/Onboarding/Slack.jsx'
-import Kisi from './pages/Onboarding/Kisi.jsx'
-import BuildingInPublic from './pages/Onboarding/BuildingInPublic.jsx'
-import EngageTechNews from './pages/Onboarding/EngageTechNews.jsx'
-import AdditionalSystems from './pages/Onboarding/AdditionalSystems.jsx'
 import Unsubscribe from './pages/Unsubscribe/Unsubscribe.jsx'
+
+// Public form pages
+import PublicFormContainer from './pages/PublicForm/PublicFormContainer.jsx'
 
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { isAuthenticated } from './utils/attendanceAuth'
 import './utils/globalErrorHandler.js' // Install global auth error handler
+import 'animate.css'
 import './index.css'
+
+// Create a client for React Query
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30000, // Data is fresh for 30 seconds
+      refetchInterval: 30000, // Refetch every 30 seconds for polling
+      refetchOnWindowFocus: true, // Refetch when window regains focus
+      retry: 1, // Retry failed requests once
+    },
+  },
+});
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -63,56 +72,53 @@ const AttendanceRoute = ({ children }) => {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password/:token" element={<ResetPassword />} />
-          <Route path="/verify-email/:token" element={<VerifyEmail />} />
-          <Route path="/resend-verification" element={<ResendVerification />} />
-          
-          {/* Attendance system routes - must come before the catch-all route */}
-          <Route path="/attendance-login" element={<AttendanceLogin />} />
-          <Route path="/attendance-dashboard" element={
-            <AttendanceRoute>
-              <AttendanceDashboard />
-            </AttendanceRoute>
-          } />
-          
-          {/* Applicant routes (public, no builder auth required) */}
-          <Route path="/apply/signup" element={<ApplicantSignup />} />
-          <Route path="/apply" element={<ApplicantDashboard />} />
-          <Route path="/application-form" element={<ApplicationForm />} />
-          <Route path="/info-sessions" element={<InfoSessions />} />
-          <Route path="/workshops" element={<Workshops />} />
-          <Route path="/program-details" element={<ProgramDetails />} />
-          <Route path="/pledge" element={<Pledge />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/onboarding/guide" element={<OnboardingGuide />} />
-          <Route path="/onboarding/attendance-policy" element={<AttendancePolicy />} />
-          <Route path="/onboarding/pursuit-email" element={<PursuitEmail />} />
-          <Route path="/onboarding/google-calendar" element={<GoogleCalendar />} />
-          <Route path="/onboarding/slack" element={<Slack />} />
-          <Route path="/onboarding/kisi" element={<Kisi />} />
-          <Route path="/onboarding/building-in-public" element={<BuildingInPublic />} />
-          <Route path="/onboarding/engage-tech-news" element={<EngageTechNews />} />
-          <Route path="/onboarding/additional-systems" element={<AdditionalSystems />} />
-          <Route path="/unsubscribe" element={<Unsubscribe />} />
-          
-          {/* Protected builder routes */}
-          <Route 
-            path="/*" 
-            element={
-              <ProtectedRoute>
-                <App />
-              </ProtectedRoute>
-            } 
-          />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
+            <Route path="/verify-email/:token" element={<VerifyEmail />} />
+            <Route path="/resend-verification" element={<ResendVerification />} />
+            
+            {/* Attendance system routes - must come before the catch-all route */}
+            <Route path="/attendance-login" element={<AttendanceLogin />} />
+            <Route path="/attendance-dashboard" element={
+              <AttendanceRoute>
+                <AttendanceDashboard />
+              </AttendanceRoute>
+            } />
+            
+            {/* Applicant routes (public, no builder auth required) */}
+            <Route path="/apply/signup" element={<ApplicantSignup />} />
+            <Route path="/apply" element={<ApplicantDashboard />} />
+            <Route path="/application-form" element={<ApplicationForm />} />
+            <Route path="/info-sessions" element={<InfoSessions />} />
+            <Route path="/workshops" element={<Workshops />} />
+            <Route path="/program-details" element={<ProgramDetails />} />
+            <Route path="/payment-terms" element={<PaymentTerms />} />
+            <Route path="/pledge" element={<Pledge />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
+            
+            {/* Public form routes (no auth required) */}
+            <Route path="/form/:slug" element={<PublicFormContainer />} />
+            
+            {/* Protected builder routes */}
+            <Route 
+              path="/*" 
+              element={
+                <ProtectedRoute>
+                  <App />
+                </ProtectedRoute>
+              } 
+            />
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   </React.StrictMode>,
 )

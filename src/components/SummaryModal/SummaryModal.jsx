@@ -28,8 +28,8 @@ function SummaryModal({
   // Check if user has active status
   const isActive = user?.active !== false;
 
-  // Check if we're currently on the GPT page
-  const isOnGPTPage = location.pathname === '/gpt';
+  // Check if we're currently on the AI Chat page
+  const isOnGPTPage = location.pathname === '/ai-chat';
 
   // Helper function to check if URL is a YouTube video
   const isYouTubeVideo = (url) => {
@@ -100,7 +100,7 @@ function SummaryModal({
         summaryData: encodeURIComponent(JSON.stringify(summaryDataForUrl))
       });
       
-      navigate(`/gpt?${params.toString()}`);
+      navigate(`/ai-chat?${params.toString()}`);
       
     } catch (error) {
       console.error('Error creating article discussion:', error);

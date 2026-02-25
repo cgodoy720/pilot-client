@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
-import { FaSpinner, FaFileAlt, FaEdit, FaSave, FaTimes, FaExpand, FaDownload, FaChevronDown, FaChevronRight, FaExpandArrowsAlt, FaCompressArrowsAlt } from 'react-icons/fa';
+import { Loader2, FileText, Edit, Save, X, Expand, Download, ChevronDown, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Badge } from '../../../components/ui/badge';
+import { Textarea } from '../../../components/ui/textarea';
+import { toast } from 'sonner';
 import './FacilitatorNotesGenerator.css';
 
 const FacilitatorNotesGenerator = ({ sharedData = {}, updateSharedData = () => {} }) => {
@@ -407,7 +412,8 @@ const FacilitatorNotesGenerator = ({ sharedData = {}, updateSharedData = () => {
   };
 
   return (
-    <div className="facilitator-notes-generator">
+    <div className="space-y-6">
+      <div className="facilitator-notes-generator">
       <div className="facilitator-notes-generator__header">
         <h2>Phase 3: Facilitator Notes Generator</h2>
         <p>Generate AI-powered facilitation guidance for your finalized session content</p>
@@ -1153,6 +1159,7 @@ const FacilitatorNotesGenerator = ({ sharedData = {}, updateSharedData = () => {
           <p>Complete Phase 1 (JSON Generator) and Phase 2 (Session Tester) to generate facilitator notes</p>
         </div>
       )}
+    </div>
     </div>
   );
 };

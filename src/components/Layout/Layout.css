@@ -1,244 +1,153 @@
+/* Temporary Layout.css for dev's Layout.jsx */
+/* This will be replaced when we convert Layout to Tailwind/shadcn */
+
 .layout {
   display: flex;
-  height: 100%;
+  height: 100vh;
   width: 100%;
-  position: absolute;
-  left: 0;
-  top: 0;
+  background-color: #f5f5f5;
 }
 
 .layout__sidebar {
-  /* background-color: #252525; */
-  /* background-color: #1e1e1e; */
   background-color: #1a1f2c;
-  color: #FFFFFF;
+  color: white;
+  transition: width 0.3s ease;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: width 0.3s ease;
-  padding: 1rem 1rem 1rem 1rem; /* Explicit padding on all sides */
-  height: 100%;
-  position: relative;
-}
-
-.layout__sidebar--expanded {
-  width: 250px;
 }
 
 .layout__sidebar--collapsed {
-  width: 80px;
+  width: 60px;
+}
+
+.layout__sidebar--expanded {
+  width: 240px;
 }
 
 .layout__sidebar-header {
+  padding: 1rem;
   display: flex;
-  justify-content: center;
-  margin-bottom: 1.5rem;
-  position: relative;
-  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.layout__logo {
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo-small {
+  width: 32px;
   height: 32px;
-  width: auto;
   object-fit: contain;
 }
 
-.layout__toggle-btn {
-  position: absolute !important;
-  right: -41px !important;
-  top: 20px;
-  background-color: #4242ea !important;
-  border-radius: 0 8px 8px 0 !important;
-  padding: 4px !important;
-  min-width: 16px !important;
-  height: 32px !important;
-  color: white !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1) !important;
-  
-  &:hover {
-    background-color: #5555ff !important;
-  }
+.logo-full {
+  height: 32px;
+  object-fit: contain;
 }
 
-.layout__toggle-btn svg {
-  font-size: 16px;
+.layout__sidebar--collapsed .logo-full {
+  display: none;
+}
+
+.layout__sidebar--expanded .logo-small {
+  display: none;
+}
+
+.layout__toggle-btn {
+  color: white !important;
 }
 
 .layout__nav-links {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
   overflow-y: auto;
-  overflow-x: hidden;
+  padding: 1rem 0;
 }
 
 .layout__nav-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.75rem 1rem;
+  color: rgba(255, 255, 255, 0.7);
   text-decoration: none;
-  color: #e3e3e3;
-  border-radius: 8px;
-  transition: all 0.2s;
-  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border-left: 3px solid transparent;
 }
 
 .layout__nav-item:hover {
-  background-color: rgba(66, 66, 234, 0.1);
-  color: #FFFFFF;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: white;
 }
 
 .layout__nav-item--active {
-  background-color: rgba(66, 66, 234, 0.2);
-  color: #FFFFFF;
+  background-color: rgba(66, 66, 234, 0.1);
+  color: #4242ea;
+  border-left-color: #4242ea;
 }
 
-.layout__nav-item--active .layout__nav-icon {
-  opacity: 1;
-  color: #4242ea;
+.layout__nav-item--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .layout__nav-item--sub {
-  padding-left: 2.5rem;
-  font-size: 0.95rem;
-}
-
-.layout__sidebar--collapsed .layout__nav-item--sub {
-  padding-left: 0.75rem;
-}
-
-.layout__bottom-links {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding-bottom: 0.25rem;
-}
-
-.layout__content {
-  flex: 1;
-  padding: 2rem;
-  background-color: #1a1f2c;
-  color: #FFFFFF;
-  overflow-y: auto;
-  overflow-x: hidden;
-  height: 100%;
-  min-height: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.layout__content--light {
-  background-color: #f5f5f5;
-  color: #1a1a1a;
-  padding-top: 0;
+  padding-left: 2rem;
+  font-size: 0.9rem;
 }
 
 .layout__nav-icon {
-  font-size: 1.15rem;
-  min-width: 20px;
-  opacity: 0.7;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.layout__nav-item:hover .layout__nav-icon {
-  opacity: 1;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
 }
 
 .layout__nav-text {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.layout__sidebar .logo-container {
-  position: relative;
-  height: 35px;
-  width: 100%;
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
+.layout__sidebar--collapsed .layout__nav-text {
+  display: none;
 }
 
-.layout__sidebar .logo-container img {
-  height: 100%;
-  width: auto;
-  object-fit: contain;
-  transition: opacity 0.3s ease;
-  position: absolute;
-  left: calc(0.75rem + 4px);
-  transform: none;
+.layout__sidebar-footer {
+  padding: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.layout__sidebar .logo-small {
-  opacity: 1;
-  max-width: 24px;
+.layout__content {
+  flex: 1;
+  overflow-y: auto;
+  background-color: #f5f5f5;
 }
 
-.layout__sidebar .logo-full {
-  opacity: 0;
-  max-width: 140px;
+.layout__content--light {
+  background-color: white;
 }
 
-.layout__sidebar--expanded .logo-small {
-  opacity: 0;
+/* Responsive */
+@media (max-width: 768px) {
+  .layout__sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    z-index: 1000;
+  }
+  
+  .layout__sidebar--collapsed {
+    width: 0;
+  }
+  
+  .layout__content {
+    margin-left: 0;
+  }
 }
 
-.layout__sidebar--expanded .logo-full {
-  opacity: 1;
-}
-
-.layout__logout-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  width: 100%;
-  text-align: left;
-  padding: 0.5rem 0.75rem; /* Match the padding of other nav items */
-  font-family: inherit;
-  color: inherit;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem; /* Match the gap of other nav items */
-  font-size: 0.9rem;
-}
-
-/* Ensure the logout icon aligns with other nav icons */
-.layout__bottom-links .layout__nav-item {
-  height: 36px; /* Set a consistent height for all bottom nav items */
-  display: flex;
-  align-items: center;
-}
-
-/* Ensure consistent spacing in the bottom links section */
-.layout__bottom-links {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding-bottom: 0.25rem;
-}
-
-/* Disabled navigation item */
-.layout__nav-item--disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  position: relative;
-}
-
-.layout__nav-item--disabled:hover {
-  background-color: transparent;
-  color: #e3e3e3;
-}
-
-.layout__nav-item--disabled .layout__nav-icon {
-  opacity: 0.5;
-}
-
-.layout__nav-item--disabled:hover .layout__nav-icon {
-  opacity: 0.5;
-} 

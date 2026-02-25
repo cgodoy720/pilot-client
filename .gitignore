@@ -24,3 +24,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# stryker temp files
+.stryker-tmp
+
+# Visual guides and visual-explainer tool
+/visual-guides/
+/visual-explainer/

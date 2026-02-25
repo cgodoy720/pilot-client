@@ -1,16 +1,6 @@
 import React from 'react';
-import { 
-  Box, 
-  Chip, 
-  Tooltip, 
-  Typography,
-  IconButton,
-  Badge
-} from '@mui/material';
-import WifiIcon from '@mui/icons-material/Wifi';
-import WifiOffIcon from '@mui/icons-material/WifiOff';
-import SyncIcon from '@mui/icons-material/Sync';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import { Wifi, WifiOff, RefreshCw, AlertCircle } from 'lucide-react';
+import { Badge } from '../ui/badge';
 import { useNetworkStatus } from '../../utils/networkStatus';
 
 const NetworkStatusIndicator = ({ onRetry }) => {
@@ -18,16 +8,16 @@ const NetworkStatusIndicator = ({ onRetry }) => {
 
   const getStatusColor = () => {
     if (isOnline) {
-      return queuedActions > 0 ? 'warning' : 'success';
+      return queuedActions > 0 ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-green-100 text-green-700 border-green-300';
     }
-    return 'error';
+    return 'bg-red-100 text-red-700 border-red-300';
   };
 
   const getStatusIcon = () => {
     if (isOnline) {
-      return queuedActions > 0 ? <SyncIcon /> : <WifiIcon />;
+      return queuedActions > 0 ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Wifi className="h-3 w-3" />;
     }
-    return <WifiOffIcon />;
+    return <WifiOff className="h-3 w-3" />;
   };
 
   const getStatusText = () => {
@@ -51,48 +41,31 @@ const NetworkStatusIndicator = ({ onRetry }) => {
     if (onRetry) {
       onRetry();
     } else {
-      // Force process queued actions
       networkStatus.processQueuedActions();
     }
   };
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <Tooltip title={getTooltipText()} arrow>
-        <Chip
-          icon={getStatusIcon()}
-          label={getStatusText()}
-          color={getStatusColor()}
-          size="small"
-          variant={isOnline ? 'filled' : 'outlined'}
-          onClick={queuedActions > 0 ? handleRetry : undefined}
-          sx={{
-            cursor: queuedActions > 0 ? 'pointer' : 'default',
-            '&:hover': queuedActions > 0 ? {
-              backgroundColor: 'var(--color-primary-hover)',
-              color: 'white'
-            } : {}
-          }}
-        />
-      </Tooltip>
+    <div className="flex items-center gap-2">
+      <button
+        onClick={queuedActions > 0 ? handleRetry : undefined}
+        title={getTooltipText()}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor()} ${queuedActions > 0 ? 'cursor-pointer hover:opacity-80' : 'cursor-default'} transition-opacity`}
+      >
+        {getStatusIcon()}
+        {getStatusText()}
+      </button>
       
       {!isOnline && (
-        <Tooltip title="Retry connection" arrow>
-          <IconButton 
-            size="small" 
-            onClick={handleRetry}
-            sx={{ 
-              color: 'var(--color-text-secondary)',
-              '&:hover': {
-                color: 'var(--color-primary)'
-              }
-            }}
-          >
-            <ErrorOutlineIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        <button
+          onClick={handleRetry}
+          title="Retry connection"
+          className="p-1.5 hover:bg-[#EFEFEF] rounded-md transition-colors"
+        >
+          <AlertCircle className="h-4 w-4 text-[#666666] hover:text-[#4242EA]" />
+        </button>
       )}
-    </Box>
+    </div>
   );
 };
 

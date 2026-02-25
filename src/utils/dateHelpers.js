@@ -143,3 +143,39 @@ export const formatInEasternTime = (dbDate, formatType = 'time') => {
     });
   }
 }; 
+
+/**
+ * Format attendance check-in timestamps consistently as Eastern Time.
+ * Handles legacy values where ET clock values were stored with a UTC suffix.
+ *
+ * @param {Date|string} timestamp - Attendance timestamp
+ * @returns {string} Formatted time string, e.g. "4:35 PM"
+ */
+export const formatAttendanceTimeEST = (timestamp) => {
+  if (!timestamp) return '--';
+
+  // Legacy compatibility:
+  // For values like 2026-02-17T16:35:40.000Z, treat HH:mm as the intended ET clock time.
+  if (typeof timestamp === 'string') {
+    const match = timestamp.match(/T(\d{2}):(\d{2})/);
+    if (match) {
+      const hour24 = parseInt(match[1], 10);
+      const minute = match[2];
+      if (!isNaN(hour24) && hour24 >= 0 && hour24 <= 23) {
+        const suffix = hour24 >= 12 ? 'PM' : 'AM';
+        const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+        return `${hour12}:${minute} ${suffix}`;
+      }
+    }
+  }
+
+  const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+  if (isNaN(date.getTime())) return '--';
+
+  return date.toLocaleTimeString('en-US', {
+    timeZone: 'America/New_York',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+};

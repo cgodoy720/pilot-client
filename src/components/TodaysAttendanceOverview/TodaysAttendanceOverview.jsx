@@ -1,83 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Card, 
-  CardContent, 
-  Typography, 
-  Grid, 
-  Chip, 
-  CircularProgress,
-  Alert,
-  IconButton,
-  Tooltip
-} from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import PeopleIcon from '@mui/icons-material/People';
-import ScheduleIcon from '@mui/icons-material/Schedule';
-import WarningIcon from '@mui/icons-material/Warning';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { Users, RefreshCw, Clock, CheckCircle, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Card, CardContent } from '../ui/card';
+import { Badge } from '../ui/badge';
 import { cachedAdminApi } from '../../services/cachedAdminApi';
 import { useAuth } from '../../context/AuthContext';
-import { useNetworkStatus } from '../../utils/networkStatus';
-import './TodaysAttendanceOverview.css';
 
 const TodaysAttendanceOverview = () => {
   const { token } = useAuth();
-  const { isOnline } = useNetworkStatus(React);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [cacheInfo, setCacheInfo] = useState(null);
-  const [fetchTime, setFetchTime] = useState(null);
-  const [isOfflineMode, setIsOfflineMode] = useState(false);
+  
+  // Drill-down state
+  const [expandedCohort, setExpandedCohort] = useState(null);
+  const [cohortDetails, setCohortDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   const fetchData = async (forceRefresh = false) => {
     try {
       setLoading(true);
       setError(null);
       
-      // If offline, try to get cached data only
-      if (!isOnline) {
-        setIsOfflineMode(true);
-        const response = await cachedAdminApi.getCachedTodaysAttendance(token, { forceRefresh: false, offlineOnly: true });
-        
-        if (response.data) {
-          setData(response.data);
-          setLastUpdated(new Date());
-          setCacheInfo({
-            isFromCache: true,
-            cachedAt: response.cachedAt,
-            expiresAt: response.expiresAt
-          });
-          setFetchTime(response.fetchTime || 0);
-        } else {
-          setError('No cached data available. Please connect to the internet to load data.');
-        }
-        return;
-      }
-      
-      setIsOfflineMode(false);
       const response = await cachedAdminApi.getCachedTodaysAttendance(token, { forceRefresh });
       
       setData(response.data);
       setLastUpdated(new Date());
-      setCacheInfo({
-        isFromCache: response.isFromCache,
-        cachedAt: response.cachedAt,
-        expiresAt: response.expiresAt
-      });
-      setFetchTime(response.fetchTime || 0);
     } catch (err) {
-      console.error('Error fetching today\'s attendance overview:', err);
-      
-      // If it's a network error and we have cached data, show it
-      if (!isOnline && data) {
-        setIsOfflineMode(true);
-        setError('Showing cached data - no network connection');
-      } else {
-        setError(err.message);
-      }
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -85,474 +35,306 @@ const TodaysAttendanceOverview = () => {
 
   useEffect(() => {
     fetchData();
-    
-    // Auto-refresh every 30 seconds
     const interval = setInterval(fetchData, 30000);
-    
     return () => clearInterval(interval);
   }, [token]);
 
   const handleRefresh = () => {
-    fetchData(true); // Force refresh, bypass cache
+    fetchData(true);
   };
 
-  const getAttendanceRateColor = (rate) => {
-    if (rate >= 85) return 'success';
-    if (rate >= 70) return 'warning';
-    return 'error';
-  };
+  const handleCohortClick = async (cohortName) => {
+    if (expandedCohort === cohortName) {
+      setExpandedCohort(null);
+      setCohortDetails(null);
+      return;
+    }
 
-  const getAttendanceRateIcon = (rate) => {
-    if (rate >= 85) return <CheckCircleIcon />;
-    if (rate >= 70) return <WarningIcon />;
-    return <WarningIcon />;
+    try {
+      setExpandedCohort(cohortName);
+      setLoadingDetails(true);
+      
+      // Find the cohort data from the already-loaded data
+      const cohortData = data.cohorts.find(c => c.cohort === cohortName);
+      
+      if (!cohortData) {
+        setError('Cohort not found');
+        return;
+      }
+      
+      // Filter builders to only show checked-in ones (present, late, excused)
+      const checkedInBuilders = cohortData.builders.filter(b => 
+        b.status === 'present' || b.status === 'late' || b.status === 'excused'
+      );
+      
+      setCohortDetails({
+        checkedIn: checkedInBuilders
+      });
+    } catch (err) {
+      console.error('Error loading cohort details:', err);
+      setError('Failed to load cohort details');
+    } finally {
+      setLoadingDetails(false);
+    }
   };
 
   const formatTime = (timeString) => {
     if (!timeString) return 'N/A';
     try {
-      const date = new Date(timeString);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      // The timestamp is stored in EST 24-hour format but has a Z suffix
+      // Strip the Z to treat it as local time (already EST)
+      const cleanedTimeString = timeString.replace('Z', '');
+      const date = new Date(cleanedTimeString);
+      if (isNaN(date.getTime())) return 'Invalid time';
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     } catch (error) {
       return 'Invalid time';
     }
   };
 
-  const getLateArrivalColor = (minutes) => {
-    if (minutes === 0) return 'success';
-    if (minutes <= 15) return 'warning';
-    return 'error';
-  };
-
   if (loading && !data) {
     return (
-      <Box className="todays-attendance-overview">
-        <Box className="todays-attendance-overview__loading">
-          <CircularProgress />
-          <Typography variant="body1" sx={{ mt: 2 }}>
-            Loading today's attendance data...
-          </Typography>
-        </Box>
-      </Box>
+      <div className="flex flex-col items-center justify-center py-16">
+        <RefreshCw className="h-8 w-8 text-[#4242EA] animate-spin mb-4" />
+        <p className="text-slate-600">Loading today's attendance...</p>
+      </div>
     );
   }
 
-  if (error) {
+  if (error && !data) {
     return (
-      <Box className="todays-attendance-overview">
-        <Alert 
-          severity="error" 
-          action={
-            <IconButton color="inherit" size="small" onClick={handleRefresh}>
-              <RefreshIcon />
-            </IconButton>
-          }
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-600" />
+          <span className="text-red-600">Error loading attendance data: {error}</span>
+        </div>
+        <button
+          onClick={handleRefresh}
+          className="p-2 hover:bg-red-100 rounded-md transition-colors"
         >
-          Error loading attendance data: {error}
-        </Alert>
-      </Box>
+          <RefreshCw className="h-4 w-4 text-red-600" />
+        </button>
+      </div>
     );
   }
 
   if (!data) {
     return (
-      <Box className="todays-attendance-overview">
-        <Alert severity="info">
-          No attendance data available for today.
-        </Alert>
-      </Box>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
+        <AlertTriangle className="h-5 w-5 text-blue-600" />
+        <span className="text-blue-600">No attendance data available for today.</span>
+      </div>
     );
   }
 
+  // Calculate totals - focus on who's HERE today
+  const totalCheckedIn = (data.summary?.present || 0) + (data.summary?.late || 0);
+  const totalExcused = data.summary?.excused || 0;
+  const totalAbsent = data.summary?.absent || 0;
+
   return (
-    <Box className="todays-attendance-overview">
-      <Box className="todays-attendance-overview__header">
-        <Box className="todays-attendance-overview__title-section">
-          <PeopleIcon className="todays-attendance-overview__title-icon" />
-          <Typography variant="h5" component="h2" className="todays-attendance-overview__title">
-            Today's Attendance Overview
-          </Typography>
-        </Box>
-        <Box className="todays-attendance-overview__actions">
-          {isOfflineMode && (
-            <Chip 
-              label="Offline Mode - Cached Data" 
-              color="warning" 
-              size="small" 
-              variant="outlined"
-              sx={{ mr: 1 }}
-            />
-          )}
-          {lastUpdated && (
-            <Typography 
-              variant="caption" 
-              className="todays-attendance-overview__last-updated"
-              sx={{ color: '#FFFFFF' }}
-            >
-              Last updated: {lastUpdated.toLocaleTimeString()}
-            </Typography>
-          )}
-          {cacheInfo && (
-            <Box className="todays-attendance-overview__cache-info">
-              <Chip
-                size="small"
-                label={cacheInfo.isFromCache ? 'Cached' : 'Live'}
-                color={cacheInfo.isFromCache ? 'info' : 'success'}
-                variant="outlined"
-                icon={cacheInfo.isFromCache ? <CheckCircleIcon /> : <ScheduleIcon />}
-              />
-              {fetchTime && (
-                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                  ({fetchTime}ms)
-                </Typography>
-              )}
-            </Box>
-          )}
-          <Tooltip title="Refresh data (bypass cache)">
-            <IconButton onClick={handleRefresh} disabled={loading}>
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      </Box>
+    <div className="space-y-6">
+      {/* Header with Refresh */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold text-slate-900">Today's Attendance</h2>
+          <p className="text-sm text-slate-600 mt-1">
+            {lastUpdated && `Last updated ${lastUpdated.toLocaleTimeString()}`}
+          </p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
+      </div>
 
-      {/* Summary Cards - Modern Grid with Better Spacing */}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card 
-            className="todays-attendance-overview__summary-card"
-            sx={{
-              height: '100%',
-              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.05) 100%)',
-              border: '2px solid rgba(102, 126, 234, 0.3)',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 20px rgba(102, 126, 234, 0.3)',
-                border: '2px solid rgba(102, 126, 234, 0.5)'
-              }
-            }}
-          >
-            <CardContent sx={{ textAlign: 'center', py: 3 }}>
-              <PeopleIcon sx={{ fontSize: '3rem', color: '#667eea', mb: 1.5 }} />
-              <Typography variant="h3" component="div" sx={{ color: '#1a1a1a', fontWeight: 700, mb: 0.5 }}>
-                {(data.summary?.present || 0) + (data.summary?.late || 0) + (data.summary?.excused || 0)}
-              </Typography>
-              <Typography variant="body1" sx={{ color: '#4b5563', fontWeight: 600 }}>
-                Total Check-ins
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+      {/* Key Metrics - Clean & Focused */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        {/* Total Checked In */}
+        <Card className="bg-white border border-slate-200 shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Checked In</p>
+                <p className="text-3xl font-bold text-slate-900 mt-1">{totalCheckedIn}</p>
+              </div>
+              <div className="h-12 w-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-emerald-600" />
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Present + Late</p>
+          </CardContent>
+        </Card>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card 
-            className="todays-attendance-overview__summary-card"
-            sx={{
-              height: '100%',
-              background: 'linear-gradient(135deg, rgba(251, 146, 60, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%)',
-              border: '2px solid rgba(251, 146, 60, 0.3)',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 20px rgba(251, 146, 60, 0.3)',
-                border: '2px solid rgba(251, 146, 60, 0.5)'
-              }
-            }}
-          >
-            <CardContent sx={{ textAlign: 'center', py: 3 }}>
-              <ScheduleIcon sx={{ fontSize: '3rem', color: '#fb923c', mb: 1.5 }} />
-              <Typography variant="h3" component="div" sx={{ color: '#1a1a1a', fontWeight: 700, mb: 0.5 }}>
-                {data.summary?.late || 0}
-              </Typography>
-              <Typography variant="body1" sx={{ color: '#4b5563', fontWeight: 600 }}>
-                Late Arrivals
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+        {/* Present */}
+        <Card className="bg-white border border-slate-200 shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">On Time</p>
+                <p className="text-3xl font-bold text-slate-900 mt-1">{data.summary?.present || 0}</p>
+              </div>
+              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <Users className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Arrived on time</p>
+          </CardContent>
+        </Card>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card 
-            className="todays-attendance-overview__summary-card"
-            sx={{
-              height: '100%',
-              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
-              border: '2px solid rgba(239, 68, 68, 0.3)',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 20px rgba(239, 68, 68, 0.3)',
-                border: '2px solid rgba(239, 68, 68, 0.5)'
-              }
-            }}
-          >
-            <CardContent sx={{ textAlign: 'center', py: 3 }}>
-              <WarningIcon sx={{ fontSize: '3rem', color: '#ef4444', mb: 1.5 }} />
-              <Typography variant="h3" component="div" sx={{ color: '#1a1a1a', fontWeight: 700, mb: 0.5 }}>
-                {data.summary?.absent || 0}
-              </Typography>
-              <Typography variant="body1" sx={{ color: '#4b5563', fontWeight: 600 }}>
-                Absent
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+        {/* Late */}
+        <Card className="bg-white border border-slate-200 shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Late</p>
+                <p className="text-3xl font-bold text-slate-900 mt-1">{data.summary?.late || 0}</p>
+              </div>
+              <div className="h-12 w-12 bg-amber-100 rounded-lg flex items-center justify-center">
+                <Clock className="h-6 w-6 text-amber-600" />
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Arrived late</p>
+          </CardContent>
+        </Card>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card 
-            className="todays-attendance-overview__summary-card"
-            sx={{
-              height: '100%',
-              background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(22, 163, 74, 0.05) 100%)',
-              border: '2px solid rgba(34, 197, 94, 0.3)',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 20px rgba(34, 197, 94, 0.3)',
-                border: '2px solid rgba(34, 197, 94, 0.5)'
-              }
-            }}
-          >
-            <CardContent sx={{ textAlign: 'center', py: 3 }}>
-              <CheckCircleIcon sx={{ fontSize: '3rem', color: '#22c55e', mb: 1.5 }} />
-              <Typography variant="h3" component="div" sx={{ color: '#1a1a1a', fontWeight: 700, mb: 0.5 }}>
-                {data.summary?.totalBuilders || 0}
-              </Typography>
-              <Typography variant="body1" sx={{ color: '#4b5563', fontWeight: 600 }}>
-                Total Builders
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+        {/* Excused */}
+        <Card className="bg-white border border-slate-200 shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Excused</p>
+                <p className="text-3xl font-bold text-slate-900 mt-1">{totalExcused}</p>
+              </div>
+              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Excused absences</p>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Cohort Performance - Modern Cards with Better Contrast */}
-      <Typography variant="h6" sx={{ color: '#FFFFFF', mb: 2, fontWeight: 600 }}>
-        Cohort Breakdown
-      </Typography>
-      <Box className="todays-attendance-overview__cohorts-grid">
-        {data.cohorts?.map((cohort) => (
-          <Card 
-            key={cohort.cohort} 
-            className="todays-attendance-overview__cohort-card"
-            sx={{
-              background: '#FFFFFF',
-              border: '2px solid rgba(102, 126, 234, 0.2)',
-              borderRadius: '12px',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 20px rgba(102, 126, 234, 0.3)',
-                border: '2px solid rgba(102, 126, 234, 0.5)'
-              }
-            }}
-          >
-            <CardContent sx={{ p: 3 }}>
-              <Box className="todays-attendance-overview__cohort-header">
-                <Typography variant="h6" component="h3" sx={{ color: '#1a1a1a', fontWeight: 700 }}>
-                  {cohort.cohort}
-                </Typography>
-                <Chip
-                  icon={getAttendanceRateIcon(cohort.attendanceRate)}
-                  label={`${cohort.attendanceRate.toFixed(1)}%`}
-                  sx={{
-                    background: cohort.attendanceRate >= 85 ? 'rgba(34, 197, 94, 0.15)' :
-                               cohort.attendanceRate >= 70 ? 'rgba(251, 146, 60, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                    color: cohort.attendanceRate >= 85 ? '#16a34a' :
-                           cohort.attendanceRate >= 70 ? '#ea580c' : '#dc2626',
-                    border: `2px solid ${cohort.attendanceRate >= 85 ? '#22c55e' :
-                                         cohort.attendanceRate >= 70 ? '#fb923c' : '#ef4444'}`,
-                    fontWeight: 700,
-                    fontSize: '0.95rem'
-                  }}
-                />
-              </Box>
-
-              <Box className="todays-attendance-overview__cohort-stats">
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                  <Grid item xs={6} sm={3}>
-                    <Box sx={{ 
-                      textAlign: 'center', 
-                      p: 1.5, 
-                      background: 'rgba(34, 197, 94, 0.1)', 
-                      borderRadius: '8px',
-                      border: '1px solid rgba(34, 197, 94, 0.2)'
-                    }}>
-                      <Typography variant="h5" sx={{ color: '#16a34a', fontWeight: 700 }}>
-                        {cohort.present}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#1a1a1a', fontWeight: 600 }}>
-                        Present
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Box sx={{ 
-                      textAlign: 'center', 
-                      p: 1.5, 
-                      background: 'rgba(251, 146, 60, 0.1)', 
-                      borderRadius: '8px',
-                      border: '1px solid rgba(251, 146, 60, 0.2)'
-                    }}>
-                      <Typography variant="h5" sx={{ color: '#ea580c', fontWeight: 700 }}>
-                        {cohort.late}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#1a1a1a', fontWeight: 600 }}>
-                        Late
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Box sx={{ 
-                      textAlign: 'center', 
-                      p: 1.5, 
-                      background: 'rgba(59, 130, 246, 0.1)', 
-                      borderRadius: '8px',
-                      border: '1px solid rgba(59, 130, 246, 0.2)'
-                    }}>
-                      <Typography variant="h5" sx={{ color: '#2563eb', fontWeight: 700 }}>
-                        {cohort.excused}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#1a1a1a', fontWeight: 600 }}>
-                        Excused
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Box sx={{ 
-                      textAlign: 'center', 
-                      p: 1.5, 
-                      background: 'rgba(239, 68, 68, 0.1)', 
-                      borderRadius: '8px',
-                      border: '1px solid rgba(239, 68, 68, 0.2)'
-                    }}>
-                      <Typography variant="h5" sx={{ color: '#dc2626', fontWeight: 700 }}>
-                        {cohort.absent}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#1a1a1a', fontWeight: 600 }}>
-                        Absent
-                      </Typography>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </Box>
-
-              {/* Recent Check-ins */}
-              {cohort.recentCheckIns && cohort.recentCheckIns.length > 0 && (
-                <Box sx={{ mt: 3, pt: 2, borderTop: '2px solid rgba(0, 0, 0, 0.08)' }}>
-                  <Typography variant="subtitle2" sx={{ mb: 1.5, color: '#1a1a1a', fontWeight: 700 }}>
-                    Recent Check-ins
-                  </Typography>
-                  <Box className="todays-attendance-overview__checkin-list">
-                    {cohort.recentCheckIns.slice(0, 3).map((checkin, index) => (
-                      <Box 
-                        key={index} 
-                        sx={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          p: 1.5,
-                          background: 'rgba(0, 0, 0, 0.02)',
-                          borderRadius: '8px',
-                          border: '1px solid rgba(0, 0, 0, 0.08)',
-                          mb: 1,
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            background: 'rgba(102, 126, 234, 0.05)',
-                            border: '1px solid rgba(102, 126, 234, 0.2)'
-                          }
-                        }}
+      {/* Cohort Breakdown - Table Style */}
+      <Card className="bg-white border border-slate-200 shadow-sm">
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Cohort Breakdown</h3>
+          
+          <div className="space-y-2">
+            {data.cohorts?.map((cohort) => {
+              const attendanceRate = cohort.attendanceRate || 0;
+              const isExpanded = expandedCohort === cohort.cohort;
+              const totalCohortCheckedIn = cohort.present + cohort.late;
+              
+              return (
+                <div key={cohort.cohort} className="border border-slate-200 rounded-lg overflow-hidden">
+                  {/* Cohort Row */}
+                  <div
+                    onClick={() => handleCohortClick(cohort.cohort)}
+                    className="flex items-center justify-between p-4 hover:bg-slate-50 cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="flex items-center gap-2">
+                        {isExpanded ? (
+                          <ChevronUp className="h-5 w-5 text-slate-400" />
+                        ) : (
+                          <ChevronDown className="h-5 w-5 text-slate-400" />
+                        )}
+                        <span className="font-semibold text-slate-900">{cohort.cohort}</span>
+                      </div>
+                      
+                      {/* Attendance Rate Badge */}
+                      <Badge 
+                        className={`${
+                          attendanceRate >= 80 
+                            ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                            : 'bg-red-100 text-red-700 border-red-200'
+                        }`}
                       >
-                        <Typography variant="body2" sx={{ color: '#1a1a1a', fontWeight: 600 }}>
-                          {checkin.firstName} {checkin.lastName}
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="caption" sx={{ color: '#4b5563', fontWeight: 600 }}>
-                            {formatTime(checkin.checkInTime)}
-                          </Typography>
-                          {checkin.lateArrivalMinutes > 0 && (
-                            <Chip
-                              label={`+${checkin.lateArrivalMinutes}m`}
-                              size="small"
-                              sx={{
-                                background: checkin.lateArrivalMinutes <= 15 ? 'rgba(251, 146, 60, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                                color: checkin.lateArrivalMinutes <= 15 ? '#ea580c' : '#dc2626',
-                                border: `2px solid ${checkin.lateArrivalMinutes <= 15 ? '#fb923c' : '#ef4444'}`,
-                                height: '24px',
-                                fontSize: '0.75rem',
-                                fontWeight: 700
-                              }}
-                            />
-                          )}
-                        </Box>
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </Box>
+                        {attendanceRate.toFixed(0)}% rate
+                      </Badge>
+                    </div>
 
-      {/* Quick Actions */}
-      <Box className="todays-attendance-overview__quick-actions">
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Quick Actions
-        </Typography>
-        <Grid container spacing={2} className="todays-attendance-overview__quick-actions-buttons">
-          <Grid item>
-            <Chip
-              label="View Full Roster"
-              onClick={() => {/* Navigate to full roster */}}
-              variant="outlined"
-              sx={{
-                backgroundColor: '#FFFFFF',
-                color: '#000000',
-                '&:hover': {
-                  backgroundColor: '#F5F5F5',
-                  color: '#000000'
-                },
-                border: '1px solid #E0E0E0'
-              }}
-            />
-          </Grid>
-          <Grid item>
-            <Chip
-              label="Export Today's Data"
-              onClick={() => {/* Export functionality */}}
-              variant="outlined"
-              sx={{
-                backgroundColor: '#FFFFFF',
-                color: '#000000',
-                '&:hover': {
-                  backgroundColor: '#F5F5F5',
-                  color: '#000000'
-                },
-                border: '1px solid #E0E0E0'
-              }}
-            />
-          </Grid>
-          <Grid item>
-            <Chip
-              label="Manage Excuses"
-              onClick={() => {/* Navigate to excuse management */}}
-              variant="outlined"
-              sx={{
-                backgroundColor: '#FFFFFF',
-                color: '#000000',
-                '&:hover': {
-                  backgroundColor: '#F5F5F5',
-                  color: '#000000'
-                },
-                border: '1px solid #E0E0E0'
-              }}
-            />
-          </Grid>
-        </Grid>
-      </Box>
-    </Box>
+                    {/* Stats */}
+                    <div className="flex items-center gap-6 text-sm">
+                      <div className="text-center">
+                        <p className="font-semibold text-slate-900">{totalCohortCheckedIn}</p>
+                        <p className="text-xs text-slate-500">Checked In</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-semibold text-green-600">{cohort.present}</p>
+                        <p className="text-xs text-slate-500">On Time</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-semibold text-amber-600">{cohort.late}</p>
+                        <p className="text-xs text-slate-500">Late</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-semibold text-red-600">{cohort.absent}</p>
+                        <p className="text-xs text-slate-500">Absent</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Expanded Details */}
+                  {isExpanded && (
+                    <div className="border-t border-slate-200 bg-slate-50 p-6">
+                      {loadingDetails ? (
+                        <div className="flex items-center justify-center py-8">
+                          <RefreshCw className="h-6 w-6 text-[#4242EA] animate-spin" />
+                        </div>
+                      ) : cohortDetails ? (
+                        <div>
+                          <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            Members Checked In Today ({cohortDetails.checkedIn?.length || 0})
+                          </h4>
+                          {cohortDetails.checkedIn && cohortDetails.checkedIn.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                              {cohortDetails.checkedIn.map((builder, idx) => (
+                                <div key={idx} className="flex items-center justify-between text-sm bg-white p-3 rounded-lg border border-slate-200">
+                                  <div className="flex-1">
+                                    <p className="font-medium text-slate-900">{builder.firstName} {builder.lastName}</p>
+                                    <p className="text-xs text-slate-500">{formatTime(builder.checkInTime)}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2 ml-2">
+                                    {builder.status === 'excused' ? (
+                                      <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200">
+                                        Excused
+                                      </Badge>
+                                    ) : builder.lateArrivalMinutes > 0 ? (
+                                      <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200">
+                                        +{builder.lateArrivalMinutes}m
+                                      </Badge>
+                                    ) : (
+                                      <Badge className="text-xs bg-green-100 text-green-700 border-green-200">
+                                        On Time
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-slate-500 italic text-center py-8">No one checked in yet today</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-500 text-center py-4">Unable to load details</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
