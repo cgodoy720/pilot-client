@@ -70,7 +70,7 @@ export default function PathfinderJobs() {
         setInterestedIds(prev => new Set([...prev, jobId]));
         setJobs(prev =>
           prev.map(j =>
-            j.job_posting_id === jobId
+            j.id === jobId
               ? { ...j, builder_interest_count: j.builder_interest_count + 1 }
               : j
           )
@@ -140,7 +140,7 @@ export default function PathfinderJobs() {
           <>
             <div className="pf-jobs__list">
               {jobs.map(job => (
-                <Card key={job.job_posting_id} className="pf-jobs__card">
+                <Card key={job.id} className="pf-jobs__card">
                   <CardContent className="pf-jobs__card-content">
                     <div className="pf-jobs__card-main">
                       <div className="pf-jobs__card-icon">
@@ -173,20 +173,20 @@ export default function PathfinderJobs() {
 
                     <div className="pf-jobs__card-actions">
                       <button
-                        className={`pf-jobs__interest-btn ${interestedIds.has(job.job_posting_id) ? 'pf-jobs__interest-btn--active' : ''}`}
-                        onClick={() => handleInterest(job.job_posting_id)}
-                        title={interestedIds.has(job.job_posting_id) ? 'Marked as interested' : 'Mark as interested'}
+                        className={`pf-jobs__interest-btn ${interestedIds.has(job.id) ? 'pf-jobs__interest-btn--active' : ''}`}
+                        onClick={() => handleInterest(job.id)}
+                        title={interestedIds.has(job.id) ? 'Marked as interested' : 'Mark as interested'}
                       >
-                        {interestedIds.has(job.job_posting_id)
+                        {interestedIds.has(job.id)
                           ? <FavoriteIcon fontSize="small" />
                           : <FavoriteBorderIcon fontSize="small" />
                         }
                         <span>{job.builder_interest_count}</span>
                       </button>
 
-                      {job.job_posting_url && (
+                      {job.job_url && (
                         <a
-                          href={job.job_posting_url}
+                          href={job.job_url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="pf-jobs__apply-link"
