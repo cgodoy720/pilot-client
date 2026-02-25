@@ -185,12 +185,12 @@ const LeadsTab = ({ token }) => {
   // Filters
   const [filters, setFilters] = useState({
     status: [],
+
     source_type: '',
     list_id: '',
     attended_event: '',
     search: ''
   });
-
 
   // Column sorting
   const [columnSort, setColumnSort] = useState({ column: 'first_captured_at', direction: 'desc' });
@@ -213,14 +213,12 @@ const LeadsTab = ({ token }) => {
         limit: pagination.limit.toString(),
       });
       
-      if (filters.status && filters.status.length > 0) {
-        filters.status.forEach(s => params.append('status[]', s));
-      }
+      if (filters.status.length > 0) params.append('status', filters.status.join(','));
+
       if (filters.source_type) params.append('source_type', filters.source_type);
       if (filters.list_id) params.append('list_id', filters.list_id);
       if (filters.attended_event) params.append('attended_event', filters.attended_event);
       if (filters.search) params.append('search', filters.search);
-
       
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/admissions/leads?${params}`,
@@ -328,7 +326,15 @@ const LeadsTab = ({ token }) => {
 
   // Handle clear filter
   const handleClearFilter = useCallback((filterKey) => {
-    setFilters(prev => ({ ...prev, [filterKey]: filterKey === 'status' ? [] : '' }));
+    setFilters(prev => ({ ...prev, [filterKey]: Array.isArray(prev[filterKey]) ? [] : '' }));
+    setPagination(prev => ({ ...prev, page: 1 }));
+  }, []);
+
+
+
+  // Remove a single value from the multi-select status filter
+  const handleRemoveStatusValue = useCallback((value) => {
+    setFilters(prev => ({ ...prev, status: prev.status.filter(s => s !== value) }));
     setPagination(prev => ({ ...prev, page: 1 }));
   }, []);
 
@@ -357,10 +363,12 @@ const LeadsTab = ({ token }) => {
           limit: '10000', // Large limit to get all
           ids_only: 'true' // Signal to backend we only need IDs
         });
-        if (filters.status && filters.status.length > 0) {
-          filters.status.forEach(s => params.append('status[]', s));
-        }
+        
+        if (filters.status.length > 0) params.append('status', filters.status.join(','));
 
+        if (filters.source_type) params.append('source_type', filters.source_type);
+        if (filters.list_id) params.append('list_id', filters.list_id);
+        if (filters.attended_event) params.append('attended_event', filters.attended_event);
         if (filters.search) params.append('search', filters.search);
         
         const response = await fetch(
@@ -568,20 +576,35 @@ const LeadsTab = ({ token }) => {
     );
   };
 
-  // Render sortable + filterable column header
-  // multiSelect=true: filter value is an array, each option toggles independently
 
-  const renderSortableFilterableHeader = (column, filterKey, label, options, sortKey = null, multiSelect = false) => {
+
+  // Render sortable + filterable column header
+
+  // For filterKey === 'status', uses multi-select (array of checked values)
+  // For other filterKeys, uses single-select (one value at a time)
+  const renderSortableFilterableHeader = (column, filterKey, label, options, sortKey = null) => {
+    const isMulti = filterKey === 'status';
     const currentValue = filters[filterKey];
-    const isFiltered = multiSelect ? currentValue.length > 0 : currentValue !== '';
+    const isFiltered = isMulti ? currentValue.length > 0 : currentValue !== '';
     const isSortable = sortKey !== null;
     const isSorted = columnSort.column === sortKey;
-    
+
+    const handleMultiToggle = (value) => {
+      setFilters(prev => {
+        const current = prev[filterKey];
+        const next = current.includes(value)
+          ? current.filter(v => v !== value)
+          : [...current, value];
+        return { ...prev, [filterKey]: next };
+      });
+      setPagination(prev => ({ ...prev, page: 1 }));
+    };
+
     return (
       <div className="flex items-center gap-1">
         {/* Sortable label */}
         {isSortable ? (
-          <span 
+          <span
             className="cursor-pointer hover:text-[#4242ea] font-proxima-bold select-none flex items-center"
             onClick={() => handleColumnSort(sortKey)}
           >
@@ -595,11 +618,11 @@ const LeadsTab = ({ token }) => {
         ) : (
           <span className="font-proxima-bold">{label}</span>
         )}
-        
+
         {/* Filter dropdown */}
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
-            <button 
+            <button
               className={`p-1 rounded hover:bg-gray-200 ${isFiltered ? 'text-[#4242ea]' : 'text-gray-400'}`}
               onClick={(e) => e.stopPropagation()}
             >
@@ -608,29 +631,45 @@ const LeadsTab = ({ token }) => {
               </svg>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-44 font-proxima">
-            <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase">Filter by {label}</div>
+          <DropdownMenuContent align="start" className="w-48 font-proxima">
+            <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase">
+              Filter by {label}
+              {isMulti && <span className="ml-1 text-gray-400 normal-case">(multi-select)</span>}
+            </div>
             <DropdownMenuSeparator />
-            {options.map((option) => {
-              if (multiSelect) {
+            {isMulti ? (
+              // Multi-select: rendered as clickable rows that stay open
+              options.map((option) => {
                 const isChecked = currentValue.includes(option.value);
                 return (
-                  <DropdownMenuCheckboxItem
+                  <DropdownMenuItem
                     key={option.value}
-                    checked={isChecked}
-                    onCheckedChange={() => {
-                      const next = isChecked
-                        ? currentValue.filter(v => v !== option.value)
-                        : [...currentValue, option.value];
-                      handleFilterChange(filterKey, next);
+                    className="flex items-center gap-2 cursor-pointer"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleMultiToggle(option.value);
                     }}
                     onSelect={(e) => e.preventDefault()}
                   >
-                    {option.label}
-                  </DropdownMenuCheckboxItem>
+                    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${isChecked ? 'bg-[#4242ea] border-[#4242ea] text-white' : 'border-gray-300'}`}>
+                      {isChecked && (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      )}
+                    </span>
+                    <span>{option.label}</span>
+                    {isChecked && (
+                      <span className="ml-auto text-[#4242ea] text-xs">✓</span>
+                    )}
+                  </DropdownMenuItem>
                 );
-              }
-              return (
+              })
+
+            ) : (
+              // Single-select — radio-style, "All" option deselects
+              options.map((option) => (
                 <DropdownMenuCheckboxItem
                   key={option.value}
                   checked={currentValue === option.value}
@@ -639,8 +678,8 @@ const LeadsTab = ({ token }) => {
                 >
                   {option.label}
                 </DropdownMenuCheckboxItem>
-              );
-            })}
+              ))
+            )}
             {isFiltered && (
               <>
                 <DropdownMenuSeparator />
@@ -648,7 +687,10 @@ const LeadsTab = ({ token }) => {
                   className="cursor-pointer text-red-600 hover:text-red-700"
                   onSelect={(e) => {
                     e.preventDefault();
-                    handleClearFilter(filterKey);
+                    isMulti
+                      ? setFilters(prev => ({ ...prev, [filterKey]: [] }))
+                      : handleClearFilter(filterKey);
+                    setPagination(prev => ({ ...prev, page: 1 }));
                   }}
                 >
                   ✕ Clear Filter
@@ -660,6 +702,8 @@ const LeadsTab = ({ token }) => {
       </div>
     );
   };
+
+
 
 
   // Dynamic source filter options
@@ -913,9 +957,11 @@ const LeadsTab = ({ token }) => {
           )}
           {hasActiveFilters && <span className="text-sm text-gray-500 font-proxima">Active filters:</span>}
           {filters.status.length > 0 && (
-            <Badge className="bg-blue-100 text-blue-700 font-proxima cursor-pointer hover:bg-blue-200" onClick={() => handleClearFilter('status')}>
-              Status: {filters.status.map(s => formatStatus(s)).join(', ')} ✕
-            </Badge>
+            filters.status.map(s => (
+              <Badge key={s} className="bg-blue-100 text-blue-700 font-proxima cursor-pointer hover:bg-blue-200" onClick={() => handleRemoveStatusValue(s)}>
+                Status: {formatStatus(s)} ✕
+              </Badge>
+            ))
           )}
 
           {filters.source_type && (
@@ -996,7 +1042,7 @@ const LeadsTab = ({ token }) => {
                   <TableHead className="font-proxima-bold">Email</TableHead>
                   <TableHead className="font-proxima-bold">Phone</TableHead>
                   <TableHead>
-                    {renderSortableFilterableHeader('status', 'status', 'Status', filterOptions.status, 'status', true)}
+                    {renderSortableFilterableHeader('status', 'status', 'Status', filterOptions.status, 'status')}
                   </TableHead>
                   <TableHead>
                     {renderSortableFilterableHeader('email_lists', 'list_id', 'Email Lists', emailListFilterOptions, 'email_lists')}
@@ -1004,7 +1050,6 @@ const LeadsTab = ({ token }) => {
                   <TableHead>
                     {renderSortableFilterableHeader('attended_event', 'attended_event', 'Attended Event', filterOptions.attended_event, 'attended_event')}
                   </TableHead>
-
                 </TableRow>
               </TableHeader>
               <TableBody>
