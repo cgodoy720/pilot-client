@@ -131,9 +131,13 @@ function WeeklyReports() {
       const data = await res.json();
       if (data.success) {
         setSlackChannels(data.data);
+      } else {
+        console.error('Slack channels error:', data.error);
+        toast.error(data.error || 'Failed to load Slack channels');
       }
     } catch (error) {
       console.error('Error fetching Slack channels:', error);
+      toast.error('Failed to connect to Slack channels endpoint');
     } finally {
       setSlackChannelsLoaded(true);
     }
