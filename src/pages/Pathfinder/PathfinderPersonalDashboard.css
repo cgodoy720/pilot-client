@@ -4,16 +4,16 @@
 
 .pathfinder-personal-dashboard {
   width: 100%;
-  max-width: 860px;
-  padding: 0 var(--spacing-xl) var(--spacing-xl);
+  max-width: 1060px;
+  padding: 1.5rem 2rem 2rem 2.5rem;
   color: #1a1a1a;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: 1.5rem;
 }
 
 .pathfinder-personal-dashboard__error {
-  padding: var(--spacing-md);
+  padding: 1rem;
   background-color: rgba(239, 68, 68, 0.1);
   color: #ef4444;
   border: 1px solid rgba(239, 68, 68, 0.2);
@@ -26,7 +26,7 @@
   background: #ffffff;
   border: 1px solid rgba(66, 66, 234, 0.2);
   border-radius: 10px;
-  padding: var(--spacing-lg);
+  padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
@@ -34,13 +34,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--spacing-md);
+  gap: 1rem;
 }
 
 .pathfinder-personal-dashboard__goal-statement-empty-content {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: 1rem;
 }
 
 .pathfinder-personal-dashboard__goal-statement-empty-icon {
@@ -66,7 +66,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: 0.5rem;
 }
 
 .pathfinder-personal-dashboard__goal-statement-title {
@@ -94,7 +94,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: 0.25rem;
 }
 
 .pathfinder-personal-dashboard__goal-tag {
@@ -132,9 +132,64 @@
 }
 
 .pathfinder-personal-dashboard__goal-statement-skills {
-  margin: var(--spacing-xs) 0 0;
+  margin: 0.25rem 0 0;
   font-size: 0.8rem;
   color: #666666;
+}
+
+/* Profile links row (Lookbook + Portfolio) */
+
+.pathfinder-personal-dashboard__goal-statement-links {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.pathfinder-personal-dashboard__profile-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4242ea;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.pathfinder-personal-dashboard__profile-link:hover {
+  color: #3333d1;
+  text-decoration: underline;
+}
+
+.pathfinder-personal-dashboard__profile-link-sep {
+  font-size: 0.75rem;
+  color: #cccccc;
+  user-select: none;
+}
+
+/* ── Resume CTA Card ──────────────────────────────────────────────────────── */
+
+.pathfinder-personal-dashboard__resume-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #fffdf5;
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  border-radius: 10px;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.pathfinder-personal-dashboard__resume-cta-text {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #92400e;
 }
 
 /* ── Featured Events ──────────────────────────────────────────────────────── */
@@ -143,7 +198,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: 1rem;
 }
 
 .pathfinder-personal-dashboard__events-title {
@@ -168,7 +223,7 @@
 .pathfinder-personal-dashboard__events-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
+  gap: 0.5rem;
 }
 
 /* ── Progress Section ─────────────────────────────────────────────────────── */
@@ -177,7 +232,7 @@
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 10px;
-  padding: var(--spacing-lg);
+  padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
@@ -185,7 +240,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: 1rem;
 }
 
 .pathfinder-personal-dashboard__progress-title {
@@ -231,7 +286,8 @@
   display: flex;
   align-items: baseline;
   gap: 4px;
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .pathfinder-personal-dashboard__progress-current {
@@ -260,12 +316,13 @@
   line-height: 1;
 }
 
-.pathfinder-personal-dashboard__progress-unit {
+.pathfinder-personal-dashboard__progress-breakdown-inline {
   font-size: 0.85rem;
   color: #999999;
-  margin-left: 4px;
+  margin-left: 6px;
   align-self: flex-end;
-  margin-bottom: 6px;
+  margin-bottom: 7px;
+  white-space: nowrap;
 }
 
 /* Progress bar track */
@@ -277,7 +334,7 @@
   background: #f0f0f0;
   border-radius: 10px;
   overflow: visible;
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: 0.5rem;
 }
 
 /* Progress fill */
@@ -334,20 +391,15 @@
   border-top: 6px solid #1e1e1e;
 }
 
-/* Meta row: breakdown + suggestion label */
+/* Meta row: suggestion label */
 
 .pathfinder-personal-dashboard__progress-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 2px;
-}
-
-.pathfinder-personal-dashboard__progress-breakdown {
-  font-size: 0.75rem;
-  color: #999999;
 }
 
 .pathfinder-personal-dashboard__suggestion-label {
@@ -357,7 +409,7 @@
 }
 
 .pathfinder-personal-dashboard__goal-complete-msg {
-  margin: var(--spacing-sm) 0 0;
+  margin: 0.5rem 0 0;
   font-size: 0.85rem;
   font-weight: 600;
   color: #d97706;
@@ -366,18 +418,18 @@
 /* ── First-time goal setup form ───────────────────────────────────────────── */
 
 .pathfinder-personal-dashboard__setup-form {
-  padding-top: var(--spacing-xs);
+  padding-top: 0.25rem;
 }
 
 .pathfinder-personal-dashboard__setup-prompt {
-  margin: 0 0 var(--spacing-xs);
+  margin: 0 0 0.25rem;
   font-size: 0.95rem;
   font-weight: 500;
   color: #1a1a1a;
 }
 
 .pathfinder-personal-dashboard__setup-suggestion {
-  margin: 0 0 var(--spacing-sm);
+  margin: 0 0 0.5rem;
   font-size: 0.85rem;
   color: #666666;
 }
@@ -385,7 +437,7 @@
 .pathfinder-personal-dashboard__setup-input-row {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: 0.5rem;
 }
 
 .pathfinder-personal-dashboard__setup-input {
@@ -418,12 +470,12 @@
 /* ── Quick Actions ────────────────────────────────────────────────────────── */
 
 .pathfinder-personal-dashboard__actions {
-  padding-bottom: var(--spacing-lg);
+  padding-bottom: 1.5rem;
 }
 
 .pathfinder-personal-dashboard__action-cards {
   display: flex;
-  gap: var(--spacing-md);
+  gap: 1rem;
 }
 
 .pathfinder-personal-dashboard__action-card {
@@ -473,10 +525,15 @@
 
 @media (max-width: 640px) {
   .pathfinder-personal-dashboard {
-    padding: 0 var(--spacing-md) var(--spacing-xl);
+    padding: 1rem 1rem 2rem 1rem;
   }
 
   .pathfinder-personal-dashboard__goal-statement--empty {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pathfinder-personal-dashboard__resume-cta {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -488,5 +545,9 @@
   .pathfinder-personal-dashboard__progress-meta {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .pathfinder-personal-dashboard__progress-breakdown-inline {
+    font-size: 0.78rem;
   }
 }

@@ -11,18 +11,21 @@ import './PathfinderPersonalDashboard.css';
 // ── Label maps for strategy tags ──────────────────────────────────────────────
 
 const INTEREST_LABELS = {
-  fintech: 'Fintech',
-  healthtech: 'Healthtech',
-  ai_ml: 'AI / ML',
-  edtech: 'Edtech',
-  ecommerce: 'E-Commerce',
-  cybersecurity: 'Cybersecurity',
-  enterprise_saas: 'Enterprise SaaS',
-  consumer_apps: 'Consumer Apps',
-  real_estate: 'Real Estate',
-  gov_civic_tech: 'Gov / Civic Tech',
+  technology: 'Technology',
+  finance: 'Finance',
+  healthcare: 'Healthcare',
+  education: 'Education',
+  government: 'Government',
+  retail: 'Retail',
   media_entertainment: 'Media & Entertainment',
-  consumer_services: 'Consumer Services',
+  manufacturing: 'Manufacturing',
+  real_estate: 'Real Estate',
+  consulting: 'Consulting',
+  nonprofit: 'Nonprofit',
+  legal: 'Legal',
+  energy: 'Energy',
+  transportation: 'Transportation',
+  hospitality: 'Hospitality',
   other: 'Other',
 };
 
@@ -50,7 +53,7 @@ const COMPANY_STAGE_LABELS = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 function PathfinderPersonalDashboard() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const navigate = useNavigate();
 
   const [interests, setInterests] = useState(null);
@@ -60,6 +63,7 @@ function PathfinderPersonalDashboard() {
   const [featuredEvents, setFeaturedEvents] = useState([]);
   const [goalInput, setGoalInput] = useState('');
   const [isSavingGoal, setIsSavingGoal] = useState(false);
+  const [resumeCount, setResumeCount] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -78,13 +82,14 @@ function PathfinderPersonalDashboard() {
       const headers = { Authorization: `Bearer ${token}` };
       const base = import.meta.env.VITE_API_URL;
 
-      const [interestsRes, goalRes, suggestionRes, eventsRes, dashRes] = await Promise.all([
+      const [interestsRes, goalRes, suggestionRes, eventsRes, dashRes, resumesRes] = await Promise.all([
         fetch(`${base}/api/pathfinder/interests`, { headers }),
         fetch(`${base}/api/pathfinder/weekly-goal`, { headers }),
         fetch(`${base}/api/pathfinder/weekly-goal/suggestion`, { headers }),
         fetch(`${base}/api/pathfinder/events`, { headers }),
         // Dashboard endpoint used for streak data only — non-critical
         fetch(`${base}/api/pathfinder/applications/dashboard`, { headers }),
+        fetch(`${base}/api/pathfinder/resumes`, { headers }),
       ]);
 
       if (interestsRes.ok) {
@@ -114,6 +119,13 @@ function PathfinderPersonalDashboard() {
       if (dashRes.ok) {
         const dashData = await dashRes.json();
         setStreak(dashData.milestones?.currentStreak || 0);
+      }
+
+      if (resumesRes.ok) {
+        const resumesData = await resumesRes.json();
+        setResumeCount(resumesData.length);
+      } else {
+        setResumeCount(0);
       }
     } catch (err) {
       console.error('Error loading dashboard:', err);
@@ -204,6 +216,36 @@ function PathfinderPersonalDashboard() {
 
   // ── Render helpers ───────────────────────────────────────────────────────────
 
+  const buildLookbookUrl = () => {
+    const rawFirst = (user?.firstName || user?.first_name || '').trim();
+    const rawLast = (user?.lastName || user?.last_name || '').trim();
+    // Take only the first word of firstName to handle middle names stored in that field
+    const first = rawFirst.split(/\s+/)[0].toLowerCase();
+    // Replace spaces in lastName with hyphens to handle multi-word surnames; preserve existing hyphens
+    const last = rawLast.replace(/\s+/g, '-').toLowerCase();
+    return first && last ? `https://lookbook.pursuit.org/people/${first}-${last}` : null;
+  };
+
+  const renderResumeCta = () => {
+    if (resumeCount === null || resumeCount > 0) return null;
+    return (
+      <div className="pathfinder-personal-dashboard__resume-cta">
+        <span className="pathfinder-personal-dashboard__resume-cta-text">
+          📄 No resume uploaded yet
+        </span>
+        <Link to="/pathfinder/applications">
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-amber-300 text-amber-800 hover:bg-amber-50 whitespace-nowrap"
+          >
+            Upload Resume →
+          </Button>
+        </Link>
+      </div>
+    );
+  };
+
   const renderGoalStatementCard = () => {
     if (!interests) {
       return (
@@ -268,6 +310,38 @@ function PathfinderPersonalDashboard() {
             Skills: {interests.skills}
           </p>
         )}
+        {(() => {
+          const lookbookUrl = buildLookbookUrl();
+          const hasLinks = lookbookUrl || interests.portfolio_url;
+          if (!hasLinks) return null;
+          return (
+            <div className="pathfinder-personal-dashboard__goal-statement-links">
+              {lookbookUrl && (
+                <a
+                  href={lookbookUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pathfinder-personal-dashboard__profile-link"
+                >
+                  🔗 Lookbook
+                </a>
+              )}
+              {lookbookUrl && interests.portfolio_url && (
+                <span className="pathfinder-personal-dashboard__profile-link-sep">·</span>
+              )}
+              {interests.portfolio_url && (
+                <a
+                  href={interests.portfolio_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pathfinder-personal-dashboard__profile-link"
+                >
+                  Portfolio ↗
+                </a>
+              )}
+            </div>
+          );
+        })()}
       </div>
     );
   };
@@ -331,7 +405,11 @@ function PathfinderPersonalDashboard() {
           </span>
           <span className="pathfinder-personal-dashboard__progress-separator">/</span>
           <span className="pathfinder-personal-dashboard__progress-goal">{goal}</span>
-          <span className="pathfinder-personal-dashboard__progress-unit">activities</span>
+          {progress && (
+            <span className="pathfinder-personal-dashboard__progress-breakdown-inline">
+              — {progress.applications} apps · {progress.networking} networking · {progress.projects} builds
+            </span>
+          )}
         </div>
 
         <div className="pathfinder-personal-dashboard__progress-track">
@@ -349,11 +427,6 @@ function PathfinderPersonalDashboard() {
         </div>
 
         <div className="pathfinder-personal-dashboard__progress-meta">
-          {progress && (
-            <span className="pathfinder-personal-dashboard__progress-breakdown">
-              {progress.applications} apps · {progress.networking} networking · {progress.projects} builds
-            </span>
-          )}
           {suggestion && (
             <span className="pathfinder-personal-dashboard__suggestion-label">
               Staff suggests {suggestion}
@@ -480,6 +553,7 @@ function PathfinderPersonalDashboard() {
       )}
 
       {renderGoalStatementCard()}
+      {renderResumeCta()}
       {renderFeaturedEvents()}
       {renderProgressSection()}
       {renderQuickActions()}
