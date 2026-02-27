@@ -89,6 +89,10 @@ const SliceTooltip = ({ slice }) => (
 // ============================================================================
 // USER DRILL-DOWN DIALOG
 // ============================================================================
+const SectionLabel = ({ children }) => (
+  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">{children}</p>
+);
+
 const UserDrilldownDialog = ({ token, userId, userName, startDate, endDate, onClose }) => {
   const { data, isLoading } = useUserDrilldown(token, userId, startDate, endDate);
 
@@ -104,103 +108,183 @@ const UserDrilldownDialog = ({ token, userId, userName, startDate, endDate, onCl
           y: parseInt(d.total_tokens, 10) || 0,
         })),
       },
+      {
+        id: 'Requests',
+        color: '#FF33FF',
+        data: rows.map(d => ({
+          x: formatChartDate(d.date),
+          y: parseInt(d.request_count, 10) || 0,
+        })),
+      },
     ];
   }, [data]);
 
+  const activeDays = data?.dailyUsage?.length || 0;
+  const firstReq = data?.summary?.first_request;
+  const lastReq = data?.summary?.last_request;
+
+  const safeDate = (val) => {
+    if (!val) return null;
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+  const firstStr = safeDate(firstReq);
+  const lastStr = safeDate(lastReq);
+  const dateRange = firstStr && lastStr ? `${firstStr} – ${lastStr}` : null;
+
+  const totalTaskTokens = data?.byTaskType?.reduce((s, t) => s + parseInt(t.total_tokens, 10), 0) || 1;
+
   return (
     <Dialog open={!!userId} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            {userName || `User #${userId}`}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-0">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-[#E3E3E3]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-[#4242EA] flex items-center justify-center text-white font-bold text-sm shrink-0">
+                {(userName || '?').charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="text-lg font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>
+                  {userName || `User #${userId}`}
+                </p>
+                {dateRange && (
+                  <p className="text-xs text-slate-400 font-normal mt-0.5">
+                    Active: {dateRange} · {activeDays} {activeDays === 1 ? 'day' : 'days'}
+                  </p>
+                )}
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+        </div>
 
-        {isLoading ? <LoadingState /> : !data ? <EmptyState message="No data" /> : (
-          <div className="space-y-6">
-            {/* Summary stats */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-slate-50 p-3 rounded-lg text-center">
-                <p className="text-xs text-slate-500">Total Tokens</p>
-                <p className="text-lg font-bold text-[#1E1E1E]">{formatNumber(parseInt(data.summary?.total_tokens, 10))}</p>
+        {isLoading ? (
+          <div className="px-6 py-12"><LoadingState /></div>
+        ) : !data ? (
+          <div className="px-6 py-12"><EmptyState message="No data" /></div>
+        ) : (
+          <div className="px-6 py-5 space-y-5">
+            {/* Stat cards */}
+            <div className="grid grid-cols-4 gap-3">
+              <div className="bg-[#4242EA]/5 border border-[#4242EA]/15 p-3 rounded-lg text-center">
+                <p className="text-[10px] font-medium text-[#4242EA] uppercase tracking-wide">Total</p>
+                <p className="text-xl font-bold text-[#1E1E1E] mt-0.5">{formatNumber(parseInt(data.summary?.total_tokens, 10))}</p>
+                <p className="text-[10px] text-slate-400">tokens</p>
               </div>
-              <div className="bg-slate-50 p-3 rounded-lg text-center">
-                <p className="text-xs text-slate-500">Requests</p>
-                <p className="text-lg font-bold text-[#1E1E1E]">{parseInt(data.summary?.request_count, 10)?.toLocaleString()}</p>
+              <div className="bg-slate-50 border border-slate-100 p-3 rounded-lg text-center">
+                <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Prompt</p>
+                <p className="text-xl font-bold text-[#1E1E1E] mt-0.5">{formatNumber(parseInt(data.summary?.prompt_tokens, 10))}</p>
+                <p className="text-[10px] text-slate-400">tokens</p>
               </div>
-              <div className="bg-slate-50 p-3 rounded-lg text-center">
-                <p className="text-xs text-slate-500">Est. Cost</p>
-                <p className="text-lg font-bold text-[#1E1E1E]">{formatCost(data.summary?.estimated_cost)}</p>
+              <div className="bg-slate-50 border border-slate-100 p-3 rounded-lg text-center">
+                <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Completion</p>
+                <p className="text-xl font-bold text-[#1E1E1E] mt-0.5">{formatNumber(parseInt(data.summary?.completion_tokens, 10))}</p>
+                <p className="text-[10px] text-slate-400">tokens</p>
+              </div>
+              <div className="bg-slate-50 border border-slate-100 p-3 rounded-lg text-center">
+                <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Requests</p>
+                <p className="text-xl font-bold text-[#1E1E1E] mt-0.5">{parseInt(data.summary?.request_count, 10)?.toLocaleString()}</p>
+                <p className="text-[10px] text-slate-400">total</p>
               </div>
             </div>
 
             {/* Daily activity chart */}
             {dailyLineData.length > 0 && dailyLineData[0].data.length > 0 && (
               <div>
-                <p className="text-sm font-medium text-slate-600 mb-2">Daily Activity</p>
-                <div style={{ height: 180 }}>
-                  <ResponsiveLine
-                    data={dailyLineData}
-                    theme={nivoTheme}
-                    colors={['#4242EA']}
-                    margin={{ top: 10, right: 16, bottom: 30, left: 50 }}
-                    xScale={{ type: 'point' }}
-                    yScale={{ type: 'linear', min: 0, max: 'auto' }}
-                    axisBottom={{ tickRotation: dailyLineData[0].data.length > 10 ? -45 : 0, tickSize: 5, tickPadding: 5 }}
-                    axisLeft={{ format: formatNumber, tickSize: 5, tickPadding: 5 }}
-                    pointSize={0}
-                    useMesh
-                    enableArea
-                    areaOpacity={0.15}
-                    curve="monotoneX"
-                    enableSlices="x"
-                    sliceTooltip={SliceTooltip}
-                  />
+                <SectionLabel>Daily Activity</SectionLabel>
+                <div className="bg-slate-50/50 border border-slate-100 rounded-lg p-3">
+                  <div style={{ height: 220 }}>
+                    <ResponsiveLine
+                      data={dailyLineData}
+                      theme={nivoTheme}
+                      colors={['#4242EA', '#FF33FF']}
+                      margin={{ top: 10, right: 16, bottom: 40, left: 50 }}
+                      xScale={{ type: 'point' }}
+                      yScale={{ type: 'linear', min: 0, max: 'auto' }}
+                      axisBottom={{ tickRotation: dailyLineData[0].data.length > 10 ? -45 : 0, tickSize: 5, tickPadding: 5 }}
+                      axisLeft={{ format: formatNumber, tickSize: 5, tickPadding: 5 }}
+                      pointSize={0}
+                      useMesh
+                      enableArea
+                      areaOpacity={0.1}
+                      curve="monotoneX"
+                      enableSlices="x"
+                      sliceTooltip={SliceTooltip}
+                      legends={[
+                        {
+                          anchor: 'bottom',
+                          direction: 'row',
+                          translateY: 36,
+                          itemWidth: 80,
+                          itemHeight: 20,
+                          symbolSize: 8,
+                          symbolShape: 'circle',
+                        },
+                      ]}
+                    />
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Model preferences */}
-            {data.byModel?.length > 0 && (
-              <div>
-                <p className="text-sm font-medium text-slate-600 mb-2">Model Preferences</p>
-                <div className="space-y-1.5">
-                  {data.byModel.map((m, i) => {
-                    const maxTokens = parseInt(data.byModel[0].total_tokens, 10);
-                    const pct = maxTokens ? (parseInt(m.total_tokens, 10) / maxTokens * 100) : 0;
-                    return (
-                      <div key={i} className="flex items-center gap-3">
-                        <span className="text-xs text-slate-500 w-32 truncate">{shortenModel(m.model)}</span>
-                        <div className="flex-1 bg-slate-100 rounded-full h-5 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-[#4242EA] flex items-center justify-end pr-2"
-                            style={{ width: `${Math.max(pct, 8)}%` }}
-                          >
-                            <span className="text-[10px] text-white font-medium">{formatNumber(parseInt(m.total_tokens, 10))}</span>
+            {/* Bottom row: Model Usage + Task Types side by side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Model Usage table */}
+              {data.byModel?.length > 0 && (
+                <div>
+                  <SectionLabel>Model Usage</SectionLabel>
+                  <div className="border border-slate-100 rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50/80">
+                          <TableHead className="text-[10px] font-semibold uppercase tracking-wide">Model</TableHead>
+                          <TableHead className="text-[10px] font-semibold uppercase tracking-wide text-right">Tokens</TableHead>
+                          <TableHead className="text-[10px] font-semibold uppercase tracking-wide text-right">Reqs</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {data.byModel.map((m, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium text-sm">{shortenModel(m.model)}</TableCell>
+                            <TableCell className="text-right text-sm">{formatNumber(parseInt(m.total_tokens, 10))}</TableCell>
+                            <TableCell className="text-right text-sm text-slate-500">{parseInt(m.request_count, 10)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              {/* Task type bars */}
+              {data.byTaskType?.length > 0 && (
+                <div>
+                  <SectionLabel>Task Types</SectionLabel>
+                  <div className="space-y-2">
+                    {data.byTaskType.map((t, i) => {
+                      const tokens = parseInt(t.total_tokens, 10);
+                      const pct = (tokens / totalTaskTokens) * 100;
+                      const color = TASK_TYPE_COLORS[t.task_type] || USER_COLORS[i % USER_COLORS.length];
+                      return (
+                        <div key={i}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-medium text-slate-600 capitalize">{t.task_type}</span>
+                            <span className="text-xs text-slate-400">{formatNumber(tokens)} · {parseInt(t.request_count, 10)} reqs</span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all"
+                              style={{ width: `${Math.max(pct, 3)}%`, backgroundColor: color }}
+                            />
                           </div>
                         </div>
-                        <span className="text-xs text-slate-400 w-12 text-right">{parseInt(m.request_count, 10)}x</span>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {/* Task type breakdown */}
-            {data.byTaskType?.length > 0 && (
-              <div>
-                <p className="text-sm font-medium text-slate-600 mb-2">Task Types</p>
-                <div className="flex flex-wrap gap-2">
-                  {data.byTaskType.map((t, i) => (
-                    <Badge key={i} variant="outline" className="text-xs py-1 px-2">
-                      {t.task_type}: {formatNumber(parseInt(t.total_tokens, 10))} ({parseInt(t.request_count, 10)} reqs)
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </DialogContent>
