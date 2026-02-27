@@ -1,9 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../../components/ui/card';
-import {
-  LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-} from 'recharts';
-import { Loader2, User, X } from 'lucide-react';
+import { ResponsiveLine } from '@nivo/line';
+import { Loader2, User } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -12,6 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '../../../../components/ui/dialog';
 import { useUserTrends, useUsageHeatmap, useTaskTypeTrends, useUserDrilldown, useTopUsers } from '../hooks/usePlatformAnalytics';
+import { formatChartDate } from '../../../../utils/dateHelpers';
 
 const USER_COLORS = ['#4242EA', '#FF33FF', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#06B6D4', '#EC4899'];
 const TASK_TYPE_COLORS = {
@@ -38,122 +37,254 @@ const formatCost = (cost) => {
   return val < 0.01 ? `$${val.toFixed(4)}` : `$${val.toFixed(2)}`;
 };
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
-
 const shortenModel = (model) => {
   if (!model) return 'Unknown';
   return model.replace(/^(anthropic|openai|google|deepseek|x-ai|moonshotai|minimax)\//, '');
 };
 
 const LoadingState = () => (
-  <div className="flex items-center justify-center py-16">
+  <div className="flex items-center justify-center py-12">
     <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
   </div>
 );
 
 const EmptyState = ({ message }) => (
-  <div className="text-center py-16 text-slate-400">{message || 'No data for this period'}</div>
+  <div className="text-center py-12 text-slate-400">{message || 'No data for this period'}</div>
+);
+
+const nivoTheme = {
+  grid: { line: { stroke: '#f0f0f0' } },
+  axis: {
+    ticks: { text: { fontSize: 11, fill: '#94a3b8' } },
+    legend: { text: { fontSize: 11, fill: '#94a3b8' } },
+  },
+  crosshair: { line: { stroke: '#4242EA', strokeDasharray: '6 4' } },
+  tooltip: {
+    container: {
+      borderRadius: 8,
+      border: '1px solid #e2e8f0',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    },
+  },
+};
+
+const SliceTooltip = ({ slice }) => (
+  <div style={{
+    background: 'white',
+    borderRadius: 8,
+    border: '1px solid #e2e8f0',
+    padding: '8px 12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+  }}>
+    <strong style={{ fontSize: 12 }}>{slice.points[0]?.data.xFormatted}</strong>
+    {slice.points.map(point => (
+      <div key={point.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 12 }}>
+        <span style={{ width: 10, height: 10, borderRadius: '50%', background: point.serieColor, display: 'inline-block' }} />
+        {point.serieId}: {formatNumber(point.data.y)}
+      </div>
+    ))}
+  </div>
 );
 
 // ============================================================================
 // USER DRILL-DOWN DIALOG
 // ============================================================================
+const SectionLabel = ({ children }) => (
+  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">{children}</p>
+);
+
 const UserDrilldownDialog = ({ token, userId, userName, startDate, endDate, onClose }) => {
   const { data, isLoading } = useUserDrilldown(token, userId, startDate, endDate);
 
-  const dailyChartData = (data?.dailyUsage || []).map(d => ({
-    date: formatDate(d.date),
-    tokens: parseInt(d.total_tokens, 10) || 0,
-  }));
+  const dailyLineData = useMemo(() => {
+    const rows = data?.dailyUsage || [];
+    if (rows.length === 0) return [];
+    return [
+      {
+        id: 'Tokens',
+        color: '#4242EA',
+        data: rows.map(d => ({
+          x: formatChartDate(d.date),
+          y: parseInt(d.total_tokens, 10) || 0,
+        })),
+      },
+      {
+        id: 'Requests',
+        color: '#FF33FF',
+        data: rows.map(d => ({
+          x: formatChartDate(d.date),
+          y: parseInt(d.request_count, 10) || 0,
+        })),
+      },
+    ];
+  }, [data]);
+
+  const activeDays = data?.dailyUsage?.length || 0;
+  const firstReq = data?.summary?.first_request;
+  const lastReq = data?.summary?.last_request;
+
+  const safeDate = (val) => {
+    if (!val) return null;
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+  const firstStr = safeDate(firstReq);
+  const lastStr = safeDate(lastReq);
+  const dateRange = firstStr && lastStr ? `${firstStr} – ${lastStr}` : null;
+
+  const totalTaskTokens = data?.byTaskType?.reduce((s, t) => s + parseInt(t.total_tokens, 10), 0) || 1;
 
   return (
     <Dialog open={!!userId} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            {userName || `User #${userId}`}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-0">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-[#E3E3E3]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-[#4242EA] flex items-center justify-center text-white font-bold text-sm shrink-0">
+                {(userName || '?').charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="text-lg font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>
+                  {userName || `User #${userId}`}
+                </p>
+                {dateRange && (
+                  <p className="text-xs text-slate-400 font-normal mt-0.5">
+                    Active: {dateRange} · {activeDays} {activeDays === 1 ? 'day' : 'days'}
+                  </p>
+                )}
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+        </div>
 
-        {isLoading ? <LoadingState /> : !data ? <EmptyState message="No data" /> : (
-          <div className="space-y-6">
-            {/* Summary stats */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-slate-50 p-3 rounded-lg text-center">
-                <p className="text-xs text-slate-500">Total Tokens</p>
-                <p className="text-lg font-bold text-[#1E1E1E]">{formatNumber(parseInt(data.summary?.total_tokens, 10))}</p>
+        {isLoading ? (
+          <div className="px-6 py-12"><LoadingState /></div>
+        ) : !data ? (
+          <div className="px-6 py-12"><EmptyState message="No data" /></div>
+        ) : (
+          <div className="px-6 py-5 space-y-5">
+            {/* Stat cards */}
+            <div className="grid grid-cols-4 gap-3">
+              <div className="bg-[#4242EA]/5 border border-[#4242EA]/15 p-3 rounded-lg text-center">
+                <p className="text-[10px] font-medium text-[#4242EA] uppercase tracking-wide">Total</p>
+                <p className="text-xl font-bold text-[#1E1E1E] mt-0.5">{formatNumber(parseInt(data.summary?.total_tokens, 10))}</p>
+                <p className="text-[10px] text-slate-400">tokens</p>
               </div>
-              <div className="bg-slate-50 p-3 rounded-lg text-center">
-                <p className="text-xs text-slate-500">Requests</p>
-                <p className="text-lg font-bold text-[#1E1E1E]">{parseInt(data.summary?.request_count, 10)?.toLocaleString()}</p>
+              <div className="bg-slate-50 border border-slate-100 p-3 rounded-lg text-center">
+                <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Prompt</p>
+                <p className="text-xl font-bold text-[#1E1E1E] mt-0.5">{formatNumber(parseInt(data.summary?.prompt_tokens, 10))}</p>
+                <p className="text-[10px] text-slate-400">tokens</p>
               </div>
-              <div className="bg-slate-50 p-3 rounded-lg text-center">
-                <p className="text-xs text-slate-500">Est. Cost</p>
-                <p className="text-lg font-bold text-[#1E1E1E]">{formatCost(data.summary?.estimated_cost)}</p>
+              <div className="bg-slate-50 border border-slate-100 p-3 rounded-lg text-center">
+                <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Completion</p>
+                <p className="text-xl font-bold text-[#1E1E1E] mt-0.5">{formatNumber(parseInt(data.summary?.completion_tokens, 10))}</p>
+                <p className="text-[10px] text-slate-400">tokens</p>
+              </div>
+              <div className="bg-slate-50 border border-slate-100 p-3 rounded-lg text-center">
+                <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Requests</p>
+                <p className="text-xl font-bold text-[#1E1E1E] mt-0.5">{parseInt(data.summary?.request_count, 10)?.toLocaleString()}</p>
+                <p className="text-[10px] text-slate-400">total</p>
               </div>
             </div>
 
             {/* Daily activity chart */}
-            {dailyChartData.length > 0 && (
+            {dailyLineData.length > 0 && dailyLineData[0].data.length > 0 && (
               <div>
-                <p className="text-sm font-medium text-slate-600 mb-2">Daily Activity</p>
-                <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={dailyChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                    <YAxis tickFormatter={formatNumber} tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                    <Tooltip formatter={(v) => [formatNumber(v), 'Tokens']} />
-                    <Area type="monotone" dataKey="tokens" fill="#4242EA" fillOpacity={0.15} stroke="#4242EA" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <SectionLabel>Daily Activity</SectionLabel>
+                <div className="bg-slate-50/50 border border-slate-100 rounded-lg p-3">
+                  <div style={{ height: 220 }}>
+                    <ResponsiveLine
+                      data={dailyLineData}
+                      theme={nivoTheme}
+                      colors={['#4242EA', '#FF33FF']}
+                      margin={{ top: 10, right: 16, bottom: 40, left: 50 }}
+                      xScale={{ type: 'point' }}
+                      yScale={{ type: 'linear', min: 0, max: 'auto' }}
+                      axisBottom={{ tickRotation: dailyLineData[0].data.length > 10 ? -45 : 0, tickSize: 5, tickPadding: 5 }}
+                      axisLeft={{ format: formatNumber, tickSize: 5, tickPadding: 5 }}
+                      pointSize={0}
+                      useMesh
+                      enableArea
+                      areaOpacity={0.1}
+                      curve="monotoneX"
+                      enableSlices="x"
+                      sliceTooltip={SliceTooltip}
+                      legends={[
+                        {
+                          anchor: 'bottom',
+                          direction: 'row',
+                          translateY: 36,
+                          itemWidth: 80,
+                          itemHeight: 20,
+                          symbolSize: 8,
+                          symbolShape: 'circle',
+                        },
+                      ]}
+                    />
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Model preferences */}
-            {data.byModel?.length > 0 && (
-              <div>
-                <p className="text-sm font-medium text-slate-600 mb-2">Model Preferences</p>
-                <div className="space-y-1.5">
-                  {data.byModel.map((m, i) => {
-                    const maxTokens = parseInt(data.byModel[0].total_tokens, 10);
-                    const pct = maxTokens ? (parseInt(m.total_tokens, 10) / maxTokens * 100) : 0;
-                    return (
-                      <div key={i} className="flex items-center gap-3">
-                        <span className="text-xs text-slate-500 w-32 truncate">{shortenModel(m.model)}</span>
-                        <div className="flex-1 bg-slate-100 rounded-full h-5 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-[#4242EA] flex items-center justify-end pr-2"
-                            style={{ width: `${Math.max(pct, 8)}%` }}
-                          >
-                            <span className="text-[10px] text-white font-medium">{formatNumber(parseInt(m.total_tokens, 10))}</span>
+            {/* Bottom row: Model Usage + Task Types side by side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Model Usage table */}
+              {data.byModel?.length > 0 && (
+                <div>
+                  <SectionLabel>Model Usage</SectionLabel>
+                  <div className="border border-slate-100 rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50/80">
+                          <TableHead className="text-[10px] font-semibold uppercase tracking-wide">Model</TableHead>
+                          <TableHead className="text-[10px] font-semibold uppercase tracking-wide text-right">Tokens</TableHead>
+                          <TableHead className="text-[10px] font-semibold uppercase tracking-wide text-right">Reqs</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {data.byModel.map((m, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium text-sm">{shortenModel(m.model)}</TableCell>
+                            <TableCell className="text-right text-sm">{formatNumber(parseInt(m.total_tokens, 10))}</TableCell>
+                            <TableCell className="text-right text-sm text-slate-500">{parseInt(m.request_count, 10)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              {/* Task type bars */}
+              {data.byTaskType?.length > 0 && (
+                <div>
+                  <SectionLabel>Task Types</SectionLabel>
+                  <div className="space-y-2">
+                    {data.byTaskType.map((t, i) => {
+                      const tokens = parseInt(t.total_tokens, 10);
+                      const pct = (tokens / totalTaskTokens) * 100;
+                      const color = TASK_TYPE_COLORS[t.task_type] || USER_COLORS[i % USER_COLORS.length];
+                      return (
+                        <div key={i}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-medium text-slate-600 capitalize">{t.task_type}</span>
+                            <span className="text-xs text-slate-400">{formatNumber(tokens)} · {parseInt(t.request_count, 10)} reqs</span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all"
+                              style={{ width: `${Math.max(pct, 3)}%`, backgroundColor: color }}
+                            />
                           </div>
                         </div>
-                        <span className="text-xs text-slate-400 w-12 text-right">{parseInt(m.request_count, 10)}x</span>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {/* Task type breakdown */}
-            {data.byTaskType?.length > 0 && (
-              <div>
-                <p className="text-sm font-medium text-slate-600 mb-2">Task Types</p>
-                <div className="flex flex-wrap gap-2">
-                  {data.byTaskType.map((t, i) => (
-                    <Badge key={i} variant="outline" className="text-xs py-1 px-2">
-                      {t.task_type}: {formatNumber(parseInt(t.total_tokens, 10))} ({parseInt(t.request_count, 10)} reqs)
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </DialogContent>
@@ -165,7 +296,6 @@ const UserDrilldownDialog = ({ token, userId, userName, startDate, endDate, onCl
 // HEATMAP COMPONENT
 // ============================================================================
 const UsageHeatmap = ({ data }) => {
-  // Build 7x24 grid
   const grid = useMemo(() => {
     const cells = {};
     let maxCount = 1;
@@ -240,49 +370,63 @@ const TrendsTab = ({ token, startDate, endDate }) => {
   const { data: taskTrendsData, isLoading: taskTrendsLoading } = useTaskTypeTrends(token, startDate, endDate);
   const { data: topUsers, isLoading: usersLoading } = useTopUsers(token, startDate, endDate, 10);
 
-  // Transform user trends into chart-friendly format: one row per date, one key per user
-  const userChartData = useMemo(() => {
-    if (!userTrendsData || userTrendsData.length === 0) return { data: [], users: [] };
+  // Transform user trends into Nivo multi-series format
+  const userLineData = useMemo(() => {
+    if (!userTrendsData || userTrendsData.length === 0) return [];
 
     const userMap = {};
-    const dateMap = {};
+    const userDates = {};
 
     userTrendsData.forEach(row => {
       const name = row.first_name && row.last_name
         ? `${row.first_name} ${row.last_name.charAt(0)}.`
         : `User #${row.user_id}`;
-      userMap[row.user_id] = name;
 
-      const dateKey = formatDate(row.date);
-      if (!dateMap[dateKey]) dateMap[dateKey] = { date: dateKey };
-      dateMap[dateKey][name] = parseInt(row.total_tokens, 10) || 0;
+      if (!userMap[row.user_id]) {
+        userMap[row.user_id] = name;
+        userDates[row.user_id] = [];
+      }
+      userDates[row.user_id].push({
+        x: formatChartDate(row.date),
+        y: parseInt(row.total_tokens, 10) || 0,
+      });
     });
 
-    const users = Object.values(userMap);
-    const data = Object.values(dateMap);
-
-    return { data, users };
+    return Object.entries(userMap).map(([uid, name], i) => ({
+      id: name,
+      color: USER_COLORS[i % USER_COLORS.length],
+      data: userDates[uid],
+    }));
   }, [userTrendsData]);
 
-  // Transform task type trends into stacked area format
-  const taskAreaData = useMemo(() => {
-    if (!taskTrendsData || taskTrendsData.length === 0) return { data: [], taskTypes: [] };
+  // Transform task type trends into Nivo stacked area format
+  const taskLineData = useMemo(() => {
+    if (!taskTrendsData || taskTrendsData.length === 0) return { series: [], taskTypes: [] };
 
     const taskTypes = new Set();
-    const dateMap = {};
+    const taskDates = {};
 
     taskTrendsData.forEach(row => {
       taskTypes.add(row.task_type);
-      const dateKey = formatDate(row.date);
-      if (!dateMap[dateKey]) dateMap[dateKey] = { date: dateKey };
-      dateMap[dateKey][row.task_type] = parseInt(row.total_tokens, 10) || 0;
+      if (!taskDates[row.task_type]) taskDates[row.task_type] = [];
+      taskDates[row.task_type].push({
+        x: formatChartDate(row.date),
+        y: parseInt(row.total_tokens, 10) || 0,
+      });
     });
 
-    return { data: Object.values(dateMap), taskTypes: Array.from(taskTypes) };
+    const taskTypeArr = Array.from(taskTypes);
+    const series = taskTypeArr.map((type, i) => ({
+      id: type,
+      color: TASK_TYPE_COLORS[type] || USER_COLORS[i % USER_COLORS.length],
+      data: taskDates[type],
+    }));
+
+    return { series, taskTypes: taskTypeArr };
   }, [taskTrendsData]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* User Drill-down Dialog */}
       {selectedUser && (
         <UserDrilldownDialog
@@ -295,122 +439,160 @@ const TrendsTab = ({ token, startDate, endDate }) => {
         />
       )}
 
-      {/* User Usage Over Time */}
-      <Card className="bg-white border border-[#E3E3E3]">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-[#1E1E1E]">Top User Token Usage Over Time</CardTitle>
-          <CardDescription>Daily token consumption for the top 5 users</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {trendsLoading ? <LoadingState /> : userChartData.data.length === 0 ? <EmptyState /> : (
-            <ResponsiveContainer width="100%" height={320}>
-              <LineChart data={userChartData.data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                <YAxis tickFormatter={formatNumber} tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                <Tooltip formatter={(v) => [formatNumber(v), '']} contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0' }} />
-                <Legend />
-                {userChartData.users.map((name, i) => (
-                  <Line
-                    key={name}
-                    type="monotone"
-                    dataKey={name}
-                    stroke={USER_COLORS[i % USER_COLORS.length]}
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+      {/* Row 1: User Usage Over Time + Heatmap — side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <Card className="bg-white border border-[#E3E3E3] lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold text-[#1E1E1E]">Top User Token Usage Over Time</CardTitle>
+            <CardDescription className="text-xs">Daily consumption for top 5 users</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {trendsLoading ? <LoadingState /> : userLineData.length === 0 ? <EmptyState /> : (
+              <div style={{ height: 300 }}>
+                <ResponsiveLine
+                  data={userLineData}
+                  theme={nivoTheme}
+                  colors={userLineData.map(s => s.color)}
+                  margin={{ top: 10, right: 16, bottom: 46, left: 50 }}
+                  xScale={{ type: 'point' }}
+                  yScale={{ type: 'linear', min: 0, max: 'auto' }}
+                  axisBottom={{
+                    tickRotation: (userLineData[0]?.data.length || 0) > 14 ? -45 : 0,
+                    tickSize: 5,
+                    tickPadding: 5,
+                  }}
+                  axisLeft={{
+                    format: formatNumber,
+                    tickSize: 5,
+                    tickPadding: 5,
+                  }}
+                  pointSize={0}
+                  useMesh
+                  enableCrosshair
+                  curve="monotoneX"
+                  enableSlices="x"
+                  sliceTooltip={SliceTooltip}
+                  legends={[
+                    {
+                      anchor: 'bottom',
+                      direction: 'row',
+                      translateY: 42,
+                      itemWidth: 100,
+                      itemHeight: 20,
+                      symbolSize: 10,
+                      symbolShape: 'circle',
+                    },
+                  ]}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Usage Heatmap */}
-      <Card className="bg-white border border-[#E3E3E3]">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-[#1E1E1E]">Usage Heatmap</CardTitle>
-          <CardDescription>Request volume by day of week and hour (UTC)</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {heatmapLoading ? <LoadingState /> : !heatmapData || heatmapData.length === 0 ? <EmptyState /> : (
-            <UsageHeatmap data={heatmapData} />
-          )}
-        </CardContent>
-      </Card>
+        <Card className="bg-white border border-[#E3E3E3] lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold text-[#1E1E1E]">Usage Heatmap</CardTitle>
+            <CardDescription className="text-xs">Requests by day & hour (UTC)</CardDescription>
+          </CardHeader>
+          <CardContent className="max-h-[360px] overflow-y-auto">
+            {heatmapLoading ? <LoadingState /> : !heatmapData || heatmapData.length === 0 ? <EmptyState /> : (
+              <UsageHeatmap data={heatmapData} />
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Task Type Trends */}
-      <Card className="bg-white border border-[#E3E3E3]">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-[#1E1E1E]">Task Type Trends</CardTitle>
-          <CardDescription>Daily token usage by task type</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {taskTrendsLoading ? <LoadingState /> : taskAreaData.data.length === 0 ? <EmptyState /> : (
-            <ResponsiveContainer width="100%" height={320}>
-              <AreaChart data={taskAreaData.data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                <YAxis tickFormatter={formatNumber} tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                <Tooltip formatter={(v) => [formatNumber(v), '']} contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0' }} />
-                <Legend />
-                {taskAreaData.taskTypes.map((type, i) => (
-                  <Area
-                    key={type}
-                    type="monotone"
-                    dataKey={type}
-                    stackId="1"
-                    fill={TASK_TYPE_COLORS[type] || USER_COLORS[i % USER_COLORS.length]}
-                    stroke={TASK_TYPE_COLORS[type] || USER_COLORS[i % USER_COLORS.length]}
-                    fillOpacity={0.6}
-                  />
-                ))}
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+      {/* Row 2: Task Type Trends + Users Table — side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <Card className="bg-white border border-[#E3E3E3] lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold text-[#1E1E1E]">Task Type Trends</CardTitle>
+            <CardDescription className="text-xs">Daily token usage by task type</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {taskTrendsLoading ? <LoadingState /> : taskLineData.series.length === 0 ? <EmptyState /> : (
+              <div style={{ height: 300 }}>
+                <ResponsiveLine
+                  data={taskLineData.series}
+                  theme={nivoTheme}
+                  colors={taskLineData.series.map(s => s.color)}
+                  margin={{ top: 10, right: 16, bottom: 46, left: 50 }}
+                  xScale={{ type: 'point' }}
+                  yScale={{ type: 'linear', min: 0, max: 'auto', stacked: true }}
+                  axisBottom={{
+                    tickRotation: (taskLineData.series[0]?.data.length || 0) > 14 ? -45 : 0,
+                    tickSize: 5,
+                    tickPadding: 5,
+                  }}
+                  axisLeft={{
+                    format: formatNumber,
+                    tickSize: 5,
+                    tickPadding: 5,
+                  }}
+                  pointSize={0}
+                  useMesh
+                  enableArea
+                  areaOpacity={0.6}
+                  curve="monotoneX"
+                  enableSlices="x"
+                  sliceTooltip={SliceTooltip}
+                  legends={[
+                    {
+                      anchor: 'bottom',
+                      direction: 'row',
+                      translateY: 42,
+                      itemWidth: 100,
+                      itemHeight: 20,
+                      symbolSize: 10,
+                      symbolShape: 'circle',
+                    },
+                  ]}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Top Users Table (Clickable) */}
-      <Card className="bg-white border border-[#E3E3E3]">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-[#1E1E1E]">All Users — Click to Drill Down</CardTitle>
-          <CardDescription>Click any user to view their model preferences, task breakdown, and activity timeline</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {usersLoading ? <LoadingState /> : !topUsers || topUsers.length === 0 ? <EmptyState message="No user data yet" /> : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead className="text-right">Total Tokens</TableHead>
-                  <TableHead className="text-right">Requests</TableHead>
-                  <TableHead className="text-right">Est. Cost</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {topUsers.map((user, i) => {
-                  const name = user.first_name && user.last_name
-                    ? `${user.first_name} ${user.last_name}`
-                    : `User #${user.user_id}`;
-                  return (
-                    <TableRow
-                      key={user.user_id || i}
-                      className="cursor-pointer hover:bg-slate-50 transition-colors"
-                      onClick={() => setSelectedUser({ user_id: user.user_id, name })}
-                    >
-                      <TableCell className="font-medium text-[#4242EA]">{name}</TableCell>
-                      <TableCell className="text-right">{formatNumber(parseInt(user.total_tokens, 10))}</TableCell>
-                      <TableCell className="text-right">{parseInt(user.request_count, 10).toLocaleString()}</TableCell>
-                      <TableCell className="text-right">{formatCost(user.estimated_cost)}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+        <Card className="bg-white border border-[#E3E3E3] lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold text-[#1E1E1E]">All Users</CardTitle>
+            <CardDescription className="text-xs">Click any user to drill down</CardDescription>
+          </CardHeader>
+          <CardContent className="max-h-[360px] overflow-y-auto">
+            {usersLoading ? <LoadingState /> : !topUsers || topUsers.length === 0 ? <EmptyState message="No user data yet" /> : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead className="text-right">Tokens</TableHead>
+                    <TableHead className="text-right">Reqs</TableHead>
+                    <TableHead className="text-right">Cost</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topUsers.map((user, i) => {
+                    const name = user.first_name && user.last_name
+                      ? `${user.first_name} ${user.last_name}`
+                      : `User #${user.user_id}`;
+                    return (
+                      <TableRow
+                        key={user.user_id || i}
+                        className="cursor-pointer hover:bg-slate-50 transition-colors"
+                        onClick={() => setSelectedUser({ user_id: user.user_id, name })}
+                      >
+                        <TableCell className="font-medium text-[#4242EA]">{name}</TableCell>
+                        <TableCell className="text-right">{formatNumber(parseInt(user.total_tokens, 10))}</TableCell>
+                        <TableCell className="text-right">{parseInt(user.request_count, 10).toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{formatCost(user.estimated_cost)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

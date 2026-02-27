@@ -485,7 +485,7 @@ function ApplicantDashboard() {
           key: 'onboarding',
           label: 'Complete Onboarding',
           description: onboardingLocked
-            ? `Onboarding opens on ${new Date(cohortInfo.start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}. You'll be able to complete your onboarding tasks then.`
+            ? `Onboarding opens on ${new Date(cohortInfo.onboarding_date || cohortInfo.start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}. You'll be able to complete your onboarding tasks then.`
             : 'Complete the required onboarding tasks to create your builder account and start the program.',
           statusOptions: ['not started', 'in progress', 'completed'],
           defaultStatus: 'not started',
@@ -812,7 +812,7 @@ function ApplicantDashboard() {
 
                     {section.key === 'onboarding' && locked && cohortInfo && (
                       <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-[#666] italic">
-                        Onboarding opens on {new Date(cohortInfo.start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}. Check back then to complete your tasks and create your builder account.
+                        Onboarding opens on {new Date(cohortInfo.onboarding_date || cohortInfo.start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}. Check back then to complete your tasks and create your builder account.
                       </div>
                     )}
 
