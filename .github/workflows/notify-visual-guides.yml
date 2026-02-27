@@ -1,0 +1,95 @@
+# Detects which visual guide systems are affected by code changes and dispatches
+# an update event to the platform-visuals repo.
+#
+# Required secret: PLATFORM_VISUALS_PAT — a GitHub PAT with repo scope on Pursuit-Assets/platform-visuals
+
+name: Notify Visual Guides
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  detect-and-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect affected systems
+        id: detect
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD)
+          SYSTEMS=()
+
+          add_system() {
+            local id="$1"
+            if [[ ! " ${SYSTEMS[*]} " =~ " ${id} " ]]; then
+              SYSTEMS+=("$id")
+            fi
+          }
+
+          while IFS= read -r file; do
+            case "$file" in
+              src/pages/AdmissionsDashboard/*|src/pages/ApplicantDashboard/*|src/pages/ApplicantSignup/*|src/pages/ApplicationForm/*)
+                add_system "admissions" ;;
+              src/pages/Admin/*|src/pages/AdminDashboard/*|src/pages/AdminPrompts/*|src/pages/CohortAdminDashboard/*)
+                add_system "admin-management" ;;
+              src/pages/Assessment/*|src/pages/AssessmentGrades/*|src/pages/Performance/*)
+                add_system "assessment-performance" ;;
+              src/pages/AttendanceDashboard/*|src/pages/AdminAttendanceDashboard/*|src/pages/AttendanceLogin/*)
+                add_system "attendance" ;;
+              src/pages/ExternalCohortsDashboard/*|src/pages/WorkshopAdminDashboard/*|src/pages/Workshops/*)
+                add_system "external-cohorts" ;;
+              src/pages/FormBuilder/*|src/pages/PublicForm/*)
+                add_system "forms-surveys" ;;
+              src/pages/Learning/*|src/pages/Content/*|src/pages/ContentPreview/*)
+                add_system "learning-curriculum" ;;
+              src/pages/Onboarding/*)
+                add_system "onboarding" ;;
+              src/pages/Pathfinder/*|src/pages/PathfinderAdmin/*|src/pages/PathfinderApplications/*|src/pages/PathfinderDashboard/*|src/pages/PathfinderEventHub/*|src/pages/PathfinderJobs/*|src/pages/PathfinderNetwork/*|src/pages/PathfinderNetworking/*|src/pages/PathfinderProjects/*)
+                add_system "pathfinder" ;;
+              src/pages/Payment/*|src/pages/PaymentAdmin/*|src/pages/PaymentTerms/*)
+                add_system "payment" ;;
+              src/pages/SalesTracker/*|src/pages/InfoSessions/*)
+                add_system "sales-outreach" ;;
+              src/pages/VolunteerManagementDashboard/*|src/pages/VolunteerRoster/*|src/pages/VolunteerFeedback/*|src/pages/VolunteeringDashboard/*|src/pages/VolunteerList/*|src/pages/VolunteerAttendance/*|src/pages/VolunteerCheckIn/*|src/pages/AdminVolunteerFeedback/*)
+                add_system "volunteer-management" ;;
+              src/pages/Stats/*)
+                add_system "weekly-reports" ;;
+              src/services/adminApi*) add_system "admin-management" ;;
+              src/services/volunteerApi*) add_system "volunteer-management" ;;
+              src/services/formService*) add_system "forms-surveys" ;;
+              src/utils/attendanceService*|src/utils/attendanceAuth*) add_system "attendance" ;;
+            esac
+          done <<< "$CHANGED"
+
+          if [ ${#SYSTEMS[@]} -eq 0 ]; then
+            echo "No visual guide systems affected."
+            echo "affected=false" >> "$GITHUB_OUTPUT"
+          else
+            SYSTEMS_JSON=$(printf '%s\n' "${SYSTEMS[@]}" | jq -R . | jq -s -c .)
+            echo "Affected systems: $SYSTEMS_JSON"
+            echo "affected=true" >> "$GITHUB_OUTPUT"
+            echo "systems=$SYSTEMS_JSON" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch to platform-visuals
+        if: steps.detect.outputs.affected == 'true'
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.PLATFORM_VISUALS_PAT }}" \
+            https://api.github.com/repos/Pursuit-Assets/platform-visuals/dispatches \
+            -d '{
+              "event_type": "update-visual-guides",
+              "client_payload": {
+                "source": "pilot-client",
+                "repo": "cgodoy720/pilot-client",
+                "systems": ${{ steps.detect.outputs.systems }},
+                "before_sha": "${{ github.event.before }}",
+                "after_sha": "${{ github.sha }}"
+              }
+            }'

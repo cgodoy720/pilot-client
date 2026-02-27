@@ -4,19 +4,60 @@ import { Textarea } from '../../../../components/ui/textarea';
 import { Input } from '../../../../components/ui/input';
 import { Loader2, Video, ExternalLink } from 'lucide-react';
 
-function StructuredSubmission({ task, schema, currentSubmission, isSubmitting, isLocked, onSubmit }) {
+function StructuredSubmission({ task, schema, currentSubmission, isSubmitting, isLocked, onSubmit, userId, taskId }) {
   const [formData, setFormData] = useState({});
   const [validationError, setValidationError] = useState('');
 
-  // Initialize form data from schema and existing submission
+  // Helper function to get localStorage key
+  const getLocalStorageKey = () => {
+    return `deliverable_draft_${userId}_${taskId}`;
+  };
+
+  // Helper function to load draft from localStorage
+  const loadDraftFromLocalStorage = () => {
+    try {
+      const key = getLocalStorageKey();
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Error loading draft from localStorage:', e);
+    }
+    return null;
+  };
+
+  // Helper function to save draft to localStorage
+  const saveDraftToLocalStorage = (data) => {
+    try {
+      const key = getLocalStorageKey();
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+      console.error('Error saving draft to localStorage:', e);
+    }
+  };
+
+  // Helper function to clear draft from localStorage
+  const clearDraftFromLocalStorage = () => {
+    try {
+      const key = getLocalStorageKey();
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.error('Error clearing draft from localStorage:', e);
+    }
+  };
+
+  // Initialize form data from schema, existing submission, or localStorage draft
   useEffect(() => {
     const initialData = {};
     
-    // Try to parse existing submission if it exists
+    // Priority 1: Try to parse existing submission if it exists
     let existingData = {};
     let plainTextContent = null;
+    let hasSubmission = false;
     
     if (currentSubmission?.content) {
+      hasSubmission = true;
       try {
         // If content is a JSON string, parse it
         existingData = typeof currentSubmission.content === 'string' 
@@ -29,27 +70,46 @@ function StructuredSubmission({ task, schema, currentSubmission, isSubmitting, i
       }
     }
     
+    // Priority 2: If no submission exists, try to load draft from localStorage
+    let draftData = null;
+    if (!hasSubmission) {
+      draftData = loadDraftFromLocalStorage();
+      if (draftData) {
+        console.log('Loaded draft from localStorage for task', taskId);
+      }
+    }
+    
     // Initialize each field from schema
     schema.fields.forEach(field => {
       if (existingData[field.name]) {
-        // Use parsed JSON data if available
+        // Use parsed JSON data from submission if available
         initialData[field.name] = existingData[field.name];
       } else if (plainTextContent && field.type === 'loom_url') {
         // For loom_url fields, if we have plain text content that looks like a Loom URL, use it
         initialData[field.name] = plainTextContent;
+      } else if (draftData && draftData[field.name]) {
+        // Use draft data from localStorage if available
+        initialData[field.name] = draftData[field.name];
       } else {
         initialData[field.name] = '';
       }
     });
     
     setFormData(initialData);
-  }, [schema, currentSubmission]);
+  }, [schema, currentSubmission, userId, taskId]);
 
   const handleChange = (fieldName, value) => {
-    setFormData(prev => ({
-      ...prev,
+    const updatedData = {
+      ...formData,
       [fieldName]: value
-    }));
+    };
+    setFormData(updatedData);
+    
+    // Save to localStorage (only if no submission exists yet)
+    if (!currentSubmission) {
+      saveDraftToLocalStorage(updatedData);
+    }
+    
     // Clear validation error when user starts typing
     if (validationError) {
       setValidationError('');
@@ -108,6 +168,9 @@ function StructuredSubmission({ task, schema, currentSubmission, isSubmitting, i
       return;
     }
 
+    // Clear draft from localStorage before submitting
+    clearDraftFromLocalStorage();
+    
     // Submit as JSON object
     onSubmit(formData);
   };

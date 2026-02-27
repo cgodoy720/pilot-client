@@ -1,27 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import FeedbackModal from './FeedbackModal';
 import FeedbackList from './FeedbackList';
 import './VolunteerFeedback.css';
 
-function VolunteerFeedback() {
+function VolunteerFeedback({ embedded = false }) {
     const { user, token } = useAuth();
+    const { canAccessPage } = usePermissions();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [feedback, setFeedback] = useState([]);
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Debug logging
-    console.log('🔍 VolunteerFeedback rendering with:', { user, token, userRole: user?.role });
-
     useEffect(() => {
-        console.log('🔍 useEffect running with:', { user, token, userRole: user?.role });
         if (user && token) {
-            console.log('🔍 User and token exist, fetching data...');
             fetchFeedback();
         } else {
-            console.log('🔍 User or token missing:', { hasUser: !!user, hasToken: !!token });
             setIsLoading(false);
         }
     }, [user, token]);
@@ -66,10 +62,7 @@ function VolunteerFeedback() {
         ));
     };
 
-    console.log('🔍 Role check:', { userRole: user?.role, isVolunteer: user?.role === 'volunteer' });
-    
-    if (user?.role !== 'volunteer') {
-        console.log('🔍 Access denied - user is not a volunteer');
+    if (!embedded && (!user || !canAccessPage('volunteer_feedback'))) {
         return (
             <div className="volunteer-feedback-page">
                 <div className="volunteer-feedback">
@@ -82,12 +75,8 @@ function VolunteerFeedback() {
         );
     }
     
-    console.log('🔍 User is a volunteer, rendering feedback form');
-
-    console.log('🔍 Rendering main feedback form content');
-    
     return (
-        <div className="volunteer-feedback-page">
+        <div className={embedded ? "volunteer-feedback-page volunteer-feedback-page--embedded" : "volunteer-feedback-page"}>
             <div className="volunteer-feedback">
                 <div className="volunteer-feedback__header">
                     <h1>Volunteer Feedback</h1>

@@ -448,30 +448,49 @@ const AttendanceDashboard = () => {
     console.log('🔍 User ID from id:', selectedBuilder.id);
     console.log('🔍 User ID from user_id:', selectedBuilder.user_id);
     console.log('🔍 User ID from userId:', selectedBuilder.userId);
+    console.log('🔍 User Type:', selectedBuilder.userType);
+    console.log('🔍 Slot ID:', selectedBuilder.slotId);
     
     setIsSubmitting(true);
     try {
+      // Build request body - include userType and slotId for volunteers
+      const requestBody = {
+        userId: selectedBuilder.id || selectedBuilder.user_id || selectedBuilder.userId,
+        photoData: capturedPhoto
+      };
+
+      // If this is a volunteer, include their userType and slotId
+      if (selectedBuilder.userType === 'volunteer' && selectedBuilder.slotId) {
+        requestBody.userType = 'volunteer';
+        requestBody.slotId = selectedBuilder.slotId;
+        console.log('📋 Processing VOLUNTEER check-in with slotId:', selectedBuilder.slotId);
+      }
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/attendance/checkin`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('attendanceToken')}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          userId: selectedBuilder.id || selectedBuilder.user_id || selectedBuilder.userId,
-          photoData: capturedPhoto
-        })
+        body: JSON.stringify(requestBody)
       });
       
       if (response.ok) {
         const data = await response.json();
         setCheckInStatus({ type: 'success', message: 'Check-in successful!' });
         
+        // Custom message for volunteers
+        const displayName = data.userType === 'volunteer'
+          ? `Volunteer ${selectedBuilder.firstName} ${selectedBuilder.lastName}`
+          : `${selectedBuilder.firstName} ${selectedBuilder.lastName}`;
+
         // Start celebratory sequence
-        startCelebratorySequence(`${selectedBuilder.firstName} ${selectedBuilder.lastName}`);
+        startCelebratorySequence(displayName);
         
         // Refresh attendance data immediately
         loadTodayAttendance();
+        // Also refresh builders list to remove checked-in volunteer
+        loadAllBuilders();
       } else {
         const errorData = await response.json();
         setCheckInStatus({ type: 'error', message: errorData.error || 'Check-in failed' });
@@ -596,14 +615,6 @@ const AttendanceDashboard = () => {
     // Convert to cohort data structure
     const cohortData = [];
     
-    // Map cohort names to display names
-    const cohortMapping = {
-      'March 2025': { name: 'Pilot', level: 'L3' },
-      'June 2025': { name: 'June 2025', level: 'L2' },
-      'September 2025': { name: 'September', level: 'L1' },
-      'Unknown Cohort': { name: 'Unknown', level: 'L?' }
-    };
-
     cohortsData.forEach(cohortGroup => {
       console.log('🔍 Processing cohort group:', cohortGroup);
       
@@ -635,12 +646,10 @@ const AttendanceDashboard = () => {
         };
       });
       
-      const mapping = cohortMapping[cohortName] || { name: cohortName, level: 'L?' };
-      console.log(`Creating cohort card for ${cohortName} -> ${mapping.name} ${mapping.level} with ${normalizedAttendees.length} attendees`);
+      console.log(`Creating cohort card for ${cohortName} with ${normalizedAttendees.length} attendees`);
       
       cohortData.push({
-        cohortName: mapping.name,
-        cohortLevel: mapping.level,
+        cohortName: cohortName,
         attendees: normalizedAttendees
       });
     });
@@ -983,9 +992,8 @@ const AttendanceDashboard = () => {
             console.log('🔍 Rendering cohort cards, data:', cohortData);
             return cohortData.map((cohort, index) => (
               <CohortAttendanceCard
-                key={`${cohort.cohortLevel}-${cohort.cohortName}-${index}`}
+                key={`${cohort.cohortName}-${index}`}
                 cohortName={cohort.cohortName}
-                cohortLevel={cohort.cohortLevel}
                 attendees={cohort.attendees}
                 className="cohort-card"
               />

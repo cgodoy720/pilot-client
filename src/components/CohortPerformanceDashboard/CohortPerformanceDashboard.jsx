@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, RefreshCw, AlertTriangle, CheckCircle, User, Info } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { TrendingUp, RefreshCw, AlertTriangle, User } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
@@ -22,85 +22,140 @@ import {
 import { cachedAdminApi } from '../../services/cachedAdminApi';
 import { useAuth } from '../../context/AuthContext';
 import { getErrorMessage } from '../../utils/retryUtils';
-import { useNetworkStatus } from '../../utils/networkStatus';
+import CohortDailyBreakdown from './CohortDailyBreakdown';
+import DayBuilderStatusModal from './DayBuilderStatusModal';
 
 const CohortPerformanceDashboard = () => {
   const { token } = useAuth();
-  const { isOnline } = useNetworkStatus(React);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [cacheInfo, setCacheInfo] = useState(null);
-  const [fetchTime, setFetchTime] = useState(null);
-  const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('last-30-days');
   
+  // New state for cohort selection and daily breakdown
+  const [selectedCohort, setSelectedCohort] = useState(null);
+  const [availableCohorts, setAvailableCohorts] = useState([]);
+  const [dailyBreakdown, setDailyBreakdown] = useState([]);
+  const [dailyBreakdownLoading, setDailyBreakdownLoading] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [dayBuilders, setDayBuilders] = useState(null);
+  const [dayBuildersLoading, setDayBuildersLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
   const [filters, setFilters] = useState({
-    builder: '',
-    cohort: '',
-    attendanceRate: '',
-    recommendation: ''
+    builder: ''
   });
   const [filteredRiskData, setFilteredRiskData] = useState([]);
 
-  const fetchData = async (forceRefresh = false) => {
+  const fetchData = async (forceRefresh = false, showLoader = true) => {
     try {
-      setLoading(true);
+      if (showLoader) {
+        setLoading(true);
+      }
       setError(null);
       
-      if (!isOnline) {
-        setIsOfflineMode(true);
-        const response = await cachedAdminApi.getCachedCohortPerformance(token, { forceRefresh: false, offlineOnly: true });
-        
-        if (response.data) {
-          setData(response.data);
-          setLastUpdated(new Date());
-          setCacheInfo({ isFromCache: true, cachedAt: response.cachedAt, expiresAt: response.expiresAt });
-          setFetchTime(response.fetchTime || 0);
-        } else {
-          setError('No cached data available. Please connect to the internet to load data.');
-        }
-        return;
-      }
-      
-      setIsOfflineMode(false);
       const response = await cachedAdminApi.getCachedCohortPerformance(token, { forceRefresh, period: selectedPeriod });
       
       setData(response.data);
       setLastUpdated(new Date());
-      setCacheInfo({ isFromCache: response.isFromCache, cachedAt: response.cachedAt, expiresAt: response.expiresAt });
-      setFetchTime(response.fetchTime || 0);
-    } catch (err) {
-      console.error('Error fetching cohort performance:', err);
       
-      if (!isOnline && data) {
-        setIsOfflineMode(true);
-        setError('Showing cached data - no network connection');
-      } else {
-        setError(getErrorMessage(err));
+      // Set available cohorts and preserve current selection when possible.
+      if (response.data?.availableCohorts && response.data.availableCohorts.length > 0) {
+        const cohorts = response.data.availableCohorts;
+        setAvailableCohorts(cohorts);
+        setSelectedCohort((prev) => {
+          if (prev && cohorts.includes(prev)) return prev;
+          const decemberCohort = cohorts.find((c) => c === 'December 2025');
+          return decemberCohort || cohorts[0];
+        });
       }
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
-      setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+      }
     }
   };
 
+  const fetchDailyBreakdown = async (cohort) => {
+    if (!cohort) return;
+    
+    try {
+      setDailyBreakdownLoading(true);
+      const response = await cachedAdminApi.getCachedCohortDailyBreakdown(cohort, token, { period: selectedPeriod });
+      setDailyBreakdown(response.data?.dailyBreakdown || []);
+    } catch (err) {
+      console.error('Error fetching daily breakdown:', err);
+      setDailyBreakdown([]);
+    } finally {
+      setDailyBreakdownLoading(false);
+    }
+  };
+
+  const handleDayClick = async (day) => {
+    if (!selectedCohort || !day.date) return;
+    
+    try {
+      setSelectedDay(day);
+      setIsModalOpen(true);
+      setDayBuildersLoading(true);
+      
+      const response = await cachedAdminApi.getCachedDayBuilderStatus(selectedCohort, day.date, token);
+      setDayBuilders(response.data);
+    } catch (err) {
+      console.error('Error fetching day builder status:', err);
+      setDayBuilders(null);
+    } finally {
+      setDayBuildersLoading(false);
+    }
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedDay(null);
+    setDayBuilders(null);
+  };
+
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 60000);
+    fetchData(false, true);
+    const interval = setInterval(() => {
+      fetchData(false, false);
+    }, 60000);
     return () => clearInterval(interval);
   }, [token, selectedPeriod]);
 
   useEffect(() => {
-    if (data?.riskAssessment) {
-      const filtered = applyFilters(data.riskAssessment);
-      setFilteredRiskData(filtered);
+    if (selectedCohort) {
+      fetchDailyBreakdown(selectedCohort);
     }
-  }, [data?.riskAssessment, filters]);
+  }, [selectedCohort, selectedPeriod]);
+
+  useEffect(() => {
+    if (data?.riskAssessment && selectedCohort) {
+      // Filter risk data to only show builders from selected cohort
+      const filtered = data.riskAssessment.filter(builder => {
+        const matchesBuilder = !filters.builder || 
+          `${builder.firstName} ${builder.lastName}`.toLowerCase().includes(filters.builder.toLowerCase()) ||
+          builder.email.toLowerCase().includes(filters.builder.toLowerCase());
+        
+        const matchesCohort = builder.cohort === selectedCohort;
+        
+        return matchesBuilder && matchesCohort;
+      });
+      setFilteredRiskData(filtered);
+    } else {
+      setFilteredRiskData([]);
+    }
+  }, [data?.riskAssessment, filters, selectedCohort]);
 
   const handleRefresh = () => {
     cachedAdminApi.invalidateAllAttendanceCaches();
-    fetchData(true);
+    fetchData(true, true);
+    if (selectedCohort) {
+      fetchDailyBreakdown(selectedCohort);
+    }
   };
 
   const handleFilterChange = (filterType, value) => {
@@ -108,23 +163,7 @@ const CohortPerformanceDashboard = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ builder: '', cohort: '', attendanceRate: '', recommendation: '' });
-  };
-
-  const applyFilters = (riskData) => {
-    if (!riskData) return [];
-    
-    return riskData.filter(builder => {
-      const matchesBuilder = !filters.builder || 
-        `${builder.firstName} ${builder.lastName}`.toLowerCase().includes(filters.builder.toLowerCase()) ||
-        builder.email.toLowerCase().includes(filters.builder.toLowerCase());
-      const matchesCohort = !filters.cohort || filters.cohort === 'all' || builder.cohort.includes(filters.cohort);
-      const matchesRate = !filters.attendanceRate || builder.attendanceRate.toString().includes(filters.attendanceRate);
-      const matchesRecommendation = !filters.recommendation || filters.recommendation === 'all' || 
-        (builder.recommendation || 'Monitor').includes(filters.recommendation);
-      
-      return matchesBuilder && matchesCohort && matchesRate && matchesRecommendation;
-    });
+    setFilters({ builder: '' });
   };
 
   const getRequirementForCohort = (cohort) => {
@@ -135,11 +174,63 @@ const CohortPerformanceDashboard = () => {
     return 85;
   };
 
+  const selectedCohortData = data?.cohorts?.find(c => c.cohort === selectedCohort);
+  const requirement = selectedCohort ? getRequirementForCohort(selectedCohort) : 85;
+  const selectedPeriodLabel = {
+    'last-30-days': 'Last 30 Days',
+    'this-week': 'This Week',
+    'last-week': 'Last Week',
+    'this-month': 'This Month',
+    'last-month': 'Last Month'
+  }[selectedPeriod] || 'Selected Period';
+
+  const cohortPeriodStats = useMemo(() => {
+    if (!selectedCohortData || !dailyBreakdown || dailyBreakdown.length === 0) {
+      return {
+        classDays: 0,
+        present: 0,
+        late: 0,
+        excused: 0,
+        absent: 0,
+        attendanceRate: 0
+      };
+    }
+
+    const totals = dailyBreakdown.reduce((acc, day) => {
+      acc.present += day.present || 0;
+      acc.late += day.late || 0;
+      acc.excused += day.excused || 0;
+      acc.absent += day.absent || 0;
+      acc.totalSlots += day.total || selectedCohortData.totalBuilders || 0;
+      return acc;
+    }, {
+      present: 0,
+      late: 0,
+      excused: 0,
+      absent: 0,
+      totalSlots: 0
+    });
+
+    const attended = totals.present + totals.late + totals.excused;
+    const attendanceRate = totals.totalSlots > 0
+      ? Number(((attended / totals.totalSlots) * 100).toFixed(1))
+      : 0;
+
+    return {
+      classDays: dailyBreakdown.length,
+      present: totals.present,
+      late: totals.late,
+      excused: totals.excused,
+      absent: totals.absent,
+      attendanceRate
+    };
+  }, [dailyBreakdown, selectedCohortData]);
+
   if (loading && !data) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="animate-spin w-8 h-8 border-4 border-[#4242EA] border-t-transparent rounded-full mb-4"></div>
-        <p className="text-[#666666]">Loading cohort performance data...</p>
+      <div className="flex flex-col items-center justify-center py-16">
+        <RefreshCw className="h-8 w-8 text-[#4242EA] animate-spin mb-4" />
+        <p className="text-slate-600">Loading cohort performance data...</p>
       </div>
     );
   }
@@ -161,7 +252,7 @@ const CohortPerformanceDashboard = () => {
   if (!data) {
     return (
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
-        <Info className="h-5 w-5 text-blue-600" />
+        <AlertTriangle className="h-5 w-5 text-blue-600" />
         <span className="text-blue-600">No cohort performance data available.</span>
       </div>
     );
@@ -170,220 +261,218 @@ const CohortPerformanceDashboard = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <TrendingUp className="h-6 w-6 text-[#4242EA]" />
-          <div>
-            <h2 className="text-xl font-semibold text-[#1E1E1E]">Cohort Performance Dashboard</h2>
-            {data?.period?.displayName && (
-              <p className="text-sm text-[#666666]">{data.period.displayName}</p>
-            )}
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold text-slate-900">Cohort Performance</h2>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-[180px] bg-white border-[#C8C8C8]">
-              <SelectValue placeholder="Time Period" />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              <SelectItem value="last-30-days">Last 30 Days</SelectItem>
-              <SelectItem value="this-week">This Week</SelectItem>
-              <SelectItem value="last-week">Last Week</SelectItem>
-              <SelectItem value="this-month">This Month</SelectItem>
-              <SelectItem value="last-month">Last Month</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          {isOfflineMode && (
-            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">Offline Mode</Badge>
-          )}
-          {lastUpdated && (
-            <span className="text-sm text-[#666666]">Updated: {lastUpdated.toLocaleTimeString()}</span>
-          )}
-          {cacheInfo && (
-            <Badge variant="outline" className={cacheInfo.isFromCache ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}>
-              {cacheInfo.isFromCache ? 'Cached' : 'Live'}{fetchTime && ` (${fetchTime}ms)`}
-            </Badge>
-          )}
-          <button onClick={handleRefresh} disabled={loading} className="p-2 hover:bg-[#EFEFEF] rounded-md transition-colors disabled:opacity-50" title="Refresh">
-            <RefreshCw className={`h-4 w-4 text-[#666666] ${loading ? 'animate-spin' : ''}`} />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
           </button>
         </div>
       </div>
 
-      {/* Cohort Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {data.cohorts?.map((cohort) => {
-          const requirement = getRequirementForCohort(cohort.cohort);
-          const isMeetingRequirement = cohort.attendanceRate >= requirement;
-          
-          return (
-            <Card key={cohort.cohort} className={`border-2 ${isMeetingRequirement ? 'bg-gradient-to-br from-[#11998e]/5 to-[#38ef7d]/10 border-[#11998e]/30' : 'bg-gradient-to-br from-[#eb3349]/5 to-[#f45c43]/10 border-[#eb3349]/30'}`}>
-              <CardContent className="p-5">
-                <div className="text-center mb-4">
-                  <h3 className={`text-lg font-bold mb-3 ${isMeetingRequirement ? 'text-[#11998e]' : 'text-[#eb3349]'}`}>{cohort.cohort}</h3>
-                  <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-white font-bold ${isMeetingRequirement ? 'bg-gradient-to-r from-[#11998e] to-[#38ef7d]' : 'bg-gradient-to-r from-[#eb3349] to-[#f45c43]'}`}>
-                    <span className="text-3xl">{cohort.attendanceRate.toFixed(0)}%</span>
-                    <Badge variant="outline" className="bg-white/20 text-white border-white/30 text-xs">
-                      {isMeetingRequirement ? <CheckCircle className="h-3 w-3 mr-1" /> : <AlertTriangle className="h-3 w-3 mr-1" />}
-                      Target: {requirement}%
-                    </Badge>
-                  </div>
-                </div>
-                
-                <div className="mb-4">
-                  <div className="flex justify-between text-xs text-[#666666] mb-1">
-                    <span>Cohort Target: 75%+</span>
-                    <span className="font-semibold">{cohort.attendanceRate.toFixed(0)}%</span>
-                  </div>
-                  <Progress value={cohort.attendanceRate} className={`h-2 ${isMeetingRequirement ? '[&>div]:bg-gradient-to-r [&>div]:from-[#11998e] [&>div]:to-[#38ef7d]' : '[&>div]:bg-gradient-to-r [&>div]:from-[#eb3349] [&>div]:to-[#f45c43]'}`} />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-white/70 rounded-lg p-2 text-center border border-black/5">
-                    <p className="text-xl font-bold text-[#1E1E1E]">{cohort.totalBuilders}</p>
-                    <p className="text-[10px] font-semibold text-[#666666] uppercase">Total</p>
-                  </div>
-                  <div className="bg-white/70 rounded-lg p-2 text-center border border-black/5">
-                    <p className="text-xl font-bold text-[#11998e]">{cohort.presentToday}</p>
-                    <p className="text-[10px] font-semibold text-[#666666] uppercase">Present</p>
-                  </div>
-                  <div className="bg-white/70 rounded-lg p-2 text-center border border-black/5">
-                    <p className="text-xl font-bold text-[#eb3349]">{cohort.absentToday}</p>
-                    <p className="text-[10px] font-semibold text-[#666666] uppercase">Absent</p>
-                  </div>
-                  <div className="bg-white/70 rounded-lg p-2 text-center border border-black/5">
-                    <p className="text-xl font-bold text-[#f2994a]">{cohort.excusedToday || 0}</p>
-                    <p className="text-[10px] font-semibold text-[#666666] uppercase">Excused</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-br from-[#667eea]/10 to-[#764ba2]/15 border-2 border-[#667eea]/30 rounded-2xl">
-          <CardContent className="p-6 text-center">
-            <p className="text-xs font-semibold text-[#667eea] uppercase tracking-wider mb-2">Overall Performance</p>
-            <p className="text-4xl font-black text-[#1E1E1E]">{data.summary?.overallAttendanceRate?.toFixed(1) || 0}%</p>
-            <p className="text-xs text-[#666666] mt-1">Average across all cohorts</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-br from-[#11998e]/10 to-[#38ef7d]/15 border-2 border-[#11998e]/30 rounded-2xl">
-          <CardContent className="p-6 text-center">
-            <p className="text-xs font-semibold text-[#11998e] uppercase tracking-wider mb-2">Meeting Target</p>
-            <p className="text-4xl font-black text-[#1E1E1E]">{data.summary?.cohortsMeetingRequirement || 0} / {data.summary?.totalCohorts || 0}</p>
-            <p className="text-xs text-[#666666] mt-1">Cohorts above threshold</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-br from-[#eb3349]/10 to-[#f45c43]/15 border-2 border-[#eb3349]/30 rounded-2xl">
-          <CardContent className="p-6 text-center">
-            <p className="text-xs font-semibold text-[#eb3349] uppercase tracking-wider mb-2">Builders at Risk</p>
-            <p className="text-4xl font-black text-[#1E1E1E]">{data.summary?.buildersAtRisk || 0}</p>
-            <p className="text-xs text-[#666666] mt-1">Requiring attention</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Risk Assessment Table */}
-      {data.riskAssessment && data.riskAssessment.length > 0 && (
-        <Card className="bg-white border-[#C8C8C8]">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              <h3 className="text-lg font-semibold text-[#1E1E1E]">Builders at Risk</h3>
+      {/* Cohort Selector & Selected Cohort Stats */}
+      <Card className="bg-white border border-slate-200 shadow-sm">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-slate-900">Selected Cohort</h3>
+            <div className="flex items-center gap-3">
+              <Select value={selectedCohort || ''} onValueChange={setSelectedCohort}>
+                <SelectTrigger className="w-[280px] bg-white border-slate-300">
+                  <SelectValue placeholder="Select a cohort" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  {availableCohorts.map((cohort) => (
+                    <SelectItem key={cohort} value={cohort}>
+                      {cohort}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                <SelectTrigger className="w-[180px] bg-white border-slate-300">
+                  <SelectValue placeholder="Time Period" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="last-30-days">Last 30 Days</SelectItem>
+                  <SelectItem value="this-week">This Week</SelectItem>
+                  <SelectItem value="last-week">Last Week</SelectItem>
+                  <SelectItem value="this-month">This Month</SelectItem>
+                  <SelectItem value="last-month">Last Month</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <p className="text-sm text-[#666666] mb-4">
-              Builders below attendance thresholds requiring attention
-              {filteredRiskData.length !== data.riskAssessment.length && ` (${filteredRiskData.length} of ${data.riskAssessment.length} shown)`}
-            </p>
+          </div>
+
+          {selectedCohortData && (
+            <div className="border border-slate-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-slate-900">{selectedCohortData.cohort}</h4>
+                <Badge className={
+                  cohortPeriodStats.attendanceRate >= requirement
+                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                    : 'bg-red-100 text-red-700 border-red-200'
+                }>
+                  Target: {requirement}%
+                </Badge>
+              </div>
+              
+              <div className="mb-3">
+                <div className="flex items-center justify-between text-sm mb-1">
+                  <span className="text-slate-600">Attendance Rate ({selectedPeriodLabel})</span>
+                  <span className="font-semibold text-slate-900">{cohortPeriodStats.attendanceRate.toFixed(1)}%</span>
+                </div>
+                <Progress 
+                  value={cohortPeriodStats.attendanceRate} 
+                  className={`h-2 ${
+                    cohortPeriodStats.attendanceRate >= requirement 
+                      ? '[&>div]:bg-emerald-500' 
+                      : '[&>div]:bg-red-500'
+                  }`}
+                />
+              </div>
+              
+              <div className="grid grid-cols-5 gap-2 text-sm">
+                <div className="bg-slate-50 rounded p-2 text-center">
+                  <p className="font-semibold text-slate-900">{selectedCohortData.totalBuilders}</p>
+                  <p className="text-xs text-slate-600">Total Builders</p>
+                </div>
+                <div className="bg-emerald-50 rounded p-2 text-center">
+                  <p className="font-semibold text-emerald-700">{cohortPeriodStats.present + cohortPeriodStats.late}</p>
+                  <p className="text-xs text-slate-600">Present+Late</p>
+                </div>
+                <div className="bg-red-50 rounded p-2 text-center">
+                  <p className="font-semibold text-red-700">{cohortPeriodStats.absent}</p>
+                  <p className="text-xs text-slate-600">Absent</p>
+                </div>
+                <div className="bg-blue-50 rounded p-2 text-center">
+                  <p className="font-semibold text-blue-700">{cohortPeriodStats.excused}</p>
+                  <p className="text-xs text-slate-600">Excused</p>
+                </div>
+                <div className="bg-violet-50 rounded p-2 text-center">
+                  <p className="font-semibold text-violet-700">{cohortPeriodStats.classDays}</p>
+                  <p className="text-xs text-slate-600">Class Days</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Daily Breakdown */}
+      {selectedCohort && (
+        <CohortDailyBreakdown
+          dailyBreakdown={dailyBreakdown}
+          cohort={selectedCohort}
+          requirement={requirement}
+          onDayClick={handleDayClick}
+          loading={dailyBreakdownLoading}
+        />
+      )}
+
+      {/* At-Risk Builders Table - Filtered to selected cohort */}
+      {data.riskAssessment && data.riskAssessment.length > 0 && selectedCohort && (
+        <Card className="bg-white border border-slate-200 shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">At-Risk Builders - {selectedCohort}</h3>
+                <p className="text-sm text-slate-600 mt-1">
+                  Builders in this cohort below attendance thresholds
+                  {filteredRiskData.length > 0 && ` (${filteredRiskData.length} builders)`}
+                </p>
+              </div>
+            </div>
             
             {/* Filters */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <Input placeholder="Filter by name..." value={filters.builder} onChange={(e) => handleFilterChange('builder', e.target.value)} className="bg-white border-[#C8C8C8]" />
-              <Select value={filters.cohort || 'all'} onValueChange={(v) => handleFilterChange('cohort', v === 'all' ? '' : v)}>
-                <SelectTrigger className="bg-white border-[#C8C8C8]"><SelectValue placeholder="All Cohorts" /></SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="all">All Cohorts</SelectItem>
-                  <SelectItem value="September 2025">September 2025</SelectItem>
-                  <SelectItem value="June 2025">June 2025</SelectItem>
-                  <SelectItem value="March 2025">March 2025</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input placeholder="Filter rate..." value={filters.attendanceRate} onChange={(e) => handleFilterChange('attendanceRate', e.target.value)} className="bg-white border-[#C8C8C8]" />
-              <Select value={filters.recommendation || 'all'} onValueChange={(v) => handleFilterChange('recommendation', v === 'all' ? '' : v)}>
-                <SelectTrigger className="bg-white border-[#C8C8C8]"><SelectValue placeholder="All" /></SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="Monitor">Monitor</SelectItem>
-                  <SelectItem value="Intervention Required">Intervention Required</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="mb-4">
+              <Input 
+                placeholder="Search by name..." 
+                value={filters.builder} 
+                onChange={(e) => handleFilterChange('builder', e.target.value)} 
+                className="bg-white border-slate-300 max-w-md"
+              />
             </div>
             
-            {(filters.builder || filters.cohort || filters.attendanceRate || filters.recommendation) && (
+            {filters.builder && (
               <div className="mb-4">
-                <button onClick={clearFilters} className="text-sm text-[#4242EA] hover:underline">Clear All Filters</button>
+                <button onClick={clearFilters} className="text-sm text-[#4242EA] hover:underline">
+                  Clear Search
+                </button>
               </div>
             )}
             
-            <div className="border border-[#C8C8C8] rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-[#F9F9F9]">
-                    <TableHead className="text-[#1E1E1E] font-semibold">Builder</TableHead>
-                    <TableHead className="text-[#1E1E1E] font-semibold">Cohort</TableHead>
-                    <TableHead className="text-[#1E1E1E] font-semibold text-right">Rate</TableHead>
-                    <TableHead className="text-[#1E1E1E] font-semibold text-right">Req.</TableHead>
-                    <TableHead className="text-[#1E1E1E] font-semibold text-center">Status</TableHead>
-                    <TableHead className="text-[#1E1E1E] font-semibold text-center">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredRiskData.map((builder, index) => {
-                    const requirement = getRequirementForCohort(builder.cohort);
-                    const isAtRisk = builder.attendanceRate < requirement;
-                    
-                    return (
-                      <TableRow key={index} className="border-b border-[#E3E3E3]">
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-[#666666]" />
-                            <div>
-                              <p className="text-sm font-medium text-[#1E1E1E]">{builder.firstName} {builder.lastName}</p>
-                              <p className="text-xs text-[#666666]">{builder.email}</p>
+            {filteredRiskData.length === 0 ? (
+              <div className="text-center py-8 text-slate-600">
+                <p>No at-risk builders found in {selectedCohort}</p>
+              </div>
+            ) : (
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50">
+                      <TableHead className="text-slate-900 font-semibold">Builder</TableHead>
+                      <TableHead className="text-slate-900 font-semibold text-right">Attendance Rate</TableHead>
+                      <TableHead className="text-slate-900 font-semibold text-right">Target</TableHead>
+                      <TableHead className="text-slate-900 font-semibold text-center">Status</TableHead>
+                      <TableHead className="text-slate-900 font-semibold text-center">Recommendation</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredRiskData.map((builder, index) => {
+                      const isAtRisk = builder.attendanceRate < requirement;
+                      
+                      return (
+                        <TableRow key={index} className="border-b border-slate-200">
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-slate-400" />
+                              <div>
+                                <p className="text-sm font-medium text-slate-900">
+                                  {builder.firstName} {builder.lastName}
+                                </p>
+                                <p className="text-xs text-slate-500">{builder.email}</p>
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-[#1E1E1E]">{builder.cohort}</TableCell>
-                        <TableCell className={`text-right font-semibold ${isAtRisk ? 'text-red-600' : 'text-[#1E1E1E]'}`}>
-                          {builder.attendanceRate.toFixed(1)}%
-                        </TableCell>
-                        <TableCell className="text-right text-[#666666]">{requirement}%</TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={isAtRisk ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}>
-                            {isAtRisk ? 'At Risk' : 'Safe'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className={isAtRisk ? 'border-amber-400 text-amber-700' : 'border-[#C8C8C8] text-[#666666]'}>
-                            {builder.recommendation || 'Monitor'}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                          </TableCell>
+                          <TableCell className={`text-right font-semibold ${isAtRisk ? 'text-red-600' : 'text-slate-900'}`}>
+                            {builder.attendanceRate.toFixed(1)}%
+                          </TableCell>
+                          <TableCell className="text-right text-slate-600">{requirement}%</TableCell>
+                          <TableCell className="text-center">
+                            <Badge className={isAtRisk ? 'bg-red-100 text-red-700 border-red-200' : 'bg-green-100 text-green-700 border-green-200'}>
+                              {isAtRisk ? 'At Risk' : 'Safe'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className={isAtRisk ? 'border-amber-400 text-amber-700 bg-amber-50' : 'border-slate-300 text-slate-600'}>
+                              {builder.recommendation || 'Monitor'}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
+
+      {/* Day Builder Status Modal */}
+      <DayBuilderStatusModal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        dayData={dayBuilders}
+        loading={dayBuildersLoading}
+      />
     </div>
   );
 };

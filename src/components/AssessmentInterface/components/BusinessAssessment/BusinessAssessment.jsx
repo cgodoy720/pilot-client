@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaPaperPlane, FaSave, FaCheck, FaInfoCircle } from 'react-icons/fa';
 import Swal from 'sweetalert2';
+import { marked } from 'marked';
 import { useAuth } from '../../../../context/AuthContext';
 import AssessmentLLMChat from '../AssessmentLLMChat/AssessmentLLMChat';
 import './BusinessAssessment.css';
@@ -221,70 +222,9 @@ function BusinessAssessment() {
   };
 
   const showInstructionsModal = () => {
-    // Format instructions text to convert line breaks and create proper lists
-    const formatInstructions = (text) => {
-      if (!text) return 'Instructions will be loaded...';
-      
-      let formattedText = '';
-      
-      // Split the text into sections
-      const sections = text.split('\n\n');
-      
-      sections.forEach((section, index) => {
-        const lines = section.split('\n');
-        
-        if (section.includes('Things you might want to explore:')) {
-          // Extract the main paragraph before the list
-          const mainText = lines[0].replace('Things you might want to explore:', '').trim();
-          if (mainText) {
-            formattedText += `<p>${mainText}</p>`;
-          }
-          
-          formattedText += `<p><strong>Things you might want to explore:</strong></p>`;
-          formattedText += `<ul>`;
-          
-          lines.slice(1).forEach(line => {
-            const trimmed = line.trim();
-            if (trimmed && (trimmed.startsWith('-') || trimmed.startsWith('•'))) {
-              const cleanLine = trimmed.replace(/^[-•]\s*/, '');
-              formattedText += `<li>${cleanLine}</li>`;
-            }
-          });
-          
-          formattedText += `</ul>`;
-          
-        } else if (section.includes('Deliverables:')) {
-          formattedText += `<p><strong>Deliverables:</strong></p>`;
-          formattedText += `<ul>`;
-          
-          lines.forEach(line => {
-            const trimmed = line.trim();
-            if (trimmed && !trimmed.includes('Deliverables:')) {
-              // Clean up any leading dashes or bullets
-              const cleanLine = trimmed.replace(/^[-•]\s*/, '');
-              if (cleanLine) {
-                formattedText += `<li>${cleanLine}</li>`;
-              }
-            }
-          });
-          
-          formattedText += `</ul>`;
-          
-        } else {
-          // Regular paragraph - handle line breaks within paragraphs
-          const cleanSection = section.trim();
-          if (cleanSection) {
-            formattedText += `<p>${cleanSection.replace(/\n/g, '<br>')}</p>`;
-          }
-        }
-      });
-      
-      return formattedText;
-    };
-
     Swal.fire({
       title: 'Assessment Instructions',
-      html: formatInstructions(assessment?.instructions),
+      html: marked.parse(assessment?.instructions || 'Instructions will be loaded...'),
       showCancelButton: false,
       confirmButtonText: 'Got it, let\'s start!',
       confirmButtonColor: '#4242ea',

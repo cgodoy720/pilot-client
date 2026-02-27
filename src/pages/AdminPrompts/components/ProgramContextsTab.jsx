@@ -7,7 +7,7 @@ import LoadingState from './shared/LoadingState';
 import EmptyState from './shared/EmptyState';
 import DeleteConfirmDialog from './shared/DeleteConfirmDialog';
 
-const ProgramContextsTab = ({ showNotification, reloadPrompts }) => {
+const ProgramContextsTab = ({ showNotification, reloadPrompts, canEdit }) => {
   const [contexts, setContexts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -184,13 +184,15 @@ const ProgramContextsTab = ({ showNotification, reloadPrompts }) => {
             Program-specific context information that provides background about the learning program.
           </p>
         </div>
-        <Button
-          onClick={handleCreate}
-          className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create Program Context
-        </Button>
+        {canEdit && (
+          <Button
+            onClick={handleCreate}
+            className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Program Context
+          </Button>
+        )}
       </div>
 
       {/* Contexts List */}
@@ -199,8 +201,8 @@ const ProgramContextsTab = ({ showNotification, reloadPrompts }) => {
           icon="🎯"
           title="No program contexts found"
           description="Create your first program context to get started."
-          actionLabel="Create Program Context"
-          onAction={handleCreate}
+          actionLabel={canEdit ? 'Create Program Context' : undefined}
+          onAction={canEdit ? handleCreate : undefined}
         />
       ) : (
         <div className="space-y-4">
@@ -211,6 +213,7 @@ const ProgramContextsTab = ({ showNotification, reloadPrompts }) => {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onSetDefault={handleSetDefault}
+              showActions={canEdit}
             />
           ))}
         </div>

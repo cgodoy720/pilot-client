@@ -32,7 +32,7 @@ const DayCell = ({ dateObj, isToday, isPast, isFuture, hasDeliverables, isComple
   };
   
   // Circle color logic:
-  // - No class days (past): purple circle
+  // - No class days: white circle (regardless of past/future)
   // - Days with no deliverables (past): purple circle  
   // - Days with deliverables (past, complete): purple circle
   // - Days with deliverables (past, incomplete): pink circle
@@ -40,8 +40,8 @@ const DayCell = ({ dateObj, isToday, isPast, isFuture, hasDeliverables, isComple
   // - Future: white circle
   const getCircleColor = () => {
     if (isToday) return 'bg-white';
+    if (!dateObj.hasClass) return 'bg-white'; // No class = white (changed from purple)
     if (isPast) {
-      if (!dateObj.hasClass) return 'bg-pursuit-purple'; // No class = purple
       if (!hasDeliverables) return 'bg-pursuit-purple'; // No deliverables = purple
       return isComplete ? 'bg-pursuit-purple' : 'bg-mastery-pink'; // Has deliverables
     }

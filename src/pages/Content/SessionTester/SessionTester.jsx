@@ -806,7 +806,8 @@ const SessionTester = ({ sharedData, updateSharedData }) => {
   };
 
   return (
-    <div className="session-data-tester">
+    <div className="bg-white border border-[#C8C8C8] rounded-lg p-4 shadow-sm">
+      <div className="session-data-tester">
       <div className="session-data-tester__content">
         {/* Input Panel */}
         <div className="session-data-tester__input-panel">
@@ -2285,6 +2286,7 @@ const SessionTester = ({ sharedData, updateSharedData }) => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

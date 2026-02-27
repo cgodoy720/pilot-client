@@ -88,6 +88,7 @@ function Pathfinder() {
         >
           Network
         </NavLink>
+        {/* Jobs tab hidden for now — re-enable when ready */}
         {isStaff && (
           <NavLink
             to="/pathfinder/staff-network"

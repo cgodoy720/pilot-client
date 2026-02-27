@@ -76,6 +76,91 @@ export const getCohortPerformance = async (token, options = {}) => {
 };
 
 /**
+ * Get daily breakdown for a specific cohort
+ * @param {string} cohort - Cohort name
+ * @param {string} token - Admin authentication token
+ * @param {Object} options - Options including period, startDate, endDate
+ * @returns {Promise<Object>} Daily breakdown data
+ */
+export const getCohortDailyBreakdown = async (cohort, token, options = {}) => {
+  const { period = 'last-30-days', startDate, endDate } = options;
+  
+  return retryWithBackoff(
+    async () => {
+      const url = new URL(`${API_URL}/api/admin/attendance/dashboard/cohort-daily-breakdown`);
+      url.searchParams.append('cohort', cohort);
+      
+      if (period) {
+        url.searchParams.append('period', period);
+      }
+      if (startDate) {
+        url.searchParams.append('startDate', startDate);
+      }
+      if (endDate) {
+        url.searchParams.append('endDate', endDate);
+      }
+      
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(errorData.error || `API error: ${response.status}`);
+        error.response = response;
+        error.status = response.status;
+        throw error;
+      }
+
+      return await response.json();
+    },
+    RETRY_CONFIGS.STANDARD,
+    'Cohort Daily Breakdown API'
+  );
+};
+
+/**
+ * Get builder status for a specific cohort and date
+ * @param {string} cohort - Cohort name
+ * @param {string} date - Date in YYYY-MM-DD format
+ * @param {string} token - Admin authentication token
+ * @returns {Promise<Object>} Builder status data
+ */
+export const getDayBuilderStatus = async (cohort, date, token) => {
+  return retryWithBackoff(
+    async () => {
+      const url = new URL(`${API_URL}/api/admin/attendance/dashboard/day-builder-status`);
+      url.searchParams.append('cohort', cohort);
+      url.searchParams.append('date', date);
+      
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(errorData.error || `API error: ${response.status}`);
+        error.response = response;
+        error.status = response.status;
+        throw error;
+      }
+
+      return await response.json();
+    },
+    RETRY_CONFIGS.STANDARD,
+    'Day Builder Status API'
+  );
+};
+
+/**
  * Get daily attendance report
  * @param {string} date - Date in YYYY-MM-DD format
  * @param {string} token - Admin authentication token
@@ -413,6 +498,161 @@ export const getExcuseStatistics = async (params = {}, token) => {
 };
 
 /**
+ * Search for builders
+ * @param {Object} params - Query parameters (search, cohort)
+ * @param {string} token - Admin authentication token
+ * @returns {Promise<Object>} Builders search results
+ */
+export const searchBuilders = async (params = {}, token) => {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params.search) queryParams.append('search', params.search);
+    if (params.cohort) queryParams.append('cohort', params.cohort);
+
+    const url = `${API_URL}/api/attendance/builders${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error searching builders:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get attendance history for a specific builder/user.
+ * @param {number} userId - Builder user ID
+ * @param {Object} params - Query params (startDate, endDate)
+ * @param {string} token - Admin authentication token
+ * @returns {Promise<Object>} Attendance history payload
+ */
+export const getBuilderAttendanceHistory = async (userId, params = {}, token) => {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params.startDate) queryParams.append('startDate', params.startDate);
+    if (params.endDate) queryParams.append('endDate', params.endDate);
+
+    const url = `${API_URL}/api/admin/attendance/manage/history/${userId}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching builder attendance history:', error);
+    throw error;
+  }
+};
+
+/**
+ * Create a manual attendance record.
+ * @param {Object} data - Record payload
+ * @param {string} token - Admin authentication token
+ * @returns {Promise<Object>} Created record payload
+ */
+export const createManualAttendance = async (data, token) => {
+  try {
+    const response = await fetch(`${API_URL}/api/admin/attendance/manage/record`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error creating manual attendance record:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update an attendance record.
+ * @param {number} attendanceId - Attendance record ID
+ * @param {Object} data - Update payload (status, notes)
+ * @param {string} token - Admin authentication token
+ * @returns {Promise<Object>} Updated record payload
+ */
+export const updateAttendanceRecord = async (attendanceId, data, token) => {
+  try {
+    const response = await fetch(`${API_URL}/api/admin/attendance/manage/record/${attendanceId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating attendance record:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete an attendance record.
+ * @param {number} attendanceId - Attendance record ID
+ * @param {string} token - Admin authentication token
+ * @returns {Promise<Object>} Delete result payload
+ */
+export const deleteAttendanceRecord = async (attendanceId, token) => {
+  try {
+    const response = await fetch(`${API_URL}/api/admin/attendance/manage/record/${attendanceId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error deleting attendance record:', error);
+    throw error;
+  }
+};
+
+/**
  * Export attendance data as CSV
  */
 export const exportAttendanceCSV = async (startDate, endDate, cohort = 'all') => {
@@ -581,9 +821,68 @@ export const getCsvExportStatistics = async (params = {}) => {
   );
 };
 
+/**
+ * Get quick stats for admin dashboard (active builders, active cohorts)
+ * @param {string} token - Admin authentication token
+ * @returns {Promise<Object>} Quick stats data
+ */
+export const getAdminQuickStats = async (token) => {
+  try {
+    const response = await fetch(`${API_URL}/api/admin/dashboard/quick-stats`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching admin quick stats:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get assessment grades summary for admin dashboard
+ * @param {string} token - Admin authentication token
+ * @param {Object} params - Optional query params (cohort, period)
+ * @returns {Promise<Object>} Grades data
+ */
+export const getAssessmentGradesSummary = async (token, params = {}) => {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params.cohort) queryParams.append('cohort', params.cohort);
+    if (params.period) queryParams.append('period', params.period);
+    const url = `${API_URL}/api/admin/assessment-grades${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching assessment grades summary:', error);
+    throw error;
+  }
+};
+
 export const adminApi = {
+  getAdminQuickStats,
+  getAssessmentGradesSummary,
   getTodaysAttendanceOverview,
   getCohortPerformance,
+  getCohortDailyBreakdown,
+  getDayBuilderStatus,
   getDailyReport,
   getWeeklyReport,
   getMonthlyReport,
@@ -594,10 +893,17 @@ export const adminApi = {
   updateExcuse,
   bulkExcuseCohort,
   getExcuseStatistics,
+  searchBuilders,
+  getBuilderAttendanceHistory,
+  createManualAttendance,
+  updateAttendanceRecord,
+  deleteAttendanceRecord,
   exportAttendanceCSV,
   getCsvExportHistory,
   getAllCsvExportHistory,
-  getCsvExportStatistics
+  getCsvExportStatistics,
+  getAdminQuickStats,
+  getAssessmentGradesSummary,
 };
 
 export default adminApi;

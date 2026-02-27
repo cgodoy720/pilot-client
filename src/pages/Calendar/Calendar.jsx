@@ -4,11 +4,9 @@ import { useAuth } from '../../context/AuthContext';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import CalendarHeader from './components/CalendarHeader';
 import WeekView from './components/WeekView';
-import { ScrollArea } from '../../components/ui/scroll-area';
 
 function Calendar() {
   const [weeksData, setWeeksData] = useState([]);
-  const [userProgress, setUserProgress] = useState({});
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentDayId, setCurrentDayId] = useState(null);
@@ -17,6 +15,50 @@ function Calendar() {
   const { token, user } = useAuth();
   const navigate = useNavigate();
   const [cohortFilter, setCohortFilter] = useState(null);
+  const [selectedCohort, setSelectedCohort] = useState(null); // For regular users to switch between enrolled cohorts
+  const [enrollments, setEnrollments] = useState([]); // User's enrollments
+
+  // Fetch user enrollments on mount (for regular users with multiple enrollments)
+  useEffect(() => {
+    const fetchEnrollments = async () => {
+      // Only fetch enrollments for regular users (not staff/admin)
+      if (user?.role === 'staff' || user?.role === 'admin') {
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/progress/dashboard-full`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.enrollments && data.enrollments.length > 0) {
+            setEnrollments(data.enrollments);
+            
+            // Set default to active enrollment if not already set
+            if (!selectedCohort) {
+              const activeEnrollment = data.enrollments.find(e => e.is_active);
+              if (activeEnrollment) {
+                setSelectedCohort(activeEnrollment.cohort_name);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching enrollments:', error);
+      }
+    };
+
+    if (token && user) {
+      fetchEnrollments();
+    }
+  }, [token, user?.role]);
 
   // Fetch all curriculum data (weeks, days, tasks) in ONE optimized call
   useEffect(() => {
@@ -26,10 +68,14 @@ function Calendar() {
         setError(null);
         
         let url = `${import.meta.env.VITE_API_URL}/api/curriculum/calendar`;
+        
+        // Staff/admin use cohortFilter, regular users use selectedCohort
         if (user.role === 'staff' || user.role === 'admin') {
           if (cohortFilter) {
-            url += `?cohort=${cohortFilter}`;
+            url += `?cohort=${encodeURIComponent(cohortFilter)}`;
           }
+        } else if (selectedCohort) {
+          url += `?cohort=${encodeURIComponent(selectedCohort)}`;
         }
         
         const response = await fetch(url, {
@@ -70,56 +116,8 @@ function Calendar() {
     if (token) {
       fetchCalendarData();
     }
-  }, [token, cohortFilter, user.role]);
+  }, [token, cohortFilter, selectedCohort, user.role]);
 
-  // Fetch user progress in ONE batch call
-  useEffect(() => {
-    const fetchUserProgress = async () => {
-      try {
-        // Get all past day IDs
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const pastDays = weeksData
-          .flatMap(week => week.days)
-          .filter(day => {
-            const dayDate = new Date(day.day_date);
-            dayDate.setHours(0, 0, 0, 0);
-            return dayDate < today;
-          });
-        
-        if (pastDays.length === 0) {
-          return;
-        }
-        
-        const dayIds = pastDays.map(d => d.id);
-        
-        // Batch fetch progress for all past days in ONE call
-        const progressResponse = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/progress/days/batch`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ dayIds })
-          }
-        );
-        
-        if (progressResponse.ok) {
-          const progressMap = await progressResponse.json();
-          setUserProgress(progressMap);
-        }
-      } catch (error) {
-        console.error('Error fetching user progress:', error);
-      }
-    };
-    
-    if (weeksData.length > 0 && token) {
-      fetchUserProgress();
-    }
-  }, [weeksData, token]);
 
   const handlePrevMonth = useCallback(() => {
     if (currentMonth === 0) {
@@ -144,8 +142,18 @@ function Calendar() {
   }, []);
 
   const handleDayClick = useCallback((dayId) => {
-    navigate(`/learning?dayId=${dayId}`);
-  }, [navigate]);
+    // Pass selected cohort to Learning page for proper access
+    const params = new URLSearchParams();
+    params.append('dayId', dayId);
+    
+    if (selectedCohort) {
+      params.append('cohort', selectedCohort);
+    } else if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
+      params.append('cohort', cohortFilter);
+    }
+    
+    navigate(`/learning?${params.toString()}`);
+  }, [selectedCohort, cohortFilter, user?.role, navigate]);
 
   // Memoize calendar grid generation - only recalculate when dependencies change
   const calendarWeeks = useMemo(() => {
@@ -198,7 +206,7 @@ function Calendar() {
         curriculumDay: curriculumDay || null,
         hasClass: !!curriculumDay,
         tasks: curriculumDay?.tasks || [],
-        weekNumber: curriculumDay?.week || null
+        weekNumber: curriculumDay?.week !== undefined && curriculumDay?.week !== null ? curriculumDay.week : null
       });
       
       currentDate.setDate(currentDate.getDate() + 1);
@@ -210,10 +218,18 @@ function Calendar() {
       const weekDays = calendarDates.slice(i, i + 7);
       
       // Determine week number (use the first curriculum day's week number in this week)
-      const weekNumber = weekDays.find(d => d.weekNumber)?.weekNumber || null;
+      // Note: weekNumber can be 0, which is falsy, so we need explicit null/undefined checks
+      const dayWithWeek = weekDays.find(d => d.weekNumber !== null && d.weekNumber !== undefined);
+      const weekNumber = dayWithWeek ? dayWithWeek.weekNumber : null;
+      
+      console.log('🔍 Calendar week group:', { 
+        weekNumber, 
+        dayWithWeek: dayWithWeek ? { date: dayWithWeek.date, weekNumber: dayWithWeek.weekNumber } : null,
+        weekDaysCount: weekDays.length 
+      });
       
       // Get weekly goal if this week has curriculum days
-      const weeklyGoal = weekNumber ? 
+      const weeklyGoal = (weekNumber !== null && weekNumber !== undefined) ? 
         weeksData.find(w => w.weekNumber === weekNumber)?.weeklyGoal : null;
       
       weeks.push({
@@ -252,11 +268,14 @@ function Calendar() {
           onMonthChange={handleMonthChange}
           cohortFilter={cohortFilter}
           onCohortChange={setCohortFilter}
+          selectedCohort={selectedCohort}
+          onSelectedCohortChange={setSelectedCohort}
+          enrollments={enrollments}
           userRole={user?.role}
         />
         
         {/* Weeks List */}
-        <ScrollArea className="flex-1 px-[85px] py-[20px]">
+        <div className="flex-1 overflow-auto px-[85px] py-[20px]">
           <div className="flex flex-col gap-[34px]">
             {calendarWeeks.map((week, idx) => (
               <WeekView
@@ -266,13 +285,12 @@ function Calendar() {
                 days={week.days}
                 onDayClick={handleDayClick}
                 currentDayId={currentDayId}
-                userProgress={userProgress}
                 currentMonth={currentMonth}
                 currentYear={currentYear}
               />
             ))}
         </div>
-      </ScrollArea>
+      </div>
       
       {/* Loading Curtain */}
       <LoadingCurtain isLoading={isLoading} />

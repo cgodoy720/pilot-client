@@ -147,6 +147,11 @@
     color: #1E1E1E;
 }
 
+/* Embedded mode (inside tabbed dashboard) */
+.volunteer-feedback-page--embedded {
+    min-height: auto;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .volunteer-feedback {

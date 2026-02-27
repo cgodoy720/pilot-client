@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 
-const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, isPastDay = false, onStartActivity, isPageLoading = false, navigate }) => {
+const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, isPastDay = false, onStartActivity, isPageLoading = false, navigate, isWorkshopParticipant = false }) => {
   const [isAnimating, setIsAnimating] = useState(false);
   
   // If still loading, return null - LoadingCurtain handles the visual loading state
@@ -89,7 +89,7 @@ const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, isPastDay = 
             backgroundClip: 'text'
           }}
         >
-          {formatDate(currentDay.day_date)}
+          {isWorkshopParticipant ? 'AI Native Workshop' : formatDate(currentDay.day_date)}
           </h1>
         </div>
         
