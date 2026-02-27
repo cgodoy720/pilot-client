@@ -15,6 +15,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../../components/ui/tabs';
 import Swal from 'sweetalert2';
 import EmailMappingsTab from './EmailMappingsTab';
+import EmailTemplatesTab from './EmailTemplatesTab';
 
 const EmailsTab = ({
   emailStats,
@@ -456,6 +457,9 @@ const EmailsTab = ({
               <TabsTrigger value="mappings" className="font-proxima data-[state=active]:bg-white">
                 Email Mappings
               </TabsTrigger>
+              <TabsTrigger value="templates" className="font-proxima data-[state=active]:bg-white">
+                Email Templates
+              </TabsTrigger>
             </TabsList>
 
             {/* Email History */}
@@ -614,6 +618,11 @@ const EmailsTab = ({
                 fetchEmailMappings={fetchEmailMappings}
                 token={token}
               />
+            </TabsContent>
+
+            {/* Email Templates Tab */}
+            <TabsContent value="templates" className="mt-0 p-6">
+              <EmailTemplatesTab token={token} />
             </TabsContent>
           </Tabs>
         </CardContent>
