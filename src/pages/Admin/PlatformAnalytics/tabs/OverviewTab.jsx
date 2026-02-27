@@ -202,8 +202,8 @@ const OverviewTab = ({ token, startDate, endDate }) => {
                       </div>
                       {slice.points.map(point => (
                         <div key={point.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: 12 }}>
-                          <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: point.serieColor, flexShrink: 0 }} />
-                          <span style={{ color: '#64748b', flex: 1 }}>{point.serieId}</span>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: point.seriesColor || point.serieColor, flexShrink: 0 }} />
+                          <span style={{ color: '#64748b', flex: 1 }}>{point.seriesId || point.serieId}</span>
                           <span style={{ fontWeight: 600, color: '#1E1E1E' }}>{formatNumber(point.data.y)}</span>
                         </div>
                       ))}
