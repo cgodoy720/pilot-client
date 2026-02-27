@@ -7,7 +7,7 @@ This doc captures the state of the build, key architectural decisions, and the r
 - Both `pilot-client` and `test-pilot-server` `joanna` branches have been merged with `upstream/main` (cgodoy720) as of 2026-02-27
 - Upstream remotes are configured: `git remote add upstream git@github.com:cgodoy720/[repo].git`
 - **Sputnik = `SalesTracker` page** (`src/pages/SalesTracker/`) — tabs: Dashboard, All Leads, Job Postings, Leaderboard
-- **TODO**: Move `StaffNetworkDashboard` (Staff Inbox) from `/pathfinder/staff-network` into Sputnik as a new tab — currently lives temporarily on PathfinderAdmin as "Staff Inbox" tab
+- **Staff Inbox is now a tab in Sputnik** (`SalesTracker.jsx`) alongside Dashboard, All Leads, Job Postings, Leaderboard
 
 ---
 

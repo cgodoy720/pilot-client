@@ -19,8 +19,6 @@ const PRDsTab = lazy(() => import('./components/PRDsTab/PRDsTab'));
 const CeremoniesTab = lazy(() => import('./components/CeremoniesTab/CeremoniesTab'));
 const WeeklyGoalsTab = lazy(() => import('./components/WeeklyGoalsTab/WeeklyGoalsTab'));
 const EventsTab = lazy(() => import('./components/EventsTab/EventsTab'));
-const StaffInboxTab = lazy(() => import('../StaffNetworkDashboard/StaffNetworkDashboard'));
-
 // Import shared modals
 import BuilderDetailModal from './components/shared/BuilderDetailModal';
 import CompanyDetailModal from './components/shared/CompanyDetailModal';
@@ -1265,7 +1263,7 @@ function PathfinderAdmin() {
 
         {/* Tabs */}
         <Tabs value={view} onValueChange={setView} className="w-full">
-          <TabsList className="grid w-full grid-cols-10 mb-8">
+          <TabsList className="grid w-full grid-cols-9 mb-8">
             <TabsTrigger value="overview" className="px-2 text-sm font-proxima">Overview</TabsTrigger>
             <TabsTrigger value="builders" className="px-2 text-sm font-proxima">Builders</TabsTrigger>
             <TabsTrigger value="companies" className="px-2 text-sm font-proxima">Companies</TabsTrigger>
@@ -1282,7 +1280,6 @@ function PathfinderAdmin() {
             </TabsTrigger>
             <TabsTrigger value="weekly-goals" className="px-2 text-sm font-proxima">Weekly Goals</TabsTrigger>
             <TabsTrigger value="ceremonies" className="px-2 text-sm font-proxima">Ceremonies</TabsTrigger>
-            <TabsTrigger value="staff-inbox" className="px-2 text-sm font-proxima">Staff Inbox</TabsTrigger>
           </TabsList>
 
           {/* Overview View */}
@@ -1433,12 +1430,6 @@ function PathfinderAdmin() {
             </Suspense>
           </TabsContent>
 
-          {/* Staff Inbox View */}
-          <TabsContent value="staff-inbox" className="mt-0">
-            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading Staff Inbox...</div></div>}>
-              <StaffInboxTab />
-            </Suspense>
-          </TabsContent>
         </Tabs>
 
         {/* Modals */}
