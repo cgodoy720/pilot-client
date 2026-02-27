@@ -3,9 +3,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../../../components
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../../../../components/ui/table';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Zap, TrendingUp, Calendar, DollarSign, Loader2 } from 'lucide-react';
-import { useUsageSummary, useDailyUsage, useTopUsers } from '../hooks/usePlatformAnalytics';
+import { ResponsiveLine } from '@nivo/line';
+import { Zap, TrendingUp, Calendar, Loader2, Globe, Cpu } from 'lucide-react';
+import { useUsageSummary, useDailyUsage, useTopUsers, useExternalUsage } from '../hooks/usePlatformAnalytics';
+import { formatChartDate } from '../../../../utils/dateHelpers';
 
 const formatNumber = (num) => {
   if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
@@ -16,12 +17,6 @@ const formatNumber = (num) => {
 const formatCost = (cost) => {
   if (!cost) return '$0.00';
   return `$${parseFloat(cost).toFixed(2)}`;
-};
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
 const KpiCard = ({ title, value, subtitle, icon: Icon, color }) => (
@@ -41,10 +36,45 @@ const KpiCard = ({ title, value, subtitle, icon: Icon, color }) => (
   </Card>
 );
 
+const nivoTheme = {
+  grid: { line: { stroke: '#f0f0f0' } },
+  axis: {
+    ticks: { text: { fontSize: 12, fill: '#94a3b8' } },
+    legend: { text: { fontSize: 12, fill: '#94a3b8' } },
+  },
+  crosshair: { line: { stroke: '#4242EA', strokeDasharray: '6 4' } },
+  tooltip: {
+    container: {
+      borderRadius: 8,
+      border: '1px solid #e2e8f0',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    },
+  },
+};
+
 const OverviewTab = ({ token, startDate, endDate }) => {
   const { data: summary, isLoading: summaryLoading } = useUsageSummary(token);
   const { data: dailyUsage, isLoading: dailyLoading } = useDailyUsage(token, startDate, endDate);
   const { data: topUsers, isLoading: usersLoading } = useTopUsers(token, startDate, endDate, 5);
+  const { data: externalData } = useExternalUsage(token, startDate, endDate);
+
+  const orCredits = externalData?.openRouter?.credits;
+  const anthropicData = externalData?.anthropic?.usage?.data;
+
+  // Sum Anthropic tokens for the period
+  const anthropicTotals = React.useMemo(() => {
+    if (!anthropicData) return null;
+    let input = 0, output = 0, cache = 0;
+    anthropicData.forEach(bucket => {
+      (bucket.results || []).forEach(r => {
+        input += (r.uncached_input_tokens || 0);
+        output += (r.output_tokens || 0);
+        cache += (r.cache_read_input_tokens || 0);
+      });
+    });
+    if (input + output === 0) return null;
+    return { input, output, cache, total: input + output + cache };
+  }, [anthropicData]);
 
   if (summaryLoading) {
     return (
@@ -54,17 +84,34 @@ const OverviewTab = ({ token, startDate, endDate }) => {
     );
   }
 
-  const chartData = (dailyUsage || []).map(d => ({
-    date: formatDate(d.date),
-    prompt: parseInt(d.prompt_tokens, 10) || 0,
-    completion: parseInt(d.completion_tokens, 10) || 0,
-    total: parseInt(d.total_tokens, 10) || 0,
-  }));
+  const lineData = (() => {
+    const rows = dailyUsage || [];
+    return [
+      {
+        id: 'Prompt Tokens',
+        color: '#4242EA',
+        data: rows.map(d => ({
+          x: formatChartDate(d.date),
+          y: parseInt(d.prompt_tokens, 10) || 0,
+        })),
+      },
+      {
+        id: 'Completion Tokens',
+        color: '#10b981',
+        data: rows.map(d => ({
+          x: formatChartDate(d.date),
+          y: parseInt(d.completion_tokens, 10) || 0,
+        })),
+      },
+    ];
+  })();
+
+  const hasChartData = lineData[0].data.length > 0;
 
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <KpiCard
           title="Today's Tokens"
           value={formatNumber(summary?.today?.tokens)}
@@ -87,88 +134,134 @@ const OverviewTab = ({ token, startDate, endDate }) => {
           color="bg-amber-500"
         />
         <KpiCard
-          title="Est. Monthly Cost"
-          value={formatCost(summary?.thisMonth?.cost)}
-          subtitle={`All-time: ${formatCost(summary?.allTime?.cost)}`}
-          icon={DollarSign}
-          color="bg-rose-500"
+          title="OpenRouter Monthly"
+          value={orCredits ? formatCost(orCredits.usage_monthly) : '—'}
+          subtitle={orCredits ? `Today: ${formatCost(orCredits.usage_daily)} · Week: ${formatCost(orCredits.usage_weekly)}` : 'Loading...'}
+          icon={Globe}
+          color="bg-violet-500"
+        />
+        <KpiCard
+          title="Anthropic Direct"
+          value={anthropicTotals ? formatNumber(anthropicTotals.total) + ' tokens' : '—'}
+          subtitle={anthropicTotals ? `In: ${formatNumber(anthropicTotals.input)} · Out: ${formatNumber(anthropicTotals.output)}` : 'Loading...'}
+          icon={Cpu}
+          color="bg-orange-500"
         />
       </div>
 
-      {/* Daily Usage Chart */}
-      <Card className="bg-white border border-[#E3E3E3]">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-[#1E1E1E]">Daily Token Usage</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {dailyLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-            </div>
-          ) : chartData.length === 0 ? (
-            <div className="text-center py-16 text-slate-400">
-              No usage data for this period
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={320}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                <YAxis tickFormatter={formatNumber} tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                <Tooltip
-                  formatter={(value) => [formatNumber(value), '']}
-                  labelStyle={{ fontWeight: 600 }}
-                  contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0' }}
+      {/* Daily Usage Chart + Top Users — side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <Card className="bg-white border border-[#E3E3E3] lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold text-[#1E1E1E]">Daily Token Usage</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {dailyLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+              </div>
+            ) : !hasChartData ? (
+              <div className="text-center py-12 text-slate-400">
+                No usage data for this period
+              </div>
+            ) : (
+              <div style={{ height: 300 }}>
+                <ResponsiveLine
+                  data={lineData}
+                  theme={nivoTheme}
+                  colors={['#4242EA', '#10b981']}
+                  margin={{ top: 10, right: 16, bottom: 46, left: 50 }}
+                  xScale={{ type: 'point' }}
+                  yScale={{ type: 'linear', min: 0, max: 'auto' }}
+                  axisBottom={{
+                    tickRotation: lineData[0].data.length > 14 ? -45 : 0,
+                    tickSize: 5,
+                    tickPadding: 5,
+                  }}
+                  axisLeft={{
+                    format: formatNumber,
+                    tickSize: 5,
+                    tickPadding: 5,
+                  }}
+                  pointSize={0}
+                  useMesh
+                  enableCrosshair
+                  curve="monotoneX"
+                  enableSlices="x"
+                  sliceTooltip={({ slice }) => (
+                    <div style={{
+                      background: 'white',
+                      borderRadius: 8,
+                      border: '1px solid #e2e8f0',
+                      padding: '8px 12px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                    }}>
+                      <strong style={{ fontSize: 12 }}>{slice.points[0]?.data.xFormatted}</strong>
+                      {slice.points.map(point => (
+                        <div key={point.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 12 }}>
+                          <span style={{ width: 10, height: 10, borderRadius: '50%', background: point.serieColor, display: 'inline-block' }} />
+                          {point.serieId}: {formatNumber(point.data.y)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  legends={[
+                    {
+                      anchor: 'bottom',
+                      direction: 'row',
+                      translateY: 42,
+                      itemWidth: 140,
+                      itemHeight: 20,
+                      symbolSize: 10,
+                      symbolShape: 'circle',
+                    },
+                  ]}
                 />
-                <Legend />
-                <Line type="monotone" dataKey="prompt" stroke="#4242EA" name="Prompt Tokens" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="completion" stroke="#10b981" name="Completion Tokens" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Top Users Table */}
-      <Card className="bg-white border border-[#E3E3E3]">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-[#1E1E1E]">Top 5 Users by Token Usage</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {usersLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-            </div>
-          ) : !topUsers || topUsers.length === 0 ? (
-            <div className="text-center py-8 text-slate-400">No user data yet</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead className="text-right">Total Tokens</TableHead>
-                  <TableHead className="text-right">Requests</TableHead>
-                  <TableHead className="text-right">Est. Cost</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {topUsers.map((user, i) => (
-                  <TableRow key={user.user_id || i}>
-                    <TableCell className="font-medium">
-                      {user.first_name && user.last_name
-                        ? `${user.first_name} ${user.last_name}`
-                        : `User #${user.user_id}`}
-                    </TableCell>
-                    <TableCell className="text-right">{formatNumber(parseInt(user.total_tokens, 10))}</TableCell>
-                    <TableCell className="text-right">{parseInt(user.request_count, 10).toLocaleString()}</TableCell>
-                    <TableCell className="text-right">{formatCost(user.estimated_cost)}</TableCell>
+        <Card className="bg-white border border-[#E3E3E3] lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold text-[#1E1E1E]">Top Users</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {usersLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+              </div>
+            ) : !topUsers || topUsers.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">No user data yet</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead className="text-right">Tokens</TableHead>
+                    <TableHead className="text-right">Reqs</TableHead>
+                    <TableHead className="text-right">Cost</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {topUsers.map((user, i) => (
+                    <TableRow key={user.user_id || i}>
+                      <TableCell className="font-medium">
+                        {user.first_name && user.last_name
+                          ? `${user.first_name} ${user.last_name}`
+                          : `User #${user.user_id}`}
+                      </TableCell>
+                      <TableCell className="text-right">{formatNumber(parseInt(user.total_tokens, 10))}</TableCell>
+                      <TableCell className="text-right">{parseInt(user.request_count, 10).toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{formatCost(user.estimated_cost)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

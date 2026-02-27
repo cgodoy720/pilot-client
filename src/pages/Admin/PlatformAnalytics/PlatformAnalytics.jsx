@@ -1,22 +1,24 @@
 import React, { useState } from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../../components/ui/tabs';
 import { useAuth } from '../../../context/AuthContext';
 import { useNavContext } from '../../../context/NavContext';
 import { usePermissions } from '../../../hooks/usePermissions';
-import { BarChart3, PieChart, DollarSign, TrendingUp } from 'lucide-react';
 import OverviewTab from './tabs/OverviewTab';
 import UsageBreakdownTab from './tabs/UsageBreakdownTab';
 import CostBillingTab from './tabs/CostBillingTab';
 import TrendsTab from './tabs/TrendsTab';
 
-const TAB_TRIGGER_CLASS =
-  'data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-slate-600 font-medium px-4 py-2 rounded-md transition-all text-sm gap-1.5';
+const SectionHeader = ({ children }) => (
+  <div className="mb-6 mt-8 first:mt-0">
+    <span className="text-xs font-bold uppercase tracking-wider text-[#4242EA] border-b-2 border-[#4242EA] pb-2 mb-4 inline-block">
+      {children}
+    </span>
+  </div>
+);
 
 const PlatformAnalytics = () => {
   const { user, token } = useAuth();
   const { canAccessPage } = usePermissions();
   const { isSecondaryNavPage } = useNavContext();
-  const [activeTab, setActiveTab] = useState('overview');
 
   // Date range state — default last 30 days
   const [endDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -53,41 +55,19 @@ const PlatformAnalytics = () => {
         </div>
       )}
 
-      {/* Tab navigation */}
+      {/* All sections rendered sequentially */}
       <div className="max-w-7xl mx-auto px-8 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-white border border-[#E3E3E3] p-1 rounded-lg mb-6">
-            <TabsTrigger value="overview" className={TAB_TRIGGER_CLASS}>
-              <BarChart3 size={14} />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="breakdown" className={TAB_TRIGGER_CLASS}>
-              <PieChart size={14} />
-              Usage Breakdown
-            </TabsTrigger>
-            <TabsTrigger value="cost" className={TAB_TRIGGER_CLASS}>
-              <DollarSign size={14} />
-              Cost & Billing
-            </TabsTrigger>
-            <TabsTrigger value="trends" className={TAB_TRIGGER_CLASS}>
-              <TrendingUp size={14} />
-              Trends
-            </TabsTrigger>
-          </TabsList>
+        <SectionHeader>Overview</SectionHeader>
+        <OverviewTab token={token} startDate={startDate} endDate={endDate} />
 
-          <TabsContent value="overview">
-            <OverviewTab token={token} startDate={startDate} endDate={endDate} />
-          </TabsContent>
-          <TabsContent value="breakdown">
-            <UsageBreakdownTab token={token} startDate={startDate} endDate={endDate} />
-          </TabsContent>
-          <TabsContent value="cost">
-            <CostBillingTab token={token} startDate={startDate} endDate={endDate} />
-          </TabsContent>
-          <TabsContent value="trends">
-            <TrendsTab token={token} startDate={startDate} endDate={endDate} />
-          </TabsContent>
-        </Tabs>
+        <SectionHeader>Usage Breakdown</SectionHeader>
+        <UsageBreakdownTab token={token} startDate={startDate} endDate={endDate} />
+
+        <SectionHeader>Cost & Billing</SectionHeader>
+        <CostBillingTab token={token} startDate={startDate} endDate={endDate} />
+
+        <SectionHeader>Trends</SectionHeader>
+        <TrendsTab token={token} startDate={startDate} endDate={endDate} />
       </div>
     </div>
   );
