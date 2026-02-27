@@ -3,12 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaPaperPlane, FaSave, FaCheck, FaInfoCircle } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import { marked } from 'marked';
-import { useAuth } from '../../../../context/AuthContext';
+import useAuthStore from '../../../../stores/authStore';
 import AssessmentLLMChat from '../AssessmentLLMChat/AssessmentLLMChat';
 import './BusinessAssessment.css';
 
 function BusinessAssessment() {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const { assessmentId } = useParams();
   const navigate = useNavigate();
   

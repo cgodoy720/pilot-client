@@ -20,11 +20,11 @@ import {
   TableRow,
 } from '../ui/table';
 import { adminApi } from '../../services/adminApi';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { getErrorMessage } from '../../utils/retryUtils';
 
 const ExportHistory = () => {
-  const { user } = useAuth();
+  const user = useAuthStore((s) => s.user);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

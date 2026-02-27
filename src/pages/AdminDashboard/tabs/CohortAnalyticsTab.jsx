@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import {
@@ -39,7 +39,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const CohortAnalyticsTab = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [period, setPeriod] = useState('last-30-days');
   const [performance, setPerformance] = useState(null);
   const [trendData, setTrendData] = useState([]);

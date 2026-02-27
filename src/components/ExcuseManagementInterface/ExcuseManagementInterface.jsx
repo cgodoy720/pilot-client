@@ -22,10 +22,11 @@ import {
 } from '../ui/dialog';
 import { adminApi } from '../../services/adminApi';
 import { cachedAdminApi } from '../../services/cachedAdminApi';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 
 const ExcuseManagementInterface = () => {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);

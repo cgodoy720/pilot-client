@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
@@ -40,7 +40,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const GradesTab = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const navigate = useNavigate();
   const [grades, setGrades] = useState(null);
   const [loading, setLoading] = useState(true);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { Users, Building2, UserCheck, Clock, UserX, BookOpen } from 'lucide-react';
@@ -39,7 +39,7 @@ const AttendanceBar = ({ label, count, total, color }) => {
 };
 
 const OverviewTab = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [quickStats, setQuickStats] = useState(null);
   const [todayAttendance, setTodayAttendance] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);

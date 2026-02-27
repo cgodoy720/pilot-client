@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { toast } from 'sonner';
 
@@ -11,7 +11,8 @@ import GradeViewModal from './GradeViewModal';
 import MassEmailModal from './MassEmailModal';
 
 const AssessmentGrades = () => {
-  const { user, token: authToken } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const authToken = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
   const [assessmentGrades, setAssessmentGrades] = useState([]);
   const [loading, setLoading] = useState(true);

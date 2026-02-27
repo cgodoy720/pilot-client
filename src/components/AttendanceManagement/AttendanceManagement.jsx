@@ -10,7 +10,7 @@ import {
   Search,
   Trash2
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { adminApi } from '../../services/adminApi';
 import { cachedAdminApi } from '../../services/cachedAdminApi';
 import { formatAttendanceTimeEST } from '../../utils/dateHelpers';
@@ -219,7 +219,7 @@ const AttendanceCalendarGrid = React.memo(function AttendanceCalendarGrid({
 });
 
 const AttendanceManagement = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);

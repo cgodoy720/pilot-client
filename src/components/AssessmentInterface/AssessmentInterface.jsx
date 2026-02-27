@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { toast } from 'sonner';
 import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { FaInfoCircle } from 'react-icons/fa';
@@ -118,7 +118,8 @@ function AssessmentInterface({
   onAssessmentTypeLoaded = null,
   isPreviewMode = false
 }) {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const [assessmentData, setAssessmentData] = useState(null);
   const [currentSubmission, setCurrentSubmission] = useState(null);
   const [loading, setLoading] = useState(true);
