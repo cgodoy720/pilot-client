@@ -29,6 +29,21 @@ function Onboarding() {
             if (response.ok) {
               const applicant = await response.json();
               setCurrentApplicantId(applicant.applicant_id);
+
+              // Check if onboarding is open based on cohort start date
+              try {
+                const cohortRes = await fetch(`${import.meta.env.VITE_API_URL}/api/onboarding/cohort-info`);
+                if (cohortRes.ok) {
+                  const cohortData = await cohortRes.json();
+                  if (!cohortData.is_open) {
+                    navigate('/apply');
+                    return;
+                  }
+                }
+                // If 404 or other non-ok, fail open (server guards are the backstop)
+              } catch {
+                // Fail open on network error
+              }
             } else {
               navigate('/apply');
             }
