@@ -68,19 +68,30 @@ const nivoTheme = {
   },
 };
 
+const humanizeLabel = (str) => {
+  if (!str) return 'Unknown';
+  return str
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+};
+
 const SliceTooltip = ({ slice }) => (
   <div style={{
     background: 'white',
     borderRadius: 8,
     border: '1px solid #e2e8f0',
-    padding: '8px 12px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    padding: '10px 14px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+    minWidth: 160,
   }}>
-    <strong style={{ fontSize: 12 }}>{slice.points[0]?.data.xFormatted}</strong>
+    <div style={{ fontSize: 11, fontWeight: 700, color: '#1E1E1E', marginBottom: 6 }}>
+      {slice.points[0]?.data.xFormatted}
+    </div>
     {slice.points.map(point => (
-      <div key={point.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 12 }}>
-        <span style={{ width: 10, height: 10, borderRadius: '50%', background: point.serieColor, display: 'inline-block' }} />
-        {point.serieId}: {formatNumber(point.data.y)}
+      <div key={point.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: 12 }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: point.serieColor, flexShrink: 0 }} />
+        <span style={{ color: '#64748b', flex: 1 }}>{humanizeLabel(point.serieId)}</span>
+        <span style={{ fontWeight: 600, color: '#1E1E1E' }}>{formatNumber(point.data.y)}</span>
       </div>
     ))}
   </div>
@@ -417,7 +428,7 @@ const TrendsTab = ({ token, startDate, endDate }) => {
 
     const taskTypeArr = Array.from(taskTypes);
     const series = taskTypeArr.map((type, i) => ({
-      id: type,
+      id: humanizeLabel(type),
       color: TASK_TYPE_COLORS[type] || USER_COLORS[i % USER_COLORS.length],
       data: taskDates[type],
     }));
@@ -477,7 +488,7 @@ const TrendsTab = ({ token, startDate, endDate }) => {
                       anchor: 'bottom',
                       direction: 'row',
                       translateY: 42,
-                      itemWidth: 100,
+                      itemWidth: 110,
                       itemHeight: 20,
                       symbolSize: 10,
                       symbolShape: 'circle',
@@ -541,7 +552,7 @@ const TrendsTab = ({ token, startDate, endDate }) => {
                       anchor: 'bottom',
                       direction: 'row',
                       translateY: 42,
-                      itemWidth: 100,
+                      itemWidth: 130,
                       itemHeight: 20,
                       symbolSize: 10,
                       symbolShape: 'circle',
