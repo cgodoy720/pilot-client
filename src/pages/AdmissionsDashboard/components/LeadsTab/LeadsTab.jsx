@@ -31,12 +31,12 @@ import SourceConfigManager from './SourceConfigManager';
 // Filter options for columns
 const filterOptions = {
   status: [
-    { value: '', label: 'All' },
     { value: 'active', label: 'Active' },
     { value: 'converted', label: 'Converted' },
     { value: 'builder', label: 'Builder' },
     { value: 'withdrawn', label: 'Withdrawn' },
   ],
+
   attended_event: [
     { value: '', label: 'All' },
     { value: 'true', label: 'Yes' },
@@ -184,7 +184,8 @@ const LeadsTab = ({ token }) => {
   
   // Filters
   const [filters, setFilters] = useState({
-    status: '',
+    status: [],
+
     source_type: '',
     list_id: '',
     attended_event: '',
@@ -212,7 +213,8 @@ const LeadsTab = ({ token }) => {
         limit: pagination.limit.toString(),
       });
       
-      if (filters.status) params.append('status', filters.status);
+      if (filters.status.length > 0) params.append('status', filters.status.join(','));
+
       if (filters.source_type) params.append('source_type', filters.source_type);
       if (filters.list_id) params.append('list_id', filters.list_id);
       if (filters.attended_event) params.append('attended_event', filters.attended_event);
@@ -324,9 +326,18 @@ const LeadsTab = ({ token }) => {
 
   // Handle clear filter
   const handleClearFilter = useCallback((filterKey) => {
-    setFilters(prev => ({ ...prev, [filterKey]: '' }));
+    setFilters(prev => ({ ...prev, [filterKey]: Array.isArray(prev[filterKey]) ? [] : '' }));
     setPagination(prev => ({ ...prev, page: 1 }));
   }, []);
+
+
+
+  // Remove a single value from the multi-select status filter
+  const handleRemoveStatusValue = useCallback((value) => {
+    setFilters(prev => ({ ...prev, status: prev.status.filter(s => s !== value) }));
+    setPagination(prev => ({ ...prev, page: 1 }));
+  }, []);
+
 
   // Handle column sort
   const handleColumnSort = useCallback((column) => {
@@ -353,7 +364,8 @@ const LeadsTab = ({ token }) => {
           ids_only: 'true' // Signal to backend we only need IDs
         });
         
-        if (filters.status) params.append('status', filters.status);
+        if (filters.status.length > 0) params.append('status', filters.status.join(','));
+
         if (filters.source_type) params.append('source_type', filters.source_type);
         if (filters.list_id) params.append('list_id', filters.list_id);
         if (filters.attended_event) params.append('attended_event', filters.attended_event);
@@ -564,18 +576,35 @@ const LeadsTab = ({ token }) => {
     );
   };
 
+
+
   // Render sortable + filterable column header
+
+  // For filterKey === 'status', uses multi-select (array of checked values)
+  // For other filterKeys, uses single-select (one value at a time)
   const renderSortableFilterableHeader = (column, filterKey, label, options, sortKey = null) => {
-    const currentValue = filters[filterKey] || '';
-    const isFiltered = currentValue !== '';
+    const isMulti = filterKey === 'status';
+    const currentValue = filters[filterKey];
+    const isFiltered = isMulti ? currentValue.length > 0 : currentValue !== '';
     const isSortable = sortKey !== null;
     const isSorted = columnSort.column === sortKey;
-    
+
+    const handleMultiToggle = (value) => {
+      setFilters(prev => {
+        const current = prev[filterKey];
+        const next = current.includes(value)
+          ? current.filter(v => v !== value)
+          : [...current, value];
+        return { ...prev, [filterKey]: next };
+      });
+      setPagination(prev => ({ ...prev, page: 1 }));
+    };
+
     return (
       <div className="flex items-center gap-1">
         {/* Sortable label */}
         {isSortable ? (
-          <span 
+          <span
             className="cursor-pointer hover:text-[#4242ea] font-proxima-bold select-none flex items-center"
             onClick={() => handleColumnSort(sortKey)}
           >
@@ -589,11 +618,11 @@ const LeadsTab = ({ token }) => {
         ) : (
           <span className="font-proxima-bold">{label}</span>
         )}
-        
+
         {/* Filter dropdown */}
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
-            <button 
+            <button
               className={`p-1 rounded hover:bg-gray-200 ${isFiltered ? 'text-[#4242ea]' : 'text-gray-400'}`}
               onClick={(e) => e.stopPropagation()}
             >
@@ -602,19 +631,55 @@ const LeadsTab = ({ token }) => {
               </svg>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-44 font-proxima">
-            <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase">Filter by {label}</div>
+          <DropdownMenuContent align="start" className="w-48 font-proxima">
+            <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase">
+              Filter by {label}
+              {isMulti && <span className="ml-1 text-gray-400 normal-case">(multi-select)</span>}
+            </div>
             <DropdownMenuSeparator />
-            {options.map((option) => (
-              <DropdownMenuCheckboxItem
-                key={option.value}
-                checked={currentValue === option.value}
-                onCheckedChange={() => handleFilterChange(filterKey, option.value)}
-                onSelect={(e) => e.preventDefault()}
-              >
-                {option.label}
-              </DropdownMenuCheckboxItem>
-            ))}
+            {isMulti ? (
+              // Multi-select: rendered as clickable rows that stay open
+              options.map((option) => {
+                const isChecked = currentValue.includes(option.value);
+                return (
+                  <DropdownMenuItem
+                    key={option.value}
+                    className="flex items-center gap-2 cursor-pointer"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleMultiToggle(option.value);
+                    }}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${isChecked ? 'bg-[#4242ea] border-[#4242ea] text-white' : 'border-gray-300'}`}>
+                      {isChecked && (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      )}
+                    </span>
+                    <span>{option.label}</span>
+                    {isChecked && (
+                      <span className="ml-auto text-[#4242ea] text-xs">✓</span>
+                    )}
+                  </DropdownMenuItem>
+                );
+              })
+
+            ) : (
+              // Single-select — radio-style, "All" option deselects
+              options.map((option) => (
+                <DropdownMenuCheckboxItem
+                  key={option.value}
+                  checked={currentValue === option.value}
+                  onCheckedChange={() => handleFilterChange(filterKey, option.value)}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  {option.label}
+                </DropdownMenuCheckboxItem>
+              ))
+            )}
             {isFiltered && (
               <>
                 <DropdownMenuSeparator />
@@ -622,7 +687,10 @@ const LeadsTab = ({ token }) => {
                   className="cursor-pointer text-red-600 hover:text-red-700"
                   onSelect={(e) => {
                     e.preventDefault();
-                    handleClearFilter(filterKey);
+                    isMulti
+                      ? setFilters(prev => ({ ...prev, [filterKey]: [] }))
+                      : handleClearFilter(filterKey);
+                    setPagination(prev => ({ ...prev, page: 1 }));
                   }}
                 >
                   ✕ Clear Filter
@@ -634,6 +702,9 @@ const LeadsTab = ({ token }) => {
       </div>
     );
   };
+
+
+
 
   // Dynamic source filter options
   const sourceFilterOptions = useMemo(() => {
@@ -654,12 +725,13 @@ const LeadsTab = ({ token }) => {
   }, [emailLists]);
 
   // Check if any filters are active
-  const hasActiveFilters = filters.status || filters.source_type || filters.list_id || filters.attended_event;
+  const hasActiveFilters = filters.status.length > 0 || filters.source_type || filters.list_id || filters.attended_event;
+
 
   // Clear all filters
   const handleClearAllFilters = useCallback(() => {
     setFilters({
-      status: '',
+      status: [],
       source_type: '',
       list_id: '',
       attended_event: '',
@@ -667,6 +739,7 @@ const LeadsTab = ({ token }) => {
     });
     setPagination(prev => ({ ...prev, page: 1 }));
   }, [filters.search]);
+
 
   // Loading skeleton
   if (loading && leads.length === 0) {
@@ -883,11 +956,14 @@ const LeadsTab = ({ token }) => {
             </>
           )}
           {hasActiveFilters && <span className="text-sm text-gray-500 font-proxima">Active filters:</span>}
-          {filters.status && (
-            <Badge className="bg-blue-100 text-blue-700 font-proxima cursor-pointer hover:bg-blue-200" onClick={() => handleClearFilter('status')}>
-              Status: {formatStatus(filters.status)} ✕
-            </Badge>
+          {filters.status.length > 0 && (
+            filters.status.map(s => (
+              <Badge key={s} className="bg-blue-100 text-blue-700 font-proxima cursor-pointer hover:bg-blue-200" onClick={() => handleRemoveStatusValue(s)}>
+                Status: {formatStatus(s)} ✕
+              </Badge>
+            ))
           )}
+
           {filters.source_type && (
             <Badge className="bg-indigo-100 text-indigo-700 font-proxima cursor-pointer hover:bg-indigo-200" onClick={() => handleClearFilter('source_type')}>
               Source: {filters.source_type.replace('_', ' ')} ✕
