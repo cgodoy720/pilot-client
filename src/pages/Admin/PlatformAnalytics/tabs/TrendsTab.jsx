@@ -20,7 +20,6 @@ const TASK_TYPE_COLORS = {
   document: '#f59e0b',
   summarize: '#06b6d4',
   feedback: '#ef4444',
-  title_generation: '#8b5cf6',
   unknown: '#94a3b8',
 };
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -449,6 +448,9 @@ const TrendsTab = ({ token, startDate, endDate }) => {
   }, [userTrendsData]);
 
   // Transform task type trends into Nivo stacked area format
+  // Exclude title_generation — it's an internal auto-task, not a meaningful user metric
+  const HIDDEN_TASK_TYPES = new Set(['title_generation']);
+
   const taskLineData = useMemo(() => {
     if (!taskTrendsData || taskTrendsData.length === 0) return { series: [], taskTypes: [] };
 
@@ -456,6 +458,7 @@ const TrendsTab = ({ token, startDate, endDate }) => {
     const taskDates = {};
 
     taskTrendsData.forEach(row => {
+      if (HIDDEN_TASK_TYPES.has(row.task_type)) return;
       taskTypes.add(row.task_type);
       if (!taskDates[row.task_type]) taskDates[row.task_type] = [];
       taskDates[row.task_type].push({
@@ -541,7 +544,7 @@ const TrendsTab = ({ token, startDate, endDate }) => {
         <Card className="bg-white border border-[#E3E3E3] lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-sm font-semibold text-[#1E1E1E]">Usage Heatmap</CardTitle>
-            <CardDescription className="text-xs">Requests by day & hour (UTC)</CardDescription>
+            <CardDescription className="text-xs">Requests by day & hour (ET)</CardDescription>
           </CardHeader>
           <CardContent className="max-h-[360px] overflow-y-auto">
             {heatmapLoading ? <LoadingState /> : !heatmapData || heatmapData.length === 0 ? <EmptyState /> : (
