@@ -307,6 +307,8 @@ const UserDrilldownDialog = ({ token, userId, userName, startDate, endDate, onCl
 // HEATMAP COMPONENT
 // ============================================================================
 const UsageHeatmap = ({ data }) => {
+  const [tooltip, setTooltip] = useState(null);
+
   const grid = useMemo(() => {
     const cells = {};
     let maxCount = 1;
@@ -350,7 +352,15 @@ const UsageHeatmap = ({ data }) => {
                   <div
                     key={h}
                     className={`flex-1 h-5 rounded-sm ${bg} cursor-default`}
-                    title={`${day} ${h}:00 — ${count} requests`}
+                    onMouseEnter={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setTooltip({
+                        day, hour: h, count,
+                        x: rect.left + rect.width / 2,
+                        y: rect.top,
+                      });
+                    }}
+                    onMouseLeave={() => setTooltip(null)}
                   />
                 );
               })}
@@ -366,6 +376,34 @@ const UsageHeatmap = ({ data }) => {
           <span className="text-[10px] text-slate-400">More</span>
         </div>
       </div>
+
+      {/* Floating tooltip */}
+      {tooltip && (
+        <div
+          className="fixed z-[9999] pointer-events-none"
+          style={{
+            left: tooltip.x,
+            top: tooltip.y,
+            transform: 'translate(-50%, -100%) translateY(-6px)',
+          }}
+        >
+          <div style={{
+            background: 'white',
+            borderRadius: 8,
+            border: '1px solid #e2e8f0',
+            padding: '6px 10px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            whiteSpace: 'nowrap',
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#1E1E1E' }}>
+              {tooltip.day} {tooltip.hour}:00
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+              {tooltip.count} {tooltip.count === 1 ? 'request' : 'requests'}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
