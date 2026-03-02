@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { format } from 'date-fns';
 import './NotesModal.css';
 
 const NotesModal = ({ isOpen, onClose, applicantId, applicantName }) => {
-    const { token, user } = useAuth();
+    const token = useAuthStore((s) => s.token);
+    const user = useAuthStore((s) => s.user);
     const [notes, setNotes] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);

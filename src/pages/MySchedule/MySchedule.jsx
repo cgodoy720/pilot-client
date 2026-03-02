@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { Calendar, ChevronLeft, ChevronRight, Clock, User, Plus, X, TreePine } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -26,7 +26,8 @@ const formatDateKey = (date) => {
 };
 
 function MySchedule({ embedded = false }) {
-    const { user, token } = useAuth();
+    const user = useAuthStore((s) => s.user);
+    const token = useAuthStore((s) => s.token);
     const { canAccessPage } = usePermissions();
     const [currentMonth, setCurrentMonth] = useState(() => {
         const now = new Date();

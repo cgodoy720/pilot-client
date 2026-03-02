@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../../context/AuthContext';
+import useAuthStore from '../../../../stores/authStore';
 import { usePermissions } from '../../../../hooks/usePermissions';
 import { Card, CardContent, CardHeader } from '../../../../components/ui/card';
 import { Badge } from '../../../../components/ui/badge';
@@ -17,7 +17,8 @@ import LoadingState from './shared/LoadingState';
 import EmptyState from './shared/EmptyState';
 
 const HistoryTab = () => {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const { canUseFeature } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [changes, setChanges] = useState([]);

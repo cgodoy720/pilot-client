@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../../context/AuthContext';
+import useAuthStore from '../../../../stores/authStore';
 import { usePermissions } from '../../../../hooks/usePermissions';
 import {
   Select,
@@ -30,7 +30,8 @@ import EmptyState from '../../../../components/curriculum/EmptyState';
 import { toast } from 'sonner';
 
 const CurriculumBrowserTab = () => {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const { canUseFeature } = usePermissions();
   const [loading, setLoading] = useState(false);
   const [cohorts, setCohorts] = useState([]);

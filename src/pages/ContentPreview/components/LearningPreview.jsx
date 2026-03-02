@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FaCheckCircle } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import Swal from 'sweetalert2';
 
 // Components
@@ -164,7 +164,8 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
  * Used by ContentPreview to show interactive mode without the app Layout
  */
 function LearningPreview({ dayId, cohort, onBack }) {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   
   // State
   const [messages, setMessages] = useState([]);

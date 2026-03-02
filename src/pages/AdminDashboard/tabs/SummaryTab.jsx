@@ -9,7 +9,7 @@ import {
 import TaskDetailPanel from '../components/TaskDetailPanel';
 import BuilderDrawer from '../components/BuilderDrawer';
 import { fetchPursuitBuilderCohorts, toLegacyFormat } from '../utils/cohortUtils';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const PAGE_SIZE_TASKS = 10;
@@ -116,7 +116,7 @@ const Pagination = ({ page, total, pageSize, onPage }) => {
 };
 
 const SummaryTab = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [cohorts, setCohorts] = useState([]);
   const [selectedCohortId, setSelectedCohortId] = useState('');
   const [startDate, setStartDate] = useState('2025-03-01');

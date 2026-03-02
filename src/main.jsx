@@ -27,7 +27,7 @@ import Unsubscribe from './pages/Unsubscribe/Unsubscribe.jsx'
 // Public form pages
 import PublicFormContainer from './pages/PublicForm/PublicFormContainer.jsx'
 
-import { AuthProvider, useAuth } from './context/AuthContext.jsx'
+import useAuthStore from './stores/authStore';
 import { isAuthenticated } from './utils/attendanceAuth'
 import './utils/globalErrorHandler.js' // Install global auth error handler
 import 'animate.css'
@@ -47,7 +47,8 @@ const queryClient = new QueryClient({
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
   
   // Show loading state while checking authentication
   if (isLoading) {
@@ -74,7 +75,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AuthProvider>
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
@@ -117,7 +117,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               } 
             />
           </Routes>
-        </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>,

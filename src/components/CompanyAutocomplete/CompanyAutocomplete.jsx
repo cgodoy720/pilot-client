@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import './CompanyAutocomplete.css';
 
 function CompanyAutocomplete({ value, onChange, required = false, className = '' }) {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [inputValue, setInputValue] = useState(value || '');
   const [suggestions, setSuggestions] = useState([]);
   const [isOpen, setIsOpen] = useState(false);

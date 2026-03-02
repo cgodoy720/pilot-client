@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { Shield, Plus, Trash2, ChevronDown, ChevronRight, Eye, Pencil, Save, X } from 'lucide-react';
 import { Input } from '../../../components/ui/input';
@@ -205,7 +205,8 @@ const Pagination = ({ currentPage, totalPages, totalItems, pageSize, onPageChang
  * Admin-only page for managing user permissions
  */
 function PermissionManagement() {
-  const { user, token } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);

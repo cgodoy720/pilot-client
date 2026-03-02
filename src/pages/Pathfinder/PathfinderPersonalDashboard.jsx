@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { Link, useNavigate } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { Badge } from '../../components/ui/badge';
@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 
 function PathfinderPersonalDashboard() {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const [applicationStats, setApplicationStats] = useState(null);
   const [featuredEvents, setFeaturedEvents] = useState([]);

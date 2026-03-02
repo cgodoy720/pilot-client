@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { CheckCircle, Upload, Users, Search, Eye } from 'lucide-react';
 
 const PaymentAdmin = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
