@@ -86,6 +86,7 @@ const useAuthStore = create(
               data.user
             );
             set({ token: data.token, isAuthenticated: true, user: userWithPerms });
+            localStorage.setItem('token', data.token);
           }
 
           return {
@@ -182,6 +183,7 @@ const useAuthStore = create(
 
           if (user && token && isValidUserType(user)) {
             storeSet({ isAuthenticated: true });
+            localStorage.setItem('token', token);
 
             // Fetch permissions in the background
             const { _fetchAndSetPermissions } = storeGet();
