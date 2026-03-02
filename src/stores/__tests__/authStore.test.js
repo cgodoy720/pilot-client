@@ -162,6 +162,32 @@ describe('authStore', () => {
       expect(fetchMock.mock.calls[1][0]).toContain('/api/permissions/my-permissions');
     });
 
+    it('writes bare token to localStorage for backward-compatible access', async () => {
+      const loginResponse = {
+        user: { ...mockBuilderUser },
+        token: 'bare-ls-token',
+        redirectTo: '/dashboard',
+      };
+
+      const fetchMock = vi.spyOn(globalThis, 'fetch');
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => loginResponse,
+      });
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockPermissionsResponse,
+      });
+
+      await useAuthStore.getState().login('builder@example.com', 'password123');
+
+      // The bare 'token' key must be set so service files using
+      // localStorage.getItem('token') get the real token
+      expect(localStorage.getItem('token')).toBe('bare-ls-token');
+    });
+
     it('returns { success: false, error } and does NOT set auth state on 401', async () => {
       const fetchMock = vi.spyOn(globalThis, 'fetch');
       fetchMock.mockResolvedValueOnce({
