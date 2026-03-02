@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Button } from '../ui/button';
@@ -33,7 +33,7 @@ import {
 } from 'recharts';
 
 const ConversationAnalytics = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   

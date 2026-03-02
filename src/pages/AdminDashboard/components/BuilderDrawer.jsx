@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { X, BookOpen, MessageSquare, Send, Video, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
 const API_URL = import.meta.env.VITE_API_URL;
@@ -219,7 +219,7 @@ const VideoItem = ({ v }) => {
 };
 
 const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, onClose }) => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [workProduct, setWorkProduct] = useState(null);
   const [peerFeedback, setPeerFeedback] = useState(null);
   const [prompts, setPrompts] = useState(null);

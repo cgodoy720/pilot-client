@@ -20,13 +20,13 @@ import {
   TableRow,
 } from '../ui/table';
 import { cachedAdminApi } from '../../services/cachedAdminApi';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { getErrorMessage } from '../../utils/retryUtils';
 import CohortDailyBreakdown from './CohortDailyBreakdown';
 import DayBuilderStatusModal from './DayBuilderStatusModal';
 
 const CohortPerformanceDashboard = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

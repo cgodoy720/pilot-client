@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import { usePermissions } from '../../../hooks/usePermissions';
 import {
   BarChart3, Plus, Trash2, Send, Power, PowerOff, Clock,
@@ -53,7 +53,8 @@ function formatDate(dateValue) {
  * Admin page for managing weekly cohort report recipients and viewing send logs.
  */
 function WeeklyReports() {
-  const { user, token } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
 
   // State

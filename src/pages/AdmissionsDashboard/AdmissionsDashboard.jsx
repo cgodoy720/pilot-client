@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import NotesModal from '../../components/NotesModal';
 import BulkActionsModal from '../../components/BulkActionsModal';
@@ -18,7 +18,7 @@ const LeadsTab = lazy(() => import('./components/LeadsTab/LeadsTab'));
 const EmailsTab = lazy(() => import('./components/EmailsTab/EmailsTab'));
 
 const AdmissionsDashboard = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
@@ -413,7 +413,7 @@ const AdmissionsDashboard = () => {
       
       // Calculate offset and limit based on load all mode
       const offset = loadAllMode ? 0 : (currentPage - 1) * PAGE_SIZE;
-      const limit = loadAllMode ? 1000 : PAGE_SIZE;
+      const limit = loadAllMode ? 10000 : PAGE_SIZE;
       
       // Add filter parameters (skip limit and offset as we calculate them above)
       Object.entries(applicationFilters).forEach(([key, value]) => {

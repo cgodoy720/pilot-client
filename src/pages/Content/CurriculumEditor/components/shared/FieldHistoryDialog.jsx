@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../../../context/AuthContext';
+import useAuthStore from '../../../../../stores/authStore';
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,7 @@ const FieldHistoryDialog = ({
   onRevert,
   canEdit = true 
 }) => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [isReverting, setIsReverting] = useState(false);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);

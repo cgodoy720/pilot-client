@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
@@ -8,7 +8,9 @@ import { CheckCircle2, AlertCircle, Github, ArrowRight } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 function Account() {
-  const { user, token, updateUser } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
+  const updateUser = useAuthStore((s) => s.updateUser);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');

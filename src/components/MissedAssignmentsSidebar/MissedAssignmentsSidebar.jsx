@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import useAuthStore from '../../stores/authStore';
 import {
   Sheet,
   SheetContent,
@@ -9,6 +10,7 @@ import {
 import './MissedAssignmentsSidebar.css';
 
 const MissedAssignmentsSidebar = ({ isOpen, onClose, onNavigateToDay }) => {
+  const token = useAuthStore((s) => s.token);
   const [missedAssignments, setMissedAssignments] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -21,7 +23,6 @@ const MissedAssignmentsSidebar = ({ isOpen, onClose, onNavigateToDay }) => {
   const fetchMissedAssignments = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/progress/missed-assignments-list`, {
         headers: {
           'Authorization': `Bearer ${token}`,

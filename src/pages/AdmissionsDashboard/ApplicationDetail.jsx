@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import NotesSidebar from '../../components/NotesSidebar';
 import BulkActionsModal from '../../components/BulkActionsModal';
 import AttendedEventModal from './components/shared/AttendedEventModal';
@@ -219,7 +219,7 @@ const getQuestionCategory = (prompt) => {
 
 const ApplicationDetail = () => {
     const { applicantId } = useParams();
-    const { token } = useAuth();
+    const token = useAuthStore((s) => s.token);
     const navigate = useNavigate();
 
     const [loading, setLoading] = useState(true);

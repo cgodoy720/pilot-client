@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import pursuitLogoFull from '../../assets/logo-full.png';
 import databaseService from '../../services/databaseService';
 import Swal from 'sweetalert2';
@@ -75,7 +75,8 @@ const SECTION_CONFIG = [
 function ApplicantDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { setAuthState, refreshPermissions } = useAuth();
+  const setAuthState = useAuthStore((s) => s.setAuthState);
+  const refreshPermissions = useAuthStore((s) => s.refreshPermissions);
   const [user, setUser] = useState(null);
   const [currentApplicantId, setCurrentApplicantId] = useState(null);
   const [statuses, setStatuses] = useState({

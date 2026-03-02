@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FaCheckCircle, FaUsers, FaBook, FaArrowLeft, FaArrowRight, FaCalendarAlt, FaPaperPlane, FaCheck, FaTimes, FaLink, FaExternalLinkAlt, FaFileAlt, FaVideo, FaBars, FaBrain, FaComments, FaClipboardList } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import PeerFeedbackForm from '../../components/PeerFeedbackForm';
 import BuilderFeedbackForm from '../../components/BuilderFeedbackForm/BuilderFeedbackForm';
 import TaskSubmission from '../../components/TaskSubmission/TaskSubmission';
@@ -17,7 +17,8 @@ function PastSession() {
   const dayId = searchParams.get('dayId');
   const dayNumber = searchParams.get('dayNumber');
   const cohort = searchParams.get('cohort');
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   
   // Check if user has active status

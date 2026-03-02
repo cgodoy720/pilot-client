@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
@@ -38,7 +38,8 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
  * Allows staff/admin/volunteers to view and test curriculum content as students see it
  */
 function ContentPreview() {
-  const { user, token } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const [searchParams, setSearchParams] = useSearchParams();
   
   const [loading, setLoading] = useState(false);

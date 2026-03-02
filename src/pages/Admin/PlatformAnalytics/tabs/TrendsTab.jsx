@@ -20,7 +20,6 @@ const TASK_TYPE_COLORS = {
   document: '#f59e0b',
   summarize: '#06b6d4',
   feedback: '#ef4444',
-  title_generation: '#8b5cf6',
   unknown: '#94a3b8',
 };
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -307,6 +306,8 @@ const UserDrilldownDialog = ({ token, userId, userName, startDate, endDate, onCl
 // HEATMAP COMPONENT
 // ============================================================================
 const UsageHeatmap = ({ data }) => {
+  const [tooltip, setTooltip] = useState(null);
+
   const grid = useMemo(() => {
     const cells = {};
     let maxCount = 1;
@@ -350,7 +351,15 @@ const UsageHeatmap = ({ data }) => {
                   <div
                     key={h}
                     className={`flex-1 h-5 rounded-sm ${bg} cursor-default`}
-                    title={`${day} ${h}:00 — ${count} requests`}
+                    onMouseEnter={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setTooltip({
+                        day, hour: h, count,
+                        x: rect.left + rect.width / 2,
+                        y: rect.top,
+                      });
+                    }}
+                    onMouseLeave={() => setTooltip(null)}
                   />
                 );
               })}
@@ -366,6 +375,34 @@ const UsageHeatmap = ({ data }) => {
           <span className="text-[10px] text-slate-400">More</span>
         </div>
       </div>
+
+      {/* Floating tooltip */}
+      {tooltip && (
+        <div
+          className="fixed z-[9999] pointer-events-none"
+          style={{
+            left: tooltip.x,
+            top: tooltip.y,
+            transform: 'translate(-50%, -100%) translateY(-6px)',
+          }}
+        >
+          <div style={{
+            background: 'white',
+            borderRadius: 8,
+            border: '1px solid #e2e8f0',
+            padding: '6px 10px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            whiteSpace: 'nowrap',
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#1E1E1E' }}>
+              {tooltip.day} {tooltip.hour}:00
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+              {tooltip.count} {tooltip.count === 1 ? 'request' : 'requests'}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -411,6 +448,9 @@ const TrendsTab = ({ token, startDate, endDate }) => {
   }, [userTrendsData]);
 
   // Transform task type trends into Nivo stacked area format
+  // Exclude title_generation — it's an internal auto-task, not a meaningful user metric
+  const HIDDEN_TASK_TYPES = new Set(['title_generation']);
+
   const taskLineData = useMemo(() => {
     if (!taskTrendsData || taskTrendsData.length === 0) return { series: [], taskTypes: [] };
 
@@ -418,6 +458,7 @@ const TrendsTab = ({ token, startDate, endDate }) => {
     const taskDates = {};
 
     taskTrendsData.forEach(row => {
+      if (HIDDEN_TASK_TYPES.has(row.task_type)) return;
       taskTypes.add(row.task_type);
       if (!taskDates[row.task_type]) taskDates[row.task_type] = [];
       taskDates[row.task_type].push({
@@ -503,7 +544,7 @@ const TrendsTab = ({ token, startDate, endDate }) => {
         <Card className="bg-white border border-[#E3E3E3] lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-sm font-semibold text-[#1E1E1E]">Usage Heatmap</CardTitle>
-            <CardDescription className="text-xs">Requests by day & hour (UTC)</CardDescription>
+            <CardDescription className="text-xs">Requests by day & hour (ET)</CardDescription>
           </CardHeader>
           <CardContent className="max-h-[360px] overflow-y-auto">
             {heatmapLoading ? <LoadingState /> : !heatmapData || heatmapData.length === 0 ? <EmptyState /> : (
