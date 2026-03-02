@@ -140,6 +140,8 @@ function App() {
     // Force immediate redirect regardless of type
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('auth-storage');
+    localStorage.removeItem('applicantToken');
     window.location.href = '/login';
   };
 

@@ -87,6 +87,12 @@ const useAuthStore = create(
             );
             set({ token: data.token, isAuthenticated: true, user: userWithPerms });
             localStorage.setItem('token', data.token);
+          } else {
+            // Applicant portal reads user from localStorage and token from applicantToken
+            localStorage.setItem('user', JSON.stringify(data.user));
+            if (data.user.userType === 'applicant') {
+              localStorage.setItem('applicantToken', data.token);
+            }
           }
 
           return {
@@ -132,9 +138,10 @@ const useAuthStore = create(
 
       logout: () => {
         set({ user: null, token: null, isAuthenticated: false });
-        // Belt-and-suspenders: explicitly remove from localStorage
+        // Belt-and-suspenders: explicitly remove all auth data from localStorage
         localStorage.removeItem('user');
         localStorage.removeItem('token');
+        localStorage.removeItem('applicantToken');
       },
 
       updateUser: (updatedUserData) => {
