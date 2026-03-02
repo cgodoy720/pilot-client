@@ -323,28 +323,21 @@ describe('Dashboard - Role-Based Access Control', () => {
       expect(within(nav).queryByText('Volunteers')).not.toBeInTheDocument();
     });
 
-    it.skip('should have access to full dashboard with cohort filtering', async () => {
-      const mockData = {
-        day: { daily_goal: 'Staff goal', week: 1, level: 1, weekly_goal: 'Test' },
-        timeBlocks: [],
-        taskProgress: [],
-        missedAssignmentsCount: 5
-      };
-
+    it('should have access to full dashboard with cohort filtering', async () => {
+      // Staff triggers a cohorts fetch on mount
       global.fetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockData
-      }).mockResolvedValueOnce({
-        ok: true,
-        json: async () => []
+        json: async () => ({ cohorts: [] })
       });
 
       renderDashboardOnly({
         user: { firstName: 'StaffUser', role: 'staff', active: true }
       });
 
-      await screen.findByText(/Hey StaffUser. Good to see you!/i);
-      expect(screen.getAllByText(/Staff goal/i)[0]).toBeInTheDocument();
+      // Staff/admin see "Welcome back" greeting (not "Hey ... Good to see you")
+      await screen.findByText(/Welcome back, StaffUser!/i);
+      // Without a cohort selected, shows placeholder (desktop + mobile)
+      expect(screen.getAllByText(/Select a cohort to preview the builder dashboard/i)[0]).toBeInTheDocument();
     });
   });
 
@@ -393,28 +386,21 @@ describe('Dashboard - Role-Based Access Control', () => {
       expect(within(nav).queryByText('Volunteers')).not.toBeInTheDocument();
     });
 
-    it.skip('should have full access to dashboard features', async () => {
-      const mockData = {
-        day: { daily_goal: 'Admin goal', week: 5, level: 2, weekly_goal: 'Admin Week' },
-        timeBlocks: [],
-        taskProgress: [],
-        missedAssignmentsCount: 10
-      };
-
+    it('should have full access to dashboard features', async () => {
+      // Admin triggers a cohorts fetch on mount
       global.fetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockData
-      }).mockResolvedValueOnce({
-        ok: true,
-        json: async () => []
+        json: async () => ({ cohorts: [] })
       });
 
       renderDashboardOnly({
         user: { firstName: 'AdminUser', role: 'admin', active: true }
       });
 
-      await screen.findByText(/Hey AdminUser. Good to see you!/i);
-      expect(screen.getAllByText(/Admin goal/i)[0]).toBeInTheDocument();
+      // Admin sees "Welcome back" greeting
+      await screen.findByText(/Welcome back, AdminUser!/i);
+      // Without a cohort selected, shows placeholder (desktop + mobile)
+      expect(screen.getAllByText(/Select a cohort to preview the builder dashboard/i)[0]).toBeInTheDocument();
     });
   });
 
@@ -492,13 +478,12 @@ describe('Dashboard - Role-Based Access Control', () => {
   });
 
   describe('Inactive User Access', () => {
-    it.skip('should show limited dashboard for inactive students', async () => {
-      // Skipping: requires Card component that's not imported
+    it('should show limited dashboard for inactive builders', async () => {
       renderDashboardOnly({
-        user: { firstName: 'Inactive', role: 'student', active: false }
+        user: { firstName: 'Inactive', role: 'builder', active: false }
       });
 
-      await screen.findByText(/Historical Access Only/i);
+      await screen.findByText('Historical Access Only');
       expect(screen.getByText(/View Past Sessions/i)).toBeInTheDocument();
     });
 
@@ -514,27 +499,14 @@ describe('Dashboard - Role-Based Access Control', () => {
       expect(within(nav).getByText('Logout')).toBeInTheDocument();
     });
 
-    it.skip('should not allow inactive users to start new sessions', async () => {
-      // Skipping: requires Card component that's not imported
-      const mockData = {
-        day: { daily_goal: 'Test', week: 1, level: 1 },
-        timeBlocks: [],
-        taskProgress: [],
-        missedAssignmentsCount: 0
-      };
-
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData
-      });
-
+    it('should not allow inactive users to start new sessions', async () => {
       renderDashboardOnly({
-        user: { firstName: 'Inactive', role: 'student', active: false }
+        user: { firstName: 'Inactive', role: 'builder', active: false }
       });
 
-      await screen.findByText(/Historical Access Only/i);
-      
-      // Should not have "Start" button for learning
+      await screen.findByText('Historical Access Only');
+
+      // Historical view has no "Start" button — only "View Past Sessions"
       expect(screen.queryByText('Start')).not.toBeInTheDocument();
     });
   });
