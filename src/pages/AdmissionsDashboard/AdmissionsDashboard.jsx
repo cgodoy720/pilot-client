@@ -413,7 +413,7 @@ const AdmissionsDashboard = () => {
       
       // Calculate offset and limit based on load all mode
       const offset = loadAllMode ? 0 : (currentPage - 1) * PAGE_SIZE;
-      const limit = loadAllMode ? 1000 : PAGE_SIZE;
+      const limit = loadAllMode ? 10000 : PAGE_SIZE;
       
       // Add filter parameters (skip limit and offset as we calculate them above)
       Object.entries(applicationFilters).forEach(([key, value]) => {

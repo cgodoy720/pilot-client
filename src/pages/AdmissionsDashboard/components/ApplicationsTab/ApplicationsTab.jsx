@@ -608,12 +608,13 @@ const ApplicationsTab = ({
     if (selectedApplicants.length === 0) return;
     
     try {
-      const selectedApplicantIds = selectedApplicants.join(',');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/export?ids=${selectedApplicantIds}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/export`, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ ids: selectedApplicants })
       });
       
       if (!response.ok) {
