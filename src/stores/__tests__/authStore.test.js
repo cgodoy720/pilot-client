@@ -786,19 +786,22 @@ describe('authStore', () => {
 
       // Permissions endpoint should NOT have been called (only 1 fetch for login)
       expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      // Applicant user and token ARE written to localStorage for the applicant portal
+      const storedUser = JSON.parse(localStorage.getItem('user'));
+      expect(storedUser.userId).toBe(50);
+      expect(storedUser.userType).toBe('applicant');
+      expect(localStorage.getItem('applicantToken')).toBe('applicant-jwt');
     });
 
-    it('does not touch applicantToken in localStorage (separate from builder token)', () => {
-      // The applicant system uses localStorage.getItem('applicantToken')
-      // authStore uses 'auth-storage' key. These must not collide.
+    it('logout clears applicantToken along with other auth data for a clean slate', () => {
+      // When logging out, ALL auth data should be cleared — including applicantToken
+      // so stale applicant sessions don't interfere with subsequent logins.
       localStorage.setItem('applicantToken', 'separate-applicant-jwt');
 
       useAuthStore.getState().logout();
 
-      // authStore.logout clears 'user' and 'token' but must NOT touch 'applicantToken'
-      expect(localStorage.getItem('applicantToken')).toBe('separate-applicant-jwt');
-
-      localStorage.removeItem('applicantToken');
+      expect(localStorage.getItem('applicantToken')).toBeNull();
     });
   });
 
