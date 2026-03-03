@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
-import { Building2, TrendingUp, Users, Briefcase, Network, MessageSquare, ChevronDown, ChevronUp, X, ExternalLink, Loader2 } from 'lucide-react';
+import { Building2, TrendingUp, Users, Briefcase, Network, MessageSquare, ChevronDown, ChevronUp, X, ExternalLink, Loader2, Sparkles } from 'lucide-react';
 
 const PERIODS = [
   { value: '7',  label: 'Last 7 Days' },
@@ -231,6 +231,29 @@ export default function BuilderInsights() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedContactId, setSelectedContactId] = useState(null);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichMsg, setEnrichMsg] = useState(null);
+
+  const triggerEnrichment = async () => {
+    setEnriching(true);
+    setEnrichMsg(null);
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/employment-engine/enrich-builder-companies`,
+        { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
+      );
+      const json = await res.json();
+      setEnrichMsg(
+        json.new_companies > 0
+          ? `Enriching ${json.new_companies} new companies in the background — refresh Top Industries in a minute.`
+          : 'All builder companies are already in the queue or enriched.'
+      );
+    } catch {
+      setEnrichMsg('Failed to start enrichment.');
+    } finally {
+      setEnriching(false);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -344,11 +367,22 @@ export default function BuilderInsights() {
 
         {/* Top Industries */}
         <div className="bg-white border border-gray-200 rounded-lg p-5">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-2">
             <TrendingUp size={18} className="text-pursuit-purple" />
             <h3 className="font-semibold text-gray-900">Top Industries</h3>
-            <span className="text-xs text-gray-400 ml-auto">where enrichment data exists</span>
+            <button
+              onClick={triggerEnrichment}
+              disabled={enriching}
+              className="ml-auto inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              title="Enrich company data from builder signals"
+            >
+              {enriching ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+              {enriching ? 'Enriching…' : 'Enrich'}
+            </button>
           </div>
+          {enrichMsg && (
+            <p className="text-xs text-gray-500 mb-3 bg-gray-50 rounded px-2.5 py-1.5">{enrichMsg}</p>
+          )}
           {loading ? (
             <div className="space-y-0">
               {Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)}
