@@ -97,7 +97,7 @@ function KisiSetup({ task, onComplete }) {
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <h4 className="font-semibold text-amber-900 mb-2">Important Notes:</h4>
             <ul className="space-y-2 text-amber-800">
-              <li>• The doors are usually set to be locked before 9 AM and after 7 PM daily.</li>
+              <li>• The doors are usually set to be locked before 9 AM and after 5 PM daily.</li>
               <li>• The door code (above) may change occasionally.</li>
               <li>• When this happens, please look out for a message on Slack and/or Email from Victoria@pursuit.org</li>
               <li>• OR Slack Victoria directly for assistance.</li>
