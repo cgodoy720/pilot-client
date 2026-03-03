@@ -1,13 +1,13 @@
 # Joanna's Handoff Doc
-_Last updated: 2026-02-27_
+_Last updated: 2026-03-03_
 
 This doc captures the state of the build, key architectural decisions, and the roadmap as of Joanna's leave. Read this alongside the PRD (`20251113 Job tracking data pipelines PRD.md` on Joanna's desktop).
 
 ## Branch Status
 - Both `pilot-client` and `test-pilot-server` `joanna` branches have been merged with `upstream/main` (cgodoy720) as of 2026-02-27
 - Upstream remotes are configured: `git remote add upstream git@github.com:cgodoy720/[repo].git`
-- **Sputnik = `SalesTracker` page** (`src/pages/SalesTracker/`) — tabs: Dashboard, All Leads, Job Postings, Leaderboard
-- **Staff Inbox is now a tab in Sputnik** (`SalesTracker.jsx`) alongside Dashboard, All Leads, Job Postings, Leaderboard
+- **Sputnik = `SalesTracker` page** (`src/pages/SalesTracker/`) — tabs: Dashboard, All Leads, Job Postings, Leaderboard, Staff Inbox, Builder Insights
+- **Staff Inbox** and **Builder Insights** are both tabs in Sputnik (`SalesTracker.jsx`)
 
 ---
 
@@ -66,7 +66,7 @@ Key vars to have set:
 
 ## What's Been Built (Employment Engine)
 
-### Shipped as of 2026-02-23
+### Shipped as of 2026-03-03
 
 #### Backend endpoints (`/api/employment-engine/`)
 | Method | Route | Who | What |
@@ -84,6 +84,8 @@ Key vars to have set:
 | POST | `/enrich-companies` | Staff | Trigger background AI company enrichment |
 | GET | `/enrich-status` | Staff | Check enrichment progress |
 | GET | `/filter-options` | All | Return valid industries/size buckets for dropdowns |
+| GET | `/builder-insights?period=7\|30\|all` | Staff | Top companies/industries builders are targeting + suggested intros |
+| POST | `/enrich-builder-companies` | Staff | Upsert builder-signal companies into `companies` table and trigger enrichment |
 
 #### Key service files
 - `services/slackService.js` — Slack webhook notifications (new intro requests + status updates)
@@ -102,6 +104,15 @@ Dedup key priority: `linkedin:<slug>` → `email:<addr>` → `name_company:<name
 - Background process fires Claude Haiku calls per company
 - Module-level `isEnriching` flag prevents duplicate runs
 - Enriches: `industry`, `company_size`, `stage`, `description`
+
+#### Builder Insights tab (Sputnik) — shipped 2026-03-03
+- **`src/pages/SalesTracker/components/BuilderInsights.jsx`** — new component (~450 lines)
+- Three panels: Top Companies, Top Industries, Suggested Introductions
+- Time filter buttons: All Time / Last 30 Days (default) / Last 7 Days
+- **Top Companies**: ranked list with color-coded signal badge breakdown (blue=applications, green=networking, purple=intros)
+- **Top Industries**: ranked list from enriched company data + "Enrich" button that triggers `POST /enrich-builder-companies`
+- **Suggested Introductions**: one card per company — shows which staff have contacts there; each contact is a clickable chip opening a full **ContactModal** (name/title/company/LinkedIn/industry tags/staff connections)
+- Uses `useAuth()` for token — never `localStorage.getItem('token')`
 
 ---
 
@@ -122,23 +133,7 @@ Note: The **Jobs tab was intentionally removed from the Pathfinder nav** (commit
 
 These items come from the PRD and Joanna's latest thinking. Roughly prioritized:
 
-### 1. Builder Interest Signals for Staff _(next up — design discussed, not started)_
-**The goal**: Staff should be able to see which companies and industries builders are actively targeting, so they can proactively reach out to their connections.
-
-**Data sources available now**:
-- `job_applications.company_name` + `role_title`
-- `intro_requests.contact_company`
-- `networking_activities.company`
-
-**Three approaches discussed**:
-
-- **Option A — "Builder Signals" panel**: Aggregate view on Staff Network Dashboard showing top target companies with builder demand counts. Low lift, good starting point.
-- **Option B — "Suggested Outreach" feed** _(recommended)_: Cross-reference builder target companies against `staff_contact_relationships` to surface actionable suggestions: _"3 builders are targeting Figma — you're connected to 2 people there."_ Pure SQL matching, no AI needed.
-- **Option C — Per-builder profile view**: Scoped to one builder at a time — useful for facilitators doing 1:1 coaching. Natural V2 after Option B.
-
-Start with **Option B** as it's the most actionable and builds on existing data.
-
-### 2. Staff Actions for Builders _(P1)_
+### 1. Staff Actions for Builders _(P1)_
 - Staff can proactively recommend an intro to a specific builder
 - Staff can push a job posting directly to a builder whose background matches
 
@@ -173,6 +168,8 @@ Start with **Option B** as it's the most actionable and builds on existing data.
 - **Slack**: Webhook URL is in `.env` as `SLACK_WEBHOOK_URL`. Failures are caught silently (never break the main request).
 - **Branch**: Both repos are on branch `joanna`.
 - **Server**: Run with `npx nodemon server.js` (not `node server.js`).
+- **SSL**: `PG_SSL=true` must be set in `.env` — wired in `db/dbConfig.js`. Without it, parallel queries that open new pool connections fail with "SSL/TLS required".
+- **`users` table**: Uses `first_name` and `last_name` columns — **not** `full_name`.
 
 ---
 
