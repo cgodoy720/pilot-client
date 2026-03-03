@@ -67,6 +67,9 @@ function ContentPreview() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [uploadCohort, setUploadCohort] = useState(null);
 
+  // Sidebar refresh trigger (incremented after day edits to refresh CohortDaySelector)
+  const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
+
   // Check if user has preview access and edit permissions via the permission system
   const { canAccessPage, canUseFeature } = usePermissions();
   const hasPreviewAccess = canAccessPage('content_preview');
@@ -386,13 +389,15 @@ function ContentPreview() {
       );
       
       if (response.status === 200) {
-        toast.success('Goals updated successfully');
+        toast.success('Day info updated successfully');
         // Refresh day content
         await loadDayContent(selectedDay.id);
+        // Refresh sidebar to reflect date changes
+        setSidebarRefreshKey(prev => prev + 1);
       }
     } catch (error) {
-      console.error('Error saving goals:', error);
-      toast.error('Failed to update goals');
+      console.error('Error saving day info:', error);
+      toast.error('Failed to update day info');
       throw error;
     }
   };
@@ -658,6 +663,7 @@ function ContentPreview() {
               onDaySelect={handleDaySelect}
               onUploadCurriculum={handleUploadCurriculum}
               canEdit={canEdit}
+              refreshTrigger={sidebarRefreshKey}
             />
           </div>
 
