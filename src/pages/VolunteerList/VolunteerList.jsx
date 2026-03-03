@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { Search, Users, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { Input } from '../../components/ui/input';
@@ -20,7 +20,8 @@ import VolunteerProfileModal from './components/VolunteerProfileModal';
 const EXCLUDED_COHORTS = ['December 2025 AI Native', 'December 2025 Workshop'];
 
 function VolunteerList({ embedded = false }) {
-    const { user, token } = useAuth();
+    const user = useAuthStore((s) => s.user);
+    const token = useAuthStore((s) => s.token);
     const { canAccessPage } = usePermissions();
     const [volunteers, setVolunteers] = useState([]);
     const [filteredVolunteers, setFilteredVolunteers] = useState([]);

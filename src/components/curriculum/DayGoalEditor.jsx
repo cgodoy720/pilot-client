@@ -28,6 +28,8 @@ const DayGoalEditor = ({
     }
   };
   const [formData, setFormData] = useState({
+    day_date: '',
+    week: '',
     daily_goal: '',
     weekly_goal: ''
   });
@@ -37,6 +39,8 @@ const DayGoalEditor = ({
   useEffect(() => {
     if (day || week) {
       setFormData({
+        day_date: day?.day_date ? day.day_date.slice(0, 10) : '',
+        week: day?.week ?? '',
         daily_goal: day?.daily_goal || '',
         weekly_goal: week?.weeklyGoal || day?.weekly_goal || ''
       });
@@ -62,14 +66,75 @@ const DayGoalEditor = ({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="font-proxima-bold text-xl">
-            {canEdit ? 'Edit Day & Week Goals' : 'View Goals'}
+            {canEdit ? 'Edit Day Info' : 'View Day Info'}
           </DialogTitle>
           <DialogDescription className="font-proxima text-[#666]">
-            {canEdit ? 'Update the daily and weekly learning goals' : 'Goals (read-only)'}
+            {canEdit ? 'Update the day date, week, and learning goals' : 'Day info (read-only)'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Day Date */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="day_date" className="font-proxima-bold">
+                Day Date
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => handleFieldHistory('day_date')}
+                className="h-8 text-[#666] hover:text-[#4242EA]"
+              >
+                <History className="h-4 w-4 mr-1" />
+                History
+              </Button>
+            </div>
+            <Input
+              id="day_date"
+              type="date"
+              value={formData.day_date}
+              onChange={(e) => setFormData(prev => ({ ...prev, day_date: e.target.value }))}
+              disabled={!canEdit}
+              className="font-proxima"
+            />
+            <p className="text-xs text-[#666] font-proxima">
+              The calendar date for this curriculum day
+            </p>
+          </div>
+
+          {/* Week Number */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="week" className="font-proxima-bold">
+                Week
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => handleFieldHistory('week')}
+                className="h-8 text-[#666] hover:text-[#4242EA]"
+              >
+                <History className="h-4 w-4 mr-1" />
+                History
+              </Button>
+            </div>
+            <Input
+              id="week"
+              type="number"
+              min="1"
+              value={formData.week}
+              onChange={(e) => setFormData(prev => ({ ...prev, week: e.target.value === '' ? '' : Number(e.target.value) }))}
+              disabled={!canEdit}
+              className="font-proxima"
+            />
+            <p className="text-xs text-[#666] font-proxima">
+              The week number this day belongs to (used for ordering and grouping)
+            </p>
+          </div>
+
           {/* Daily Goal */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -149,7 +214,7 @@ const DayGoalEditor = ({
               className="bg-[#4242EA] hover:bg-[#3535D1] font-proxima"
             >
               <Save className="h-4 w-4 mr-1" />
-              {isSaving ? 'Saving...' : 'Save Goals'}
+              {isSaving ? 'Saving...' : 'Save Changes'}
             </Button>
           )}
         </div>

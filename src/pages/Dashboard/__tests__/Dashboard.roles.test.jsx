@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 import Dashboard from '../Dashboard';
 import Layout from '../../../components/Layout/Layout';
-import { AuthContext } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 
 // Mock useNavigate
 const mockNavigate = vi.fn();
@@ -24,28 +24,18 @@ vi.mock('../../components/animate-ui/components/buttons/ripple', () => ({
   RippleButton: ({ children, ...props }) => <button {...props}>{children}</button>
 }));
 
-vi.mock('lucide-react', () => ({
-  AlertTriangle: () => <div>AlertTriangle</div>,
-  Calendar: () => <div>Calendar</div>,
-  BookOpen: () => <div>BookOpen</div>,
-  ArrowRight: () => <div>ArrowRight</div>,
-  ChevronLeft: () => <div>ChevronLeft</div>,
-  ChevronRight: () => <div>ChevronRight</div>,
-  LogOut: () => <div>LogOut</div>,
-  Settings: () => <div>Settings</div>,
-  Award: () => <div>Award</div>,
-  Users: () => <div>Users</div>,
-  Bug: () => <div>Bug</div>,
-  Brain: () => <div>Brain</div>,
-  MessageCircle: () => <div>MessageCircle</div>,
-  X: () => <div>X</div>,
-}));
+vi.mock('lucide-react', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+  };
+});
 
 /**
- * Helper to render Layout + Dashboard with authentication context
+ * Helper to render Layout + Dashboard with Zustand store state
  */
-const renderWithLayout = (authValue = {}) => {
-  const defaultAuthValue = {
+const renderWithLayout = (storeState = {}) => {
+  const defaultState = {
     token: 'test-token',
     user: {
       firstName: 'Test',
@@ -54,17 +44,17 @@ const renderWithLayout = (authValue = {}) => {
     },
     isAuthenticated: true,
     isLoading: false,
+    _hasHydrated: true,
     logout: vi.fn(),
-    ...authValue
   };
+
+  useAuthStore.setState({ ...defaultState, ...storeState });
 
   return render(
     <MemoryRouter initialEntries={['/dashboard']}>
-      <AuthContext.Provider value={defaultAuthValue}>
-        <Layout>
-          <Dashboard />
-        </Layout>
-      </AuthContext.Provider>
+      <Layout>
+        <Dashboard />
+      </Layout>
     </MemoryRouter>
   );
 };
@@ -72,8 +62,8 @@ const renderWithLayout = (authValue = {}) => {
 /**
  * Helper to render just Dashboard without Layout (for Dashboard-specific tests)
  */
-const renderDashboardOnly = (authValue = {}) => {
-  const defaultAuthValue = {
+const renderDashboardOnly = (storeState = {}) => {
+  const defaultState = {
     token: 'test-token',
     user: {
       firstName: 'Test',
@@ -82,14 +72,14 @@ const renderDashboardOnly = (authValue = {}) => {
     },
     isAuthenticated: true,
     isLoading: false,
-    ...authValue
+    _hasHydrated: true,
   };
+
+  useAuthStore.setState({ ...defaultState, ...storeState });
 
   return render(
     <BrowserRouter>
-      <AuthContext.Provider value={defaultAuthValue}>
-        <Dashboard />
-      </AuthContext.Provider>
+      <Dashboard />
     </BrowserRouter>
   );
 };
@@ -98,6 +88,16 @@ describe('Dashboard - Role-Based Access Control', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockNavigate.mockClear();
+
+    // Reset Zustand auth store
+    useAuthStore.setState({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      isLoading: false,
+      _hasHydrated: true,
+      logout: vi.fn(),
+    });
 
     // Set up a fresh fetch mock (no default behavior)
     // Each test will set up its own mock responses as needed
@@ -109,17 +109,20 @@ describe('Dashboard - Role-Based Access Control', () => {
   describe('Student/Builder Role', () => {
     it('should show standard navigation items for students', async () => {
       renderWithLayout({
-        user: { firstName: 'Student', role: 'student', active: true }
+        user: { firstName: 'Student', role: 'builder', active: true }
       });
 
-      // Standard navigation items should be present
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
-      expect(screen.getByText('Learning')).toBeInTheDocument();
-      expect(screen.getByText('AI Chat')).toBeInTheDocument();
-      expect(screen.getByText('Calendar')).toBeInTheDocument();
-      expect(screen.getByText('Progress')).toBeInTheDocument();
-      expect(screen.getByText('Assessment')).toBeInTheDocument();
-      expect(screen.getByText('Account')).toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      // Standard navigation items should be present as links
+      expect(within(nav).getByText('Dashboard')).toBeInTheDocument();
+      expect(within(nav).getByText('Learning')).toBeInTheDocument();
+      expect(within(nav).getByText('AI Chat')).toBeInTheDocument();
+      expect(within(nav).getByText('Calendar')).toBeInTheDocument();
+      expect(within(nav).getByText('Pathfinder')).toBeInTheDocument();
+      expect(within(nav).getByText('Performance')).toBeInTheDocument();
+
+      // Logout button should be present
+      expect(within(nav).getByText('Logout')).toBeInTheDocument();
     });
 
     it('should NOT show admin navigation items for students', () => {
@@ -127,20 +130,25 @@ describe('Dashboard - Role-Based Access Control', () => {
         user: { firstName: 'Student', role: 'student', active: true }
       });
 
-      // Admin-only items should NOT be present
-      expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
-      expect(screen.queryByText('Assessment Grades')).not.toBeInTheDocument();
-      expect(screen.queryByText('Admissions')).not.toBeInTheDocument();
-      expect(screen.queryByText('Content Generation')).not.toBeInTheDocument();
-      expect(screen.queryByText('AI Prompts')).not.toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      // No dropdown triggers should be present for students
+      expect(within(nav).queryByText('Program')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Employment')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Staff')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Admin')).not.toBeInTheDocument();
+
+      // No admin flat links
+      expect(within(nav).queryByText('Enterprise Admin')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Admissions Dashboard')).not.toBeInTheDocument();
     });
 
-    it('should NOT show volunteer feedback for students', () => {
+    it('should NOT show volunteer link for students', () => {
       renderWithLayout({
         user: { firstName: 'Student', role: 'student', active: true }
       });
 
-      expect(screen.queryByText('Volunteer Feedback')).not.toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      expect(within(nav).queryByText('Volunteers')).not.toBeInTheDocument();
     });
 
     it('should render dashboard content for active students', async () => {
@@ -175,14 +183,23 @@ describe('Dashboard - Role-Based Access Control', () => {
         user: { firstName: 'Builder', role: 'builder', active: true }
       });
 
-      // Standard items
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
-      expect(screen.getByText('Learning')).toBeInTheDocument();
-      expect(screen.getByText('Calendar')).toBeInTheDocument();
-      
-      // No admin items
-      expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
-      expect(screen.queryByText('Volunteer Feedback')).not.toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      // Standard items (same as student)
+      expect(within(nav).getByText('Dashboard')).toBeInTheDocument();
+      expect(within(nav).getByText('Learning')).toBeInTheDocument();
+      expect(within(nav).getByText('AI Chat')).toBeInTheDocument();
+      expect(within(nav).getByText('Calendar')).toBeInTheDocument();
+      expect(within(nav).getByText('Pathfinder')).toBeInTheDocument();
+      expect(within(nav).getByText('Performance')).toBeInTheDocument();
+
+      // No dropdown triggers
+      expect(within(nav).queryByText('Program')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Employment')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Staff')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Admin')).not.toBeInTheDocument();
+
+      // No volunteer link
+      expect(within(nav).queryByText('Volunteers')).not.toBeInTheDocument();
     });
   });
 
@@ -192,18 +209,26 @@ describe('Dashboard - Role-Based Access Control', () => {
         user: { firstName: 'Volunteer', role: 'volunteer', active: true }
       });
 
-      // Standard navigation
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
-      expect(screen.getByText('Learning')).toBeInTheDocument();
-      expect(screen.getByText('Account')).toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      // Volunteers see Dashboard, Learning, and Volunteers link
+      expect(within(nav).getByText('Dashboard')).toBeInTheDocument();
+      expect(within(nav).getByText('Learning')).toBeInTheDocument();
+      expect(within(nav).getByText('Volunteers')).toBeInTheDocument();
+
+      // Volunteers do NOT see AI Chat, Calendar, Pathfinder, Performance
+      expect(within(nav).queryByText('AI Chat')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Calendar')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Pathfinder')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Performance')).not.toBeInTheDocument();
     });
 
-    it('should show Volunteer Feedback link for volunteers', () => {
+    it('should show Volunteers link for volunteers', () => {
       renderWithLayout({
         user: { firstName: 'Volunteer', role: 'volunteer', active: true }
       });
 
-      expect(screen.getByText('Volunteer Feedback')).toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      expect(within(nav).getByText('Volunteers')).toBeInTheDocument();
     });
 
     it('should NOT show admin navigation items for volunteers', () => {
@@ -211,11 +236,16 @@ describe('Dashboard - Role-Based Access Control', () => {
         user: { firstName: 'Volunteer', role: 'volunteer', active: true }
       });
 
-      expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
-      expect(screen.queryByText('Assessment Grades')).not.toBeInTheDocument();
-      expect(screen.queryByText('Admissions')).not.toBeInTheDocument();
-      expect(screen.queryByText('Content Generation')).not.toBeInTheDocument();
-      expect(screen.queryByText('AI Prompts')).not.toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      // No dropdown triggers for volunteers
+      expect(within(nav).queryByText('Program')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Employment')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Staff')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Admin')).not.toBeInTheDocument();
+
+      // No admin flat links
+      expect(within(nav).queryByText('Enterprise Admin')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Admissions Dashboard')).not.toBeInTheDocument();
     });
 
     it('should show volunteer-specific dashboard view', async () => {
@@ -247,55 +277,67 @@ describe('Dashboard - Role-Based Access Control', () => {
         user: { firstName: 'Staff', role: 'staff', active: true }
       });
 
-      // Standard items
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
-      expect(screen.getByText('Learning')).toBeInTheDocument();
-      expect(screen.getByText('Account')).toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      // Standard link items
+      expect(within(nav).getByText('Dashboard')).toBeInTheDocument();
+      expect(within(nav).getByText('Learning')).toBeInTheDocument();
+      expect(within(nav).getByText('AI Chat')).toBeInTheDocument();
+      expect(within(nav).getByText('Calendar')).toBeInTheDocument();
+      expect(within(nav).getByText('Pathfinder')).toBeInTheDocument();
+      expect(within(nav).getByText('Performance')).toBeInTheDocument();
+      expect(within(nav).getByText('Enterprise Admin')).toBeInTheDocument();
+      expect(within(nav).getByText('Admissions Dashboard')).toBeInTheDocument();
+
+      // Dropdown triggers visible for staff
+      expect(within(nav).getByText('Program')).toBeInTheDocument();
+      expect(within(nav).getByText('Employment')).toBeInTheDocument();
+      expect(within(nav).getByText('Staff')).toBeInTheDocument();
+
+      // Logout button
+      expect(within(nav).getByText('Logout')).toBeInTheDocument();
     });
 
-    it('should show ALL admin navigation items for staff', () => {
+    it('should show dropdown triggers for staff but NOT Admin dropdown', () => {
       renderWithLayout({
         user: { firstName: 'Staff', role: 'staff', active: true }
       });
 
-      // Admin items
-      expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
-      expect(screen.getByText('Assessment Grades')).toBeInTheDocument();
-      expect(screen.getByText('Admissions')).toBeInTheDocument();
-      expect(screen.getByText('Content Generation')).toBeInTheDocument();
-      expect(screen.getByText('AI Prompts')).toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      // Staff sees Program, Employment, Staff dropdown triggers
+      expect(within(nav).getByText('Program')).toBeInTheDocument();
+      expect(within(nav).getByText('Employment')).toBeInTheDocument();
+      expect(within(nav).getByText('Staff')).toBeInTheDocument();
+
+      // Staff does NOT see the Admin dropdown trigger (lacks admin-only permissions)
+      expect(within(nav).queryByText('Admin')).not.toBeInTheDocument();
     });
 
-    it('should show Volunteer Feedback for staff', () => {
+    it('should NOT show Volunteers flat link for staff (it is inside Staff dropdown)', () => {
       renderWithLayout({
         user: { firstName: 'Staff', role: 'staff', active: true }
       });
 
-      expect(screen.getByText('Volunteer Feedback')).toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      // Staff/admin don't see the flat 'Volunteers' link (that's for volunteer role only)
+      // Volunteer management is inside the Staff dropdown as a hidden item
+      expect(within(nav).queryByText('Volunteers')).not.toBeInTheDocument();
     });
 
     it('should have access to full dashboard with cohort filtering', async () => {
-      const mockData = {
-        day: { daily_goal: 'Staff goal', week: 1, level: 1, weekly_goal: 'Test' },
-        timeBlocks: [],
-        taskProgress: [],
-        missedAssignmentsCount: 5
-      };
-
+      // Staff triggers a cohorts fetch on mount
       global.fetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockData
-      }).mockResolvedValueOnce({
-        ok: true,
-        json: async () => []
+        json: async () => ({ cohorts: [] })
       });
 
       renderDashboardOnly({
         user: { firstName: 'StaffUser', role: 'staff', active: true }
       });
 
-      await screen.findByText(/Hey StaffUser. Good to see you!/i);
-      expect(screen.getAllByText(/Staff goal/i)[0]).toBeInTheDocument();
+      // Staff/admin see "Welcome back" greeting (not "Hey ... Good to see you")
+      await screen.findByText(/Welcome back, StaffUser!/i);
+      // Without a cohort selected, shows placeholder (desktop + mobile)
+      expect(screen.getAllByText(/Select a cohort to preview the builder dashboard/i)[0]).toBeInTheDocument();
     });
   });
 
@@ -305,149 +347,166 @@ describe('Dashboard - Role-Based Access Control', () => {
         user: { firstName: 'Admin', role: 'admin', active: true }
       });
 
-      // Standard items
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
-      expect(screen.getByText('Learning')).toBeInTheDocument();
-      expect(screen.getByText('Account')).toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      // Standard link items
+      expect(within(nav).getByText('Dashboard')).toBeInTheDocument();
+      expect(within(nav).getByText('Learning')).toBeInTheDocument();
+      expect(within(nav).getByText('AI Chat')).toBeInTheDocument();
+      expect(within(nav).getByText('Calendar')).toBeInTheDocument();
+      expect(within(nav).getByText('Pathfinder')).toBeInTheDocument();
+      expect(within(nav).getByText('Performance')).toBeInTheDocument();
+      expect(within(nav).getByText('Enterprise Admin')).toBeInTheDocument();
+      expect(within(nav).getByText('Admissions Dashboard')).toBeInTheDocument();
+
+      // Logout button
+      expect(within(nav).getByText('Logout')).toBeInTheDocument();
     });
 
-    it('should show ALL admin navigation items for admins', () => {
+    it('should show ALL dropdown triggers for admins including Admin', () => {
       renderWithLayout({
         user: { firstName: 'Admin', role: 'admin', active: true }
       });
 
-      // All admin items
-      expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
-      expect(screen.getByText('Assessment Grades')).toBeInTheDocument();
-      expect(screen.getByText('Admissions')).toBeInTheDocument();
-      expect(screen.getByText('Content Generation')).toBeInTheDocument();
-      expect(screen.getByText('AI Prompts')).toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      // Admin sees all four dropdown triggers
+      expect(within(nav).getByText('Program')).toBeInTheDocument();
+      expect(within(nav).getByText('Employment')).toBeInTheDocument();
+      expect(within(nav).getByText('Staff')).toBeInTheDocument();
+      expect(within(nav).getByText('Admin')).toBeInTheDocument();
     });
 
-    it('should show Volunteer Feedback for admins', () => {
+    it('should NOT show Volunteers flat link for admins (it is inside Staff dropdown)', () => {
       renderWithLayout({
         user: { firstName: 'Admin', role: 'admin', active: true }
       });
 
-      expect(screen.getByText('Volunteer Feedback')).toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      // Admin/staff don't see the flat 'Volunteers' link (that's for volunteer role only)
+      // Volunteer management is inside the Staff dropdown as a hidden item
+      expect(within(nav).queryByText('Volunteers')).not.toBeInTheDocument();
     });
 
     it('should have full access to dashboard features', async () => {
-      const mockData = {
-        day: { daily_goal: 'Admin goal', week: 5, level: 2, weekly_goal: 'Admin Week' },
-        timeBlocks: [],
-        taskProgress: [],
-        missedAssignmentsCount: 10
-      };
-
+      // Admin triggers a cohorts fetch on mount
       global.fetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockData
-      }).mockResolvedValueOnce({
-        ok: true,
-        json: async () => []
+        json: async () => ({ cohorts: [] })
       });
 
       renderDashboardOnly({
         user: { firstName: 'AdminUser', role: 'admin', active: true }
       });
 
-      await screen.findByText(/Hey AdminUser. Good to see you!/i);
-      expect(screen.getAllByText(/Admin goal/i)[0]).toBeInTheDocument();
+      // Admin sees "Welcome back" greeting
+      await screen.findByText(/Welcome back, AdminUser!/i);
+      // Without a cohort selected, shows placeholder (desktop + mobile)
+      expect(screen.getAllByText(/Select a cohort to preview the builder dashboard/i)[0]).toBeInTheDocument();
     });
   });
 
   describe('Cross-Role Navigation Link Verification', () => {
     const roles = [
-      { name: 'student', hasAdmin: false, hasVolunteer: false },
-      { name: 'builder', hasAdmin: false, hasVolunteer: false },
-      { name: 'volunteer', hasAdmin: false, hasVolunteer: true },
-      { name: 'staff', hasAdmin: true, hasVolunteer: true },
-      { name: 'admin', hasAdmin: true, hasVolunteer: true }
+      {
+        name: 'builder', // 'student' maps to 'builder' in the permission system
+        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Pathfinder', 'Performance'],
+        expectedDropdowns: [],
+        hasVolunteersLink: false,
+      },
+      {
+        name: 'builder',
+        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Pathfinder', 'Performance'],
+        expectedDropdowns: [],
+        hasVolunteersLink: false,
+      },
+      {
+        name: 'volunteer',
+        expectedLinks: ['Dashboard', 'Learning'],
+        expectedDropdowns: [],
+        hasVolunteersLink: true,
+      },
+      {
+        name: 'staff',
+        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Pathfinder', 'Performance', 'Enterprise Admin', 'Admissions Dashboard'],
+        expectedDropdowns: ['Program', 'Employment', 'Staff'],
+        hasVolunteersLink: false,
+      },
+      {
+        name: 'admin',
+        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Pathfinder', 'Performance', 'Enterprise Admin', 'Admissions Dashboard'],
+        expectedDropdowns: ['Program', 'Employment', 'Staff', 'Admin'],
+        hasVolunteersLink: false,
+      },
     ];
 
-    roles.forEach(({ name, hasAdmin, hasVolunteer }) => {
+    roles.forEach(({ name, expectedLinks, expectedDropdowns, hasVolunteersLink }) => {
       it(`should have correct navigation links for ${name} role`, () => {
         renderWithLayout({
           user: { firstName: 'User', role: name, active: true }
         });
 
-        // Everyone has these
-        expect(screen.getByText('Dashboard')).toBeInTheDocument();
-        expect(screen.getByText('Learning')).toBeInTheDocument();
-        expect(screen.getByText('AI Chat')).toBeInTheDocument();
-        expect(screen.getByText('Calendar')).toBeInTheDocument();
-        expect(screen.getByText('Progress')).toBeInTheDocument();
-        expect(screen.getByText('Assessment')).toBeInTheDocument();
-        expect(screen.getByText('Account')).toBeInTheDocument();
+        const nav = screen.getAllByRole('navigation')[0];
 
-        // Admin-only items
-        if (hasAdmin) {
-          expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
-          expect(screen.getByText('Assessment Grades')).toBeInTheDocument();
-          expect(screen.getByText('Admissions')).toBeInTheDocument();
-          expect(screen.getByText('Content Generation')).toBeInTheDocument();
-          expect(screen.getByText('AI Prompts')).toBeInTheDocument();
+        // Check expected link items are present
+        expectedLinks.forEach(linkText => {
+          expect(within(nav).getByText(linkText)).toBeInTheDocument();
+        });
+
+        // Check expected dropdown triggers are present
+        expectedDropdowns.forEach(dropdownText => {
+          expect(within(nav).getByText(dropdownText)).toBeInTheDocument();
+        });
+
+        // Check that unexpected dropdown triggers are NOT present
+        const allDropdowns = ['Program', 'Employment', 'Staff', 'Admin'];
+        allDropdowns
+          .filter(d => !expectedDropdowns.includes(d))
+          .forEach(dropdownText => {
+            expect(within(nav).queryByText(dropdownText)).not.toBeInTheDocument();
+          });
+
+        // Check Volunteers flat link
+        if (hasVolunteersLink) {
+          expect(within(nav).getByText('Volunteers')).toBeInTheDocument();
         } else {
-          expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
-          expect(screen.queryByText('Assessment Grades')).not.toBeInTheDocument();
-          expect(screen.queryByText('Admissions')).not.toBeInTheDocument();
-          expect(screen.queryByText('Content Generation')).not.toBeInTheDocument();
-          expect(screen.queryByText('AI Prompts')).not.toBeInTheDocument();
+          expect(within(nav).queryByText('Volunteers')).not.toBeInTheDocument();
         }
 
-        // Volunteer feedback
-        if (hasVolunteer) {
-          expect(screen.getByText('Volunteer Feedback')).toBeInTheDocument();
-        } else {
-          expect(screen.queryByText('Volunteer Feedback')).not.toBeInTheDocument();
-        }
+        // Everyone sees Logout
+        expect(within(nav).getByText('Logout')).toBeInTheDocument();
       });
     });
   });
 
   describe('Inactive User Access', () => {
-    it.skip('should show limited dashboard for inactive students', async () => {
-      // Skipping: requires Card component that's not imported
+    it('should show limited dashboard for inactive builders', async () => {
       renderDashboardOnly({
-        user: { firstName: 'Inactive', role: 'student', active: false }
+        user: { firstName: 'Inactive', role: 'builder', active: false }
       });
 
-      await screen.findByText(/Historical Access Only/i);
+      await screen.findByText('Historical Access Only');
       expect(screen.getByText(/View Past Sessions/i)).toBeInTheDocument();
     });
 
     it('should still show navigation for inactive users', () => {
       renderWithLayout({
-        user: { firstName: 'Inactive', role: 'student', active: false }
+        user: { firstName: 'Inactive', role: 'builder', active: false }
       });
 
-      // Navigation is still available - check for links
-      expect(screen.getByRole('link', { name: /Dashboard/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Calendar/i })).toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      // Navigation is still available - check for link text
+      expect(within(nav).getByText('Dashboard')).toBeInTheDocument();
+      expect(within(nav).getByText('Calendar')).toBeInTheDocument();
+      expect(within(nav).getByText('Logout')).toBeInTheDocument();
     });
 
-    it.skip('should not allow inactive users to start new sessions', async () => {
-      // Skipping: requires Card component that's not imported
-      const mockData = {
-        day: { daily_goal: 'Test', week: 1, level: 1 },
-        timeBlocks: [],
-        taskProgress: [],
-        missedAssignmentsCount: 0
-      };
-
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData
-      });
-
+    it('should not allow inactive users to start new sessions', async () => {
       renderDashboardOnly({
-        user: { firstName: 'Inactive', role: 'student', active: false }
+        user: { firstName: 'Inactive', role: 'builder', active: false }
       });
 
-      await screen.findByText(/Historical Access Only/i);
-      
-      // Should not have "Start" button for learning
+      await screen.findByText('Historical Access Only');
+
+      // Historical view has no "Start" button — only "View Past Sessions"
       expect(screen.queryByText('Start')).not.toBeInTheDocument();
     });
   });
@@ -463,15 +522,15 @@ describe('Dashboard - Role-Based Access Control', () => {
 
       const dashboardLink = allLinks.find(link => link.getAttribute('href') === '/dashboard');
       const learningLink = allLinks.find(link => link.getAttribute('href') === '/learning');
-      const adminLink = allLinks.find(link => link.getAttribute('href') === '/admin-dashboard');
+      const calendarLink = allLinks.find(link => link.getAttribute('href') === '/calendar');
 
       expect(dashboardLink).toBeInTheDocument();
       expect(learningLink).toBeInTheDocument();
-      expect(adminLink).toBeInTheDocument();
+      expect(calendarLink).toBeInTheDocument();
 
       expect(dashboardLink).toHaveAttribute('href', '/dashboard');
       expect(learningLink).toHaveAttribute('href', '/learning');
-      expect(adminLink).toHaveAttribute('href', '/admin-dashboard');
+      expect(calendarLink).toHaveAttribute('href', '/calendar');
     });
 
     it('should show logout button for all roles', () => {
@@ -479,7 +538,8 @@ describe('Dashboard - Role-Based Access Control', () => {
         user: { firstName: 'Test', role: 'student', active: true }
       });
 
-      expect(screen.getByText('Logout')).toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      expect(within(nav).getByText('Logout')).toBeInTheDocument();
     });
   });
 
@@ -489,11 +549,15 @@ describe('Dashboard - Role-Based Access Control', () => {
         user: { firstName: 'Unknown', role: undefined, active: true }
       });
 
-      // Standard items should still appear
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
-      
-      // Admin items should not appear
-      expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
+      const nav = screen.getAllByRole('navigation')[0];
+      // Dashboard nav link should still appear (always rendered)
+      expect(within(nav).getByText('Dashboard')).toBeInTheDocument();
+
+      // No dropdown triggers should appear
+      expect(within(nav).queryByText('Program')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Employment')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Staff')).not.toBeInTheDocument();
+      expect(within(nav).queryByText('Admin')).not.toBeInTheDocument();
     });
 
     it('should handle null user gracefully', () => {
@@ -511,28 +575,36 @@ describe('Dashboard - Role-Based Access Control', () => {
         user: { firstName: 'Staff', role: 'staff', active: true }
       });
 
-      // Both should see admin items
-      expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
-      
+      let nav = screen.getAllByRole('navigation')[0];
+      // Staff should see Program, Employment, Staff triggers but NOT Admin
+      expect(within(nav).getByText('Program')).toBeInTheDocument();
+      expect(within(nav).getByText('Employment')).toBeInTheDocument();
+      expect(within(nav).getByText('Staff')).toBeInTheDocument();
+      expect(within(nav).queryByText('Admin')).not.toBeInTheDocument();
+
       // Remount with admin role
+      useAuthStore.setState({
+        token: 'test-token',
+        user: { firstName: 'Admin', role: 'admin', active: true },
+        isAuthenticated: true,
+        isLoading: false,
+        _hasHydrated: true,
+        logout: vi.fn(),
+      });
       rerender(
         <MemoryRouter initialEntries={['/dashboard']}>
-          <AuthContext.Provider value={{
-            token: 'test-token',
-            user: { firstName: 'Admin', role: 'admin', active: true },
-            isAuthenticated: true,
-            isLoading: false,
-            logout: vi.fn()
-          }}>
-            <Layout>
-              <Dashboard />
-            </Layout>
-          </AuthContext.Provider>
+          <Layout>
+            <Dashboard />
+          </Layout>
         </MemoryRouter>
       );
 
-      // Admin should also see all admin items
-      expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+      // Admin should see all four dropdown triggers including Admin
+      nav = screen.getAllByRole('navigation')[0];
+      expect(within(nav).getByText('Program')).toBeInTheDocument();
+      expect(within(nav).getByText('Employment')).toBeInTheDocument();
+      expect(within(nav).getByText('Staff')).toBeInTheDocument();
+      expect(within(nav).getByText('Admin')).toBeInTheDocument();
     });
   });
 });

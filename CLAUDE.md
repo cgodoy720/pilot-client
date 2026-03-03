@@ -16,9 +16,9 @@ React 19 SPA for Pursuit's learning management platform. Serves builders (learne
 src/
 ├── main.jsx                    # React root + React Query + Router
 ├── App.jsx                     # Route definitions + protected routes + modal handling
-├── context/
-│   ├── AuthContext.jsx          # Auth state, login/logout, permission fetch
-│   └── NavContext.jsx           # Navigation state
+├── stores/
+│   ├── authStore.js             # Zustand store — auth state, login/logout, permissions
+│   └── navStore.js              # Zustand store — navigation state
 ├── pages/ (57+ pages)          # Route-level components
 ├── components/ (57+ components)
 │   └── ui/ (33+ shadcn)        # Radix-based accessible components
@@ -32,7 +32,7 @@ src/
 ## Tech Stack
 
 - **UI**: React 19, Tailwind CSS 3, shadcn/ui (Radix UI), MUI (selective), Lucide icons
-- **State**: React Query (TanStack) for server state (30s stale, 30s polling), Context API for auth/nav, localStorage for persistence
+- **State**: React Query (TanStack) for server state (30s stale, 30s polling), Zustand for auth/nav (persisted to localStorage), no Context providers
 - **Routing**: React Router DOM 6 with role-based route guards
 - **Rich content**: Tiptap editor, React Markdown, Recharts, FullCalendar
 - **Animations**: Framer Motion, Animate.css
@@ -42,7 +42,7 @@ src/
 
 1. Login → `POST /api/unified-auth/login` → receives `{ user, token, redirectTo, userType }`
 2. Token + user stored in localStorage
-3. Permissions fetched from `GET /api/permissions/my-permissions` → cached in AuthContext
+3. Permissions fetched from `GET /api/permissions/my-permissions` → cached in authStore
 4. All API calls include `Authorization: Bearer <token>` header
 5. Global error handler detects 401/403 → `ExpiredTokenModal` → redirect to login
 
@@ -55,6 +55,65 @@ src/
 - Admin bypasses all checks
 - Permissions drive nav visibility and route guards (`components/RouteGuards/`)
 - Defined in `constants/permissions.js` with `DEFAULT_ROLE_PERMISSIONS` fallback
+
+## State Management (Zustand)
+
+Auth and nav state live in Zustand stores (`src/stores/`), not React Context. There are no Context providers to wrap.
+
+### authStore (`src/stores/authStore.js`)
+
+```js
+import useAuthStore from '@/stores/authStore';
+
+// Reading state — use selectors for optimal re-renders
+const user = useAuthStore((s) => s.user);
+const token = useAuthStore((s) => s.token);
+const permissions = useAuthStore((s) => s.permissions);
+const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+// Multiple values — single selector returning an object
+const { user, token } = useAuthStore((s) => ({ user: s.user, token: s.token }));
+
+// Actions
+const login = useAuthStore((s) => s.login);       // (credentials) → API call, sets user+token+permissions
+const signup = useAuthStore((s) => s.signup);      // (userData) → API call, sets user+token
+const logout = useAuthStore((s) => s.logout);      // () → clears state + localStorage
+const updateUser = useAuthStore((s) => s.updateUser); // (fields) → merges into user object
+const setAuthState = useAuthStore((s) => s.setAuthState); // (stateObj) → bulk update
+const refreshPermissions = useAuthStore((s) => s.refreshPermissions); // () → re-fetches from API
+```
+
+**Persistence**: `user` and `token` auto-persist to localStorage via Zustand `persist` middleware. On page reload, state rehydrates automatically and `refreshPermissions` runs to re-fetch permissions from the server.
+
+### navStore (`src/stores/navStore.js`)
+
+```js
+import useNavStore from '@/stores/navStore';
+
+const isSecondaryNavPage = useNavStore((s) => s.isSecondaryNavPage);
+const setIsSecondaryNavPage = useNavStore((s) => s.setIsSecondaryNavPage);
+```
+
+### Testing with Zustand stores
+
+Do NOT wrap components in providers. Set state directly before each test:
+
+```js
+import useAuthStore from '@/stores/authStore';
+
+beforeEach(() => {
+  useAuthStore.setState({
+    user: { id: 1, role: 'builder', firstName: 'Test' },
+    token: 'test-token',
+    permissions: [],
+    isAuthenticated: true,
+  });
+});
+
+afterEach(() => {
+  useAuthStore.setState(useAuthStore.getInitialState());
+});
+```
 
 ## Key Routes
 
@@ -87,7 +146,9 @@ Base URL: `VITE_API_URL` env (default `http://localhost:7001`)
 ## Key Architectural Patterns
 
 - React functional components + hooks throughout
-- React Query for server state with automatic refetch on focus
+- **Zustand** for auth/nav state — no Context providers, use selector hooks directly
+- **React Query** for server state with automatic refetch on focus
+- `usePermissions()` hook reads `user.role` from authStore to check RBAC permissions
 - Custom `useStreamingText` hook smooths bursty SSE into natural typing animation
 - `globalErrorHandler.js` listens for auth errors via custom events
 - `retryUtils.js` provides backoff strategy for failed requests
@@ -102,7 +163,7 @@ Base URL: `VITE_API_URL` env (default `http://localhost:7001`)
 ## Client-Server Contract
 
 This app consumes the REST + SSE API from `../test-pilot-server`:
-- Auth: JWT in Bearer header; token lifecycle managed by AuthContext
+- Auth: JWT in Bearer header; token lifecycle managed by authStore (Zustand)
 - Streaming: SSE for `/api/chat/messages/stream` and `/api/learning/messages/stream`
 - Permissions: fetched at login, cached locally, fallback to hardcoded role defaults
 - File uploads: multipart/form-data for submissions with images

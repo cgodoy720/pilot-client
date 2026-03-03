@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, Link as LinkIcon, Play, Download, Copy, Check, Loader2 } from 'lucide-react';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Textarea } from '../../../components/ui/textarea';
@@ -9,7 +9,7 @@ import { Badge } from '../../../components/ui/badge';
 import { toast } from 'sonner';
 
 const JSONGenerator = ({ sharedData, updateSharedData }) => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [inputMethod, setInputMethod] = useState(sharedData?.inputMethod || 'text');
   const [textInput, setTextInput] = useState(sharedData?.textInput || '');
   const [urlInput, setUrlInput] = useState(sharedData?.urlInput || '');

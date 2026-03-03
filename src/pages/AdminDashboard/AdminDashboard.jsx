@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
-import { useAuth } from '../../context/AuthContext';
-import { useNavContext } from '../../context/NavContext';
+import useAuthStore from '../../stores/authStore';
+import useNavStore from '../../stores/navStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import SummaryTab from './tabs/SummaryTab';
 import SurveyTab from './tabs/SurveyTab';
@@ -15,9 +15,9 @@ const TAB_TRIGGER_CLASS =
   'data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-slate-600 font-medium px-4 py-2 rounded-md transition-all text-sm gap-1.5';
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
+  const user = useAuthStore((s) => s.user);
   const { canAccessPage } = usePermissions();
-  const { isSecondaryNavPage } = useNavContext();
+  const isSecondaryNavPage = useNavStore((s) => s.isSecondaryNavPage);
   const [activeTab, setActiveTab] = useState('summary');
   const [iframeLoading, setIframeLoading] = useState(true);
 

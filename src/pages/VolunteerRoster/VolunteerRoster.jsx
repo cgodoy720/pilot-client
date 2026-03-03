@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { ChevronLeft, ChevronRight, Users, Calendar, AlertCircle, CheckCircle2, Clock, Plus, XCircle } from 'lucide-react';
 import {
@@ -74,7 +74,8 @@ function isClassDay(date, cohortName) {
 }
 
 function VolunteerRoster({ embedded = false }) {
-    const { user, token } = useAuth();
+    const user = useAuthStore((s) => s.user);
+    const token = useAuthStore((s) => s.token);
     const { canAccessPage } = usePermissions();
     const [slots, setSlots] = useState([]);
     const [cohorts, setCohorts] = useState([]);

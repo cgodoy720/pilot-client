@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import pursuitLogoFull from '../../assets/logo-full.png';
 import databaseService from '../../services/databaseService';
 import Swal from 'sweetalert2';
@@ -76,7 +76,8 @@ const SECTION_CONFIG = [
 function ApplicantDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { setAuthState, refreshPermissions } = useAuth();
+  const setAuthState = useAuthStore((s) => s.setAuthState);
+  const refreshPermissions = useAuthStore((s) => s.refreshPermissions);
   const [user, setUser] = useState(null);
   const [currentApplicantId, setCurrentApplicantId] = useState(null);
   const [statuses, setStatuses] = useState({
@@ -90,6 +91,7 @@ function ApplicantDashboard() {
   const [applicantStage, setApplicantStage] = useState(null);
   const [applicationProgress, setApplicationProgress] = useState(null);
   const [onboardingStatus, setOnboardingStatus] = useState(null);
+  const [cohortInfo, setCohortInfo] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -145,17 +147,33 @@ function ApplicantDashboard() {
         await loadWorkshopStatus();
         await loadPledgeStatus();
         await loadOnboardingStatus();
+        await loadCohortInfo();
       } catch (error) {
         console.error('Error loading dashboard data:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     if (currentApplicantId) {
       loadDashboardData();
     }
   }, [currentApplicantId, refreshTrigger]);
+
+  const loadCohortInfo = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/onboarding/cohort-info`);
+      if (response.ok) {
+        const data = await response.json();
+        setCohortInfo(data);
+      } else {
+        setCohortInfo(null);
+      }
+    } catch (error) {
+      console.error('Error loading cohort info:', error);
+      setCohortInfo(null);
+    }
+  };
 
   const loadInfoSessionStatus = async () => {
     try {
@@ -450,7 +468,7 @@ function ApplicantDashboard() {
   const isLocked = (key, status) => {
     if (key === 'workshop') return status === 'locked'
     if (key === 'pledge') return status === 'locked'
-    if (key === 'onboarding') return false // Onboarding is never locked if it's shown
+    if (key === 'onboarding') return cohortInfo && !cohortInfo.is_open
     return false
   }
 
@@ -478,20 +496,24 @@ function ApplicantDashboard() {
                            applicantStage?.program_admission_status === 'accepted';
 
     if (showOnboarding) {
+      const onboardingLocked = cohortInfo && !cohortInfo.is_open;
       // Replace pledge section with onboarding section
       return [
         ...SECTION_CONFIG.slice(0, 3), // Keep first 3 sections (info, application, workshop)
         {
           key: 'onboarding',
           label: 'Complete Onboarding',
-          description: 'Complete the required onboarding tasks to create your builder account and start the program.',
+          description: onboardingLocked
+            ? `Onboarding opens on ${new Date(cohortInfo.onboarding_date || cohortInfo.start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}. You'll be able to complete your onboarding tasks then.`
+            : 'Complete the required onboarding tasks to create your builder account and start the program.',
           statusOptions: ['not started', 'in progress', 'completed'],
           defaultStatus: 'not started',
           getButtonLabel: (status) => {
+            if (onboardingLocked) return 'Coming Soon';
             if (onboardingStatus?.all_required_completed) return 'Create Builder Account';
             return 'Start Onboarding';
           },
-          buttonEnabled: (status) => true,
+          buttonEnabled: (status) => !onboardingLocked,
         }
       ];
     }
@@ -804,6 +826,12 @@ function ApplicantDashboard() {
                     {section.key === 'pledge' && locked && (
                       <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-[#666] italic">
                         Pledge will be available after you are admitted to the program.
+                      </div>
+                    )}
+
+                    {section.key === 'onboarding' && locked && cohortInfo && (
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-[#666] italic">
+                        Onboarding opens on {new Date(cohortInfo.onboarding_date || cohortInfo.start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}. Check back then to complete your tasks and create your builder account.
                       </div>
                     )}
 

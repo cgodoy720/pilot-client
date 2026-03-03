@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaPaperPlane, FaRobot, FaUser, FaInfoCircle, FaArrowLeft } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
-import { useAuth } from '../../../../context/AuthContext';
+import useAuthStore from '../../../../stores/authStore';
 import './AssessmentLLMChat.css';
 
 function AssessmentLLMChat({ 
@@ -15,7 +15,8 @@ function AssessmentLLMChat({
   isSubmissionPanelOpen,
   readonly = false
 }) {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);

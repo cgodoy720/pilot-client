@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 
 function PathfinderDashboard() {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
   const hasPathfinderAdminAccess = canAccessPage('pathfinder_admin');
   const [overview, setOverview] = useState(null);

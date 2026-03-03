@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { FaSpinner, FaCheckCircle } from 'react-icons/fa';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { toast } from 'sonner';
 import ArrowButton from '../ArrowButton/ArrowButton';
 import './SurveyInterface.css';
 
 const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onComplete, isCompleted = false, isLastTask = false, isPreviewMode = false }) => {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const isActive = user?.active !== false;
 
   // Survey state

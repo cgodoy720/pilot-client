@@ -66,7 +66,7 @@ import WeeklyReports from './pages/Admin/WeeklyReports/WeeklyReports';
 // Platform Analytics page
 import PlatformAnalytics from './pages/Admin/PlatformAnalytics/PlatformAnalytics';
 
-import { useAuth } from './context/AuthContext';
+import useAuthStore from './stores/authStore';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
 import { Toaster } from './components/ui/sonner';
@@ -80,7 +80,8 @@ import { PAGE_PERMISSIONS } from './constants/permissions';
 import './App.css';
 
 function App() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
   
   // Modal state
   const [modalConfig, setModalConfig] = useState({
@@ -139,6 +140,8 @@ function App() {
     // Force immediate redirect regardless of type
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('auth-storage');
+    localStorage.removeItem('applicantToken');
     window.location.href = '/login';
   };
 

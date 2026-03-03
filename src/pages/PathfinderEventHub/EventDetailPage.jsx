@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import Swal from 'sweetalert2';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { Card, CardContent } from '../../components/ui/card';
@@ -25,7 +25,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 function EventDetailPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [event, setEvent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);

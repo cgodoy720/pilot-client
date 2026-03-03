@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import MultiStepForm from '../../components/MultiStepForm';
@@ -15,7 +15,9 @@ const Signup = () => {
   const [registrationComplete, setRegistrationComplete] = useState(false);
   
   const navigate = useNavigate();
-  const { signup, isAuthenticated, setAuthState } = useAuth();
+  const signup = useAuthStore((s) => s.signup);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const setAuthState = useAuthStore((s) => s.setAuthState);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -46,7 +48,7 @@ const Signup = () => {
 
       if (userType === 'builder') {
         console.log('🔵 Processing builder signup...');
-        // Create builder account using the existing AuthContext signup
+        // Create builder account using the authStore signup
         const result = await signup(formData.firstName, formData.lastName, formData.email, formData.password);
         
         console.log('🔵 Builder signup result:', result);
@@ -187,27 +189,25 @@ const Signup = () => {
         }}
       >
         {/* Header */}
-        <div className="absolute top-5 left-8">
-          <h1 className="text-white text-xl md:text-2xl font-proxima leading-tight">
+        <div className="flex flex-col items-end md:flex-row md:justify-between md:items-center px-8 pt-5 gap-2">
+          <h1 className="hidden md:block text-white text-xl md:text-2xl font-proxima leading-tight">
             Let's create your account
           </h1>
-        </div>
-        
-        {/* Top Right Login Link */}
-        <div className="absolute top-7 right-8 flex items-center gap-2">
-          <span className="text-white text-sm font-proxima">
-            Already have an account? Login
-          </span>
-          <Link to="/login">
-            <ArrowButton 
-              size="sm"
-              borderColor="white"
-              arrowColor="white"
-              backgroundColor="transparent"
-              hoverBackgroundColor="white"
-              hoverArrowColor="#4242EA"
-            />
-          </Link>
+          <div className="flex items-center gap-2">
+            <span className="text-white text-sm font-proxima">
+              Already have an account? Login
+            </span>
+            <Link to="/login">
+              <ArrowButton
+                size="sm"
+                borderColor="white"
+                arrowColor="white"
+                backgroundColor="transparent"
+                hoverBackgroundColor="white"
+                hoverArrowColor="#4242EA"
+              />
+            </Link>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -246,31 +246,29 @@ const Signup = () => {
     return (
       <div className="min-h-screen bg-pursuit-purple relative flex flex-col">
         {/* Header */}
-        <div className="absolute top-5 left-8">
-          <h1 className="text-white text-xl md:text-2xl font-proxima leading-tight">
+        <div className="flex flex-col items-end md:flex-row md:justify-between md:items-center px-8 pt-5 gap-2">
+          <h1 className="hidden md:block text-white text-xl md:text-2xl font-proxima leading-tight">
             Let's create your account
           </h1>
-        </div>
-        
-        {/* Top Right Login Link */}
-        <div className="absolute top-7 right-8 flex items-center gap-2">
-          <span className="text-white text-sm font-proxima">
-            Already have an account? Login
-          </span>
-          <Link to="/login">
-            <ArrowButton 
-              size="sm"
-              borderColor="white"
-              arrowColor="white"
-              backgroundColor="transparent"
-              hoverBackgroundColor="white"
-              hoverArrowColor="#4242EA"
-            />
-          </Link>
+          <div className="flex items-center gap-2">
+            <span className="text-white text-sm font-proxima">
+              Already have an account? Login
+            </span>
+            <Link to="/login">
+              <ArrowButton
+                size="sm"
+                borderColor="white"
+                arrowColor="white"
+                backgroundColor="transparent"
+                hoverBackgroundColor="white"
+                hoverArrowColor="#4242EA"
+              />
+            </Link>
+          </div>
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col items-center justify-center px-8">
+        <div className="flex-1 flex flex-col items-center justify-center px-8 pb-8 md:pb-0">
           {/* Container that matches card width */}
           <div className="w-full max-w-[920px]">
             {/* Step indicator and question - aligned to left of cards */}
@@ -284,9 +282,9 @@ const Signup = () => {
             </div>
 
             {/* Account Type Cards */}
-            <div className="flex flex-col md:flex-row gap-6 mb-16">
+            <div className="flex flex-col md:flex-row gap-6 mb-8 md:mb-16">
             {/* Applicant Card */}
-            <div className="w-full md:w-[210px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
+            <div className="w-full md:w-[210px] md:min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-4 gap-3 md:p-6 md:gap-6">
               <div className="flex flex-col items-center gap-4 w-full flex-1">
                 <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
                   Applicant
@@ -305,7 +303,7 @@ const Signup = () => {
             </div>
 
             {/* Builder Card */}
-            <div className="w-full md:w-[210px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
+            <div className="w-full md:w-[210px] md:min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-4 gap-3 md:p-6 md:gap-6">
               <div className="flex flex-col items-center gap-4 w-full flex-1">
                 <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
                   Builder
@@ -324,7 +322,7 @@ const Signup = () => {
             </div>
 
             {/* Enterprise Card */}
-            <div className="w-full md:w-[210px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
+            <div className="w-full md:w-[210px] md:min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-4 gap-3 md:p-6 md:gap-6">
               <div className="flex flex-col items-center gap-4 w-full flex-1">
                 <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
                   Enterprise
@@ -343,7 +341,7 @@ const Signup = () => {
             </div>
 
             {/* Volunteer Card */}
-            <div className="w-full md:w-[210px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
+            <div className="w-full md:w-[210px] md:min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-4 gap-3 md:p-6 md:gap-6">
               <div className="flex flex-col items-center gap-4 w-full flex-1">
                 <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
                   Volunteer
@@ -363,7 +361,7 @@ const Signup = () => {
           </div>
 
           {/* Navigation Arrows */}
-          <div className="flex gap-2">
+          <div className="hidden md:flex gap-2">
             <ArrowButton
               size="lg"
               borderColor="rgba(255, 255, 255, 0.2)"
@@ -387,7 +385,7 @@ const Signup = () => {
         </div>
 
         {/* Bottom Right Logo */}
-        <div className="absolute bottom-8 right-8">
+        <div className="hidden md:block absolute bottom-8 right-8">
           <img src={logoFull} alt="Pursuit Logo" className="h-[71.93px] w-[280px]" />
         </div>
       </div>

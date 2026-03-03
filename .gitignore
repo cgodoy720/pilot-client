@@ -28,6 +28,9 @@ dist-ssr
 # stryker temp files
 .stryker-tmp
 
+# Claude Code worktrees
+.claude/worktrees/
+
 # Visual guides and visual-explainer tool
 /visual-guides/
 /visual-explainer/
