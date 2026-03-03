@@ -3369,8 +3369,9 @@ async def get_activity_intelligence(
         email = user.get('email')
         creds = _get_google_credentials(email, request)
 
-        # Gather Salesforce context
-        sf_context = _gather_salesforce_context(account_name)
+        # Gather Salesforce context (sync — run in executor to avoid blocking event loop)
+        loop = asyncio.get_running_loop()
+        sf_context = await loop.run_in_executor(None, _gather_salesforce_context, account_name)
         # Add opportunity context
         if opportunity_name:
             sf_context['opportunity_name'] = opportunity_name
@@ -3402,41 +3403,32 @@ async def get_activity_intelligence(
 
         logger.info(f"Activity intelligence for '{account_name}': {len(contact_emails)} emails, {len(contact_domains)} domains")
 
-        # Search all integrations (each wrapped to prevent one failure from killing the whole request)
-        raw_results = {}
-        try:
-            raw_results['slack'] = _search_slack_broad(account_name, contact_names)
-        except Exception as e:
-            logger.error(f"Slack search failed for '{account_name}': {e}")
-            raw_results['slack'] = []
+        # Search all integrations concurrently — sync functions run in executor to avoid blocking
+        async def _noop() -> list:
+            return []
 
-        try:
-            raw_results['fireflies'] = _search_fireflies_broad(account_name, contact_emails, contact_domains)
-        except Exception as e:
-            logger.error(f"Fireflies search failed for '{account_name}': {e}")
-            raw_results['fireflies'] = []
+        slack_task = loop.run_in_executor(None, _search_slack_broad, account_name, contact_names)
+        fireflies_task = loop.run_in_executor(None, _search_fireflies_broad, account_name, contact_emails, contact_domains)
+        gmail_task = _search_gmail_broad(creds, contact_emails, contact_domains, account_name) if creds else _noop()
+        calendar_task = _search_calendar_broad(creds, contact_emails, contact_domains, account_name) if creds else _noop()
+        drive_task = _search_drive_broad(creds, contact_emails, contact_domains, account_name) if creds else _noop()
 
-        if creds:
-            try:
-                raw_results['gmail'] = await _search_gmail_broad(creds, contact_emails, contact_domains, account_name)
-            except Exception as e:
-                logger.error(f"Gmail search failed for '{account_name}': {e}")
-                raw_results['gmail'] = []
-            try:
-                raw_results['calendar'] = await _search_calendar_broad(creds, contact_emails, contact_domains, account_name)
-            except Exception as e:
-                logger.error(f"Calendar search failed for '{account_name}': {e}")
-                raw_results['calendar'] = []
-            try:
-                raw_results['drive'] = await _search_drive_broad(creds, contact_emails, contact_domains, account_name)
-            except Exception as e:
-                logger.error(f"Drive search failed for '{account_name}': {e}")
-                raw_results['drive'] = []
-        else:
+        if not creds:
             logger.warning(f"No Google credentials available for '{account_name}' - skipping Gmail/Calendar/Drive")
-            raw_results['gmail'] = []
-            raw_results['calendar'] = []
-            raw_results['drive'] = []
+
+        search_results = await asyncio.gather(
+            slack_task, fireflies_task, gmail_task, calendar_task, drive_task,
+            return_exceptions=True,
+        )
+
+        source_names = ['slack', 'fireflies', 'gmail', 'calendar', 'drive']
+        raw_results = {}
+        for name, result in zip(source_names, search_results):
+            if isinstance(result, Exception):
+                logger.error(f"{name} search failed for '{account_name}': {result}")
+                raw_results[name] = []
+            else:
+                raw_results[name] = result
 
         total_raw = sum(len(v) for v in raw_results.values())
         source_breakdown = {k: len(v) for k, v in raw_results.items()}
