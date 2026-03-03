@@ -79,7 +79,7 @@ function ContentPreview() {
     try {
       setLoading(true);
       const response = await axios.get(
-        `${API_URL}/api/curriculum/days/${dayId}/full-details?cohort=${encodeURIComponent(selectedCohort?.cohort_name || '')}`,
+        `${API_URL}/api/curriculum/days/${dayId}/full-details?cohort=${encodeURIComponent(selectedCohort?.cohort_name || '')}&t=${Date.now()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
