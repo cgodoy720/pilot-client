@@ -429,24 +429,17 @@ function ApplicantDashboard() {
       } else {
         setStatuses(prev => ({ ...prev, pledge: 'locked' }));
       }
-    } catch (error) {
-      console.error('Error loading onboarding status:', error);
-      setStatuses(prev => ({ ...prev, onboarding: 'locked' }));
-    }
-  };
-
-  const loadOnboardingStatus = async () => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/onboarding/status/${currentApplicantId}`);
-      
-      if (response.ok) {
-        const statusData = await response.json();
+      // Fetch detailed onboarding task status
+      const onboardingTaskResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/onboarding/status/${currentApplicantId}`);
+      if (onboardingTaskResponse.ok) {
+        const statusData = await onboardingTaskResponse.json();
         setOnboardingStatus(statusData);
       } else {
         setOnboardingStatus(null);
       }
     } catch (error) {
       console.error('Error loading onboarding status:', error);
+      setStatuses(prev => ({ ...prev, onboarding: 'locked' }));
       setOnboardingStatus(null);
     }
   };
