@@ -68,7 +68,7 @@ const OnboardingGuide = () => {
 
           <section className="onboarding-guide__section">
             <h2 className="onboarding-guide__section-title">II. Schedule & Calendar</h2>
-            <p><strong>Program Starts:</strong> December 6, 2025</p>
+            <p><strong>Program Starts:</strong> March 14, 2026</p>
             <p><strong>Program Length:</strong> Initial 2-month program.</p>
             <p className="onboarding-guide__note"><strong>Note:</strong> There will be a gap between the end of L1 and the start of L2. The L2 start date is still being finalized.</p>
             <p><strong>Weekly Schedule:</strong></p>
