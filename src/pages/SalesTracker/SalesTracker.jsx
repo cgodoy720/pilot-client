@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard';
 import AllLeads from './components/AllLeads';
 import JobPostings from './components/JobPostings';
 import Leaderboard from './components/Leaderboard';
+import BuilderInsights from './components/BuilderInsights';
 const StaffInbox = lazy(() => import('../StaffNetworkDashboard/StaffNetworkDashboard'));
 
 const SalesTracker = () => {
@@ -56,6 +57,12 @@ const SalesTracker = () => {
             >
               Staff Inbox
             </TabsTrigger>
+            <TabsTrigger
+              value="builder-insights"
+              className="data-[state=active]:bg-pursuit-purple data-[state=active]:text-white"
+            >
+              Builder Insights
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard">
@@ -78,6 +85,10 @@ const SalesTracker = () => {
             <Suspense fallback={<div className="flex items-center justify-center py-12 text-gray-500">Loading Staff Inbox...</div>}>
               <StaffInbox />
             </Suspense>
+          </TabsContent>
+
+          <TabsContent value="builder-insights">
+            <BuilderInsights />
           </TabsContent>
         </Tabs>
       </main>
