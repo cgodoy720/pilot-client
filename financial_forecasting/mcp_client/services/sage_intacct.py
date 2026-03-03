@@ -41,6 +41,17 @@ class SageIntacctMCPService(BaseMCPService):
         
         self.session_id: Optional[str] = None
         self.endpoint_url_session: Optional[str] = None
+        self._http_session: Optional[aiohttp.ClientSession] = None
+
+    async def _get_http_session(self) -> aiohttp.ClientSession:
+        if self._http_session is None or self._http_session.closed:
+            self._http_session = aiohttp.ClientSession()
+        return self._http_session
+
+    async def disconnect(self) -> None:
+        if self._http_session and not self._http_session.closed:
+            await self._http_session.close()
+        self._http_session = None
 
     async def authenticate(self) -> bool:
         """Authenticate with Sage Intacct API and get session."""
@@ -48,18 +59,18 @@ class SageIntacctMCPService(BaseMCPService):
             # Create authentication XML request
             auth_xml = self._create_auth_request()
             
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    self.endpoint_url,
-                    data=auth_xml,
-                    headers={'Content-Type': 'application/xml'}
-                ) as response:
-                    if response.status == 200:
-                        response_text = await response.text()
-                        return self._parse_auth_response(response_text)
-                    else:
-                        print(f"Sage Intacct authentication failed with status: {response.status}")
-                        return False
+            session = await self._get_http_session()
+            async with session.post(
+                self.endpoint_url,
+                data=auth_xml,
+                headers={'Content-Type': 'application/xml'}
+            ) as response:
+                if response.status == 200:
+                    response_text = await response.text()
+                    return self._parse_auth_response(response_text)
+                else:
+                    print(f"Sage Intacct authentication failed with status: {response.status}")
+                    return False
                         
         except Exception as e:
             print(f"Sage Intacct authentication error: {e}")
@@ -172,17 +183,17 @@ class SageIntacctMCPService(BaseMCPService):
     </operation>
 </request>"""
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                self.endpoint_url_session or self.endpoint_url,
-                data=request_xml,
-                headers={'Content-Type': 'application/xml'}
-            ) as response:
-                if response.status == 200:
-                    response_text = await response.text()
-                    return self._parse_api_response(response_text)
-                else:
-                    raise Exception(f"API request failed with status: {response.status}")
+        session = await self._get_http_session()
+        async with session.post(
+            self.endpoint_url_session or self.endpoint_url,
+            data=request_xml,
+            headers={'Content-Type': 'application/xml'}
+        ) as response:
+            if response.status == 200:
+                response_text = await response.text()
+                return self._parse_api_response(response_text)
+            else:
+                raise Exception(f"API request failed with status: {response.status}")
 
     def _parse_api_response(self, response_xml: str) -> Dict[str, Any]:
         """Parse API response XML."""

@@ -3,7 +3,7 @@
 from typing import Any, Dict, List, Optional
 import asyncio
 from simple_salesforce import Salesforce
-from simple_salesforce.exceptions import SalesforceAuthenticationFailed
+from simple_salesforce.exceptions import SalesforceAuthenticationFailed, SalesforceExpiredSession
 
 from .base import BaseMCPService
 
@@ -123,6 +123,14 @@ class SalesforceMCPService(BaseMCPService):
             print(f"Salesforce connection error: {e}")
             return False
 
+    async def _reauthenticate(self) -> None:
+        """Force re-authentication, clearing the stale session first."""
+        self._authenticated = False
+        self.sf_client = None
+        success = await self.authenticate()
+        if not success:
+            raise Exception("Salesforce re-authentication failed")
+
     async def get_service_info(self) -> Dict[str, Any]:
         """Get Salesforce service information."""
         await self.ensure_authenticated()
@@ -157,13 +165,19 @@ class SalesforceMCPService(BaseMCPService):
             # Fallback to direct API call
             if self.sf_client:
                 loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(
-                    None, lambda: self.sf_client.query(soql)
-                )
+                try:
+                    result = await loop.run_in_executor(
+                        None, lambda: self.sf_client.query(soql)
+                    )
+                except SalesforceExpiredSession:
+                    await self._reauthenticate()
+                    result = await loop.run_in_executor(
+                        None, lambda: self.sf_client.query(soql)
+                    )
                 return result
-            
+
             raise Exception("No Salesforce client available")
-            
+
         except Exception as e:
             raise Exception(f"Failed to execute query: {e}")
 
@@ -182,14 +196,21 @@ class SalesforceMCPService(BaseMCPService):
             # Fallback to direct API call
             if self.sf_client:
                 loop = asyncio.get_event_loop()
-                sobject_client = getattr(self.sf_client, sobject)
-                result = await loop.run_in_executor(
-                    None, lambda: sobject_client.create(data)
-                )
+                try:
+                    sobject_client = getattr(self.sf_client, sobject)
+                    result = await loop.run_in_executor(
+                        None, lambda: sobject_client.create(data)
+                    )
+                except SalesforceExpiredSession:
+                    await self._reauthenticate()
+                    sobject_client = getattr(self.sf_client, sobject)
+                    result = await loop.run_in_executor(
+                        None, lambda: sobject_client.create(data)
+                    )
                 return result
-            
+
             raise Exception("No Salesforce client available")
-            
+
         except Exception as e:
             raise Exception(f"Failed to create record: {e}")
 
@@ -211,14 +232,21 @@ class SalesforceMCPService(BaseMCPService):
             # Fallback to direct API call
             if self.sf_client:
                 loop = asyncio.get_event_loop()
-                sobject_client = getattr(self.sf_client, sobject)
-                result = await loop.run_in_executor(
-                    None, lambda: sobject_client.update(record_id, data)
-                )
+                try:
+                    sobject_client = getattr(self.sf_client, sobject)
+                    result = await loop.run_in_executor(
+                        None, lambda: sobject_client.update(record_id, data)
+                    )
+                except SalesforceExpiredSession:
+                    await self._reauthenticate()
+                    sobject_client = getattr(self.sf_client, sobject)
+                    result = await loop.run_in_executor(
+                        None, lambda: sobject_client.update(record_id, data)
+                    )
                 return result == 204  # HTTP 204 No Content indicates success
-            
+
             raise Exception("No Salesforce client available")
-            
+
         except Exception as e:
             raise Exception(f"Failed to update record: {e}")
 
@@ -238,14 +266,21 @@ class SalesforceMCPService(BaseMCPService):
             # Fallback to direct API call
             if self.sf_client:
                 loop = asyncio.get_event_loop()
-                sobject_client = getattr(self.sf_client, sobject)
-                result = await loop.run_in_executor(
-                    None, lambda: sobject_client.delete(record_id)
-                )
+                try:
+                    sobject_client = getattr(self.sf_client, sobject)
+                    result = await loop.run_in_executor(
+                        None, lambda: sobject_client.delete(record_id)
+                    )
+                except SalesforceExpiredSession:
+                    await self._reauthenticate()
+                    sobject_client = getattr(self.sf_client, sobject)
+                    result = await loop.run_in_executor(
+                        None, lambda: sobject_client.delete(record_id)
+                    )
                 return result == 204  # HTTP 204 No Content indicates success
-            
+
             raise Exception("No Salesforce client available")
-            
+
         except Exception as e:
             raise Exception(f"Failed to delete record: {e}")
 
@@ -264,14 +299,21 @@ class SalesforceMCPService(BaseMCPService):
             # Fallback to direct API call
             if self.sf_client:
                 loop = asyncio.get_event_loop()
-                sobject_client = getattr(self.sf_client, sobject)
-                result = await loop.run_in_executor(
-                    None, lambda: sobject_client.get(record_id)
-                )
+                try:
+                    sobject_client = getattr(self.sf_client, sobject)
+                    result = await loop.run_in_executor(
+                        None, lambda: sobject_client.get(record_id)
+                    )
+                except SalesforceExpiredSession:
+                    await self._reauthenticate()
+                    sobject_client = getattr(self.sf_client, sobject)
+                    result = await loop.run_in_executor(
+                        None, lambda: sobject_client.get(record_id)
+                    )
                 return result
-            
+
             raise Exception("No Salesforce client available")
-            
+
         except Exception as e:
             raise Exception(f"Failed to get record: {e}")
 
@@ -290,14 +332,21 @@ class SalesforceMCPService(BaseMCPService):
             # Fallback to direct API call
             if self.sf_client:
                 loop = asyncio.get_event_loop()
-                sobject_client = getattr(self.sf_client, sobject)
-                result = await loop.run_in_executor(
-                    None, lambda: sobject_client.describe()
-                )
+                try:
+                    sobject_client = getattr(self.sf_client, sobject)
+                    result = await loop.run_in_executor(
+                        None, lambda: sobject_client.describe()
+                    )
+                except SalesforceExpiredSession:
+                    await self._reauthenticate()
+                    sobject_client = getattr(self.sf_client, sobject)
+                    result = await loop.run_in_executor(
+                        None, lambda: sobject_client.describe()
+                    )
                 return result
-            
+
             raise Exception("No Salesforce client available")
-            
+
         except Exception as e:
             raise Exception(f"Failed to describe SObject: {e}")
 
@@ -316,12 +365,18 @@ class SalesforceMCPService(BaseMCPService):
             # Fallback to direct API call
             if self.sf_client:
                 loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(
-                    None, lambda: self.sf_client.search(sosl)
-                )
+                try:
+                    result = await loop.run_in_executor(
+                        None, lambda: self.sf_client.search(sosl)
+                    )
+                except SalesforceExpiredSession:
+                    await self._reauthenticate()
+                    result = await loop.run_in_executor(
+                        None, lambda: self.sf_client.search(sosl)
+                    )
                 return result
-            
+
             raise Exception("No Salesforce client available")
-            
+
         except Exception as e:
             raise Exception(f"Failed to execute search: {e}")

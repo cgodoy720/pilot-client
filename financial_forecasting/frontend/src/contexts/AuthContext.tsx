@@ -6,6 +6,9 @@ interface User {
   name: string;
   picture?: string;
   sub: string;
+  salesforce_connected?: boolean;
+  salesforce_user_id?: string | null;
+  salesforce_user_name?: string | null;
 }
 
 interface AuthContextType {
@@ -13,6 +16,8 @@ interface AuthContextType {
   loading: boolean;
   logout: () => Promise<void>;
   refetch: () => Promise<void>;
+  connectSalesforce: () => void;
+  disconnectSalesforce: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -63,10 +68,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await fetchUser();
   };
 
+  const connectSalesforce = () => {
+    // Redirect to backend Salesforce OAuth endpoint
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+    window.location.href = `${apiUrl}/auth/salesforce`;
+  };
+
+  const disconnectSalesforce = async () => {
+    try {
+      await apiService.disconnectSalesforce();
+      // Refresh user data to update SF connection status
+      await fetchUser();
+    } catch (error) {
+      console.error('Disconnect error:', error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, logout, refetch }}>
+    <AuthContext.Provider value={{ user, loading, logout, refetch, connectSalesforce, disconnectSalesforce }}>
       {children}
     </AuthContext.Provider>
   );
 };
-

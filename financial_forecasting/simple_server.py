@@ -21,15 +21,22 @@ from simple_salesforce import Salesforce, SalesforceLogin
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 import requests
-from urllib.parse import urlencode, parse_qs
+import httpx
+from urllib.parse import urlencode, parse_qs, quote
 from authlib.integrations.starlette_client import OAuth
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from cryptography.fernet import Fernet
 import logging
+import json
+import time
+import threading
+import base64
+import hashlib
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=False)
 
 # Import config
 from config import SALESFORCE_CONFIG
@@ -37,6 +44,204 @@ from config import SALESFORCE_CONFIG
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# ============================================================================
+# SERVER-SIDE CACHE - avoids re-querying Salesforce/Sage on every request
+# ============================================================================
+class TTLCache:
+    """Thread-safe in-memory cache with per-key TTL."""
+    def __init__(self):
+        self._store: Dict[str, Any] = {}
+        self._expiry: Dict[str, float] = {}
+        self._lock = threading.Lock()
+
+    def get(self, key: str) -> Any:
+        with self._lock:
+            if key in self._store and time.time() < self._expiry.get(key, 0):
+                return self._store[key]
+            # Expired or missing
+            self._store.pop(key, None)
+            self._expiry.pop(key, None)
+            return None
+
+    def set(self, key: str, value: Any, ttl_seconds: int = 300):
+        with self._lock:
+            self._store[key] = value
+            self._expiry[key] = time.time() + ttl_seconds
+
+    def invalidate(self, key: str):
+        with self._lock:
+            self._store.pop(key, None)
+            self._expiry.pop(key, None)
+
+    def invalidate_prefix(self, prefix: str):
+        with self._lock:
+            keys_to_remove = [k for k in self._store if k.startswith(prefix)]
+            for k in keys_to_remove:
+                self._store.pop(k, None)
+                self._expiry.pop(k, None)
+
+    def clear(self):
+        with self._lock:
+            self._store.clear()
+            self._expiry.clear()
+
+cache = TTLCache()
+
+# Cache TTLs (seconds)
+CACHE_TTL_OPPORTUNITIES = 300   # 5 minutes
+CACHE_TTL_ACCOUNTS = 600        # 10 minutes
+CACHE_TTL_USERS = 900           # 15 minutes
+CACHE_TTL_CASHFLOW = 600        # 10 minutes
+
+# ============================================================================
+# USER MAPPING - Google OAuth email → Salesforce User ID
+# ============================================================================
+_sf_user_map: Dict[str, Dict] = {}  # email -> {Id, Name}
+_sf_user_map_loaded = False
+
+def get_sf_user_by_email(email: str) -> Optional[Dict]:
+    """Look up a Salesforce user by email address."""
+    global _sf_user_map, _sf_user_map_loaded
+    
+    if not _sf_user_map_loaded:
+        try:
+            sf = get_salesforce()
+            result = sf.query_all("SELECT Id, Name, Email FROM User WHERE IsActive = true AND Email != null")
+            for u in result.get('records', []):
+                if u.get('Email'):
+                    _sf_user_map[u['Email'].lower()] = {'Id': u['Id'], 'Name': u['Name']}
+            _sf_user_map_loaded = True
+            logger.info(f"Loaded {len(_sf_user_map)} Salesforce users for email mapping")
+        except Exception as e:
+            logger.error(f"Failed to load SF user map: {e}")
+            return None
+    
+    return _sf_user_map.get(email.lower()) if email else None
+
+def get_sf_user_id_from_request(request: Request) -> Optional[str]:
+    """Get the Salesforce User ID for the currently logged-in Google user."""
+    token = request.cookies.get("access_token")
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
+        email = payload.get("email")
+        if email:
+            sf_user = get_sf_user_by_email(email)
+            return sf_user['Id'] if sf_user else None
+    except Exception:
+        return None
+
+# ============================================================================
+# PER-USER SALESFORCE OAUTH - encrypted token storage
+# ============================================================================
+# Derive a stable Fernet key from the JWT secret
+def _derive_fernet_key(secret: str) -> bytes:
+    """Derive a Fernet-compatible key from an arbitrary secret string."""
+    key_bytes = hashlib.sha256(secret.encode()).digest()
+    return base64.urlsafe_b64encode(key_bytes)
+
+# Will be initialized after JWT_SECRET_KEY is set (see below)
+_fernet: Optional[Fernet] = None
+
+def get_fernet() -> Fernet:
+    global _fernet
+    if _fernet is None:
+        _fernet = Fernet(_derive_fernet_key(os.getenv('JWT_SECRET_KEY', 'dev-secret-key-change-me')))
+    return _fernet
+
+def encrypt_sf_tokens(data: dict) -> str:
+    """Encrypt Salesforce tokens for cookie storage."""
+    return get_fernet().encrypt(json.dumps(data).encode()).decode()
+
+def decrypt_sf_tokens(encrypted: str) -> Optional[dict]:
+    """Decrypt Salesforce tokens from cookie."""
+    try:
+        return json.loads(get_fernet().decrypt(encrypted.encode()).decode())
+    except Exception:
+        return None
+
+# Per-user Salesforce connection cache (in-memory, keyed by SF user_id)
+_user_sf_clients: Dict[str, Salesforce] = {}
+
+def get_user_salesforce(request: Request) -> Optional[Salesforce]:
+    """Get a Salesforce connection for the currently logged-in user.
+    Uses their personal OAuth tokens. Returns None if not connected."""
+    sf_cookie = request.cookies.get("sf_tokens")
+    if not sf_cookie:
+        return None
+    
+    tokens = decrypt_sf_tokens(sf_cookie)
+    if not tokens:
+        return None
+    
+    access_token = tokens.get("access_token")
+    instance_url = tokens.get("instance_url")
+    sf_user_id = tokens.get("user_id", "unknown")
+    
+    if not access_token or not instance_url:
+        return None
+    
+    # Check if we already have a live client for this user
+    if sf_user_id in _user_sf_clients:
+        client = _user_sf_clients[sf_user_id]
+        # Verify it's still valid with a lightweight call
+        try:
+            client.query("SELECT Id FROM User WHERE Id = '{}' LIMIT 1".format(sf_user_id))
+            return client
+        except Exception:
+            # Token expired, remove stale client
+            _user_sf_clients.pop(sf_user_id, None)
+    
+    # Create a new Salesforce client from the user's OAuth token
+    try:
+        # Extract instance from URL (e.g. "https://yourorg.my.salesforce.com" -> "yourorg.my.salesforce.com")
+        instance = instance_url.replace("https://", "").replace("http://", "")
+        client = Salesforce(instance=instance, session_id=access_token)
+        _user_sf_clients[sf_user_id] = client
+        return client
+    except Exception as e:
+        logger.error(f"Failed to create per-user SF client: {e}")
+        return None
+
+async def refresh_sf_token(refresh_token: str) -> Optional[dict]:
+    """Refresh an expired Salesforce access token."""
+    try:
+        sf_domain = SALESFORCE_CONFIG.get('DOMAIN', 'login')
+        token_url = f"https://{sf_domain}.salesforce.com/services/oauth2/token"
+        
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(token_url, data={
+                "grant_type": "refresh_token",
+                "client_id": SALESFORCE_CONFIG['CLIENT_ID'],
+                "client_secret": SALESFORCE_CONFIG['CLIENT_SECRET'],
+                "refresh_token": refresh_token,
+            })
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            return {
+                "access_token": data["access_token"],
+                "instance_url": data["instance_url"],
+                "refresh_token": refresh_token,  # Refresh token doesn't change
+                "user_id": data.get("id", "").split("/")[-1] if data.get("id") else None,
+            }
+        else:
+            logger.error(f"SF token refresh failed: {resp.status_code} {resp.text}")
+            return None
+    except Exception as e:
+        logger.error(f"SF token refresh error: {e}")
+        return None
+
+def get_salesforce_for_request(request: Request) -> Salesforce:
+    """Get the best Salesforce connection for this request.
+    Uses per-user token if available, falls back to service account."""
+    user_sf = get_user_salesforce(request)
+    if user_sf:
+        return user_sf
+    # Fallback to service account
+    return get_salesforce()
 
 app = FastAPI(
     title="Financial Forecasting API",
@@ -68,13 +273,14 @@ app.add_middleware(
 
 # Session middleware (required for OAuth)
 SESSION_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
+IS_PRODUCTION = os.getenv('FRONTEND_URL', '').startswith('https')
 app.add_middleware(
     SessionMiddleware,
     secret_key=SESSION_SECRET_KEY,
     session_cookie="session",
     max_age=3600 * 24,  # 24 hours
-    same_site="none",    # Allow cross-origin
-    https_only=True      # Require HTTPS for security
+    same_site="none" if IS_PRODUCTION else "lax",
+    https_only=IS_PRODUCTION  # Only require HTTPS in production
 )
 
 # Global connections
@@ -85,6 +291,7 @@ slack_client: Optional[WebClient] = None
 # Loaded from .env file
 FIREFLIES_API_KEY = os.getenv('FIREFLIES_API_KEY')
 FIREFLIES_API_URL = "https://api.fireflies.ai/graphql"
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 
 # Fireflies cache to avoid hitting rate limits
 # Cache all transcripts for 4 hours (saves to file for persistence)
@@ -135,12 +342,34 @@ def get_salesforce():
     """Get or create Salesforce connection."""
     global sf_client
     if sf_client is None:
-        session_id, instance = SalesforceLogin(
-            username=SALESFORCE_CONFIG['USERNAME'],
-            password=SALESFORCE_CONFIG['PASSWORD'],
-            domain=SALESFORCE_CONFIG['DOMAIN']
-        )
-        sf_client = Salesforce(instance=instance, session_id=session_id)
+        # Try Connected App (OAuth) method first - doesn't need security token
+        try:
+            sf_client = Salesforce(
+                username=SALESFORCE_CONFIG['USERNAME'],
+                password=SALESFORCE_CONFIG['PASSWORD'],
+                consumer_key=SALESFORCE_CONFIG.get('CLIENT_ID', ''),
+                consumer_secret=SALESFORCE_CONFIG.get('CLIENT_SECRET', ''),
+                domain=SALESFORCE_CONFIG['DOMAIN']
+            )
+        except Exception as oauth_err:
+            print(f"OAuth login failed, trying security token method: {oauth_err}")
+            # Fallback to security token method
+            security_token = SALESFORCE_CONFIG.get('SECURITY_TOKEN', '')
+            if security_token and security_token != 'YOUR_SECURITY_TOKEN_HERE':
+                sf_client = Salesforce(
+                    username=SALESFORCE_CONFIG['USERNAME'],
+                    password=SALESFORCE_CONFIG['PASSWORD'],
+                    security_token=security_token,
+                    domain=SALESFORCE_CONFIG['DOMAIN']
+                )
+            else:
+                # Last resort: SalesforceLogin without token
+                session_id, instance = SalesforceLogin(
+                    username=SALESFORCE_CONFIG['USERNAME'],
+                    password=SALESFORCE_CONFIG['PASSWORD'],
+                    domain=SALESFORCE_CONFIG['DOMAIN']
+                )
+                sf_client = Salesforce(instance=instance, session_id=session_id)
     return sf_client
 
 def get_slack():
@@ -162,7 +391,7 @@ if not FRONTEND_URL:  # If not set for CORS, set default for OAuth
     FRONTEND_URL = 'http://localhost:3000'
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRATION_HOURS = 24
+JWT_EXPIRATION_HOURS = 24 * 30  # 30 days
 
 oauth = OAuth()
 oauth.register(
@@ -170,8 +399,15 @@ oauth.register(
     client_id=GOOGLE_CLIENT_ID,
     client_secret=GOOGLE_CLIENT_SECRET,
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-    client_kwargs={'scope': 'openid email profile'}
+    client_kwargs={
+        'scope': 'openid email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.readonly',
+        'access_type': 'offline',
+        'prompt': 'consent',
+    }
 )
+
+# In-memory Google token store: email -> { access_token, refresh_token, expires_at }
+_google_tokens: Dict[str, Dict] = {}
 
 def create_access_token(data: dict) -> str:
     """Create JWT access token."""
@@ -225,7 +461,11 @@ async def debug_config():
 async def auth_google(request: Request):
     """Initiate Google OAuth flow."""
     redirect_uri = GOOGLE_REDIRECT_URI
-    return await oauth.google.authorize_redirect(request, redirect_uri)
+    return await oauth.google.authorize_redirect(
+        request, redirect_uri,
+        access_type='offline',
+        prompt='consent',
+    )
 
 @app.get("/auth/google/callback")
 async def auth_google_callback(request: Request, response: Response):
@@ -239,6 +479,17 @@ async def auth_google_callback(request: Request, response: Response):
         if not user_info:
             raise HTTPException(status_code=400, detail="Failed to get user info from Google")
         
+        # Store Google tokens for Gmail/Calendar/Drive API access
+        email = user_info['email']
+        google_token_data = {
+            'access_token': token.get('access_token'),
+            'refresh_token': token.get('refresh_token'),
+            'expires_at': token.get('expires_at'),
+            'token_type': token.get('token_type', 'Bearer'),
+        }
+        _google_tokens[email] = google_token_data
+        logger.info(f"Stored Google tokens for {email} (has refresh: {bool(token.get('refresh_token'))}, token keys: {list(token.keys())})")
+        
         # Create JWT token with user data
         access_token = create_access_token({
             "email": user_info['email'],
@@ -247,15 +498,25 @@ async def auth_google_callback(request: Request, response: Response):
             "sub": user_info['sub']
         })
         
-        # Set cookie with token
+        # Set cookies: JWT for auth + encrypted Google tokens for persistence
         response = RedirectResponse(url=f"{FRONTEND_URL}/overview")
         response.set_cookie(
             key="access_token",
             value=access_token,
             httponly=True,
-            max_age=JWT_EXPIRATION_HOURS * 3600,
-            samesite="none",  # Required for cross-origin cookies
-            secure=True       # Required for HTTPS (samesite=none requires secure=True)
+            max_age=3600 * 24 * 30,  # 30 days
+            samesite="none" if IS_PRODUCTION else "lax",
+            secure=IS_PRODUCTION
+        )
+        # Persist Google API tokens in encrypted cookie (survives server restarts)
+        encrypted_google = encrypt_sf_tokens(google_token_data)
+        response.set_cookie(
+            key="google_tokens",
+            value=encrypted_google,
+            httponly=True,
+            max_age=3600 * 24 * 30,  # 30 days (refresh token handles expiry)
+            samesite="none" if IS_PRODUCTION else "lax",
+            secure=IS_PRODUCTION
         )
         
         return response
@@ -264,58 +525,361 @@ async def auth_google_callback(request: Request, response: Response):
         print(f"OAuth callback error: {e}")
         return RedirectResponse(url=f"{FRONTEND_URL}/login?error=auth_failed")
 
-@app.get("/auth/me")
-async def get_me(request: Request):
-    """Get current authenticated user."""
+# ============================================================================
+# SALESFORCE OAUTH - Per-user authentication
+# ============================================================================
+def _get_sf_callback_uri(request: Request = None) -> str:
+    """Build SF OAuth callback URI pointing to the BACKEND /callback endpoint.
+    Salesforce Connected App must have ALL these as Callback URLs:
+      - http://localhost:8000/callback  (local dev)
+      - https://financial-forecasting-api-es4rf2cguq-uc.a.run.app/callback (production)
+    """
+    if IS_PRODUCTION:
+        return os.getenv('GOOGLE_REDIRECT_URI', '').replace('/auth/google/callback', '/callback')
+    return 'http://localhost:8000/callback'
+
+@app.get("/auth/salesforce")
+async def auth_salesforce(request: Request):
+    """Initiate Salesforce OAuth flow. User must already be logged in via Google."""
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Login with Google first")
+    
+    sf_domain = SALESFORCE_CONFIG.get('DOMAIN', 'login')
+    client_id = SALESFORCE_CONFIG['CLIENT_ID']
+    redirect_uri = _get_sf_callback_uri(request)
+    
+    auth_url = (
+        f"https://{sf_domain}.salesforce.com/services/oauth2/authorize?"
+        f"response_type=code&"
+        f"client_id={client_id}&"
+        f"redirect_uri={quote(redirect_uri, safe='')}"
+    )
+    logger.info(f"SF OAuth redirect to: {auth_url}")
+    logger.info(f"SF OAuth redirect_uri param: {redirect_uri}")
+    
+    return RedirectResponse(url=auth_url)
+
+@app.get("/callback")
+async def auth_salesforce_callback(request: Request, code: str = None, error: str = None):
+    """Handle Salesforce OAuth callback — exchange code for tokens."""
+    if error:
+        return RedirectResponse(url=f"{FRONTEND_URL}/settings?sf_error={error}")
+    
+    if not code:
+        return RedirectResponse(url=f"{FRONTEND_URL}/settings?sf_error=no_code")
+    
+    # Verify user is logged in
+    user = await get_current_user(request)
+    if not user:
+        return RedirectResponse(url=f"{FRONTEND_URL}/login?error=not_authenticated")
+    
+    sf_domain = SALESFORCE_CONFIG.get('DOMAIN', 'login')
+    token_url = f"https://{sf_domain}.salesforce.com/services/oauth2/token"
+    redirect_uri = _get_sf_callback_uri(request)
+    
+    try:
+        # Exchange authorization code for tokens
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(token_url, data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "client_id": SALESFORCE_CONFIG['CLIENT_ID'],
+                "client_secret": SALESFORCE_CONFIG['CLIENT_SECRET'],
+                "redirect_uri": redirect_uri,
+            })
+        
+        if resp.status_code != 200:
+            logger.error(f"SF token exchange failed: {resp.status_code} {resp.text}")
+            return RedirectResponse(url=f"{FRONTEND_URL}/settings?sf_error=token_exchange_failed")
+        
+        token_data = resp.json()
+        
+        # Extract user ID from the identity URL
+        # e.g. "https://login.salesforce.com/id/00D.../005..."
+        identity_url = token_data.get("id", "")
+        sf_user_id = identity_url.split("/")[-1] if identity_url else None
+        
+        # Get the user's name from Salesforce
+        sf_user_name = None
+        if sf_user_id:
+            try:
+                instance = token_data["instance_url"].replace("https://", "")
+                temp_sf = Salesforce(instance=instance, session_id=token_data["access_token"])
+                sf_user_info = temp_sf.query(f"SELECT Name, Email FROM User WHERE Id = '{sf_user_id}'")
+                if sf_user_info.get("records"):
+                    sf_user_name = sf_user_info["records"][0].get("Name")
+            except Exception as e:
+                logger.warning(f"Could not fetch SF user name: {e}")
+        
+        # Encrypt tokens for secure cookie storage
+        sf_tokens = {
+            "access_token": token_data["access_token"],
+            "refresh_token": token_data.get("refresh_token"),
+            "instance_url": token_data["instance_url"],
+            "user_id": sf_user_id,
+            "user_name": sf_user_name,
+            "issued_at": token_data.get("issued_at"),
+        }
+        encrypted_tokens = encrypt_sf_tokens(sf_tokens)
+        
+        # Redirect back to settings with success
+        response = RedirectResponse(url=f"{FRONTEND_URL}/settings?sf_connected=true")
+        response.set_cookie(
+            key="sf_tokens",
+            value=encrypted_tokens,
+            httponly=True,
+            max_age=3600 * 24 * 30,  # 30 days (refresh token handles expiry)
+            samesite="none" if IS_PRODUCTION else "lax",
+            secure=IS_PRODUCTION
+        )
+        
+        logger.info(f"Salesforce connected for user {user.get('email')} -> SF:{sf_user_name} ({sf_user_id})")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Salesforce OAuth error: {e}")
+        return RedirectResponse(url=f"{FRONTEND_URL}/settings?sf_error=exception")
+
+@app.get("/auth/salesforce/status")
+async def salesforce_status(request: Request):
+    """Check the current user's Salesforce connection status."""
     user = await get_current_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    sf_cookie = request.cookies.get("sf_tokens")
+    if not sf_cookie:
+        return {
+            "connected": False,
+            "message": "Salesforce not connected"
+        }
+    
+    tokens = decrypt_sf_tokens(sf_cookie)
+    if not tokens:
+        return {
+            "connected": False,
+            "message": "Invalid token data"
+        }
+    
+    # Verify the connection actually works
+    try:
+        instance = tokens["instance_url"].replace("https://", "").replace("http://", "")
+        test_sf = Salesforce(instance=instance, session_id=tokens["access_token"])
+        test_sf.query("SELECT Id FROM User LIMIT 1")
+        
+        return {
+            "connected": True,
+            "user_id": tokens.get("user_id"),
+            "user_name": tokens.get("user_name"),
+            "instance_url": tokens.get("instance_url"),
+        }
+    except Exception as e:
+        # Try to refresh the token
+        refresh_token = tokens.get("refresh_token")
+        if refresh_token:
+            new_tokens = await refresh_sf_token(refresh_token)
+            if new_tokens:
+                new_tokens["user_name"] = tokens.get("user_name")
+                return {
+                    "connected": True,
+                    "user_id": new_tokens.get("user_id"),
+                    "user_name": new_tokens.get("user_name"),
+                    "instance_url": new_tokens.get("instance_url"),
+                    "refreshed": True,
+                }
+        
+        return {
+            "connected": False,
+            "message": f"Connection expired: {str(e)}",
+            "needs_reconnect": True,
+        }
+
+@app.post("/auth/salesforce/disconnect")
+async def disconnect_salesforce(request: Request, response: Response):
+    """Disconnect Salesforce for the current user."""
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Remove token cookie
+    response.delete_cookie(
+        "sf_tokens",
+        samesite="none" if IS_PRODUCTION else "lax",
+        secure=IS_PRODUCTION
+    )
+    
+    # Remove cached client
+    sf_cookie = request.cookies.get("sf_tokens")
+    if sf_cookie:
+        tokens = decrypt_sf_tokens(sf_cookie)
+        if tokens and tokens.get("user_id"):
+            _user_sf_clients.pop(tokens["user_id"], None)
+    
+    return {"message": "Salesforce disconnected"}
+
+# ============================================================================
+# COMMON AUTH ENDPOINTS
+# ============================================================================
+
+@app.get("/auth/me")
+async def get_me(request: Request):
+    """Get current authenticated user, including their Salesforce connection status."""
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Check if user has a per-user Salesforce connection
+    sf_cookie = request.cookies.get("sf_tokens")
+    if sf_cookie:
+        tokens = decrypt_sf_tokens(sf_cookie)
+        if tokens:
+            user["salesforce_connected"] = True
+            user["salesforce_user_id"] = tokens.get("user_id")
+            user["salesforce_user_name"] = tokens.get("user_name")
+        else:
+            user["salesforce_connected"] = False
+            user["salesforce_user_id"] = None
+            user["salesforce_user_name"] = None
+    else:
+        user["salesforce_connected"] = False
+        # Fallback: check email mapping against service account
+        email = user.get("email")
+        if email:
+            sf_user = get_sf_user_by_email(email)
+            user["salesforce_user_id"] = sf_user['Id'] if sf_user else None
+            user["salesforce_user_name"] = sf_user['Name'] if sf_user else None
+        else:
+            user["salesforce_user_id"] = None
+            user["salesforce_user_name"] = None
+    
     return user
+
+@app.post("/api/cache/clear")
+async def clear_cache():
+    """Clear all server-side caches. Useful after bulk imports or manual changes."""
+    cache.clear()
+    global _sf_user_map_loaded
+    _sf_user_map_loaded = False
+    return {"message": "All caches cleared"}
 
 @app.post("/auth/logout")
 async def logout(response: Response):
-    """Logout user by clearing the auth cookie."""
+    """Logout user by clearing all auth cookies."""
     response.delete_cookie(
         "access_token",
-        samesite="none",
-        secure=True
+        samesite="none" if IS_PRODUCTION else "lax",
+        secure=IS_PRODUCTION
+    )
+    response.delete_cookie(
+        "sf_tokens",
+        samesite="none" if IS_PRODUCTION else "lax",
+        secure=IS_PRODUCTION
+    )
+    response.delete_cookie(
+        "google_tokens",
+        samesite="none" if IS_PRODUCTION else "lax",
+        secure=IS_PRODUCTION
     )
     return {"message": "Logged out successfully"}
 
 @app.get("/health/services")
 async def services_health():
+    results = {}
+    
+    # Check Salesforce
     try:
         sf = get_salesforce()
-        # Test query
         sf.query("SELECT Id FROM Account LIMIT 1")
-        return {
-            "salesforce": {
-                "status": "healthy",
-                "authenticated": True,
-                "instance": sf.sf_instance
-            }
+        results["salesforce"] = {
+            "status": "healthy",
+            "authenticated": True,
+            "instance": sf.sf_instance
         }
     except Exception as e:
-        return {
-            "salesforce": {
+        results["salesforce"] = {
+            "status": "error",
+            "authenticated": False,
+            "error": str(e)
+        }
+    
+    # Check Sage Intacct
+    try:
+        import sys
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
+        from mcp_client.services.sage_intacct_sync import SageIntacctService
+        
+        sage_config = {
+            'company_id': os.getenv('SAGE_COMPANY_ID'),
+            'user_id': os.getenv('SAGE_USER_ID'),
+            'user_password': os.getenv('SAGE_USER_PASSWORD'),
+            'sender_id': os.getenv('SAGE_SENDER_ID'),
+            'sender_password': os.getenv('SAGE_SENDER_PASSWORD')
+        }
+        
+        if not all(sage_config.values()):
+            results["intacct"] = {
                 "status": "error",
                 "authenticated": False,
-                "error": str(e)
+                "error": "Sage Intacct credentials not configured"
             }
+        else:
+            sage = SageIntacctService(sage_config)
+            test_xml = '''<function controlid="health-check">
+                <readByQuery>
+                    <object>GLACCOUNT</object>
+                    <query></query>
+                    <fields>ACCOUNTNO</fields>
+                    <pagesize>1</pagesize>
+                </readByQuery>
+            </function>'''
+            response = sage._make_api_request(test_xml)
+            if response.get('success'):
+                results["intacct"] = {
+                    "status": "healthy",
+                    "authenticated": True
+                }
+            else:
+                results["intacct"] = {
+                    "status": "error",
+                    "authenticated": False,
+                    "error": "API request failed"
+                }
+    except Exception as e:
+        results["intacct"] = {
+            "status": "error",
+            "authenticated": False,
+            "error": str(e)
         }
+    
+    return results
 
 # Salesforce - Opportunities
 @app.get("/api/salesforce/opportunities")
-async def get_opportunities(stage: Optional[str] = None):
-    """Get ALL Salesforce opportunities (no artificial limit)."""
+async def get_opportunities(
+    stage: Optional[str] = None,
+    record_type: Optional[str] = Query(None, description="Filter by Record Type (e.g., 'Philanthropy')"),
+    opp_type: Optional[str] = Query(None, description="Filter by Opportunity Type (e.g., 'PBC')"),
+    active_only: Optional[bool] = Query(None, description="Filter by Active_Opportunity__c")
+):
+    """Get ALL Salesforce opportunities with optional filters. Cached for 5 min."""
     try:
+        # Build cache key from filters
+        cache_key = f"opps:{stage}:{record_type}:{opp_type}:{active_only}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            logger.info(f"Cache HIT for {cache_key} ({len(cached)} records)")
+            return cached
+        
         sf = get_salesforce()
         
         # Salesforce has a 2000 record limit per query, so we use query_all to get everything
         query = """
         SELECT Id, AccountId, Account.Name, Name, StageName, Amount, Probability, 
                CloseDate, ExpectedRevenue, ForecastCategory, LeadSource, NextStep,
-               Description, OwnerId, Owner.Name, CreatedDate, LastModifiedDate,
+               Description, Type, OwnerId, Owner.Name, CreatedDate, LastModifiedDate,
                npe01__Payments_Made__c, Outstanding_Payments__c, 
                Number_of_Payments_Received__c, Most_Recent_Payment_Date__c,
                Last_Actual_Payment__c, npe01__Number_of_Payments__c,
@@ -327,12 +891,17 @@ async def get_opportunities(stage: Optional[str] = None):
         # Build WHERE clause with filters
         where_clauses = []
         
-        # Always filter for Philanthropy record type and Active opportunities
-        where_clauses.append("RecordType.Name = 'Philanthropy'")
-        where_clauses.append("Active_Opportunity__c = true")
-        
         if stage:
             where_clauses.append(f"StageName = '{stage}'")
+        
+        if record_type:
+            where_clauses.append(f"RecordType.Name = '{record_type}'")
+        
+        if opp_type:
+            where_clauses.append(f"Type = '{opp_type}'")
+        
+        if active_only is not None:
+            where_clauses.append(f"Active_Opportunity__c = {str(active_only).lower()}")
         
         if where_clauses:
             query += " WHERE " + " AND ".join(where_clauses)
@@ -341,23 +910,29 @@ async def get_opportunities(stage: Optional[str] = None):
         
         # Use query_all to automatically handle pagination and get ALL records
         result = sf.query_all(query)
+        records = result.get("records", [])
         
-        return result.get("records", [])
+        # Cache the result
+        cache.set(cache_key, records, CACHE_TTL_OPPORTUNITIES)
+        logger.info(f"Cache MISS for {cache_key} - fetched {len(records)} records")
+        
+        return records
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 # Salesforce - Create Opportunity
 @app.post("/api/salesforce/opportunities")
-async def create_opportunity(opportunity_data: Dict[str, Any]):
-    """Create a new Salesforce opportunity."""
+async def create_opportunity(opportunity_data: Dict[str, Any], request: Request = None):
+    """Create a new Salesforce opportunity. Uses per-user SF connection when available."""
     try:
-        sf = get_salesforce()
+        sf = get_salesforce_for_request(request) if request else get_salesforce()
         
         # Create the opportunity
         result = sf.Opportunity.create(opportunity_data)
         
         if result.get('success'):
+            cache.invalidate_prefix("opps:")  # Clear opps cache
             return {
                 "success": True,
                 "id": result.get('id'),
@@ -373,11 +948,54 @@ async def create_opportunity(opportunity_data: Dict[str, Any]):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.put("/api/salesforce/opportunities/{opportunity_id}")
-async def update_opportunity(opportunity_id: str, update_request: OpportunityUpdate):
-    """Update a Salesforce opportunity."""
+# IMPORTANT: Bulk update must come BEFORE the {opportunity_id} route
+@app.put("/api/salesforce/opportunities/bulk-update")
+async def bulk_update_opportunities(body: dict, request: Request = None):
+    """Bulk update multiple Salesforce opportunities at once. Uses per-user SF connection."""
     try:
-        sf = get_salesforce()
+        sf = get_salesforce_for_request(request) if request else get_salesforce()
+        
+        opp_ids = body.get('opportunity_ids', [])
+        updates = body.get('updates', {})
+        
+        if not opp_ids or not updates:
+            raise HTTPException(status_code=400, detail="Missing opportunity_ids or updates")
+        
+        # Update all opportunities
+        success_count = 0
+        failed_ids = []
+        
+        for opp_id in opp_ids:
+            try:
+                result = sf.Opportunity.update(opp_id, updates)
+                if result == 204:  # Success
+                    success_count += 1
+                else:
+                    failed_ids.append(opp_id)
+            except Exception as e:
+                print(f"Failed to update opportunity {opp_id}: {e}")
+                failed_ids.append(opp_id)
+        
+        cache.invalidate_prefix("opps:")  # Clear opps cache
+        
+        return {
+            "success": True,
+            "total": len(opp_ids),
+            "success_count": success_count,
+            "failed_count": len(failed_ids),
+            "failed_ids": failed_ids
+        }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/salesforce/opportunities/{opportunity_id}")
+async def update_opportunity(opportunity_id: str, update_request: OpportunityUpdate, request: Request = None):
+    """Update a Salesforce opportunity. Uses per-user SF connection."""
+    try:
+        sf = get_salesforce_for_request(request) if request else get_salesforce()
         
         # Only send the updates to Salesforce (user_id and reason are just for logging)
         # Don't send them to Salesforce as they're not real fields
@@ -388,6 +1006,7 @@ async def update_opportunity(opportunity_id: str, update_request: OpportunityUpd
         result = sobject.update(opportunity_id, updates_to_send)
         
         if result == 204:  # Success code
+            cache.invalidate_prefix("opps:")  # Clear opps cache
             return {
                 "success": True,
                 "message": "Opportunity updated successfully",
@@ -402,8 +1021,13 @@ async def update_opportunity(opportunity_id: str, update_request: OpportunityUpd
 # Salesforce - Accounts
 @app.get("/api/salesforce/accounts")
 async def get_accounts():
-    """Get ALL Salesforce accounts for customer selection."""
+    """Get ALL Salesforce accounts. Cached for 10 min."""
     try:
+        cached = cache.get("accounts")
+        if cached is not None:
+            logger.info(f"Cache HIT for accounts ({cached['count']} records)")
+            return cached
+        
         sf = get_salesforce()
         
         query = """
@@ -428,20 +1052,161 @@ async def get_accounts():
             for acc in accounts
         ]
         
-        return {
+        response_data = {
             "success": True,
             "count": len(formatted_accounts),
             "accounts": formatted_accounts
+        }
+        cache.set("accounts", response_data, CACHE_TTL_ACCOUNTS)
+        logger.info(f"Cache MISS for accounts - fetched {len(formatted_accounts)} records")
+        return response_data
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Salesforce - Tasks (linked to Opportunities)
+@app.get("/api/salesforce/opportunities/{opportunity_id}/tasks")
+async def get_opportunity_tasks(opportunity_id: str):
+    """Get all tasks for a specific opportunity."""
+    try:
+        sf = get_salesforce()
+        
+        query = f"""
+        SELECT Id, Subject, Status, Priority, ActivityDate, Description,
+               OwnerId, Owner.Name, CreatedDate, LastModifiedDate, Type, TaskSubtype
+        FROM Task
+        WHERE WhatId = '{opportunity_id}'
+        ORDER BY ActivityDate DESC NULLS LAST, CreatedDate DESC
+        """
+        
+        result = sf.query_all(query)
+        tasks = result.get("records", [])
+        
+        formatted_tasks = []
+        for task in tasks:
+            formatted_tasks.append({
+                "Id": task.get("Id"),
+                "Subject": task.get("Subject"),
+                "Status": task.get("Status"),
+                "Priority": task.get("Priority"),
+                "ActivityDate": task.get("ActivityDate"),
+                "Description": task.get("Description"),
+                "OwnerId": task.get("OwnerId"),
+                "OwnerName": task.get("Owner", {}).get("Name") if task.get("Owner") else None,
+                "CreatedDate": task.get("CreatedDate"),
+                "LastModifiedDate": task.get("LastModifiedDate"),
+                "Type": task.get("Type"),
+                "TaskSubtype": task.get("TaskSubtype"),
+            })
+        
+        return {
+            "success": True,
+            "count": len(formatted_tasks),
+            "tasks": formatted_tasks
         }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.post("/api/salesforce/opportunities/{opportunity_id}/tasks")
+async def create_opportunity_task(opportunity_id: str, task_data: dict, request: Request = None):
+    """Create a new task linked to an opportunity. Uses per-user SF connection."""
+    try:
+        sf = get_salesforce_for_request(request) if request else get_salesforce()
+        
+        # Build task record
+        task_record = {
+            "WhatId": opportunity_id,
+            "Subject": task_data.get("Subject", "New Task"),
+            "Status": task_data.get("Status", "Not Started"),
+            "Priority": task_data.get("Priority", "Normal"),
+        }
+        
+        if task_data.get("ActivityDate"):
+            task_record["ActivityDate"] = task_data["ActivityDate"]
+        if task_data.get("Description"):
+            task_record["Description"] = task_data["Description"]
+        if task_data.get("OwnerId"):
+            task_record["OwnerId"] = task_data["OwnerId"]
+        elif request:
+            # Default task owner to logged-in user's Salesforce identity
+            sf_user_id = get_sf_user_id_from_request(request)
+            if sf_user_id:
+                task_record["OwnerId"] = sf_user_id
+        
+        result = sf.Task.create(task_record)
+        
+        if result.get("success"):
+            return {
+                "success": True,
+                "id": result["id"],
+                "message": "Task created successfully"
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Failed to create task")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/salesforce/tasks/{task_id}")
+async def update_task(task_id: str, task_data: dict, request: Request = None):
+    """Update an existing task. Uses per-user SF connection."""
+    try:
+        sf = get_salesforce_for_request(request) if request else get_salesforce()
+        
+        updates = {}
+        allowed_fields = ["Subject", "Status", "Priority", "ActivityDate", "Description", "OwnerId"]
+        for field in allowed_fields:
+            if field in task_data:
+                updates[field] = task_data[field]
+        
+        if not updates:
+            raise HTTPException(status_code=400, detail="No valid fields to update")
+        
+        result = sf.Task.update(task_id, updates)
+        
+        if result == 204:
+            return {"success": True, "message": "Task updated successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to update task")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/salesforce/tasks/{task_id}")
+async def delete_task(task_id: str, request: Request = None):
+    """Delete a task. Uses per-user SF connection."""
+    try:
+        sf = get_salesforce_for_request(request) if request else get_salesforce()
+        result = sf.Task.delete(task_id)
+        
+        if result == 204:
+            return {"success": True, "message": "Task deleted successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to delete task")
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Salesforce - Users
 @app.get("/api/salesforce/users")
 async def get_users(limit: int = 1000):
-    """Get Salesforce users for autocomplete."""
+    """Get Salesforce users for autocomplete. Cached for 15 min."""
     try:
+        cache_key = f"users:{limit}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            logger.info(f"Cache HIT for {cache_key}")
+            return cached
+        
         sf = get_salesforce()
         
         query = f"""
@@ -453,7 +1218,10 @@ async def get_users(limit: int = 1000):
         """
         
         result = sf.query(query)
-        return result.get("records", [])
+        records = result.get("records", [])
+        cache.set(cache_key, records, CACHE_TTL_USERS)
+        logger.info(f"Cache MISS for {cache_key} - fetched {len(records)} records")
+        return records
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -462,12 +1230,14 @@ async def get_users(limit: int = 1000):
 # Salesforce - Contacts
 @app.get("/api/salesforce/contacts")
 async def get_contacts(account_id: Optional[str] = None):
-    """Get ALL Salesforce contacts, optionally filtered by account.
-    When account_id is provided, returns contacts where the account is either:
-    - Their household account (AccountId), OR
-    - Their primary affiliation (npsp__Primary_Affiliation__c)
-    """
+    """Get ALL Salesforce contacts, optionally filtered by account. Cached for 10 min."""
     try:
+        cache_key = f"contacts:{account_id}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            logger.info(f"Cache HIT for {cache_key}")
+            return cached
+        
         sf = get_salesforce()
         
         # Query with Primary Affiliation (the organization/company where they work)
@@ -484,7 +1254,10 @@ async def get_contacts(account_id: Optional[str] = None):
         
         # Use query_all to get ALL records (handles Salesforce's 2000 record pagination automatically)
         result = sf.query_all(query)
-        return result.get("records", [])
+        records = result.get("records", [])
+        cache.set(cache_key, records, CACHE_TTL_ACCOUNTS)  # 10 min
+        logger.info(f"Cache MISS for {cache_key} - fetched {len(records)} records")
+        return records
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -513,12 +1286,13 @@ async def get_contact_fields():
 
 
 @app.post("/api/salesforce/accounts")
-async def create_account(account_data: Dict[str, Any]):
-    """Create a new Salesforce account."""
+async def create_account(account_data: Dict[str, Any], request: Request = None):
+    """Create a new Salesforce account. Uses per-user SF connection."""
     try:
-        sf = get_salesforce()
+        sf = get_salesforce_for_request(request) if request else get_salesforce()
         result = sf.Account.create(account_data)
         if result.get('success'):
+            cache.invalidate("accounts")  # Clear accounts cache
             return {
                 "success": True,
                 "id": result['id'],
@@ -531,12 +1305,13 @@ async def create_account(account_data: Dict[str, Any]):
 
 
 @app.post("/api/salesforce/contacts")
-async def create_contact(contact_data: Dict[str, Any]):
-    """Create a new Salesforce contact."""
+async def create_contact(contact_data: Dict[str, Any], request: Request = None):
+    """Create a new Salesforce contact. Uses per-user SF connection."""
     try:
-        sf = get_salesforce()
+        sf = get_salesforce_for_request(request) if request else get_salesforce()
         result = sf.Contact.create(contact_data)
         if result.get('success'):
+            cache.invalidate_prefix("contacts:")  # Clear contacts cache
             return {
                 "success": True,
                 "id": result['id'],
@@ -1187,7 +1962,7 @@ async def fireflies_health_check():
             "api_key_preview": f"{FIREFLIES_API_KEY[:10]}...{FIREFLIES_API_KEY[-4:]}",
             "cache_info": {
                 "cached": fireflies_cache.get('transcripts') is not None,
-                "total_cached_meetings": len(fireflies_cache.get('transcripts', [])),
+                "total_cached_meetings": len(fireflies_cache.get('transcripts') or []),
                 "expires_at": fireflies_cache.get('expires_at').isoformat() if fireflies_cache.get('expires_at') else None,
                 "cache_duration_hours": CACHE_DURATION_HOURS
             }
@@ -1423,6 +2198,1353 @@ async def debug_account_matching(account_name: str):
         }
         
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# Gmail Integration
+# ============================================================================
+
+def _get_google_credentials(email: str, request: Request = None):
+    """Build google.oauth2.credentials.Credentials for a user.
+    Checks in-memory cache first, then falls back to encrypted cookie.
+    Proactively refreshes expired tokens if a refresh_token is available."""
+    from google.oauth2.credentials import Credentials
+    import google.auth.transport.requests
+
+    tokens = _google_tokens.get(email)
+
+    # If not in memory, try to restore from encrypted cookie
+    if (not tokens or not tokens.get('access_token')) and request:
+        cookie = request.cookies.get("google_tokens")
+        if cookie:
+            try:
+                restored = decrypt_sf_tokens(cookie)  # reuse same Fernet encryption
+                if restored and restored.get('access_token'):
+                    tokens = restored
+                    _google_tokens[email] = tokens
+                    has_refresh = bool(restored.get('refresh_token'))
+                    logger.info(f"Restored Google tokens from cookie for {email} (has refresh_token: {has_refresh})")
+                else:
+                    logger.warning(f"Google cookie decrypted but missing access_token for {email}")
+            except Exception as e:
+                logger.warning(f"Failed to decrypt Google tokens cookie for {email}: {e}")
+        else:
+            logger.info(f"No google_tokens cookie found for {email} — user needs to re-login via Google")
+
+    if not tokens or not tokens.get('access_token'):
+        logger.warning(f"No Google tokens available for {email}")
+        return None
+
+    refresh_token = tokens.get('refresh_token')
+    if not refresh_token:
+        logger.warning(f"No refresh_token for {email} - Google APIs will fail if access token is expired. User needs to re-login.")
+
+    creds = Credentials(
+        token=tokens['access_token'],
+        refresh_token=refresh_token,
+        token_uri='https://oauth2.googleapis.com/token',
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+    )
+
+    # Proactively refresh if the token is expired and we have a refresh token
+    if creds.expired and refresh_token:
+        try:
+            creds.refresh(google.auth.transport.requests.Request())
+            # Update stored tokens with the new access token
+            tokens['access_token'] = creds.token
+            _google_tokens[email] = tokens
+            logger.info(f"Proactively refreshed Google access token for {email}")
+        except Exception as e:
+            logger.warning(f"Failed to refresh Google token for {email}: {e}")
+
+    return creds
+
+@app.get("/api/gmail/account-activity/{account_name}")
+async def get_account_gmail_activity(account_name: str, request: Request, limit: int = 20):
+    """Search Gmail for recent emails mentioning an account."""
+    try:
+        user = await get_current_user(request)
+        if not user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        email = user.get('email')
+        creds = _get_google_credentials(email, request)
+        if not creds:
+            return {
+                'account_name': account_name,
+                'emails': [],
+                'total': 0,
+                'error': 'Google tokens not available. Please re-login to grant Gmail access.',
+                'needs_reauth': True,
+            }
+
+        from googleapiclient.discovery import build
+        service = build('gmail', 'v1', credentials=creds)
+
+        # Also look up account contacts from Salesforce for email-domain matching
+        contact_domains = set()
+        try:
+            sf = get_salesforce()
+            escaped = account_name.replace("'", "\\'")
+            result = sf.query(f"SELECT Id, Website, (SELECT Email FROM Contacts) FROM Account WHERE Name = '{escaped}' LIMIT 1")
+            if result['totalSize'] > 0:
+                acct = result['records'][0]
+                website = acct.get('Website', '') or ''
+                if website:
+                    domain = website.replace('http://', '').replace('https://', '').replace('www.', '').split('/')[0]
+                    if domain:
+                        contact_domains.add(domain)
+                if acct.get('Contacts'):
+                    for c in acct['Contacts']['records']:
+                        if c.get('Email') and '@' in c['Email']:
+                            contact_domains.add(c['Email'].split('@')[1].lower())
+        except Exception:
+            pass
+
+        # Build Gmail search query
+        search_parts = [f'"{account_name}"']
+        for d in list(contact_domains)[:5]:
+            search_parts.append(f'from:{d}')
+            search_parts.append(f'to:{d}')
+        query_str = ' OR '.join(search_parts)
+
+        results = service.users().messages().list(
+            userId='me', q=query_str, maxResults=limit
+        ).execute()
+
+        messages = results.get('messages', [])
+        emails = []
+        for msg_meta in messages[:limit]:
+            msg = service.users().messages().get(
+                userId='me', id=msg_meta['id'], format='metadata',
+                metadataHeaders=['Subject', 'From', 'To', 'Date']
+            ).execute()
+
+            headers = {h['name']: h['value'] for h in msg.get('payload', {}).get('headers', [])}
+            snippet = msg.get('snippet', '')
+
+            emails.append({
+                'id': msg_meta['id'],
+                'threadId': msg.get('threadId'),
+                'subject': headers.get('Subject', '(no subject)'),
+                'from': headers.get('From', ''),
+                'to': headers.get('To', ''),
+                'date': headers.get('Date', ''),
+                'snippet': snippet,
+                'labels': msg.get('labelIds', []),
+            })
+
+        return {
+            'account_name': account_name,
+            'emails': emails,
+            'total': len(emails),
+            'query_used': query_str,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Gmail activity error: {e}")
+        if 'invalid_grant' in str(e).lower() or 'token' in str(e).lower():
+            return {
+                'account_name': account_name,
+                'emails': [],
+                'total': 0,
+                'error': 'Gmail token expired. Please re-login.',
+                'needs_reauth': True,
+            }
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/gmail/health")
+async def gmail_health_check(request: Request):
+    """Check Gmail integration status for the current user."""
+    user = await get_current_user(request)
+    if not user:
+        return {"configured": False, "message": "Not authenticated"}
+    email = user.get('email')
+    tokens = _google_tokens.get(email)
+    return {
+        "configured": bool(tokens and tokens.get('access_token')),
+        "has_refresh_token": bool(tokens and tokens.get('refresh_token')),
+        "user_email": email,
+    }
+
+# ============================================================================
+# Google Calendar Integration
+# ============================================================================
+
+@app.get("/api/calendar/account-activity/{account_name}")
+async def get_account_calendar_activity(account_name: str, request: Request, limit: int = 20):
+    """Search Google Calendar for events related to an account."""
+    try:
+        user = await get_current_user(request)
+        if not user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        email = user.get('email')
+        creds = _get_google_credentials(email, request)
+        if not creds:
+            return {
+                'account_name': account_name,
+                'events': [],
+                'total': 0,
+                'error': 'Google tokens not available. Please re-login to grant Calendar access.',
+                'needs_reauth': True,
+            }
+
+        from googleapiclient.discovery import build
+        service = build('calendar', 'v3', credentials=creds)
+
+        # Look up contact domains for attendee matching
+        contact_emails_set = set()
+        contact_domains = set()
+        try:
+            sf = get_salesforce()
+            escaped = account_name.replace("'", "\\'")
+            result = sf.query(f"SELECT Id, Website, (SELECT Email FROM Contacts) FROM Account WHERE Name = '{escaped}' LIMIT 1")
+            if result['totalSize'] > 0:
+                acct = result['records'][0]
+                website = acct.get('Website', '') or ''
+                if website:
+                    domain = website.replace('http://', '').replace('https://', '').replace('www.', '').split('/')[0]
+                    if domain:
+                        contact_domains.add(domain.lower())
+                if acct.get('Contacts'):
+                    for c in acct['Contacts']['records']:
+                        if c.get('Email'):
+                            contact_emails_set.add(c['Email'].lower())
+                            if '@' in c['Email']:
+                                contact_domains.add(c['Email'].split('@')[1].lower())
+        except Exception:
+            pass
+
+        # Search for events containing the account name
+        account_name_lower = account_name.lower()
+        account_terms = [t.lower() for t in account_name.split() if len(t) > 3]
+
+        # Calendar API uses free-text q parameter
+        now = datetime.utcnow()
+        time_min = (now - timedelta(days=180)).isoformat() + 'Z'
+        time_max = (now + timedelta(days=90)).isoformat() + 'Z'
+
+        events_result = service.events().list(
+            calendarId='primary',
+            q=account_name,
+            timeMin=time_min,
+            timeMax=time_max,
+            maxResults=100,
+            singleEvents=True,
+            orderBy='startTime',
+        ).execute()
+
+        raw_events = events_result.get('items', [])
+        matched_events = []
+
+        for event in raw_events:
+            match_score = 0
+            match_reasons = []
+            summary = (event.get('summary') or '').lower()
+            description = (event.get('description') or '').lower()
+
+            # Title match
+            if account_name_lower in summary:
+                match_score += 15
+                match_reasons.append('title')
+            elif any(t in summary for t in account_terms):
+                match_score += 8
+                match_reasons.append('title_partial')
+
+            # Description match
+            if account_name_lower in description:
+                match_score += 10
+                match_reasons.append('description')
+
+            # Attendee match
+            attendees = event.get('attendees', [])
+            for att in attendees:
+                att_email = (att.get('email') or '').lower()
+                if att_email in contact_emails_set:
+                    match_score += 20
+                    match_reasons.append('contact_attendee')
+                    break
+                if any(att_email.endswith(d) for d in contact_domains):
+                    match_score += 15
+                    match_reasons.append('domain_attendee')
+                    break
+
+            if match_score >= 8:
+                start = event.get('start', {})
+                end = event.get('end', {})
+                matched_events.append({
+                    'id': event.get('id'),
+                    'summary': event.get('summary', '(No title)'),
+                    'description': (event.get('description') or '')[:300],
+                    'start': start.get('dateTime') or start.get('date'),
+                    'end': end.get('dateTime') or end.get('date'),
+                    'attendees': [
+                        {'email': a.get('email'), 'name': a.get('displayName'), 'status': a.get('responseStatus')}
+                        for a in attendees
+                    ],
+                    'location': event.get('location'),
+                    'htmlLink': event.get('htmlLink'),
+                    'status': event.get('status'),
+                    'match_score': match_score,
+                    'match_reasons': match_reasons,
+                    'is_past': (start.get('dateTime') or start.get('date', '')) < now.isoformat(),
+                })
+
+        matched_events.sort(key=lambda x: x.get('start') or '', reverse=True)
+        matched_events = matched_events[:limit]
+
+        return {
+            'account_name': account_name,
+            'events': matched_events,
+            'total': len(matched_events),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Calendar activity error: {e}")
+        if 'invalid_grant' in str(e).lower() or 'token' in str(e).lower():
+            return {
+                'account_name': account_name,
+                'events': [],
+                'total': 0,
+                'error': 'Calendar token expired. Please re-login.',
+                'needs_reauth': True,
+            }
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/calendar/health")
+async def calendar_health_check(request: Request):
+    """Check Calendar integration status."""
+    user = await get_current_user(request)
+    if not user:
+        return {"configured": False, "message": "Not authenticated"}
+    email = user.get('email')
+    tokens = _google_tokens.get(email)
+    return {
+        "configured": bool(tokens and tokens.get('access_token')),
+        "has_refresh_token": bool(tokens and tokens.get('refresh_token')),
+        "user_email": email,
+    }
+
+# ============================================================================
+# Google Drive Integration
+# ============================================================================
+
+@app.get("/api/drive/account-activity/{account_name}")
+async def get_account_drive_activity(account_name: str, request: Request, limit: int = 20, opportunity_name: str = None):
+    """Search Google Drive for files related to an account."""
+    try:
+        user = await get_current_user(request)
+        if not user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        email = user.get('email')
+        creds = _get_google_credentials(email, request)
+        if not creds:
+            return {
+                'account_name': account_name,
+                'files': [],
+                'total': 0,
+                'error': 'Google tokens not available. Please re-login to grant Drive access.',
+                'needs_reauth': True,
+            }
+
+        from googleapiclient.discovery import build
+        service = build('drive', 'v3', credentials=creds)
+
+        # Escape single quotes for Drive API query
+        def escape_drive(s: str) -> str:
+            return s.replace("\\", "\\\\").replace("'", "\\'")
+
+        # Search strategy: find files whose NAME contains the account name
+        # or the opportunity name. This is far more targeted than fullText.
+        search_terms = [account_name]
+        if opportunity_name and opportunity_name != account_name:
+            search_terms.append(opportunity_name)
+
+        # Also add shortened account name variants (e.g., "Ford Foundation" -> just search for that)
+        # Skip very short/generic terms
+        account_terms = [t for t in account_name.split() if len(t) > 3
+                         and t.lower() not in ('the', 'inc', 'llc', 'corp', 'foundation', 'fund', 'group', 'household')]
+
+        all_files = {}  # dedupe by id
+
+        for term in search_terms:
+            escaped = escape_drive(term)
+            # Search file names for the full term
+            q = f"name contains '{escaped}' and trashed = false"
+            try:
+                results = service.files().list(
+                    q=q,
+                    pageSize=50,
+                    fields="files(id, name, mimeType, modifiedTime, createdTime, webViewLink, iconLink, owners, lastModifyingUser, size, shared)",
+                    orderBy="modifiedTime desc",
+                ).execute()
+                for f in results.get('files', []):
+                    if f['id'] not in all_files:
+                        all_files[f['id']] = {**f, '_match': 'name_exact', '_term': term}
+            except Exception as e:
+                logger.warning(f"Drive name search failed for '{term}': {e}")
+
+        # If we found fewer than 5 results from name search, also try fullText
+        # but only with the full account name (not individual words)
+        if len(all_files) < 5:
+            escaped = escape_drive(account_name)
+            q = f"fullText contains '\"{escaped}\"' and trashed = false"
+            try:
+                results = service.files().list(
+                    q=q,
+                    pageSize=20,
+                    fields="files(id, name, mimeType, modifiedTime, createdTime, webViewLink, iconLink, owners, lastModifyingUser, size, shared)",
+                    orderBy="modifiedTime desc",
+                ).execute()
+                for f in results.get('files', []):
+                    if f['id'] not in all_files:
+                        all_files[f['id']] = {**f, '_match': 'content', '_term': account_name}
+            except Exception as e:
+                logger.warning(f"Drive fullText search failed: {e}")
+
+        # Format and score results
+        formatted_files = []
+        account_name_lower = account_name.lower()
+        opp_name_lower = (opportunity_name or '').lower()
+
+        for f in all_files.values():
+            mime = f.get('mimeType', '')
+            file_type = 'file'
+            if 'spreadsheet' in mime:
+                file_type = 'spreadsheet'
+            elif 'document' in mime:
+                file_type = 'document'
+            elif 'presentation' in mime:
+                file_type = 'presentation'
+            elif 'folder' in mime:
+                file_type = 'folder'
+            elif 'pdf' in mime:
+                file_type = 'pdf'
+            elif 'image' in mime:
+                file_type = 'image'
+
+            owners = f.get('owners', [])
+            last_modifier = f.get('lastModifyingUser', {})
+            name_lower = f.get('name', '').lower()
+
+            # Relevance scoring
+            score = 0
+            if account_name_lower in name_lower:
+                score += 20
+            elif any(t.lower() in name_lower for t in account_terms):
+                score += 10
+            if opp_name_lower and opp_name_lower in name_lower:
+                score += 15
+            if f.get('_match') == 'name_exact':
+                score += 5
+            if f.get('shared'):
+                score += 3
+
+            formatted_files.append({
+                'id': f.get('id'),
+                'name': f.get('name'),
+                'mimeType': mime,
+                'fileType': file_type,
+                'modifiedTime': f.get('modifiedTime'),
+                'createdTime': f.get('createdTime'),
+                'webViewLink': f.get('webViewLink'),
+                'iconLink': f.get('iconLink'),
+                'ownerName': owners[0].get('displayName') if owners else None,
+                'lastModifiedBy': last_modifier.get('displayName'),
+                'size': f.get('size'),
+                'shared': f.get('shared', False),
+                'matchType': f.get('_match', 'unknown'),
+                'relevanceScore': score,
+            })
+
+        # Sort by relevance then recency
+        formatted_files.sort(key=lambda x: (x['relevanceScore'], x.get('modifiedTime') or ''), reverse=True)
+        formatted_files = formatted_files[:limit]
+
+        return {
+            'account_name': account_name,
+            'files': formatted_files,
+            'total': len(formatted_files),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Drive activity error: {e}")
+        if 'invalid_grant' in str(e).lower() or 'token' in str(e).lower():
+            return {
+                'account_name': account_name,
+                'files': [],
+                'total': 0,
+                'error': 'Drive token expired. Please re-login.',
+                'needs_reauth': True,
+            }
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/drive/health")
+async def drive_health_check(request: Request):
+    """Check Drive integration status."""
+    user = await get_current_user(request)
+    if not user:
+        return {"configured": False, "message": "Not authenticated"}
+    email = user.get('email')
+    tokens = _google_tokens.get(email)
+    return {
+        "configured": bool(tokens and tokens.get('access_token')),
+        "has_refresh_token": bool(tokens and tokens.get('refresh_token')),
+        "user_email": email,
+    }
+
+# ============================================================================
+# AI-Powered Activity Intelligence (unified endpoint)
+# ============================================================================
+
+def _gather_salesforce_context(account_name: str) -> dict:
+    """Pull account, contacts, and related context from Salesforce."""
+    sf = get_salesforce()
+    escaped = account_name.replace("'", "\\'")
+
+    ctx = {
+        'account_name': account_name,
+        'account_id': None,
+        'website': None,
+        'domain': None,
+        'contacts': [],
+        'contact_emails': [],
+        'contact_domains': set(),
+    }
+
+    try:
+        result = sf.query(f"""
+            SELECT Id, Name, Website, Phone, Description,
+                   (SELECT Id, FirstName, LastName, Name, Email, Title FROM Contacts LIMIT 50)
+            FROM Account
+            WHERE Name = '{escaped}'
+            LIMIT 1
+        """)
+        if result['totalSize'] > 0:
+            acct = result['records'][0]
+            ctx['account_id'] = acct.get('Id')
+            ctx['website'] = acct.get('Website')
+            ctx['description'] = acct.get('Description', '')
+
+            website = acct.get('Website') or ''
+            if website:
+                domain = website.replace('http://', '').replace('https://', '').replace('www.', '').split('/')[0]
+                if domain:
+                    ctx['domain'] = domain
+                    ctx['contact_domains'].add(domain.lower())
+
+            if acct.get('Contacts'):
+                for c in acct['Contacts']['records']:
+                    contact = {
+                        'name': c.get('Name', ''),
+                        'email': c.get('Email', ''),
+                        'title': c.get('Title', ''),
+                    }
+                    ctx['contacts'].append(contact)
+                    if c.get('Email'):
+                        ctx['contact_emails'].append(c['Email'].lower())
+                        if '@' in c['Email']:
+                            ctx['contact_domains'].add(c['Email'].split('@')[1].lower())
+    except Exception as e:
+        logger.warning(f"Failed to gather SF context for {account_name}: {e}")
+
+    ctx['contact_domains'] = list(ctx['contact_domains'])
+    return ctx
+
+
+async def _search_gmail_broad(creds, contact_emails: list, contact_domains: list, account_name: str) -> list:
+    """Search Gmail using contact emails and domains. Includes email body text."""
+    try:
+        from googleapiclient.discovery import build
+        import base64
+        service = build('gmail', 'v1', credentials=creds)
+
+        parts = []
+        for email in contact_emails[:10]:
+            parts.append(f'from:{email}')
+            parts.append(f'to:{email}')
+        for domain in contact_domains[:5]:
+            if domain not in ('gmail.com', 'outlook.com', 'yahoo.com', 'hotmail.com'):
+                parts.append(f'from:{domain}')
+                parts.append(f'to:{domain}')
+        parts.append(f'"{account_name}"')
+        query_str = ' OR '.join(parts) if parts else f'"{account_name}"'
+
+        results = service.users().messages().list(userId='me', q=query_str, maxResults=20).execute()
+        messages = results.get('messages', [])
+
+        emails = []
+        for msg_meta in messages[:20]:
+            msg = service.users().messages().get(
+                userId='me', id=msg_meta['id'], format='full',
+            ).execute()
+            headers = {h['name']: h['value'] for h in msg.get('payload', {}).get('headers', [])}
+
+            # Extract plain text body
+            body_text = ''
+            payload = msg.get('payload', {})
+
+            def extract_text(part):
+                """Recursively extract text/plain content from message parts."""
+                if part.get('mimeType') == 'text/plain' and part.get('body', {}).get('data'):
+                    return base64.urlsafe_b64decode(part['body']['data']).decode('utf-8', errors='ignore')
+                for sub_part in part.get('parts', []):
+                    result = extract_text(sub_part)
+                    if result:
+                        return result
+                return ''
+
+            body_text = extract_text(payload)
+            if not body_text and payload.get('body', {}).get('data'):
+                body_text = base64.urlsafe_b64decode(payload['body']['data']).decode('utf-8', errors='ignore')
+
+            # Truncate but keep enough for AI analysis
+            body_text = body_text[:3000] if body_text else msg.get('snippet', '')
+
+            emails.append({
+                'source': 'gmail',
+                'id': msg_meta['id'],
+                'subject': headers.get('Subject', '(no subject)'),
+                'from': headers.get('From', ''),
+                'to': headers.get('To', ''),
+                'date': headers.get('Date', ''),
+                'snippet': msg.get('snippet', ''),
+                'body': body_text,
+            })
+        return emails
+    except Exception as e:
+        logger.warning(f"Gmail broad search failed: {e}")
+        return []
+
+
+async def _search_calendar_broad(creds, contact_emails: list, contact_domains: list, account_name: str) -> list:
+    """Search Calendar across ALL visible org calendars, not just the user's primary."""
+    try:
+        from googleapiclient.discovery import build
+        service = build('calendar', 'v3', credentials=creds)
+
+        now = datetime.utcnow()
+        time_min = (now - timedelta(days=180)).isoformat() + 'Z'
+        time_max = (now + timedelta(days=90)).isoformat() + 'Z'
+
+        # Step 1: List all calendars visible to this user (own + shared/org calendars)
+        calendar_list = service.calendarList().list(
+            showHidden=False, showDeleted=False,
+        ).execute()
+        calendars = calendar_list.get('items', [])
+        # Include primary + all other calendars the user can see (coworkers, shared, resources)
+        calendar_ids = []
+        for cal in calendars:
+            cal_id = cal.get('id', '')
+            # Skip birthday/holiday calendars
+            if 'holiday' in cal_id or 'birthday' in cal_id or '#contacts' in cal_id:
+                continue
+            calendar_ids.append(cal_id)
+
+        logger.info(f"Calendar search: scanning {len(calendar_ids)} calendars for '{account_name}'")
+
+        name_events = {}  # dedup by event id
+        contact_emails_set = set(contact_emails)
+        contact_domains_set = set(d for d in contact_domains if d not in ('gmail.com', 'outlook.com', 'yahoo.com'))
+
+        for cal_id in calendar_ids:
+            try:
+                # Search by account name text match
+                events_result = service.events().list(
+                    calendarId=cal_id, q=account_name,
+                    timeMin=time_min, timeMax=time_max,
+                    maxResults=50, singleEvents=True, orderBy='startTime',
+                ).execute()
+                for e in events_result.get('items', []):
+                    if e['id'] not in name_events:
+                        name_events[e['id']] = {**e, '_cal': cal_id}
+
+                # Also scan events by attendee email/domain overlap
+                all_events_result = service.events().list(
+                    calendarId=cal_id,
+                    timeMin=time_min, timeMax=time_max,
+                    maxResults=200, singleEvents=True, orderBy='startTime',
+                ).execute()
+
+                for event in all_events_result.get('items', []):
+                    if event['id'] in name_events:
+                        continue
+                    attendees = event.get('attendees', [])
+                    for att in attendees:
+                        att_email = (att.get('email') or '').lower()
+                        if att_email in contact_emails_set:
+                            name_events[event['id']] = {**event, '_cal': cal_id}
+                            break
+                        if any(att_email.endswith('@' + d) for d in contact_domains_set):
+                            name_events[event['id']] = {**event, '_cal': cal_id}
+                            break
+            except Exception as e:
+                # Some shared calendars may not be queryable -- skip silently
+                logger.debug(f"Skipping calendar {cal_id}: {e}")
+                continue
+
+        # Find the calendar name for display
+        cal_name_map = {c.get('id', ''): c.get('summary', '') for c in calendars}
+
+        results = []
+        for event in name_events.values():
+            start = event.get('start', {})
+            end = event.get('end', {})
+            cal_id = event.get('_cal', 'primary')
+            cal_name = cal_name_map.get(cal_id, '')
+            results.append({
+                'source': 'calendar',
+                'id': event.get('id'),
+                'summary': event.get('summary', '(No title)'),
+                'description': (event.get('description') or '')[:500],
+                'start': start.get('dateTime') or start.get('date'),
+                'end': end.get('dateTime') or end.get('date'),
+                'attendees': [
+                    {'email': a.get('email'), 'name': a.get('displayName'), 'status': a.get('responseStatus')}
+                    for a in event.get('attendees', [])
+                ],
+                'location': event.get('location'),
+                'htmlLink': event.get('htmlLink'),
+                'calendarName': cal_name if cal_name and cal_id != 'primary' else None,
+            })
+        return results
+    except Exception as e:
+        logger.warning(f"Calendar broad search failed: {e}")
+        return []
+
+
+async def _search_drive_broad(creds, contact_emails: list, contact_domains: list, account_name: str) -> list:
+    """Search Drive by file name, content, and shared-with contacts. Fetches actual doc content."""
+    try:
+        from googleapiclient.discovery import build
+        service = build('drive', 'v3', credentials=creds)
+
+        def escape_drive(s):
+            return s.replace("\\", "\\\\").replace("'", "\\'")
+
+        all_files = {}
+        drive_fields = "files(id, name, mimeType, modifiedTime, webViewLink, owners, lastModifyingUser, shared)"
+
+        # Extract key words for full-text search (Drive fullText does proper word matching)
+        short_terms = []
+        for word in account_name.split():
+            if len(word) >= 3 and word.lower() not in ('the', 'and', 'for', 'inc', 'llc', 'corp', 'ltd', 'group', 'foundation', 'financial', 'bank'):
+                short_terms.append(word)
+
+        # 1. File NAME search — ONLY use the full account name (Drive name contains is substring match)
+        try:
+            q = f"name contains '{escape_drive(account_name)}' and trashed = false"
+            res = service.files().list(
+                q=q, pageSize=25,
+                fields=drive_fields,
+                orderBy="modifiedTime desc",
+            ).execute()
+            for f in res.get('files', []):
+                all_files[f['id']] = {**f, '_match': 'name'}
+        except Exception:
+            pass
+
+        # 2. Full-text content search — use both full name and key words
+        #    (Drive fullText does word-level matching, so "PNC" won't match "PFNYC")
+        fulltext_terms = [account_name] + short_terms
+        for term in fulltext_terms[:3]:
+            try:
+                q = f"fullText contains '\"{escape_drive(term)}\"' and trashed = false"
+                res = service.files().list(
+                    q=q, pageSize=20,
+                    fields=drive_fields,
+                    orderBy="modifiedTime desc",
+                ).execute()
+                for f in res.get('files', []):
+                    if f['id'] not in all_files:
+                        all_files[f['id']] = {**f, '_match': 'content'}
+            except Exception:
+                pass
+
+        # 3. Search for files by contact names/emails in name
+        for contact_email in contact_emails[:5]:
+            local_part = contact_email.split('@')[0]
+            if len(local_part) < 4:
+                continue
+            try:
+                q = f"name contains '{escape_drive(local_part)}' and trashed = false"
+                res = service.files().list(
+                    q=q, pageSize=10,
+                    fields=drive_fields,
+                    orderBy="modifiedTime desc",
+                ).execute()
+                for f in res.get('files', []):
+                    if f['id'] not in all_files:
+                        all_files[f['id']] = {**f, '_match': 'contact_name'}
+            except Exception:
+                pass
+
+        file_names = [f.get('name', '?') for f in all_files.values()]
+        logger.info(f"Drive search for '{account_name}': {len(all_files)} files found (name: '{account_name}', fulltext: {fulltext_terms[:3]})")
+        logger.info(f"Drive files: {file_names[:15]}")
+
+        # Now fetch actual content for the top files (limit to 10 for performance)
+        # Sort by match quality: name > content > contact_name
+        match_priority = {'name': 0, 'content': 1, 'contact_name': 2}
+        sorted_files = sorted(all_files.values(), key=lambda x: match_priority.get(x.get('_match', ''), 3))
+
+        results = []
+        content_fetch_count = 0
+        MAX_CONTENT_FETCHES = 10
+
+        for f in sorted_files[:25]:
+            mime = f.get('mimeType', '')
+            file_type = 'file'
+            for key, ftype in [('spreadsheet', 'spreadsheet'), ('document', 'document'),
+                               ('presentation', 'presentation'), ('folder', 'folder'),
+                               ('pdf', 'pdf'), ('image', 'image')]:
+                if key in mime:
+                    file_type = ftype
+                    break
+
+            owners = f.get('owners', [])
+
+            # Fetch actual text content using Drive export API (only works for native Google Docs/Sheets/Slides)
+            content_snippet = ''
+            google_native_types = (
+                'application/vnd.google-apps.document',
+                'application/vnd.google-apps.spreadsheet',
+                'application/vnd.google-apps.presentation',
+            )
+            is_google_type = mime in google_native_types
+            if is_google_type and content_fetch_count < MAX_CONTENT_FETCHES:
+                try:
+                    if 'spreadsheet' in mime:
+                        export_mime = 'text/csv'
+                    else:
+                        export_mime = 'text/plain'
+
+                    text_content = service.files().export(
+                        fileId=f['id'], mimeType=export_mime
+                    ).execute()
+                    if isinstance(text_content, bytes):
+                        text_content = text_content.decode('utf-8', errors='ignore')
+
+                    content_fetch_count += 1
+
+                    # Extract section around account name mention for context
+                    acct_lower = account_name.lower()
+                    text_lower = text_content.lower() if text_content else ''
+                    idx = text_lower.find(acct_lower)
+                    if idx >= 0:
+                        start = max(0, idx - 500)
+                        end = min(len(text_content), idx + len(account_name) + 1500)
+                        content_snippet = text_content[start:end]
+                    else:
+                        content_snippet = text_content[:2000] if text_content else ''
+
+                    logger.info(f"Drive content: '{f.get('name')}' -> {len(content_snippet)} chars extracted")
+                except Exception as e:
+                    logger.warning(f"Drive content FAILED for '{f.get('name')}': {e}")
+
+            results.append({
+                'source': 'drive',
+                'id': f.get('id'),
+                'name': f.get('name'),
+                'fileType': file_type,
+                'modifiedTime': f.get('modifiedTime'),
+                'webViewLink': f.get('webViewLink'),
+                'ownerName': owners[0].get('displayName') if owners else None,
+                'lastModifiedBy': (f.get('lastModifyingUser') or {}).get('displayName'),
+                'shared': f.get('shared', False),
+                'matchType': f.get('_match'),
+                'content': content_snippet,
+            })
+        return results
+    except Exception as e:
+        logger.warning(f"Drive broad search failed: {e}")
+        return []
+
+
+def _search_slack_broad(account_name: str, contact_names: list) -> list:
+    """Search Slack for account mentions."""
+    try:
+        slack = get_slack()
+        channels_response = slack.conversations_list(types="public_channel", exclude_archived=True, limit=200)
+        if not channels_response["ok"]:
+            return []
+
+        account_name_lower = account_name.lower()
+        account_terms = [t.lower() for t in account_name.split() if len(t) > 3]
+        all_messages = []
+
+        for channel in channels_response.get("channels", []):
+            if not channel.get("is_member", False):
+                continue
+
+            channel_name_lower = channel["name"].lower().replace('-', ' ').replace('_', ' ')
+            channel_matches = any(t in channel_name_lower for t in account_terms)
+
+            try:
+                history = slack.conversations_history(channel=channel["id"], limit=100)
+                if not history["ok"]:
+                    continue
+
+                for message in history.get("messages", []):
+                    text = message.get("text", "")
+                    text_matches = account_name_lower in text.lower()
+                    # Also check for contact name mentions
+                    contact_match = any(cn.lower() in text.lower() for cn in contact_names if len(cn) > 3)
+
+                    if text_matches or channel_matches or contact_match:
+                        ts = message.get("ts", "")
+                        all_messages.append({
+                            'source': 'slack',
+                            'text': text[:500],
+                            'user': message.get("user", "Unknown"),
+                            'channel': channel["name"],
+                            'timestamp': ts,
+                            'date': datetime.fromtimestamp(float(ts)).isoformat() if ts else None,
+                            'permalink': f"https://slack.com/archives/{channel['id']}/p{ts.replace('.', '')}" if ts else "",
+                        })
+            except SlackApiError:
+                continue
+
+        all_messages.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        return all_messages[:30]
+    except Exception as e:
+        logger.warning(f"Slack broad search failed: {e}")
+        return []
+
+
+def _search_fireflies_broad(account_name: str, contact_emails: list, contact_domains: list) -> list:
+    """Search Fireflies transcripts by attendee emails/domains."""
+    try:
+        if not FIREFLIES_API_KEY:
+            return []
+
+        global fireflies_cache
+        now = datetime.now()
+
+        if (fireflies_cache.get('transcripts') is not None and
+                fireflies_cache.get('expires_at') is not None and
+                now < fireflies_cache['expires_at']):
+            transcripts = fireflies_cache['transcripts']
+        else:
+            all_transcripts = []
+            skip = 0
+            for _ in range(20):
+                query = f"""
+                query {{
+                  transcripts(limit: 50, skip: {skip}) {{
+                    id
+                    title
+                    date
+                    duration
+                    meeting_attendees {{ displayName email }}
+                    sentences {{ text }}
+                    summary {{ keywords action_items overview }}
+                  }}
+                }}
+                """
+                result = query_fireflies(query)
+                batch = result.get("data", {}).get("transcripts", [])
+                if not batch:
+                    break
+                all_transcripts.extend(batch)
+                if len(batch) < 50:
+                    break
+                skip += 50
+            transcripts = all_transcripts
+            fireflies_cache['transcripts'] = transcripts
+            fireflies_cache['fetched_at'] = now
+            fireflies_cache['expires_at'] = now + timedelta(hours=CACHE_DURATION_HOURS)
+            save_fireflies_cache()
+
+        # Match by attendee email/domain
+        contact_emails_set = set(e.lower() for e in contact_emails)
+        contact_domains_set = set(d.lower() for d in contact_domains if d not in ('gmail.com', 'outlook.com', 'yahoo.com'))
+        account_name_lower = account_name.lower()
+
+        matched = []
+        for t in transcripts:
+            if not t:
+                continue
+            attendees = t.get('meeting_attendees', []) or []
+            title = (t.get('title') or '').lower()
+            hit = False
+
+            if account_name_lower in title:
+                hit = True
+
+            for att in attendees:
+                if not att:
+                    continue
+                email = (att.get('email') or '').lower()
+                if email in contact_emails_set:
+                    hit = True
+                    break
+                if '@' in email:
+                    domain = email.split('@')[1]
+                    if domain in contact_domains_set:
+                        hit = True
+                        break
+
+            if not hit:
+                sentences = (t.get('sentences') or [])[:30]
+                text = ' '.join(s.get('text', '') for s in sentences if s).lower()
+                if account_name_lower in text:
+                    hit = True
+
+            if hit:
+                summary = t.get('summary') or {}
+                preview_sentences = (t.get('sentences') or [])[:5]
+                preview = ' '.join(s.get('text', '') for s in preview_sentences if s)[:400]
+
+                matched.append({
+                    'source': 'fireflies',
+                    'id': t.get('id'),
+                    'title': t.get('title'),
+                    'date': t.get('date'),
+                    'duration': t.get('duration'),
+                    'attendees': [
+                        {'name': a.get('displayName'), 'email': a.get('email')}
+                        for a in attendees if a and (a.get('displayName') or a.get('email'))
+                    ],
+                    'preview': preview,
+                    'overview': summary.get('overview'),
+                    'action_items': summary.get('action_items', []) or [],
+                    'keywords': summary.get('keywords', []) or [],
+                    'fireflies_url': f"https://app.fireflies.ai/view/{t.get('id')}" if t.get('id') else None,
+                })
+
+        matched.sort(key=lambda x: x.get('date') or '', reverse=True)
+        return matched[:20]
+    except Exception as e:
+        logger.warning(f"Fireflies broad search failed: {e}")
+        return []
+
+
+async def _ai_analyze_activity(sf_context: dict, raw_results: dict, previous_analysis: dict = None) -> dict:
+    """Send gathered data to Claude for concise, practical intelligence.
+    If previous_analysis is provided, sends it as context for a token-efficient refresh."""
+    import anthropic
+
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+    # Only send items with substance — prioritize recent items
+    raw_summary = {}
+    for source, items in raw_results.items():
+        if items:
+            raw_summary[source] = items[:15]
+
+    opp_context = sf_context.get('opportunity', {})
+    opp_line = ''
+    if opp_context:
+        opp_line = f"\nOPPORTUNITY: {opp_context.get('name', 'N/A')} | Stage: {opp_context.get('stage', 'N/A')} | Amount: ${opp_context.get('amount', 0):,.0f} | Close: {opp_context.get('close_date', 'N/A')} | Type: {opp_context.get('type', 'N/A')}"
+        if opp_context.get('description'):
+            opp_line += f"\nOpp Description: {opp_context['description']}"
+
+    context_block = f"""ACCOUNT: {sf_context['account_name']}
+Domain: {sf_context.get('domain', 'N/A')}
+Contacts: {', '.join(c['name'] + (' (' + c['title'] + ')' if c.get('title') else '') for c in sf_context['contacts'][:8])}
+Emails: {', '.join(sf_context['contact_emails'][:8])}{opp_line}"""
+
+    if previous_analysis:
+        prompt = f"""{context_block}
+
+PREVIOUS ANALYSIS ({previous_analysis.get('generated_at', 'recently')}):
+{previous_analysis.get('summary', '')}
+Momentum: {previous_analysis.get('momentum', 'unknown')}
+Next steps: {json.dumps(previous_analysis.get('action_items', []))}
+
+LATEST DATA:
+{json.dumps(raw_summary, default=str, indent=1)}
+
+Update the analysis. Focus on what's new or changed. Read all document content carefully — quote specific details, don't just note that a document exists.
+
+Respond ONLY with valid JSON:
+{{"summary": "...", "momentum": "hot|warm|cold|new", "key_findings": ["..."], "action_items": ["..."], "scored_items": [{{"source": "...", "id": "...", "relevance_score": 0-100, "reason": "..."}}]}}"""
+    else:
+        prompt = f"""You're a concise relationship analyst. Read all the data below and answer three questions about this account:
+
+{context_block}
+
+DATA FROM INTEGRATIONS (documents, emails, Slack, meetings, calendar):
+{json.dumps(raw_summary, default=str, indent=1)}
+
+{"IMPORTANT: Focus ONLY on the specific OPPORTUNITY listed above. This account may have multiple opportunities — only report on activity relevant to THIS one. Ignore data about other opportunities for the same account." if opp_context else ""}
+
+Answer these three questions concisely:
+1. **Status**: What is the current state of THIS opportunity? (1-2 sentences max)
+2. **Recent activity**: What has actually happened recently that's relevant to THIS opportunity? Quote specifics — names, dates, decisions, content. Ignore documents/activity about unrelated opportunities for the same account.
+3. **Next steps**: What specific actions are needed? Only include if the data directly supports them. Leave empty if nothing actionable.
+
+Score each source item's relevance to THIS SPECIFIC OPPORTUNITY (0-100). Items about a different opportunity for the same account should score 0-10. Recent items with content directly about this opportunity score highest.
+
+Respond ONLY with valid JSON:
+{{
+  "summary": "Status in 1-2 sentences. Then recent activity in 1-2 sentences. Brief and specific.",
+  "momentum": "hot|warm|cold|new",
+  "key_findings": [
+    "Specific fact from the data relevant to this opportunity",
+    "Another specific fact..."
+  ],
+  "action_items": [
+    "Specific next step grounded in the data (ONLY if data supports it)"
+  ],
+  "scored_items": [
+    {{"source": "gmail|calendar|drive|slack|fireflies", "id": "item id", "relevance_score": 0-100, "reason": "brief reason"}}
+  ]
+}}
+
+Rules:
+- Less is more. 2-3 key findings max. 1-2 action items max (or empty).
+- Never invent actions not supported by the data.
+- The summary should be 2-4 sentences total.
+- Prioritize recent activity. Ignore items unrelated to this opportunity."""
+
+    try:
+        response = client.messages.create(
+            model="claude-opus-4-6",
+            max_tokens=2000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = response.content[0].text.strip()
+        if text.startswith('```'):
+            text = text.split('\n', 1)[1].rsplit('```', 1)[0].strip()
+        return json.loads(text)
+    except Exception as e:
+        logger.error(f"AI analysis failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "summary": "Unable to generate AI analysis at this time.",
+            "momentum": "unknown",
+            "key_findings": [],
+            "action_items": [],
+            "scored_items": [],
+        }
+
+
+# Server-side intelligence cache: { account_name: { result: {...}, generated_at: datetime } }
+_intelligence_cache: Dict[str, Dict] = {}
+INTELLIGENCE_CACHE_HOURS = 24
+
+
+@app.get("/api/activity-intelligence/{account_name}")
+async def get_activity_intelligence(
+    account_name: str, request: Request,
+    force_refresh: bool = False, opportunity_name: str = None,
+):
+    """AI-powered activity intelligence with 24h server-side cache.
+    Pass ?force_refresh=true to regenerate. Pass ?opportunity_name=X to scope to a specific opp."""
+    try:
+        user = await get_current_user(request)
+        if not user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        if not ANTHROPIC_API_KEY:
+            raise HTTPException(status_code=503, detail="Anthropic API key not configured")
+
+        # Cache key includes opportunity name so different opps for same account get separate results
+        cache_key = f"{account_name}|{opportunity_name or ''}"
+
+        # Check server-side cache
+        cached = _intelligence_cache.get(cache_key)
+        now = datetime.now()
+        if cached and not force_refresh:
+            cache_age = now - cached['generated_at']
+            if cache_age.total_seconds() < INTELLIGENCE_CACHE_HOURS * 3600:
+                logger.info(f"Returning cached intelligence for '{cache_key}' (age: {cache_age})")
+                result = cached['result']
+                result['cached'] = True
+                result['generated_at'] = cached['generated_at'].isoformat()
+                return result
+
+        email = user.get('email')
+        creds = _get_google_credentials(email, request)
+
+        # Gather Salesforce context
+        sf_context = _gather_salesforce_context(account_name)
+        # Add opportunity context
+        if opportunity_name:
+            sf_context['opportunity_name'] = opportunity_name
+            # Also look up the specific opportunity from Salesforce for stage/amount/close date
+            try:
+                sf = get_salesforce()
+                opp_escaped = opportunity_name.replace("'", "\\'")
+                opp_result = sf.query(f"""
+                    SELECT Id, Name, StageName, Amount, CloseDate, Probability, Description, Type
+                    FROM Opportunity WHERE Name = '{opp_escaped}' LIMIT 1
+                """)
+                if opp_result['totalSize'] > 0:
+                    opp = opp_result['records'][0]
+                    sf_context['opportunity'] = {
+                        'name': opp.get('Name'),
+                        'stage': opp.get('StageName'),
+                        'amount': opp.get('Amount'),
+                        'close_date': opp.get('CloseDate'),
+                        'probability': opp.get('Probability'),
+                        'type': opp.get('Type'),
+                        'description': (opp.get('Description') or '')[:500],
+                    }
+            except Exception as e:
+                logger.warning(f"Could not fetch opportunity details: {e}")
+
+        contact_names = [c['name'] for c in sf_context['contacts'] if c.get('name')]
+        contact_emails = sf_context['contact_emails']
+        contact_domains = sf_context.get('contact_domains', [])
+
+        logger.info(f"Activity intelligence for '{account_name}': {len(contact_emails)} emails, {len(contact_domains)} domains")
+
+        # Search all integrations (each wrapped to prevent one failure from killing the whole request)
+        raw_results = {}
+        try:
+            raw_results['slack'] = _search_slack_broad(account_name, contact_names)
+        except Exception as e:
+            logger.error(f"Slack search failed for '{account_name}': {e}")
+            raw_results['slack'] = []
+
+        try:
+            raw_results['fireflies'] = _search_fireflies_broad(account_name, contact_emails, contact_domains)
+        except Exception as e:
+            logger.error(f"Fireflies search failed for '{account_name}': {e}")
+            raw_results['fireflies'] = []
+
+        if creds:
+            try:
+                raw_results['gmail'] = await _search_gmail_broad(creds, contact_emails, contact_domains, account_name)
+            except Exception as e:
+                logger.error(f"Gmail search failed for '{account_name}': {e}")
+                raw_results['gmail'] = []
+            try:
+                raw_results['calendar'] = await _search_calendar_broad(creds, contact_emails, contact_domains, account_name)
+            except Exception as e:
+                logger.error(f"Calendar search failed for '{account_name}': {e}")
+                raw_results['calendar'] = []
+            try:
+                raw_results['drive'] = await _search_drive_broad(creds, contact_emails, contact_domains, account_name)
+            except Exception as e:
+                logger.error(f"Drive search failed for '{account_name}': {e}")
+                raw_results['drive'] = []
+        else:
+            logger.warning(f"No Google credentials available for '{account_name}' - skipping Gmail/Calendar/Drive")
+            raw_results['gmail'] = []
+            raw_results['calendar'] = []
+            raw_results['drive'] = []
+
+        total_raw = sum(len(v) for v in raw_results.values())
+        source_breakdown = {k: len(v) for k, v in raw_results.items()}
+        logger.info(f"Gathered {total_raw} raw items for '{account_name}': {source_breakdown}")
+        # Log content availability for Drive items
+        drive_with_content = sum(1 for d in raw_results.get('drive', []) if d.get('content'))
+        if raw_results.get('drive'):
+            logger.info(f"Drive: {len(raw_results['drive'])} files found, {drive_with_content} with extracted content")
+
+        # If refreshing and we have a previous analysis, pass it for token-efficient update
+        previous_analysis = None
+        if cached and force_refresh:
+            previous_analysis = {
+                'summary': cached['result'].get('summary', ''),
+                'momentum': cached['result'].get('momentum', ''),
+                'key_findings': cached['result'].get('key_findings', []),
+                'action_items': cached['result'].get('action_items', []),
+                'generated_at': cached['generated_at'].isoformat(),
+            }
+            logger.info(f"Refreshing with previous analysis context for '{account_name}'")
+
+        # AI analysis
+        ai_result = await _ai_analyze_activity(sf_context, raw_results, previous_analysis)
+
+        # Merge AI scores back into raw items
+        score_map = {}
+        for scored in ai_result.get('scored_items', []):
+            key = (scored.get('source'), str(scored.get('id')))
+            score_map[key] = {
+                'relevance_score': scored.get('relevance_score', 0),
+                'reason': scored.get('reason', ''),
+            }
+
+        def _recency_score(item: dict) -> float:
+            """Calculate a recency bonus (0-30) based on how recent an item is."""
+            date_str = item.get('modifiedTime') or item.get('date') or item.get('start') or ''
+            if not date_str:
+                return 0
+            try:
+                if isinstance(date_str, (int, float)):
+                    item_date = datetime.fromtimestamp(date_str / 1000 if date_str > 1e10 else date_str)
+                else:
+                    item_date = datetime.fromisoformat(date_str.replace('Z', '+00:00').replace('+00:00', ''))
+                days_ago = (now - item_date).days
+                if days_ago < 0:
+                    return 25  # future events get high recency
+                if days_ago <= 7:
+                    return 30
+                if days_ago <= 30:
+                    return 20
+                if days_ago <= 90:
+                    return 10
+                return 0
+            except Exception:
+                return 0
+
+        scored_results = {}
+        for source, items in raw_results.items():
+            scored_items = []
+            for item in items:
+                key = (source, str(item.get('id', '')))
+                ai_score = score_map.get(key, {})
+                relevance = ai_score.get('relevance_score', 40)
+                recency = _recency_score(item)
+                # Composite: 70% relevance + 30% recency boost (scaled to 100)
+                composite = min(100, int(relevance * 0.7 + recency * 1.0))
+                scored_items.append({
+                    **item,
+                    'relevance_score': composite,
+                    'ai_reason': ai_score.get('reason', ''),
+                })
+            # Sort by composite score (recency + relevance)
+            scored_items.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
+            # Lower threshold: show more items, let recency surface recent ones
+            scored_items = [i for i in scored_items if i.get('relevance_score', 0) >= 15]
+            scored_results[source] = scored_items
+
+        result = {
+            'account_name': account_name,
+            'summary': ai_result.get('summary', ''),
+            'momentum': ai_result.get('momentum', 'unknown'),
+            'key_findings': ai_result.get('key_findings', []),
+            'action_items': ai_result.get('action_items', []),
+            'sources': scored_results,
+            'source_counts': {k: len(v) for k, v in scored_results.items()},
+            'sf_context': {
+                'contacts': sf_context['contacts'][:5],
+                'domain': sf_context.get('domain'),
+            },
+            'google_connected': creds is not None,
+            'cached': False,
+            'generated_at': now.isoformat(),
+        }
+
+        # Cache the result
+        _intelligence_cache[cache_key] = {
+            'result': result,
+            'generated_at': now,
+        }
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Activity intelligence error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2547,6 +4669,64 @@ async def get_sage_expenses(limit: int = 1000):
         })
 
 
+@app.get("/api/sage/unpaid-bills")
+async def get_sage_unpaid_bills(limit: int = 500):
+    """Get AP bills from Sage Intacct that haven't been fully paid yet."""
+    try:
+        import sys
+        import os as _os
+        parent_dir = _os.path.dirname(_os.path.abspath(__file__))
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
+        from mcp_client.services.sage_intacct_sync import SageIntacctService
+
+        sage_config = {
+            'company_id': os.getenv('SAGE_COMPANY_ID'),
+            'user_id': os.getenv('SAGE_USER_ID'),
+            'user_password': os.getenv('SAGE_USER_PASSWORD'),
+            'sender_id': os.getenv('SAGE_SENDER_ID'),
+            'sender_password': os.getenv('SAGE_SENDER_PASSWORD')
+        }
+        sage = SageIntacctService(sage_config)
+
+        function_xml = f"""
+        <function controlid="get-unpaid-bills">
+            <readByQuery>
+                <object>APBILL</object>
+                <query>TOTALDUE &gt; 0</query>
+                <fields>RECORDNO,RECORDID,VENDORID,VENDORNAME,DESCRIPTION,WHENCREATED,WHENDUE,WHENPAID,TOTALENTERED,TOTALDUE,TOTALPAID,STATE,RAWSTATE,PAYMENTPRIORITY,ONHOLD,DOCNUMBER</fields>
+                <pagesize>{limit}</pagesize>
+            </readByQuery>
+        </function>"""
+
+        response = sage._make_api_request(function_xml)
+
+        if not response.get('success'):
+            raise HTTPException(status_code=500, detail="Failed to fetch unpaid bills")
+
+        data = response.get('data', {})
+        bills_data = data.get('apbill', [])
+
+        if not isinstance(bills_data, list):
+            bills_data = [bills_data] if bills_data else []
+
+        return {
+            "success": True,
+            "count": len(bills_data),
+            "bills": bills_data
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        logger.error(f"Error fetching unpaid bills: {e}")
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
+
 @app.get("/api/sage/gl-accounts-balance")
 async def get_sage_gl_accounts_balance():
     """Get GL account balances from Sage Intacct (cash accounts)."""
@@ -2609,8 +4789,13 @@ async def get_cashflow_summary():
     Comprehensive cash flow summary combining:
     - Sage Intacct: payments, invoices, expenses, cash balances
     - Salesforce: pipeline forecast (weighted by probability and payment dates)
+    Cached for 10 minutes.
     """
     try:
+        cached = cache.get("cashflow_summary")
+        if cached is not None:
+            logger.info("Cache HIT for cashflow_summary")
+            return cached
         import sys
         import os
         # Add parent directory to path (works in both Docker and local dev)
@@ -3007,6 +5192,10 @@ async def get_cashflow_summary():
         if sage_error:
             response["sage_warning"] = f"Sage Intacct data unavailable: {sage_error}. Showing Salesforce pipeline forecast only."
         
+        # Cache the response
+        cache.set("cashflow_summary", response, CACHE_TTL_CASHFLOW)
+        logger.info("Cache MISS for cashflow_summary - computed fresh")
+        
         return response
         
     except HTTPException:
@@ -3027,15 +5216,10 @@ async def get_cashflow_summary():
 # ============================================================================
 
 @app.post("/api/opportunities/validate-stage-change")
-async def validate_stage_change(request: dict):
-    """Validate that opportunity can move to 'Collecting / In Effect'.
-    
-    Requirements:
-    - Must have payment schedule (at least 1 payment)
-    - Payment total must equal opportunity amount
-    """
+async def validate_stage_change(request: dict, http_request: Request = None):
+    """Validate that opportunity can move to 'Collecting / In Effect'."""
     try:
-        sf = get_salesforce()
+        sf = get_salesforce_for_request(http_request) if http_request else get_salesforce()
         opp_id = request.get('opportunity_id')
         new_stage = request.get('new_stage')
         
@@ -3177,14 +5361,10 @@ class CreatePaymentScheduleRequest(BaseModel):
 
 
 @app.post("/api/opportunities/create-payment-schedule")
-async def create_payment_schedule(request: CreatePaymentScheduleRequest):
-    """Create payment schedule for an opportunity.
-    
-    Validates that payment total matches opportunity amount.
-    Optionally deletes existing payments first.
-    """
+async def create_payment_schedule(request: CreatePaymentScheduleRequest, http_request: Request = None):
+    """Create payment schedule for an opportunity. Uses per-user SF connection."""
     try:
-        sf = get_salesforce()
+        sf = get_salesforce_for_request(http_request) if http_request else get_salesforce()
         opp_id = request.opportunity_id
         
         # Get opportunity
@@ -3265,13 +5445,10 @@ async def create_payment_schedule(request: CreatePaymentScheduleRequest):
 
 
 @app.post("/api/opportunities/update-stage")
-async def update_opportunity_stage(request: dict):
-    """Update opportunity stage with validation.
-    
-    For 'Collecting / In Effect' stage, requires payment schedule.
-    """
+async def update_opportunity_stage(request: dict, http_request: Request = None):
+    """Update opportunity stage with validation. Uses per-user SF connection."""
     try:
-        sf = get_salesforce()
+        sf = get_salesforce_for_request(http_request) if http_request else get_salesforce()
         opp_id = request.get('opportunity_id')
         new_stage = request.get('new_stage')
         

@@ -56,6 +56,7 @@ security = HTTPBearer()
 mcp_client: Optional[UnifiedMCPClient] = None
 forecasting_engine: Optional[ForecastingEngine] = None
 data_sync_service: Optional[DataSyncService] = None
+_sync_lock = asyncio.Lock()
 
 # Startup and shutdown events
 
@@ -98,12 +99,15 @@ async def startup_event():
 async def shutdown_event():
     """Cleanup on shutdown."""
     global mcp_client
-    
+
     logger.info("Shutting down Financial Forecasting API...")
-    
+
     if mcp_client:
+        sage_service = mcp_client.services.get("sage_intacct")
+        if sage_service:
+            await sage_service.disconnect()
         await mcp_client.disconnect_all()
-    
+
     logger.info("Shutdown complete.")
 
 
@@ -114,12 +118,16 @@ async def background_sync_task():
     while True:
         try:
             if data_sync_service:
-                logger.info("Running background data sync...")
-                await data_sync_service.sync_all_data()
-                logger.info("Background data sync completed.")
+                if _sync_lock.locked():
+                    logger.warning("Sync already in progress, skipping cycle.")
+                else:
+                    async with _sync_lock:
+                        logger.info("Running background data sync...")
+                        await data_sync_service.sync_all_data()
+                        logger.info("Background data sync completed.")
         except Exception as e:
             logger.error(f"Background sync error: {e}")
-        
+
         # Wait 15 minutes before next sync
         await asyncio.sleep(900)
 
@@ -187,29 +195,46 @@ async def services_health_check(client: UnifiedMCPClient = Depends(get_mcp_clien
 
 # Salesforce endpoints
 
+VALID_STAGES = {
+    'Lead Gen', 'New Lead', 'Qualifying', 'Design / Proposal Creation',
+    'Proposal Negotiation', 'Contract Creation', 'Negotiating Contract',
+    'Collecting / In Effect', 'Closed / Did not Fulfill',
+    'Closed / Completed', 'Closed Lost', 'Withdrawn', '--None--'
+}
+
+
 @app.get("/api/salesforce/opportunities", response_model=List[SalesforceOpportunity])
 async def get_opportunities(
     stage: Optional[OpportunityStage] = None,
-    limit: int = Query(100, le=1000),
+    stages: Optional[List[str]] = Query(None),
+    limit: int = Query(500, le=2000),
     client: UnifiedMCPClient = Depends(get_mcp_client),
     user = Depends(get_current_user)
 ):
     """Get Salesforce opportunities."""
     try:
         salesforce = client.services["salesforce"]
-        
+
         # Build SOQL query
         query = """
-        SELECT Id, AccountId, Name, StageName, Amount, Probability, CloseDate, 
+        SELECT Id, AccountId, Name, StageName, Amount, Probability, CloseDate,
                ExpectedRevenue, ForecastCategory, LeadSource, NextStep, Description,
                OwnerId, CreatedDate, LastModifiedDate, Payment_Terms__c,
                Contract_Start_Date__c, Contract_End_Date__c, Billing_Frequency__c
         FROM Opportunity
         """
-        
+
+        where_clauses = []
         if stage:
-            query += f" WHERE StageName = '{stage.value}'"
-        
+            where_clauses.append(f"StageName = '{stage.value}'")
+        if stages:
+            validated = [s for s in stages if s in VALID_STAGES]
+            if validated:
+                stage_list = ", ".join(f"'{s}'" for s in validated)
+                where_clauses.append(f"StageName IN ({stage_list})")
+        if where_clauses:
+            query += " WHERE " + " AND ".join(where_clauses)
+
         query += f" ORDER BY CloseDate ASC LIMIT {limit}"
         
         result = await salesforce.query(query)
@@ -634,21 +659,30 @@ async def trigger_data_sync(
     try:
         if not data_sync_service:
             raise HTTPException(status_code=503, detail="Data sync service not available")
-        
+
+        if _sync_lock.locked():
+            raise HTTPException(status_code=409, detail="Sync already in progress")
+
+        async def _locked_sync(sync_fn):
+            async with _sync_lock:
+                await sync_fn()
+
         # Run sync in background
         if sync_type == "all":
-            background_tasks.add_task(data_sync_service.sync_all_data)
+            background_tasks.add_task(_locked_sync, data_sync_service.sync_all_data)
         elif sync_type == "salesforce":
-            background_tasks.add_task(data_sync_service.sync_salesforce_data)
+            background_tasks.add_task(_locked_sync, data_sync_service.sync_salesforce_data)
         elif sync_type == "intacct":
-            background_tasks.add_task(data_sync_service.sync_intacct_data)
-        
+            background_tasks.add_task(_locked_sync, data_sync_service.sync_intacct_data)
+
         return {
             "success": True,
             "message": f"Data sync ({sync_type}) triggered successfully",
             "triggered_by": user["user_id"]
         }
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error triggering sync: {e}")
         raise HTTPException(status_code=500, detail=str(e))

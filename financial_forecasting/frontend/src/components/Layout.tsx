@@ -19,6 +19,7 @@ import {
   Menu,
   MenuItem,
   Divider,
+  Chip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -30,6 +31,8 @@ import {
   Notifications as NotificationsIcon,
   AccountCircle as AccountCircleIcon,
   Sync as SyncIcon,
+  Cloud as CloudIcon,
+  CloudOff as CloudOffIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from 'react-query';
@@ -39,6 +42,7 @@ import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const drawerWidth = 240;
+const collapsedDrawerWidth = 72;
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -57,9 +61,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, connectSalesforce } = useAuth();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [drawerHovered, setDrawerHovered] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [syncAnchorEl, setSyncAnchorEl] = useState<null | HTMLElement>(null);
 
@@ -131,12 +136,28 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const healthStatus = getHealthStatus();
 
+  const isExpanded = isMobile || drawerHovered;
+  const currentDrawerWidth = isExpanded ? drawerWidth : collapsedDrawerWidth;
+
   const drawer = (
     <div>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600 }}>
+      <Toolbar sx={{ justifyContent: isExpanded ? 'flex-start' : 'center' }}>
+        <Typography 
+          variant="h6" 
+          noWrap 
+          component="div" 
+          sx={{ 
+            fontWeight: 600,
+            display: isExpanded ? 'block' : 'none',
+          }}
+        >
           Revenue Hub
         </Typography>
+        {!isExpanded && (
+          <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.primary.main }}>
+            R
+          </Typography>
+        )}
       </Toolbar>
       <Divider />
       <List>
@@ -146,6 +167,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               selected={location.pathname === item.path}
               onClick={() => handleMenuClick(item.path)}
               sx={{
+                justifyContent: isExpanded ? 'initial' : 'center',
+                px: 2.5,
                 '&.Mui-selected': {
                   backgroundColor: theme.palette.primary.main + '20',
                   borderRight: `3px solid ${theme.palette.primary.main}`,
@@ -159,8 +182,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 },
               }}
             >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
+              <ListItemIcon
+                sx={{
+                  minWidth: 0,
+                  mr: isExpanded ? 3 : 'auto',
+                  justifyContent: 'center',
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText 
+                primary={item.text} 
+                sx={{ display: isExpanded ? 'block' : 'none' }}
+              />
             </ListItemButton>
           </ListItem>
         ))}
@@ -174,14 +208,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <AppBar
         position="fixed"
         sx={{
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` },
+          width: { md: `calc(100% - ${collapsedDrawerWidth}px)` },
+          ml: { md: `${collapsedDrawerWidth}px` },
           backgroundColor: 'white',
           color: 'text.primary',
           boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ minHeight: { xs: 56, sm: 64 }, height: 64 }}>
           <IconButton
             color="inherit"
             aria-label="open drawer"
@@ -192,7 +226,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <MenuIcon />
           </IconButton>
           
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontSize: '1.1rem' }}>
             {menuItems.find(item => item.path === location.pathname)?.text || 'Overview'}
           </Typography>
 
@@ -233,13 +267,36 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </Badge>
           </IconButton>
 
+          {/* SF Connection Indicator */}
+          {!user?.salesforce_connected && (
+            <Chip
+              icon={<CloudOffIcon />}
+              label="Connect SF"
+              size="small"
+              color="warning"
+              variant="outlined"
+              onClick={() => connectSalesforce()}
+              sx={{ mr: 1, cursor: 'pointer', display: { xs: 'none', sm: 'flex' } }}
+            />
+          )}
+
           {/* Profile Menu */}
           <IconButton
             color="inherit"
             onClick={handleProfileMenuOpen}
           >
             {user?.picture ? (
-              <Avatar src={user.picture} sx={{ width: 32, height: 32 }} />
+              <Badge
+                overlap="circular"
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                badgeContent={
+                  user?.salesforce_connected 
+                    ? <CloudIcon sx={{ fontSize: 12, color: 'success.main' }} />
+                    : null
+                }
+              >
+                <Avatar src={user.picture} sx={{ width: 32, height: 32 }} />
+              </Badge>
             ) : (
               <Avatar sx={{ width: 32, height: 32, bgcolor: theme.palette.primary.main }}>
                 {user?.name?.charAt(0) || <AccountCircleIcon />}
@@ -266,10 +323,43 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Typography variant="body2" color="text.secondary">
                 {user?.email || 'No email'}
               </Typography>
+              {user?.salesforce_connected ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                  <CloudIcon sx={{ fontSize: 14, color: 'success.main' }} />
+                  <Typography variant="caption" color="success.main">
+                    SF: {user.salesforce_user_name}
+                  </Typography>
+                </Box>
+              ) : (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                  <CloudOffIcon sx={{ fontSize: 14, color: 'warning.main' }} />
+                  <Typography variant="caption" color="warning.main">
+                    Salesforce not connected
+                  </Typography>
+                </Box>
+              )}
             </Box>
             <Divider />
+            {!user?.salesforce_connected && (
+              <MenuItem onClick={() => { handleProfileMenuClose(); connectSalesforce(); }}
+                sx={{ color: 'primary.main' }}>
+                <CloudIcon sx={{ mr: 1, fontSize: 18 }} />
+                Connect Salesforce
+              </MenuItem>
+            )}
             <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/settings'); }}>
               Settings
+            </MenuItem>
+            <MenuItem onClick={async () => { 
+              handleProfileMenuClose(); 
+              try {
+                await apiService.clearCache();
+                toast.success('Cache cleared — data will refresh');
+              } catch { 
+                toast.error('Failed to clear cache'); 
+              }
+            }}>
+              Refresh Data
             </MenuItem>
             <MenuItem onClick={() => { handleProfileMenuClose(); logout(); }}>
               Logout
@@ -280,7 +370,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       <Box
         component="nav"
-        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+        sx={{ width: { md: collapsedDrawerWidth }, flexShrink: { md: 0 } }}
       >
         {/* Mobile drawer */}
         <Drawer
@@ -304,12 +394,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Desktop drawer */}
         <Drawer
           variant="permanent"
+          onMouseEnter={() => setDrawerHovered(true)}
+          onMouseLeave={() => setDrawerHovered(false)}
           sx={{
             display: { xs: 'none', md: 'block' },
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
-              width: drawerWidth,
+              width: currentDrawerWidth,
               borderRight: '1px solid #e0e0e0',
+              overflowX: 'hidden',
+              transition: theme.transitions.create('width', {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.enteringScreen,
+              }),
+              boxShadow: isExpanded ? '2px 0 8px rgba(0,0,0,0.15)' : 'none',
+              zIndex: isExpanded ? 1200 : 'auto',
             },
           }}
           open
@@ -322,13 +421,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
-          width: { md: `calc(100% - ${drawerWidth}px)` },
+          p: 2,
+          pt: 1,
+          width: { md: `calc(100% - ${collapsedDrawerWidth}px)` },
           minHeight: '100vh',
           backgroundColor: theme.palette.background.default,
         }}
       >
-        <Toolbar />
+        <Toolbar sx={{ minHeight: '64px !important', height: 64 }} />
         {children}
       </Box>
     </Box>

@@ -16,6 +16,7 @@ import Cleanup from './pages/Cleanup';
 import NewOpportunity from './pages/NewOpportunity';
 import PaymentSchedule from './pages/PaymentSchedule';
 import Settings from './pages/Settings';
+import SalesforceCallback from './pages/SalesforceCallback';
 
 // Create Material-UI theme
 const theme = createTheme({
@@ -68,13 +69,15 @@ const theme = createTheme({
   },
 });
 
-// Create React Query client
+// Create React Query client with aggressive caching
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnMount: false,       // Don't refetch when component remounts if data is fresh
+      staleTime: 5 * 60 * 1000,   // Data is "fresh" for 5 minutes (won't refetch)
+      cacheTime: 30 * 60 * 1000,  // Keep unused data in memory for 30 min
     },
   },
 });
@@ -89,6 +92,7 @@ function App() {
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
+              <Route path="/callback" element={<SalesforceCallback />} />
               
               {/* Protected routes */}
               <Route

@@ -8,13 +8,14 @@ import {
 import {
   Payment as PaymentIcon,
   CheckCircle as CheckCircleIcon,
-  Receipt as ReceiptIcon,
   PendingActions as PendingActionsIcon,
+  ReceiptLong as ReceiptLongIcon,
 } from '@mui/icons-material';
 
 import FinanceDashboard from './FinanceDashboard';
 import ReceivedPayments from './ReceivedPayments';
 import PendingInvoices from './PendingInvoices';
+import UnpaidBills from './UnpaidBills';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -83,6 +84,13 @@ export default function Revenue() {
             id="revenue-tab-2"
             aria-controls="revenue-tabpanel-2"
           />
+          <Tab
+            icon={<ReceiptLongIcon />}
+            iconPosition="start"
+            label="Unpaid Bills"
+            id="revenue-tab-3"
+            aria-controls="revenue-tabpanel-3"
+          />
         </Tabs>
       </Box>
 
@@ -96,6 +104,10 @@ export default function Revenue() {
 
       <TabPanel value={currentTab} index={2}>
         <PendingInvoices />
+      </TabPanel>
+
+      <TabPanel value={currentTab} index={3}>
+        <UnpaidBills />
       </TabPanel>
     </Box>
   );

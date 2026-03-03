@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { formatDollarMillions } from '../utils/formatters';
 import {
@@ -20,13 +20,13 @@ import {
   Alert,
   Select,
   Autocomplete,
+  Tooltip,
 } from '@mui/material';
 import {
-  Edit as EditIcon,
   Refresh as RefreshIcon,
   Add as AddIcon,
-  Save as SaveIcon,
-  Cancel as CancelIcon,
+  Check as CheckIcon,
+  TipsAndUpdates as IntelligenceIcon,
 } from '@mui/icons-material';
 import { 
   DataGrid, 
@@ -34,8 +34,7 @@ import {
   GridRenderCellParams,
   GridRenderEditCellParams,
   GridValueGetterParams,
-  GridFilterModel,
-  GridSortModel,
+  GridToolbar,
   useGridApiContext,
 } from '@mui/x-data-grid';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
@@ -44,6 +43,8 @@ import { format, addDays, parseISO, differenceInDays } from 'date-fns';
 
 import { apiService } from '../services/api';
 import PaymentScheduleModal from '../components/PaymentScheduleModal';
+import TaskPanel from '../components/TaskPanel';
+import ActivityIntelligencePanel from '../components/ActivityIntelligencePanel';
 
 // Opportunity stages - matching Salesforce picklist
 const OPPORTUNITY_STAGES = [
@@ -73,6 +74,9 @@ const OPEN_STAGES = [
   'Negotiating Contract'
 ];
 
+const COLLECTING_STAGES = ['Collecting / In Effect'];
+const CLOSED_STAGES = ['Closed Lost', 'Withdrawn', 'Closed / Did not Fulfill', 'Closed / Completed'];
+
 interface Opportunity {
   Id: string;
   Name: string;
@@ -96,6 +100,7 @@ interface Opportunity {
   Earliest_Scheduled_Payment__c?: string;
   RecordType?: { Name: string };
   Active_Opportunity__c?: boolean;
+  Type?: string;
 }
 
 // Custom Autocomplete Edit Component for Account
@@ -190,10 +195,14 @@ const Opportunities: React.FC = () => {
   const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [viewMode, setViewMode] = useState<'open' | 'collecting' | 'closed'>('open');
-  const [recentlyChangedIds, setRecentlyChangedIds] = useState<Set<string>>(new Set());
+  const [recentlyChangedIds, setRecentlyChangedIds] = useState<Record<string, boolean>>({});
   const recentlyChangedRef = useRef<Set<string>>(new Set());
-  const [filteredRows, setFilteredRows] = useState<Opportunity[]>([]);
   const [initialFilter, setInitialFilter] = useState<'atRisk' | 'stale' | null>(null);
+  
+  // Filter states
+  const [philanthropyOnly, setPhilanthropyOnly] = useState(false);
+  const [pbcOnly, setPbcOnly] = useState(false);
+  const [aijiOnly, setAijiOnly] = useState(false);
   
   // Bulk action states
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
@@ -205,13 +214,34 @@ const Opportunities: React.FC = () => {
   const [paymentScheduleOpen, setPaymentScheduleOpen] = useState(false);
   const [paymentScheduleOpp, setPaymentScheduleOpp] = useState<Opportunity | null>(null);
 
+  // Task Panel state
+  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
+  const [taskPanelOpp, setTaskPanelOpp] = useState<Opportunity | null>(null);
+
+  // Activity Intelligence Panel state (drawer)
+  const [activityPanelOpen, setActivityPanelOpen] = useState(false);
+  const [activityOpp, setActivityOpp] = useState<Opportunity | null>(null);
+
+
   const queryClient = useQueryClient();
 
   // Fetch opportunities
+  const stagesForView = viewMode === 'open' ? OPEN_STAGES
+    : viewMode === 'collecting' ? COLLECTING_STAGES : CLOSED_STAGES;
+
   const { data: opportunitiesData, isLoading, error } = useQuery(
-    'opportunities',
+    ['opportunities', philanthropyOnly, pbcOnly, viewMode],
     async () => {
-      const response = await apiService.getOpportunities();
+      const params: any = { stages: stagesForView };
+      if (philanthropyOnly) {
+        params.record_type = 'Philanthropy';
+        params.active_only = true;
+      }
+      if (pbcOnly) {
+        params.opp_type = 'PBC';
+        params.active_only = true;
+      }
+      const response = await apiService.getOpportunities(params);
       return response.data;
     }
   );
@@ -245,9 +275,27 @@ const Opportunities: React.FC = () => {
     }
   );
 
-  // Ensure users and accounts are always arrays
-  const users = Array.isArray(usersData) ? usersData : (usersData?.users || []);
-  const accounts = Array.isArray(accountsData) ? accountsData : (accountsData?.accounts || []);
+  // Ensure users and accounts are always arrays (memoized to stabilize Map deps)
+  const users = useMemo(
+    () => Array.isArray(usersData) ? usersData : (usersData?.users || []),
+    [usersData]
+  );
+  const accounts = useMemo(
+    () => Array.isArray(accountsData) ? accountsData : (accountsData?.accounts || []),
+    [accountsData]
+  );
+
+  const accountMap = useMemo(() => {
+    const map = new Map<string, any>();
+    accounts.forEach((a: any) => map.set(a.Id, a));
+    return map;
+  }, [accounts]);
+
+  const userMap = useMemo(() => {
+    const map = new Map<string, any>();
+    users.forEach((u: any) => map.set(u.Id, u));
+    return map;
+  }, [users]);
 
   // Handle incoming filter from Dashboard
   useEffect(() => {
@@ -283,14 +331,23 @@ const Opportunities: React.FC = () => {
   // Bulk update mutation
   const bulkUpdateMutation = useMutation(
     async ({ oppIds, updates }: { oppIds: string[]; updates: any }) => {
-      // Update all selected opportunities
-      const promises = oppIds.map(id => apiService.updateOpportunity(id, updates));
-      return await Promise.all(promises);
+      // Use bulk update endpoint for better performance
+      const response = await apiService.bulkUpdateOpportunities(oppIds, updates);
+      return response.data;
     },
     {
       onSuccess: (data, variables) => {
         queryClient.invalidateQueries('opportunities');
-        toast.success(`Successfully updated ${variables.oppIds.length} opportunities!`);
+        
+        if (data.failed_count > 0) {
+          toast(`Updated ${data.success_count} of ${data.total} opportunities. ${data.failed_count} failed.`, {
+            icon: '⚠️',
+            duration: 5000
+          });
+        } else {
+          toast.success(`Successfully updated ${data.success_count} opportunities!`);
+        }
+        
         setBulkActionDialogOpen(false);
         setSelectedRowIds([]);
         setBulkAction('');
@@ -446,12 +503,61 @@ const Opportunities: React.FC = () => {
         return oldRow; // Revert the change
       }
     }
-
+    
     return newRow; // No changes
   };
 
   // Pipeline columns (for Sales team - focus on closing deals)
   const pipelineColumns: GridColDef[] = [
+    {
+      field: 'tasks',
+      headerName: 'Tasks',
+      width: 80,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      renderCell: (params: GridRenderCellParams) => (
+        <Button
+          size="small"
+          variant="text"
+          onClick={(e) => {
+            e.stopPropagation();
+            setTaskPanelOpp(params.row);
+            setTaskPanelOpen(true);
+          }}
+          sx={{ minWidth: 0, fontSize: '0.75rem', textTransform: 'none' }}
+        >
+          📋 Tasks
+        </Button>
+      ),
+    },
+    {
+      field: 'activity',
+      headerName: 'Intel',
+      width: 70,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      renderCell: (params: GridRenderCellParams) => (
+        <Tooltip title="View activity intelligence">
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              setActivityOpp(params.row);
+              setActivityPanelOpen(true);
+            }}
+            sx={{
+              color: activityOpp?.Id === params.row.Id && activityPanelOpen ? 'primary.main' : 'text.secondary',
+              bgcolor: activityOpp?.Id === params.row.Id && activityPanelOpen ? 'primary.50' : 'transparent',
+              '&:hover': { bgcolor: 'primary.50' },
+            }}
+          >
+            <IntelligenceIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
     {
       field: 'Name',
       headerName: 'Opportunity Name',
@@ -468,7 +574,7 @@ const Opportunities: React.FC = () => {
       editable: true,
       valueGetter: (params: GridValueGetterParams) => params.row.AccountId,
       renderCell: (params: GridRenderCellParams) => {
-        const account = accounts?.find((acc: any) => acc.Id === params.row.AccountId);
+        const account = accountMap.get(params.row.AccountId);
         return account?.Name || params.row.Account?.Name || 'Unknown';
       },
       renderEditCell: (params: GridRenderEditCellParams) => <AccountEditCell {...params} />,
@@ -482,11 +588,11 @@ const Opportunities: React.FC = () => {
       editable: true,
       valueGetter: (params: GridValueGetterParams) => {
         // Return the owner's name for filtering to work correctly
-        const user = users?.find((u: any) => u.Id === params.row.OwnerId);
+        const user = userMap.get(params.row.OwnerId);
         return user?.Name || params.row.Owner?.Name || 'Unassigned';
       },
       renderCell: (params: GridRenderCellParams) => {
-        const user = users?.find((u: any) => u.Id === params.row.OwnerId);
+        const user = userMap.get(params.row.OwnerId);
         return user?.Name || params.row.Owner?.Name || 'Unassigned';
       },
       renderEditCell: (params: GridRenderEditCellParams) => <OwnerEditCell {...params} />,
@@ -524,18 +630,17 @@ const Opportunities: React.FC = () => {
               console.log('🔴 Moving to closed stage:', newStage, 'ID:', params.row.Id);
               recentlyChangedRef.current.add(params.row.Id);
               setRecentlyChangedIds(prev => {
-                const next = new Set(prev).add(params.row.Id);
-                console.log('🟡 Updated recentlyChangedIds:', Array.from(next));
+                const next = { ...prev, [params.row.Id]: true };
+                console.log('🟡 Updated recentlyChangedIds:', Object.keys(next));
                 return next;
               });
-              
+
               setTimeout(() => {
                 console.log('⏰ 5 seconds passed, removing ID:', params.row.Id);
                 recentlyChangedRef.current.delete(params.row.Id);
                 setRecentlyChangedIds(prev => {
-                  const next = new Set(prev);
-                  next.delete(params.row.Id);
-                  return next;
+                  const { [params.row.Id]: _, ...rest } = prev;
+                  return rest;
                 });
               }, 5000); // Keep visible for 5 seconds
             }
@@ -559,33 +664,33 @@ const Opportunities: React.FC = () => {
             }
             
             // Optimistically update the UI immediately
-            const oldData = queryClient.getQueryData('opportunities');
-            queryClient.setQueryData('opportunities', (old: any) => {
+            const currentQueryKey = ['opportunities', philanthropyOnly, pbcOnly, viewMode];
+            const oldData = queryClient.getQueryData(currentQueryKey);
+            queryClient.setQueryData(currentQueryKey, (old: any) => {
               if (!old) return old;
-              return old.map((opp: any) => 
-                opp.Id === params.row.Id 
+              return old.map((opp: any) =>
+                opp.Id === params.row.Id
                   ? { ...opp, StageName: newStage }
                   : opp
               );
             });
-            
+
             try {
               // Only send the StageName field to update
               await apiService.updateOpportunity(params.row.Id, {
                 StageName: newStage
               });
-              toast.success('Stage updated!', { 
+              toast.success('Stage updated!', {
                 id: loadingToast
               });
               // Refresh in background to get any server-side changes
               queryClient.invalidateQueries('opportunities');
             } catch (error: any) {
               // Revert on error
-              queryClient.setQueryData('opportunities', oldData);
+              queryClient.setQueryData(currentQueryKey, oldData);
               setRecentlyChangedIds(prev => {
-                const next = new Set(prev);
-                next.delete(params.row.Id);
-                return next;
+                const { [params.row.Id]: _, ...rest } = prev;
+                return rest;
               });
               toast.error(`Failed: ${error.response?.data?.detail || error.message}`, { id: loadingToast });
             }
@@ -603,11 +708,11 @@ const Opportunities: React.FC = () => {
             '&:after': { borderBottom: 'none' },
           }}
           renderValue={(value) => (
-            <Chip
+        <Chip
               label={value}
               color={getStageColor(value as string)}
-              size="small"
-            />
+          size="small"
+        />
           )}
         >
           {OPPORTUNITY_STAGES.map((stage) => (
@@ -710,6 +815,55 @@ const Opportunities: React.FC = () => {
   // Payment columns (for Finance team - focus on tracking payments)
   const paymentColumns: GridColDef[] = [
     {
+      field: 'tasks',
+      headerName: 'Tasks',
+      width: 80,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      renderCell: (params: GridRenderCellParams) => (
+        <Button
+          size="small"
+          variant="text"
+          onClick={(e) => {
+            e.stopPropagation();
+            setTaskPanelOpp(params.row);
+            setTaskPanelOpen(true);
+          }}
+          sx={{ minWidth: 0, fontSize: '0.75rem', textTransform: 'none' }}
+        >
+          📋 Tasks
+        </Button>
+      ),
+    },
+    {
+      field: 'activity',
+      headerName: 'Intel',
+      width: 70,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      renderCell: (params: GridRenderCellParams) => (
+        <Tooltip title="View activity intelligence">
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              setActivityOpp(params.row);
+              setActivityPanelOpen(true);
+            }}
+            sx={{
+              color: activityOpp?.Id === params.row.Id && activityPanelOpen ? 'primary.main' : 'text.secondary',
+              bgcolor: activityOpp?.Id === params.row.Id && activityPanelOpen ? 'primary.50' : 'transparent',
+              '&:hover': { bgcolor: 'primary.50' },
+            }}
+          >
+            <IntelligenceIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+    {
       field: 'Name',
       headerName: 'Grant Name',
       flex: 2,
@@ -723,11 +877,11 @@ const Opportunities: React.FC = () => {
       minWidth: 180,
       valueGetter: (params: GridValueGetterParams) => {
         // Return the account name for filtering to work correctly
-        const account = accounts?.find((acc: any) => acc.Id === params.row.AccountId);
+        const account = accountMap.get(params.row.AccountId);
         return account?.Name || params.row.Account?.Name || 'Unknown';
       },
       renderCell: (params: GridRenderCellParams) => {
-        const account = accounts?.find((acc: any) => acc.Id === params.row.AccountId);
+        const account = accountMap.get(params.row.AccountId);
         return account?.Name || params.row.Account?.Name || 'Unknown';
       },
       filterable: true,
@@ -956,7 +1110,7 @@ const Opportunities: React.FC = () => {
       // Open pipeline - show open stages + recently changed
       return opportunities?.filter((opp: Opportunity) => {
         const isOpen = OPEN_STAGES.includes(opp.StageName);
-        const inRecentSet = recentlyChangedIds.has(opp.Id);
+        const inRecentSet = Boolean(recentlyChangedIds[opp.Id]);
         const inRecentRef = recentlyChangedRef.current.has(opp.Id);
         return isOpen || inRecentSet || inRecentRef;
       }) || [];
@@ -978,8 +1132,24 @@ const Opportunities: React.FC = () => {
     }
   }, [opportunities, viewMode, recentlyChangedIds]);
 
-  // Apply additional filters from Dashboard navigation
-  let visibleOpps = displayOpps;
+  // Apply AIJI name filter (client-side)
+  let visibleOpps = aijiOnly
+    ? displayOpps.filter((opp: Opportunity) => (opp.Name || '').toUpperCase().includes('AIJI'))
+    : displayOpps;
+
+  // Recompute metrics based on visibleOpps so filters affect the topline numbers
+  const metricsOpps = visibleOpps;
+  const metricsTotalPipeline = metricsOpps.reduce((sum: number, opp: Opportunity) => 
+    sum + (opp.Amount || 0), 0) || 0;
+  const metricsWeightedPipeline = metricsOpps.reduce((sum: number, opp: Opportunity) => 
+    sum + ((opp.Amount || 0) * (opp.Probability || 0) / 100), 0) || 0;
+  const metricsPaymentsReceived = metricsOpps.reduce((sum: number, opp: Opportunity) => 
+    sum + (opp.npe01__Payments_Made__c || 0), 0) || 0;
+  const metricsOutstanding = metricsOpps.reduce((sum: number, opp: Opportunity) => 
+    sum + ((opp.Amount || 0) - (opp.npe01__Payments_Made__c || 0)), 0) || 0;
+  const metricsExpected = metricsOpps.reduce((sum: number, opp: Opportunity) => 
+    sum + (opp.Amount || 0), 0) || 0;
+
   if (initialFilter === 'atRisk') {
     const now = new Date();
     const currentQuarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
@@ -1007,10 +1177,7 @@ const Opportunities: React.FC = () => {
     });
   }
 
-  // Update filteredRows whenever visibleOpps changes (for totals bar)
-  React.useEffect(() => {
-    setFilteredRows(visibleOpps);
-  }, [visibleOpps]);
+  // Use visibleOpps directly for the totals bar (no need for separate state)
 
   return (
     <>
@@ -1106,6 +1273,58 @@ const Opportunities: React.FC = () => {
         </Box>
       </Box>
 
+      {/* Pipeline Filters */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+        <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 'bold' }}>
+          Filters:
+        </Typography>
+        <Chip
+          label="Philanthropy Pipeline (Active Only)"
+          onClick={() => {
+            setPhilanthropyOnly(!philanthropyOnly);
+            if (pbcOnly) setPbcOnly(false);
+            if (aijiOnly) setAijiOnly(false);
+          }}
+          color={philanthropyOnly ? 'primary' : 'default'}
+          variant={philanthropyOnly ? 'filled' : 'outlined'}
+          icon={philanthropyOnly ? <CheckIcon /> : undefined}
+        />
+        <Chip
+          label="PBC Pipeline (Active Only)"
+          onClick={() => {
+            setPbcOnly(!pbcOnly);
+            if (philanthropyOnly) setPhilanthropyOnly(false);
+            if (aijiOnly) setAijiOnly(false);
+          }}
+          color={pbcOnly ? 'secondary' : 'default'}
+          variant={pbcOnly ? 'filled' : 'outlined'}
+          icon={pbcOnly ? <CheckIcon /> : undefined}
+        />
+        <Chip
+          label="AIJI"
+          onClick={() => {
+            setAijiOnly(!aijiOnly);
+            if (philanthropyOnly) setPhilanthropyOnly(false);
+            if (pbcOnly) setPbcOnly(false);
+          }}
+          color={aijiOnly ? 'info' : 'default'}
+          variant={aijiOnly ? 'filled' : 'outlined'}
+          icon={aijiOnly ? <CheckIcon /> : undefined}
+        />
+        {(philanthropyOnly || pbcOnly || aijiOnly) && (
+          <Button
+            size="small"
+            onClick={() => {
+              setPhilanthropyOnly(false);
+              setPbcOnly(false);
+              setAijiOnly(false);
+            }}
+          >
+            Clear Filters
+          </Button>
+        )}
+      </Box>
+
       {/* Filter Alert */}
       {initialFilter && (
         <Alert 
@@ -1156,7 +1375,7 @@ const Opportunities: React.FC = () => {
                 <Typography color="textSecondary" gutterBottom variant="body2">
                   Open Opportunities
                 </Typography>
-                <Typography variant="h4">{openOnlyOpps.length}</Typography>
+                <Typography variant="h4">{metricsOpps.length}</Typography>
                 <Typography variant="body2" color="textSecondary">
                   Active deals
                 </Typography>
@@ -1169,7 +1388,7 @@ const Opportunities: React.FC = () => {
                 <Typography color="textSecondary" gutterBottom variant="body2">
                   Total Pipeline Value
                 </Typography>
-                <Typography variant="h4">{formatDollarMillions(totalPipeline)}</Typography>
+                <Typography variant="h4">{formatDollarMillions(metricsTotalPipeline)}</Typography>
                 <Typography variant="body2" color="textSecondary">
                   Potential revenue
                 </Typography>
@@ -1183,7 +1402,7 @@ const Opportunities: React.FC = () => {
                   Weighted Pipeline
                 </Typography>
                 <Typography variant="h4" color="primary.main">
-                  {formatDollarMillions(weightedPipeline)}
+                  {formatDollarMillions(metricsWeightedPipeline)}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Expected value
@@ -1198,7 +1417,7 @@ const Opportunities: React.FC = () => {
                   Avg Deal Size
                 </Typography>
                 <Typography variant="h4">
-                  {formatDollarMillions(totalPipeline / (openOnlyOpps.length || 1))}
+                  {formatDollarMillions(metricsTotalPipeline / (metricsOpps.length || 1))}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Per opportunity
@@ -1217,7 +1436,7 @@ const Opportunities: React.FC = () => {
                 <Typography color="textSecondary" gutterBottom variant="body2">
                   Active Grants
                 </Typography>
-                <Typography variant="h4">{paymentOpps.length}</Typography>
+                <Typography variant="h4">{metricsOpps.length}</Typography>
                 <Typography variant="body2" color="textSecondary">
                   In collection
                 </Typography>
@@ -1230,7 +1449,7 @@ const Opportunities: React.FC = () => {
                 <Typography color="textSecondary" gutterBottom variant="body2">
                   Total Expected
                 </Typography>
-                <Typography variant="h4">{formatDollarMillions(totalExpected)}</Typography>
+                <Typography variant="h4">{formatDollarMillions(metricsExpected)}</Typography>
                 <Typography variant="body2" color="textSecondary">
                   Awarded amount
                 </Typography>
@@ -1244,10 +1463,10 @@ const Opportunities: React.FC = () => {
                   Payments Received
                 </Typography>
                 <Typography variant="h4" color="success.main">
-                  {formatDollarMillions(totalPaymentsReceived)}
+                  {formatDollarMillions(metricsPaymentsReceived)}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
-                  {totalExpected > 0 ? Math.round((totalPaymentsReceived / totalExpected) * 100) : 0}% received
+                  {metricsExpected > 0 ? Math.round((metricsPaymentsReceived / metricsExpected) * 100) : 0}% received
                 </Typography>
               </CardContent>
             </Card>
@@ -1259,7 +1478,7 @@ const Opportunities: React.FC = () => {
                   Outstanding
                 </Typography>
                 <Typography variant="h4" color="warning.main">
-                  {formatDollarMillions(totalOutstanding)}
+                  {formatDollarMillions(metricsOutstanding)}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   {totalExpected > 0 ? Math.round((totalOutstanding / totalExpected) * 100) : 0}% remaining
@@ -1278,10 +1497,10 @@ const Opportunities: React.FC = () => {
       )}
 
       {/* Data Grid */}
-      <Card>
-        <CardContent>
+        <Card>
+          <CardContent>
           {/* Filtered Totals Bar */}
-          {filteredRows.length > 0 && viewMode !== 'closed' && (
+          {visibleOpps.length > 0 && viewMode !== 'closed' && (
             <Box sx={{ 
               p: 2, 
               mb: 2, 
@@ -1294,105 +1513,125 @@ const Opportunities: React.FC = () => {
               borderColor: 'divider'
             }}>
               <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                Showing: {filteredRows.length} opportunities
+                Showing: {visibleOpps.length} opportunities
               </Typography>
               {viewMode === 'open' && (
                 <>
                   <Typography variant="body2">
-                    Total Value: {formatDollarMillions(filteredRows.reduce((sum: number, opp: Opportunity) => sum + (opp.Amount || 0), 0))}
+                    Total Value: {formatDollarMillions(visibleOpps.reduce((sum: number, opp: Opportunity) => sum + (opp.Amount || 0), 0))}
                   </Typography>
                   <Typography variant="body2">
-                    Weighted Value: {formatDollarMillions(filteredRows.reduce((sum: number, opp: Opportunity) => sum + ((opp.Amount || 0) * (opp.Probability || 0) / 100), 0))}
+                    Weighted Value: {formatDollarMillions(visibleOpps.reduce((sum: number, opp: Opportunity) => sum + ((opp.Amount || 0) * (opp.Probability || 0) / 100), 0))}
                   </Typography>
                   <Typography variant="body2">
-                    Avg Probability: {filteredRows.length > 0 ? Math.round(filteredRows.reduce((sum: number, opp: Opportunity) => sum + (opp.Probability || 0), 0) / filteredRows.length) : 0}%
+                    Avg Probability: {visibleOpps.length > 0 ? Math.round(visibleOpps.reduce((sum: number, opp: Opportunity) => sum + (opp.Probability || 0), 0) / visibleOpps.length) : 0}%
                   </Typography>
                 </>
               )}
               {viewMode === 'collecting' && (
                 <>
                   <Typography variant="body2">
-                    Total Amount: {formatDollarMillions(filteredRows.reduce((sum: number, opp: Opportunity) => sum + (opp.Amount || 0), 0))}
+                    Total Amount: {formatDollarMillions(visibleOpps.reduce((sum: number, opp: Opportunity) => sum + (opp.Amount || 0), 0))}
                   </Typography>
                   <Typography variant="body2">
-                    Received: {formatDollarMillions(filteredRows.reduce((sum: number, opp: Opportunity) => sum + (opp.npe01__Payments_Made__c || 0), 0))}
+                    Received: {formatDollarMillions(visibleOpps.reduce((sum: number, opp: Opportunity) => sum + (opp.npe01__Payments_Made__c || 0), 0))}
                   </Typography>
                   <Typography variant="body2">
-                    Outstanding: {formatDollarMillions(filteredRows.reduce((sum: number, opp: Opportunity) => sum + ((opp.Amount || 0) - (opp.npe01__Payments_Made__c || 0)), 0))}
+                    Outstanding: {formatDollarMillions(visibleOpps.reduce((sum: number, opp: Opportunity) => sum + ((opp.Amount || 0) - (opp.npe01__Payments_Made__c || 0)), 0))}
                   </Typography>
                 </>
               )}
             </Box>
           )}
-          <Box sx={{ height: 'calc(100vh - 500px)', minHeight: 600, width: '100%' }}>
-            <DataGrid
-              rows={visibleOpps || []}
-              columns={viewMode === 'collecting' ? paymentColumns : pipelineColumns}
-              loading={isLoading}
-              getRowId={(row) => row.Id}
-              pagination
-              pageSizeOptions={[25, 50, 100, 250, 500]}
-              editMode="cell"
-              processRowUpdate={viewMode === 'open' ? handleCellEdit : undefined}
-              onProcessRowUpdateError={(error) => {
-                console.error('Error updating row:', error);
-              }}
-              checkboxSelection
-              rowSelectionModel={selectedRowIds}
-              onRowSelectionModelChange={(newSelection) => {
-                setSelectedRowIds(newSelection as string[]);
-              }}
-              initialState={{
-                pagination: {
-                  paginationModel: { pageSize: 100, page: 0 },
-                },
-                sorting: {
-                  sortModel: viewMode === 'collecting' 
-                    ? [{ field: 'Most_Recent_Payment_Date__c', sort: 'desc' }]
-                    : [{ field: 'CloseDate', sort: 'asc' }],
-                },
-                filter: {
-                  filterModel: {
-                    items: [],
+            <Box sx={{ height: 'calc(100vh - 500px)', minHeight: 600, width: '100%' }}>
+              <DataGrid
+               rows={visibleOpps || []}
+               columns={viewMode === 'collecting' ? paymentColumns : pipelineColumns}
+                loading={isLoading}
+                getRowId={(row) => row.Id}
+                pagination
+                pageSizeOptions={[25, 50, 100, 250, 500]}
+                editMode="cell"
+               processRowUpdate={viewMode === 'open' ? handleCellEdit : undefined}
+                onProcessRowUpdateError={(error) => {
+                  console.error('Error updating row:', error);
+                }}
+               checkboxSelection
+               rowSelectionModel={selectedRowIds}
+               onRowSelectionModelChange={(newSelection) => {
+                 setSelectedRowIds(newSelection as string[]);
+               }}
+               slots={{
+                 toolbar: GridToolbar,
+               }}
+               slotProps={{
+                 toolbar: {
+                   showQuickFilter: true,
+                   quickFilterProps: { debounceMs: 500 },
+                   printOptions: { disableToolbarButton: true },
+                   csvOptions: { disableToolbarButton: true },
+                 },
+                }}
+                initialState={{
+                  pagination: {
+                    paginationModel: { pageSize: 100, page: 0 },
                   },
-                },
-              }}
-              filterMode="client"
-              sortingMode="client"
-              paginationMode="client"
-              disableRowSelectionOnClick={false}
-              disableColumnFilter={false}
-              disableColumnMenu={false}
-              isCellEditable={(params) => {
+                  sorting: {
+                   sortModel: viewMode === 'collecting' 
+                     ? [{ field: 'Most_Recent_Payment_Date__c', sort: 'desc' }]
+                     : [{ field: 'CloseDate', sort: 'asc' }],
+                  },
+                }}
+                filterMode="client"
+                sortingMode="client"
+                paginationMode="client"
+               disableRowSelectionOnClick={false}
+                disableColumnFilter={false}
+                disableColumnMenu={false}
+                isCellEditable={(params) => {
                 // Only allow editing in open pipeline view
                 if (viewMode !== 'open') return false;
                 // Editable fields for pipeline view (StageName handled by custom dropdown)
                 return ['Name', 'AccountId', 'OwnerId', 'Amount', 'Probability', 'CloseDate', 'PaymentDate__c'].includes(params.field);
-              }}
-              sx={{
-                '& .MuiDataGrid-cell:focus': {
-                  outline: 'none',
-                },
-                '& .MuiDataGrid-cell--editable': {
-                  cursor: 'pointer',
-                  bgcolor: 'background.paper',
-                  '&:hover': {
-                    backgroundColor: 'action.hover',
-                    boxShadow: 'inset 0 0 0 1px rgba(25, 118, 210, 0.5)',
+                }}
+                sx={{
+                  '& .MuiDataGrid-cell:focus': {
+                    outline: 'none',
                   },
-                },
-                '& .MuiDataGrid-cell--editing': {
-                  backgroundColor: 'primary.light',
-                  boxShadow: 'inset 0 0 0 2px #1976d2',
-                },
-                '& .MuiDataGrid-row:hover .MuiDataGrid-cell--editable': {
-                  backgroundColor: 'action.hover',
-                },
-              }}
-            />
-          </Box>
-        </CardContent>
-      </Card>
+                  '& .MuiDataGrid-cell--editable': {
+                    cursor: 'pointer',
+                    bgcolor: 'background.paper',
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                      boxShadow: 'inset 0 0 0 1px rgba(25, 118, 210, 0.5)',
+                    },
+                  },
+                  '& .MuiDataGrid-cell--editing': {
+                    backgroundColor: 'primary.light',
+                    boxShadow: 'inset 0 0 0 2px #1976d2',
+                  },
+                  '& .MuiDataGrid-row:hover .MuiDataGrid-cell--editable': {
+                    backgroundColor: 'action.hover',
+                  },
+                }}
+              />
+            </Box>
+          </CardContent>
+        </Card>
+
+      {/* Activity Intelligence Panel (Drawer) */}
+      <ActivityIntelligencePanel
+        open={activityPanelOpen}
+        onClose={() => { setActivityPanelOpen(false); setActivityOpp(null); }}
+        opportunity={activityOpp}
+        accountName={
+          (activityOpp && (
+            accountMap.get(activityOpp.AccountId)?.Name ||
+            activityOpp.Account?.Name ||
+            activityOpp.Name
+          )) || ''
+        }
+      />
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
@@ -1486,6 +1725,14 @@ const Opportunities: React.FC = () => {
           }}
         />
       )}
+
+      {/* Task Panel */}
+      <TaskPanel
+        open={taskPanelOpen}
+        onClose={() => { setTaskPanelOpen(false); setTaskPanelOpp(null); }}
+        opportunity={taskPanelOpp}
+        users={users}
+      />
 
       {/* Bulk Action Dialog */}
       <Dialog open={bulkActionDialogOpen} onClose={() => setBulkActionDialogOpen(false)} maxWidth="sm" fullWidth>

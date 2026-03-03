@@ -32,7 +32,7 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`pipeline-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+      {value === index && <Box sx={{ pt: 1 }}>{children}</Box>}
     </div>
   );
 }
@@ -46,20 +46,12 @@ export default function Pipeline() {
 
   return (
     <Box>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
-          Pipeline
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Manage opportunities, accounts, and contacts
-        </Typography>
-      </Box>
-
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 1 }}>
         <Tabs
           value={currentTab}
           onChange={handleTabChange}
           aria-label="pipeline tabs"
+          sx={{ minHeight: 48 }}
         >
           <Tab
             icon={<TrendingUpIcon />}

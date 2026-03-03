@@ -54,8 +54,18 @@ export const apiService = {
   servicesHealth: () => api.get('/health/services'),
 
   // Salesforce - Opportunities
-  getOpportunities: (params?: { stage?: string; limit?: number }) =>
-    api.get('/api/salesforce/opportunities', { params }),
+  getOpportunities: (params?: { stage?: string; stages?: string[]; limit?: number; record_type?: string; opp_type?: string; active_only?: boolean }) =>
+    api.get('/api/salesforce/opportunities', {
+      params,
+      paramsSerializer: (p: Record<string, any>) => {
+        const sp = new URLSearchParams();
+        Object.entries(p).forEach(([k, v]) => {
+          if (Array.isArray(v)) v.forEach(i => sp.append(k, i));
+          else if (v !== undefined && v !== null) sp.append(k, String(v));
+        });
+        return sp.toString();
+      },
+    }),
   
   createOpportunity: (data: any) =>
     api.post('/api/salesforce/opportunities', data),
@@ -64,9 +74,39 @@ export const apiService = {
     api.put(`/api/salesforce/opportunities/${opportunityId}`, {
       opportunity_id: opportunityId,
       updates,
-      user_id: 'current_user', // In production, get from auth
-      reason: 'Updated via Financial Forecasting Dashboard'
+      reason: 'Updated via Revenue Hub'
     }),
+
+  bulkUpdateOpportunities: (opportunityIds: string[], updates: any) =>
+    api.put('/api/salesforce/opportunities/bulk-update', {
+      opportunity_ids: opportunityIds,
+      updates
+    }),
+
+  // Salesforce - Tasks (linked to Opportunities)
+  getOpportunityTasks: (opportunityId: string) =>
+    api.get(`/api/salesforce/opportunities/${opportunityId}/tasks`),
+  
+  createTask: (opportunityId: string, taskData: {
+    Subject: string;
+    Status?: string;
+    Priority?: string;
+    ActivityDate?: string;
+    Description?: string;
+    OwnerId?: string;
+  }) => api.post(`/api/salesforce/opportunities/${opportunityId}/tasks`, taskData),
+  
+  updateTask: (taskId: string, updates: {
+    Subject?: string;
+    Status?: string;
+    Priority?: string;
+    ActivityDate?: string;
+    Description?: string;
+    OwnerId?: string;
+  }) => api.put(`/api/salesforce/tasks/${taskId}`, updates),
+  
+  deleteTask: (taskId: string) =>
+    api.delete(`/api/salesforce/tasks/${taskId}`),
 
   // Salesforce - Accounts
   getAccounts: (params?: { limit?: number }) =>
@@ -87,6 +127,9 @@ export const apiService = {
   
   getSageExpenses: (params?: { limit?: number }) =>
     api.get('/api/sage/expenses', { params }),
+
+  getSageUnpaidBills: (params?: { limit?: number }) =>
+    api.get('/api/sage/unpaid-bills', { params }),
 
   getSageDepartments: () =>
     api.get('/api/sage/departments'),
@@ -209,6 +252,39 @@ export const apiService = {
   firefliesHealthCheck: () =>
     api.get('/api/fireflies/health'),
 
+  // Gmail Integration
+  getAccountGmailActivity: (accountName: string, limit: number = 20) =>
+    api.get(`/api/gmail/account-activity/${encodeURIComponent(accountName)}`, { params: { limit } }),
+
+  gmailHealthCheck: () =>
+    api.get('/api/gmail/health'),
+
+  // Google Calendar Integration
+  getAccountCalendarActivity: (accountName: string, limit: number = 20) =>
+    api.get(`/api/calendar/account-activity/${encodeURIComponent(accountName)}`, { params: { limit } }),
+
+  calendarHealthCheck: () =>
+    api.get('/api/calendar/health'),
+
+  // Google Drive Integration
+  getAccountDriveActivity: (accountName: string, limit: number = 20, opportunityName?: string) =>
+    api.get(`/api/drive/account-activity/${encodeURIComponent(accountName)}`, {
+      params: { limit, ...(opportunityName ? { opportunity_name: opportunityName } : {}) }
+    }),
+
+  driveHealthCheck: () =>
+    api.get('/api/drive/health'),
+
+  // AI-Powered Activity Intelligence (unified)
+  getActivityIntelligence: (accountName: string, forceRefresh: boolean = false, opportunityName?: string) =>
+    api.get(`/api/activity-intelligence/${encodeURIComponent(accountName)}`, {
+      timeout: 120000,
+      params: {
+        ...(forceRefresh ? { force_refresh: true } : {}),
+        ...(opportunityName ? { opportunity_name: opportunityName } : {}),
+      },
+    }),
+
   // Payment Schedule Management
   parsePaymentSchedule: (opportunityId: string, data: {
     natural_language_text: string;
@@ -288,12 +364,23 @@ export const apiService = {
       delete_existing: true
     }),
 
+  // Cache Management
+  clearCache: () =>
+    api.post('/api/cache/clear'),
+
   // Authentication
   getCurrentUser: () =>
     api.get('/auth/me'),
   
   logout: () =>
     api.post('/auth/logout'),
+
+  // Salesforce OAuth
+  getSalesforceStatus: () =>
+    api.get('/auth/salesforce/status'),
+  
+  disconnectSalesforce: () =>
+    api.post('/auth/salesforce/disconnect'),
 };
 
 // Export axios instance for custom requests

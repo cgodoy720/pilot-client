@@ -450,24 +450,6 @@ const Dashboard: React.FC = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={4}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <ChartIcon color="info" sx={{ mr: 1 }} />
-                <Typography variant="caption" color="textSecondary">
-                  Avg Deal Size
-                </Typography>
-              </Box>
-              <Typography variant="h4">
-                {formatDollarMillions(metrics.averageDealSize)}
-              </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                Per opportunity
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
       </Grid>
 
       {/* Cash Flow Metrics from Sage Intacct */}
@@ -696,56 +678,6 @@ const Dashboard: React.FC = () => {
           </Typography>
         </Alert>
       )}
-
-      {/* Charts Row 1 - Pipeline by Stage */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        {/* Pipeline by Stage - Horizontal Bars */}
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Pipeline by Stage
-              </Typography>
-              <Typography variant="caption" color="textSecondary" gutterBottom display="block">
-                Weighted value (probability-adjusted) through sales process
-              </Typography>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart 
-                  data={funnelData} 
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    type="number" 
-                    tickFormatter={(value) => `$${(value / 1000000).toFixed(1)}M`}
-                  />
-                  <YAxis 
-                    type="category" 
-                    dataKey="name" 
-                    width={180}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <Tooltip
-                    formatter={(value: number, name: string, props: any) => {
-                      return [
-                        `${formatDollarMillions(value)} (${props.payload.count} opps, ${formatDollarMillions(props.payload.total)} total)`,
-                        props.payload.name
-                      ];
-                    }}
-                    labelStyle={{ color: '#000' }}
-                  />
-                  <Bar dataKey="value" name="Weighted Value">
-                    {funnelData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
 
       {/* Financial Charts Section */}
       <Typography variant="h6" gutterBottom sx={{ mb: 2, mt: 2 }}>
