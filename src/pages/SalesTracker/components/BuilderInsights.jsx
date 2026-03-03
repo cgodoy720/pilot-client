@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { fetchWithAuth } from '../../../utils/api';
-import { Building2, TrendingUp, Users, Briefcase, Network, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
-
-const getToken = () => localStorage.getItem('token');
+import { useAuth } from '../../../context/AuthContext';
+import { Building2, TrendingUp, Users, Briefcase, Network, MessageSquare, ChevronDown, ChevronUp, X, ExternalLink, Loader2 } from 'lucide-react';
 
 const PERIODS = [
   { value: '7',  label: 'Last 7 Days' },
@@ -10,7 +8,6 @@ const PERIODS = [
   { value: 'all', label: 'All Time' },
 ];
 
-// Returns width% for the signal bar relative to the max
 function barWidth(value, max) {
   if (!max) return 0;
   return Math.max(4, Math.round((value / max) * 100));
@@ -38,7 +35,128 @@ function SignalBreakdown({ row }) {
   );
 }
 
-function IntroCard({ item }) {
+// ── Contact Detail Modal ──────────────────────────────────────────────────────
+function ContactModal({ contactId, token, onClose }) {
+  const [contact, setContact] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchContact = async () => {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/employment-engine/network/${contactId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+        setContact(json.contact);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchContact();
+  }, [contactId, token]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40" />
+      <div
+        className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6 z-10"
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+        >
+          <X size={20} />
+        </button>
+
+        {loading && (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 size={24} className="animate-spin text-gray-400" />
+          </div>
+        )}
+
+        {error && (
+          <p className="text-sm text-red-600 py-4">{error}</p>
+        )}
+
+        {contact && (
+          <div className="space-y-4">
+            {/* Name + title */}
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">{contact.full_name}</h2>
+              {contact.current_title && (
+                <p className="text-sm text-gray-600 mt-0.5">{contact.current_title}</p>
+              )}
+              {contact.current_company && (
+                <p className="text-sm font-medium text-pursuit-purple mt-0.5">{contact.current_company}</p>
+              )}
+            </div>
+
+            {/* LinkedIn */}
+            {contact.linkedin_url && (
+              <a
+                href={contact.linkedin_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
+              >
+                <ExternalLink size={14} /> View LinkedIn
+              </a>
+            )}
+
+            {/* Company metadata */}
+            {(contact.industry || contact.size_bucket || contact.stage) && (
+              <div className="flex flex-wrap gap-2">
+                {contact.industry && (
+                  <span className="text-xs bg-indigo-50 text-indigo-700 rounded-full px-2.5 py-1">{contact.industry}</span>
+                )}
+                {contact.size_bucket && (
+                  <span className="text-xs bg-gray-100 text-gray-600 rounded-full px-2.5 py-1">{contact.size_bucket} employees</span>
+                )}
+                {contact.stage && (
+                  <span className="text-xs bg-gray-100 text-gray-600 rounded-full px-2.5 py-1 capitalize">{contact.stage}</span>
+                )}
+              </div>
+            )}
+
+            {/* Staff connections */}
+            {contact.staff_connections?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Staff connections</p>
+                <div className="space-y-1">
+                  {contact.staff_connections.map(s => (
+                    <div key={s.staff_user_id} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-800">{s.staff_name}</span>
+                      {s.relationship_strength && (
+                        <span className="text-xs text-gray-400 capitalize">{s.relationship_strength}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Email */}
+            {contact.email && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Email</p>
+                <a href={`mailto:${contact.email}`} className="text-sm text-blue-600 hover:underline">{contact.email}</a>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Intro Card ────────────────────────────────────────────────────────────────
+function IntroCard({ item, onContactClick }) {
   const [expanded, setExpanded] = useState(false);
   const connections = item.staff_connections || [];
 
@@ -78,9 +196,13 @@ function IntroCard({ item }) {
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{s.staff_name}</p>
               <div className="flex flex-wrap gap-2">
                 {(s.contacts || []).map(c => (
-                  <span key={c.contact_id} className="text-xs bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-700">
+                  <button
+                    key={c.contact_id}
+                    onClick={() => onContactClick(c.contact_id)}
+                    className="text-xs bg-gray-50 border border-gray-200 rounded px-2 py-1 text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-colors text-left"
+                  >
                     {c.full_name}{c.current_title ? ` · ${c.current_title}` : ''}
-                  </span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -101,39 +223,51 @@ function SkeletonRow() {
   );
 }
 
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function BuilderInsights() {
+  const { token } = useAuth();
   const [period, setPeriod] = useState('30');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedContactId, setSelectedContactId] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
-        const token = getToken();
-        const res = await fetchWithAuth(
-          `/api/employment-engine/builder-insights?period=${period}`,
-          {},
-          token
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/employment-engine/builder-insights?period=${period}`,
+          { headers: { Authorization: `Bearer ${token}` } }
         );
-        setData(res);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.detail || json.error || `HTTP ${res.status}`);
+        setData(json);
       } catch (err) {
         console.error('Failed to fetch builder insights:', err);
-        setError('Failed to load builder insights. Please try again.');
+        setError(err.message || 'Failed to load builder insights.');
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [period]);
+  }, [period, token]);
 
   const maxCompanySignals = data?.top_companies?.[0]?.total_signals || 1;
   const maxIndustrySignals = data?.top_industries?.[0]?.total_signals || 1;
 
   return (
     <div className="space-y-6">
+      {/* Contact detail modal */}
+      {selectedContactId && (
+        <ContactModal
+          contactId={selectedContactId}
+          token={token}
+          onClose={() => setSelectedContactId(null)}
+        />
+      )}
+
       {/* Header + time filter */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -171,7 +305,6 @@ export default function BuilderInsights() {
             <Building2 size={18} className="text-pursuit-purple" />
             <h3 className="font-semibold text-gray-900">Top Companies</h3>
           </div>
-
           {loading ? (
             <div className="space-y-0">
               {Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
@@ -216,7 +349,6 @@ export default function BuilderInsights() {
             <h3 className="font-semibold text-gray-900">Top Industries</h3>
             <span className="text-xs text-gray-400 ml-auto">where enrichment data exists</span>
           </div>
-
           {loading ? (
             <div className="space-y-0">
               {Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)}
@@ -261,9 +393,8 @@ export default function BuilderInsights() {
           <h3 className="font-semibold text-gray-900">Suggested Introductions</h3>
         </div>
         <p className="text-sm text-gray-500 mb-4">
-          Companies builders are targeting where staff have existing contacts
+          Companies builders are targeting where staff have existing contacts — click any contact to see their profile
         </p>
-
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -280,7 +411,11 @@ export default function BuilderInsights() {
         ) : (
           <div className="space-y-3">
             {data.suggested_introductions.map(item => (
-              <IntroCard key={item.company} item={item} />
+              <IntroCard
+                key={item.company}
+                item={item}
+                onContactClick={setSelectedContactId}
+              />
             ))}
           </div>
         )}
