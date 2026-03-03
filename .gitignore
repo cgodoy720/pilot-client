@@ -34,3 +34,6 @@ dist-ssr
 # Visual guides and visual-explainer tool
 /visual-guides/
 /visual-explainer/
+
+# Local analysis files
+src/pages/PathfinderJobs/jobs-db-analysis.md
