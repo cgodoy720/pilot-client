@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import { Building2, TrendingUp, Users, Briefcase, Network, MessageSquare, ChevronDown, ChevronUp, X, ExternalLink, Loader2, Sparkles } from 'lucide-react';
 
 const PERIODS = [
@@ -225,7 +225,7 @@ function SkeletonRow() {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function BuilderInsights() {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [period, setPeriod] = useState('30');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
