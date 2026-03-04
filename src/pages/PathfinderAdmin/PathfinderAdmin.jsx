@@ -19,7 +19,6 @@ const PRDsTab = lazy(() => import('./components/PRDsTab/PRDsTab'));
 const CeremoniesTab = lazy(() => import('./components/CeremoniesTab/CeremoniesTab'));
 const WeeklyGoalsTab = lazy(() => import('./components/WeeklyGoalsTab/WeeklyGoalsTab'));
 const EventsTab = lazy(() => import('./components/EventsTab/EventsTab'));
-
 // Import shared modals
 import BuilderDetailModal from './components/shared/BuilderDetailModal';
 import CompanyDetailModal from './components/shared/CompanyDetailModal';
@@ -1430,6 +1429,7 @@ function PathfinderAdmin() {
               <EventsTab />
             </Suspense>
           </TabsContent>
+
         </Tabs>
 
         {/* Modals */}

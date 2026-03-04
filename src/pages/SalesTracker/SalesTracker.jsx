@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import useNavStore from '../../stores/navStore';
 import Dashboard from './components/Dashboard';
 import AllLeads from './components/AllLeads';
 import JobPostings from './components/JobPostings';
 import Leaderboard from './components/Leaderboard';
+const StaffInbox = lazy(() => import('../StaffNetworkDashboard/StaffNetworkDashboard'));
 
 const SalesTracker = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -49,6 +50,12 @@ const SalesTracker = () => {
             >
               Leaderboard
             </TabsTrigger>
+            <TabsTrigger
+              value="staff-inbox"
+              className="data-[state=active]:bg-pursuit-purple data-[state=active]:text-white"
+            >
+              Staff Inbox
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard">
@@ -65,6 +72,12 @@ const SalesTracker = () => {
 
           <TabsContent value="leaderboard">
             <Leaderboard />
+          </TabsContent>
+
+          <TabsContent value="staff-inbox">
+            <Suspense fallback={<div className="flex items-center justify-center py-12 text-gray-500">Loading Staff Inbox...</div>}>
+              <StaffInbox />
+            </Suspense>
           </TabsContent>
         </Tabs>
       </main>

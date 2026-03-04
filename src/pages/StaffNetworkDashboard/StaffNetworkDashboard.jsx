@@ -4,10 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import SendIcon from '@mui/icons-material/Send';
 import BusinessIcon from '@mui/icons-material/Business';
-import PeopleIcon from '@mui/icons-material/People';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
@@ -39,7 +37,7 @@ const SPECIFIC_ASK_LABELS = {
 export default function StaffNetworkDashboard() {
   const token = useAuthStore((s) => s.token);
 
-  const [activeTab, setActiveTab] = useState('requests'); // 'requests' | 'activity' | 'network'
+  const [activeTab, setActiveTab] = useState('requests'); // 'requests' | 'network'
 
   // Intro requests state
   const [requests, setRequests] = useState([]);
@@ -56,13 +54,6 @@ export default function StaffNetworkDashboard() {
   const [uploadResult, setUploadResult] = useState(null); // { imported, matched, skipped, total } | { error }
   const [enrichStatus, setEnrichStatus] = useState(null); // { total, enriched, pending, isEnriching }
   const [isStartingEnrich, setIsStartingEnrich] = useState(false);
-
-  // Builder activity state
-  const [activitySummary, setActivitySummary] = useState({});
-  const [companies, setCompanies] = useState([]);
-  const [isLoadingActivity, setIsLoadingActivity] = useState(true);
-  const [cohortFilter, setCohortFilter] = useState('');
-  const [cohorts, setCohorts] = useState([]);
 
   // ── Fetch intro requests ────────────────────────────────────────────────────
   const fetchRequests = useCallback(async (status = statusFilter) => {
@@ -86,37 +77,6 @@ export default function StaffNetworkDashboard() {
   useEffect(() => {
     if (activeTab === 'requests') fetchRequests(statusFilter);
   }, [activeTab, statusFilter]);
-
-  // ── Fetch builder activity ──────────────────────────────────────────────────
-  const fetchActivity = useCallback(async () => {
-    setIsLoadingActivity(true);
-    try {
-      const params = new URLSearchParams({ limit: 50 });
-      if (cohortFilter) params.set('cohort', cohortFilter);
-      const res = await fetch(`${API}/api/employment-engine/builder-activity?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setActivitySummary(data.summary);
-      setCompanies(data.companies);
-
-      // Collect unique cohorts for filter
-      const allCohorts = new Set();
-      data.companies.forEach(c =>
-        (c.builders || []).forEach(b => { if (b.cohort) allCohorts.add(b.cohort); })
-      );
-      setCohorts([...allCohorts].sort());
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoadingActivity(false);
-    }
-  }, [token, cohortFilter]);
-
-  useEffect(() => {
-    if (activeTab === 'activity') fetchActivity();
-  }, [activeTab, cohortFilter]);
 
   // ── My Network: enrich status ───────────────────────────────────────────────
   const fetchEnrichStatus = useCallback(async () => {
@@ -226,8 +186,8 @@ export default function StaffNetworkDashboard() {
     <div className="snd">
       {/* Page header */}
       <div className="snd__page-header">
-        <h1 className="snd__page-title">Network Dashboard</h1>
-        <p className="snd__page-subtitle">Manage intro requests and track builder hustle activity.</p>
+        <h1 className="snd__page-title">Staff Inbox</h1>
+        <p className="snd__page-subtitle">Manage intro requests and your network.</p>
       </div>
 
       {/* Tabs */}
@@ -238,12 +198,6 @@ export default function StaffNetworkDashboard() {
         >
           <SendIcon fontSize="small" /> Intro Requests
           {pendingCount > 0 && <span className="snd__tab-badge">{pendingCount}</span>}
-        </button>
-        <button
-          className={`snd__tab ${activeTab === 'activity' ? 'snd__tab--active' : ''}`}
-          onClick={() => setActiveTab('activity')}
-        >
-          <TrendingUpIcon fontSize="small" /> Builder Activity
         </button>
         <button
           className={`snd__tab ${activeTab === 'network' ? 'snd__tab--active' : ''}`}
@@ -373,110 +327,6 @@ export default function StaffNetworkDashboard() {
                 </Card>
               ))}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* ── BUILDER ACTIVITY TAB ── */}
-      {activeTab === 'activity' && (
-        <div className="snd__content">
-          {isLoadingActivity ? (
-            <LoadingCurtain isLoading />
-          ) : (
-            <>
-              {/* Summary stats */}
-              <div className="snd__summary-cards">
-                <Card className="snd__summary-card">
-                  <CardContent className="snd__summary-content">
-                    <p className="snd__summary-number">{activitySummary.builders_active || 0}</p>
-                    <p className="snd__summary-label">Builders active</p>
-                    <p className="snd__summary-period">last 60 days</p>
-                  </CardContent>
-                </Card>
-                <Card className="snd__summary-card">
-                  <CardContent className="snd__summary-content">
-                    <p className="snd__summary-number">{activitySummary.companies_targeted || 0}</p>
-                    <p className="snd__summary-label">Companies targeted</p>
-                    <p className="snd__summary-period">last 60 days</p>
-                  </CardContent>
-                </Card>
-                <Card className="snd__summary-card">
-                  <CardContent className="snd__summary-content">
-                    <p className="snd__summary-number">{activitySummary.total_touchpoints || 0}</p>
-                    <p className="snd__summary-label">Total touchpoints</p>
-                    <p className="snd__summary-period">last 60 days</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Cohort filter */}
-              {cohorts.length > 0 && (
-                <div className="snd__cohort-filter">
-                  <select
-                    className="snd__cohort-select"
-                    value={cohortFilter}
-                    onChange={e => setCohortFilter(e.target.value)}
-                  >
-                    <option value="">All cohorts</option>
-                    {cohorts.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {companies.length === 0 ? (
-                <div className="snd__empty">
-                  <TrendingUpIcon style={{ fontSize: 48, color: '#ccc' }} />
-                  <p>No builder activity in the last 60 days.</p>
-                </div>
-              ) : (
-                <div className="snd__companies-list">
-                  {companies.map((company, i) => (
-                    <Card key={company.company} className="snd__company-card">
-                      <CardContent className="snd__company-content">
-                        <div className="snd__company-header">
-                          <div className="snd__company-rank">#{i + 1}</div>
-                          <div className="snd__company-info">
-                            <p className="snd__company-name">{company.company}</p>
-                            <div className="snd__company-stats">
-                              <span>
-                                <PeopleIcon fontSize="inherit" />
-                                {company.active_builder_count} builder{company.active_builder_count !== '1' ? 's' : ''}
-                              </span>
-                              <span>{company.total_touchpoints} touchpoints</span>
-                              <span>Last: {new Date(company.last_activity_date).toLocaleDateString()}</span>
-                            </div>
-                          </div>
-                          <div className="snd__company-outcomes">
-                            {parseInt(company.positive_responses) > 0 && (
-                              <span className="snd__outcome-chip snd__outcome-chip--positive">
-                                {company.positive_responses} positive
-                              </span>
-                            )}
-                            {parseInt(company.interviews) > 0 && (
-                              <span className="snd__outcome-chip snd__outcome-chip--interview">
-                                {company.interviews} interview{company.interviews !== '1' ? 's' : ''}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Builder list */}
-                        <div className="snd__builder-chips">
-                          {(company.builders || []).map((b, j) => (
-                            <span key={j} className="snd__builder-chip">
-                              {b.builder_name}
-                              {b.cohort && <span className="snd__chip-cohort">{b.cohort}</span>}
-                            </span>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </>
           )}
         </div>
       )}
