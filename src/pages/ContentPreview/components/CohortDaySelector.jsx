@@ -13,7 +13,7 @@ import { Search, ChevronRight, Upload } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7001';
 
-function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect, onDaySelect, onUploadCurriculum, canEdit }) {
+function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect, onDaySelect, onUploadCurriculum, canEdit, refreshTrigger }) {
   const [cohorts, setCohorts] = useState([]);
   const [weeks, setWeeks] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,6 +30,13 @@ function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect,
       setWeeks([]);
     }
   }, [selectedCohort]);
+
+  // Refresh days when parent signals a change (e.g. day date updated)
+  useEffect(() => {
+    if (refreshTrigger && selectedCohort) {
+      fetchDays(selectedCohort.cohort_name);
+    }
+  }, [refreshTrigger]);
 
   const fetchCohorts = async () => {
     try {

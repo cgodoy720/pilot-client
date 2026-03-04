@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import {
   Dialog,
   DialogContent,
@@ -25,7 +25,7 @@ const GradeViewModal = ({
   setEditingStrengths,
   setEditingGrowthAreas
 }) => {
-  const { token: authToken } = useAuth();
+  const authToken = useAuthStore((s) => s.token);
   const [tabValue, setTabValue] = useState("overview");
   const [userSubmissions, setUserSubmissions] = useState([]);
   const [comprehensiveAnalysis, setComprehensiveAnalysis] = useState([]);

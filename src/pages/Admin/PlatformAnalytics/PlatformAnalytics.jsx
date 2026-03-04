@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { useNavContext } from '../../../context/NavContext';
+import useAuthStore from '../../../stores/authStore';
+import useNavStore from '../../../stores/navStore';
 import { usePermissions } from '../../../hooks/usePermissions';
 import OverviewTab from './tabs/OverviewTab';
 import UsageBreakdownTab from './tabs/UsageBreakdownTab';
@@ -16,9 +16,10 @@ const SectionHeader = ({ children }) => (
 );
 
 const PlatformAnalytics = () => {
-  const { user, token } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
-  const { isSecondaryNavPage } = useNavContext();
+  const isSecondaryNavPage = useNavStore((s) => s.isSecondaryNavPage);
 
   // Date range state — default last 30 days
   const [endDate] = useState(() => new Date().toISOString().split('T')[0]);

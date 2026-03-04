@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { Button } from '../../../../components/ui/button';
@@ -21,27 +21,33 @@ import {
   DialogTitle,
   DialogFooter,
 } from '../../../../components/ui/dialog';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '../../../../components/ui/table';
-import { Pencil, Trash2, Plus, Users, Search, Download } from 'lucide-react';
+import { Pencil, Trash2, Plus, Users, Search, Download, X } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 function EnrollmentsTab({ token, setLoading }) {
   const [allEnrollments, setAllEnrollments] = useState([]); // Store all enrollments
   const [cohorts, setCohorts] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [cohortFilter, setCohortFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [activeFilter, setActiveFilter] = useState('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEnrollment, setEditingEnrollment] = useState(null);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const userSearchRef = useRef(null);
+  const dropdownRef = useRef(null);
   const [formData, setFormData] = useState({
     user_id: '',
     cohort_id: '',
@@ -57,7 +63,22 @@ function EnrollmentsTab({ token, setLoading }) {
   useEffect(() => {
     fetchEnrollments();
     fetchCohorts();
+    fetchUsers();
   }, []); // Only fetch on mount
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target) &&
+        userSearchRef.current && !userSearchRef.current.contains(e.target)
+      ) {
+        setShowUserDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchEnrollments = async () => {
     try {
@@ -114,8 +135,46 @@ function EnrollmentsTab({ token, setLoading }) {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const response = await axios.get(
+        `${API_URL}/api/users?limit=10000`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setAllUsers(response.data.users || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  const filteredUsers = allUsers.filter(user => {
+    if (!userSearchQuery.trim()) return false;
+    const q = userSearchQuery.toLowerCase();
+    return (
+      user.first_name?.toLowerCase().includes(q) ||
+      user.last_name?.toLowerCase().includes(q) ||
+      user.email?.toLowerCase().includes(q) ||
+      `${user.first_name} ${user.last_name}`.toLowerCase().includes(q)
+    );
+  });
+
+  const handleSelectUser = (user) => {
+    setSelectedUser(user);
+    setFormData({ ...formData, user_id: user.user_id });
+    setUserSearchQuery(`${user.first_name} ${user.last_name} (${user.email})`);
+    setShowUserDropdown(false);
+  };
+
+  const handleClearUser = () => {
+    setSelectedUser(null);
+    setFormData({ ...formData, user_id: '' });
+    setUserSearchQuery('');
+  };
+
   const handleCreate = () => {
     setEditingEnrollment(null);
+    setSelectedUser(null);
+    setUserSearchQuery('');
     setFormData({
       user_id: '',
       cohort_id: '',
@@ -132,6 +191,8 @@ function EnrollmentsTab({ token, setLoading }) {
 
   const handleEdit = (enrollment) => {
     setEditingEnrollment(enrollment);
+    setSelectedUser({ user_id: enrollment.user_id, first_name: enrollment.first_name, last_name: enrollment.last_name, email: enrollment.user_email });
+    setUserSearchQuery(`${enrollment.first_name} ${enrollment.last_name} (${enrollment.user_email})`);
     setFormData({
       user_id: enrollment.user_id,
       cohort_id: enrollment.cohort_id,
@@ -181,7 +242,7 @@ function EnrollmentsTab({ token, setLoading }) {
     e.preventDefault();
     
     if (!formData.user_id || !formData.cohort_id) {
-      Swal.fire('Error', 'User ID and Cohort are required', 'error');
+      Swal.fire('Error', 'User and Cohort are required', 'error');
       return;
     }
     
@@ -481,22 +542,79 @@ function EnrollmentsTab({ token, setLoading }) {
           <form onSubmit={handleSubmit}>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="user_id" className="font-proxima">
-                    User ID <span className="text-red-500">*</span>
+                <div className="relative">
+                  <Label htmlFor="user_search" className="font-proxima">
+                    User <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="user_id"
-                    type="number"
-                    value={formData.user_id}
-                    onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
-                    placeholder="Enter user ID"
-                    required
-                    disabled={!!editingEnrollment}
-                    className="font-proxima"
-                  />
+                  {selectedUser ? (
+                    <div className="flex items-center gap-2 mt-1 px-3 py-2 border rounded-md bg-slate-50">
+                      <div className="flex-1 min-w-0">
+                        <span className="font-proxima text-sm font-medium truncate block">
+                          {selectedUser.first_name} {selectedUser.last_name}
+                        </span>
+                        <span className="font-proxima text-xs text-slate-500 truncate block">
+                          {selectedUser.email}
+                        </span>
+                      </div>
+                      {!editingEnrollment && (
+                        <button
+                          type="button"
+                          onClick={handleClearUser}
+                          className="text-slate-400 hover:text-slate-600 shrink-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        ref={userSearchRef}
+                        id="user_search"
+                        type="text"
+                        value={userSearchQuery}
+                        onChange={(e) => {
+                          setUserSearchQuery(e.target.value);
+                          setShowUserDropdown(true);
+                        }}
+                        onFocus={() => userSearchQuery.trim() && setShowUserDropdown(true)}
+                        placeholder="Search by name or email..."
+                        className="pl-10 font-proxima"
+                        disabled={!!editingEnrollment}
+                        autoComplete="off"
+                      />
+                      {showUserDropdown && filteredUsers.length > 0 && (
+                        <div
+                          ref={dropdownRef}
+                          className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-md shadow-lg"
+                        >
+                          {filteredUsers.slice(0, 50).map(user => (
+                            <button
+                              key={user.user_id}
+                              type="button"
+                              onClick={() => handleSelectUser(user)}
+                              className="w-full text-left px-3 py-2 hover:bg-slate-100 transition-colors"
+                            >
+                              <div className="font-proxima text-sm font-medium">
+                                {user.first_name} {user.last_name}
+                              </div>
+                              <div className="font-proxima text-xs text-slate-500">
+                                {user.email}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {showUserDropdown && userSearchQuery.trim() && filteredUsers.length === 0 && (
+                        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-md shadow-lg px-3 py-3 text-sm text-slate-500 font-proxima">
+                          No users found
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-                
+
                 <div>
                   <Label htmlFor="cohort_id" className="font-proxima">
                     Cohort <span className="text-red-500">*</span>

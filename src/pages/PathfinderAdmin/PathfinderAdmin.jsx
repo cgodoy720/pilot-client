@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import Swal from 'sweetalert2';
 import { formatSalary } from '../../utils/salaryFormatter';
@@ -27,7 +27,7 @@ import CompanyDetailModal from './components/shared/CompanyDetailModal';
 import { getStageLabel, getWeekDateRange, getMilestoneInfo } from './components/shared/utils';
 
 function PathfinderAdmin() {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
   const hasPathfinderAdminAccess = canAccessPage('pathfinder_admin');
   const [overview, setOverview] = useState(null);

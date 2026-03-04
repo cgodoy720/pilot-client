@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Calendar, BookOpen, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import Layout from '../../components/Layout/Layout';
 import ArrowButton from '../../components/ArrowButton/ArrowButton';
 import MissedAssignmentsSidebar from '../../components/MissedAssignmentsSidebar/MissedAssignmentsSidebar';
@@ -21,7 +21,8 @@ import './Dashboard.css';
 
 function Dashboard() {
   const navigate = useNavigate();
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   
   // Check if user has active status
   const isActive = user?.active !== false;

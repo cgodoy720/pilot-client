@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import AttendanceCalendar from './components/AttendanceCalendar';
 import FeedbackInbox from './components/FeedbackInbox';
@@ -8,7 +8,8 @@ import { fetchCombinedFeedback } from '../../utils/performanceFeedbackService';
 import { getUserProfilePhoto } from '../../utils/userPhotoService';
 
 const Performance = () => {
-  const { user, token } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [userPhoto, setUserPhoto] = useState(null);

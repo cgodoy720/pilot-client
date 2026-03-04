@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import Swal from 'sweetalert2';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { Card } from '../../components/ui/card';
@@ -20,7 +20,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 const API_URL = import.meta.env.VITE_API_URL;
 
 function PathfinderEventHub() {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const location = useLocation();
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

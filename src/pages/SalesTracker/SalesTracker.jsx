@@ -1,6 +1,6 @@
 import React, { useState, Suspense, lazy } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
-import { useNavContext } from '../../context/NavContext';
+import useNavStore from '../../stores/navStore';
 import Dashboard from './components/Dashboard';
 import AllLeads from './components/AllLeads';
 import JobPostings from './components/JobPostings';
@@ -9,7 +9,7 @@ const StaffInbox = lazy(() => import('../StaffNetworkDashboard/StaffNetworkDashb
 
 const SalesTracker = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const { isSecondaryNavPage } = useNavContext();
+  const isSecondaryNavPage = useNavStore((s) => s.isSecondaryNavPage);
 
   return (
     <div className="min-h-screen bg-bg-light">

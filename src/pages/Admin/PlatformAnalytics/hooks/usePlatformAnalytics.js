@@ -102,6 +102,15 @@ export const useUserDrilldown = (token, userId, startDate, endDate) => {
   });
 };
 
+export const useTopTasksByUsage = (token, startDate, endDate, limit = 15) => {
+  return useQuery({
+    queryKey: ['platform-analytics', 'top-tasks', startDate, endDate, limit],
+    queryFn: () => fetchWithAuth(`${BASE}/top-tasks?start=${startDate}&end=${endDate}&limit=${limit}`, token),
+    enabled: !!token && !!startDate && !!endDate,
+    staleTime: 60000,
+  });
+};
+
 export const useExternalUsage = (token, startDate, endDate) => {
   return useQuery({
     queryKey: ['platform-analytics', 'external-usage', startDate, endDate],
@@ -112,6 +121,7 @@ export const useExternalUsage = (token, startDate, endDate) => {
       return fetchWithAuth(`${BASE}/external-usage?${params}`, token);
     },
     enabled: !!token,
-    staleTime: 120000, // 2 min - external APIs are slow
+    staleTime: 600000, // 10 min — daily billing stats don't change often
+    refetchOnWindowFocus: false,
   });
 };

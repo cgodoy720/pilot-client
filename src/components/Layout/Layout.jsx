@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, Settings, Award, Users, FileText, Brain, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Target, ClipboardList, Heart, Building2, Rocket, Shield, BarChart3, BookOpen } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { NavProvider } from '../../context/NavContext';
+import useAuthStore from '../../stores/authStore';
+import useNavStore from '../../stores/navStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import LoadingCurtain from '../LoadingCurtain/LoadingCurtain';
 import NavDropdown from './NavDropdown';
@@ -15,7 +15,7 @@ const Layout = ({ children, isLoading = false }) => {
   const [isMobileNavbarOpen, setIsMobileNavbarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null); // Track which dropdown is open
-  const { logout } = useAuth();
+  const logout = useAuthStore((s) => s.logout);
   const { canAccessPage, userRole } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
@@ -136,6 +136,12 @@ const Layout = ({ children, isLoading = false }) => {
   );
   const isSecondaryNavPage = !!matchedSecondaryRoute;
   const currentSecondaryTitle = matchedSecondaryRoute ? secondaryPageTitles[matchedSecondaryRoute] : null;
+
+  // Sync isSecondaryNavPage to navStore for child components
+  const setIsSecondaryNavPage = useNavStore((s) => s.setIsSecondaryNavPage);
+  useEffect(() => {
+    setIsSecondaryNavPage(isSecondaryNavPage);
+  }, [isSecondaryNavPage, setIsSecondaryNavPage]);
 
   // Detect mobile vs desktop
   useEffect(() => {
@@ -540,9 +546,7 @@ const Layout = ({ children, isLoading = false }) => {
         )}
         
         {/* Page Content */}
-        <NavProvider value={{ isSecondaryNavPage }}>
-          {children}
-        </NavProvider>
+        {children}
       </main>
       
       {/* Loading Curtain Overlay */}

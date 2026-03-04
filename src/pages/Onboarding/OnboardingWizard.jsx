@@ -17,8 +17,8 @@ import CheckEmailSuccess from './components/CheckEmailSuccess';
 const STEP_COMPONENTS = [
   { component: ProgramDetails, title: 'Review Program Details and Requirements', order: 1 },
   { component: AttendancePolicy, title: 'Review the Attendance Policy & Calendar', order: 2 },
-  { component: SlackSetup, title: 'Join Slack and the AI-Native Builder channel', order: 3 },
-  { component: PursuitEmail, title: 'Set-Up your Pursuit email', order: 4 },
+  { component: PursuitEmail, title: 'Set-Up your Pursuit email', order: 3 },
+  { component: SlackSetup, title: 'Join Slack and the AI-Native Builder channel', order: 4 },
   { component: GoogleCalendar, title: 'Set up your Google Calendar', order: 5 },
   { component: KisiSetup, title: 'Download & Sign into Kisi', order: 6 },
   { component: BuildingInPublic, title: 'Building in Public', order: 7 },

@@ -79,9 +79,11 @@ const enhancedFetch = async (...args) => {
           setTimeout(() => {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            localStorage.removeItem('auth-storage');
+            localStorage.removeItem('applicantToken');
             window.location.href = '/login';
           }, 2000); // 2 second delay to show modal briefly
-          
+
         } else if (response.status === 403 && errorData.userInactive) {
           // User is inactive - only show modal, no redirect
           const event = new CustomEvent('authError', {
@@ -108,10 +110,12 @@ const enhancedFetch = async (...args) => {
           setTimeout(() => {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            localStorage.removeItem('auth-storage');
+            localStorage.removeItem('applicantToken');
             window.location.href = '/login';
           }, 2000);
         }
-        
+
       } catch (parseError) {
         console.error('Error parsing auth error response:', parseError);
         
@@ -130,6 +134,8 @@ const enhancedFetch = async (...args) => {
         setTimeout(() => {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
+          localStorage.removeItem('auth-storage');
+          localStorage.removeItem('applicantToken');
           window.location.href = '/login';
         }, 1500);
       }

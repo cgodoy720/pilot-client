@@ -108,8 +108,8 @@ const ProgramDetails = () => {
                     <h3 className="text-lg font-bold">Schedule</h3>
                   </div>
                   <div className="ml-7 space-y-2 text-lg text-[#1E1E1E]">
-                    <p className="font-semibold">Mon - Wed: <span className="font-normal">6:00 - 10:30 PM</span></p>
-                    <p className="font-semibold">Sat - Sun: <span className="font-normal">10:00 AM - 6:00 PM</span></p>
+                    <p className="font-semibold">Mon - Wed: <span className="font-normal">6:30 - 10:00 PM</span></p>
+                    <p className="font-semibold">Sat - Sun: <span className="font-normal">10:00 AM - 4:00 PM</span></p>
                   </div>
                 </div>
 

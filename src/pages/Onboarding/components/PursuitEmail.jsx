@@ -120,7 +120,7 @@ function PursuitEmail({ task, onComplete }) {
         <h2 className="text-2xl font-bold text-[#1E1E1E] mb-4">Need Help?</h2>
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <p className="text-red-800">
-            Having trouble? Message Victoria Mayo on Slack for help.
+            Having trouble? Email Victoria Mayo at systems@pursuit.org for help.
           </p>
         </div>
       </section>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
@@ -35,7 +35,7 @@ const SPECIFIC_ASK_LABELS = {
 };
 
 export default function StaffNetworkDashboard() {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
 
   const [activeTab, setActiveTab] = useState('requests'); // 'requests' | 'network'
 

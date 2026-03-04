@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui
 import { Badge } from '../../../components/ui/badge';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Video } from 'lucide-react';
 import { fetchPursuitBuilderCohorts } from '../utils/cohortUtils';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
 const API_URL = import.meta.env.VITE_API_URL;
@@ -28,7 +28,7 @@ const SortHeader = ({ label, sortKey, sort, onSort, className = '' }) => (
 );
 
 const VideoSubmissionsTab = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [cohorts, setCohorts] = useState([]);
   const [selectedLevel, setSelectedLevel] = useState('');
   const [videos, setVideos] = useState([]);

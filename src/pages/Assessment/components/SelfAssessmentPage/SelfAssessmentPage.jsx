@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaArrowRight, FaCheck } from 'react-icons/fa';
 import Swal from 'sweetalert2';
-import { useAuth } from '../../../../context/AuthContext';
+import useAuthStore from '../../../../stores/authStore';
 import './SelfAssessmentPage.css';
 
 // Question data
@@ -144,7 +144,7 @@ const SECTION_TITLES = {
 function SelfAssessmentPage() {
   const { assessmentId } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   
   // Assessment data
   const [assessment, setAssessment] = useState(null);
