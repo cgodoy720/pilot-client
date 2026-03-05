@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaSpinner, FaCheckCircle, FaCheck, FaInfoCircle } from 'react-icons/fa';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { toast } from 'sonner';
 import ArrowButton from '../ArrowButton/ArrowButton';
 import './SelfAssessmentQuestionnaire.css';
@@ -146,9 +146,11 @@ const SelfAssessmentQuestionnaire = ({
   taskId, 
   onComplete, 
   isCompleted = false,
-  onShowInstructions 
+  onShowInstructions,
+  isPreviewMode = false
 }) => {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const isActive = user?.active !== false;
 
   // Form state
@@ -165,7 +167,6 @@ const SelfAssessmentQuestionnaire = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [existingSubmission, setExistingSubmission] = useState(null);
-  const [hasShownInstructions, setHasShownInstructions] = useState(false);
 
   // Track section and question start times
   const [sectionStartTime, setSectionStartTime] = useState(new Date());
@@ -178,18 +179,6 @@ const SelfAssessmentQuestionnaire = ({
     }
   }, [assessmentId, token]);
 
-  // Show instructions on first load if not completed and not read-only
-  useEffect(() => {
-    if (!isLoading && !isCompleted && !hasShownInstructions && onShowInstructions) {
-      // Small delay to ensure component is fully rendered
-      const timer = setTimeout(() => {
-        onShowInstructions();
-        setHasShownInstructions(true);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, isCompleted, hasShownInstructions, onShowInstructions]);
-
   // Initialize section/question start times when they change
   useEffect(() => {
     setSectionStartTime(new Date());
@@ -201,7 +190,7 @@ const SelfAssessmentQuestionnaire = ({
       setIsLoading(true);
       
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}/submissions`,
+        `${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}/submissions?isPreviewMode=${isPreviewMode}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -420,7 +409,8 @@ const SelfAssessmentQuestionnaire = ({
         },
         body: JSON.stringify({
           submission_data: finalFormData,
-          status: status
+          status: status,
+          isPreviewMode: isPreviewMode
         })
       });
       
@@ -602,52 +592,54 @@ const SelfAssessmentQuestionnaire = ({
         )}
       </div>
 
-      {/* Navigation */}
-      <div className="self-assessment-questionnaire__navigation">
-        <ArrowButton
-          onClick={() => handleQuestionChange('prev')}
-          disabled={currentQuestionIndex === 0 || isSubmitting || isCompleted}
-          borderColor="#4242EA"
-          backgroundColor="var(--color-bg-light)"
-          arrowColor="#4242EA"
-          hoverBackgroundColor="#4242EA"
-          hoverArrowColor="white"
-          size="lg"
-          rotation={180}
-          useChevron={true}
-          strokeWidth={1}
-          className="self-assessment-questionnaire__nav-button"
-        />
-        
-        {currentQuestionIndex === totalQuestions - 1 ? (
-          <button
-            type="button"
-            className="self-assessment-questionnaire__nav-button self-assessment-questionnaire__nav-button--submit"
-            onClick={handleSubmit}
-            disabled={isSubmitting || isCompleted || !isAssessmentComplete()}
-          >
-            {isSubmitting ? (
-              <FaSpinner className="self-assessment-questionnaire__nav-button-icon--spinning" />
-            ) : (
-              <FaCheckCircle />
-            )}
-          </button>
-        ) : (
+      {/* Navigation - Hidden when assessment is complete */}
+      {!isCompleted && (
+        <div className="self-assessment-questionnaire__navigation">
           <ArrowButton
-            onClick={() => handleQuestionChange('next')}
-            disabled={isSubmitting || isCompleted}
+            onClick={() => handleQuestionChange('prev')}
+            disabled={currentQuestionIndex === 0 || isSubmitting}
             borderColor="#4242EA"
             backgroundColor="var(--color-bg-light)"
             arrowColor="#4242EA"
             hoverBackgroundColor="#4242EA"
             hoverArrowColor="white"
             size="lg"
+            rotation={180}
             useChevron={true}
             strokeWidth={1}
             className="self-assessment-questionnaire__nav-button"
           />
-        )}
-      </div>
+          
+          {currentQuestionIndex === totalQuestions - 1 ? (
+            <button
+              type="button"
+              className="self-assessment-questionnaire__nav-button self-assessment-questionnaire__nav-button--submit"
+              onClick={handleSubmit}
+              disabled={isSubmitting || !isAssessmentComplete()}
+            >
+              {isSubmitting ? (
+                <FaSpinner className="self-assessment-questionnaire__nav-button-icon--spinning" />
+              ) : (
+                <FaCheckCircle />
+              )}
+            </button>
+          ) : (
+            <ArrowButton
+              onClick={() => handleQuestionChange('next')}
+              disabled={isSubmitting}
+              borderColor="#4242EA"
+              backgroundColor="var(--color-bg-light)"
+              arrowColor="#4242EA"
+              hoverBackgroundColor="#4242EA"
+              hoverArrowColor="white"
+              size="lg"
+              useChevron={true}
+              strokeWidth={1}
+              className="self-assessment-questionnaire__nav-button"
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 };

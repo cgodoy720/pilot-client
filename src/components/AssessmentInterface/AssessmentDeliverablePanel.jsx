@@ -9,7 +9,10 @@ import AssessmentStructuredSubmission from './AssessmentStructuredSubmission';
 function AssessmentDeliverablePanel({
   assessmentType,
   assessmentName,
+  assessmentData,
   currentSubmission,
+  draftFormData,
+  onDraftUpdate,
   isOpen,
   onClose,
   onSubmit,
@@ -33,6 +36,12 @@ function AssessmentDeliverablePanel({
 
   // Create assessment schema based on type
   const getAssessmentSchema = () => {
+    // If assessment has custom deliverable_schema, use it
+    if (assessmentData?.deliverable_schema) {
+      return assessmentData.deliverable_schema;
+    }
+    
+    // Otherwise fall back to default hardcoded schemas
     const schemas = {
       business: {
         fields: [
@@ -147,6 +156,8 @@ function AssessmentDeliverablePanel({
             task={mockTask}
             schema={getAssessmentSchema()}
             currentSubmission={currentSubmission}
+            draftFormData={draftFormData}
+            onDraftUpdate={onDraftUpdate}
             isSubmitting={isSubmitting}
             isLocked={isLocked}
             onSubmit={handleSubmit}

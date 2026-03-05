@@ -5,25 +5,25 @@ import { Input } from '../ui/input';
 import { Loader2, Video, ExternalLink, Upload, File, X } from 'lucide-react';
 import AnimatedSubmitButton from './AnimatedSubmitButton';
 
-function AssessmentStructuredSubmission({ task, schema, currentSubmission, isSubmitting, isLocked, onSubmit }) {
+function AssessmentStructuredSubmission({ task, schema, currentSubmission, draftFormData, onDraftUpdate, isSubmitting, isLocked, onSubmit }) {
   const [formData, setFormData] = useState({});
   const [validationError, setValidationError] = useState('');
   const [dragActive, setDragActive] = useState({});
   const fileInputRefs = useRef({});
 
-  // Initialize form data from schema and existing submission
+  // Initialize form data from schema and existing submission/draft
+  // Priority: currentSubmission (submitted) > draftFormData (in-progress) > empty
   useEffect(() => {
     const initialData = {};
     
-    // Try to parse existing submission if it exists
+    // Try to get existing data - submissions take precedence over draft
     let existingData = {};
     if (currentSubmission?.submission_data) {
-      try {
-        // Assessment submissions store data differently than regular tasks
-        existingData = currentSubmission.submission_data;
-      } catch (e) {
-        console.log('Could not parse assessment submission data');
-      }
+      // Use submitted data if available (highest priority)
+      existingData = currentSubmission.submission_data;
+    } else if (draftFormData) {
+      // Fall back to draft data if no submission exists
+      existingData = draftFormData;
     }
     
     // Initialize each field from schema
@@ -37,13 +37,20 @@ function AssessmentStructuredSubmission({ task, schema, currentSubmission, isSub
     });
     
     setFormData(initialData);
-  }, [schema, currentSubmission]);
+  }, [schema, currentSubmission, draftFormData]);
 
   const handleChange = (fieldName, value) => {
-    setFormData(prev => ({
-      ...prev,
+    const newFormData = {
+      ...formData,
       [fieldName]: value
-    }));
+    };
+    setFormData(newFormData);
+    
+    // Persist to parent so data survives sidebar close/reopen
+    if (onDraftUpdate) {
+      onDraftUpdate(newFormData);
+    }
+    
     // Clear validation error when user starts typing
     if (validationError) {
       setValidationError('');
@@ -141,6 +148,12 @@ function AssessmentStructuredSubmission({ task, schema, currentSubmission, isSub
       };
       
       setFormData(newFormData);
+      
+      // Persist to parent so data survives sidebar close/reopen
+      if (onDraftUpdate) {
+        onDraftUpdate(newFormData);
+      }
+      
       if (validationError) {
         setValidationError('');
       }
@@ -151,10 +164,16 @@ function AssessmentStructuredSubmission({ task, schema, currentSubmission, isSub
 
   const removeFile = (fieldName, index) => {
     const currentFiles = formData[fieldName] || [];
-    setFormData(prev => ({
-      ...prev,
+    const newFormData = {
+      ...formData,
       [fieldName]: currentFiles.filter((_, i) => i !== index)
-    }));
+    };
+    setFormData(newFormData);
+    
+    // Persist to parent so data survives sidebar close/reopen
+    if (onDraftUpdate) {
+      onDraftUpdate(newFormData);
+    }
   };
 
   const formatFileSize = (bytes) => {

@@ -10,7 +10,7 @@ import LoadingState from './shared/LoadingState';
 import EmptyState from './shared/EmptyState';
 import DeleteConfirmDialog from './shared/DeleteConfirmDialog';
 
-const ModesTab = ({ showNotification, reloadPrompts }) => {
+const ModesTab = ({ showNotification, reloadPrompts, canEdit }) => {
   const [modes, setModes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedModeId, setSelectedModeId] = useState(null);
@@ -198,21 +198,23 @@ const ModesTab = ({ showNotification, reloadPrompts }) => {
               Different operational modes that control specific AI behaviors and constraints.
             </p>
           </div>
-          <Button
-            onClick={handleCreate}
-            className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Create Mode
-          </Button>
+          {canEdit && (
+            <Button
+              onClick={handleCreate}
+              className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Mode
+            </Button>
+          )}
         </div>
 
         <EmptyState
           icon="⚙️"
           title="No modes found"
           description="Create your first AI mode to get started."
-          actionLabel="Create Mode"
-          onAction={handleCreate}
+          actionLabel={canEdit ? 'Create Mode' : undefined}
+          onAction={canEdit ? handleCreate : undefined}
         />
 
         <PromptFormDialog
@@ -242,13 +244,15 @@ const ModesTab = ({ showNotification, reloadPrompts }) => {
             Different operational modes that control specific AI behaviors and constraints.
           </p>
         </div>
-        <Button
-          onClick={handleCreate}
-          className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create Mode
-        </Button>
+        {canEdit && (
+          <Button
+            onClick={handleCreate}
+            className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Mode
+          </Button>
+        )}
       </div>
 
       {/* Modes Tabs */}
@@ -296,41 +300,43 @@ const ModesTab = ({ showNotification, reloadPrompts }) => {
                     )}
                   </div>
 
-                  <div className="flex gap-1 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleSetDefault(mode)}
-                      disabled={mode.is_default}
-                      className={`h-8 w-8 ${
-                        mode.is_default 
-                          ? 'text-[#4242EA]' 
-                          : 'text-[#666] hover:text-[#4242EA]'
-                      }`}
-                      title={mode.is_default ? 'This is the default' : 'Set as default'}
-                    >
-                      <Star className={`h-4 w-4 ${mode.is_default ? 'fill-current' : ''}`} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(mode)}
-                      className="h-8 w-8 text-[#666] hover:text-[#4242EA]"
-                      title="Edit"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(mode)}
-                      disabled={mode.is_default}
-                      className="h-8 w-8 text-[#666] hover:text-red-600 disabled:opacity-30"
-                      title={mode.is_default ? 'Cannot delete default mode' : 'Delete'}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {canEdit && (
+                    <div className="flex gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleSetDefault(mode)}
+                        disabled={mode.is_default}
+                        className={`h-8 w-8 ${
+                          mode.is_default 
+                            ? 'text-[#4242EA]' 
+                            : 'text-[#666] hover:text-[#4242EA]'
+                        }`}
+                        title={mode.is_default ? 'This is the default' : 'Set as default'}
+                      >
+                        <Star className={`h-4 w-4 ${mode.is_default ? 'fill-current' : ''}`} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(mode)}
+                        className="h-8 w-8 text-[#666] hover:text-[#4242EA]"
+                        title="Edit"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(mode)}
+                        disabled={mode.is_default}
+                        className="h-8 w-8 text-[#666] hover:text-red-600 disabled:opacity-30"
+                        title={mode.is_default ? 'Cannot delete default mode' : 'Delete'}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardHeader>
 

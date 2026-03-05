@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import { Button } from '../../components/ui/button';
@@ -46,7 +46,7 @@ const INTEREST_LABELS = Object.fromEntries(
 // ── Component ─────────────────────────────────────────────────────────────────
 
 function MyResumes() {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const fileInputRef = useRef(null);
 
   const [resumes, setResumes] = useState([]);

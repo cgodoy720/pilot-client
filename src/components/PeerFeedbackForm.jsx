@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { FaCheck, FaTimes, FaExclamationCircle, FaUsers, FaUser, FaSpinner, FaExclamationTriangle, FaSearch, FaFilter, FaCheckSquare, FaSquare } from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext';
+import useAuthStore from '../stores/authStore';
 import './PeerFeedbackForm.css';
 
 const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
-  const { user } = useAuth();
+  const user = useAuthStore((s) => s.user);
   const isActive = user?.active !== false;
   
   const [users, setUsers] = useState([]);
@@ -53,8 +53,11 @@ const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
         
         const data = await response.json();
         
+        // Handle both array and object response formats
+        const usersList = data.users || data;
+        
         // Filter out the current user (they shouldn't give feedback to themselves)
-        const otherUsers = data.filter(u => u.user_id !== user.user_id);
+        const otherUsers = usersList.filter(u => u.user_id !== user.user_id);
         
         // Check if there are any other users in this cohort
         if (otherUsers.length === 0) {

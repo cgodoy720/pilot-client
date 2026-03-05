@@ -10,7 +10,7 @@ import LoadingState from './shared/LoadingState';
 import EmptyState from './shared/EmptyState';
 import DeleteConfirmDialog from './shared/DeleteConfirmDialog';
 
-const PersonasTab = ({ showNotification, reloadPrompts }) => {
+const PersonasTab = ({ showNotification, reloadPrompts, canEdit }) => {
   const [personas, setPersonas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedPersonaId, setSelectedPersonaId] = useState(null);
@@ -198,21 +198,23 @@ const PersonasTab = ({ showNotification, reloadPrompts }) => {
               Different AI personalities that determine interaction style and approach with users.
             </p>
           </div>
-          <Button
-            onClick={handleCreate}
-            className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Create Persona
-          </Button>
+          {canEdit && (
+            <Button
+              onClick={handleCreate}
+              className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Persona
+            </Button>
+          )}
         </div>
 
         <EmptyState
           icon="🎭"
           title="No personas found"
           description="Create your first AI persona to get started."
-          actionLabel="Create Persona"
-          onAction={handleCreate}
+          actionLabel={canEdit ? 'Create Persona' : undefined}
+          onAction={canEdit ? handleCreate : undefined}
         />
 
         <PromptFormDialog
@@ -242,13 +244,15 @@ const PersonasTab = ({ showNotification, reloadPrompts }) => {
             Different AI personalities that determine interaction style and approach with users.
           </p>
         </div>
-          <Button
-            onClick={handleCreate}
-          className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
-          >
-          <Plus className="h-4 w-4 mr-2" />
-            Create Persona
-          </Button>
+          {canEdit && (
+            <Button
+              onClick={handleCreate}
+              className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Persona
+            </Button>
+          )}
       </div>
 
       {/* Personas Tabs */}
@@ -296,41 +300,43 @@ const PersonasTab = ({ showNotification, reloadPrompts }) => {
                   )}
                 </div>
 
-                  <div className="flex gap-1 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleSetDefault(persona)}
-                      disabled={persona.is_default}
-                      className={`h-8 w-8 ${
-                        persona.is_default 
-                          ? 'text-[#4242EA]' 
-                          : 'text-[#666] hover:text-[#4242EA]'
-                      }`}
-                      title={persona.is_default ? 'This is the default' : 'Set as default'}
-                    >
-                      <Star className={`h-4 w-4 ${persona.is_default ? 'fill-current' : ''}`} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(persona)}
-                      className="h-8 w-8 text-[#666] hover:text-[#4242EA]"
-                    title="Edit"
-                  >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(persona)}
-                      disabled={persona.is_default}
-                      className="h-8 w-8 text-[#666] hover:text-red-600 disabled:opacity-30"
-                      title={persona.is_default ? 'Cannot delete default persona' : 'Delete'}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {canEdit && (
+                    <div className="flex gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleSetDefault(persona)}
+                        disabled={persona.is_default}
+                        className={`h-8 w-8 ${
+                          persona.is_default 
+                            ? 'text-[#4242EA]' 
+                            : 'text-[#666] hover:text-[#4242EA]'
+                        }`}
+                        title={persona.is_default ? 'This is the default' : 'Set as default'}
+                      >
+                        <Star className={`h-4 w-4 ${persona.is_default ? 'fill-current' : ''}`} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(persona)}
+                        className="h-8 w-8 text-[#666] hover:text-[#4242EA]"
+                        title="Edit"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(persona)}
+                        disabled={persona.is_default}
+                        className="h-8 w-8 text-[#666] hover:text-red-600 disabled:opacity-30"
+                        title={persona.is_default ? 'Cannot delete default persona' : 'Delete'}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardHeader>
 

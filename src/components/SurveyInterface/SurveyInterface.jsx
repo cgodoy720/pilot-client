@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { FaSpinner, FaCheckCircle } from 'react-icons/fa';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { toast } from 'sonner';
 import ArrowButton from '../ArrowButton/ArrowButton';
 import './SurveyInterface.css';
 
-const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onComplete, isCompleted = false, isLastTask = false }) => {
-  const { token, user } = useAuth();
+const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onComplete, isCompleted = false, isLastTask = false, isPreviewMode = false }) => {
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const isActive = user?.active !== false;
 
   // Survey state
@@ -17,8 +18,8 @@ const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onC
   const [isLoading, setIsLoading] = useState(true);
   const [existingFeedback, setExistingFeedback] = useState(null);
 
-  // Get localStorage key for this specific survey
-  const getStorageKey = () => `survey_progress_${taskId}_${surveyType}`;
+  // Get localStorage key for this specific survey (includes preview mode to keep them separate)
+  const getStorageKey = () => `survey_progress_${taskId}_${surveyType}${isPreviewMode ? '_preview' : ''}`;
 
   // Define survey questions based on type
   const getSurveyQuestions = () => {
@@ -136,7 +137,7 @@ const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onC
         setIsLoading(true);
 
         // Try to load existing feedback from backend
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/builder-feedback/${taskId}`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/builder-feedback/${taskId}?isPreviewMode=${isPreviewMode}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -258,7 +259,8 @@ const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onC
       const submitData = {
         taskId: parseInt(taskId),
         dayNumber,
-        cohort
+        cohort,
+        isPreviewMode
       };
 
       // Map responses to expected backend format

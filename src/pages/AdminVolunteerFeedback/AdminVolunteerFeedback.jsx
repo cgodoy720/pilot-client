@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
+import { usePermissions } from '../../hooks/usePermissions';
 import { ChevronDown } from 'lucide-react';
 import {
     Accordion,
@@ -17,8 +18,10 @@ import {
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 
-function AdminVolunteerFeedback() {
-    const { user, token } = useAuth();
+function AdminVolunteerFeedback({ embedded = false }) {
+    const user = useAuthStore((s) => s.user);
+    const token = useAuthStore((s) => s.token);
+    const { canAccessPage } = usePermissions();
     const [feedback, setFeedback] = useState([]);
     const [filteredFeedback, setFilteredFeedback] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -120,8 +123,7 @@ function AdminVolunteerFeedback() {
         setExpandedRows(value);
     };
 
-    // Check if user is admin or staff
-    if (user?.role !== 'admin' && user?.role !== 'staff') {
+    if (!embedded && (!user || !canAccessPage('admin_volunteer_feedback'))) {
         return (
             <div className="min-h-screen bg-[#EFEFEF] p-8">
                 <div className="max-w-4xl mx-auto">
@@ -135,7 +137,7 @@ function AdminVolunteerFeedback() {
     }
 
     return (
-        <div className="min-h-screen bg-[#EFEFEF]">
+        <div className={embedded ? "" : "min-h-screen bg-[#EFEFEF]"}>
             {/* Header */}
             <div className="border-b border-[#C8C8C8] px-10 py-4">
                 <h1 

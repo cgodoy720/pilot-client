@@ -2,21 +2,21 @@ import { fetchWithAuth } from './api';
 
 /**
  * Fetch tasks with feedback data for the Performance Inbox
+ * Backend now uses user_enrollment to determine cohorts automatically
  * 
  * @param {string} token - Auth token
  * @param {string} month - Optional month filter (YYYY-MM format)
- * @param {string} cohort - Optional cohort filter
+ * @param {string} cohort - Optional cohort filter (deprecated - backend uses enrollments)
  * @param {number} testUserId - Optional test user ID (for development)
  * @returns {Promise<Object>} Response with tasks and metadata
  */
 export const fetchTasksWithFeedback = async (token, month = null, cohort = null, testUserId = null) => {
   try {
-    console.log('🔍 Fetching tasks with feedback...', { month, cohort, testUserId });
+    console.log('🔍 Fetching tasks with feedback...', { month, testUserId });
     
-    // Build query parameters
+    // Build query parameters - cohort is no longer needed, backend uses enrollments
     const params = new URLSearchParams();
     if (month) params.append('month', month);
-    if (cohort) params.append('cohort', cohort);
     if (testUserId) params.append('testUserId', testUserId);
     
     const url = `/api/performance/tasks-with-feedback${params.toString() ? '?' + params.toString() : ''}`;

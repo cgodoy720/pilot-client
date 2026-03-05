@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import Swal from 'sweetalert2';
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
@@ -110,7 +110,8 @@ const EMPTY_FORM = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 function MyStrategy() {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
 
   const [interests, setInterests] = useState(null);
   const [isLoading, setIsLoading] = useState(true);

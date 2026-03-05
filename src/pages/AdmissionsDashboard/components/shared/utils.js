@@ -105,6 +105,7 @@ export const getStatusBadgeClasses = (status) => {
     'attended': 'bg-green-100 text-green-800',
     'attended_late': 'bg-yellow-100 text-yellow-700',
     'very_late': 'bg-orange-100 text-orange-700',
+    'attended_event': 'bg-green-100 text-green-800',  // External event attendance
     'no_show': 'bg-red-100 text-red-800',
     'cancelled': 'bg-gray-100 text-gray-600',
     

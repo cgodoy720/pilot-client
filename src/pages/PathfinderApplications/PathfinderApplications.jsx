@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import confetti from 'canvas-confetti';
@@ -17,6 +17,7 @@ import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import MyStrategy from './MyStrategy';
 import MyResumes from './MyResumes';
+import './PathfinderApplications.css';
 
 // Helper function to get local date in YYYY-MM-DD format
 const getLocalDate = () => {
@@ -38,7 +39,8 @@ const formatShortDate = (dateString) => {
 };
 
 function PathfinderApplications() {
-  const { user, token } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const location = useLocation();
   const [applications, setApplications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

@@ -14,6 +14,8 @@ import {
 } from '../../../../components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../../components/ui/tabs';
 import Swal from 'sweetalert2';
+import EmailMappingsTab from './EmailMappingsTab';
+import EmailTemplatesTab from './EmailTemplatesTab';
 
 const EmailsTab = ({
   emailStats,
@@ -30,6 +32,10 @@ const EmailsTab = ({
   fetchQueuedEmails,
   fetchEmailHistory,
   fetchApplicantEmailStatus,
+  emailMappings,
+  emailMappingsStats,
+  emailMappingsLoading,
+  fetchEmailMappings,
   token
 }) => {
   const [emailSubTab, setEmailSubTab] = useState('history');
@@ -284,7 +290,7 @@ const EmailsTab = ({
               {computedStats.openRate}%
             </div>
             <div className="text-sm text-gray-500 font-proxima mt-1">
-              {computedStats.openedCount} of {safeEmailHistory.length} opened
+              {computedStats.openedCount} of {computedStats.totalSent} opened
             </div>
           </CardContent>
         </Card>
@@ -448,6 +454,12 @@ const EmailsTab = ({
               <TabsTrigger value="applicants" className="font-proxima data-[state=active]:bg-white">
                 Applicant Status ({safeApplicantEmailStatus.length})
               </TabsTrigger>
+              <TabsTrigger value="mappings" className="font-proxima data-[state=active]:bg-white">
+                Email Mappings
+              </TabsTrigger>
+              <TabsTrigger value="templates" className="font-proxima data-[state=active]:bg-white">
+                Email Templates
+              </TabsTrigger>
             </TabsList>
 
             {/* Email History */}
@@ -595,6 +607,22 @@ const EmailsTab = ({
                   No applicant email data
                 </div>
               )}
+            </TabsContent>
+
+            {/* Email Mappings Tab */}
+            <TabsContent value="mappings" className="mt-0 p-6">
+              <EmailMappingsTab
+                emailMappings={emailMappings}
+                emailMappingsStats={emailMappingsStats}
+                emailMappingsLoading={emailMappingsLoading}
+                fetchEmailMappings={fetchEmailMappings}
+                token={token}
+              />
+            </TabsContent>
+
+            {/* Email Templates Tab */}
+            <TabsContent value="templates" className="mt-0 p-6">
+              <EmailTemplatesTab token={token} />
             </TabsContent>
           </Tabs>
         </CardContent>

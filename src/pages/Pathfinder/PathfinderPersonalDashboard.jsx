@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { Link, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { Badge } from '../../components/ui/badge';
@@ -53,7 +53,8 @@ const COMPANY_STAGE_LABELS = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 function PathfinderPersonalDashboard() {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
 
   const [interests, setInterests] = useState(null);

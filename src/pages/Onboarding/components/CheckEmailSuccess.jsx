@@ -45,7 +45,7 @@ function CheckEmailSuccess({ user, onBackToDashboard }) {
           <li>1. <strong>Check your Pursuit email</strong> for the verification message</li>
           <li>2. <strong>Click the verification link</strong> in the email</li>
           <li>3. <strong>Log in with your Pursuit email</strong> to access your builder account</li>
-          <li>4. <strong>Start building!</strong> Your AI-Native journey begins December 6th, 2025</li>
+          <li>4. <strong>Start building!</strong> Your AI-Native journey is about to begin</li>
         </ol>
       </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import Swal from 'sweetalert2';
 import { Card, CardContent } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
@@ -46,7 +46,7 @@ const STAGE_OPTIONS = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const EmploymentRecordsAdmin = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
 
   // ── Data ──
   const [records, setRecords]     = useState([]);

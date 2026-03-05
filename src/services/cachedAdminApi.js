@@ -166,11 +166,109 @@ export const clearAllCaches = () => {
   console.log('🗑️ All caches cleared');
 };
 
+/**
+ * Get cached cohort daily breakdown
+ * @param {string} cohort - Cohort name
+ * @param {string} token - Admin authentication token
+ * @param {Object} options - Cache options
+ * @returns {Promise<Object>} Daily breakdown data with cache metadata
+ */
+export const getCachedCohortDailyBreakdown = async (cohort, token, options = {}) => {
+  const { 
+    forceRefresh = false, 
+    ttl = 5 * 60 * 1000, // 5 minutes default
+    period = 'last-30-days'
+  } = options;
+
+  const cacheKey = cacheService.generateKey(`/api/admin/attendance/dashboard/cohort-daily-breakdown/${cohort}`, { period });
+
+  // Check cache first (unless force refresh)
+  if (!forceRefresh) {
+    const cachedData = cacheService.get(cacheKey);
+    if (cachedData) {
+      console.log('📦 Serving cohort daily breakdown from cache');
+      return cachedData;
+    }
+  }
+
+  // Fetch fresh data
+  console.log('🔄 Fetching fresh cohort daily breakdown data');
+  const startTime = Date.now();
+  
+  try {
+    const data = await adminApi.getCohortDailyBreakdown(cohort, token, { period });
+    const endTime = Date.now();
+    
+    console.log(`⏱️ Cohort daily breakdown fetch took ${endTime - startTime}ms`);
+    
+    // Cache the result
+    const cachedResult = cacheService.set(cacheKey, data, ttl);
+    
+    return {
+      ...cachedResult,
+      fetchTime: endTime - startTime
+    };
+  } catch (error) {
+    console.error('❌ Error fetching cohort daily breakdown:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get cached day builder status
+ * @param {string} cohort - Cohort name
+ * @param {string} date - Date in YYYY-MM-DD format
+ * @param {string} token - Admin authentication token
+ * @param {Object} options - Cache options
+ * @returns {Promise<Object>} Builder status data with cache metadata
+ */
+export const getCachedDayBuilderStatus = async (cohort, date, token, options = {}) => {
+  const { 
+    forceRefresh = false, 
+    ttl = 2 * 60 * 1000 // 2 minutes default (more dynamic)
+  } = options;
+
+  const cacheKey = cacheService.generateKey(`/api/admin/attendance/dashboard/day-builder-status/${cohort}/${date}`);
+
+  // Check cache first (unless force refresh)
+  if (!forceRefresh) {
+    const cachedData = cacheService.get(cacheKey);
+    if (cachedData) {
+      console.log('📦 Serving day builder status from cache');
+      return cachedData;
+    }
+  }
+
+  // Fetch fresh data
+  console.log('🔄 Fetching fresh day builder status data');
+  const startTime = Date.now();
+  
+  try {
+    const data = await adminApi.getDayBuilderStatus(cohort, date, token);
+    const endTime = Date.now();
+    
+    console.log(`⏱️ Day builder status fetch took ${endTime - startTime}ms`);
+    
+    // Cache the result
+    const cachedResult = cacheService.set(cacheKey, data, ttl);
+    
+    return {
+      ...cachedResult,
+      fetchTime: endTime - startTime
+    };
+  } catch (error) {
+    console.error('❌ Error fetching day builder status:', error);
+    throw error;
+  }
+};
+
 // Export the cached API functions
 export const cachedAdminApi = {
   // Cached functions
   getCachedCohortPerformance,
   getCachedTodaysAttendance,
+  getCachedCohortDailyBreakdown,
+  getCachedDayBuilderStatus,
   invalidateCohortPerformanceCache,
   invalidateTodaysAttendanceCache,
   invalidateAllAttendanceCaches,

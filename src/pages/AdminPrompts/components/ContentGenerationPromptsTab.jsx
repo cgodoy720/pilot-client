@@ -9,7 +9,7 @@ import LoadingState from './shared/LoadingState';
 import EmptyState from './shared/EmptyState';
 import DeleteConfirmDialog from './shared/DeleteConfirmDialog';
 
-const ContentGenerationPromptsTab = ({ showNotification, reloadPrompts }) => {
+const ContentGenerationPromptsTab = ({ showNotification, reloadPrompts, canEdit }) => {
   const [prompts, setPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('all');
@@ -257,13 +257,15 @@ const ContentGenerationPromptsTab = ({ showNotification, reloadPrompts }) => {
             </SelectContent>
           </Select>
 
-          <Button
-            onClick={handleCreate}
-            className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Create Prompt
-          </Button>
+          {canEdit && (
+            <Button
+              onClick={handleCreate}
+              className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Prompt
+            </Button>
+          )}
         </div>
       </div>
 
@@ -273,8 +275,8 @@ const ContentGenerationPromptsTab = ({ showNotification, reloadPrompts }) => {
           icon="✨"
           title="No content generation prompts found"
           description={filterType === 'all' ? 'Create your first content generation prompt to get started.' : `No prompts found for type: ${getTypeLabel(filterType)}`}
-          actionLabel="Create Prompt"
-          onAction={handleCreate}
+          actionLabel={canEdit ? 'Create Prompt' : undefined}
+          onAction={canEdit ? handleCreate : undefined}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -319,41 +321,43 @@ const ContentGenerationPromptsTab = ({ showNotification, reloadPrompts }) => {
                     Updated: {new Date(prompt.updated_at).toLocaleDateString()}
                   </div>
 
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleSetDefault(prompt)}
-                      disabled={prompt.is_default}
-                      className={`h-7 w-7 ${
-                        prompt.is_default 
-                          ? 'text-[#4242EA]' 
-                          : 'text-[#666] hover:text-[#4242EA]'
-                      }`}
-                      title={prompt.is_default ? 'This is the default' : 'Set as default'}
-                    >
-                      <Star className={`h-3.5 w-3.5 ${prompt.is_default ? 'fill-current' : ''}`} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(prompt)}
-                      className="h-7 w-7 text-[#666] hover:text-[#4242EA]"
-                      title="Edit"
-                    >
-                      <Edit className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(prompt)}
-                      disabled={prompt.is_default}
-                      className="h-7 w-7 text-[#666] hover:text-red-600 disabled:opacity-30"
-                      title={prompt.is_default ? 'Cannot delete default prompt' : 'Delete'}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                  {canEdit && (
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleSetDefault(prompt)}
+                        disabled={prompt.is_default}
+                        className={`h-7 w-7 ${
+                          prompt.is_default 
+                            ? 'text-[#4242EA]' 
+                            : 'text-[#666] hover:text-[#4242EA]'
+                        }`}
+                        title={prompt.is_default ? 'This is the default' : 'Set as default'}
+                      >
+                        <Star className={`h-3.5 w-3.5 ${prompt.is_default ? 'fill-current' : ''}`} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(prompt)}
+                        className="h-7 w-7 text-[#666] hover:text-[#4242EA]"
+                        title="Edit"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(prompt)}
+                        disabled={prompt.is_default}
+                        className="h-7 w-7 text-[#666] hover:text-red-600 disabled:opacity-30"
+                        title={prompt.is_default ? 'Cannot delete default prompt' : 'Delete'}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { getPublicForm, submitForm, generateSessionId } from '../../services/formService';
 import FormQuestion from './components/FormQuestion';
 import ThankYouScreen from './components/ThankYouScreen';
 import FormClosed from './components/FormClosed';
-import { ChevronLeft, ChevronRight, ArrowRight, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import logo from '../../assets/logo-full.png';
 import './PublicFormContainer.css';
@@ -20,9 +20,10 @@ const PublicFormContainer = () => {
   const [startTime, setStartTime] = useState(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [slideDirection, setSlideDirection] = useState('next');
+  const [slideDirection, setSlideDirection] = useState('forward');
   const [showWelcome, setShowWelcome] = useState(true);
   const [respondentEmail, setRespondentEmail] = useState('');
+  const [confirmEmail, setConfirmEmail] = useState('');
   const [validationError, setValidationError] = useState(null);
 
   useEffect(() => {
@@ -67,7 +68,7 @@ const PublicFormContainer = () => {
   const handleNext = () => {
     if (currentQuestionIndex < form.questions.length - 1) {
       setSlideDirection('forward');
-      setTimeout(() => setCurrentQuestionIndex(currentQuestionIndex + 1), 50);
+      setTimeout(() => setCurrentQuestionIndex((prev) => prev + 1), 50);
     } else {
       handleSubmit();
     }
@@ -76,7 +77,7 @@ const PublicFormContainer = () => {
   const handleBack = () => {
     if (currentQuestionIndex > 0) {
       setSlideDirection('backward');
-      setTimeout(() => setCurrentQuestionIndex(currentQuestionIndex - 1), 50);
+      setTimeout(() => setCurrentQuestionIndex((prev) => prev - 1), 50);
     }
   };
 
@@ -207,18 +208,18 @@ const PublicFormContainer = () => {
         <div className="flex-1 flex flex-col items-center justify-center px-8">
           <div className="w-full max-w-[660px]">
             <div className="text-left mb-12">
-              <h2 className="text-white text-base md:text-lg font-bold mb-6">
+              <h2 className="text-white text-2xl md:text-3xl font-bold mb-6">
                 {form.title}
               </h2>
               {form.description && (
-                <p className="text-white/70 text-sm md:text-base leading-tight mb-6">
+                <p className="text-white/70 text-lg md:text-xl leading-tight mb-6">
                   {form.description}
                 </p>
               )}
             </div>
             
             {form.settings.require_email && (
-              <div className="mb-8">
+              <div className="mb-6 space-y-4">
                 <input
                   type="email"
                   value={respondentEmail}
@@ -227,17 +228,28 @@ const PublicFormContainer = () => {
                   required
                   className="w-full px-0 py-2 border-0 border-b border-white/30 bg-transparent text-white text-base md:text-lg placeholder:text-white/60 focus:border-white focus:ring-0 focus:outline-none rounded-none box-border transition-all"
                 />
+                <input
+                  type="email"
+                  value={confirmEmail}
+                  onChange={(e) => setConfirmEmail(e.target.value)}
+                  placeholder="Confirm your email"
+                  required
+                  className="w-full px-0 py-2 border-0 border-b border-white/30 bg-transparent text-white text-base md:text-lg placeholder:text-white/60 focus:border-white focus:ring-0 focus:outline-none rounded-none box-border transition-all"
+                />
+                {respondentEmail && confirmEmail && respondentEmail !== confirmEmail && (
+                  <p className="text-sm text-red-300">Email addresses must match</p>
+                )}
               </div>
             )}
 
             {/* Start Button matching navigation style */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 mt-10">
               <button
                 onClick={handleStartForm}
-                disabled={form.settings.require_email && !respondentEmail}
-                className="w-8 h-8 bg-white text-[#4E4DED] hover:bg-gray-100 rounded-lg border border-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                disabled={form.settings.require_email && (!respondentEmail || !confirmEmail || respondentEmail !== confirmEmail)}
+                className="px-6 py-2 bg-white text-[#4E4DED] hover:bg-gray-100 rounded-lg border border-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-sm"
               >
-                <ChevronRight className="w-4 h-4" />
+                START
               </button>
             </div>
           </div>
@@ -279,14 +291,14 @@ const PublicFormContainer = () => {
             </div>
           )}
 
-          <div className="mb-12">
-            {/* Question with slide animation - wrapped in overflow-hidden */}
+          <div className="mb-4">
+            {/* Same slide animation as Signup/MultiStepForm */}
             <div className="overflow-hidden relative">
               <div
                 key={`question-${currentQuestionIndex}`}
                 className={`transition-all duration-500 ease-in-out ${
-                  slideDirection === 'forward' 
-                    ? 'animate-slide-in-right' 
+                  slideDirection === 'forward'
+                    ? 'animate-slide-in-right'
                     : 'animate-slide-in-left'
                 }`}
               >
@@ -302,20 +314,20 @@ const PublicFormContainer = () => {
           </div>
 
           {/* Navigation Arrows */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 mt-2">
             <button
               onClick={handleBack}
               disabled={currentQuestionIndex === 0 || submitting}
-              className="w-8 h-8 border border-white text-white hover:bg-white/10 rounded-lg bg-transparent flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all p-0"
+              className="px-6 py-2 border border-white text-white hover:bg-white/10 rounded-lg bg-transparent flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-sm"
             >
-              <ChevronLeft className="w-4 h-4" />
+              BACK
             </button>
             <button
               onClick={handleNext}
               disabled={!isCurrentQuestionAnswered() || submitting}
-              className="w-8 h-8 bg-white text-[#4E4DED] hover:bg-gray-100 rounded-lg border border-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all p-0"
+              className="px-6 py-2 bg-white text-[#4E4DED] hover:bg-gray-100 rounded-lg border border-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-sm"
             >
-              <ChevronRight className="w-4 h-4" />
+              {currentQuestionIndex === form.questions.length - 1 ? 'SUBMIT' : 'NEXT'}
             </button>
           </div>
         </div>

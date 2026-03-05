@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import MultiStepForm from '../../components/MultiStepForm';
@@ -8,14 +8,16 @@ import ArrowButton from '../../components/ArrowButton/ArrowButton';
 import logoFull from '../../assets/logo-full.png';
 
 const Signup = () => {
-  const [userType, setUserType] = useState(''); // 'builder', 'applicant', or 'workshop'
+  const [userType, setUserType] = useState(''); // 'builder', 'applicant', 'enterprise', or 'volunteer'
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registrationComplete, setRegistrationComplete] = useState(false);
   
   const navigate = useNavigate();
-  const { signup, isAuthenticated, setAuthState } = useAuth();
+  const signup = useAuthStore((s) => s.signup);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const setAuthState = useAuthStore((s) => s.setAuthState);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -46,7 +48,7 @@ const Signup = () => {
 
       if (userType === 'builder') {
         console.log('🔵 Processing builder signup...');
-        // Create builder account using the existing AuthContext signup
+        // Create builder account using the authStore signup
         const result = await signup(formData.firstName, formData.lastName, formData.email, formData.password);
         
         console.log('🔵 Builder signup result:', result);
@@ -68,7 +70,10 @@ const Signup = () => {
           firstName: formData.firstName, 
           lastName: formData.lastName, 
           email: formData.email, 
-          password: formData.password 
+          password: formData.password,
+          referralSource: formData.referralSource,
+          referralDetail: formData.referralDetail,
+          nychaResident: formData.nychaResident
         };
         
         response = await fetch(endpoint, {
@@ -87,9 +92,9 @@ const Signup = () => {
         } else {
           setError(data.error || data.message || 'Failed to create account');
         }
-      } else if (userType === 'workshop') {
-        // Create workshop participant account
-        endpoint = `${import.meta.env.VITE_API_URL}/api/workshop/access`;
+      } else if (userType === 'enterprise') {
+        // Create enterprise account (cohort or workshop based on access code)
+        endpoint = `${import.meta.env.VITE_API_URL}/api/enterprise/access`;
         requestBody = {
           access_code: formData.accessCode,
           first_name: formData.firstName,
@@ -110,9 +115,35 @@ const Signup = () => {
 
         if (response.ok) {
           setRegistrationComplete(true);
-          setSuccessMessage('Workshop account created successfully! Please check your email to verify your account before logging in.');
+          setSuccessMessage(data.message || 'Account created successfully! Please check your email to verify your account before logging in.');
         } else {
-          setError(data.error || 'Failed to create workshop account');
+          setError(data.error || 'Failed to create account');
+        }
+      } else if (userType === 'volunteer') {
+        // Create volunteer account
+        endpoint = `${import.meta.env.VITE_API_URL}/api/volunteers/signup`;
+        requestBody = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password
+        };
+
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setRegistrationComplete(true);
+          setSuccessMessage(data.message || 'Volunteer account created successfully! Please check your email to verify your account before logging in.');
+        } else {
+          setError(data.error || 'Failed to create volunteer account');
         }
       }
     } catch (err) {
@@ -135,8 +166,8 @@ const Signup = () => {
     return null;
   }
 
-  // Show MultiStepForm for builder, applicant and workshop signups
-  if ((userType === 'builder' || userType === 'applicant' || userType === 'workshop') && !registrationComplete) {
+  // Show MultiStepForm for builder, applicant, enterprise and volunteer signups
+  if ((userType === 'builder' || userType === 'applicant' || userType === 'enterprise' || userType === 'volunteer') && !registrationComplete) {
     return (
       <MultiStepForm 
         userType={userType} 
@@ -158,27 +189,25 @@ const Signup = () => {
         }}
       >
         {/* Header */}
-        <div className="absolute top-5 left-8">
-          <h1 className="text-white text-xl md:text-2xl font-proxima leading-tight">
+        <div className="flex flex-col items-end md:flex-row md:justify-between md:items-center px-8 pt-5 gap-2">
+          <h1 className="hidden md:block text-white text-xl md:text-2xl font-proxima leading-tight">
             Let's create your account
           </h1>
-        </div>
-        
-        {/* Top Right Login Link */}
-        <div className="absolute top-7 right-8 flex items-center gap-2">
-          <span className="text-white text-sm font-proxima">
-            Already have an account? Login
-          </span>
-          <Link to="/login">
-            <ArrowButton 
-              size="sm"
-              borderColor="white"
-              arrowColor="white"
-              backgroundColor="transparent"
-              hoverBackgroundColor="white"
-              hoverArrowColor="#4242EA"
-            />
-          </Link>
+          <div className="flex items-center gap-2">
+            <span className="text-white text-sm font-proxima">
+              Already have an account? Login
+            </span>
+            <Link to="/login">
+              <ArrowButton
+                size="sm"
+                borderColor="white"
+                arrowColor="white"
+                backgroundColor="transparent"
+                hoverBackgroundColor="white"
+                hoverArrowColor="#4242EA"
+              />
+            </Link>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -217,37 +246,35 @@ const Signup = () => {
     return (
       <div className="min-h-screen bg-pursuit-purple relative flex flex-col">
         {/* Header */}
-        <div className="absolute top-5 left-8">
-          <h1 className="text-white text-xl md:text-2xl font-proxima leading-tight">
+        <div className="flex flex-col items-end md:flex-row md:justify-between md:items-center px-8 pt-5 gap-2">
+          <h1 className="hidden md:block text-white text-xl md:text-2xl font-proxima leading-tight">
             Let's create your account
           </h1>
-        </div>
-        
-        {/* Top Right Login Link */}
-        <div className="absolute top-7 right-8 flex items-center gap-2">
-          <span className="text-white text-sm font-proxima">
-            Already have an account? Login
-          </span>
-          <Link to="/login">
-            <ArrowButton 
-              size="sm"
-              borderColor="white"
-              arrowColor="white"
-              backgroundColor="transparent"
-              hoverBackgroundColor="white"
-              hoverArrowColor="#4242EA"
-            />
-          </Link>
+          <div className="flex items-center gap-2">
+            <span className="text-white text-sm font-proxima">
+              Already have an account? Login
+            </span>
+            <Link to="/login">
+              <ArrowButton
+                size="sm"
+                borderColor="white"
+                arrowColor="white"
+                backgroundColor="transparent"
+                hoverBackgroundColor="white"
+                hoverArrowColor="#4242EA"
+              />
+            </Link>
+          </div>
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col items-center justify-center px-8">
+        <div className="flex-1 flex flex-col items-center justify-center px-8 pb-8 md:pb-0">
           {/* Container that matches card width */}
-          <div className="w-full max-w-[660px]">
+          <div className="w-full max-w-[920px]">
             {/* Step indicator and question - aligned to left of cards */}
             <div className="text-left mb-12">
               <p className="text-white text-sm font-bold font-proxima mb-3">
-                01 of 08
+                01 of 06
               </p>
               <h2 className="text-white text-base md:text-lg font-bold font-proxima">
                 What type of account do you want to create?
@@ -255,9 +282,9 @@ const Signup = () => {
             </div>
 
             {/* Account Type Cards */}
-            <div className="flex flex-col md:flex-row gap-6 mb-16">
+            <div className="flex flex-col md:flex-row gap-6 mb-8 md:mb-16">
             {/* Applicant Card */}
-            <div className="w-full md:w-[210px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
+            <div className="w-full md:w-[210px] md:min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-4 gap-3 md:p-6 md:gap-6">
               <div className="flex flex-col items-center gap-4 w-full flex-1">
                 <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
                   Applicant
@@ -276,7 +303,7 @@ const Signup = () => {
             </div>
 
             {/* Builder Card */}
-            <div className="w-full md:w-[212px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
+            <div className="w-full md:w-[210px] md:min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-4 gap-3 md:p-6 md:gap-6">
               <div className="flex flex-col items-center gap-4 w-full flex-1">
                 <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
                   Builder
@@ -294,18 +321,37 @@ const Signup = () => {
               </Button>
             </div>
 
-            {/* Workshop Card */}
-            <div className="w-full md:w-[211px] min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-6 gap-6">
+            {/* Enterprise Card */}
+            <div className="w-full md:w-[210px] md:min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-4 gap-3 md:p-6 md:gap-6">
               <div className="flex flex-col items-center gap-4 w-full flex-1">
                 <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
-                  Workshop
+                  Enterprise
                 </h3>
                 <p className="text-white text-sm md:text-base font-proxima leading-tight text-center w-full flex-1">
-                  For workshop participants with an access code from your organization
+                  For enterprise program participants with an access code
                 </p>
               </div>
               <Button
-                onClick={() => handleUserTypeSelect('workshop')}
+                onClick={() => handleUserTypeSelect('enterprise')}
+                variant="outline"
+                className="border-white text-white hover:bg-white hover:text-pursuit-purple rounded-full px-5 py-1.5 text-sm font-proxima h-auto bg-transparent w-auto"
+              >
+                Select
+              </Button>
+            </div>
+
+            {/* Volunteer Card */}
+            <div className="w-full md:w-[210px] md:min-h-[270px] border border-divider rounded-[20px] bg-transparent shadow-[4px_4px_40px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between p-4 gap-3 md:p-6 md:gap-6">
+              <div className="flex flex-col items-center gap-4 w-full flex-1">
+                <h3 className="text-white text-xl md:text-2xl font-proxima leading-tight text-center w-full">
+                  Volunteer
+                </h3>
+                <p className="text-white text-sm md:text-base font-proxima leading-tight text-center w-full flex-1">
+                  For volunteers supporting Pursuit Builders
+                </p>
+              </div>
+              <Button
+                onClick={() => handleUserTypeSelect('volunteer')}
                 variant="outline"
                 className="border-white text-white hover:bg-white hover:text-pursuit-purple rounded-full px-5 py-1.5 text-sm font-proxima h-auto bg-transparent w-auto"
               >
@@ -315,7 +361,7 @@ const Signup = () => {
           </div>
 
           {/* Navigation Arrows */}
-          <div className="flex gap-2">
+          <div className="hidden md:flex gap-2">
             <ArrowButton
               size="lg"
               borderColor="rgba(255, 255, 255, 0.2)"
@@ -339,7 +385,7 @@ const Signup = () => {
         </div>
 
         {/* Bottom Right Logo */}
-        <div className="absolute bottom-8 right-8">
+        <div className="hidden md:block absolute bottom-8 right-8">
           <img src={logoFull} alt="Pursuit Logo" className="h-[71.93px] w-[280px]" />
         </div>
       </div>

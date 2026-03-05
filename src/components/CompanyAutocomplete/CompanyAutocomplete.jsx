@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import './CompanyAutocomplete.css';
 
-function CompanyAutocomplete({ value, onChange, required = false }) {
-  const { token } = useAuth();
+function CompanyAutocomplete({ value, onChange, required = false, className = '' }) {
+  const token = useAuthStore((s) => s.token);
   const [inputValue, setInputValue] = useState(value || '');
   const [suggestions, setSuggestions] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -139,7 +139,7 @@ function CompanyAutocomplete({ value, onChange, required = false }) {
         }}
         required={required}
         placeholder="Start typing company name..."
-        className="company-autocomplete__input"
+        className={`company-autocomplete__input ${className}`}
         autoComplete="off"
       />
 

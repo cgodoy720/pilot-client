@@ -1,17 +1,17 @@
 import React from 'react';
 import './CohortAttendanceCard.css';
+import { formatAttendanceTimeEST } from '../../utils/dateHelpers';
 
 const CohortAttendanceCard = ({ 
   cohortName, 
-  cohortLevel, 
   attendees = [], 
   className = '' 
 }) => {
 
 
   // Get cohort display name
-  const getCohortDisplayName = (level, name) => {
-    return `${level} ${name} Cohort`;
+  const getCohortDisplayName = (name) => {
+    return `${name} Cohort`;
   };
 
   // Get placeholder photo for attendees without photos
@@ -40,7 +40,7 @@ const CohortAttendanceCard = ({
       <div className={`cohort-attendance-card ${className}`}>
         <div className="card-header">
           <div className="card-icon">👥</div>
-          <h2>{getCohortDisplayName(cohortLevel, cohortName)} Present Today (0)</h2>
+          <h2>{getCohortDisplayName(cohortName)} Present Today (0)</h2>
         </div>
         <div className="cohort-empty-state">
           <div className="empty-icon">📷</div>
@@ -54,7 +54,7 @@ const CohortAttendanceCard = ({
     <div className={`cohort-attendance-card ${className}`}>
       <div className="card-header">
         <div className="card-icon">👥</div>
-        <h2>{getCohortDisplayName(cohortLevel, cohortName)} Present Today ({attendees.length})</h2>
+        <h2>{getCohortDisplayName(cohortName)} Present Today ({attendees.length})</h2>
       </div>
       
       <div className="cohort-photos-container">
@@ -73,28 +73,13 @@ const CohortAttendanceCard = ({
               </div>
               <div className="thumbnail-info">
                 <p className="attendee-name">
+                  {attendee.userType === 'volunteer' && (
+                    <span className="volunteer-badge" title="Volunteer">🤝</span>
+                  )}
                   {attendee.firstName || 'Unknown'} {attendee.lastName || 'Unknown'}
                 </p>
                 <p className="check-in-time">
-                  {(() => {
-                    try {
-                      const checkInTime = attendee.checkInTime;
-                      if (!checkInTime) return 'Unknown time';
-                      
-                      // The timestamp is already in Eastern time, so we need to parse it as local time
-                      // instead of treating it as UTC
-                      const timeString = checkInTime.replace('Z', ''); // Remove the Z to treat as local time
-                      const date = new Date(timeString);
-                      if (isNaN(date.getTime())) return 'Unknown time';
-                      
-                      return date.toLocaleTimeString([], { 
-                        hour: '2-digit', 
-                        minute: '2-digit'
-                      });
-                    } catch (error) {
-                      return 'Unknown time';
-                    }
-                  })()}
+                  {formatAttendanceTimeEST(attendee.checkInTime)}
                 </p>
               </div>
             </div>
