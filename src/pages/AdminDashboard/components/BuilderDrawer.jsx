@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
-import { X, BookOpen, MessageSquare, Send, Video, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { X, BookOpen, MessageSquare, Video, ChevronDown, ChevronUp, ExternalLink, FileText, Plus, Sparkles } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
+import BuilderLogEntry from './BuilderLogEntry';
+import BuilderLogModal from './BuilderLogModal';
 
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
 const API_URL = import.meta.env.VITE_API_URL;
@@ -218,13 +220,67 @@ const VideoItem = ({ v }) => {
   );
 };
 
-const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, onClose }) => {
+const TYPE_STYLES = {
+  standup: { label: 'Stand-up', bg: 'bg-blue-100 text-blue-700' },
+  retro: { label: 'Retro', bg: 'bg-purple-100 text-purple-700' },
+  reflection: { label: 'Reflection', bg: 'bg-slate-100 text-slate-600' },
+};
+
+const ConversationInsightItem = ({ insight }) => {
+  const [expanded, setExpanded] = useState(false);
+  const style = TYPE_STYLES[insight.type] || TYPE_STYLES.reflection;
+  const dateStr = (() => {
+    if (!insight.day_date) return '—';
+    try {
+      const d = new Date(insight.day_date);
+      if (isNaN(d.getTime())) return '—';
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch { return '—'; }
+  })();
+
+  return (
+    <div className="px-3 py-2.5">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-2 text-left"
+      >
+        <Badge className={`text-[10px] px-1.5 py-0 ${style.bg}`}>{style.label}</Badge>
+        <span className="text-xs font-medium text-[#1E1E1E] flex-1 truncate">{insight.task_title}</span>
+        <span className="text-[10px] text-slate-400 flex-shrink-0">{dateStr}</span>
+        {expanded ? <ChevronUp size={12} className="text-slate-400" /> : <ChevronDown size={12} className="text-slate-400" />}
+      </button>
+      {expanded && (
+        <div className="mt-2 space-y-2">
+          {insight.responses.length > 0 ? (
+            insight.responses.map((response, i) => (
+              <div key={i} className="bg-[#FAFAFA] rounded-md p-2.5">
+                {insight.questions[i] && (
+                  <p className="text-[10px] font-semibold text-[#4242EA] mb-1">{insight.questions[i]}</p>
+                )}
+                <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{response}</p>
+              </div>
+            ))
+          ) : (
+            <p className="text-xs text-slate-400">No responses recorded.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, onClose, onLogSaved }) => {
   const token = useAuthStore((s) => s.token);
   const [workProduct, setWorkProduct] = useState(null);
   const [peerFeedback, setPeerFeedback] = useState(null);
-  const [prompts, setPrompts] = useState(null);
   const [videos, setVideos] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [builderLogs, setBuilderLogs] = useState([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [conversationInsights, setConversationInsights] = useState([]);
+  const [insightsLoading, setInsightsLoading] = useState(false);
 
   useEffect(() => {
     if (!builder?.user_id) return;
@@ -277,21 +333,63 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
     Promise.all([
       fetchType('workProduct'),
       fetchType('peer_feedback'),
-      fetchType('prompts'),
       fetchVideos(),
-    ]).then(([wp, pf, pr, vids]) => {
+    ]).then(([wp, pf, vids]) => {
       setWorkProduct(wp);
       setPeerFeedback(pf);
-      setPrompts(pr);
       setVideos(vids);
     }).finally(() => setLoading(false));
   }, [builder?.user_id, startDate, endDate, cohortId, token]);
+
+  useEffect(() => {
+    if (!builder?.user_id || !cohortId || !token) return;
+    setInsightsLoading(true);
+    fetch(`${API_URL}/api/admin/dashboard/builder-conversation-insights?userId=${builder.user_id}&cohortId=${cohortId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => { if (data.success) setConversationInsights(data.data || []); })
+      .catch(() => {})
+      .finally(() => setInsightsLoading(false));
+  }, [builder?.user_id, cohortId, token]);
+
+  const fetchLogs = async () => {
+    if (!builder?.user_id || !token) return;
+    setLogsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/dashboard/builder-logs?builderId=${builder.user_id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) setBuilderLogs(data.data || []);
+    } catch { /* ignore */ }
+    setLogsLoading(false);
+  };
+
+  useEffect(() => { fetchLogs(); }, [builder?.user_id, token]);
+
+  const handleLogStatusChange = (logId, newStatus) => {
+    setBuilderLogs(prev => prev.map(l => l.log_id === logId ? { ...l, status: newStatus } : l));
+  };
+
+  const handleSupportStatusChange = (supportId, newStatus) => {
+    setBuilderLogs(prev => prev.map(l => {
+      if (l.support_ticket?.support_id === supportId) {
+        return { ...l, support_ticket: { ...l.support_ticket, current_status: newStatus } };
+      }
+      return l;
+    }));
+  };
+
+  const handleLogSaved = () => {
+    fetchLogs();
+    onLogSaved?.();
+  };
 
   if (!builder) return null;
 
   const wpItems = workProduct?.details || workProduct || [];
   const pfItems = peerFeedback?.details || peerFeedback || [];
-  const promptItems = prompts?.details || prompts || [];
   const videoItems = Array.isArray(videos) ? videos : [];
 
   return (
@@ -344,6 +442,37 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
             </div>
           ) : (
             <>
+              {/* Builder Logs */}
+              <Section icon={FileText} title="Builder Logs" count={builderLogs.length} defaultOpen={builderLogs.length > 0}>
+                <div className="px-3 py-3 space-y-2">
+                  <button
+                    onClick={() => setShowLogModal(true)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-[#4242EA] hover:underline"
+                  >
+                    <Plus size={12} />
+                    Add Log
+                  </button>
+                  {logsLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2].map(i => <div key={i} className="h-16 bg-[#EFEFEF] rounded animate-pulse" />)}
+                    </div>
+                  ) : builderLogs.length > 0 ? (
+                    <div className="space-y-2">
+                      {builderLogs.map(log => (
+                        <BuilderLogEntry
+                          key={log.log_id}
+                          log={log}
+                          onStatusChange={handleLogStatusChange}
+                          onSupportStatusChange={handleSupportStatusChange}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 text-center py-2">No logs yet.</p>
+                  )}
+                </div>
+              </Section>
+
               {/* Work Product */}
               <Section icon={BookOpen} title="Work Product" count={Array.isArray(wpItems) ? wpItems.length : 0}>
                 {Array.isArray(wpItems) && wpItems.length > 0 ? (
@@ -402,35 +531,34 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                 )}
               </Section>
 
-              {/* Prompts Sent */}
-              <Section icon={Send} title="Prompts Sent" count={Array.isArray(promptItems) ? promptItems.length : 0} defaultOpen={false}>
-                {Array.isArray(promptItems) && promptItems.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="text-left text-slate-400 text-[10px] uppercase tracking-wide border-b border-[#E3E3E3]">
-                          <th className="py-2 px-3 font-medium">Date</th>
-                          <th className="py-2 px-3 font-medium">Prompts Sent</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#EFEFEF]">
-                        {promptItems.map((item, i) => (
-                          <tr key={i}>
-                            <td className="py-1.5 px-3 text-xs text-slate-500">{resolveDate(item.date)}</td>
-                            <td className="py-1.5 px-3 text-xs font-medium text-[#1E1E1E]">{resolveStr(item.prompts_sent || item.count)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              {/* Conversation Insights (Standups & Retros) */}
+              <Section icon={Sparkles} title="Conversation Insights" count={conversationInsights.length} defaultOpen={conversationInsights.length > 0}>
+                {insightsLoading ? (
+                  <div className="px-3 py-3 space-y-2">
+                    {[1, 2, 3].map(i => <div key={i} className="h-14 bg-[#EFEFEF] rounded animate-pulse" />)}
+                  </div>
+                ) : conversationInsights.length > 0 ? (
+                  <div className="divide-y divide-[#EFEFEF]">
+                    {conversationInsights.map((insight) => (
+                      <ConversationInsightItem key={insight.task_id} insight={insight} />
+                    ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400 text-center py-4">No prompt data.</p>
+                  <p className="text-xs text-slate-400 text-center py-4">No standup or retro conversations yet.</p>
                 )}
               </Section>
             </>
           )}
         </div>
       </div>
+
+      <BuilderLogModal
+        open={showLogModal}
+        onOpenChange={setShowLogModal}
+        builder={builder}
+        cohortId={cohortId}
+        onSaved={handleLogSaved}
+      />
     </>
   );
 };
