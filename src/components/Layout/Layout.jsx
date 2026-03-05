@@ -96,7 +96,7 @@ const Layout = ({ children, isLoading = false }) => {
     canViewAssessmentGrades && { to: '/admin/assessment-grades', icon: Award, label: 'Assessments' },
     canViewAdminAttendance && { to: '/admin-attendance-dashboard', icon: CalendarIcon, label: 'Attendance' },
     canViewAdminDashboard && { to: '/admin-dashboard', icon: Settings, label: 'Cohort Stats' },
-    canViewCohortAdmin && { to: '/cohort-admin-dashboard', icon: Building2, label: 'Enterprise Admin' },
+    // Enterprise Admin is rendered as an explicit nav link (not in customGrantedItems) to avoid duplication
     canViewContentPreview && { to: '/content-preview', icon: Target, label: 'Content Mgmt' },
     canViewExternalCohorts && { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
     canViewFormBuilder && { to: '/forms', icon: ClipboardList, label: 'Form Builder' },

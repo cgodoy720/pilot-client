@@ -39,6 +39,18 @@ const enhancedFetch = async (...args) => {
           }));
           return response;
         }
+
+        // Skip global handling for cohort access denied (enterprise admin viewing unassigned cohort)
+        if (response.status === 403 && errorData.cohortAccessDenied) {
+          console.log('🏢 Cohort access denied, letting component handle it...');
+          return response;
+        }
+
+        // Skip global handling for permission denied on specific page access (not an auth issue)
+        if (response.status === 403 && errorData.error === 'Access denied') {
+          console.log('🔒 Permission denied, letting component handle it...');
+          return response;
+        }
       } catch (parseError) {
         // If we can't parse the error, continue with normal global handling
         console.log('⚠️ Could not parse error data for verification check');
