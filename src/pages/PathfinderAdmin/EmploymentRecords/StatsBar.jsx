@@ -4,7 +4,7 @@ import { Card, CardContent } from '../../../components/ui/card';
 const METRICS = [
   {
     key: 'total',
-    label: 'Total Records',
+    label: 'Total Jobs',
     compute: (_records, total) => total ?? 0,
   },
   {
@@ -13,19 +13,21 @@ const METRICS = [
     compute: (records) => new Set(records.map((r) => r.user_id)).size,
   },
   {
-    key: 'full_time',
-    label: 'Full-Time',
-    compute: (records) => records.filter((r) => r.employment_type === 'full_time').length,
+    key: 'long_term',
+    label: 'Long-Term Jobs',
+    compute: (records) =>
+      records.filter((r) => r.employment_type === 'full_time' || r.employment_type === 'part_time').length,
   },
   {
-    key: 'contract',
-    label: 'Contract',
-    compute: (records) => records.filter((r) => r.employment_type === 'contract').length,
+    key: 'short_term',
+    label: 'Short-Term Jobs',
+    compute: (records) =>
+      records.filter((r) => r.employment_type === 'contract' || r.employment_type === 'freelance').length,
   },
   {
-    key: 'freelance',
-    label: 'Freelance',
-    compute: (records) => records.filter((r) => r.employment_type === 'freelance').length,
+    key: 'pro_bono',
+    label: 'Pro Bono',
+    compute: (records) => records.filter((r) => r.employment_type === 'pro_bono').length,
   },
 ];
 

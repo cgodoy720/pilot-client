@@ -127,7 +127,7 @@ const EmploymentRecordsAdmin = () => {
         });
         if (!res.ok) throw new Error('Failed to fetch builders');
         const data = await res.json();
-        setBuilders(data);
+        setBuilders(data.builders ?? []);
       } catch (err) {
         console.error('Error fetching builders:', err);
       }
@@ -289,9 +289,9 @@ const EmploymentRecordsAdmin = () => {
       {/* ── Page header ── */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-1">Employment Records</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-1">Builder Jobs Dashboard</h2>
           <p className="text-sm text-gray-500">
-            Track Builder engagements — jobs, contracts, freelance work, and own ventures.
+            Track Builder jobs — long-term, short-term, freelance, and own ventures.
           </p>
         </div>
         <Button

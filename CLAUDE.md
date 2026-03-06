@@ -60,6 +60,7 @@ Do NOT build Phase 1.5+ features: `work_type`, `linked_build_id`, payment fields
 8. Do not modify tables owned by Sputnik: `contacts`, `staff_contact_relationships`, `intro_requests`, `outreach`.
 9. "Builders" is always capitalized in UI text, comments, and communications.
 10. Commit after each completed step or logical milestone. Don't let multiple steps pile up uncommitted. Use conventional commit messages like `feat(pathfinder): add builder interests API`.
+11. Never push to upstream. Only push to origin (fork). All merges to upstream happen via PR with explicit approval.
 
 ## Workflow
 - Use Plan Mode for any task with 3+ steps. Present the plan for review before executing. If something goes sideways, STOP and re-plan — don't keep pushing.

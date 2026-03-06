@@ -6,10 +6,10 @@ import { Button } from '../../../components/ui/button';
 // ─── Badge config maps ────────────────────────────────────────────────────────
 
 const TYPE_BADGE = {
-  full_time:  { label: 'Full-Time',  className: 'bg-green-100 text-green-700 border-green-200' },
-  part_time:  { label: 'Part-Time',  className: 'bg-blue-100 text-blue-700 border-blue-200' },
-  contract:   { label: 'Contract',   className: 'bg-orange-100 text-orange-700 border-orange-200' },
-  freelance:  { label: 'Freelance',  className: 'bg-purple-100 text-purple-700 border-purple-200' },
+  full_time:  { label: 'Long-Term',  className: 'bg-green-100 text-green-700 border-green-200' },
+  part_time:  { label: 'Long-Term',  className: 'bg-blue-100 text-blue-700 border-blue-200' },
+  contract:   { label: 'Short-Term', className: 'bg-orange-100 text-orange-700 border-orange-200' },
+  freelance:  { label: 'Short-Term', className: 'bg-purple-100 text-purple-700 border-purple-200' },
   pro_bono:   { label: 'Pro Bono',   className: 'bg-gray-100 text-gray-600 border-gray-200' },
 };
 
