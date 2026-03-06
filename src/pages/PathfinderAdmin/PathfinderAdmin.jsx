@@ -88,6 +88,7 @@ function PathfinderAdmin() {
     cohort: ''
   });
   const [editingGoalId, setEditingGoalId] = useState(null);
+  const [unreviewedCount, setUnreviewedCount] = useState(0);
 
   // Data cache to avoid re-fetching when switching tabs
   const [dataCache, setDataCache] = useState({
@@ -341,7 +342,8 @@ function PathfinderAdmin() {
           await Promise.all([
             fetchOverview(),
             fetchHighlights(),
-            fetchLeaderboard()
+            fetchLeaderboard(),
+            fetchUnreviewedCount()
           ]);
         } catch (err) {
           console.error('Error fetching overview data:', err);
@@ -377,6 +379,10 @@ function PathfinderAdmin() {
               break;
             case 'job-applications':
               await fetchJobApplications();
+              break;
+            case 'employment-records':
+              fetchUnreviewedCount();
+              acknowledgeBuilderLoggedRecords();
               break;
           }
         } catch (err) {
@@ -1096,6 +1102,36 @@ function PathfinderAdmin() {
     }
   };
 
+  const fetchUnreviewedCount = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/pathfinder/admin/employment-records/unreviewed-count`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setUnreviewedCount(data.count || 0);
+      }
+    } catch (err) {
+      console.error('Error fetching unreviewed count:', err);
+    }
+  };
+
+  const acknowledgeBuilderLoggedRecords = async () => {
+    try {
+      await fetch(
+        `${import.meta.env.VITE_API_URL}/api/pathfinder/admin/employment-records/acknowledge-all`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      );
+      setUnreviewedCount(0);
+    } catch (err) {
+      console.error('Error acknowledging employment records:', err);
+    }
+  };
+
   const fetchJobApplications = async () => {
     try {
       const url = cohortFilter && cohortFilter !== 'all'
@@ -1262,7 +1298,14 @@ function PathfinderAdmin() {
             <TabsTrigger value="build-projects" className="px-2 text-sm font-proxima">Projects</TabsTrigger>
             <TabsTrigger value="events" className="px-2 text-sm font-proxima">Events</TabsTrigger>
             <TabsTrigger value="job-applications" className="px-2 text-sm font-proxima">Job Applications</TabsTrigger>
-            <TabsTrigger value="employment-records" className="px-2 text-sm font-proxima">Builder Jobs Dashboard</TabsTrigger>
+            <TabsTrigger value="employment-records" className="px-2 text-sm font-proxima">
+              Builder Jobs Dashboard
+              {unreviewedCount > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full h-4 min-w-[16px] px-1">
+                  {unreviewedCount}
+                </span>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           {/* Overview View */}
