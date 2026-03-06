@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/badge';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import './PathfinderPersonalDashboard.css';
 
 // ── Label maps for strategy tags ──────────────────────────────────────────────
@@ -67,6 +68,21 @@ function PathfinderPersonalDashboard() {
   const [resumeCount, setResumeCount] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showLogJobModal, setShowLogJobModal] = useState(false);
+  const [isSubmittingJob, setIsSubmittingJob] = useState(false);
+  const [logJobForm, setLogJobForm] = useState({
+    roleTitle: '',
+    companyName: '',
+    employmentType: '',
+    engagementStage: 'active',
+    startDate: '',
+    endDate: '',
+    industry: '',
+    isOwnVenture: false,
+    paymentAmount: '',
+    paymentNotes: '',
+    story: '',
+  });
 
   // Prevent the goal-hit toast from firing more than once per session
   const goalCelebrated = useRef(false);
@@ -212,6 +228,63 @@ function PathfinderPersonalDashboard() {
       console.error('Error saving goal:', err);
     } finally {
       setIsSavingGoal(false);
+    }
+  };
+
+  const handleLogJobSubmit = async () => {
+    if (!logJobForm.roleTitle || !logJobForm.employmentType) return;
+
+    try {
+      setIsSubmittingJob(true);
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/pathfinder/employment-records`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(logJobForm),
+        }
+      );
+
+      if (res.ok) {
+        setShowLogJobModal(false);
+        setLogJobForm({
+          roleTitle: '',
+          companyName: '',
+          employmentType: '',
+          engagementStage: 'active',
+          startDate: '',
+          endDate: '',
+          industry: '',
+          isOwnVenture: false,
+          paymentAmount: '',
+          paymentNotes: '',
+          story: '',
+        });
+        Swal.fire({
+          toast: true,
+          position: 'top-right',
+          icon: 'success',
+          title: 'Job logged! 💼',
+          showConfirmButton: false,
+          timer: 2500,
+          timerProgressBar: true,
+        });
+      } else {
+        const err = await res.json();
+        Swal.fire({
+          icon: 'error',
+          title: 'Failed to log job',
+          text: err.error || 'Something went wrong',
+          confirmButtonColor: '#4242ea',
+        });
+      }
+    } catch (err) {
+      console.error('Error logging job:', err);
+    } finally {
+      setIsSubmittingJob(false);
     }
   };
 
@@ -541,6 +614,14 @@ function PathfinderPersonalDashboard() {
             + Add Job
           </Button>
         </Link>
+        <button
+          onClick={() => setShowLogJobModal(true)}
+          className="flex-1"
+        >
+          <Button className="w-full pathfinder-personal-dashboard__action-card">
+            + Log Work
+          </Button>
+        </button>
       </div>
     </div>
   );
@@ -558,6 +639,179 @@ function PathfinderPersonalDashboard() {
       {renderFeaturedEvents()}
       {renderProgressSection()}
       {renderQuickActions()}
+
+      <Dialog open={showLogJobModal} onOpenChange={setShowLogJobModal}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Log Work</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+
+            {/* Role Title — required */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Role Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={logJobForm.roleTitle}
+                onChange={e => setLogJobForm(f => ({ ...f, roleTitle: e.target.value }))}
+                placeholder="e.g. Software Engineer"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea]"
+              />
+            </div>
+
+            {/* Company Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+              <input
+                type="text"
+                value={logJobForm.companyName}
+                onChange={e => setLogJobForm(f => ({ ...f, companyName: e.target.value }))}
+                placeholder="e.g. Acme Corp"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea]"
+              />
+            </div>
+
+            {/* Employment Type — required */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Employment Type <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={logJobForm.employmentType}
+                onChange={e => setLogJobForm(f => ({ ...f, employmentType: e.target.value }))}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea]"
+              >
+                <option value="">Select type...</option>
+                <option value="full_time">Full-Time</option>
+                <option value="part_time">Part-Time</option>
+                <option value="contract">Contract</option>
+                <option value="freelance">Freelance</option>
+                <option value="pro_bono">Pro Bono</option>
+              </select>
+            </div>
+
+            {/* Engagement Stage */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
+              <select
+                value={logJobForm.engagementStage}
+                onChange={e => setLogJobForm(f => ({ ...f, engagementStage: e.target.value }))}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea]"
+              >
+                <option value="active">Active</option>
+                <option value="pipeline">Pipeline</option>
+                <option value="completed">Completed</option>
+                <option value="ended">Ended</option>
+              </select>
+            </div>
+
+            {/* Start / End Date */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                <input
+                  type="date"
+                  value={logJobForm.startDate}
+                  onChange={e => setLogJobForm(f => ({ ...f, startDate: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                <input
+                  type="date"
+                  value={logJobForm.endDate}
+                  onChange={e => setLogJobForm(f => ({ ...f, endDate: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea]"
+                />
+              </div>
+            </div>
+
+            {/* Industry */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+              <input
+                type="text"
+                value={logJobForm.industry}
+                onChange={e => setLogJobForm(f => ({ ...f, industry: e.target.value }))}
+                placeholder="e.g. Healthcare"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea]"
+              />
+            </div>
+
+            {/* Payment Amount */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Payment Amount</label>
+              <input
+                type="number"
+                value={logJobForm.paymentAmount}
+                onChange={e => setLogJobForm(f => ({ ...f, paymentAmount: e.target.value }))}
+                placeholder="e.g. 5000"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea]"
+              />
+            </div>
+
+            {/* Payment Notes */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Payment Notes</label>
+              <input
+                type="text"
+                value={logJobForm.paymentNotes}
+                onChange={e => setLogJobForm(f => ({ ...f, paymentNotes: e.target.value }))}
+                placeholder="e.g. hourly rate, equity, etc."
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea]"
+              />
+            </div>
+
+            {/* Own Venture toggle */}
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isOwnVenture"
+                checked={logJobForm.isOwnVenture}
+                onChange={e => setLogJobForm(f => ({ ...f, isOwnVenture: e.target.checked }))}
+                className="h-4 w-4 rounded border-gray-300 text-[#4242ea]"
+              />
+              <label htmlFor="isOwnVenture" className="text-sm font-medium text-gray-700">
+                This is my own venture
+              </label>
+            </div>
+
+            {/* Story */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Your Story</label>
+              <textarea
+                value={logJobForm.story}
+                onChange={e => setLogJobForm(f => ({ ...f, story: e.target.value }))}
+                placeholder="How did this opportunity come about? What are you building or doing?"
+                rows={3}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] resize-none"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowLogJobModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleLogJobSubmit}
+                disabled={isSubmittingJob || !logJobForm.roleTitle || !logJobForm.employmentType}
+                className="bg-[#4242ea] text-white hover:bg-[#3333d1] disabled:opacity-50"
+              >
+                {isSubmittingJob ? 'Saving…' : 'Log Job'}
+              </Button>
+            </div>
+
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <LoadingCurtain isLoading={isLoading} />
     </div>
