@@ -17,13 +17,15 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import { toLegacyFormat } from '../AdminDashboard/utils/cohortUtils';
+import { usePermissions } from '../../hooks/usePermissions';
 import './Dashboard.css';
 
 function Dashboard() {
   const navigate = useNavigate();
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
-  
+  const { hasPermission } = usePermissions();
+
   // Check if user has active status
   const isActive = user?.active !== false;
   // Check if user is volunteer
@@ -576,7 +578,7 @@ function Dashboard() {
 
   // Render the builder weekly view (reused by both renderDashboardContent and renderStaffAdminView)
   const renderBuilderWeeklyView = () => {
-    const isExternalCohort = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin';
+    const isExternalCohort = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin' || hasPermission('page:cohort_admin');
     const isStaffBuilderView = isStaffOrAdmin;
 
     return (
@@ -1138,7 +1140,7 @@ function Dashboard() {
   // Render regular dashboard content matching the Figma wireframe
   const renderDashboardContent = () => {
     // Check if user is in external cohort (enterprise users don't use Level/Week format)
-    const isExternalCohort = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin';
+    const isExternalCohort = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin' || hasPermission('page:cohort_admin');
     
     return (
       <div className="dashboard">

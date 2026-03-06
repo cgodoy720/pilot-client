@@ -57,7 +57,7 @@ function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect,
     try {
       setLoading(true);
       const response = await axios.get(
-        `${API_URL}/api/curriculum/calendar?cohort=${encodeURIComponent(cohortName)}`,
+        `${API_URL}/api/curriculum/calendar?cohort=${encodeURIComponent(cohortName)}&t=${Date.now()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
