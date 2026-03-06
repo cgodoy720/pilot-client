@@ -611,7 +611,7 @@ function PathfinderPersonalDashboard() {
         </Link>
         <Link to="/pathfinder/applications" state={{ openModal: true }} className="flex-1">
           <Button className="w-full pathfinder-personal-dashboard__action-card">
-            + Add Job
+            + Track Application
           </Button>
         </Link>
         <button
