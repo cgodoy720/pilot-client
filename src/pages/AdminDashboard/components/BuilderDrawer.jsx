@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
-import { X, BookOpen, MessageSquare, Video, ChevronDown, ChevronUp, ExternalLink, FileText, Plus, Sparkles } from 'lucide-react';
+import { X, BookOpen, MessageSquare, Video, ChevronDown, ChevronUp, ExternalLink, FileText, Plus, Sparkles, RefreshCw, AlertTriangle, TrendingUp, Target, Lightbulb, Loader2 } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
 import BuilderLogEntry from './BuilderLogEntry';
 import BuilderLogModal from './BuilderLogModal';
@@ -220,49 +220,69 @@ const VideoItem = ({ v }) => {
   );
 };
 
-const TYPE_STYLES = {
+const SENTIMENT_STYLES = {
+  positive: { bg: 'bg-green-50 border-green-200', text: 'text-green-700', dot: 'bg-green-500' },
+  neutral: { bg: 'bg-slate-50 border-slate-200', text: 'text-slate-600', dot: 'bg-slate-400' },
+  mixed: { bg: 'bg-yellow-50 border-yellow-200', text: 'text-yellow-700', dot: 'bg-yellow-500' },
+  negative: { bg: 'bg-red-50 border-red-200', text: 'text-red-600', dot: 'bg-red-500' },
+};
+
+const InsightRow = ({ icon: Icon, label, content, className = '' }) => {
+  if (!content) return null;
+  return (
+    <div className={`flex gap-2.5 ${className}`}>
+      <Icon size={13} className="text-[#4242EA] flex-shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">{label}</p>
+        <p className="text-xs text-slate-700 leading-relaxed">{content}</p>
+      </div>
+    </div>
+  );
+};
+
+const RAW_TYPE_STYLES = {
   standup: { label: 'Stand-up', bg: 'bg-blue-100 text-blue-700' },
   retro: { label: 'Retro', bg: 'bg-purple-100 text-purple-700' },
   reflection: { label: 'Reflection', bg: 'bg-slate-100 text-slate-600' },
 };
 
-const ConversationInsightItem = ({ insight }) => {
+const RawConversationItem = ({ conversation }) => {
   const [expanded, setExpanded] = useState(false);
-  const style = TYPE_STYLES[insight.type] || TYPE_STYLES.reflection;
+  const style = RAW_TYPE_STYLES[conversation.type] || RAW_TYPE_STYLES.reflection;
   const dateStr = (() => {
-    if (!insight.day_date) return '—';
+    if (!conversation.day_date) return '—';
     try {
-      const d = new Date(insight.day_date);
+      const d = new Date(conversation.day_date);
       if (isNaN(d.getTime())) return '—';
       return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     } catch { return '—'; }
   })();
 
   return (
-    <div className="px-3 py-2.5">
+    <div className="bg-[#FAFAFA] rounded-md px-3 py-2">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-2 text-left"
       >
         <Badge className={`text-[10px] px-1.5 py-0 ${style.bg}`}>{style.label}</Badge>
-        <span className="text-xs font-medium text-[#1E1E1E] flex-1 truncate">{insight.task_title}</span>
+        <span className="text-[10px] font-medium text-slate-600 flex-1 truncate">{conversation.task_title}</span>
         <span className="text-[10px] text-slate-400 flex-shrink-0">{dateStr}</span>
-        {expanded ? <ChevronUp size={12} className="text-slate-400" /> : <ChevronDown size={12} className="text-slate-400" />}
+        {expanded ? <ChevronUp size={10} className="text-slate-400" /> : <ChevronDown size={10} className="text-slate-400" />}
       </button>
       {expanded && (
-        <div className="mt-2 space-y-2">
-          {insight.responses.length > 0 ? (
-            insight.responses.map((response, i) => (
-              <div key={i} className="bg-[#FAFAFA] rounded-md p-2.5">
-                {insight.questions[i] && (
-                  <p className="text-[10px] font-semibold text-[#4242EA] mb-1">{insight.questions[i]}</p>
+        <div className="mt-2 space-y-1.5">
+          {conversation.responses?.length > 0 ? (
+            conversation.responses.map((response, i) => (
+              <div key={i} className="bg-white rounded p-2 border border-[#E3E3E3]">
+                {conversation.questions?.[i] && (
+                  <p className="text-[9px] font-semibold text-[#4242EA] mb-0.5">{conversation.questions[i]}</p>
                 )}
-                <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{response}</p>
+                <p className="text-[11px] text-slate-600 leading-relaxed whitespace-pre-wrap">{response}</p>
               </div>
             ))
           ) : (
-            <p className="text-xs text-slate-400">No responses recorded.</p>
+            <p className="text-[10px] text-slate-400">No responses recorded.</p>
           )}
         </div>
       )}
@@ -279,21 +299,25 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   const [builderLogs, setBuilderLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [showLogModal, setShowLogModal] = useState(false);
-  const [conversationInsights, setConversationInsights] = useState([]);
+  const [insightsSummary, setInsightsSummary] = useState(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
+  const [showRawConversations, setShowRawConversations] = useState(false);
+  const [rawConversations, setRawConversations] = useState([]);
+  const [rawLoading, setRawLoading] = useState(false);
+
+  const [dataReady, setDataReady] = useState(false);
 
   useEffect(() => {
     if (!builder?.user_id) return;
     setLoading(true);
+    setDataReady(false);
 
     const fetchType = (type) =>
       fetch(`${LEGACY_API}/builders/${builder.user_id}/details?type=${type}&startDate=${startDate}&endDate=${endDate}`)
         .then(r => r.ok ? r.json() : null)
         .catch(() => null);
 
-    // Try legacy API for video analyses first, fall back to native PG endpoint
     const fetchVideos = async () => {
-      // Try legacy BQ-based video analyses
       try {
         const legacyRes = await fetch(`${LEGACY_API}/video-analyses?level=${encodeURIComponent(selectedLevel || builder.level || '')}&startDate=${startDate}&endDate=${endDate}`);
         if (legacyRes.ok) {
@@ -303,7 +327,6 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
         }
       } catch { /* fall through */ }
 
-      // Fallback: native PG video submissions
       if (cohortId && token) {
         try {
           const res = await fetch(`${API_URL}/api/admin/dashboard/builder-videos?userId=${builder.user_id}&cohortId=${cohortId}`, {
@@ -338,20 +361,102 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
       setWorkProduct(wp);
       setPeerFeedback(pf);
       setVideos(vids);
+      setDataReady(true);
     }).finally(() => setLoading(false));
   }, [builder?.user_id, startDate, endDate, cohortId, token]);
 
-  useEffect(() => {
+  const fetchInsights = (refresh = false) => {
     if (!builder?.user_id || !cohortId || !token) return;
     setInsightsLoading(true);
+    setInsightsSummary(null);
+    if (!refresh) {
+      setShowRawConversations(false);
+      setRawConversations([]);
+    }
+
+    const wpArr = workProduct?.details || workProduct || [];
+    const pfArr = peerFeedback?.details || peerFeedback || [];
+    const vidArr = Array.isArray(videos) ? videos : [];
+
+    const wpFormatted = (Array.isArray(wpArr) ? wpArr : []).slice(0, 10).map(item => {
+      let grade = item.grade || item.letterGrade || '';
+      let feedback = item.feedback || '';
+      if (item.analysis && !grade) {
+        try {
+          const a = typeof item.analysis === 'string' ? JSON.parse(item.analysis) : item.analysis;
+          const score = a.completion_score ?? null;
+          if (score != null) grade = letterGrade(score);
+          feedback = feedback || a.feedback || a.submission_summary || '';
+        } catch { /* ignore */ }
+      }
+      return {
+        taskTitle: item.taskTitle || item.task_title || '',
+        date: item.date || item.curriculum_date || '',
+        grade,
+        feedback: (feedback || '').slice(0, 200),
+      };
+    });
+
+    fetch(`${API_URL}/api/admin/dashboard/builder-insights-summary`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: builder.user_id,
+        cohortId,
+        refresh: refresh || undefined,
+        context: {
+          attendance: builder.attendance_percentage,
+          tasksCompleted: builder.tasks_completed_percentage,
+          gradedTasks: builder.total_graded_tasks,
+          videoCount: builder.video_tasks_completed,
+          workProduct: wpFormatted,
+          peerFeedback: (Array.isArray(pfArr) ? pfArr : []).slice(0, 8).map(pf => ({
+            reviewer_name: pf.reviewer_name || pf.reviewerName,
+            sentiment: pf.sentiment_category || pf.sentiment,
+            feedback_text: (pf.feedback_text || pf.feedback || pf.summary || '').slice(0, 250),
+          })),
+          videos: vidArr.slice(0, 5).map(v => ({
+            task_title: v.task_title,
+            submission_date: v.submission_date,
+            average_score: v.average_score,
+          })),
+          logs: builderLogs.slice(0, 5).map(l => ({
+            log_type: l.log_type,
+            notes: (l.notes || '').slice(0, 200),
+            created_date: l.created_date,
+          })),
+        },
+      }),
+    })
+      .then(r => r.json())
+      .then(data => { if (data.success) setInsightsSummary(data.data); })
+      .catch(() => {})
+      .finally(() => setInsightsLoading(false));
+  };
+
+  useEffect(() => {
+    if (dataReady && builder?.user_id && cohortId && token) {
+      fetchInsights();
+    }
+  }, [dataReady, builder?.user_id, cohortId, token]);
+
+  const loadRawConversations = () => {
+    if (rawConversations.length > 0 || !builder?.user_id || !cohortId || !token) {
+      setShowRawConversations(!showRawConversations);
+      return;
+    }
+    setRawLoading(true);
+    setShowRawConversations(true);
     fetch(`${API_URL}/api/admin/dashboard/builder-conversation-insights?userId=${builder.user_id}&cohortId=${cohortId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
-      .then(data => { if (data.success) setConversationInsights(data.data || []); })
+      .then(data => { if (data.success) setRawConversations(data.data || []); })
       .catch(() => {})
-      .finally(() => setInsightsLoading(false));
-  }, [builder?.user_id, cohortId, token]);
+      .finally(() => setRawLoading(false));
+  };
+
+  const refreshInsights = () => fetchInsights(true);
 
   const fetchLogs = async () => {
     if (!builder?.user_id || !token) return;
@@ -442,8 +547,105 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
             </div>
           ) : (
             <>
-              {/* Builder Logs */}
-              <Section icon={FileText} title="Builder Logs" count={builderLogs.length} defaultOpen={builderLogs.length > 0}>
+              {/* Conversation Insights (AI Summary) — top of drawer */}
+              <Section icon={Sparkles} title="Conversation Insights" defaultOpen={true}>
+                {insightsLoading ? (
+                  <div className="px-4 py-4 space-y-3">
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <Loader2 size={12} className="animate-spin" />
+                      Analyzing conversations...
+                    </div>
+                    {[1, 2, 3].map(i => <div key={i} className="h-12 bg-[#EFEFEF] rounded animate-pulse" />)}
+                  </div>
+                ) : insightsSummary ? (
+                  <div className="px-4 py-4 space-y-4">
+                    {/* Sentiment + date range header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {(() => {
+                          const s = SENTIMENT_STYLES[insightsSummary.sentiment] || SENTIMENT_STYLES.neutral;
+                          return (
+                            <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${s.bg} ${s.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                              {insightsSummary.sentiment}
+                            </span>
+                          );
+                        })()}
+                        {insightsSummary.date_range?.from && (
+                          <span className="text-[10px] text-slate-400">
+                            {insightsSummary.conversation_count} conversations &middot;{' '}
+                            {(() => { try { return new Date(insightsSummary.date_range.from).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return ''; } })()}
+                            {' – '}
+                            {(() => { try { return new Date(insightsSummary.date_range.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return ''; } })()}
+                          </span>
+                        )}
+                      </div>
+                      <button onClick={refreshInsights} className="p-1 rounded hover:bg-[#EFEFEF] transition-colors" title="Refresh insights">
+                        <RefreshCw size={12} className="text-slate-400" />
+                      </button>
+                    </div>
+
+                    {/* Insight rows */}
+                    <div className="space-y-3">
+                      <InsightRow icon={Target} label="Current Focus" content={insightsSummary.current_focus} />
+                      <InsightRow icon={TrendingUp} label="Wins & Strengths" content={insightsSummary.wins} />
+                      <InsightRow icon={AlertTriangle} label="Blockers & Struggles" content={insightsSummary.blockers} />
+                      <InsightRow icon={Lightbulb} label="Facilitator Tip" content={insightsSummary.facilitator_tips} />
+                    </div>
+
+                    {/* Tags */}
+                    {insightsSummary.flags?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {insightsSummary.flags.map((flag, i) => {
+                          const f = flag.toLowerCase();
+                          const isPositive = ['strong attendance', 'high performer', 'grades improving', 'strong presenter', 'peer leader', 'strong collaborator', 'thriving', 'highly motivated'].includes(f);
+                          const isNegative = ['low attendance', 'attendance declining', 'falling behind', 'missing assignments', 'grades slipping', 'receiving negative feedback', 'at risk', 'disengaged'].includes(f);
+                          const cls = isPositive
+                            ? 'bg-green-50 text-green-700 border-green-200'
+                            : isNegative
+                            ? 'bg-red-50 text-red-600 border-red-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200';
+                          return (
+                            <span key={i} className={`text-[10px] px-2 py-0.5 rounded-full border ${cls}`}>
+                              {flag}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Raw conversations toggle */}
+                    <button
+                      onClick={loadRawConversations}
+                      className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-[#4242EA] transition-colors pt-1"
+                    >
+                      {showRawConversations ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                      {showRawConversations ? 'Hide' : 'View'} raw conversations
+                    </button>
+
+                    {showRawConversations && (
+                      <div className="border-t border-[#EFEFEF] pt-3 space-y-2">
+                        {rawLoading ? (
+                          <div className="space-y-2">
+                            {[1, 2].map(i => <div key={i} className="h-10 bg-[#EFEFEF] rounded animate-pulse" />)}
+                          </div>
+                        ) : rawConversations.length > 0 ? (
+                          rawConversations.map((c) => (
+                            <RawConversationItem key={c.task_id} conversation={c} />
+                          ))
+                        ) : (
+                          <p className="text-xs text-slate-400">No raw conversations found.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 text-center py-4">No standup or retro conversations yet.</p>
+                )}
+              </Section>
+
+              {/* Builder Notes */}
+              <Section icon={FileText} title="Builder Notes" count={builderLogs.length} defaultOpen={builderLogs.length > 0}>
                 <div className="px-3 py-3 space-y-2">
                   <button
                     onClick={() => setShowLogModal(true)}
@@ -473,8 +675,19 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                 </div>
               </Section>
 
+              {/* Video Submissions */}
+              <Section icon={Video} title="Video Submissions" count={videoItems.length} defaultOpen={videoItems.length > 0}>
+                {videoItems.length > 0 ? (
+                  <div className="divide-y divide-[#EFEFEF]">
+                    {videoItems.map((v, i) => <VideoItem key={v.video_id || i} v={v} />)}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 text-center py-4">No video submissions.</p>
+                )}
+              </Section>
+
               {/* Work Product */}
-              <Section icon={BookOpen} title="Work Product" count={Array.isArray(wpItems) ? wpItems.length : 0}>
+              <Section icon={BookOpen} title="Work Product" count={Array.isArray(wpItems) ? wpItems.length : 0} defaultOpen={false}>
                 {Array.isArray(wpItems) && wpItems.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -517,34 +730,6 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                   </div>
                 ) : (
                   <p className="text-xs text-slate-400 text-center py-4">No peer feedback data.</p>
-                )}
-              </Section>
-
-              {/* Video Submissions */}
-              <Section icon={Video} title="Video Submissions" count={videoItems.length} defaultOpen={videoItems.length > 0}>
-                {videoItems.length > 0 ? (
-                  <div className="divide-y divide-[#EFEFEF]">
-                    {videoItems.map((v, i) => <VideoItem key={v.video_id || i} v={v} />)}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-400 text-center py-4">No video submissions.</p>
-                )}
-              </Section>
-
-              {/* Conversation Insights (Standups & Retros) */}
-              <Section icon={Sparkles} title="Conversation Insights" count={conversationInsights.length} defaultOpen={conversationInsights.length > 0}>
-                {insightsLoading ? (
-                  <div className="px-3 py-3 space-y-2">
-                    {[1, 2, 3].map(i => <div key={i} className="h-14 bg-[#EFEFEF] rounded animate-pulse" />)}
-                  </div>
-                ) : conversationInsights.length > 0 ? (
-                  <div className="divide-y divide-[#EFEFEF]">
-                    {conversationInsights.map((insight) => (
-                      <ConversationInsightItem key={insight.task_id} insight={insight} />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-400 text-center py-4">No standup or retro conversations yet.</p>
                 )}
               </Section>
             </>

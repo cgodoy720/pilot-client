@@ -1,21 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
-import { Button } from '../../../components/ui/button';
 import {
   Users, BookOpen, TrendingUp, ChevronUp, ChevronDown,
-  ChevronLeft, ChevronRight, Eye, MessageSquare, ThumbsDown, Filter, FileText, Plus,
+  ChevronLeft, ChevronRight, MessageSquare, ThumbsDown, FileText, Plus,
   AlertTriangle, MessageSquarePlus, ArrowRight,
 } from 'lucide-react';
 import TaskDetailPanel from '../components/TaskDetailPanel';
-import BuilderDrawer from '../components/BuilderDrawer';
 import BuilderLogModal from '../components/BuilderLogModal';
-import { fetchPursuitBuilderCohorts, toLegacyFormat } from '../utils/cohortUtils';
 import useAuthStore from '../../../stores/authStore';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const PAGE_SIZE_TASKS = 10;
-const PAGE_SIZE_BUILDERS = 10;
 const PAGE_SIZE_FEEDBACK = 10;
 
 const GRADE_COLORS = {
@@ -117,26 +113,18 @@ const Pagination = ({ page, total, pageSize, onPage }) => {
   );
 };
 
-const SummaryTab = () => {
+const SummaryTab = ({ selectedCohortId, cohorts }) => {
   const token = useAuthStore((s) => s.token);
-  const [cohorts, setCohorts] = useState([]);
-  const [selectedCohortId, setSelectedCohortId] = useState('');
   const [startDate, setStartDate] = useState('2025-03-01');
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
   const [summaryData, setSummaryData] = useState(null);
-  const [builders, setBuilders] = useState([]);
 
-  // Sort and pagination state
   const [taskSort, setTaskSort] = useState({ key: 'assigned_date', dir: 'desc' });
   const [taskPage, setTaskPage] = useState(0);
-  const [builderSort, setBuilderSort] = useState({ key: 'attendance_percentage', dir: 'desc' });
-  const [builderPage, setBuilderPage] = useState(0);
   const [feedbackPage, setFeedbackPage] = useState(0);
   const [showNegativeOnly, setShowNegativeOnly] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState(null);
-  const [selectedBuilder, setSelectedBuilder] = useState(null);
-  const [logModalBuilder, setLogModalBuilder] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const [supportTickets, setSupportTickets] = useState([]);
@@ -147,30 +135,11 @@ const SummaryTab = () => {
   const [ticketNoteInputs, setTicketNoteInputs] = useState({});
   const [ticketNoteSaving, setTicketNoteSaving] = useState({});
 
-  // Get the selected cohort object (for passing legacyName to BuilderDrawer)
-  const selectedCohort = useMemo(
-    () => cohorts.find(c => c.cohort_id === selectedCohortId),
-    [cohorts, selectedCohortId]
-  );
-
-  // Fetch cohorts from org management (Pursuit builder cohorts only)
-  useEffect(() => {
-    if (!token) return;
-    fetchPursuitBuilderCohorts(token)
-      .then(data => {
-        setCohorts(data);
-        if (data.length > 0) setSelectedCohortId(data[0].cohort_id);
-      })
-      .catch(console.error);
-  }, [token]);
-
-  // Fetch cohort summary from native endpoint (replaces both legacy API calls)
   useEffect(() => {
     if (!selectedCohortId || !token) return;
     setLoading(true);
     setTaskPage(0);
     setFeedbackPage(0);
-    setBuilderPage(0);
 
     const url = `${API_URL}/api/admin/dashboard/cohort-summary?cohortId=${selectedCohortId}&startDate=${startDate}&endDate=${endDate}`;
     fetch(url, {
@@ -180,17 +149,14 @@ const SummaryTab = () => {
       .then(data => {
         if (data.success) {
           setSummaryData(data);
-          setBuilders(data.builders || []);
         } else {
           console.error('Cohort summary error:', data.error);
           setSummaryData(null);
-          setBuilders([]);
         }
       })
       .catch(err => {
         console.error('Cohort summary fetch failed:', err);
         setSummaryData(null);
-        setBuilders([]);
       })
       .finally(() => setLoading(false));
   }, [selectedCohortId, startDate, endDate, token, refreshKey]);
@@ -273,9 +239,9 @@ const SummaryTab = () => {
 
   const summary = summaryData?.summary;
   const tasks = summaryData?.taskDetails ?? [];
+  const builders = summaryData?.builders ?? [];
   const allFeedback = summaryData?.allFeedbackDetails ?? [];
 
-  // Sorted tasks
   const sortedTasks = useMemo(() => {
     const sorted = [...tasks].sort((a, b) => {
       let av = a[taskSort.key], bv = b[taskSort.key];
@@ -288,15 +254,6 @@ const SummaryTab = () => {
     });
     return sorted;
   }, [tasks, taskSort]);
-
-  // Sorted builders
-  const sortedBuilders = useMemo(() => {
-    return [...builders].sort((a, b) => {
-      const av = a[builderSort.key] ?? 0, bv = b[builderSort.key] ?? 0;
-      if (typeof av === 'string') return builderSort.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
-      return builderSort.dir === 'asc' ? (av - bv) : (bv - av);
-    });
-  }, [builders, builderSort]);
 
   // Filtered feedback
   const feedback = useMemo(() => {
@@ -313,18 +270,8 @@ const SummaryTab = () => {
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
+      {/* Date filters */}
       <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <label className="text-xs text-slate-500 font-medium mb-1 block">Cohort</label>
-          <select
-            value={selectedCohortId}
-            onChange={e => setSelectedCohortId(e.target.value)}
-            className="px-3 py-1.5 text-sm border border-[#E3E3E3] rounded-md bg-white text-[#1E1E1E] focus:border-[#4242EA] focus:outline-none"
-          >
-            {cohorts.map(c => <option key={c.cohort_id} value={c.cohort_id}>{c.name}</option>)}
-          </select>
-        </div>
         <div>
           <label className="text-xs text-slate-500 font-medium mb-1 block">Start Date</label>
           <input
@@ -452,99 +399,6 @@ const SummaryTab = () => {
                 </table>
               </div>
               <Pagination page={taskPage} total={sortedTasks.length} pageSize={PAGE_SIZE_TASKS} onPage={setTaskPage} />
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Builder Performance Table */}
-      <Card className="bg-white border border-[#E3E3E3]">
-        <CardHeader className="pb-3 border-b border-[#E3E3E3]">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold text-[#1E1E1E]">Builder Performance</CardTitle>
-            <Badge className="bg-[#EFEFEF] text-slate-600 text-xs">{builders.length} builders</Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-3">
-          {loading ? (
-            <div className="space-y-2">{[1,2,3,4,5].map(i => <div key={i} className="h-8 bg-[#EFEFEF] rounded animate-pulse" />)}</div>
-          ) : builders.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-8">No builder data.</p>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-slate-400 text-xs uppercase tracking-wide border-b border-[#E3E3E3]">
-                      <SortHeader label="Builder" sortKey="name" sort={builderSort} onSort={toggleSort(setBuilderSort)} className="pr-3" />
-                      <SortHeader label="Attendance" sortKey="attendance_percentage" sort={builderSort} onSort={toggleSort(setBuilderSort)} className="px-2 text-center" />
-                      <SortHeader label="Tasks" sortKey="tasks_completed_percentage" sort={builderSort} onSort={toggleSort(setBuilderSort)} className="px-2 text-center" />
-                      <SortHeader label="Feedback" sortKey="total_peer_feedback_count" sort={builderSort} onSort={toggleSort(setBuilderSort)} className="px-2 text-center" />
-                      <SortHeader label="Logs" sortKey="log_count" sort={builderSort} onSort={toggleSort(setBuilderSort)} className="px-2 text-center" />
-                      <th className="pb-2 px-2 font-medium text-slate-400 text-xs uppercase tracking-wide">Grade Dist.</th>
-                      <SortHeader label="Videos" sortKey="video_tasks_completed" sort={builderSort} onSort={toggleSort(setBuilderSort)} className="px-2 text-center" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#EFEFEF]">
-                    {sortedBuilders.slice(builderPage * PAGE_SIZE_BUILDERS, (builderPage + 1) * PAGE_SIZE_BUILDERS).map(b => (
-                      <tr key={b.user_id} className="hover:bg-[#EFEFEF]/50 transition-colors">
-                        <td className="py-2 pr-3">
-                          <button
-                            onClick={() => setSelectedBuilder(b)}
-                            className="font-medium text-[#4242EA] text-xs hover:underline text-left"
-                          >
-                            {b.name}
-                          </button>
-                        </td>
-                        <td className="py-2 px-2 text-center">
-                          <span className={`text-xs font-semibold ${
-                            b.attendance_percentage >= 80 ? 'text-green-600' :
-                            b.attendance_percentage >= 60 ? 'text-yellow-600' : 'text-red-500'
-                          }`}>{b.attendance_percentage}%</span>
-                          <p className="text-[10px] text-slate-400">{b.days_attended}/{b.total_curriculum_days}</p>
-                        </td>
-                        <td className="py-2 px-2 text-center text-xs text-slate-600">{b.tasks_completed_percentage}%</td>
-                        <td className="py-2 px-2 text-center text-xs text-slate-600">{b.total_peer_feedback_count}</td>
-                        <td className="py-2 px-2 text-center">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setLogModalBuilder(b); }}
-                            className={`inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded transition-colors ${
-                              b.log_count > 0
-                                ? 'bg-[#4242EA]/10 text-[#4242EA] hover:bg-[#4242EA]/20'
-                                : 'text-slate-400 hover:text-[#4242EA] hover:bg-[#EFEFEF]'
-                            }`}
-                          >
-                            {b.log_count > 0 ? (
-                              <><FileText size={11} /> {b.log_count}</>
-                            ) : (
-                              <Plus size={12} />
-                            )}
-                          </button>
-                        </td>
-                        <td className="py-2 px-2 w-28">
-                          <GradeBar task={{
-                            grade_aplus_count: b.grade_aplus_count, grade_a_count: b.grade_a_count,
-                            grade_aminus_count: b.grade_aminus_count, grade_bplus_count: b.grade_bplus_count,
-                            grade_b_count: b.grade_b_count, grade_bminus_count: b.grade_bminus_count,
-                            grade_cplus_count: b.grade_cplus_count, grade_c_count: b.grade_c_count,
-                          }} />
-                        </td>
-                        <td className="py-2 px-2 text-center">
-                          {b.video_tasks_completed > 0 ? (
-                            <button
-                              onClick={() => setSelectedBuilder(b)}
-                              className="text-xs text-[#4242EA] hover:underline font-medium"
-                            >
-                              {b.video_tasks_completed} {b.avg_video_score ? `(${Math.round(b.avg_video_score)}%)` : ''}
-                            </button>
-                          ) : <span className="text-xs text-slate-300">—</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <Pagination page={builderPage} total={sortedBuilders.length} pageSize={PAGE_SIZE_BUILDERS} onPage={setBuilderPage} />
             </>
           )}
         </CardContent>
@@ -822,7 +676,11 @@ const SummaryTab = () => {
                               <ChevronRight size={12} className="text-slate-400" />
                             </span>
                             <span className="text-xs font-medium text-[#1E1E1E] w-36 truncate">{log.builder_name}</span>
-                            <Badge className={`text-[10px] px-1.5 py-0 ${log.log_type === 'behavioral' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                            <Badge className={`text-[10px] px-1.5 py-0 ${
+                              log.log_type === 'behavioral' ? 'bg-amber-100 text-amber-700'
+                              : log.log_type === 'interview' ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-blue-100 text-blue-700'
+                            }`}>
                               {log.log_type}
                             </Badge>
                             <select
@@ -877,28 +735,6 @@ const SummaryTab = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* Builder detail drawer */}
-      {selectedBuilder && (
-        <BuilderDrawer
-          builder={selectedBuilder}
-          startDate={startDate}
-          endDate={endDate}
-          selectedLevel={selectedCohort?.legacyName || ''}
-          cohortId={selectedCohortId}
-          onClose={() => setSelectedBuilder(null)}
-          onLogSaved={() => setRefreshKey(k => k + 1)}
-        />
-      )}
-
-      {/* Builder log modal (from builder table) */}
-      <BuilderLogModal
-        open={!!logModalBuilder}
-        onOpenChange={(open) => { if (!open) setLogModalBuilder(null); }}
-        builder={logModalBuilder}
-        cohortId={selectedCohortId}
-        onSaved={() => { setRefreshKey(k => k + 1); fetchSupportTickets(); }}
-      />
 
       {/* Facilitator log modal (from facilitator logs card) */}
       {showFacilitatorLogModal && (
