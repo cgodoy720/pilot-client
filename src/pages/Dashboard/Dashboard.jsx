@@ -636,7 +636,11 @@ function Dashboard() {
                 <span className="dashboard__week-label">{user?.cohort || 'Your Program'}</span>
               ) : (
                 <span className="dashboard__week-label">
-                  <span className="dashboard__week-level">{currentLevel}</span>: Week {currentWeek}
+                  <span className="dashboard__week-level">
+                    {isStaffBuilderView
+                      ? (availableCohorts.find(c => c.legacyName === builderViewCohort)?.name || currentDay?.cohort || currentLevel)
+                      : currentLevel}
+                  </span>: Week {currentWeek}
                 </span>
               )}
             </div>
