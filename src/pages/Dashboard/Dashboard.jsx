@@ -797,6 +797,13 @@ function Dashboard() {
                 style={{
                   animationDelay: `${delayIndex * 0.08}s`
                 }}
+                onClick={(e) => {
+                  // Don't double-navigate if user clicked an interactive element inside
+                  if (e.target.closest('button, a, .dashboard__day-activity--clickable')) return;
+                  if (!isStaffBuilderView) {
+                    handleNavigateToDayLearning(day.id);
+                  }
+                }}
               >
 
                 {/* Date */}
@@ -832,7 +839,19 @@ function Dashboard() {
 
                         return (
                           <div key={task.id}>
-                            <div className="dashboard__day-activity">
+                            <div
+                              className={`dashboard__day-activity${
+                                showTaskCheckbox && !isBreakTask && !isComplete && (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze)
+                                  ? ' dashboard__day-activity--clickable'
+                                  : ''
+                              }`}
+                              onClick={(e) => {
+                                if (showTaskCheckbox && !isBreakTask && !isComplete && (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze)) {
+                                  e.stopPropagation();
+                                  handleNavigateToTask(day.id, task.id);
+                                }
+                              }}
+                            >
                               {/* Task Checkbox - Purple (complete), Pink (incomplete with deliverable), or White circle (incomplete without deliverable) */}
                               {/* Hide checkbox for break tasks but add spacer to maintain alignment */}
                               {showTaskCheckbox && !isBreakTask && (
