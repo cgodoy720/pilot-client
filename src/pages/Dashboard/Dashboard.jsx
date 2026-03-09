@@ -104,7 +104,8 @@ function Dashboard() {
     if (isActive && !isVolunteer && !isStaffOrAdmin) {
       fetchDashboardData();
     } else if (isStaffOrAdmin && builderViewCohort) {
-      fetchDashboardData();
+      // Pass cohort explicitly to avoid stale closure
+      fetchDashboardData(builderViewCohort);
     } else {
       // Dismiss loading for all other cases (volunteers, inactive users,
       // or staff/admin still waiting for cohort auto-selection to complete)
@@ -112,16 +113,18 @@ function Dashboard() {
     }
   }, [token, cohortFilter, selectedCohort, user?.role, isActive, isVolunteer, isStaffOrAdmin, builderViewCohort]);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (explicitCohort) => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       // NEW: Single optimized API call for ALL dashboard data
       let url = `${import.meta.env.VITE_API_URL}/api/progress/dashboard-full`;
-      
-      // Add cohort parameter for staff/admin builder view, staff/admin cohort filter, or course switcher
-      if (isStaffOrAdmin && builderViewCohort) {
+
+      // Add cohort parameter — prefer explicit argument to avoid stale closures
+      if (explicitCohort) {
+        url += `?cohort=${encodeURIComponent(explicitCohort)}`;
+      } else if (isStaffOrAdmin && builderViewCohort) {
         url += `?cohort=${encodeURIComponent(builderViewCohort)}`;
       } else if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
         url += `?cohort=${encodeURIComponent(cohortFilter)}`;
@@ -208,7 +211,7 @@ function Dashboard() {
       // Set level, week, and weekly goal
       if (data.day) {
         setCurrentLevel(data.day.level || 1);
-        
+
         // Use pending week if user explicitly selected one, otherwise use current day's week
         if (pendingWeek !== null) {
           setCurrentWeek(pendingWeek);
@@ -219,6 +222,14 @@ function Dashboard() {
         } else {
           setCurrentWeek(data.day.week);
           setWeeklyGoal(data.day.weekly_goal || '');
+        }
+      } else if (data.weeks && data.weeks.length > 0) {
+        // No current day data (e.g. staff viewing a cohort) — derive from weeks
+        const lastWeek = data.weeks[data.weeks.length - 1];
+        setCurrentWeek(lastWeek.weekNumber);
+        setWeeklyGoal(lastWeek.weeklyGoal || '');
+        if (lastWeek.days && lastWeek.days.length > 0) {
+          setCurrentLevel(lastWeek.days[0].level || 1);
         }
       }
       
@@ -636,11 +647,7 @@ function Dashboard() {
                 <span className="dashboard__week-label">{user?.cohort || 'Your Program'}</span>
               ) : (
                 <span className="dashboard__week-label">
-                  <span className="dashboard__week-level">
-                    {isStaffBuilderView
-                      ? (availableCohorts.find(c => c.legacyName === builderViewCohort)?.name || currentDay?.cohort || currentLevel)
-                      : currentLevel}
-                  </span>: Week {currentWeek}
+                  <span className="dashboard__week-level">{currentLevel}</span>: Week {currentWeek}
                 </span>
               )}
             </div>
