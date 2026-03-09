@@ -150,7 +150,7 @@ const TaskCreateDialog = ({
       try {
         setLoadingAssessments(true);
         const response = await axios.get(
-          `${API_URL}/api/preview/assessments`,
+          `${API_URL}/api/preview/assessments?t=${Date.now()}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setAssessments(response.data.assessments || []);
