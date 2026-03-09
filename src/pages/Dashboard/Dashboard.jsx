@@ -209,7 +209,19 @@ function Dashboard() {
       setAllWeeksData(data.weeks || []);
       
       // Set level, week, and weekly goal
-      if (data.day) {
+      // When staff/admin views a specific cohort, data.day reflects the USER's own
+      // enrollment (not the selected cohort), so derive from data.weeks instead.
+      if (explicitCohort && data.weeks && data.weeks.length > 0) {
+        const targetWeek = pendingWeek !== null
+          ? data.weeks.find(w => w.weekNumber === pendingWeek) || data.weeks[data.weeks.length - 1]
+          : data.weeks[data.weeks.length - 1];
+        setCurrentWeek(targetWeek.weekNumber);
+        setWeeklyGoal(targetWeek.weeklyGoal || '');
+        if (targetWeek.days && targetWeek.days.length > 0) {
+          setCurrentLevel(targetWeek.days[0].level || 1);
+        }
+        if (pendingWeek !== null) setPendingWeek(null);
+      } else if (data.day) {
         setCurrentLevel(data.day.level || 1);
 
         // Use pending week if user explicitly selected one, otherwise use current day's week
@@ -224,7 +236,7 @@ function Dashboard() {
           setWeeklyGoal(data.day.weekly_goal || '');
         }
       } else if (data.weeks && data.weeks.length > 0) {
-        // No current day data (e.g. staff viewing a cohort) — derive from weeks
+        // Fallback: no current day data and no explicit cohort
         const lastWeek = data.weeks[data.weeks.length - 1];
         setCurrentWeek(lastWeek.weekNumber);
         setWeeklyGoal(lastWeek.weeklyGoal || '');
