@@ -1,5 +1,5 @@
 # Joanna's Handoff Doc
-_Last updated: 2026-03-03_
+_Last updated: 2026-03-05_
 
 This doc captures the state of the build, key architectural decisions, and the roadmap as of Joanna's leave. Read this alongside the PRD (`20251113 Job tracking data pipelines PRD.md` on Joanna's desktop).
 
@@ -105,13 +105,14 @@ Dedup key priority: `linkedin:<slug>` → `email:<addr>` → `name_company:<name
 - Module-level `isEnriching` flag prevents duplicate runs
 - Enriches: `industry`, `company_size`, `stage`, `description`
 
-#### Builder Insights tab (Sputnik) — shipped 2026-03-03
-- **`src/pages/SalesTracker/components/BuilderInsights.jsx`** — new component (~450 lines)
+#### Builder Insights tab (Sputnik) — shipped 2026-03-05
+- **`src/pages/SalesTracker/components/BuilderInsights.jsx`** — ~650 lines
 - Three panels: Top Companies, Top Industries, Suggested Introductions
-- Time filter buttons: All Time / Last 30 Days (default) / Last 7 Days
-- **Top Companies**: ranked list with color-coded signal badge breakdown (blue=applications, green=networking, purple=intros)
-- **Top Industries**: ranked list from enriched company data + "Enrich" button that triggers `POST /enrich-builder-companies`
-- **Suggested Introductions**: one card per company — shows which staff have contacts there; each contact is a clickable chip opening a full **ContactModal** (name/title/company/LinkedIn/industry tags/staff connections)
+- Time filter buttons: Last 7 Days / Last 30 Days (default) / All Time
+- **Top Companies**: ranked list with signal badge breakdown. **Click any row** → lazy-fetches `/builder-insights/company-detail` → shows per-builder signal list (applied where, networked with whom, intro requested).
+- **Top Industries**: ranked list from enriched company data + "Enrich" button. **Click any row** → lazy-fetches `/builder-insights/industry-detail` → shows companies in that industry with per-builder signals.
+- **Suggested Introductions**: **Click a card** to expand → "Builders Targeting" section (amber pills — click a builder pill to see their signals) + "Staff Contacts" section (clickable chips opening **ContactModal**).
+- Drill-down caches keyed by company/industry name; cleared on period change to avoid stale data.
 - Uses `useAuth()` for token — never `localStorage.getItem('token')`
 
 ---
