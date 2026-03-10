@@ -240,25 +240,33 @@ function EnrollmentsTab({ token, setLoading }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!formData.user_id || !formData.cohort_id) {
+
+    const userId = selectedUser?.user_id || formData.user_id;
+    const cohortId = formData.cohort_id;
+
+    if (!userId || !cohortId) {
+      setIsDialogOpen(false);
       Swal.fire('Error', 'User and Cohort are required', 'error');
       return;
     }
-    
+
     try {
       setLoading(true);
-      
+      setIsDialogOpen(false);
+
       const payload = {
-        ...formData,
-        user_id: parseInt(formData.user_id),
-        cohort_id: parseInt(formData.cohort_id),
+        user_id: parseInt(userId),
+        cohort_id: cohortId,
+        enrolled_date: formData.enrolled_date,
+        status: formData.status,
+        is_active: formData.is_active,
+        notes: formData.notes,
         completion_date: formData.completion_date || null,
-        withdrawal_date: formData.withdrawal_date || null
+        withdrawal_date: formData.withdrawal_date || null,
+        withdrawal_reason: formData.withdrawal_reason || null
       };
-      
+
       if (editingEnrollment) {
-        // Update
         await axios.put(
           `${API_URL}/api/admin/organization-management/enrollments/${editingEnrollment.enrollment_id}`,
           payload,
@@ -266,7 +274,6 @@ function EnrollmentsTab({ token, setLoading }) {
         );
         Swal.fire('Success', 'Enrollment updated successfully', 'success');
       } else {
-        // Create
         await axios.post(
           `${API_URL}/api/admin/organization-management/enrollments`,
           payload,
@@ -274,8 +281,7 @@ function EnrollmentsTab({ token, setLoading }) {
         );
         Swal.fire('Success', 'Enrollment created successfully', 'success');
       }
-      
-      setIsDialogOpen(false);
+
       fetchEnrollments();
     } catch (error) {
       console.error('Error saving enrollment:', error);

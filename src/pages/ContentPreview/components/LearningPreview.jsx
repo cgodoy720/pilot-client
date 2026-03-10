@@ -291,7 +291,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
         setIsPageLoading(true);
         
         const response = await fetch(
-          `${API_URL}/api/curriculum/days/${dayId}/full-details?cohort=${encodeURIComponent(cohort)}`,
+          `${API_URL}/api/curriculum/days/${dayId}/full-details?cohort=${encodeURIComponent(cohort)}&t=${Date.now()}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         
@@ -364,7 +364,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
     
     try {
       const response = await fetch(
-        `${API_URL}/api/learning/batch-completion-status?taskIds=${taskIds.join(',')}&isPreviewMode=true`,
+        `${API_URL}/api/learning/batch-completion-status?taskIds=${taskIds.join(',')}&isPreviewMode=true&t=${Date.now()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -398,7 +398,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
     setIsTaskComplete(false);
     
     // Fetch existing submission (no abort signal — lightweight GET that should always complete)
-    fetch(`${API_URL}/api/submissions/${task.id}?isPreviewMode=true`, {
+    fetch(`${API_URL}/api/submissions/${task.id}?isPreviewMode=true&t=${Date.now()}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.ok ? res.json() : null)
@@ -417,7 +417,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
 
     try {
       const response = await fetch(
-        `${API_URL}/api/learning/task-messages/${task.id}?dayNumber=${currentDay?.day_number}&cohort=${encodeURIComponent(cohort)}&isPreviewMode=true`,
+        `${API_URL}/api/learning/task-messages/${task.id}?dayNumber=${currentDay?.day_number}&cohort=${encodeURIComponent(cohort)}&isPreviewMode=true&t=${Date.now()}`,
         { headers: { Authorization: `Bearer ${token}` }, signal: abortController.signal }
       );
       
@@ -508,7 +508,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
   const checkTaskCompletion = async (taskId) => {
     try {
       const response = await fetch(
-        `${API_URL}/api/learning/task-completion-status/${taskId}?isPreviewMode=true`,
+        `${API_URL}/api/learning/task-completion-status/${taskId}?isPreviewMode=true&t=${Date.now()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -684,7 +684,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
       // Fallback: if streaming completed but no chunks were received, re-fetch all messages
       if (!receivedChunk && !abortController.signal.aborted && tasks[currentTaskIndex]?.id === messageTaskId) {
         const fallbackResponse = await fetch(
-          `${API_URL}/api/learning/task-messages/${messageTaskId}?dayNumber=${currentDay?.day_number}&cohort=${encodeURIComponent(cohort)}&isPreviewMode=true`,
+          `${API_URL}/api/learning/task-messages/${messageTaskId}?dayNumber=${currentDay?.day_number}&cohort=${encodeURIComponent(cohort)}&isPreviewMode=true&t=${Date.now()}`,
           {
             headers: { Authorization: `Bearer ${token}` },
             signal: abortController.signal,

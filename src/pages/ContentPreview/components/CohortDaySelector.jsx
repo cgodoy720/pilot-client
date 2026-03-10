@@ -31,10 +31,13 @@ function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect,
     }
   }, [selectedCohort]);
 
-  // Refresh days when parent signals a change (e.g. day date updated)
+  // Refresh days and cohorts when parent signals a change (e.g. day deleted, uploaded, edited)
   useEffect(() => {
-    if (refreshTrigger && selectedCohort) {
-      fetchDays(selectedCohort.cohort_name);
+    if (refreshTrigger) {
+      fetchCohorts();
+      if (selectedCohort) {
+        fetchDays(selectedCohort.cohort_name);
+      }
     }
   }, [refreshTrigger]);
 
@@ -42,7 +45,7 @@ function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect,
     try {
       setLoading(true);
       const response = await axios.get(
-        `${API_URL}/api/preview/cohorts`,
+        `${API_URL}/api/preview/cohorts?t=${Date.now()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setCohorts(response.data.cohorts || []);
@@ -57,7 +60,7 @@ function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect,
     try {
       setLoading(true);
       const response = await axios.get(
-        `${API_URL}/api/curriculum/calendar?cohort=${encodeURIComponent(cohortName)}`,
+        `${API_URL}/api/curriculum/calendar?cohort=${encodeURIComponent(cohortName)}&t=${Date.now()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

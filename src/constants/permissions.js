@@ -39,7 +39,8 @@ export const PAGE_PERMISSIONS = {
   ASSESSMENT_GRADES: 'page:assessment_grades',
   ADMIN_VOLUNTEER_FEEDBACK: 'page:admin_volunteer_feedback',
   VOLUNTEER_MANAGEMENT: 'page:volunteer_management',
-  
+  TEMPLATE_MANAGEMENT: 'page:template_management',
+
   // Admin only section
   ADMIN_SECTION: 'page:admin_section',
   ADMIN_PROMPTS: 'page:admin_prompts',
