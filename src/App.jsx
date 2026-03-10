@@ -51,6 +51,9 @@ import OrganizationManagement from './pages/Admin/OrganizationManagement/Organiz
 import PermissionManagement from './pages/Admin/PermissionManagement';
 import ContentPreview from './pages/ContentPreview';
 
+// Template Management page
+import TemplateManagement from './pages/TemplateManagement';
+
 // Form Builder pages
 import FormBuilderDashboard from './pages/FormBuilder/FormBuilderDashboard';
 import FormEditor from './pages/FormBuilder/FormEditor';
@@ -461,6 +464,15 @@ function App() {
         <Route path="/volunteer-list" element={<Navigate to="/volunteer-management?tab=list" replace />} />
         <Route path="/volunteer-roster" element={<Navigate to="/volunteer-management?tab=calendar" replace />} />
         <Route path="/volunteer-attendance" element={<Navigate to="/volunteer-management?tab=attendance" replace />} />
+
+        {/* Template Management (Staff/Admin) */}
+        <Route path="/template-management" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.TEMPLATE_MANAGEMENT}>
+              <TemplateManagement />
+            </PermissionRoute>
+          </Layout>
+        } />
 
         {/* Form Builder routes (Admin/Staff only) */}
         <Route path="/forms" element={

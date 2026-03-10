@@ -17,116 +17,54 @@ const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onC
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [existingFeedback, setExistingFeedback] = useState(null);
+  const [dbQuestions, setDbQuestions] = useState(null);
 
   // Get localStorage key for this specific survey (includes preview mode to keep them separate)
   const getStorageKey = () => `survey_progress_${taskId}_${surveyType}${isPreviewMode ? '_preview' : ''}`;
 
-  // Define survey questions based on type
-  const getSurveyQuestions = () => {
+  // Fetch survey questions from DB on mount
+  useEffect(() => {
+    const fetchSurveyTemplate = async () => {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/admin/templates/surveys/by-type/${surveyType}`,
+          { headers: { 'Authorization': `Bearer ${token}` } }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          if (data.template?.questions && Array.isArray(data.template.questions) && data.template.questions.length > 0) {
+            setDbQuestions(data.template.questions);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch survey template from DB, using hardcoded fallback');
+      }
+    };
+    if (token && surveyType) fetchSurveyTemplate();
+  }, [token, surveyType]);
+
+  // Hardcoded fallback questions (used if DB fetch fails)
+  const getHardcodedQuestions = () => {
     if (surveyType === 'l1_final') {
       return [
-        {
-          id: 'ai_experience_before',
-          type: 'scale',
-          scale: [1, 2, 3, 4, 5],
-          question: 'On a scale of 1–5, please rate your experience with AI prior to starting the program.',
-          leftLabel: 'Little to no experience with AI',
-          rightLabel: 'AI expert',
-          required: true
-        },
-        {
-          id: 'ai_literacy_agreement',
-          type: 'options',
-          question: 'One of the goals of L1 was to help participants build AI literacy skills. To what extent do you agree that you developed these skills?',
-          options: [
-            { value: 'strongly_agree', label: 'I strongly agree' },
-            { value: 'agree', label: 'I agree' },
-            { value: 'disagree', label: 'I disagree' },
-            { value: 'strongly_disagree', label: 'I strongly disagree' },
-            { value: 'not_sure', label: "I'm not sure" }
-          ],
-          required: false
-        },
-        {
-          id: 'explain_ai_confidence',
-          type: 'scale',
-          scale: [1, 2, 3, 4, 5],
-          question: 'On a scale of 1–5, how confident are you now in your ability to explain how AI systems work (e.g. LLMs, prompts)?',
-          leftLabel: 'Not confident',
-          rightLabel: 'Very confident',
-          required: true
-        },
-        {
-          id: 'build_ai_confidence',
-          type: 'scale',
-          scale: [1, 2, 3, 4, 5],
-          question: 'I can now confidently build an AI-powered app or product idea using the tools and/or methods introduced in this program?',
-          leftLabel: 'Not confident',
-          rightLabel: 'Very confident',
-          required: true
-        },
-        {
-          id: 'ai_literate_meaning',
-          type: 'textarea',
-          question: 'In your own words, what does it mean to be "AI literate"? Do you feel that you are now? Why or why not?',
-          placeholder: 'Share your thoughts on AI literacy and your development...',
-          required: true
-        },
-        {
-          id: 'referral_likelihood',
-          type: 'scale',
-          scale: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-          question: 'How likely are you to refer this program to someone you know?',
-          leftLabel: 'Not at all likely',
-          rightLabel: 'Very likely',
-          required: true
-        }
+        { id: 'ai_experience_before', type: 'scale', scale: [1, 2, 3, 4, 5], question: 'On a scale of 1\u20135, please rate your experience with AI prior to starting the program.', leftLabel: 'Little to no experience with AI', rightLabel: 'AI expert', required: true },
+        { id: 'ai_literacy_agreement', type: 'options', question: 'One of the goals of L1 was to help participants build AI literacy skills. To what extent do you agree that you developed these skills?', options: [{ value: 'strongly_agree', label: 'I strongly agree' }, { value: 'agree', label: 'I agree' }, { value: 'disagree', label: 'I disagree' }, { value: 'strongly_disagree', label: 'I strongly disagree' }, { value: 'not_sure', label: "I'm not sure" }], required: false },
+        { id: 'explain_ai_confidence', type: 'scale', scale: [1, 2, 3, 4, 5], question: 'On a scale of 1\u20135, how confident are you now in your ability to explain how AI systems work (e.g. LLMs, prompts)?', leftLabel: 'Not confident', rightLabel: 'Very confident', required: true },
+        { id: 'build_ai_confidence', type: 'scale', scale: [1, 2, 3, 4, 5], question: 'I can now confidently build an AI-powered app or product idea using the tools and/or methods introduced in this program?', leftLabel: 'Not confident', rightLabel: 'Very confident', required: true },
+        { id: 'ai_literate_meaning', type: 'textarea', question: 'In your own words, what does it mean to be "AI literate"? Do you feel that you are now? Why or why not?', placeholder: 'Share your thoughts on AI literacy and your development...', required: true },
+        { id: 'referral_likelihood', type: 'scale', scale: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], question: 'How likely are you to refer this program to someone you know?', leftLabel: 'Not at all likely', rightLabel: 'Very likely', required: true }
       ];
     }
-    
-    // Default to weekly survey
     return [
-      {
-        id: 'referral_likelihood',
-        type: 'scale',
-        scale: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-        question: 'How likely are you to refer this pilot to someone you know?',
-        leftLabel: 'Not likely',
-        rightLabel: 'Very likely',
-        required: true
-      },
-      {
-        id: 'what_we_did_well',
-        type: 'textarea',
-        question: 'What did we do well?',
-        placeholder: 'Share what you found valuable or enjoyed...',
-        required: false
-      },
-      {
-        id: 'what_to_improve',
-        type: 'textarea',
-        question: 'What do we need to improve on?',
-        placeholder: 'Share areas where we could do better...',
-        required: false
-      },
-      {
-        id: 'tools_used',
-        type: 'textarea',
-        question: 'What tools did you use this week?',
-        placeholder: 'List the tools, software, or platforms you worked with...',
-        required: false
-      },
-      {
-        id: 'programming_languages',
-        type: 'textarea',
-        question: 'What programming languages did you work with this week?',
-        placeholder: 'List the programming languages you used...',
-        required: false
-      }
+      { id: 'referral_likelihood', type: 'scale', scale: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], question: 'How likely are you to refer this pilot to someone you know?', leftLabel: 'Not likely', rightLabel: 'Very likely', required: true },
+      { id: 'what_we_did_well', type: 'textarea', question: 'What did we do well?', placeholder: 'Share what you found valuable or enjoyed...', required: false },
+      { id: 'what_to_improve', type: 'textarea', question: 'What do we need to improve on?', placeholder: 'Share areas where we could do better...', required: false },
+      { id: 'tools_used', type: 'textarea', question: 'What tools did you use this week?', placeholder: 'List the tools, software, or platforms you worked with...', required: false },
+      { id: 'programming_languages', type: 'textarea', question: 'What programming languages did you work with this week?', placeholder: 'List the programming languages you used...', required: false }
     ];
   };
 
-  const questions = getSurveyQuestions();
+  const questions = dbQuestions || getHardcodedQuestions();
   const currentQuestion = questions[currentQuestionIndex];
   const totalQuestions = questions.length;
 
