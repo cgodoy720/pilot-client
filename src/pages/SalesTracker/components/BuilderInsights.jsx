@@ -224,52 +224,105 @@ function ContactModal({ contactId, token, onClose }) {
 }
 
 // ── Intro Card ────────────────────────────────────────────────────────────────
-function IntroCard({ item, onContactClick }) {
+function IntroCard({ item, token, onContactClick }) {
   const [expanded, setExpanded] = useState(false);
+  const [builderDetails, setBuilderDetails] = useState({});
   const connections = item.staff_connections || [];
   const builders = item.builders_targeting || [];
 
+  const toggleBuilderDetail = (builderId) => {
+    setBuilderDetails(prev => ({
+      ...prev,
+      [builderId]: { ...prev[builderId], open: !prev[builderId]?.open },
+    }));
+    if (!builderDetails[builderId]?.data && !builderDetails[builderId]?.loading) {
+      setBuilderDetails(prev => ({ ...prev, [builderId]: { open: true, loading: true, data: null, error: null } }));
+      fetch(
+        `${import.meta.env.VITE_API_URL}/api/employment-engine/builder-insights/company-detail?company=${encodeURIComponent(item.company)}&period=all`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+        .then(r => r.json().then(j => ({ ok: r.ok, j })))
+        .then(({ ok, j }) => {
+          if (!ok) throw new Error(j.error || 'Failed');
+          // store per-builder signals from the response
+          const byBuilder = {};
+          for (const b of j) byBuilder[b.builder_id] = b.signals;
+          setBuilderDetails(prev => {
+            const next = { ...prev };
+            for (const b of builders) {
+              next[b.builder_id] = { open: prev[b.builder_id]?.open ?? false, loading: false, data: byBuilder[b.builder_id] || [], error: null };
+            }
+            return next;
+          });
+        })
+        .catch(err => setBuilderDetails(prev => ({ ...prev, [builderId]: { ...prev[builderId], loading: false, error: err.message } })));
+    }
+  };
+
   return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-white hover:border-gray-300 transition-colors">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <Building2 size={16} className="text-gray-400 shrink-0" />
-            <span className="font-semibold text-gray-900 truncate">{item.company}</span>
+    <div className="border border-gray-200 rounded-lg bg-white hover:border-gray-300 transition-colors">
+      {/* Clickable header */}
+      <button
+        className="w-full p-4 text-left"
+        onClick={() => setExpanded(v => !v)}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <Building2 size={16} className="text-gray-400 shrink-0" />
+              <span className="font-semibold text-gray-900 truncate">{item.company}</span>
+            </div>
+            <div className="flex gap-3 mt-1 text-sm text-gray-500">
+              <span className="flex items-center gap-1"><Users size={13} /> {item.builder_count} builder{item.builder_count !== 1 ? 's' : ''} targeting</span>
+              <span>{item.total_signals} signal{item.total_signals !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {connections.map(s => (
+                <span key={s.staff_id} className="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 rounded-full px-2.5 py-1 font-medium">
+                  {s.staff_name} · {s.contact_count} contact{s.contact_count !== 1 ? 's' : ''}
+                </span>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-3 mt-1 text-sm text-gray-500">
-            <span className="flex items-center gap-1"><Users size={13} /> {item.builder_count} builder{item.builder_count !== 1 ? 's' : ''} targeting</span>
-            <span>{item.total_signals} signal{item.total_signals !== 1 ? 's' : ''}</span>
-          </div>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {connections.map(s => (
-              <span key={s.staff_id} className="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 rounded-full px-2.5 py-1 font-medium">
-                {s.staff_name} · {s.contact_count} contact{s.contact_count !== 1 ? 's' : ''}
-              </span>
-            ))}
-          </div>
+          <span className="shrink-0 text-gray-400 p-1">
+            {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </span>
         </div>
-        <button
-          onClick={() => setExpanded(v => !v)}
-          className="shrink-0 text-gray-400 hover:text-gray-600 p-1"
-          aria-label={expanded ? 'Collapse' : 'Expand'}
-        >
-          {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-        </button>
-      </div>
+      </button>
 
       {expanded && (
-        <div className="mt-3 border-t border-gray-100 pt-3 space-y-4">
+        <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-4">
           {/* Builders targeting */}
           {builders.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Builders Targeting</p>
-              <div className="flex flex-wrap gap-2">
-                {builders.map(b => (
-                  <span key={b.builder_id} className="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 rounded-full px-2.5 py-1 font-medium">
-                    {b.builder_name} · {b.signal_count} signal{b.signal_count !== 1 ? 's' : ''}
-                  </span>
-                ))}
+              <div className="space-y-2">
+                {builders.map(b => {
+                  const bd = builderDetails[b.builder_id];
+                  const isOpen = bd?.open;
+                  return (
+                    <div key={b.builder_id}>
+                      <button
+                        className="inline-flex items-center gap-1.5 text-xs bg-amber-50 text-amber-700 rounded-full px-2.5 py-1 font-medium hover:bg-amber-100 transition-colors"
+                        onClick={() => toggleBuilderDetail(b.builder_id)}
+                      >
+                        {b.builder_name} · {b.signal_count} signal{b.signal_count !== 1 ? 's' : ''}
+                        {isOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                      </button>
+                      {isOpen && (
+                        <div className="mt-1.5 pl-3">
+                          {bd?.loading && <span className="text-xs text-gray-400 flex items-center gap-1"><Loader2 size={11} className="animate-spin" /> Loading…</span>}
+                          {bd?.error && <span className="text-xs text-red-500">{bd.error}</span>}
+                          {bd?.data && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {bd.data.map((sig, idx) => <SignalItem key={idx} sig={sig} />)}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -285,7 +338,7 @@ function IntroCard({ item, onContactClick }) {
                     {(s.contacts || []).map(c => (
                       <button
                         key={c.contact_id}
-                        onClick={() => onContactClick(c.contact_id)}
+                        onClick={(e) => { e.stopPropagation(); onContactClick(c.contact_id); }}
                         className="text-xs bg-gray-50 border border-gray-200 rounded px-2 py-1 text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-colors text-left"
                       >
                         {c.full_name}{c.current_title ? ` · ${c.current_title}` : ''}
@@ -613,6 +666,7 @@ export default function BuilderInsights() {
               <IntroCard
                 key={item.company}
                 item={item}
+                token={token}
                 onContactClick={setSelectedContactId}
               />
             ))}
