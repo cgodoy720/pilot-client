@@ -16,6 +16,7 @@ const InfoSessionsTab = lazy(() => import('./components/InfoSessionsTab/InfoSess
 const WorkshopsTab = lazy(() => import('./components/WorkshopsTab/WorkshopsTab'));
 const LeadsTab = lazy(() => import('./components/LeadsTab/LeadsTab'));
 const EmailsTab = lazy(() => import('./components/EmailsTab/EmailsTab'));
+const SettingsTab = lazy(() => import('./components/SettingsTab/SettingsTab'));
 
 const AdmissionsDashboard = () => {
   const token = useAuthStore((s) => s.token);
@@ -30,7 +31,7 @@ const AdmissionsDashboard = () => {
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['overview', 'applications', 'info-sessions', 'workshops', 'leads', 'emails'].includes(tabParam)) {
+    if (tabParam && ['overview', 'applications', 'info-sessions', 'workshops', 'leads', 'emails', 'settings'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [location.search]);
@@ -831,20 +832,6 @@ const AdmissionsDashboard = () => {
 
   return (
     <div className="w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-hidden flex flex-col font-proxima">
-      {/* Header with Back Button */}
-      <div className="flex justify-between items-center px-6 py-4 bg-white border-b border-gray-200">
-        <h1 className="text-2xl font-semibold text-[#1a1a1a] font-proxima-bold">
-          Admissions Dashboard
-        </h1>
-        <Button
-          variant="outline"
-          onClick={() => navigate('/dashboard')}
-          className="font-proxima"
-        >
-          ← Back to Dashboard
-        </Button>
-      </div>
-
       {/* Error Message */}
       {error && (
         <div className="mx-6 mt-4 p-4 bg-red-50 text-red-600 border border-red-200 rounded-lg font-proxima flex justify-between items-center">
@@ -862,7 +849,7 @@ const AdmissionsDashboard = () => {
       <div className="flex-1 overflow-hidden flex flex-col">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
           <div className="px-6 pt-4 pb-0 shrink-0">
-            <TabsList className="grid w-full grid-cols-6 bg-white border border-gray-200">
+            <TabsList className="grid w-full grid-cols-7 bg-white border border-gray-200">
             <TabsTrigger 
               value="overview" 
               className="font-proxima data-[state=active]:bg-[#4242ea] data-[state=active]:text-white"
@@ -893,11 +880,17 @@ const AdmissionsDashboard = () => {
             >
               Leads
             </TabsTrigger>
-            <TabsTrigger 
-              value="emails" 
+            <TabsTrigger
+              value="emails"
               className="font-proxima data-[state=active]:bg-[#4242ea] data-[state=active]:text-white"
             >
               Emails
+            </TabsTrigger>
+            <TabsTrigger
+              value="settings"
+              className="font-proxima data-[state=active]:bg-[#4242ea] data-[state=active]:text-white"
+            >
+              Settings
             </TabsTrigger>
             </TabsList>
           </div>
@@ -1112,6 +1105,16 @@ const AdmissionsDashboard = () => {
                 fetchEmailMappings={fetchEmailMappings}
                 token={token}
               />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="settings" className="flex-1 overflow-auto">
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-12">
+                <div className="text-gray-500 font-proxima">Loading Settings...</div>
+              </div>
+            }>
+              <SettingsTab />
             </Suspense>
           </TabsContent>
         </Tabs>
