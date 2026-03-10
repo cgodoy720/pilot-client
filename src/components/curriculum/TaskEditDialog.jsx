@@ -78,6 +78,8 @@ const TaskEditDialog = ({
   const [isSaving, setIsSaving] = useState(false);
   const [assessments, setAssessments] = useState([]);
   const [loadingAssessments, setLoadingAssessments] = useState(false);
+  const [surveyTemplates, setSurveyTemplates] = useState([]);
+  const [loadingSurveys, setLoadingSurveys] = useState(false);
   const interfaceType = getInterfaceType(formData);
 
   // Fetch assessments when modal opens with assessment interface type
@@ -104,6 +106,30 @@ const TaskEditDialog = ({
       fetchAssessments();
     }
   }, [open, interfaceType, token]);
+
+  // Fetch survey templates when modal opens
+  useEffect(() => {
+    const fetchSurveyTemplates = async () => {
+      if (!token) return;
+      try {
+        setLoadingSurveys(true);
+        const response = await axios.get(
+          `${API_URL}/api/admin/templates/surveys`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const active = (response.data.templates || []).filter(t => t.is_active);
+        setSurveyTemplates(active);
+      } catch (error) {
+        console.error('Error fetching survey templates:', error);
+      } finally {
+        setLoadingSurveys(false);
+      }
+    };
+
+    if (open) {
+      fetchSurveyTemplates();
+    }
+  }, [open, token]);
 
   // Helper function to determine if deliverable type should be analyzed
   const shouldAnalyzeDeliverableType = (deliverableType) => {
@@ -533,7 +559,7 @@ const TaskEditDialog = ({
                   <FileQuestion className="h-5 w-5 text-purple-600 mt-0.5" />
                   <div>
                     <p className="font-proxima-bold text-purple-900 text-sm">Survey Configuration</p>
-                    <p className="text-xs text-purple-700 font-proxima">Survey questions are hardcoded in the frontend based on survey type.</p>
+                    <p className="text-xs text-purple-700 font-proxima">Survey questions are managed in Templates. Select a survey type below.</p>
                   </div>
                 </div>
 
@@ -559,14 +585,24 @@ const TaskEditDialog = ({
                     disabled={!canEdit}
                   >
                     <SelectTrigger className="font-proxima">
-                      <SelectValue />
+                      <SelectValue placeholder={loadingSurveys ? 'Loading...' : 'Select survey type'} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="weekly">Weekly Survey (5 questions)</SelectItem>
-                      <SelectItem value="l1_final">L1 Final Survey (6 questions)</SelectItem>
-                      <SelectItem value="end_of_l1">End of L1</SelectItem>
-                      <SelectItem value="mid_program">Mid Program</SelectItem>
-                      <SelectItem value="final">Final</SelectItem>
+                      {surveyTemplates.length > 0 ? (
+                        surveyTemplates.map(t => {
+                          const questions = typeof t.questions === 'string' ? JSON.parse(t.questions) : (t.questions || []);
+                          return (
+                            <SelectItem key={t.template_id} value={t.survey_type}>
+                              {t.survey_name} ({questions.length} questions)
+                            </SelectItem>
+                          );
+                        })
+                      ) : (
+                        <>
+                          <SelectItem value="weekly">Weekly Survey</SelectItem>
+                          <SelectItem value="l1_final">L1 Final Survey</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

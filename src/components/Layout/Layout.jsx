@@ -36,6 +36,7 @@ const Layout = ({ children, isLoading = false }) => {
   const canViewContentPreview = canAccessPage('content_preview');
   const canViewExternalCohorts = canAccessPage('external_cohorts');
   const canViewFormBuilder = canAccessPage('form_builder');
+  const canViewTemplateManagement = canAccessPage('template_management');
   const canViewPathfinderAdmin = canAccessPage('pathfinder_admin');
   const canViewPaymentAdmin = canAccessPage('payment_admin');
   const canViewSputnik = canAccessPage('sputnik');
@@ -74,6 +75,7 @@ const Layout = ({ children, isLoading = false }) => {
   // Staff dropdown (remaining items) -- staff/admin roles
   const staffDropdownItems = isStaffOrAdminRole ? [
     canViewFormBuilder && { to: '/forms', label: 'Form Builder' },
+    canViewTemplateManagement && { to: '/template-management', label: 'Templates' },
     canViewVolunteerManagement && { to: '/volunteer-management', label: 'Volunteers' },
   ].filter(Boolean) : [];
 
@@ -100,6 +102,7 @@ const Layout = ({ children, isLoading = false }) => {
     canViewContentPreview && { to: '/content-preview', icon: Target, label: 'Content Mgmt' },
     canViewExternalCohorts && { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
     canViewFormBuilder && { to: '/forms', icon: ClipboardList, label: 'Form Builder' },
+    canViewTemplateManagement && { to: '/template-management', icon: ClipboardList, label: 'Templates' },
     canViewPathfinderAdmin && { to: '/pathfinder/admin', icon: ArrowRight, label: 'Pathfinder Admin' },
     canViewPaymentAdmin && { to: '/payment-admin', icon: Briefcase, label: 'Payment Admin' },
     canViewSputnik && { to: '/sputnik', icon: Rocket, label: 'Sputnik' },
