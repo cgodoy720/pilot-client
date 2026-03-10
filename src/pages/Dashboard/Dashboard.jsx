@@ -655,7 +655,7 @@ function Dashboard() {
             <div className="dashboard__week-title">
               {isWorkshopParticipant ? (
                 <span className="dashboard__week-label">AI Native Workshop</span>
-              ) : isExternalCohort ? (
+              ) : (isExternalCohort && !isStaffBuilderView) ? (
                 <span className="dashboard__week-label">{user?.cohort || 'Your Program'}</span>
               ) : (
                 <span className="dashboard__week-label">
