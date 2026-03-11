@@ -5,7 +5,7 @@ import { Label } from '../../../components/ui/label';
 import { Textarea } from '../../../components/ui/textarea';
 import { Switch } from '../../../components/ui/switch';
 import { Badge } from '../../../components/ui/badge';
-import { X, AlertTriangle, MessageSquare, Plus, Search, Loader2 } from 'lucide-react';
+import { X, AlertTriangle, MessageSquare, UserCheck, Plus, Search, Loader2 } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -229,30 +229,23 @@ const BuilderLogModal = ({ open, onOpenChange, builder, cohortId, onSaved }) => 
 
           {/* Log type toggle */}
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setLogType('behavioral')}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all ${
-                logType === 'behavioral'
-                  ? 'bg-amber-50 border-amber-300 text-amber-700'
-                  : 'bg-white border-[#E3E3E3] text-slate-500 hover:border-amber-200'
-              }`}
-            >
-              <AlertTriangle size={14} />
-              Behavioral
-            </button>
-            <button
-              type="button"
-              onClick={() => setLogType('conversation')}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all ${
-                logType === 'conversation'
-                  ? 'bg-blue-50 border-blue-300 text-blue-700'
-                  : 'bg-white border-[#E3E3E3] text-slate-500 hover:border-blue-200'
-              }`}
-            >
-              <MessageSquare size={14} />
-              Conversation
-            </button>
+            {[
+              { value: 'behavioral', label: 'Behavioral', icon: AlertTriangle, active: 'bg-amber-50 border-amber-300 text-amber-700', hover: 'hover:border-amber-200' },
+              { value: 'conversation', label: 'Conversation', icon: MessageSquare, active: 'bg-blue-50 border-blue-300 text-blue-700', hover: 'hover:border-blue-200' },
+              { value: 'interview', label: 'Interview', icon: UserCheck, active: 'bg-emerald-50 border-emerald-300 text-emerald-700', hover: 'hover:border-emerald-200' },
+            ].map(({ value, label, icon: Icon, active, hover }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setLogType(value)}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                  logType === value ? active : `bg-white border-[#E3E3E3] text-slate-500 ${hover}`
+                }`}
+              >
+                <Icon size={14} />
+                {label}
+              </button>
+            ))}
           </div>
 
           {/* Builders involved */}
@@ -308,55 +301,61 @@ const BuilderLogModal = ({ open, onOpenChange, builder, cohortId, onSaved }) => 
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="What happened? Write freely — AI will categorize automatically."
+              placeholder={logType === 'interview'
+                ? "Interview feedback — impressions, strengths, concerns..."
+                : "What happened? Write freely — AI will categorize automatically."}
               className="mt-1.5 min-h-[100px] text-sm"
             />
           </div>
 
-          {/* Bond Blocks */}
-          <div>
-            <Label className="text-xs font-medium text-slate-500">Bond Blocks</Label>
-            <p className="text-[10px] text-slate-400 mt-0.5">Hesitation regarding ISA terms or institutional trust</p>
-            <Textarea
-              value={bondBlocks}
-              onChange={(e) => setBondBlocks(e.target.value)}
-              placeholder="Optional..."
-              className="mt-1 min-h-[60px] text-sm"
-            />
-          </div>
-
-          {/* Community Rating + CoC */}
-          <div className="flex items-start gap-6">
-            <div className="flex-1">
-              <Label className="text-xs font-medium text-slate-500">Community Rating</Label>
-              <div className="flex gap-1 mt-1.5">
-                {[1, 2, 3, 4, 5].map(n => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setCommunityRating(communityRating === n ? null : n)}
-                    className={`w-8 h-8 rounded-md text-xs font-bold transition-all ${
-                      communityRating === n
-                        ? 'bg-[#4242EA] text-white'
-                        : 'bg-[#EFEFEF] text-slate-500 hover:bg-[#E3E3E3]'
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">1 = Poor Collaborator, 5 = Excellent</p>
-            </div>
+          {/* Bond Blocks — behavioral/conversation only */}
+          {logType !== 'interview' && (
             <div>
-              <Label className="text-xs font-medium text-slate-500">Code of Conduct</Label>
-              <div className="flex items-center gap-2 mt-1.5">
-                <Switch checked={violatesCoC} onCheckedChange={setViolatesCoC} />
-                <span className={`text-xs font-medium ${violatesCoC ? 'text-red-600' : 'text-slate-400'}`}>
-                  {violatesCoC ? 'Violation' : 'No violation'}
-                </span>
+              <Label className="text-xs font-medium text-slate-500">Bond Blocks</Label>
+              <p className="text-[10px] text-slate-400 mt-0.5">Hesitation regarding ISA terms or institutional trust</p>
+              <Textarea
+                value={bondBlocks}
+                onChange={(e) => setBondBlocks(e.target.value)}
+                placeholder="Optional..."
+                className="mt-1 min-h-[60px] text-sm"
+              />
+            </div>
+          )}
+
+          {/* Community Rating + CoC — behavioral/conversation only */}
+          {logType !== 'interview' && (
+            <div className="flex items-start gap-6">
+              <div className="flex-1">
+                <Label className="text-xs font-medium text-slate-500">Community Rating</Label>
+                <div className="flex gap-1 mt-1.5">
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setCommunityRating(communityRating === n ? null : n)}
+                      className={`w-8 h-8 rounded-md text-xs font-bold transition-all ${
+                        communityRating === n
+                          ? 'bg-[#4242EA] text-white'
+                          : 'bg-[#EFEFEF] text-slate-500 hover:bg-[#E3E3E3]'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">1 = Poor Collaborator, 5 = Excellent</p>
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-slate-500">Code of Conduct</Label>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <Switch checked={violatesCoC} onCheckedChange={setViolatesCoC} />
+                  <span className={`text-xs font-medium ${violatesCoC ? 'text-red-600' : 'text-slate-400'}`}>
+                    {violatesCoC ? 'Violation' : 'No violation'}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Next Steps */}
           <div>

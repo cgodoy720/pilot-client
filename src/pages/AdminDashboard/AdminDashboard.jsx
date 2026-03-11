@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import useAuthStore from '../../stores/authStore';
 import useNavStore from '../../stores/navStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import SummaryTab from './tabs/SummaryTab';
+import BuildersTab from './tabs/BuildersTab';
 import SurveyTab from './tabs/SurveyTab';
 import L2SelectionsTab from './tabs/L2SelectionsTab';
 import VideoSubmissionsTab from './tabs/VideoSubmissionsTab';
-import { ExternalLink, BarChart3, Star, UserCheck, Video } from 'lucide-react';
+import { fetchPursuitBuilderCohorts } from './utils/cohortUtils';
+import { ExternalLink, BarChart3, Users, Star, UserCheck, Video } from 'lucide-react';
 
 const LEGACY_URL = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/';
 
@@ -16,10 +18,24 @@ const TAB_TRIGGER_CLASS =
 
 const AdminDashboard = () => {
   const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
   const isSecondaryNavPage = useNavStore((s) => s.isSecondaryNavPage);
   const [activeTab, setActiveTab] = useState('summary');
   const [iframeLoading, setIframeLoading] = useState(true);
+
+  const [cohorts, setCohorts] = useState([]);
+  const [selectedCohortId, setSelectedCohortId] = useState('');
+
+  useEffect(() => {
+    if (!token) return;
+    fetchPursuitBuilderCohorts(token)
+      .then(data => {
+        setCohorts(data);
+        if (data.length > 0) setSelectedCohortId(data[0].cohort_id);
+      })
+      .catch(console.error);
+  }, [token]);
 
   if (!canAccessPage('admin_dashboard')) {
     return (
@@ -34,7 +50,6 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#EFEFEF]">
-      {/* Page header */}
       {!isSecondaryNavPage && (
         <div className="bg-white border-b border-[#E3E3E3] px-8 py-4">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -59,13 +74,30 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Tabs */}
       <div className="max-w-7xl mx-auto px-8 py-6">
+        {/* Global cohort selector */}
+        <div className="flex flex-wrap items-end gap-3 mb-6">
+          <div>
+            <label className="text-xs text-slate-500 font-medium mb-1 block">Cohort</label>
+            <select
+              value={selectedCohortId}
+              onChange={e => setSelectedCohortId(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-[#E3E3E3] rounded-md bg-white text-[#1E1E1E] focus:border-[#4242EA] focus:outline-none"
+            >
+              {cohorts.map(c => <option key={c.cohort_id} value={c.cohort_id}>{c.name}</option>)}
+            </select>
+          </div>
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="bg-white border border-[#E3E3E3] p-1 mb-6 rounded-lg inline-flex flex-wrap gap-0.5">
             <TabsTrigger value="summary" className={TAB_TRIGGER_CLASS}>
               <BarChart3 size={14} />
               Summary
+            </TabsTrigger>
+            <TabsTrigger value="builders" className={TAB_TRIGGER_CLASS}>
+              <Users size={14} />
+              Builders
             </TabsTrigger>
             <TabsTrigger value="survey" className={TAB_TRIGGER_CLASS}>
               <Star size={14} />
@@ -86,7 +118,11 @@ const AdminDashboard = () => {
           </TabsList>
 
           <TabsContent value="summary">
-            <SummaryTab />
+            <SummaryTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
+          </TabsContent>
+
+          <TabsContent value="builders">
+            <BuildersTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
           </TabsContent>
 
           <TabsContent value="survey">
@@ -94,11 +130,11 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="l2">
-            <L2SelectionsTab />
+            <L2SelectionsTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
           </TabsContent>
 
           <TabsContent value="videos">
-            <VideoSubmissionsTab />
+            <VideoSubmissionsTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
           </TabsContent>
 
           <TabsContent value="legacy" className="rounded-lg overflow-hidden shadow">
