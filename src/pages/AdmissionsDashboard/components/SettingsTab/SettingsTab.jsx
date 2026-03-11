@@ -22,8 +22,9 @@ const ProgramDetailsSection = ({ token }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [collapsed, setCollapsed] = useState(true);
+  const [builderCohorts, setBuilderCohorts] = useState([]);
 
-  useEffect(() => { fetchSettings(); }, []);
+  useEffect(() => { fetchSettings(); fetchCohorts(); }, []);
 
   const fetchSettings = async () => {
     try {
@@ -31,6 +32,18 @@ const ProgramDetailsSection = ({ token }) => {
       setSettings(await res.json());
     } catch (err) { console.error('Error fetching settings:', err); }
     finally { setLoading(false); }
+  };
+
+  const fetchCohorts = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/program-settings/cohorts`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBuilderCohorts(data.cohorts || []);
+      }
+    } catch (err) { console.error('Error fetching cohorts:', err); }
   };
 
   const handleSave = async () => {
@@ -106,7 +119,16 @@ const ProgramDetailsSection = ({ token }) => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1 font-proxima">Current Cohort</label>
-              <Input value={settings.current_cohort || ''} onChange={(e) => updateSetting('current_cohort', e.target.value)} placeholder="e.g. March 2026" className="font-proxima" />
+              <Select value={settings.current_cohort || ''} onValueChange={(val) => updateSetting('current_cohort', val)}>
+                <SelectTrigger className="font-proxima"><SelectValue placeholder="Select current cohort" /></SelectTrigger>
+                <SelectContent>
+                  {builderCohorts.map(c => (
+                    <SelectItem key={c.cohort_id} value={c.name} className="font-proxima">
+                      {c.name}{c.is_current_signup ? ' (current)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <p className="text-xs text-gray-400 mt-1 font-proxima">Default cohort assigned to new builders on signup</p>
             </div>
             <div className="md:col-span-2">
@@ -239,12 +261,17 @@ const OptionsEditor = ({ question, token, onClose, onSaved }) => {
   };
 
   const handleSave = async () => {
+    const validOptions = options.filter(o => o.label && o.label.trim());
+    if (validOptions.length === 0) {
+      Swal.fire({ icon: 'warning', title: 'No Options', text: 'Please add at least one option with a label.' });
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`${API_URL}/api/program-settings/questions/${question.question_id}/options`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ options })
+        body: JSON.stringify({ options: validOptions })
       });
       const data = await res.json();
       if (data.success) { onSaved(); onClose(); Swal.fire({ icon: 'success', title: 'Options Updated', timer: 1200, showConfirmButton: false }); }
