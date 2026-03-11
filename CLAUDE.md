@@ -1,67 +1,170 @@
-# Pursuit AI Native Platform
+# pilot-client
 
-Learning management platform for workforce development. Two repos: `pilot-client` (React 19 + Vite + Tailwind + shadcn/ui) and `test-pilot-server` (Node.js + Express + PostgreSQL via pg-promise).
+React 19 SPA for Pursuit's learning management platform. Serves builders (learners), staff, admins, volunteers, and applicants with role-based access control.
 
-## Developer Context
-Stefano Barros (stefano@pursuit.org) — L3 Program Facilitator. Uses Claude Code as primary build tool. Not a professional developer — explain tradeoffs, flag risks before acting.
+## Quick Reference
 
-## Frontend Patterns
+- **Entry**: `src/main.jsx` → `src/App.jsx` (routes + providers)
+- **Build**: Vite 6 — `npm run dev` (port 5173), `npm run build`
+- **Test**: `npm test` (Vitest), `npm run test:ui`, `npm run test:coverage`
+- **Deploy**: Netlify (`netlify.toml`); Node 20, npm 10.9.0
+- **Partner repo**: `../test-pilot-server` (Express backend on port 7001)
 
+## Architecture
+
+```
+src/
+├── main.jsx                    # React root + React Query + Router
+├── App.jsx                     # Route definitions + protected routes + modal handling
+├── stores/
+│   ├── authStore.js             # Zustand store — auth state, login/logout, permissions
+│   └── navStore.js              # Zustand store — navigation state
+├── pages/ (57+ pages)          # Route-level components
+├── components/ (57+ components)
+│   └── ui/ (33+ shadcn)        # Radix-based accessible components
+├── hooks/                      # usePermissions, useStreamingText, useMobile, etc.
+├── services/                   # API modules (adminApi, volunteerApi, formService, etc.)
+├── utils/                      # api.js, attendanceAuth, retryUtils, dateHelpers, etc.
+├── constants/permissions.js    # Permission definitions & role mappings
+└── lib/utils.js                # Helpers (cn function for classnames)
+```
+
+## Tech Stack
+
+- **UI**: React 19, Tailwind CSS 3, shadcn/ui (Radix UI), MUI (selective), Lucide icons
+- **State**: React Query (TanStack) for server state (30s stale, 30s polling), Zustand for auth/nav (persisted to localStorage), no Context providers
+- **Routing**: React Router DOM 6 with role-based route guards
+- **Rich content**: Tiptap editor, React Markdown, Recharts, FullCalendar
+- **Animations**: Framer Motion, Animate.css
+- **Testing**: Vitest, Testing Library, Stryker (mutation testing)
+
+## Auth Flow
+
+1. Login → `POST /api/unified-auth/login` → receives `{ user, token, redirectTo, userType }`
+2. Token + user stored in localStorage
+3. Permissions fetched from `GET /api/permissions/my-permissions` → cached in authStore
+4. All API calls include `Authorization: Bearer <token>` header
+5. Global error handler detects 401/403 → `ExpiredTokenModal` → redirect to login
+
+**Roles**: `admin` (wildcard '*'), `staff`, `builder`, `volunteer`, `workshop_participant`, `enterprise_builder`, `enterprise_admin`, `candidate`, `applicant`
+
+## Permission System
+
+`usePermissions()` hook — hybrid DB-sourced + hardcoded fallback:
+- `hasPermission(key)`, `canAccessPage(page)`, `canUseFeature(feature)`
+- Admin bypasses all checks
+- Permissions drive nav visibility and route guards (`components/RouteGuards/`)
+- Defined in `constants/permissions.js` with `DEFAULT_ROLE_PERMISSIONS` fallback
+
+## State Management (Zustand)
+
+Auth and nav state live in Zustand stores (`src/stores/`), not React Context. There are no Context providers to wrap.
+
+### authStore (`src/stores/authStore.js`)
+
+```js
+import useAuthStore from '@/stores/authStore';
+
+// Reading state — use selectors for optimal re-renders
+const user = useAuthStore((s) => s.user);
+const token = useAuthStore((s) => s.token);
+const permissions = useAuthStore((s) => s.permissions);
+const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+// Multiple values — single selector returning an object
+const { user, token } = useAuthStore((s) => ({ user: s.user, token: s.token }));
+
+// Actions
+const login = useAuthStore((s) => s.login);       // (credentials) → API call, sets user+token+permissions
+const signup = useAuthStore((s) => s.signup);      // (userData) → API call, sets user+token
+const logout = useAuthStore((s) => s.logout);      // () → clears state + localStorage
+const updateUser = useAuthStore((s) => s.updateUser); // (fields) → merges into user object
+const setAuthState = useAuthStore((s) => s.setAuthState); // (stateObj) → bulk update
+const refreshPermissions = useAuthStore((s) => s.refreshPermissions); // () → re-fetches from API
+```
+
+**Persistence**: `user` and `token` auto-persist to localStorage via Zustand `persist` middleware. On page reload, state rehydrates automatically and `refreshPermissions` runs to re-fetch permissions from the server.
+
+### navStore (`src/stores/navStore.js`)
+
+```js
+import useNavStore from '@/stores/navStore';
+
+const isSecondaryNavPage = useNavStore((s) => s.isSecondaryNavPage);
+const setIsSecondaryNavPage = useNavStore((s) => s.setIsSecondaryNavPage);
+```
+
+### Testing with Zustand stores
+
+Do NOT wrap components in providers. Set state directly before each test:
+
+```js
+import useAuthStore from '@/stores/authStore';
+
+beforeEach(() => {
+  useAuthStore.setState({
+    user: { id: 1, role: 'builder', firstName: 'Test' },
+    token: 'test-token',
+    permissions: [],
+    isAuthenticated: true,
+  });
+});
+
+afterEach(() => {
+  useAuthStore.setState(useAuthStore.getInitialState());
+});
+```
+
+## Key Routes
+
+**Public**: `/login`, `/signup`, `/forgot-password`, `/reset-password/:token`, `/verify-email/:token`, `/apply/*`, `/form/:slug`, `/attendance-login`, `/workshops`, `/info-sessions`
+
+**Builder**: `/dashboard`, `/ai-chat`, `/learning`, `/calendar`, `/assessment`, `/performance`, `/pathfinder/*`, `/account`, `/payment`, `/volunteering`
+
+**Staff/Admin**: `/admin-dashboard`, `/admin-attendance-dashboard`, `/admissions-dashboard`, `/content/*`, `/facilitator-view`, `/volunteer-management`, `/forms`, `/sputnik`, `/workshop-admin-dashboard`
+
+**Admin-only**: `/admin-prompts`, `/admin/organization-management`, `/admin/permissions`, `/admin/weekly-reports`, `/admin/platform-analytics`
+
+## API Integration
+
+Base URL: `VITE_API_URL` env (default `http://localhost:7001`)
+
+**Two patterns**:
+1. **REST**: `fetch()` / `axios` with auth headers → JSON response
+2. **SSE Streaming**: `streamMessageToGPT()`, `streamLearningMessage()` — real-time AI text chunks with `AbortSignal` support
+
+**Service modules**: `utils/api.js` (generic + streaming), `services/adminApi.js` (27KB, admin ops), `services/volunteerApi.js`, `services/formService.js`, `utils/statsApi.js`, `utils/analyticsApi.js`, `utils/attendanceService.js`
+
+## Design System
+
+- **Font**: Proxima Nova
+- **Colors**: Pursuit Purple `#4242EA`, Carbon Black `#1E1E1E`, Stardust `#E3E3E3`, Mastery Pink `#FF33FF`
+- **CSS**: Tailwind utilities + CSS variables in `:root` (index.css)
+- **Components**: shadcn/ui (Button, Input, Dialog, Select, Tabs, Card, Badge, etc.)
 - **Path alias**: `@/*` → `./src/*`
-- **Routing**: `main.jsx` = public routes, `App.jsx` = protected routes inside `<Layout>`. Pathfinder is nested — `Pathfinder.jsx` renders tab nav + `<Outlet/>`
-- **API calls are mixed** — some use inline `fetch()` with token header, some use `fetchWithAuth()` from `utils/api.js`, some use axios. Match whatever pattern the surrounding code uses.
-- **State**: useState + useContext only. No Redux. `useAuth()` gives user, token, isAuthenticated.
-- **Styling**: Tailwind utilities first. Brand colors: `pursuit-purple: #4242EA`, `carbon-black: #1E1E1E`, `stardust: #E3E3E3`. Dark mode via next-themes.
-- **Notifications**: `Swal.fire()` (SweetAlert2) for toasts/confirmations.
-- **UI primitives**: shadcn/ui (33+ components in `components/ui/`). Use these before building custom.
-- **Reference implementation**: `PathfinderEventHub/` — shows the pattern for Pathfinder feature pages with filters, cards, detail views, and dialog forms.
 
-## Backend Patterns
+## Key Architectural Patterns
 
-- **Route mounting**: Controllers are Express Routers mounted directly in `app.js`: `app.use('/api/pathfinder/events', pathfinderEventHubController)`
-- **Controller → Queries → DB**: Controllers handle HTTP, queries handle SQL. Keep them separate.
-- **Query layer**: Raw SQL with pg-promise parameterized queries (`$1`, `$2`). Use `db.one()` (exactly one row), `db.oneOrNone()` (one or null), `db.any()` (array), `db.none()` (no return).
-- **Auth inconsistency**: Sometimes `req.user.userId`, sometimes `req.user.user_id`. Check existing Pathfinder controllers for which one they use, and match it.
-- **Error pattern**: Try-catch in every handler, `console.error()`, generic 500 to client. No centralized logger.
-- **Migrations**: `db/migrations/` — ~40 files. Use descriptive filenames. Always use `IF NOT EXISTS` and wrap in `BEGIN/COMMIT`.
-- **No test suite**: Backend has no automated tests. Test manually by running queries and hitting endpoints.
+- React functional components + hooks throughout
+- **Zustand** for auth/nav state — no Context providers, use selector hooks directly
+- **React Query** for server state with automatic refetch on focus
+- `usePermissions()` hook reads `user.role` from authStore to check RBAC permissions
+- Custom `useStreamingText` hook smooths bursty SSE into natural typing animation
+- `globalErrorHandler.js` listens for auth errors via custom events
+- `retryUtils.js` provides backoff strategy for failed requests
+- `cacheService.js` for client-side caching beyond React Query
+- Attendance system has separate auth flow (`attendanceAuth.js`)
 
-## Naming Conventions
-- Frontend: PascalCase folders/files for components (`PathfinderEventHub.jsx`), camelCase for utils/services
-- Backend: `featureNameController.js` + matching `featureName.js` in queries/
-- DB columns: snake_case. Primary keys: SERIAL with `_id` suffix. Timestamps: `created_at`/`updated_at` with `DEFAULT NOW()`
+## Environment Variables
 
-## Collaboration — Do Not Break
-- **Stefano's fork**: `dkydkydky/pilot-client` and `dkydkydky/test-pilot-server`
-- **Upstream**: `cgodoy720/pilot-client` and `cgodoy720/test-pilot-server`
-- **Joanna (joannap07)** is building Employment Engine (Sputnik) on `origin/joanna` — creates `contacts`, `staff_contact_relationships`, `intro_requests` tables. Do NOT modify those tables or `outreach`.
-- Before creating migrations, check for conflicts with recent upstream changes.
-- "Builders" is always capitalized in all communications and UI text.
+- `VITE_API_URL` — backend base URL (required)
+- `VITE_GOOGLE_MAPS_API_KEY` — Google Maps for address autocomplete
 
-## Current Scope — Phase 1 ONLY
-Build ONLY these features:
-- Builder interests/goals (My Strategy)
-- Resume upload and storage (up to 5)
-- Resume-to-application linking (nullable `resume_id` on `job_applications` — the ONLY existing table alteration)
-- Dashboard redesign with goal statement + simplified layout
-- Builder-owned weekly goals with progress bar
-- Staff weekly goal suggestions per cohort
+## Client-Server Contract
 
-Do NOT build Phase 1.5+ features: `work_type`, `linked_build_id`, payment fields, connected tracking, pipeline view — those require Sputnik coordination.
-
-## Rules for AI Assistants (Claude Code + Cursor)
-1. Use Tailwind utility classes as the primary styling approach. When writing standalone CSS (co-located .css files), use BEM naming conventions. Do not mix the two in the same context.
-2. Before making any changes, explain the plan and ask for approval before writing code or creating files. For multi-step work, break into phases and get approval at each phase.
-3. Only touch one file at a time when making updates. Wait for acceptance before moving to the next file.
-4. Always explain what you are doing and why — especially for architectural decisions or choosing between patterns in the codebase.
-5. Follow the current project's file structure and style conventions. When in doubt, reference `PathfinderEventHub/` as the pattern for new Pathfinder features.
-6. Entry points: Backend starts at `app.js`, Frontend starts at `main.jsx`. Pathfinder routes are nested — `Pathfinder.jsx` renders tab nav + `<Outlet/>`.
-7. Never modify, create, or edit any files without explicit user approval. Always explain what you want to change and wait for permission.
-8. Do not modify tables owned by Sputnik: `contacts`, `staff_contact_relationships`, `intro_requests`, `outreach`.
-9. "Builders" is always capitalized in UI text, comments, and communications.
-10. Commit after each completed step or logical milestone. Don't let multiple steps pile up uncommitted. Use conventional commit messages like `feat(pathfinder): add builder interests API`.
-11. Never push to upstream. Only push to origin (fork). All merges to upstream happen via PR with explicit approval.
-
-## Workflow
-- Use Plan Mode for any task with 3+ steps. Present the plan for review before executing. If something goes sideways, STOP and re-plan — don't keep pushing.
-- If `tasks/todo.md` or `tasks/lessons.md` exist in the project, read them at session start.
+This app consumes the REST + SSE API from `../test-pilot-server`:
+- Auth: JWT in Bearer header; token lifecycle managed by authStore (Zustand)
+- Streaming: SSE for `/api/chat/messages/stream` and `/api/learning/messages/stream`
+- Permissions: fetched at login, cached locally, fallback to hardcoded role defaults
+- File uploads: multipart/form-data for submissions with images
+- CORS: backend allows `FRONTEND_URL` origin
