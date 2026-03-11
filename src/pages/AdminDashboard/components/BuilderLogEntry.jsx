@@ -18,6 +18,7 @@ const TAG_COLORS = {
   technical: 'bg-slate-100 text-slate-600',
   behavioral: 'bg-amber-100 text-amber-700',
   academic: 'bg-blue-100 text-blue-700',
+  interview: 'bg-emerald-100 text-emerald-700',
 };
 
 const TAG_LABELS = {
@@ -154,7 +155,11 @@ const BuilderLogEntry = ({ log, onStatusChange, onSupportStatusChange }) => {
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <Badge className={`text-[10px] px-1.5 py-0 ${log.log_type === 'behavioral' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+            <Badge className={`text-[10px] px-1.5 py-0 ${
+              log.log_type === 'behavioral' ? 'bg-amber-100 text-amber-700'
+              : log.log_type === 'interview' ? 'bg-emerald-100 text-emerald-700'
+              : 'bg-blue-100 text-blue-700'
+            }`}>
               {log.log_type}
             </Badge>
             {log.violates_code_of_conduct && (
