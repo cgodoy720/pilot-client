@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import pursuitLogoFull from '../../assets/logo-full.png';
 import databaseService from '../../services/databaseService';
 import Swal from 'sweetalert2';
@@ -62,7 +62,7 @@ const SECTION_CONFIG = [
     statusOptions: ['locked', 'not completed', 'completed'],
     defaultStatus: 'locked',
     getButtonLabel: (status) => {
-      if (status === 'locked') return 'Workshop Required';
+      if (status === 'locked') return 'Program Admission Required';
       if (status === 'not completed') return 'Make Pledge';
       if (status === 'completed') return 'Pledge Completed';
       return 'Make Pledge';
@@ -75,7 +75,8 @@ const SECTION_CONFIG = [
 function ApplicantDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { setAuthState, refreshPermissions } = useAuth();
+  const setAuthState = useAuthStore((s) => s.setAuthState);
+  const refreshPermissions = useAuthStore((s) => s.refreshPermissions);
   const [user, setUser] = useState(null);
   const [currentApplicantId, setCurrentApplicantId] = useState(null);
   const [statuses, setStatuses] = useState({
@@ -83,6 +84,7 @@ function ApplicantDashboard() {
     application: 'not started',
     workshop: 'locked',
     pledge: 'locked',
+    onboarding: 'not started',
   });
   const [sessionDetails, setSessionDetails] = useState(null);
   const [workshopDetails, setWorkshopDetails] = useState(null);
@@ -143,7 +145,6 @@ function ApplicantDashboard() {
         await loadInfoSessionStatus();
         await loadApplicationStatus();
         await loadWorkshopStatus();
-        await loadPledgeStatus();
         await loadOnboardingStatus();
         await loadCohortInfo();
       } catch (error) {
@@ -384,16 +385,16 @@ function ApplicantDashboard() {
     }
   };
 
-  const loadPledgeStatus = async () => {
+  const loadOnboardingStatus = async () => {
     try {
       const stageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/stage`);
-      
+
       if (stageResponse.ok) {
         const stageData = await stageResponse.json();
-        
+
         if (stageData.program_admission_status === 'accepted') {
           const pledgeResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/pledge/status/${currentApplicantId}`);
-          
+
           if (pledgeResponse.ok) {
             const pledgeData = await pledgeResponse.json();
             if (pledgeData.pledge_completed) {
@@ -401,8 +402,25 @@ function ApplicantDashboard() {
             } else {
               setStatuses(prev => ({ ...prev, pledge: 'not completed' }));
             }
+          }
+
+          // Check onboarding progress (only relevant after pledge is completed)
+          let allRequiredCompleted = false;
+          let hasProgress = false;
+
+          const onboardingStatusResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/onboarding-status`);
+          if (onboardingStatusResponse.ok) {
+            const onboardingData = await onboardingStatusResponse.json();
+            allRequiredCompleted = onboardingData.completed_required_tasks >= onboardingData.required_tasks;
+            hasProgress = onboardingData.completed_required_tasks > 0;
+          }
+
+          if (allRequiredCompleted) {
+            setStatuses(prev => ({ ...prev, onboarding: 'completed' }));
+          } else if (hasProgress) {
+            setStatuses(prev => ({ ...prev, onboarding: 'in progress' }));
           } else {
-            setStatuses(prev => ({ ...prev, pledge: 'not completed' }));
+            setStatuses(prev => ({ ...prev, onboarding: 'not started' }));
           }
         } else {
           setStatuses(prev => ({ ...prev, pledge: 'locked' }));
@@ -410,24 +428,18 @@ function ApplicantDashboard() {
       } else {
         setStatuses(prev => ({ ...prev, pledge: 'locked' }));
       }
-    } catch (error) {
-      console.error('Error loading pledge status:', error);
-      setStatuses(prev => ({ ...prev, pledge: 'locked' }));
-    }
-  };
 
-  const loadOnboardingStatus = async () => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/onboarding/status/${currentApplicantId}`);
-      
-      if (response.ok) {
-        const statusData = await response.json();
+      // Fetch detailed onboarding task status for progress display
+      const onboardingTaskResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/onboarding/status/${currentApplicantId}`);
+      if (onboardingTaskResponse.ok) {
+        const statusData = await onboardingTaskResponse.json();
         setOnboardingStatus(statusData);
       } else {
         setOnboardingStatus(null);
       }
     } catch (error) {
       console.error('Error loading onboarding status:', error);
+      setStatuses(prev => ({ ...prev, pledge: 'locked' }));
       setOnboardingStatus(null);
     }
   };
@@ -457,8 +469,8 @@ function ApplicantDashboard() {
     if (section.key === 'workshop') {
       return section.buttonEnabled(statuses.workshop, statuses.application)
     }
-    if (section.key === 'pledge') {
-      return section.buttonEnabled(statuses.pledge)
+    if (section.key === 'onboarding') {
+      return section.buttonEnabled(statuses.onboarding)
     }
     return section.buttonEnabled(statuses[section.key])
   }
@@ -492,6 +504,7 @@ function ApplicantDashboard() {
           getButtonLabel: (status) => {
             if (onboardingLocked) return 'Coming Soon';
             if (onboardingStatus?.all_required_completed) return 'Create Builder Account';
+            if (status === 'in progress') return 'Continue Onboarding';
             return 'Start Onboarding';
           },
           buttonEnabled: (status) => !onboardingLocked,

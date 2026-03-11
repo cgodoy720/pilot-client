@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
@@ -63,7 +63,7 @@ const emptyForm = {
 };
 
 export default function PathfinderNetwork() {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
 
   // Tab state
   const [activeTab, setActiveTab] = useState('network'); // 'network' | 'my-requests'

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -62,7 +62,7 @@ function convertTo24Hour(timeStr) {
 }
 
 function AddEventDialog({ isOpen, onClose, onEventAdded }) {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [mode, setMode] = useState('url'); // 'url' or 'manual'
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);

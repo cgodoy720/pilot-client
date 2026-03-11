@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { useNavContext } from '../../../context/NavContext';
+import useAuthStore from '../../../stores/authStore';
+import useNavStore from '../../../stores/navStore';
 import { usePermissions } from '../../../hooks/usePermissions';
+import IntegrationsStatusTab from './tabs/IntegrationsStatusTab';
 import OverviewTab from './tabs/OverviewTab';
 import UsageBreakdownTab from './tabs/UsageBreakdownTab';
 import CostBillingTab from './tabs/CostBillingTab';
@@ -16,9 +17,10 @@ const SectionHeader = ({ children }) => (
 );
 
 const PlatformAnalytics = () => {
-  const { user, token } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
-  const { isSecondaryNavPage } = useNavContext();
+  const isSecondaryNavPage = useNavStore((s) => s.isSecondaryNavPage);
 
   // Date range state — default last 30 days
   const [endDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -57,6 +59,9 @@ const PlatformAnalytics = () => {
 
       {/* All sections rendered sequentially */}
       <div className="max-w-7xl mx-auto px-8 py-6">
+        <SectionHeader>Integrations Status</SectionHeader>
+        <IntegrationsStatusTab token={token} startDate={startDate} endDate={endDate} />
+
         <SectionHeader>Overview</SectionHeader>
         <OverviewTab token={token} startDate={startDate} endDate={endDate} />
 

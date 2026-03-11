@@ -3,13 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import {
-  Users, BookOpen, ClipboardCheck, TrendingUp, ChevronUp, ChevronDown,
-  ChevronLeft, ChevronRight, Eye, MessageSquare, ThumbsDown, Filter,
+  Users, BookOpen, TrendingUp, ChevronUp, ChevronDown,
+  ChevronLeft, ChevronRight, Eye, MessageSquare, ThumbsDown, Filter, FileText, Plus,
+  AlertTriangle, MessageSquarePlus, ArrowRight,
 } from 'lucide-react';
 import TaskDetailPanel from '../components/TaskDetailPanel';
 import BuilderDrawer from '../components/BuilderDrawer';
+import BuilderLogModal from '../components/BuilderLogModal';
 import { fetchPursuitBuilderCohorts, toLegacyFormat } from '../utils/cohortUtils';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const PAGE_SIZE_TASKS = 10;
@@ -116,7 +118,7 @@ const Pagination = ({ page, total, pageSize, onPage }) => {
 };
 
 const SummaryTab = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [cohorts, setCohorts] = useState([]);
   const [selectedCohortId, setSelectedCohortId] = useState('');
   const [startDate, setStartDate] = useState('2025-03-01');
@@ -134,6 +136,16 @@ const SummaryTab = () => {
   const [showNegativeOnly, setShowNegativeOnly] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState(null);
   const [selectedBuilder, setSelectedBuilder] = useState(null);
+  const [logModalBuilder, setLogModalBuilder] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const [supportTickets, setSupportTickets] = useState([]);
+  const [nextStepLogs, setNextStepLogs] = useState([]);
+  const [supportLoading, setSupportLoading] = useState(false);
+  const [supportFilter, setSupportFilter] = useState('active');
+  const [expandedItemId, setExpandedItemId] = useState(null);
+  const [ticketNoteInputs, setTicketNoteInputs] = useState({});
+  const [ticketNoteSaving, setTicketNoteSaving] = useState({});
 
   // Get the selected cohort object (for passing legacyName to BuilderDrawer)
   const selectedCohort = useMemo(
@@ -181,7 +193,83 @@ const SummaryTab = () => {
         setBuilders([]);
       })
       .finally(() => setLoading(false));
-  }, [selectedCohortId, startDate, endDate, token]);
+  }, [selectedCohortId, startDate, endDate, token, refreshKey]);
+
+  const fetchSupportTickets = async () => {
+    if (!selectedCohortId || !token) return;
+    setSupportLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/dashboard/support-tickets?cohortId=${selectedCohortId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSupportTickets(data.data.tickets || []);
+        setNextStepLogs(data.data.nextStepLogs || []);
+      }
+    } catch (err) {
+      console.error('Support tickets fetch failed:', err);
+    }
+    setSupportLoading(false);
+  };
+
+  useEffect(() => {
+    fetchSupportTickets();
+  }, [selectedCohortId, token, refreshKey]);
+
+  const filteredTickets = useMemo(() => {
+    if (supportFilter === 'all') return supportTickets;
+    const activeStatuses = ['open', 'in_progress', 'follow_up'];
+    return supportTickets.filter(t => activeStatuses.includes(t.current_status));
+  }, [supportTickets, supportFilter]);
+
+  const filteredNextSteps = useMemo(() => {
+    if (supportFilter === 'all') return nextStepLogs;
+    return nextStepLogs.filter(l => l.status !== 'closed');
+  }, [nextStepLogs, supportFilter]);
+
+  const handleNextStepStatusChange = async (logId, newStatus) => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/dashboard/builder-logs/${logId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) fetchSupportTickets();
+    } catch { /* ignore */ }
+  };
+
+  const totalFacilitatorLogs = filteredTickets.length + filteredNextSteps.length;
+  const [showFacilitatorLogModal, setShowFacilitatorLogModal] = useState(false);
+
+  const handleTicketStatusChange = async (supportId, newStatus) => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/dashboard/support-tickets/${supportId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) fetchSupportTickets();
+    } catch { /* ignore */ }
+  };
+
+  const handleTicketAddNote = async (supportId) => {
+    const note = ticketNoteInputs[supportId]?.trim();
+    if (!note) return;
+    setTicketNoteSaving(prev => ({ ...prev, [supportId]: true }));
+    try {
+      const res = await fetch(`${API_URL}/api/admin/dashboard/support-tickets/${supportId}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ notes: note }),
+      });
+      if (res.ok) {
+        setTicketNoteInputs(prev => ({ ...prev, [supportId]: '' }));
+        fetchSupportTickets();
+      }
+    } catch { /* ignore */ }
+    setTicketNoteSaving(prev => ({ ...prev, [supportId]: false }));
+  };
 
   const summary = summaryData?.summary;
   const tasks = summaryData?.taskDetails ?? [];
@@ -259,16 +347,15 @@ const SummaryTab = () => {
 
       {/* KPI cards */}
       {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1,2,3,4].map(i => <div key={i} className="h-20 bg-[#EFEFEF] rounded-lg animate-pulse" />)}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1,2,3].map(i => <div key={i} className="h-20 bg-[#EFEFEF] rounded-lg animate-pulse" />)}
         </div>
       ) : summary ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           {[
             { icon: Users, label: 'Builders', value: summary.totalBuilders, sub: `${summary.activeBuilders} active` },
             { icon: TrendingUp, label: 'Attendance Rate', value: `${summary.attendanceRate}%`, accent: summary.attendanceRate >= 80 ? 'text-green-600' : summary.attendanceRate >= 60 ? 'text-yellow-600' : 'text-red-500' },
             { icon: BookOpen, label: 'Submission Rate', value: `${Math.round((tasks.filter(t => t.submission_rate > 0).length / Math.max(tasks.length, 1)) * 100)}%` },
-            { icon: ClipboardCheck, label: 'Tasks Graded', value: summary.totalTasksAssigned },
           ].map(({ icon: Icon, label, value, sub, accent }) => (
             <Card key={label} className="bg-white border border-[#E3E3E3]">
               <CardContent className="p-4 flex items-start justify-between">
@@ -393,6 +480,7 @@ const SummaryTab = () => {
                       <SortHeader label="Attendance" sortKey="attendance_percentage" sort={builderSort} onSort={toggleSort(setBuilderSort)} className="px-2 text-center" />
                       <SortHeader label="Tasks" sortKey="tasks_completed_percentage" sort={builderSort} onSort={toggleSort(setBuilderSort)} className="px-2 text-center" />
                       <SortHeader label="Feedback" sortKey="total_peer_feedback_count" sort={builderSort} onSort={toggleSort(setBuilderSort)} className="px-2 text-center" />
+                      <SortHeader label="Logs" sortKey="log_count" sort={builderSort} onSort={toggleSort(setBuilderSort)} className="px-2 text-center" />
                       <th className="pb-2 px-2 font-medium text-slate-400 text-xs uppercase tracking-wide">Grade Dist.</th>
                       <SortHeader label="Videos" sortKey="video_tasks_completed" sort={builderSort} onSort={toggleSort(setBuilderSort)} className="px-2 text-center" />
                     </tr>
@@ -417,6 +505,22 @@ const SummaryTab = () => {
                         </td>
                         <td className="py-2 px-2 text-center text-xs text-slate-600">{b.tasks_completed_percentage}%</td>
                         <td className="py-2 px-2 text-center text-xs text-slate-600">{b.total_peer_feedback_count}</td>
+                        <td className="py-2 px-2 text-center">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setLogModalBuilder(b); }}
+                            className={`inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded transition-colors ${
+                              b.log_count > 0
+                                ? 'bg-[#4242EA]/10 text-[#4242EA] hover:bg-[#4242EA]/20'
+                                : 'text-slate-400 hover:text-[#4242EA] hover:bg-[#EFEFEF]'
+                            }`}
+                          >
+                            {b.log_count > 0 ? (
+                              <><FileText size={11} /> {b.log_count}</>
+                            ) : (
+                              <Plus size={12} />
+                            )}
+                          </button>
+                        </td>
                         <td className="py-2 px-2 w-28">
                           <GradeBar task={{
                             grade_aplus_count: b.grade_aplus_count, grade_a_count: b.grade_a_count,
@@ -515,6 +619,265 @@ const SummaryTab = () => {
         </CardContent>
       </Card>
 
+      {/* Facilitator Logs: Support Tickets + Next Steps */}
+      <Card className="bg-white border border-[#E3E3E3]">
+        <CardHeader className="pb-3 border-b border-[#E3E3E3]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText size={16} className="text-[#4242EA]" />
+              <CardTitle className="text-base font-semibold text-[#1E1E1E]">Facilitator Logs</CardTitle>
+              <Badge className="bg-[#EFEFEF] text-slate-600 text-xs">{totalFacilitatorLogs}</Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowFacilitatorLogModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-[#4242EA] text-white hover:bg-[#3535c8] transition-colors"
+              >
+                <Plus size={12} />
+                Add Log
+              </button>
+              <div className="flex gap-1">
+                {['active', 'all'].map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setSupportFilter(f)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                      supportFilter === f
+                        ? 'bg-[#4242EA] text-white'
+                        : 'bg-white border border-[#E3E3E3] text-slate-500 hover:border-[#4242EA] hover:text-[#4242EA]'
+                    }`}
+                  >
+                    {f === 'active' ? 'Active' : 'All'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-3">
+          {supportLoading ? (
+            <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-8 bg-[#EFEFEF] rounded animate-pulse" />)}</div>
+          ) : totalFacilitatorLogs === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-8">
+              {supportFilter === 'active' ? 'No active facilitator logs.' : 'No facilitator logs for this cohort.'}
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {/* Support Tickets */}
+              {filteredTickets.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <AlertTriangle size={12} className="text-amber-500" />
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase">Support Tickets</span>
+                    <Badge className="bg-amber-50 text-amber-600 text-[10px]">{filteredTickets.length}</Badge>
+                  </div>
+                  <div className="space-y-0 divide-y divide-[#EFEFEF] border border-[#E3E3E3] rounded-md overflow-hidden">
+                    {filteredTickets.map(ticket => {
+                      const itemKey = `ticket-${ticket.support_id}`;
+                      const isExpanded = expandedItemId === itemKey;
+                      const statusColors = {
+                        open: 'text-blue-600 bg-blue-50',
+                        in_progress: 'text-yellow-600 bg-yellow-50',
+                        follow_up: 'text-purple-600 bg-purple-50',
+                        accepted: 'text-green-600 bg-green-50',
+                        denied: 'text-red-600 bg-red-50',
+                        closed: 'text-slate-500 bg-slate-50',
+                      };
+                      const categoryLabels = {
+                        '599_extension': '599 Extension',
+                        'hra_training': 'HRA Training',
+                        'laptop_hardware': 'Laptop/Hardware',
+                        'time_off_personal': 'Time Off/Personal',
+                        'other': 'Other',
+                      };
+                      const updatedAt = ticket.updated_at ? new Date(ticket.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+                      return (
+                        <div key={ticket.support_id}>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedItemId(isExpanded ? null : itemKey)}
+                            className="w-full flex items-center gap-3 px-2 py-2.5 text-left hover:bg-[#FAFAFA] transition-colors"
+                          >
+                            <span className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                              <ChevronRight size={12} className="text-slate-400" />
+                            </span>
+                            <span className="text-xs font-medium text-[#1E1E1E] w-36 truncate">{ticket.builder_name}</span>
+                            <Badge className="bg-[#EFEFEF] text-slate-600 text-[10px] w-28 justify-center">
+                              {categoryLabels[ticket.support_category] || ticket.support_category}
+                            </Badge>
+                            <select
+                              value={ticket.current_status}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => { e.stopPropagation(); handleTicketStatusChange(ticket.support_id, e.target.value); }}
+                              className={`text-[10px] px-1.5 py-0.5 rounded border border-[#E3E3E3] bg-white cursor-pointer font-medium ${
+                                statusColors[ticket.current_status]?.split(' ')[0] || ''
+                              }`}
+                            >
+                              {['open', 'in_progress', 'follow_up', 'accepted', 'denied', 'closed'].map(s => (
+                                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                              ))}
+                            </select>
+                            {ticket.mitigation_available && (
+                              <Badge className="bg-green-50 text-green-600 text-[10px]">Mitigation</Badge>
+                            )}
+                            <span className="text-[10px] text-slate-400 ml-auto">{updatedAt}</span>
+                          </button>
+
+                          {isExpanded && (
+                            <div className="px-8 pb-3 space-y-2 bg-[#FAFAFA]">
+                              <p className="text-xs text-slate-600 line-clamp-3">{ticket.log_notes}</p>
+
+                              {ticket.support_disclosure && (
+                                <div className="bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                                  <p className="text-[10px] font-semibold text-amber-600 uppercase mb-0.5">Sensitive Details</p>
+                                  <p className="text-xs text-slate-600">{ticket.support_disclosure}</p>
+                                </div>
+                              )}
+
+                              <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                                <span>Created {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                <span>·</span>
+                                <span>by {ticket.created_by_name}</span>
+                                <span>·</span>
+                                <span className="capitalize">{ticket.log_type} log</span>
+                              </div>
+
+                              <div className="flex gap-1.5">
+                                <input
+                                  type="text"
+                                  value={ticketNoteInputs[ticket.support_id] || ''}
+                                  onChange={(e) => setTicketNoteInputs(prev => ({ ...prev, [ticket.support_id]: e.target.value }))}
+                                  placeholder="Add a note or update..."
+                                  className="flex-1 px-2 py-1 text-xs border border-[#E3E3E3] rounded bg-white focus:border-[#4242EA] focus:outline-none"
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => e.key === 'Enter' && handleTicketAddNote(ticket.support_id)}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); handleTicketAddNote(ticket.support_id); }}
+                                  disabled={ticketNoteSaving[ticket.support_id] || !ticketNoteInputs[ticket.support_id]?.trim()}
+                                  className="px-2 py-1 text-xs bg-[#4242EA] text-white rounded hover:bg-[#3535c8] disabled:opacity-50 flex items-center gap-1"
+                                >
+                                  <MessageSquarePlus size={11} />
+                                  {ticketNoteSaving[ticket.support_id] ? '...' : 'Add'}
+                                </button>
+                              </div>
+
+                              {ticket.history && ticket.history.length > 0 && (
+                                <div className="border-t border-[#EFEFEF] pt-2">
+                                  <p className="text-[10px] font-semibold text-slate-400 uppercase mb-1.5">History</p>
+                                  <div className="space-y-1.5">
+                                    {ticket.history.map((h, i) => (
+                                      <div key={i} className="flex items-start gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-[#4242EA] mt-1 flex-shrink-0" />
+                                        <div>
+                                          <span className={`text-[10px] font-medium px-1 py-0.5 rounded ${statusColors[h.status] || ''}`}>
+                                            {h.status.replace(/_/g, ' ')}
+                                          </span>
+                                          <span className="text-[10px] text-slate-400 ml-1.5">
+                                            {new Date(h.changed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — {h.changed_by_name}
+                                          </span>
+                                          {h.notes && <p className="text-[10px] text-slate-500 mt-0.5">{h.notes}</p>}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Next Steps */}
+              {filteredNextSteps.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <ArrowRight size={12} className="text-[#4242EA]" />
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase">Next Steps</span>
+                    <Badge className="bg-blue-50 text-blue-600 text-[10px]">{filteredNextSteps.length}</Badge>
+                  </div>
+                  <div className="space-y-0 divide-y divide-[#EFEFEF] border border-[#E3E3E3] rounded-md overflow-hidden">
+                    {filteredNextSteps.map(log => {
+                      const itemKey = `nextstep-${log.log_id}`;
+                      const isExpanded = expandedItemId === itemKey;
+                      const statusColors = {
+                        open: 'text-blue-600 bg-blue-50',
+                        in_progress: 'text-yellow-600 bg-yellow-50',
+                        closed: 'text-slate-500 bg-slate-50',
+                      };
+                      const updatedAt = log.updated_at ? new Date(log.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+                      return (
+                        <div key={log.log_id}>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedItemId(isExpanded ? null : itemKey)}
+                            className="w-full flex items-center gap-3 px-2 py-2.5 text-left hover:bg-[#FAFAFA] transition-colors"
+                          >
+                            <span className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                              <ChevronRight size={12} className="text-slate-400" />
+                            </span>
+                            <span className="text-xs font-medium text-[#1E1E1E] w-36 truncate">{log.builder_name}</span>
+                            <Badge className={`text-[10px] px-1.5 py-0 ${log.log_type === 'behavioral' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                              {log.log_type}
+                            </Badge>
+                            <select
+                              value={log.status}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => { e.stopPropagation(); handleNextStepStatusChange(log.log_id, e.target.value); }}
+                              className={`text-[10px] px-1.5 py-0.5 rounded border border-[#E3E3E3] bg-white cursor-pointer font-medium ${
+                                statusColors[log.status]?.split(' ')[0] || ''
+                              }`}
+                            >
+                              {['open', 'in_progress', 'closed'].map(s => (
+                                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                              ))}
+                            </select>
+                            <span className="text-[10px] text-slate-400 ml-auto">{updatedAt}</span>
+                          </button>
+
+                          {isExpanded && (
+                            <div className="px-8 pb-3 space-y-2 bg-[#FAFAFA]">
+                              <div>
+                                <p className="text-[10px] font-semibold text-[#4242EA] uppercase mb-0.5">Next Steps</p>
+                                <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.next_steps}</p>
+                              </div>
+
+                              <div>
+                                <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Notes</p>
+                                <p className="text-xs text-slate-600 line-clamp-3">{log.notes}</p>
+                              </div>
+
+                              {log.tags && log.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {log.tags.map((tag, i) => (
+                                    <Badge key={i} className="bg-slate-100 text-slate-600 text-[10px]">{tag}</Badge>
+                                  ))}
+                                </div>
+                              )}
+
+                              <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                                <span>Created {new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                <span>·</span>
+                                <span>by {log.created_by_name}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Builder detail drawer */}
       {selectedBuilder && (
         <BuilderDrawer
@@ -524,6 +887,27 @@ const SummaryTab = () => {
           selectedLevel={selectedCohort?.legacyName || ''}
           cohortId={selectedCohortId}
           onClose={() => setSelectedBuilder(null)}
+          onLogSaved={() => setRefreshKey(k => k + 1)}
+        />
+      )}
+
+      {/* Builder log modal (from builder table) */}
+      <BuilderLogModal
+        open={!!logModalBuilder}
+        onOpenChange={(open) => { if (!open) setLogModalBuilder(null); }}
+        builder={logModalBuilder}
+        cohortId={selectedCohortId}
+        onSaved={() => { setRefreshKey(k => k + 1); fetchSupportTickets(); }}
+      />
+
+      {/* Facilitator log modal (from facilitator logs card) */}
+      {showFacilitatorLogModal && (
+        <BuilderLogModal
+          open={true}
+          onOpenChange={(open) => { if (!open) setShowFacilitatorLogModal(false); }}
+          builder={null}
+          cohortId={selectedCohortId}
+          onSaved={() => { setRefreshKey(k => k + 1); fetchSupportTickets(); }}
         />
       )}
     </div>

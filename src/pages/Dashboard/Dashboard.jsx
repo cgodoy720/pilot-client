@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Calendar, BookOpen, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import Layout from '../../components/Layout/Layout';
 import ArrowButton from '../../components/ArrowButton/ArrowButton';
 import MissedAssignmentsSidebar from '../../components/MissedAssignmentsSidebar/MissedAssignmentsSidebar';
@@ -17,12 +17,15 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import { toLegacyFormat } from '../AdminDashboard/utils/cohortUtils';
+import { usePermissions } from '../../hooks/usePermissions';
 import './Dashboard.css';
 
 function Dashboard() {
   const navigate = useNavigate();
-  const { token, user } = useAuth();
-  
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
+  const { hasPermission } = usePermissions();
+
   // Check if user has active status
   const isActive = user?.active !== false;
   // Check if user is volunteer
@@ -101,7 +104,8 @@ function Dashboard() {
     if (isActive && !isVolunteer && !isStaffOrAdmin) {
       fetchDashboardData();
     } else if (isStaffOrAdmin && builderViewCohort) {
-      fetchDashboardData();
+      // Pass cohort explicitly to avoid stale closure
+      fetchDashboardData(builderViewCohort);
     } else {
       // Dismiss loading for all other cases (volunteers, inactive users,
       // or staff/admin still waiting for cohort auto-selection to complete)
@@ -109,16 +113,18 @@ function Dashboard() {
     }
   }, [token, cohortFilter, selectedCohort, user?.role, isActive, isVolunteer, isStaffOrAdmin, builderViewCohort]);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (explicitCohort) => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       // NEW: Single optimized API call for ALL dashboard data
       let url = `${import.meta.env.VITE_API_URL}/api/progress/dashboard-full`;
-      
-      // Add cohort parameter for staff/admin builder view, staff/admin cohort filter, or course switcher
-      if (isStaffOrAdmin && builderViewCohort) {
+
+      // Add cohort parameter — prefer explicit argument to avoid stale closures
+      if (explicitCohort) {
+        url += `?cohort=${encodeURIComponent(explicitCohort)}`;
+      } else if (isStaffOrAdmin && builderViewCohort) {
         url += `?cohort=${encodeURIComponent(builderViewCohort)}`;
       } else if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
         url += `?cohort=${encodeURIComponent(cohortFilter)}`;
@@ -203,9 +209,21 @@ function Dashboard() {
       setAllWeeksData(data.weeks || []);
       
       // Set level, week, and weekly goal
-      if (data.day) {
+      // When staff/admin views a specific cohort, data.day reflects the USER's own
+      // enrollment (not the selected cohort), so derive from data.weeks instead.
+      if (explicitCohort && data.weeks && data.weeks.length > 0) {
+        const targetWeek = pendingWeek !== null
+          ? data.weeks.find(w => w.weekNumber === pendingWeek) || data.weeks[data.weeks.length - 1]
+          : data.weeks[data.weeks.length - 1];
+        setCurrentWeek(targetWeek.weekNumber);
+        setWeeklyGoal(targetWeek.weeklyGoal || '');
+        if (targetWeek.days && targetWeek.days.length > 0) {
+          setCurrentLevel(targetWeek.days[0].level || 1);
+        }
+        if (pendingWeek !== null) setPendingWeek(null);
+      } else if (data.day) {
         setCurrentLevel(data.day.level || 1);
-        
+
         // Use pending week if user explicitly selected one, otherwise use current day's week
         if (pendingWeek !== null) {
           setCurrentWeek(pendingWeek);
@@ -216,6 +234,14 @@ function Dashboard() {
         } else {
           setCurrentWeek(data.day.week);
           setWeeklyGoal(data.day.weekly_goal || '');
+        }
+      } else if (data.weeks && data.weeks.length > 0) {
+        // Fallback: no current day data and no explicit cohort
+        const lastWeek = data.weeks[data.weeks.length - 1];
+        setCurrentWeek(lastWeek.weekNumber);
+        setWeeklyGoal(lastWeek.weeklyGoal || '');
+        if (lastWeek.days && lastWeek.days.length > 0) {
+          setCurrentLevel(lastWeek.days[0].level || 1);
         }
       }
       
@@ -575,7 +601,7 @@ function Dashboard() {
 
   // Render the builder weekly view (reused by both renderDashboardContent and renderStaffAdminView)
   const renderBuilderWeeklyView = () => {
-    const isExternalCohort = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin';
+    const isExternalCohort = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin' || hasPermission('page:cohort_admin');
     const isStaffBuilderView = isStaffOrAdmin;
 
     return (
@@ -629,7 +655,7 @@ function Dashboard() {
             <div className="dashboard__week-title">
               {isWorkshopParticipant ? (
                 <span className="dashboard__week-label">AI Native Workshop</span>
-              ) : isExternalCohort ? (
+              ) : (isExternalCohort && !isStaffBuilderView) ? (
                 <span className="dashboard__week-label">{user?.cohort || 'Your Program'}</span>
               ) : (
                 <span className="dashboard__week-label">
@@ -794,6 +820,13 @@ function Dashboard() {
                 style={{
                   animationDelay: `${delayIndex * 0.08}s`
                 }}
+                onClick={(e) => {
+                  // Don't double-navigate if user clicked an interactive element inside
+                  if (e.target.closest('button, a, .dashboard__day-activity--clickable')) return;
+                  if (!isStaffBuilderView) {
+                    handleNavigateToDayLearning(day.id);
+                  }
+                }}
               >
 
                 {/* Date */}
@@ -829,7 +862,19 @@ function Dashboard() {
 
                         return (
                           <div key={task.id}>
-                            <div className="dashboard__day-activity">
+                            <div
+                              className={`dashboard__day-activity${
+                                showTaskCheckbox && !isBreakTask && !isComplete && (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze)
+                                  ? ' dashboard__day-activity--clickable'
+                                  : ''
+                              }`}
+                              onClick={(e) => {
+                                if (showTaskCheckbox && !isBreakTask && !isComplete && (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze)) {
+                                  e.stopPropagation();
+                                  handleNavigateToTask(day.id, task.id);
+                                }
+                              }}
+                            >
                               {/* Task Checkbox - Purple (complete), Pink (incomplete with deliverable), or White circle (incomplete without deliverable) */}
                               {/* Hide checkbox for break tasks but add spacer to maintain alignment */}
                               {showTaskCheckbox && !isBreakTask && (
@@ -1137,7 +1182,7 @@ function Dashboard() {
   // Render regular dashboard content matching the Figma wireframe
   const renderDashboardContent = () => {
     // Check if user is in external cohort (enterprise users don't use Level/Week format)
-    const isExternalCohort = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin';
+    const isExternalCohort = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin' || hasPermission('page:cohort_admin');
     
     return (
       <div className="dashboard">

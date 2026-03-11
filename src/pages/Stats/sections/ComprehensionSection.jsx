@@ -14,7 +14,7 @@ import {
   Link,
   IconButton
 } from '@mui/material';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import { fetchExternalComprehension } from '../../../utils/statsApi';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import CloseIcon from '@mui/icons-material/Close';
@@ -22,7 +22,8 @@ import MonthFilter from '../../../components/MonthFilter';
 import AITrendAnalysis from '../../../components/AITrendAnalysis';
 
 const ComprehensionSection = ({ cohortMonth }) => {
-  const { user, token } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const [comprehensionData, setComprehensionData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

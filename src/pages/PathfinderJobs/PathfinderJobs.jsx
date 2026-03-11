@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
@@ -22,7 +22,7 @@ const EXPERIENCE_LEVELS = [
 ];
 
 export default function PathfinderJobs() {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
 
   const [jobs, setJobs] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 });

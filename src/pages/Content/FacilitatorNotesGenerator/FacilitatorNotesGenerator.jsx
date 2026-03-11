@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import { Loader2, FileText, Edit, Save, X, Expand, Download, ChevronDown, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import './FacilitatorNotesGenerator.css';
 
 const FacilitatorNotesGenerator = ({ sharedData = {}, updateSharedData = () => {} }) => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [originalContent, setOriginalContent] = useState('');
   const [sessionData, setSessionData] = useState(null);
   const [facilitatorNotes, setFacilitatorNotes] = useState(null);

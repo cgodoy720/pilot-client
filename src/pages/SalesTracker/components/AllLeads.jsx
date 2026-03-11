@@ -33,7 +33,7 @@ import {
   ExternalLink,
   X
 } from 'lucide-react';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import {
   getAllLeads,
   exportLeadsCSV,
@@ -47,7 +47,7 @@ import {
 } from '../../../services/salesTrackerApi';
 
 const AllLeads = () => {
-  const { user: currentUser } = useAuth();
+  const currentUser = useAuthStore((s) => s.user);
   const [searchTerm, setSearchTerm] = useState('');
   const [stageFilter, setStageFilter] = useState('all-stages');
   const [ownerFilter, setOwnerFilter] = useState('all-owners');

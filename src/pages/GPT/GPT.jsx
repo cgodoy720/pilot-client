@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './GPT.css';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getThreads, getThreadMessages, createThread, sendMessageToGPT, streamMessageToGPT } from '../../utils/api';
 import SummaryModal from '../../components/SummaryModal/SummaryModal';
@@ -172,7 +172,8 @@ const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
 };
 
 function GPT() {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [threads, setThreads] = useState([]);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
@@ -38,7 +38,8 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
  * Allows staff/admin/volunteers to view and test curriculum content as students see it
  */
 function ContentPreview() {
-  const { user, token } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const [searchParams, setSearchParams] = useSearchParams();
   
   const [loading, setLoading] = useState(false);
@@ -66,6 +67,9 @@ function ContentPreview() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [uploadCohort, setUploadCohort] = useState(null);
 
+  // Sidebar refresh trigger (incremented after day edits to refresh CohortDaySelector)
+  const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
+
   // Check if user has preview access and edit permissions via the permission system
   const { canAccessPage, canUseFeature } = usePermissions();
   const hasPreviewAccess = canAccessPage('content_preview');
@@ -75,7 +79,7 @@ function ContentPreview() {
     try {
       setLoading(true);
       const response = await axios.get(
-        `${API_URL}/api/curriculum/days/${dayId}/full-details?cohort=${encodeURIComponent(selectedCohort?.cohort_name || '')}`,
+        `${API_URL}/api/curriculum/days/${dayId}/full-details?cohort=${encodeURIComponent(selectedCohort?.cohort_name || '')}&t=${Date.now()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -314,9 +318,10 @@ function ContentPreview() {
         toast.success('Task deleted successfully');
         setDeleteTaskDialogOpen(false);
         setTaskToDelete(null);
-        
-        // Refresh day content
+
+        // Refresh day content and sidebar
         await loadDayContent(selectedDay.id);
+        setSidebarRefreshKey(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error deleting task:', error);
@@ -336,8 +341,9 @@ function ContentPreview() {
       
       if (response.status === 200) {
         toast.success('Task moved successfully');
-        // Refresh day content
+        // Refresh day content and sidebar (task moved between days)
         await loadDayContent(selectedDay.id);
+        setSidebarRefreshKey(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error moving task:', error);
@@ -385,13 +391,15 @@ function ContentPreview() {
       );
       
       if (response.status === 200) {
-        toast.success('Goals updated successfully');
+        toast.success('Day info updated successfully');
         // Refresh day content
         await loadDayContent(selectedDay.id);
+        // Refresh sidebar to reflect date changes
+        setSidebarRefreshKey(prev => prev + 1);
       }
     } catch (error) {
-      console.error('Error saving goals:', error);
-      toast.error('Failed to update goals');
+      console.error('Error saving day info:', error);
+      toast.error('Failed to update day info');
       throw error;
     }
   };
@@ -413,15 +421,15 @@ function ContentPreview() {
       
       if (response.status === 200) {
         toast.success(`Day ${dayToDelete.day_number} deleted successfully`);
-        
+
         // Clear selection and refresh
         setSelectedDay(null);
         setDayContent(null);
         setDeleteDayDialogOpen(false);
         setDayToDelete(null);
-        
-        // Optionally refresh cohort to update day list
-        // For now just clear the view
+
+        // Refresh sidebar to remove deleted day and update cohort day count
+        setSidebarRefreshKey(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error deleting day:', error);
@@ -525,8 +533,9 @@ function ContentPreview() {
       if (response.status === 201) {
         toast.success('Task created successfully');
         setCreateTaskDialogOpen(false);
-        // Refresh day content
+        // Refresh day content and sidebar
         await loadDayContent(selectedDay.id);
+        setSidebarRefreshKey(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error creating task:', error);
@@ -543,10 +552,12 @@ function ContentPreview() {
   };
 
   const handleUploadComplete = () => {
-    // Re-trigger day fetch by briefly clearing and re-setting selectedCohort
-    const current = selectedCohort;
-    setSelectedCohort(null);
-    setTimeout(() => setSelectedCohort(current), 0);
+    // Refresh sidebar to show new/updated days and update cohort day count
+    setSidebarRefreshKey(prev => prev + 1);
+    // If a day is currently selected, reload its content
+    if (selectedDay?.id) {
+      loadDayContent(selectedDay.id);
+    }
   };
 
   // Access denied view
@@ -657,6 +668,7 @@ function ContentPreview() {
               onDaySelect={handleDaySelect}
               onUploadCurriculum={handleUploadCurriculum}
               canEdit={canEdit}
+              refreshTrigger={sidebarRefreshKey}
             />
           </div>
 

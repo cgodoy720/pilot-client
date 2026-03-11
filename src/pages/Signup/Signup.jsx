@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import MultiStepForm from '../../components/MultiStepForm';
@@ -15,7 +15,9 @@ const Signup = () => {
   const [registrationComplete, setRegistrationComplete] = useState(false);
   
   const navigate = useNavigate();
-  const { signup, isAuthenticated, setAuthState } = useAuth();
+  const signup = useAuthStore((s) => s.signup);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const setAuthState = useAuthStore((s) => s.setAuthState);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -46,7 +48,7 @@ const Signup = () => {
 
       if (userType === 'builder') {
         console.log('🔵 Processing builder signup...');
-        // Create builder account using the existing AuthContext signup
+        // Create builder account using the authStore signup
         const result = await signup(formData.firstName, formData.lastName, formData.email, formData.password);
         
         console.log('🔵 Builder signup result:', result);

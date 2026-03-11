@@ -51,6 +51,9 @@ import OrganizationManagement from './pages/Admin/OrganizationManagement/Organiz
 import PermissionManagement from './pages/Admin/PermissionManagement';
 import ContentPreview from './pages/ContentPreview';
 
+// Template Management page
+import TemplateManagement from './pages/TemplateManagement';
+
 // Form Builder pages
 import FormBuilderDashboard from './pages/FormBuilder/FormBuilderDashboard';
 import FormEditor from './pages/FormBuilder/FormEditor';
@@ -66,7 +69,7 @@ import WeeklyReports from './pages/Admin/WeeklyReports/WeeklyReports';
 // Platform Analytics page
 import PlatformAnalytics from './pages/Admin/PlatformAnalytics/PlatformAnalytics';
 
-import { useAuth } from './context/AuthContext';
+import useAuthStore from './stores/authStore';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
 import { Toaster } from './components/ui/sonner';
@@ -80,7 +83,8 @@ import { PAGE_PERMISSIONS } from './constants/permissions';
 import './App.css';
 
 function App() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
   
   // Modal state
   const [modalConfig, setModalConfig] = useState({
@@ -139,6 +143,8 @@ function App() {
     // Force immediate redirect regardless of type
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('auth-storage');
+    localStorage.removeItem('applicantToken');
     window.location.href = '/login';
   };
 
@@ -458,6 +464,15 @@ function App() {
         <Route path="/volunteer-list" element={<Navigate to="/volunteer-management?tab=list" replace />} />
         <Route path="/volunteer-roster" element={<Navigate to="/volunteer-management?tab=calendar" replace />} />
         <Route path="/volunteer-attendance" element={<Navigate to="/volunteer-management?tab=attendance" replace />} />
+
+        {/* Template Management (Staff/Admin) */}
+        <Route path="/template-management" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.TEMPLATE_MANAGEMENT}>
+              <TemplateManagement />
+            </PermissionRoute>
+          </Layout>
+        } />
 
         {/* Form Builder routes (Admin/Staff only) */}
         <Route path="/forms" element={

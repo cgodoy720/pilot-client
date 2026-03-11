@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, Settings, Award, Users, FileText, Brain, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Target, ClipboardList, Heart, Building2, Rocket, Shield, BarChart3, BookOpen } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { NavProvider } from '../../context/NavContext';
+import useAuthStore from '../../stores/authStore';
+import useNavStore from '../../stores/navStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import LoadingCurtain from '../LoadingCurtain/LoadingCurtain';
 import NavDropdown from './NavDropdown';
@@ -15,7 +15,7 @@ const Layout = ({ children, isLoading = false }) => {
   const [isMobileNavbarOpen, setIsMobileNavbarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null); // Track which dropdown is open
-  const { logout } = useAuth();
+  const logout = useAuthStore((s) => s.logout);
   const { canAccessPage, userRole } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
@@ -36,6 +36,7 @@ const Layout = ({ children, isLoading = false }) => {
   const canViewContentPreview = canAccessPage('content_preview');
   const canViewExternalCohorts = canAccessPage('external_cohorts');
   const canViewFormBuilder = canAccessPage('form_builder');
+  const canViewTemplateManagement = canAccessPage('template_management');
   const canViewPathfinderAdmin = canAccessPage('pathfinder_admin');
   const canViewPaymentAdmin = canAccessPage('payment_admin');
   const canViewSputnik = canAccessPage('sputnik');
@@ -74,6 +75,7 @@ const Layout = ({ children, isLoading = false }) => {
   // Staff dropdown (remaining items) -- staff/admin roles
   const staffDropdownItems = isStaffOrAdminRole ? [
     canViewFormBuilder && { to: '/forms', label: 'Form Builder' },
+    canViewTemplateManagement && { to: '/template-management', label: 'Templates' },
     canViewVolunteerManagement && { to: '/volunteer-management', label: 'Volunteers' },
   ].filter(Boolean) : [];
 
@@ -96,10 +98,11 @@ const Layout = ({ children, isLoading = false }) => {
     canViewAssessmentGrades && { to: '/admin/assessment-grades', icon: Award, label: 'Assessments' },
     canViewAdminAttendance && { to: '/admin-attendance-dashboard', icon: CalendarIcon, label: 'Attendance' },
     canViewAdminDashboard && { to: '/admin-dashboard', icon: Settings, label: 'Cohort Stats' },
-    canViewCohortAdmin && { to: '/cohort-admin-dashboard', icon: Building2, label: 'Enterprise Admin' },
+    // Enterprise Admin is rendered as an explicit nav link (not in customGrantedItems) to avoid duplication
     canViewContentPreview && { to: '/content-preview', icon: Target, label: 'Content Mgmt' },
     canViewExternalCohorts && { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
     canViewFormBuilder && { to: '/forms', icon: ClipboardList, label: 'Form Builder' },
+    canViewTemplateManagement && { to: '/template-management', icon: ClipboardList, label: 'Templates' },
     canViewPathfinderAdmin && { to: '/pathfinder/admin', icon: ArrowRight, label: 'Pathfinder Admin' },
     canViewPaymentAdmin && { to: '/payment-admin', icon: Briefcase, label: 'Payment Admin' },
     canViewSputnik && { to: '/sputnik', icon: Rocket, label: 'Sputnik' },
@@ -136,6 +139,12 @@ const Layout = ({ children, isLoading = false }) => {
   );
   const isSecondaryNavPage = !!matchedSecondaryRoute;
   const currentSecondaryTitle = matchedSecondaryRoute ? secondaryPageTitles[matchedSecondaryRoute] : null;
+
+  // Sync isSecondaryNavPage to navStore for child components
+  const setIsSecondaryNavPage = useNavStore((s) => s.setIsSecondaryNavPage);
+  useEffect(() => {
+    setIsSecondaryNavPage(isSecondaryNavPage);
+  }, [isSecondaryNavPage, setIsSecondaryNavPage]);
 
   // Detect mobile vs desktop
   useEffect(() => {
@@ -540,9 +549,7 @@ const Layout = ({ children, isLoading = false }) => {
         )}
         
         {/* Page Content */}
-        <NavProvider value={{ isSecondaryNavPage }}>
-          {children}
-        </NavProvider>
+        {children}
       </main>
       
       {/* Loading Curtain Overlay */}

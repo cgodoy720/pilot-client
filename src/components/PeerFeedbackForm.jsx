@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { FaCheck, FaTimes, FaExclamationCircle, FaUsers, FaUser, FaSpinner, FaExclamationTriangle, FaSearch, FaFilter, FaCheckSquare, FaSquare } from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext';
+import useAuthStore from '../stores/authStore';
 import './PeerFeedbackForm.css';
 
 const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
-  const { user } = useAuth();
+  const user = useAuthStore((s) => s.user);
   const isActive = user?.active !== false;
   
   const [users, setUsers] = useState([]);

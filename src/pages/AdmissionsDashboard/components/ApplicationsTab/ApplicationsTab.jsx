@@ -469,7 +469,9 @@ const ApplicationsTab = ({
     gender: false,
     race_ethnicity: false,
     education: false,
-    referral: false
+    referral: false,
+    pledge: false,
+    income: false
   });
 
   // Sync CSV export columns with visible columns when opening export
@@ -490,7 +492,9 @@ const ApplicationsTab = ({
       gender: visibleColumns.gender ?? false,
       race_ethnicity: visibleColumns.race ?? false,
       education: visibleColumns.education ?? false,
-      referral: visibleColumns.referral ?? false
+      referral: visibleColumns.referral ?? false,
+      pledge: visibleColumns.pledge ?? false,
+      income: visibleColumns.income ?? false
     });
   }, [visibleColumns]);
   
@@ -599,8 +603,8 @@ const ApplicationsTab = ({
     race_ethnicity: { label: 'Race/Ethnicity', getValue: (app) => app.demographics?.race_ethnicity || app.race_ethnicity || '' },
     education: { label: 'Education', getValue: (app) => app.demographics?.education_level || app.education_level || '' },
     referral: { label: 'Referral Source', getValue: (app) => app.demographics?.reason_for_applying || app.demographics?.referral_source || app.referral_source || '' },
+    pledge: { label: 'Pledge Signed', getValue: (app) => app.pledge_completed ? 'Yes' : 'No' },
     income: { label: 'Pre-Program Income', getValue: (app) => app.personal_income || '' }
-
   };
 
   // Handle CSV export
@@ -608,12 +612,13 @@ const ApplicationsTab = ({
     if (selectedApplicants.length === 0) return;
     
     try {
-      const selectedApplicantIds = selectedApplicants.join(',');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/export?ids=${selectedApplicantIds}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/export`, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ ids: selectedApplicants })
       });
       
       if (!response.ok) {
