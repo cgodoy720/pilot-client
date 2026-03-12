@@ -541,7 +541,8 @@ function Dashboard() {
     return (
       <button
         onClick={() => setParticipantMode(prev => !prev)}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border border-pursuit-purple text-pursuit-purple bg-white hover:bg-pursuit-purple hover:text-white"
+        className="inline-flex items-center self-center gap-2 h-9 px-3 bg-pursuit-purple font-proxima text-[14px] text-white border border-pursuit-purple transition-colors duration-200 hover:opacity-90"
+        style={{ borderRadius: '7px' }}
       >
         <span className={`inline-block w-2 h-2 rounded-full transition-colors ${participantMode ? 'bg-green-500' : 'bg-gray-400'}`} />
         {participantMode ? 'Participant Mode' : 'Preview Mode'}
