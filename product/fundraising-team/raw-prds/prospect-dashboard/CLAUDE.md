@@ -18,6 +18,8 @@ When asked to build a feature, read the relevant spec + `architecture/data-model
 ## Tech stack
 - Frontend: React 18 + Vite + TypeScript
 - UI: shadcn/ui + Tailwind CSS
+
+**Exception — Week 1 prototype in this repo:** The week-1 prototype (spreadsheet → weekly priority list) is built inside the existing `pursuit-financial-forecasting` app, which uses **React + MUI** (not Vite/Tailwind/shadcn). Use that app’s stack when implementing week-1 work there. This stack (Vite + Tailwind + shadcn) applies when building the prospect-dashboard as a standalone app or a net-new module.
 - State: Zustand (preferred over React Context for scalability)
 - Data persistence (prototype): IndexedDB via Dexie.js
 - CSV parsing: PapaParse

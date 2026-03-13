@@ -17,6 +17,7 @@ import NewOpportunity from './pages/NewOpportunity';
 import PaymentSchedule from './pages/PaymentSchedule';
 import Settings from './pages/Settings';
 import SalesforceCallback from './pages/SalesforceCallback';
+import WeeklyPriorities from './pages/WeeklyPriorities';
 
 // Create Material-UI theme
 const theme = createTheme({
@@ -171,6 +172,16 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <Settings />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/weekly-priorities"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <WeeklyPriorities />
                     </Layout>
                   </ProtectedRoute>
                 }

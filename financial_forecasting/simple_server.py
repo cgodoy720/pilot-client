@@ -878,7 +878,7 @@ async def get_opportunities(
         # Salesforce has a 2000 record limit per query, so we use query_all to get everything
         query = """
         SELECT Id, AccountId, Account.Name, Name, StageName, Amount, Probability, 
-               CloseDate, ExpectedRevenue, ForecastCategory, LeadSource, NextStep,
+               CloseDate, ForecastCategory, LeadSource, NextStep,
                Description, Type, OwnerId, Owner.Name, CreatedDate, LastModifiedDate,
                npe01__Payments_Made__c, Outstanding_Payments__c, 
                Number_of_Payments_Received__c, Most_Recent_Payment_Date__c,

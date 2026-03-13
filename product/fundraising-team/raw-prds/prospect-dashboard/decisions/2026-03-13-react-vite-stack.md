@@ -14,6 +14,7 @@ Choosing the frontend framework, build tool, and component library for the Prosp
 
 ## Decision
 
+- **Scope:** This decision applies to the prospect-dashboard when built as a standalone app or net-new module. The week-1 prototype in `pursuit-financial-forecasting` is built in the **existing** app (React + MUI) there; that is intentional and does not override this decision for net-new prospect-dashboard work.
 - **Framework:** React 18 with TypeScript
 - **Build tool:** Vite
 - **Styling:** Tailwind CSS
