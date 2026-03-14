@@ -6,7 +6,7 @@ Bedrock vision, **unified platform** (Bedrock lives in the learning platform eve
 
 ## Unified platform: where Bedrock lives
 
-**Target:** One Pursuit platform — the app that runs the learning system (builders, admissions, Pathfinder/Sputnik). **Bedrock** (fundraising CRM, prospect intelligence, reporting) will **live inside that codebase** (and DB where appropriate), not as a separate product. **Now:** We prototype in **this repo** (Salesforce/Sage already here). **Later:** Merge into learning platform (shared auth, identity, optional shared PostgreSQL, one UI). See `product/learning-platform-integration.md`. This repo = prototype and staging until merge.
+**Target:** One Pursuit platform — the app that runs the learning system (builders, admissions, Pathfinder/Sputnik). **Bedrock** (fundraising CRM, prospect intelligence, reporting) will **live inside that codebase** (and DB where appropriate), not as a separate product. **Now:** We prototype in **this repo** (Salesforce/Sage already here). **Later:** Merge into learning platform (shared auth, identity, optional shared PostgreSQL, one UI). Tech stack and design alignment with the learning platform (React 19 + Vite + Tailwind + shadcn, Node + Express, PostgreSQL, JWT, API patterns) are in `product/learning-platform-integration.md`; use app-context.md and database-schema.sql as the source of truth for the target platform.
 
 ---
 
@@ -15,7 +15,9 @@ Bedrock vision, **unified platform** (Bedrock lives in the learning platform eve
 | Phase | Where | Goal |
 |-------|--------|------|
 | **Week 1** | This repo | Working prototype: import messy prospect/contact spreadsheet + grant deadlines → **actionable weekly priority list** (see below). |
-| **Short term** | This repo | Prospect tool + network search (CSV, matching, “Add to Leads”), linked to Salesforce opportunities; reporting views; **Slack-driven data entry + human verification** (pending changes → weekly review → confirm to DB); **custom reports** (basic prompts + pre-built filters). |
+| **Week 2** | This repo | Pipeline CRM features (Leads tab + enrichment with giving capacity, wealth tier), personal dashboard (Home), network relationship graph (force-directed, LinkedIn CSV import, SF data visualization). Rebrand to “Bedrock.” See `product/fundraising-team/phases/week-2-pipeline-dashboard-network.md`. |
+| **Home page (next)** | This repo | **Customizable home:** calendarized view (day/week/2 weeks) with Google Calendar + matching confirmation; top 5/10/25 prospects by weighted score; Active Comms / Inactive; automation review (weekly). See `product/fundraising-team/phases/home-page-spec.md`. |
+| **Short term** | This repo | **Slack-driven data entry + human verification** (pending changes → weekly review → confirm to DB); **custom reports** (basic prompts + pre-built filters); **Claude API intelligence** (prospect scoring, suggested actions); **Leads in Salesforce** (SF Lead as system of record; see home-page-spec §6.3). |
 | **Medium term** | This repo → learning platform | Bedrock feature-complete here; begin integration: shared auth, API contracts, data model alignment. |
 | **Long term** | Learning platform | Bedrock lives in unified app; one login, one nav; fundraising and learning data coexist with clear boundaries and shared identity. |
 

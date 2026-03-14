@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 
 import { AuthProvider } from './contexts/AuthContext';
+import { LeadsProvider } from './contexts/LeadsContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -18,6 +19,8 @@ import PaymentSchedule from './pages/PaymentSchedule';
 import Settings from './pages/Settings';
 import SalesforceCallback from './pages/SalesforceCallback';
 import WeeklyPriorities from './pages/WeeklyPriorities';
+import MyDashboard from './pages/MyDashboard';
+import NetworkMap from './pages/NetworkMap';
 
 // Create Material-UI theme
 const theme = createTheme({
@@ -89,6 +92,7 @@ function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <AuthProvider>
+          <LeadsProvider>
           <Router>
             <Routes>
               {/* Public routes */}
@@ -101,7 +105,17 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Navigate to="/overview" replace />
+                      <Navigate to="/home" replace />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/home"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <MyDashboard />
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -122,6 +136,16 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <Pipeline />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/network"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <NetworkMap />
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -181,13 +205,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <WeeklyPriorities />
+                      <Navigate to="/home" replace />
                     </Layout>
                   </ProtectedRoute>
                 }
               />
             </Routes>
           </Router>
+          </LeadsProvider>
           <Toaster
             position="top-right"
             toastOptions={{

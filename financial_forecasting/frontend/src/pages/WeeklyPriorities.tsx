@@ -33,10 +33,10 @@ import {
   UploadFile as UploadFileIcon,
 } from '@mui/icons-material';
 import { format, addDays, parseISO, isWithinInterval, startOfDay } from 'date-fns';
-import Papa from 'papaparse';
 import { useQuery } from 'react-query';
 
 import { apiService } from '../services/api';
+import { parseCSV } from '../utils/csvParser';
 import type { Grant, ImportResult, Lead, WeeklyPriorityItem } from '../types/weeklyPriorities';
 
 // ---------------------------------------------------------------------------
@@ -82,120 +82,6 @@ function SalesforceLink({
       <OpenInNewIcon sx={{ fontSize: 14 }} />
     </Link>
   );
-}
-
-// ---------------------------------------------------------------------------
-// Column alias table: raw CSV header → canonical field name
-// ---------------------------------------------------------------------------
-type LeadField = 'name' | 'first_name' | 'last_name' | 'organization' | 'title' | 'notes' | 'email' | 'phone';
-
-const COLUMN_ALIASES: Record<string, LeadField> = {
-  name: 'name',
-  full_name: 'name',
-  contact_name: 'name',
-  first_name: 'first_name',
-  firstname: 'first_name',
-  'first name': 'first_name',
-  last_name: 'last_name',
-  lastname: 'last_name',
-  'last name': 'last_name',
-  organization: 'organization',
-  company: 'organization',
-  org: 'organization',
-  title: 'title',
-  job_title: 'title',
-  notes: 'notes',
-  note: 'notes',
-  email: 'email',
-  email_address: 'email',
-  phone: 'phone',
-  phone_number: 'phone',
-};
-
-function normalizeKey(raw: string): string {
-  return raw.trim().toLowerCase().replace(/[\s_-]+/g, '_');
-}
-
-// ---------------------------------------------------------------------------
-// CSV parser: returns ImportResult + leads
-// Max 5 MB, 10 000 rows. Bad rows skipped with error entry.
-// ---------------------------------------------------------------------------
-function parseCSV(file: File): Promise<ImportResult & { leads: Lead[] }> {
-  return new Promise((resolve) => {
-    if (file.size > 5 * 1024 * 1024) {
-      resolve({
-        leads: [],
-        imported: 0,
-        skipped: 0,
-        errors: [{ row: 0, message: 'FILE_TOO_LARGE: File exceeds 5 MB limit.' }],
-      });
-      return;
-    }
-
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const rows = results.data as Record<string, string>[];
-
-        if (rows.length > 10000) {
-          resolve({
-            leads: [],
-            imported: 0,
-            skipped: 0,
-            errors: [{ row: 0, message: `TOO_MANY_ROWS: File has ${rows.length} rows; limit is 10,000.` }],
-          });
-          return;
-        }
-
-        const leads: Lead[] = [];
-        const errors: ImportResult['errors'] = [];
-        const timestamp = Date.now();
-
-        rows.forEach((row, index) => {
-          const fields: Partial<Record<LeadField, string>> = {};
-          Object.entries(row).forEach(([k, v]) => {
-            const canonical = COLUMN_ALIASES[normalizeKey(k)];
-            if (canonical) fields[canonical] = (v || '').trim();
-          });
-
-          if (fields['name'] && !fields['first_name'] && !fields['last_name']) {
-            const parts = (fields['name'] as string).split(/\s+/);
-            fields['first_name'] = parts[0] || '';
-            fields['last_name'] = parts.slice(1).join(' ') || '';
-          }
-
-          const hasName = ((fields['first_name'] || '') + (fields['last_name'] || '')).trim().length > 0;
-          if (!hasName) {
-            errors.push({ row: index + 2, message: 'VALIDATION_ERROR: Missing required name field.' });
-            return;
-          }
-
-          leads.push({
-            id: `lead-${timestamp}-${index}`,
-            first_name: fields['first_name'] || '',
-            last_name: fields['last_name'] || '',
-            organization: fields['organization'],
-            title: fields['title'],
-            notes: fields['notes'],
-            email: fields['email'],
-            phone: fields['phone'],
-            source: file.name,
-          });
-        });
-
-        resolve({ leads, imported: leads.length, skipped: errors.length, errors });
-      },
-      error: (err: Error) => {
-        resolve({
-          leads: [],
-          imported: 0,
-          skipped: 0,
-          errors: [{ row: 0, message: `PARSE_ERROR: ${err.message}` }],
-        });
-      },
-    });
-  });
 }
 
 // ---------------------------------------------------------------------------
