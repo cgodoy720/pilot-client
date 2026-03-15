@@ -41,15 +41,15 @@
 | F12 | **Task CRUD** (create, assign, due date, link to Opp/Lead) | Partnerships IC | Task | Both | MVP | — |
 | F13 | **Task notifications** (due today, overdue) | Partnerships IC | Task | Both | Post-MVP | F12 |
 
-### Lead & Prospect Management
+### Prospect Management (formerly "Lead")
 
 | # | Feature | Role(s) | Entities | Stream | Phase | Dependencies |
 |---|---------|---------|----------|--------|-------|-------------|
-| F14 | **Lead tracker** (list, filter by status/source/score) | Partnerships IC | Lead, Contact | N/A | Post-MVP | F04 |
-| F15 | **Lead → Opportunity conversion** | Partnerships IC | Lead, Opportunity | Both | Post-MVP | F14, F01 |
+| F14 | **Prospect tracker** (list, filter by status/source/score) | Partnerships IC | Prospect, Contact | N/A | Post-MVP | F04 |
+| F15 | **Prospect → Opportunity conversion** | Partnerships IC | Prospect, Opportunity | Both | Post-MVP | F14, F01 |
 | F16 | **Network search** (LinkedIn CSV × prospect list fuzzy match) | Partnerships IC | NetworkMatch, Contact | N/A | Post-MVP | F04, F10 |
 | F17 | **Prospect scoring** (composite score from wealth tier, network, engagement) | Partnerships IC | Contact, NetworkMatch | N/A | Post-MVP | F16 |
-| F18 | **AI prospect intelligence** (Claude API enrichment) | Partnerships IC | Contact, Lead | N/A | Backlog | F17, Integration #7 |
+| F18 | **AI prospect intelligence** (Claude API enrichment) | Partnerships IC | Contact, Prospect | N/A | Backlog | F17, Integration #7 |
 
 ### Reporting & Dashboards
 
@@ -59,7 +59,7 @@
 | F20 | **Cash flow projection** (weighted pipeline + scheduled payments + received) | Executive, Finance | Opportunity, Payment | Both | MVP | F01, F22 |
 | F21 | **Revenue by stream report** (nonprofit vs. PBC breakdown) | Executive | Opportunity | Both | MVP | F01 |
 | F22 | **Win rate & deal metrics** (trailing 12-month, by IC, by Account) | Executive | Opportunity | Both | Post-MVP | F01 |
-| F23 | **Campaign performance report** (goal vs. pipeline vs. closed vs. received) | Executive, Partnerships IC | Campaign, Opportunity, Payment | Both | Post-MVP | F27, F01 |
+| F23 | **Campaign performance report** (group by `campaign_name`; MVP uses string field, not Campaign entity) | Executive, Partnerships IC | Opportunity, Payment | Both | Post-MVP | F27, F01 |
 | F24 | **Concentration risk alert** (>30% from single Account) | Executive | Opportunity, Account | Both | Post-MVP | F19 |
 | F25 | **CSV export** (any report → CSV download) | All | N/A | Both | MVP | F19 |
 | F26 | **Custom report filters** (pre-built prompts + filter combos) | Executive, Partnerships IC | Various | Both | Backlog | F19 |
@@ -78,8 +78,8 @@
 
 | # | Feature | Role(s) | Entities | Stream | Phase | Dependencies |
 |---|---------|---------|----------|--------|-------|-------------|
-| F32 | **Campaign CRUD** (create, set goal, dates, assigned_to) | Partnerships IC | Campaign | Both | Post-MVP | — |
-| F33 | **Campaign ↔ Opportunity linking** | Partnerships IC | Campaign, CampaignOpportunity, Opportunity | Both | Post-MVP | F32, F01 |
+| F32 | **Campaign entity promotion** (if `campaign_name` string proves insufficient, promote to full entity with CRUD) | Partnerships IC | Campaign | Both | Backlog | F23 |
+| F33 | **Campaign ↔ Opportunity junction** (many-to-many linking; only if F32 is promoted) | Partnerships IC | Campaign, Opportunity | Both | Backlog | F32, F01 |
 
 ### Activity & Interaction Logging
 
@@ -121,8 +121,8 @@
 | Phase | Feature Count | Core Jobs Served |
 |-------|-------------|-----------------|
 | **MVP** | 18 features | All 5 core jobs at minimum viable level |
-| **Post-MVP** | 20 features | Deepens jobs 1–5; adds finance workflows, campaigns, prospect intelligence |
-| **Backlog** | 8 features | Nice-to-haves: AI enrichment, custom reports, advanced dedup, calendar sync |
+| **Post-MVP** | 18 features | Deepens jobs 1–5; adds finance workflows, prospect intelligence |
+| **Backlog** | 10 features | Nice-to-haves: AI enrichment, custom reports, campaign entity, advanced dedup, calendar sync |
 
 ### MVP Feature List (for quick reference)
 

@@ -118,32 +118,36 @@
 
 ---
 
-### 5. Campaign
+### 5. Campaign (Post-MVP — deferred to keep MVP lean)
 
-**What it is:** A fundraising campaign or initiative that generates Opportunities and engages Contacts. Not a marketing email blast — a strategic fundraising effort.
+**What it is (Post-MVP):** A fundraising campaign or initiative that groups Opportunities. Deferred as a full entity — **MVP uses a simple `campaign_name` string field on Opportunity** instead of a separate entity with junction tables.
+
+**MVP approach:** Add `campaign_name: string (optional)` to Opportunity. This covers basic attribution ("FY2026 Annual Fund") without the overhead of Campaign CRUD, CampaignOpportunity junction tables, or attribution logic. Promote to full entity in Post-MVP if reporting demands it.
+
+**Post-MVP entity (if promoted):**
 
 | Key Attribute | Type | Notes |
 |---------------|------|-------|
 | id | string | `camp-{year}-{slug}` |
 | name | string | Required |
-| type | enum | `annual-fund`, `capital`, `event`, `corporate-partnership`, `other` |
 | goal_amount | number | USD target |
 | start_date | date | |
 | end_date | date | |
 | status | enum | `planned`, `active`, `completed`, `cancelled` |
-| assigned_to | string | Campaign lead |
 
-**Revenue stream:** Both. A campaign like "FY2026 Annual Fund" may encompass both nonprofit and PBC opportunities.
+**Revenue stream:** Both. A single Account may have Opportunities across both streams linked to one campaign.
 
 ---
 
-### 6. Lead (Pre-Pipeline Prospect)
+### 6. Prospect (formerly "Lead" — renamed to avoid confusion with learning platform)
 
-**What it is:** A prospect not yet qualified into the pipeline. Leads convert to Opportunities when qualified.
+**What it is:** A fundraising prospect not yet qualified into the pipeline. Prospects convert to Opportunities when qualified. Renamed from "Lead" to distinguish from the learning platform's admissions Lead entity.
+
+**Authority:** Bedrock is the prototype authority. In production, Prospects sync to Salesforce Lead object (custom record type `Fundraising_Lead`). The learning platform's `lead` table is for admissions — distinct lifecycle, no cross-write.
 
 | Key Attribute | Type | Notes |
 |---------------|------|-------|
-| id | string | `lead-{year}-{nnn}` |
+| id | string | `prospect-{year}-{nnn}` |
 | contact_id | string | → Contact (required) |
 | source | enum | `inbound-referral`, `event`, `cold-outreach`, `network-search-hit`, `other` |
 | status | enum | `new`, `contacted`, `qualifying`, `converted`, `archived` |
@@ -153,6 +157,8 @@
 | converted_at | datetime | |
 
 **Revenue stream:** Not assigned until conversion to Opportunity.
+
+**Migration path:** Prototype (IndexedDB/in-memory) → Salesforce Lead with RecordType `Fundraising_Lead` → optional PostgreSQL `fundraising_prospect` table for cross-platform joins when merged with learning platform.
 
 ---
 
@@ -206,20 +212,27 @@
 
 ---
 
-### 10. NetworkMatch (Prospect Intelligence)
+### 10. NetworkMatch (Prospect Intelligence — Post-MVP, minimal MVP schema)
 
 **What it is:** A match between a LinkedIn contact and a prospect list record — output of the network search feature.
 
+**MVP schema (4 fields only):**
+
 | Key Attribute | Type | Notes |
 |---------------|------|-------|
-| id | string | `match-{linkedin-slug}-{source}` |
-| linkedin_contact_id | string | → Contact |
-| prospect_list_source | string | Which prospect list |
-| match_confidence | number | 0–100 (fuzzy match score) |
-| composite_score | number | 0–100 (weighted algorithm) |
-| outreach_priority | enum | `hot` (≥75), `warm` (50–74), `worth-exploring` (<50) |
-| reviewed | boolean | Has a human verified? |
-| lead_id | string | → Lead, if promoted |
+| id | string | `match-{contact-slug}-{source}` |
+| linkedin_contact_id | string | → Contact (the LinkedIn connection) |
+| prospect_contact_id | string | → Contact (the prospect list record) |
+| match_confidence | number | 0–100 (Fuse.js fuzzy match score) |
+
+**Post-MVP additions** (add when scoring algorithm is defined):
+
+| Key Attribute | Type | Notes |
+|---------------|------|-------|
+| composite_score | number | 0–100; weighted algorithm (spec required before implementation) |
+| outreach_priority | enum | `hot` (≥75), `warm` (50–74), `worth-exploring` (<50) — derived from composite_score |
+| reviewed | boolean | Human verification flag |
+| prospect_id | string | → Prospect, if promoted to pipeline |
 
 ---
 
@@ -233,8 +246,10 @@
      │ one-to-one                         │ many-to-one
      ▼                                    ▼
 ┌──────────┐                        ┌──────────────┐
-│  Lead    │───── converts to ────► │ Opportunity   │
-└──────────┘                        └──────┬───────┘
+│ Prospect │───── converts to ────► │ Opportunity   │
+└──────────┘                        │              │
+                                    │ campaign_name│ ← simple string (MVP)
+                                    └──────┬───────┘
                                            │
                          ┌─────────────────┼─────────────────┐
                          │                 │                  │
@@ -244,13 +259,8 @@
                    │ Payment  │     │  Task    │      │ Activity │
                    └──────────┘     └──────────┘      └──────────┘
 
-┌──────────┐     influences      ┌──────────────┐
-│ Campaign │─ ─ ─ ─ ─ ─ ─ ─ ─ ► │ Opportunity   │
-└──────────┘  (CampaignOpp       └──────────────┘
-               junction, soft)
-
 ┌──────────────┐   promotes to   ┌──────────┐
-│ NetworkMatch │─ ─ ─ ─ ─ ─ ─ ► │  Lead    │
+│ NetworkMatch │─ ─ ─ ─ ─ ─ ─ ► │ Prospect │
 └──────────────┘                 └──────────┘
        │
        │ many-to-one
@@ -265,7 +275,8 @@
 | Junction | Purpose |
 |----------|---------|
 | ContactAccount | Many-to-many: a Contact can belong to multiple Accounts (e.g., board member at two foundations) |
-| CampaignOpportunity | Many-to-many: a Campaign can influence multiple Opportunities; an Opportunity can be part of multiple Campaigns |
+
+> **Campaign junction (CampaignOpportunity) removed from MVP.** Campaign attribution in MVP is handled by `campaign_name` string on Opportunity. If Campaign becomes a full entity in Post-MVP, the junction table will be added then.
 
 ---
 
@@ -277,5 +288,7 @@
 | What does a Payment attach to? | **Opportunity only.** Not Campaign. Money flows through Opportunities. Campaigns are the *why*, Opportunities are the *what*. |
 | What's the difference between nonprofit and PBC Opportunities? | **`revenue_stream` enum on Opportunity.** Same entity, same stages, but different stage *meanings* (see table above) and different reporting rollups. |
 | Where does cash flow projection get its data? | **Opportunities (pipeline value × probability) + Payments (scheduled vs. received).** No separate projection entity — it's a computed view. |
-| Is Lead separate from Contact? | **Yes.** A Lead references a Contact but adds pipeline qualification state. A Contact exists independently (may never be a Lead). A Lead converts to an Opportunity. |
-| Where is Salesforce the source of truth? | **Opportunity, Account, Contact.** Salesforce IDs are stored on Bedrock records. Sync is bidirectional for these entities. Leads, Tasks, Activities may be Bedrock-only initially. |
+| Is Prospect separate from Contact? | **Yes.** A Prospect references a Contact but adds pipeline qualification state. A Contact exists independently (may never be a Prospect). A Prospect converts to an Opportunity. Renamed from "Lead" to avoid confusion with learning platform admissions leads. |
+| Where is Salesforce the source of truth? | **Opportunity, Account, Contact.** Salesforce IDs are stored on Bedrock records. Sync is bidirectional for these entities. Prospects, Tasks, Activities are Bedrock-native initially; Prospects sync to SF Lead (RecordType: `Fundraising_Lead`) in production. |
+| Why was "Lead" renamed to "Prospect"? | The learning platform uses "Lead" for admissions prospects (future Builders). Fundraising prospects are a different lifecycle. Renaming to "Prospect" eliminates ambiguity across systems. |
+| Why is Campaign a string, not an entity? | A team of 4 ICs doesn't need Campaign CRUD, junction tables, and attribution logic in MVP. A `campaign_name` string on Opportunity covers basic grouping. Promote to full entity if reporting demands it. |

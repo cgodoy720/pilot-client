@@ -45,6 +45,68 @@
 
 **Current state:** Working integration exists for Opportunities, Accounts, Contacts via FastAPI backend.
 
+#### Salesforce Field Mapping
+
+> **This is the authoritative field mapping.** Code in `data_sync.py` must match this table.
+> See `canonical-definitions.md` for field naming rules.
+
+**Opportunity:**
+
+| Bedrock Field | Salesforce API Name | Transform | Notes |
+|---------------|-------------------|-----------|-------|
+| `id` | — | Not synced | Bedrock-only primary key |
+| `salesforce_id` | `Id` | Direct | 18-char SF ID |
+| `name` | `Name` | Direct | |
+| `account_id` | `AccountId` | Lookup: Bedrock acct by `salesforce_id` | |
+| `primary_contact_id` | `npsp__Primary_Contact__c` | Lookup: Bedrock contact by `salesforce_id` | NPSP custom field |
+| `amount_estimated` | `Amount` | Direct | |
+| `amount_confirmed` | `Amount` | Same field; Bedrock separates estimated vs. confirmed | Only written when `stage = closed-won` |
+| `stage` | `StageName` | Map via legacy stage table in `canonical-definitions.md` | SF uses old stage names |
+| `revenue_stream` | `Type` or custom `Revenue_Stream__c` | Map: if Type contains "Grant" → `nonprofit`, else → `pbc` | Verify custom field exists in SF |
+| `expected_close_date` | `CloseDate` | Direct (date format) | |
+| `assigned_to` | `OwnerId` | Lookup: Bedrock user by SF User ID | |
+| `probability` | `Probability` | Direct (0–100) | |
+| `service_type` | `npsp__Grant_Type__c` or custom | TBD | May need custom field |
+| `campaign_name` | `CampaignId` → `Campaign.Name` | Lookup: resolve Campaign ID to name | MVP: string only |
+
+**Account:**
+
+| Bedrock Field | Salesforce API Name | Transform | Notes |
+|---------------|-------------------|-----------|-------|
+| `id` | — | Not synced | |
+| `salesforce_id` | `Id` | Direct | |
+| `name` | `Name` | Direct | |
+| `type` | `Type` | Map: `Foundation` → `foundation`, `Corporate` → `corporation`, `Government` → `government` | |
+| `industry` | `Industry` | Direct | |
+| `website` | `Website` | Direct | |
+
+**Contact:**
+
+| Bedrock Field | Salesforce API Name | Transform | Notes |
+|---------------|-------------------|-----------|-------|
+| `id` | — | Not synced | |
+| `salesforce_id` | `Id` | Direct | |
+| `first_name` | `FirstName` | Direct | |
+| `last_name` | `LastName` | Direct | |
+| `email` | `Email` | Direct | |
+| `phone` | `Phone` | Direct | |
+| `title` | `Title` | Direct | |
+| `organization` | `Account.Name` | Lookup via `AccountId` | |
+
+**Payment (NPSP):**
+
+| Bedrock Field | Salesforce API Name | Transform | Notes |
+|---------------|-------------------|-----------|-------|
+| `id` | — | Not synced | |
+| `salesforce_id` | `Id` | Direct | NPSP Payment record |
+| `opportunity_id` | `npe01__Opportunity__c` | Lookup | |
+| `amount` | `npe01__Payment_Amount__c` | Direct | |
+| `expected_date` | `npe01__Scheduled_Date__c` | Direct | |
+| `received_date` | `npe01__Payment_Date__c` | Direct; null if not received | |
+| `status` | `npe01__Paid__c` | Map: `true` → `received`, `false` + past date → `overdue`, `false` + future date → `scheduled` | |
+| `payment_method` | `npe01__Payment_Method__c` | Direct | |
+| `sage_id` | `Sage_Invoice_ID__c` | Direct | Custom field; Phase 2 |
+
 ---
 
 ### 2. Sage Intacct (Revenue Hub)
@@ -204,13 +266,13 @@
 
 **Current state:** Architecture defined in `product/learning-platform-integration.md`. No code yet. Long-term phase.
 
-**Key constraint:** Fundraising leads stay in Salesforce (system of record), not in the learning platform's `lead` table. Optional `fundraising_lead` table in PostgreSQL for cross-platform joins post-merge.
+**Key constraint:** Fundraising prospects stay in Salesforce (system of record via `Fundraising_Lead` record type), not in the learning platform's `lead` table. Optional `fundraising_prospect` table in PostgreSQL for cross-platform joins post-merge. See entity-map.md for the Lead→Prospect rename rationale.
 
 ---
 
 ## Integration Principles
 
-1. **One system of record per entity.** Salesforce for Opportunities/Accounts/Contacts. Sage for financial transactions. Bedrock for Leads/Tasks/Activities (Bedrock-native). Never let two systems both claim authority over the same field.
+1. **One system of record per entity.** Salesforce for Opportunities/Accounts/Contacts. Sage for financial transactions. Bedrock for Prospects/Tasks/Activities (Bedrock-native). Never let two systems both claim authority over the same field.
 
 2. **Human-in-the-loop for ingest.** Data from Slack, CSV imports, and AI enrichment is always *proposed*, never auto-written. Review queue required.
 

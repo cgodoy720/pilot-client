@@ -17,11 +17,11 @@
 │  Partnerships IC                Bedrock                    External Systems  │
 │  ─────────────                 ────────                   ────────────────── │
 │                                                                             │
-│  1. Identifies prospect  ───►  Create Lead                                  │
+│  1. Identifies prospect  ───►  Create Prospect                              │
 │     (network search,           (status: new)                                │
 │      referral, event)          Link to Contact                              │
 │                                                                             │
-│  2. Qualifies Lead       ───►  Convert Lead to            Sync Opportunity  │
+│  2. Qualifies Prospect   ───►  Convert Prospect to        Sync Opportunity  │
 │     (meeting held,             Opportunity                 ───► Salesforce  │
 │      alignment confirmed)      (stage: identified/                          │
 │                                 qualified)                                  │
@@ -65,8 +65,8 @@
 
 | Step | Data Created/Modified | Triggers |
 |------|----------------------|----------|
-| Lead created | Lead, Contact (if new) | Weekly priorities view updates |
-| Lead → Opportunity | Opportunity created, Lead status = converted | Pipeline metrics update, Salesforce sync |
+| Prospect created | Prospect, Contact (if new) | Weekly priorities view updates |
+| Prospect → Opportunity | Opportunity created, Prospect status = converted | Pipeline metrics update, Salesforce sync |
 | Stage change | Opportunity.stage, probability recalculated | Dashboard metrics update, stale detection resets |
 | Closed-won | Opportunity.stage, amount_confirmed | Cash flow projection updates, payment schedule creation |
 | Payment received | Payment.status, received_date | Cash position updates, reconciliation queue |
@@ -90,7 +90,7 @@
 │                                                                             │
 │  2. Identify targets ───►  Link existing Contacts                           │
 │                            to Campaign                                      │
-│                            Create Leads for new                             │
+│                            Create Prospects for new                         │
 │                            prospects                                        │
 │                                                                             │
 │  3. Outreach begins  ───►  Log Activities                                   │

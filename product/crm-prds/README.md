@@ -21,7 +21,7 @@
 | **08 — User Roles & Permissions** | Role definitions, visibility rules, access control | MVP | F42, F43 | Not started |
 | **09 — Salesforce Migration & Sync** | Initial data import, field mapping, transformation rules, validation, ongoing bidirectional sync | MVP | F38, F40, F45 | Partially exists (sync code in `data_sync.py`) |
 | **10 — Weekly Priorities & Tasks** | Weekly view, task CRUD, CSV import, prospect↔grant assignment, notifications | MVP | F09, F10, F11, F12, F13 | Week 1 prototype in progress |
-| **11 — Lead & Prospect Intelligence** | Lead tracker, conversion, network search, scoring, AI enrichment | Post-MVP | F14, F15, F16, F17, F18 | Not started |
+| **11 — Prospect Intelligence** | Prospect tracker, conversion, network search, scoring, AI enrichment (entity renamed from "Lead" to "Prospect") | Post-MVP | F14, F15, F16, F17, F18 | Not started |
 | **12 — Activity & Interaction Logging** | Manual logging, Slack ingest, timeline view, transcript pipeline | MVP (manual) / Post-MVP (Slack) | F34, F35, F36, F37 | MCP Client exists for Slack |
 
 ---
@@ -141,10 +141,13 @@ How do we know this is done and working?
 
 | Document | Location | Relationship |
 |----------|----------|-------------|
+| **Canonical Definitions** | `product/crm-architecture/canonical-definitions.md` | **Read first.** Stages, field names, IDs, enums. This file governs. |
 | Scope Constitution | `product/crm-scope-constitution.md` | Every PRD must trace to core jobs |
 | Entity Map | `product/crm-architecture/entity-map.md` | Data model reference |
 | User Journey Matrix | `product/crm-architecture/user-journey-matrix.md` | User stories derive from journeys |
 | Information Flows | `product/crm-architecture/information-flows.md` | Integration points and data flow |
-| Integration Register | `product/crm-architecture/integration-register.md` | External system contracts |
+| Integration Register + SF Field Mapping | `product/crm-architecture/integration-register.md` | External system contracts, Salesforce field mapping |
 | Feature Register | `product/crm-architecture/feature-register.md` | Feature-to-PRD mapping |
+| Error Contract | `product/crm-architecture/error-contract.md` | Error codes, validation rules, partial failure behavior |
 | Requirements Gaps | `product/REQUIREMENTS-GAPS-AND-STRUCTURE.md` | Open questions to resolve |
+| Original Grants PRD | `PRD.md` | Historical context; stage names and data model superseded |

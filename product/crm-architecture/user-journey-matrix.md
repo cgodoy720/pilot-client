@@ -27,7 +27,7 @@
 | 1 | **Manage my pipeline** | My open opportunities, stages, amounts, close dates | Opportunity stage, amount, notes, close date | Which deals to prioritize this week |
 | 2 | **Prepare for meetings** | Contact history, recent activities, opportunity details, related docs | Meeting notes (Activity), follow-up Tasks | What to discuss, what to ask for |
 | 3 | **Track deadlines & follow-ups** | Tasks due this week, grant deadlines, stale opportunities | Task status, new tasks | What's urgent vs. what can wait |
-| 4 | **Research & qualify prospects** | Network matches, wealth tiers, LinkedIn connections, giving history | Lead status, qualification notes, converted Opportunities | Who to pursue, who to pass on |
+| 4 | **Research & qualify prospects** | Network matches, wealth tiers, LinkedIn connections, giving history | Prospect status, qualification notes, converted Opportunities | Who to pursue, who to pass on |
 | 5 | **Log interactions** | Previous conversation context | Activities (calls, emails, meetings, notes) | What happened, what's next |
 
 **Frequency:** Daily (pipeline review, task check), weekly (prospect research, meeting prep).
@@ -41,7 +41,7 @@
 | 1 | **See financial state** | Total pipeline, weighted pipeline, cash flow by quarter | Nothing — read-only consumer | Runway, hiring, strategic investments |
 | 2 | **Identify risks** | Stale opportunities, overdue payments, concentration risk (too much from one funder) | Flag for follow-up (assigns Task to IC) | Where to intervene |
 | 3 | **Report to board** | Revenue by stream (nonprofit/PBC), year-over-year trends, win rate | Nothing — exports reports | Board narrative |
-| 4 | **Make intro decisions** | Prospect scores, network connections, capacity signals | Approval/assignment of high-value leads | Which relationships to invest CEO time in |
+| 4 | **Make intro decisions** | Prospect scores, network connections, capacity signals | Approval/assignment of high-value prospects | Which relationships to invest CEO time in |
 
 **Frequency:** Weekly (dashboard glance), monthly (deep dive, board prep), ad-hoc (deal escalation).
 

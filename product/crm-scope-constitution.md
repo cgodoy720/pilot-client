@@ -61,7 +61,7 @@ Bedrock must cleanly handle two revenue streams with different characteristics:
 | Dimension | Nonprofit (Grants) | PBC (Contracts/Partnerships) |
 |-----------|-------------------|------------------------------|
 | **Opportunity type** | Grant applications with deadlines, reporting requirements | Service contracts, sponsorships, earned revenue |
-| **Pipeline stages** | Prospect → LOI → Full Proposal → Submitted → Awarded → Active → Closed | Prospect → Qualified → Proposal → Negotiation → Closed Won/Lost |
+| **Pipeline stages** | Same canonical stages (`identified` → `closed-won`), interpreted for grants context | Same canonical stages, interpreted for contracts context. See `canonical-definitions.md` Section 1. |
 | **Payment pattern** | Milestone-based or reimbursement; often multi-year | Invoice on delivery or net-30/60 terms |
 | **Reporting** | Grant compliance reports, restricted vs. unrestricted | Revenue recognition, contract deliverables |
 
@@ -103,11 +103,14 @@ This Scope Constitution defines *boundaries*. The following are defined in compa
 
 | Topic | Document |
 |-------|----------|
+| **Canonical definitions** (stages, field names, IDs, enums) | `product/crm-architecture/canonical-definitions.md` |
 | Data model (entities, fields, relationships) | `product/crm-architecture/entity-map.md` |
 | User roles and journeys | `product/crm-architecture/user-journey-matrix.md` |
 | Information flows | `product/crm-architecture/information-flows.md` |
-| Integration contracts | `product/crm-architecture/integration-register.md` |
+| Integration contracts + Salesforce field mapping | `product/crm-architecture/integration-register.md` |
 | Feature inventory and prioritization | `product/crm-architecture/feature-register.md` |
+| Error codes, validation rules, partial failure behavior | `product/crm-architecture/error-contract.md` |
 | Individual component PRDs | `product/crm-prds/` (one per component) |
 | Week 1 prototype spec | `product/fundraising-team/phases/week-1-prototype.md` |
 | Long-term platform integration | `product/learning-platform-integration.md` |
+| Original grants PRD (historical, partially superseded) | `PRD.md` |
