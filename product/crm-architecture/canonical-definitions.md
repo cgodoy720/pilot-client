@@ -65,6 +65,12 @@ Use these exact names in all code, specs, and docs. No aliases.
 | `prospect_id` | string | `lead_id`, `leadId` | Reference to a Prospect (renamed from Lead) |
 | `amount` | number | `payment_amount`, `pay_amount` | Amount of a single Payment (distinct from Opportunity's `amount_estimated`/`amount_confirmed`) |
 | `due_date` | date | `deadline`, `dueDate` | When a Task is due |
+| `grant_start_date` | date | `start_date` (on GrantRequirements), `grant_start` | When the grant period begins |
+| `grant_end_date` | date | `end_date` (on GrantRequirements), `grant_end` | When the grant period ends |
+| `intelligence_updated_at` | datetime | `score_date`, `last_scored` | When prospect intelligence was last refreshed |
+| `intelligence_confidence` | enum | `confidence`, `score_quality` | `verified`, `high`, or `low` |
+| `rationale` | text | `reason`, `notes` (on Decision) | Why a decision was made — the core of the audit trail |
+| `intelligence_snapshot` | text | `snapshot`, `context` | Frozen data points at time of decision |
 | `created_at` | datetime | `created`, `createdAt`, `create_date` | |
 | `updated_at` | datetime | `updated`, `updatedAt`, `update_date` | |
 
@@ -82,6 +88,8 @@ Use these exact names in all code, specs, and docs. No aliases.
 | Task | `task-{year}-{nnn}` | `task-2026-007` | Bedrock |
 | Activity | `act-{year}-{nnn}` | `act-2026-015` | Bedrock |
 | User | `user-{slug}` | `user-jac-reynolds` | Bedrock / Learning platform |
+| GrantRequirements | `grant-req-{opp-id}` | `grant-req-opp-2026-003` | Bedrock; mirrors parent Opportunity ID |
+| Decision | `dec-{year}-{nnn}` | `dec-2026-001` | Bedrock |
 | NetworkMatch | `match-{contact-slug}-{source}` | `match-sarah-chen-hnwi-2026` | Bedrock |
 
 **Week-1 prototype exception:** The week-1 CSV import uses `prospect-{Date.now()}-{index}` for simplicity (no backend counter). Before production, migrate to sequential `prospect-{year}-{nnn}` IDs with a server-side counter. Do not mix both formats in the same dataset.
@@ -155,6 +163,40 @@ See Section 1 above.
 | `in-progress` | Being worked on |
 | `completed` | Done |
 | `cancelled` | No longer relevant |
+
+### Decision Outcome
+
+| Value | Meaning |
+|-------|---------|
+| `pending` | Decision was made; outcome not yet known |
+| `validated` | Outcome confirmed the decision was correct |
+| `invalidated` | Outcome showed the decision was wrong (learning opportunity) |
+
+### Reporting Requirement Status
+
+| Value | Meaning |
+|-------|---------|
+| `pending` | Report not yet due or not started |
+| `submitted` | Report submitted to funder |
+| `accepted` | Funder accepted the report |
+
+### Program Metric Status
+
+| Value | Meaning |
+|-------|---------|
+| `not-started` | Measurement period hasn't begun |
+| `in-progress` | Actively being tracked |
+| `met` | Target achieved |
+| `not-met` | Target missed |
+| `pending-verification` | Data collected, awaiting verification |
+
+### Intelligence Confidence
+
+| Value | Meaning |
+|-------|---------|
+| `verified` | Human-reviewed and confirmed |
+| `high` | Multiple corroborating signals |
+| `low` | Single source, or stale (>90 days since last refresh) |
 
 ---
 

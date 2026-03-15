@@ -133,6 +133,24 @@ interface BedrockResult<T> {
 | `status` | Required, must be in task status enum | `REQUIRED_FIELD_MISSING` / `INVALID_ENUM_VALUE` |
 | `opportunity_id` + `prospect_id` | At most one may be set (not both) | `CONSTRAINT_VIOLATION` |
 
+### Grant Requirements
+
+| Field | Rule | Error Code |
+|-------|------|-----------|
+| `opportunity_id` | Required, must reference nonprofit Opportunity | `REQUIRED_FIELD_MISSING` / `REFERENCE_NOT_FOUND` / `CONSTRAINT_VIOLATION` (if PBC) |
+| `grant_start_date` | Required, valid date | `REQUIRED_FIELD_MISSING` / `INVALID_DATE` |
+| `grant_end_date` | Required, valid date, must be after `grant_start_date` | `REQUIRED_FIELD_MISSING` / `INVALID_DATE` / `CONSTRAINT_VIOLATION` |
+| One GrantRequirements per Opportunity | At most one record per Opportunity | `CONSTRAINT_VIOLATION` |
+
+### Decision
+
+| Field | Rule | Error Code |
+|-------|------|-----------|
+| `rationale` | Required, non-empty | `REQUIRED_FIELD_MISSING` |
+| `made_by` | Required | `REQUIRED_FIELD_MISSING` |
+| `type` | Required, must be in decision type enum | `REQUIRED_FIELD_MISSING` / `INVALID_ENUM_VALUE` |
+| At least one reference | At least one of `contact_id`, `prospect_id`, `opportunity_id` must be set | `CONSTRAINT_VIOLATION` |
+
 ---
 
 ## Partial Failure Behavior

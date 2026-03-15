@@ -50,6 +50,16 @@
 | F16 | **Network search** (LinkedIn CSV × prospect list fuzzy match) | Partnerships IC | NetworkMatch, Contact | N/A | Post-MVP | F04, F10 |
 | F17 | **Prospect scoring** (composite score from wealth tier, network, engagement) | Partnerships IC | Contact, NetworkMatch | N/A | Post-MVP | F16 |
 | F18 | **AI prospect intelligence** (Claude API enrichment) | Partnerships IC | Contact, Prospect | N/A | Backlog | F17, Integration #7 |
+| F47 | **Intelligence freshness tracking** (auto-downgrade confidence after 90 days; flag stale scores) | Partnerships IC | Contact | N/A | Post-MVP | F17 |
+| F48 | **Decision audit trail** (log pursue/pass/deprioritize decisions with rationale and intelligence snapshot) | Partnerships IC, Executive | Decision, Prospect, Opportunity | Both | MVP | F01 |
+
+### Grant Programmatic Requirements
+
+| # | Feature | Role(s) | Entities | Stream | Phase | Dependencies |
+|---|---------|---------|----------|--------|-------|-------------|
+| F49 | **Grant requirements capture** (date range, reporting schedule, program inputs/outputs/outcomes) | Partnerships IC, Program Staff | GrantRequirements, Opportunity | Nonprofit | MVP | F01 |
+| F50 | **Grant reporting tracker** (upcoming reports, status, submission tracking) | Partnerships IC, Program Staff | GrantRequirements | Nonprofit | Post-MVP | F49 |
+| F51 | **Program metrics dashboard** (inputs/outputs/outcomes vs. targets, across all active grants) | Executive, Program Staff | GrantRequirements | Nonprofit | Post-MVP | F49 |
 
 ### Reporting & Dashboards
 
@@ -120,13 +130,13 @@
 
 | Phase | Feature Count | Core Jobs Served |
 |-------|-------------|-----------------|
-| **MVP** | 18 features | All 5 core jobs at minimum viable level |
-| **Post-MVP** | 18 features | Deepens jobs 1–5; adds finance workflows, prospect intelligence |
+| **MVP** | 20 features | All 5 core jobs + grant requirements + decision trail |
+| **Post-MVP** | 21 features | Deepens jobs 1–5; adds finance, prospect intelligence, grant reporting |
 | **Backlog** | 10 features | Nice-to-haves: AI enrichment, custom reports, campaign entity, advanced dedup, calendar sync |
 
 ### MVP Feature List (for quick reference)
 
-F01, F02, F03, F04, F05, F06, F09, F10, F11, F12, F19, F20, F21, F25, F34, F36, F38, F42, F45
+F01, F02, F03, F04, F05, F06, F09, F10, F11, F12, F19, F20, F21, F25, F34, F36, F38, F42, F45, F48, F49
 
 ### MVP Critical Path (build order)
 

@@ -55,6 +55,11 @@
 | salesforce_id | string | For sync; nullable |
 | wealth_tier | enum | `tier-1` through `tier-4`, `unknown` — populated by network search |
 | composite_score | number | 0–100, populated by prospect intelligence |
+| intelligence_updated_at | datetime | When prospect intelligence (score, tier) was last refreshed. Null = never scored. |
+| intelligence_source | string | What produced the current score (e.g., "network-search-v1", "claude-api-2026-03") |
+| intelligence_confidence | enum | `verified` (human-reviewed), `high` (multiple signals), `low` (single source or stale >90 days) |
+
+**Intelligence reliability:** Prospect scores decay. If `intelligence_updated_at` is >90 days old, `intelligence_confidence` should auto-downgrade to `low`. Decisions based on stale intelligence must note this in the Decision record.
 
 **Revenue stream:** Neither directly. Contacts participate via Opportunities and Prospects.
 
@@ -83,6 +88,72 @@
 **Stage definitions:** See `canonical-definitions.md` Section 1. Seven stages (`identified` → `closed-won` / `closed-lost`), each with probability defaults and revenue-stream-specific interpretations. The canonical file also maps legacy PRD.md stage names.
 
 **Revenue stream:** One per Opportunity (`nonprofit` or `pbc`, required). An Account may have Opportunities across both streams.
+
+---
+
+### 3a. Grant Requirements (child of Opportunity, nonprofit only)
+
+**What it is:** The programmatic obligations attached to a nonprofit grant — what Pursuit must deliver, measure, and report. One-to-one with Opportunity where `revenue_stream = nonprofit`. Not applicable to PBC opportunities.
+
+**Why a separate entity (not fields on Opportunity):** Grant requirements contain structured lists (multiple inputs, outputs, outcomes, reporting dates). Embedding these as flat fields on Opportunity would create sparse columns and make PBC opportunities carry irrelevant fields. A dedicated entity keeps Opportunity lean and grants well-documented.
+
+| Key Attribute | Type | Notes |
+|---------------|------|-------|
+| id | string | `grant-req-{opp-id}` (mirrors parent Opportunity ID) |
+| opportunity_id | string | → Opportunity (required, one-to-one) |
+| grant_start_date | date | When the grant period begins |
+| grant_end_date | date | When the grant period ends |
+| reporting_requirements | ReportingReq[] | See structure below |
+| program_inputs | ProgramMetric[] | What Pursuit must deliver (e.g., "50 Builders enrolled who are NYCHA residents") |
+| program_outputs | ProgramMetric[] | Measurable results during program (e.g., "Level 2 pass rate ≥ 80%") |
+| program_outcomes | ProgramMetric[] | Long-term impact metrics (e.g., "income increase ≥ 30% for L3+ completers within 12 months") |
+| notes | text | Additional funder requirements or context |
+
+**ReportingReq structure:**
+
+```typescript
+interface ReportingReq {
+  type: 'interim' | 'annual' | 'final' | 'financial' | 'other';
+  due_date: date;            // When the report is due
+  description: string;       // What the report must contain
+  status: 'pending' | 'submitted' | 'accepted';
+}
+```
+
+**ProgramMetric structure:**
+
+```typescript
+interface ProgramMetric {
+  name: string;              // e.g., "NYCHA resident enrollment"
+  target_value: string;      // e.g., "50 Builders" or "≥ 80%"
+  actual_value?: string;     // Filled in during/after program
+  measurement_method: string; // How this is measured
+  status: 'not-started' | 'in-progress' | 'met' | 'not-met' | 'pending-verification';
+}
+```
+
+**Examples:**
+
+```yaml
+# Program Inputs (what Pursuit must deliver)
+- name: NYCHA resident enrollment
+  target_value: "50 Builders"
+  measurement_method: "Enrollment records cross-referenced with NYCHA residency verification"
+
+# Program Outputs (measurable results during program)
+- name: Level 2 pass rate
+  target_value: "≥ 80%"
+  measurement_method: "Assessment scores from LMS"
+
+# Program Outcomes (long-term impact)
+- name: Income increase post-program
+  target_value: "≥ 30% within 12 months for L3+ completers"
+  measurement_method: "Follow-up survey at 6 and 12 months post-completion"
+
+- name: Employment rate
+  target_value: "≥ 85% within 6 months for L3+ completers"
+  measurement_method: "Employer verification and self-report survey"
+```
 
 ---
 
@@ -204,7 +275,31 @@
 
 ---
 
-### 10. NetworkMatch (Prospect Intelligence — Post-MVP, minimal MVP schema)
+### 10. Decision (Audit Trail)
+
+**What it is:** A record of a fundraising decision — why a prospect was pursued or deprioritized, why a grant was submitted or passed on, why an opportunity's strategy changed. Decisions are the institutional memory that survives team turnover.
+
+**Why this entity matters:** Prospect intelligence is only valuable if the reasoning behind decisions is preserved. Six months later, "why did we pass on this funder?" needs an answer. Without Decision records, that knowledge lives only in someone's head.
+
+| Key Attribute | Type | Notes |
+|---------------|------|-------|
+| id | string | `dec-{year}-{nnn}` |
+| type | enum | `pursue`, `deprioritize`, `strategy-change`, `escalate`, `pass` |
+| rationale | text | Required. The *why* — plain language explanation of reasoning |
+| made_by | string | → User who made the decision |
+| date | datetime | When the decision was made |
+| contact_id | string | → Contact (optional) |
+| prospect_id | string | → Prospect (optional) |
+| opportunity_id | string | → Opportunity (optional) |
+| intelligence_snapshot | text | Key data points at the time of decision (e.g., "composite_score: 78, wealth_tier: tier-2, last meeting: 2026-02-15"). Frozen at decision time — not a live reference. |
+| outcome | enum | `pending`, `validated`, `invalidated` — set retroactively to track decision quality |
+| outcome_notes | text | What actually happened (set later) |
+
+**Design principle:** Decisions capture *reasoning at a point in time*. The `intelligence_snapshot` freezes the data that informed the decision, so even if scores or tiers change later, the original basis is preserved.
+
+---
+
+### 11. NetworkMatch (Prospect Intelligence — Post-MVP, minimal MVP schema)
 
 **What it is:** A match between a LinkedIn contact and a prospect list record — output of the network search feature.
 
@@ -253,6 +348,10 @@
                    │ Payment  │     │  Task    │      │ Activity │
                    └──────────┘     └──────────┘      └──────────┘
 
+┌──────────────┐  (nonprofit only)  ┌──────────────────┐
+│ Opportunity  │◄── one-to-one ────│ GrantRequirements │
+└──────────────┘                   └──────────────────┘
+
 ┌──────────────┐   promotes to   ┌──────────┐
 │ NetworkMatch │─ ─ ─ ─ ─ ─ ─ ► │ Prospect │
 └──────────────┘                 └──────────┘
@@ -262,6 +361,11 @@
 ┌──────────┐
 │ Contact  │
 └──────────┘
+
+┌──────────┐  records reasoning   ┌───────────┐   ┌─────────────┐
+│ Decision │──────────────────── │ Prospect  │   │ Opportunity │
+│          │──────────────────── │           │   │             │
+└──────────┘                     └───────────┘   └─────────────┘
 ```
 
 ### Junction Tables

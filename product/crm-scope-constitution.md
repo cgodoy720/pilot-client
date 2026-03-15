@@ -21,9 +21,9 @@ Bedrock must do these 5 things well. Everything else is secondary.
 
 1. **Know who we're talking to and why.** Maintain a clean, deduplicated record of every organization, contact, and prospect — with relationship context (who introduced whom, what's the history, what's the ask).
 
-2. **Track every dollar from possibility to bank account.** Manage the full opportunity lifecycle — from first conversation through proposal, award, invoicing, and payment receipt — with clear stage definitions and ownership.
+2. **Track every dollar from possibility to bank account — and what we owe for it.** Manage the full opportunity lifecycle — from first conversation through proposal, award, invoicing, and payment receipt — with clear stage definitions, ownership, and grant programmatic requirements (reporting schedules, program inputs/outputs/outcomes). No more looking up "what did we promise this funder?" in a Google Doc.
 
-3. **Tell us what to do this week.** Surface time-sensitive actions (grant deadlines, follow-ups, stale deals, pending payments) so the team works on the right things without manually scanning spreadsheets or calendars.
+3. **Tell us what to do this week — and remember why we decided it.** Surface time-sensitive actions (grant deadlines, follow-ups, stale deals, pending payments, upcoming reports) so the team works on the right things. Record the reasoning behind every pursue/pass/deprioritize decision so institutional knowledge survives team turnover.
 
 4. **Show leadership where the money stands.** Provide accurate, up-to-date pipeline value, weighted forecasts, and cash flow projections — broken out by revenue stream (nonprofit grants vs. PBC contracts) — without requiring someone to build a report from scratch.
 

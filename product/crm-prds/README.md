@@ -21,8 +21,10 @@
 | **08 — User Roles & Permissions** | Role definitions, visibility rules, access control | MVP | F42, F43 | Not started |
 | **09 — Salesforce Migration & Sync** | Initial data import, field mapping, transformation rules, validation, ongoing bidirectional sync | MVP | F38, F40, F45 | Partially exists (sync code in `data_sync.py`) |
 | **10 — Weekly Priorities & Tasks** | Weekly view, task CRUD, CSV import, prospect↔grant assignment, notifications | MVP | F09, F10, F11, F12, F13 | Week 1 prototype in progress |
-| **11 — Prospect Intelligence** | Prospect tracker, conversion, network search, scoring, AI enrichment | Post-MVP | F14, F15, F16, F17, F18 | Not started |
+| **11 — Prospect Intelligence** | Prospect tracker, conversion, network search, scoring, intelligence freshness, AI enrichment | Post-MVP | F14, F15, F16, F17, F18, F47 | Not started |
 | **12 — Activity & Interaction Logging** | Manual logging, Slack ingest, timeline view, transcript pipeline | MVP (manual) / Post-MVP (Slack) | F34, F35, F36, F37 | MCP Client exists for Slack |
+| **13 — Grant Programmatic Requirements** | Grant date range, reporting schedule, program inputs/outputs/outcomes, metrics dashboard | MVP (capture) / Post-MVP (reporting) | F49, F50, F51 | Not started |
+| **14 — Decision Audit Trail** | Decision logging with rationale, intelligence snapshot, outcome tracking | MVP | F48 | Not started |
 
 ---
 
