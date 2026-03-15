@@ -96,7 +96,7 @@
 | # | Feature | Role(s) | Entities | Stream | Phase | Dependencies |
 |---|---------|---------|----------|--------|-------|-------------|
 | F34 | **Manual activity logging** (call, email, meeting, note) | Partnerships IC | Activity | Both | MVP | F04 |
-| F35 | **Slack activity ingest** (MCP bot → review queue → Activity) | Partnerships IC | Activity | Both | Post-MVP | F34, Integration #3 |
+| F35 | **Slack pipeline updates** (bot parses → in-thread confirm → Salesforce; unconfirmed → Automation Review queue) | Partnerships IC | Opportunity, Account, Contact, Activity | Both | Post-MVP | F34, Integration #3 |
 | F36 | **Activity timeline** (chronological view per Contact or Opportunity) | Partnerships IC | Activity | Both | MVP | F34 |
 | F37 | **Meeting transcript pipeline** (Fireflies → structured summary) | Partnerships IC | Activity | Both | Backlog | F34, Integration #7 |
 

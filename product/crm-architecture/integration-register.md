@@ -12,7 +12,7 @@
 |---|--------|-----------|-------|--------|
 | 1 | Salesforce | Bidirectional | MVP (Phase 1) | Active — existing integration |
 | 2 | Sage Intacct | Bidirectional | Phase 2 | Not started |
-| 3 | Slack (MCP Client) | Slack → Bedrock | Phase 1 | Active — existing MCP bot |
+| 3 | Slack Bot | Slack → Salesforce (fast path) / Slack → Bedrock queue (slow path) | Phase 1 | Specified; bot architecture defined |
 | 4 | LinkedIn CSV | Import only | Phase 1 | In-browser parsing (no API) |
 | 5 | Prospect Lists (CSV) | Import only | Phase 1 | In-browser parsing |
 | 6 | Google Calendar | Read only | Phase 2+ | Not started |
@@ -121,26 +121,26 @@
 
 ---
 
-### 3. Slack (MCP Client)
+### 3. Slack Bot
 
-**Direction:** Slack → Bedrock (ingest)
+**Direction:** Slack → Salesforce (fast path, on user confirmation) OR Slack → Bedrock Automation Review queue (slow path, for unconfirmed/complex proposals)
 
 **What flows:**
 
 | Data | Source | Target | Processing |
 |------|--------|--------|-----------|
-| Activity updates | Slack messages from team | Activity records in Bedrock | MCP Client parses → proposes structured data → human reviews in Bedrock |
-| Deal updates | Slack messages mentioning deals | Opportunity notes/stage updates (proposed) | Same review queue |
+| Pipeline updates | Slack messages in `#pipeline-updates` | Opportunity, Account, Contact, Payment fields in Salesforce | Bot parses (rule-based + Haiku AI fallback) → proposes in-thread → user confirms → writes to SF |
+| Unconfirmed proposals | Slack proposals that timed out (24hr) or were too complex | Automation Review queue in Bedrock | Flows to queue as pending; user reviews in pipeline meeting |
 
-**Trigger:** Team member posts in designated Slack channel. MCP Client bot processes and proposes Bedrock updates.
+**Trigger:** Message in `#pipeline-updates` channel, OR `@BedrockBot` mention in other channels, OR DM from allowlisted user.
 
-**Frequency:** Real-time (Slack event) → queued for human review.
+**Frequency:** Real-time (Slack Events API / Socket Mode). On confirm → immediate SF write. Unconfirmed → queue after 24hr.
 
-**Conflict resolution:** Nothing is written to Bedrock without human approval via review queue.
+**Conflict resolution:** Nothing is written without human confirmation (Slack button or Automation Review). Confirmed Slack updates are logged as auto-approved in the queue for optional post-hoc review. Concurrent write protection via SF `LastModifiedDate` check.
 
-**Owner:** Engineering (MCP Client in `financial_forecasting/mcp_client/`).
+**Owner:** Engineering (Slack bot; see `product/fundraising-team/phases/slack-data-entry-and-review.md`).
 
-**Current state:** MCP Client Bot exists and logs activities. Review queue for proposed changes is specified but not yet built (see `product/fundraising-team/phases/slack-data-entry-and-review.md`).
+**Current state:** Bot architecture fully specified (two-layer parsing, entity resolution, confirmation flow, security requirements). Automation Review queue specified in `home-page-spec.md` §3.4. Implementation not yet started.
 
 ---
 

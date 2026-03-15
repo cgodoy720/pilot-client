@@ -46,7 +46,7 @@ This list is the most important part of this document. These items are **not** p
 | **Accounting / general ledger** | Bedrock tracks revenue *pipeline*; Sage owns the books | Sage Intacct |
 | **Builder career services / job placements** | Pathfinder domain, not fundraising | Learning platform (Pathfinder module) |
 | **Custom report *builder* (drag-and-drop, SQL)** | Over-engineered for team size; pre-built reports + basic filters are sufficient for MVP and likely long-term | Pre-built dashboards + CSV export |
-| **Real-time Slack bot conversations** | Bedrock *ingests* structured data from Slack; it does not become a chatbot | MCP Client handles Slack interaction; Bedrock provides the review queue |
+| **Real-time Slack conversations** (multi-turn, open-ended chatbot) | The Slack bot is a **structured parser**, not a chatbot — it parses one message into one proposed change with no multi-turn context | Slack bot handles parsing + in-thread confirmation (fast path); Bedrock Automation Review (see `home-page-spec.md` §3.4) handles unconfirmed proposals + automated sources from GCal, GDrive, email, transcripts |
 
 ### Boundary Rule
 

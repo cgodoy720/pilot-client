@@ -35,29 +35,50 @@ Gaps in the current product docs that, if left unspecified, will lead to ambiguo
 
 ---
 
-## 2. Slack-driven data entry & human verification
+## 2. Slack pipeline updates & Automation Review
 
-| Gap | Risk | What to add |
-|-----|------|-------------|
-| **Entity resolution (which record?)** | Parser proposes “update Opportunity X” but “X” is ambiguous. | Define: how the system resolves “which Opportunity/Contact/Account” from message text (e.g. match by name, or require ID/mention). Behavior when multiple matches or zero matches (show in review as “unresolved,” require user to pick or reject). Add “Entity resolution rules” to Slack spec. |
-| **Pending change schema** | No canonical shape; each implementer invents one. | Define: fields for a pending change (e.g. `id`, `source_message_id`, `source_channel`, `entity_type`, `target_id` or `target_name`, `proposed_diff` or `field_updates`, `status`, `created_at`, `resolved_at`, `resolved_by`). Add to Slack spec or data-model. |
-| **Conflict and duplicates** | Two messages for same record, or same message twice. | Define: dedupe (e.g. by message ID); when two pending changes touch the same record/field, show both and let user pick, or “last in wins.” Add to Slack spec. |
-| **Apply failures** | User confirms but Salesforce or Sage API fails. | Define: retry policy; what the user sees (error message, “stays in queue” or “marked failed”); whether they can edit and retry. Add “Failure handling on apply” to Slack spec. |
-| **Which channel / trigger** | “Designated channel or DM” is vague. | Specify: exact channel name(s) or ID(s), or “messages that mention @BedrockBot” or slash command only. Document in Slack spec. |
+Two paths feed into the same guarantee (human confirmation before every write):
 
-### 2.1 Slack – State machine (pending change)
+- **Fast path (Slack bot):** Parse → propose in-thread → confirm via button → write immediately. Logged as auto-approved.
+- **Integration hub (Automation Review):** Unconfirmed Slack proposals + automated sources (GCal, GDrive, Gmail, Fireflies, etc.) → queue → confirm/edit/dismiss → write.
 
-- **States:** `pending` → `confirmed` | `rejected` | `failed` (apply attempted but remote API error). Optionally `editing` (user is editing before confirm).
-- **Transitions:** Only `pending` can transition to `confirmed` / `rejected` / `failed`. Once `confirmed` or `rejected`, record is immutable (no “undo apply” in V1 unless specified). `failed` can transition back to `pending` after user edits and retries, if you allow “edit and retry.”
-- Document in Slack spec; implement and test transitions so no invalid state (e.g. `confirmed` but no `resolved_at`).
+See `slack-data-entry-and-review.md` for bot spec; `home-page-spec.md` §3.4 for Automation Review spec.
 
-### 2.2 Slack – Rigor add-ons
+| Gap | Risk | Resolution |
+|-----|------|------------|
+| **Entity resolution (which record?)** | Parser proposes “update Opportunity X” but “X” is ambiguous. | **Resolved in Slack spec:** fuzzy match against cached SF names (Fuse.js); exact → use; fuzzy >0.8 → propose; multiple → ask user to pick; zero → ask for full name. Context (amount, stage) boosts match. Cache refreshed every 15 min. |
+| **Proposed change schema** | No canonical shape; each implementer invents one. | **Two forms:** (a) Slack thread proposal — ephemeral, 24hr timeout, stored as Slack message metadata. (b) Automation Review queue item — persistent, schema per `home-page-spec.md` §3.4: `id`, `source` (slack/gcal/gdrive/gmail/fireflies), `source_ref` (message_id/event_id/file_id), `entity_type`, `target_id`, `proposed_diff`, `status` (pending/auto-approved/confirmed/dismissed/failed), `created_at`, `resolved_at`, `resolved_by`. |
+| **Conflict and duplicates** | Two messages for same record, or same message twice. | Slack: dedupe by `message_id` (Slack guarantees uniqueness). Queue: dedupe by `entity_type + target_id + source_ref`. When two proposals touch the same record/field, show both chronologically; user picks or edits. |
+| **Apply failures** | User confirms but Salesforce API fails. | Slack path: bot retries in-thread with exponential backoff (2s, 4s, 8s; max 3 attempts); surfaces error after 3 failures with manual SF link. Queue path: item marked `failed`; user can edit and retry. |
+| **Which channel / trigger** | “Designated channel or DM” is vague. | **Resolved in Slack spec:** `#pipeline-updates` (allowlisted, configurable) + `@BedrockBot` mention in other channels + DMs from allowlisted users. |
+| **Concurrent write conflict** | Slack bot and web UI both update same record simultaneously. | On confirm (either path), check SF `LastModifiedDate` against value at parse time. If record changed, re-fetch current values and re-propose diff. |
 
-- **Contract (apply):** Input = `pending_change_id`, optional `field_overrides`. Output success = `{ applied: true, entity_type, target_id }`. Output failure = `ENTITY_NOT_FOUND`, `REMOTE_API_ERROR` (with short message), `VALIDATION_ERROR` (e.g. SF validation failed).
-- **Idempotency:** If apply is retried for the same `pending_change_id` and the change is already `confirmed`, return success and do not call Salesforce/Sage again (or use remote idempotency if available).
-- **Invariants:** Every pending change in `confirmed` has `resolved_at` and `resolved_by`. No pending change in `pending` has `resolved_at` set.
-- **Observability:** Log every ingest (message_id, channel, entity_type proposed) and every apply (pending_change_id, actor, outcome, error_code if failed).
-- **Acceptance criteria (testable):** (1) Message in channel → pending change appears with status `pending`. (2) Confirm → status `confirmed`, Salesforce/Sage updated, audit log has entry. (3) Confirm when SF is down → status `failed`, user sees REMOTE_API_ERROR message; retry after fix succeeds.
+### 2.1 State machines
+
+**Slack path (in-thread):**
+```
+proposed → confirmed (user clicks Confirm → write to SF → auto-approved in queue)
+         → cancelled (user clicks Cancel)
+         → expired (24hr timeout → flows to queue as pending)
+```
+
+**Automation Review path (queue):**
+```
+pending → confirmed (user confirms → write to SF/Sage)
+        → dismissed (user rejects)
+        → failed (SF/Sage API error → user can edit and retry)
+auto-approved → (already written; available for review, skippable)
+```
+
+Invariants: Every item in `confirmed` has `resolved_at` and `resolved_by` set. No item in `pending` has `resolved_at` set. Every `auto-approved` item has `confirmed_at` and a Slack `thread_ts` reference.
+
+### 2.2 Rigor add-ons
+
+- **Contract (Slack confirm):** Input = Slack `thread_ts` + `user_id`. Output success = `{ applied: true, entity_type, target_id, salesforce_url }`. Output failure = `ENTITY_NOT_FOUND`, `REMOTE_API_ERROR`, `VALIDATION_ERROR`, `UNAUTHORIZED`.
+- **Contract (queue confirm):** Input = `queue_item_id`, optional `field_overrides`. Same output shape.
+- **Idempotency:** If confirm is retried for the same `thread_ts` or `queue_item_id` and the change is already applied, return success without calling Salesforce again.
+- **Observability:** Log every ingest (source, source_ref, entity_type proposed) and every apply (item_id, actor, outcome, error_code if failed). No PII beyond Slack user ID and SF record ID.
+- **Acceptance criteria (testable):** (1) Message in `#pipeline-updates` → bot proposes in thread within 2 seconds. (2) Confirm → SF updated, auto-approved item in queue, audit log entry. (3) Confirm when SF is down → bot retries 3×; on final failure, item marked failed, user sees error with manual SF link. (4) Unconfirmed after 24hr → item appears in Automation Review as pending. (5) Concurrent edit detected → bot re-fetches and re-proposes.
 
 ---
 
@@ -126,7 +147,7 @@ Gaps in the current product docs that, if left unspecified, will lead to ambiguo
 
 **Fix first (blocks clean week 1 and Slack):**
 - Week 1: prospect↔grant link, “this week” definition, CSV column mapping and validation.
-- Slack: entity resolution, pending change schema and state machine, which channel/trigger.
+- Slack: entity resolution (resolved), channel/trigger (resolved), proposed change schema, state machines, concurrent write protection.
 
 **Fix before scaling (prevents rework):**
 - Stage enum alignment; ID authority (Salesforce vs local).

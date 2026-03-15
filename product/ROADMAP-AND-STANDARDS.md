@@ -17,7 +17,7 @@ Bedrock vision, **unified platform** (Bedrock lives in the learning platform eve
 | **Week 1** | This repo | Working prototype: import messy prospect/contact spreadsheet + grant deadlines → **actionable weekly priority list** (see below). |
 | **Week 2** | This repo | Pipeline CRM features (Leads tab + enrichment with giving capacity, wealth tier), personal dashboard (Home), network relationship graph (force-directed, LinkedIn CSV import, SF data visualization). Rebrand to “Bedrock.” See `product/fundraising-team/phases/week-2-pipeline-dashboard-network.md`. |
 | **Home page (next)** | This repo | **Customizable home:** calendarized view (day/week/2 weeks) with Google Calendar + matching confirmation; top 5/10/25 prospects by weighted score; Active Comms / Inactive; automation review (weekly). See `product/fundraising-team/phases/home-page-spec.md`. |
-| **Short term** | This repo | **Slack-driven data entry + human verification** (pending changes → weekly review → confirm to DB); **custom reports** (basic prompts + pre-built filters); **Claude API intelligence** (prospect scoring, suggested actions); **Leads in Salesforce** (SF Lead as system of record; see home-page-spec §6.3). |
+| **Short term** | This repo | **Slack-driven pipeline updates** (bot parses → in-thread confirm → Salesforce; unconfirmed → Automation Review queue); **custom reports** (basic prompts + pre-built filters); **Claude API intelligence** (prospect scoring, suggested actions); **Leads in Salesforce** (SF Lead as system of record; see home-page-spec §6.3). |
 | **Medium term** | This repo → learning platform | Bedrock feature-complete here; begin integration: shared auth, API contracts, data model alignment. |
 | **Long term** | Learning platform | Bedrock lives in unified app; one login, one nav; fundraising and learning data coexist with clear boundaries and shared identity. |
 
@@ -35,11 +35,14 @@ Bedrock vision, **unified platform** (Bedrock lives in the learning platform eve
 
 ---
 
-## Slack-driven data entry & human verification
+## Slack-driven pipeline updates & Automation Review
 
-**Goal:** Team posts updates in Slack (messy OK); system proposes changes to Opportunity, Lead, Contact, Account, or Payment (Sage). **Nothing is written to the DB until a human confirms** — required for all entities, critical for Payments.
+**Goal:** Team updates Salesforce from Slack in 3 seconds. A Slack bot parses natural language, proposes a structured change in-thread, and writes on confirmation. **Nothing is written to the DB until a human confirms.**
 
-**Flow:** (1) Ingest from designated channel/DM. (2) Parse message → proposed pending change(s) for the right entity; store in review queue. (3) Weekly (or ad hoc) review in Bedrock: list of proposed updates with original message; **Confirm** (apply to Salesforce/Sage) or **Reject**/Edit. (4) On confirm, write to Salesforce or Sage; log who and when.
+**Two paths, one guarantee:**
+
+- **Fast path (Slack bot):** Team posts in `#pipeline-updates` → bot parses (rule-based, zero cost; AI fallback via Haiku, <$3/month) → proposes change in thread with current→proposed diff → user confirms via Slack button → writes to Salesforce immediately. Confirmed updates are logged as **auto-approved** in the Automation Review queue.
+- **Integration hub (Automation Review):** Unified queue in Bedrock (see `home-page-spec.md` §3.4) for all automated sources: unconfirmed Slack proposals, GCal meeting matches, GDrive document detections, Gmail activity, Fireflies transcript summaries, and future Knowledge Graph / Learning Platform signals. Reviewed weekly (pipeline meeting) or ad hoc. Everything in-line editable.
 
 **Spec:** `product/fundraising-team/phases/slack-data-entry-and-review.md`.
 
