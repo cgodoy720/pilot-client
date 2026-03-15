@@ -58,6 +58,8 @@ interface BedrockResult<T> {
 | `INTERNAL_ERROR` | Unexpected server error | "An unexpected error occurred. Please try again." |
 | `RATE_LIMITED` | External API rate limit hit | "Salesforce API rate limit reached. Retrying in 60 seconds." |
 
+> **Rate limit handling:** On `RATE_LIMITED`, the server queues the operation for retry after 60 seconds. The client should not retry independently — display the message and wait for the queued retry to complete.
+
 ### Authorization Errors
 
 | Code | When | Example Message |
@@ -129,7 +131,7 @@ interface BedrockResult<T> {
 | `assigned_to` | Required | `REQUIRED_FIELD_MISSING` |
 | `type` | Required, must be in task type enum | `REQUIRED_FIELD_MISSING` / `INVALID_ENUM_VALUE` |
 | `status` | Required, must be in task status enum | `REQUIRED_FIELD_MISSING` / `INVALID_ENUM_VALUE` |
-| `opportunity_id` + `lead_id` | At most one may be set (not both) | `CONSTRAINT_VIOLATION` |
+| `opportunity_id` + `prospect_id` | At most one may be set (not both) | `CONSTRAINT_VIOLATION` |
 
 ---
 
@@ -182,4 +184,7 @@ Same per-record failure and retry policy as Salesforce. Sage wins on payment dat
 
 - **UI error display patterns** (toasts, inline, modal) — defined per-component in PRDs.
 - **Logging format** — defined in engineering docs, not product architecture.
-- **PII in error messages** — errors must never include donor financial details, wealth tier, or composite scores. Names and emails are acceptable in validation messages shown only to the user who entered the data.
+- **PII in error messages** — three rules:
+  1. **Never include** donor financial details, wealth tier, or composite scores in any error message.
+  2. **User-facing validation** (shown only to the user who entered the data): names and emails are acceptable. Example: "Contact 'Sarah Chen' may duplicate an existing record."
+  3. **Shared contexts** (admin dashboards, sync logs, audit trails, error queues visible to other users): use entity IDs only, never names or emails. Example: "Sync failed for contact-sarah-chen" — not "Sync failed for Sarah Chen (sarah@example.com)".

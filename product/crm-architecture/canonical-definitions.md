@@ -60,8 +60,10 @@ Use these exact names in all code, specs, and docs. No aliases.
 | `expected_date` | date | `due_date` (on Payment), `payment_date` | When a Payment is expected (Task uses `due_date`) |
 | `received_date` | date | `payment_received_date`, `actual_date` | When a Payment was actually received |
 | `primary_contact_id` | string | `contact_id` (on Opportunity), `main_contact` | The main contact on an Opportunity |
-| `contact_id` | string | `person_id`, `contact` | Reference to a Contact (on Activity, Lead, etc.) |
+| `contact_id` | string | `person_id`, `contact` | Reference to a Contact (on Activity, Prospect, etc.) |
 | `opportunity_id` | string | `opp_id`, `deal_id` | Reference to an Opportunity |
+| `prospect_id` | string | `lead_id`, `leadId` | Reference to a Prospect (renamed from Lead) |
+| `amount` | number | `payment_amount`, `pay_amount` | Amount of a single Payment (distinct from Opportunity's `amount_estimated`/`amount_confirmed`) |
 | `due_date` | date | `deadline`, `dueDate` | When a Task is due |
 | `created_at` | datetime | `created`, `createdAt`, `create_date` | |
 | `updated_at` | datetime | `updated`, `updatedAt`, `update_date` | |
@@ -76,13 +78,13 @@ Use these exact names in all code, specs, and docs. No aliases.
 | Contact | `contact-{slug}` | `contact-sarah-chen` | Bedrock; slug from `first_name-last_name` |
 | Opportunity | `opp-{year}-{nnn}` | `opp-2026-003` | Bedrock; sequential per year |
 | Payment | `pay-{year}-{nnn}` | `pay-2026-012` | Bedrock; sequential per year |
-| Prospect (Lead) | `prospect-{year}-{nnn}` | `prospect-2026-042` | Bedrock; sequential per year |
+| Prospect | `prospect-{year}-{nnn}` | `prospect-2026-042` | Bedrock; sequential per year |
 | Task | `task-{year}-{nnn}` | `task-2026-007` | Bedrock |
 | Activity | `act-{year}-{nnn}` | `act-2026-015` | Bedrock |
 | User | `user-{slug}` | `user-jac-reynolds` | Bedrock / Learning platform |
 | NetworkMatch | `match-{contact-slug}-{source}` | `match-sarah-chen-hnwi-2026` | Bedrock |
 
-**Week-1 prototype exception:** `prospect-{Date.now()}-{index}` is acceptable for the week-1 prototype only. Production IDs must follow the canonical pattern above.
+**Week-1 prototype exception:** The week-1 CSV import uses `prospect-{Date.now()}-{index}` for simplicity (no backend counter). Before production, migrate to sequential `prospect-{year}-{nnn}` IDs with a server-side counter. Do not mix both formats in the same dataset.
 
 ### ID Authority Rules
 
@@ -97,11 +99,11 @@ Use these exact names in all code, specs, and docs. No aliases.
 
 | Term | Definition | Used In |
 |------|-----------|---------|
-| **"This week"** | Next 7 calendar days from today, inclusive: `[today, today + 6]` | Weekly priorities view, task notifications |
-| **"Stale"** (opportunity) | No Activity logged AND no stage change in the last 30 calendar days | Stale detection (F06) |
-| **"Stale"** (task) | Due date has passed AND status is not `completed` or `cancelled` | Task notifications (F13) |
-| **"Overdue"** (payment) | `expected_date < today` AND `status` ∉ {`received`, `cancelled`} | Payment tracking (F28), overdue alerts (F31) |
-| **"Concentration risk"** | Any single Account represents >30% of total weighted pipeline | Executive dashboard alert (F24) |
+| **"This week"** | Next 7 calendar days from today, inclusive: `[today, today + 6]` — 7 days total. If today is Monday, "this week" = Mon–Sun. | Weekly priorities view, task notifications |
+| **"Stale"** (opportunity) | No Activity logged AND no stage change in the last 30 calendar days. Computed on-demand (not a stored field). | Stale detection (F06) |
+| **"Stale"** (task) | `due_date < today` AND `status` ∉ {`completed`, `cancelled`}. Computed on-demand. | Task notifications (F13) |
+| **"Overdue"** (payment) | `expected_date < today` AND `status` ∉ {`received`, `cancelled`}. Auto-set to `overdue` by nightly job or on sync trigger. | Payment tracking (F28), overdue alerts (F31) |
+| **"Concentration risk"** | Any single Account represents >30% of total weighted pipeline. Computed on-demand for dashboard. | Executive dashboard alert (F24) |
 
 ---
 
@@ -132,10 +134,10 @@ See Section 1 above.
 | `scheduled` | Payment expected; not yet invoiced | (initial) |
 | `invoiced` | Invoice sent to funder | `scheduled` |
 | `received` | Payment received and confirmed | `invoiced` or `scheduled` |
-| `overdue` | Past expected_date, not received | `scheduled` or `invoiced` (auto-set) |
+| `overdue` | Past expected_date, not received | `scheduled` or `invoiced` (auto-set by nightly job or sync trigger) |
 | `cancelled` | Payment will not be received | any |
 
-### Prospect (Lead) Status
+### Prospect Status
 
 | Value | Meaning |
 |-------|---------|
@@ -169,7 +171,9 @@ See Section 1 above.
 | `prospect-list` | Imported from external prospect/HNWI list |
 | `slack-ingest` | Created from Slack activity (via MCP) |
 
-### Prospect (Lead) Source
+### Prospect Source
+
+Tracks *how the fundraising opportunity was discovered* — orthogonal to Contact source (which tracks *where the person record came from*). A Contact with source `prospect-list` may become a Prospect with source `network-search-hit` — these are independent facts.
 
 | Value | Meaning |
 |-------|---------|

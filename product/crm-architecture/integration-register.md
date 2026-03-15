@@ -133,10 +133,12 @@
 
 **Current state:** Not started. Phase 2. Requires Sage API access and credential setup.
 
-**Open questions:**
+**Open questions (must resolve before Phase 2 development starts):**
 - Which Sage API version? REST or SDK?
 - What's the invoice creation workflow in Sage — can we push directly or does bookkeeper review in Sage first?
 - How to handle partial payments (e.g., milestone-based grants)?
+
+**Owner:** Engineering + Finance. **Target resolution:** Before Phase 2 sprint planning.
 
 ---
 

@@ -38,10 +38,10 @@
 | F09 | **Weekly priorities view** (next 7 days: deadlines, tasks, follow-ups) | Partnerships IC | Task, Opportunity | Both | MVP | F01, F12 |
 | F10 | **CSV prospect import** (upload, map columns, validate, create Contacts) | Partnerships IC | Contact | N/A | MVP | F04 |
 | F11 | **Prospect-to-grant assignment** (link imported prospect to Opportunity) | Partnerships IC | Contact, Opportunity | Both | MVP | F10, F01 |
-| F12 | **Task CRUD** (create, assign, due date, link to Opp/Lead) | Partnerships IC | Task | Both | MVP | — |
+| F12 | **Task CRUD** (create, assign, due date, link to Opp/Prospect) | Partnerships IC | Task | Both | MVP | — |
 | F13 | **Task notifications** (due today, overdue) | Partnerships IC | Task | Both | Post-MVP | F12 |
 
-### Prospect Management (formerly "Lead")
+### Prospect Management
 
 | # | Feature | Role(s) | Entities | Stream | Phase | Dependencies |
 |---|---------|---------|----------|--------|-------|-------------|
@@ -56,7 +56,7 @@
 | # | Feature | Role(s) | Entities | Stream | Phase | Dependencies |
 |---|---------|---------|----------|--------|-------|-------------|
 | F19 | **Executive dashboard** (total pipeline, weighted pipeline, cash flow by quarter) | Executive | Opportunity, Payment | Both | MVP | F01 |
-| F20 | **Cash flow projection** (weighted pipeline + scheduled payments + received) | Executive, Finance | Opportunity, Payment | Both | MVP | F01, F22 |
+| F20 | **Cash flow projection** (weighted pipeline + scheduled payments + received) | Executive, Finance | Opportunity, Payment | Both | MVP | F01 |
 | F21 | **Revenue by stream report** (nonprofit vs. PBC breakdown) | Executive | Opportunity | Both | MVP | F01 |
 | F22 | **Win rate & deal metrics** (trailing 12-month, by IC, by Account) | Executive | Opportunity | Both | Post-MVP | F01 |
 | F23 | **Campaign performance report** (group by `campaign_name`; MVP uses string field, not Campaign entity) | Executive, Partnerships IC | Opportunity, Payment | Both | Post-MVP | F27, F01 |
@@ -127,6 +127,29 @@
 ### MVP Feature List (for quick reference)
 
 F01, F02, F03, F04, F05, F06, F09, F10, F11, F12, F19, F20, F21, F25, F34, F36, F38, F42, F45
+
+### MVP Critical Path (build order)
+
+```
+F42 (RBAC)  ─────────────────────────────────────────┐
+F03 (Accounts) → F04 (Contacts) → F01 (Opps) ──────┤
+                                       │             │
+                                       ├──► F02 (Pipeline view)
+                                       ├──► F05 (Stage progression)
+                                       ├──► F06 (Stale detection)
+                                       ├──► F19 (Exec dashboard) → F20 (Cash flow) → F21 (Revenue by stream) → F25 (CSV export)
+                                       │
+F12 (Tasks) ──────► F09 (Weekly priorities)
+                         │
+F10 (CSV import) → F11 (Prospect-to-grant)
+                         │
+F34 (Activity log) → F36 (Activity timeline)
+                         │
+F38 (SF sync) → F45 (SF migration)  ← start early; unblocks real data
+```
+
+**Start with:** F03 + F04 (Accounts/Contacts) and F38 (Salesforce sync) in parallel.
+**Ship first:** F09 + F10 + F11 (Weekly Priorities — the week-1 prototype).
 
 ---
 

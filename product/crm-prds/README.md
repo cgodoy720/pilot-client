@@ -21,7 +21,7 @@
 | **08 — User Roles & Permissions** | Role definitions, visibility rules, access control | MVP | F42, F43 | Not started |
 | **09 — Salesforce Migration & Sync** | Initial data import, field mapping, transformation rules, validation, ongoing bidirectional sync | MVP | F38, F40, F45 | Partially exists (sync code in `data_sync.py`) |
 | **10 — Weekly Priorities & Tasks** | Weekly view, task CRUD, CSV import, prospect↔grant assignment, notifications | MVP | F09, F10, F11, F12, F13 | Week 1 prototype in progress |
-| **11 — Prospect Intelligence** | Prospect tracker, conversion, network search, scoring, AI enrichment (entity renamed from "Lead" to "Prospect") | Post-MVP | F14, F15, F16, F17, F18 | Not started |
+| **11 — Prospect Intelligence** | Prospect tracker, conversion, network search, scoring, AI enrichment | Post-MVP | F14, F15, F16, F17, F18 | Not started |
 | **12 — Activity & Interaction Logging** | Manual logging, Slack ingest, timeline view, transcript pipeline | MVP (manual) / Post-MVP (Slack) | F34, F35, F36, F37 | MCP Client exists for Slack |
 
 ---
@@ -39,7 +39,7 @@
 9. **PRD 04 — Payments & Revenue Tracking** (Phase 2 gated on Sage)
 10. **PRD 07 — Sage Integration** (Phase 2)
 11. **PRD 05 — Campaign Management** (post-MVP)
-12. **PRD 11 — Lead & Prospect Intelligence** (post-MVP)
+12. **PRD 11 — Prospect Intelligence** (post-MVP)
 
 ---
 

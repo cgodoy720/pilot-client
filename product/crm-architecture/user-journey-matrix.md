@@ -16,6 +16,8 @@
 | **Program Staff** | Program leads | 2–3 | Know which grants fund their programs, report on deliverables |
 | **Admin** | System administrator | 1 | Data quality, user management, integration health |
 
+> **MVP focus:** Partnerships IC and Executive are the primary roles. Finance is Phase 2. Program Staff is Post-MVP. Admin is needed for data quality and sync monitoring but with minimal custom UI in MVP.
+
 ---
 
 ## Role × Journey Matrix

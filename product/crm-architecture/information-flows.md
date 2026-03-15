@@ -75,53 +75,45 @@
 
 ## Flow 2: Campaign → Revenue
 
-**How a fundraising campaign connects to Opportunities, Contacts, and Payments.**
+> **Post-MVP flow.** In MVP, Campaign is a `campaign_name` string on Opportunity — no Campaign entity, no junction tables. This flow describes the Post-MVP target if Campaign is promoted to a full entity. See `entity-map.md` Section 5.
+
+**MVP version:** IC sets `campaign_name` on Opportunity at creation. Reports group Opportunities by `campaign_name`. No CRUD, no linking, no attribution logic.
+
+**Post-MVP version (if Campaign becomes a full entity):**
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        CAMPAIGN TO REVENUE                                  │
+│                    CAMPAIGN TO REVENUE (Post-MVP)                            │
 │                                                                             │
-│  Campaign Lead              Bedrock                      Reporting          │
+│  Campaign Owner             Bedrock                      Reporting          │
 │  ─────────────             ────────                     ─────────           │
 │                                                                             │
-│  1. Plan campaign    ───►  Create Campaign                                  │
-│     (annual fund,          Set goal, dates,                                 │
-│      gala, corp drive)     assigned_to                                      │
+│  1. Plan campaign    ───►  Create Campaign entity                           │
+│     (annual fund,          Set goal, dates                                  │
+│      gala, corp drive)                                                      │
 │                                                                             │
-│  2. Identify targets ───►  Link existing Contacts                           │
-│                            to Campaign                                      │
+│  2. Identify targets ───►  Link Contacts to Campaign                        │
 │                            Create Prospects for new                         │
 │                            prospects                                        │
 │                                                                             │
 │  3. Outreach begins  ───►  Log Activities                                   │
-│     (calls, events,        (type: call/meeting/email)                       │
-│      proposals)            Create Opportunities                             │
-│                            Link via CampaignOpp                             │
+│     (calls, events,        Create Opportunities                             │
+│      proposals)            Link via Campaign junction                       │
 │                                                                             │
 │  4. Pipeline builds  ───►  Opportunities progress       Campaign dashboard: │
 │                            through stages                goal vs. pipeline  │
-│                                                          vs. closed         │
 │                                                                             │
 │  5. Deals close      ───►  Opportunity: closed-won      Revenue attributed  │
 │                            Payments scheduled            to Campaign         │
 │                                                                             │
-│  6. Money received   ───►  Payments: received            Campaign ROI:      │
-│                                                          goal vs. actual    │
-│                                                          cost vs. return    │
-│                                                                             │
-│  7. Campaign ends    ───►  Status: completed             Final report:      │
-│                                                          contacts reached,  │
-│                                                          opps created,      │
-│                                                          revenue closed,    │
-│                                                          payments received  │
+│  6. Campaign ends    ───►  Status: completed             Final report       │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Campaign Attribution Model
+### Campaign Attribution (Post-MVP Only)
 
-- A Campaign **influences** Opportunities (many-to-many via CampaignOpportunity).
-- Revenue is attributed to a Campaign when an associated Opportunity reaches closed-won.
-- If an Opportunity is linked to multiple Campaigns, revenue is attributed to **all** (for reporting purposes — not double-counted in total pipeline).
+- Revenue is attributed to a Campaign when a linked Opportunity reaches closed-won.
+- If an Opportunity links to multiple Campaigns, revenue is attributed to all (for reporting — not double-counted in total pipeline).
 - Campaign ROI = Total Payments Received from Linked Opps / Campaign Cost (if tracked).
 
 ---
