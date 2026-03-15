@@ -40,6 +40,9 @@ load_dotenv(override=False)
 
 # Import config
 from config import SALESFORCE_CONFIG
+from models import OpportunityStage, OPEN_STAGES, CLOSED_STAGES, COLLECTING_STAGES
+
+VALID_STAGES = {s.value for s in OpportunityStage}
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -1345,18 +1348,19 @@ async def get_dashboard(date_range_days: int = 90, scenario: str = "realistic"):
         # Calculate metrics
         total_pipeline = sum(float(opp.get('Amount') or 0) for opp in opportunities)
         
-        open_opps = [opp for opp in opportunities 
-                     if 'Closed' not in opp.get('StageName', '') 
-                     and 'Withdrawn' not in opp.get('StageName', '')]
+        _closed_values = {s.value for s in CLOSED_STAGES}
+        open_opps = [opp for opp in opportunities
+                     if opp.get('StageName', '') not in _closed_values]
         
         weighted_pipeline = sum(
             float(opp.get('Amount') or 0) * (float(opp.get('Probability') or 0) / 100)
             for opp in open_opps
         )
         
-        closed_won = [opp for opp in opportunities 
-                      if 'Closed Won' in opp.get('StageName', '') 
-                      or 'Completed' in opp.get('StageName', '')]
+        closed_won = [opp for opp in opportunities
+                      if opp.get('StageName', '') in (
+                          OpportunityStage.CLOSED_COMPLETED.value,
+                          OpportunityStage.COLLECTING.value)]
         
         avg_deal_size = sum(float(opp.get('Amount') or 0) for opp in closed_won) / max(len(closed_won), 1)
         win_rate = len(closed_won) / max(len(opportunities), 1)
@@ -3689,22 +3693,27 @@ async def search_opportunities(
             
             # Stage weighting (30% weight) - heavily favor won/collecting but allow others
             stage = opp.get('StageName', '')
-            if 'Collecting' in stage or 'In Effect' in stage:
+            _collecting_values = {s.value for s in COLLECTING_STAGES}
+            _closed_values = {s.value for s in CLOSED_STAGES}
+            _open_values = {s.value for s in OPEN_STAGES}
+            if stage in _collecting_values:
                 score += 30  # Maximum bonus for active collection
                 explanation['stage_bonus'] = '🟢 Active collection'
-            elif 'Closed / Completed' in stage:
-                score += 20
-                explanation['stage_bonus'] = '✓ Completed'
-            elif 'Closed Won' in stage:
+            elif stage == OpportunityStage.CLOSED_COMPLETED.value:
                 score += 25
-                explanation['stage_bonus'] = '✓ Won (not yet collecting)'
-            elif 'Closed Lost' in stage or 'Withdrawn' in stage:
+                explanation['stage_bonus'] = '✓ Completed'
+            elif stage in (OpportunityStage.CLOSED_LOST.value,
+                           OpportunityStage.CLOSED_DID_NOT_FULFILL.value,
+                           OpportunityStage.WITHDRAWN.value):
                 score -= 20  # Penalty for closed/lost
                 explanation['stage_bonus'] = '❌ Closed/Lost'
-            else:
+            elif stage in _open_values:
                 # Open pipeline stages - show but don't recommend
                 score -= 10  # Slight penalty
                 explanation['stage_bonus'] = '⚠️ Open pipeline (not yet won)'
+            else:
+                score -= 10
+                explanation['stage_bonus'] = '⚠️ Unknown stage'
             
             return score, explanation
         
@@ -3868,14 +3877,14 @@ async def get_awaiting_invoices():
         sf = get_salesforce()
         
         # Query for payments that need invoices
-        query = """
+        query = f"""
         SELECT Id, npe01__Payment_Amount__c, npe01__Scheduled_Date__c, npe01__Paid__c,
-               npe01__Opportunity__c, npe01__Opportunity__r.Name, 
+               npe01__Opportunity__c, npe01__Opportunity__r.Name,
                npe01__Opportunity__r.Account.Name, npe01__Opportunity__r.CloseDate,
                npe01__Opportunity__r.Owner.Name, npe01__Opportunity__r.StageName,
                Invoice__c
         FROM npe01__OppPayment__c
-        WHERE npe01__Opportunity__r.StageName = 'Collecting / In Effect'
+        WHERE npe01__Opportunity__r.StageName = '{OpportunityStage.COLLECTING.value}'
         AND Invoice__c = null
         AND npe01__Paid__c = false
         ORDER BY npe01__Scheduled_Date__c ASC
@@ -4144,7 +4153,7 @@ def sync_invoice_payments_from_sage():
             if all_payments and all(p.get('npe01__Paid__c') for p in all_payments):
                 # All payments paid! Complete the opportunity
                 sf.Opportunity.update(opp_id, {
-                    'StageName': 'Closed / Completed'
+                    'StageName': OpportunityStage.CLOSED_COMPLETED.value
                 })
                 opps_completed_count += 1
                 logger.info(f"   🎉 Opportunity {opp_id} COMPLETED (all payments received)")
@@ -5215,7 +5224,7 @@ async def validate_stage_change(request: dict, http_request: Request = None):
         opp_id = request.get('opportunity_id')
         new_stage = request.get('new_stage')
         
-        if new_stage != 'Collecting / In Effect':
+        if new_stage != OpportunityStage.COLLECTING.value:
             return {"success": True, "can_proceed": True}
         
         # Get opportunity
@@ -5247,7 +5256,7 @@ async def validate_stage_change(request: dict, http_request: Request = None):
                 "success": False,
                 "can_proceed": False,
                 "error": "Payment schedule required",
-                "message": f"Cannot move to 'Collecting / In Effect' without a payment schedule.\n\nPlease create a payment schedule for this ${opp_amount:,.0f} opportunity first.\n\nGo to Salesforce → Opportunity → Related → Payments → New",
+                "message": f"Cannot move to '{OpportunityStage.COLLECTING.value}' without a payment schedule.\n\nPlease create a payment schedule for this ${opp_amount:,.0f} opportunity first.\n\nGo to Salesforce \u2192 Opportunity \u2192 Related \u2192 Payments \u2192 New",
                 "action_required": "create_payment_schedule"
             }
         

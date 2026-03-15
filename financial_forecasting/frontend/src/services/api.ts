@@ -3,6 +3,7 @@
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
+import type { OpportunityCreatePayload, OpportunityUpdatePayload } from '../types/api';
 
 // Create axios instance with default config
 const api: AxiosInstance = axios.create({
@@ -54,10 +55,10 @@ export const apiService = {
   servicesHealth: () => api.get('/health/services'),
 
   // Salesforce - Opportunities
-  getOpportunities: (params?: { stage?: string; stages?: string[]; limit?: number; record_type?: string; opp_type?: string; active_only?: boolean }) =>
+  getOpportunities: (params?: { stage?: string; stages?: readonly string[]; limit?: number; record_type?: string; opp_type?: string; active_only?: boolean }) =>
     api.get('/api/salesforce/opportunities', {
       params,
-      paramsSerializer: (p: Record<string, any>) => {
+      paramsSerializer: (p: Record<string, string | string[] | number | boolean | undefined | null>) => {
         const sp = new URLSearchParams();
         Object.entries(p).forEach(([k, v]) => {
           if (Array.isArray(v)) v.forEach(i => sp.append(k, i));
@@ -67,17 +68,17 @@ export const apiService = {
       },
     }),
   
-  createOpportunity: (data: any) =>
+  createOpportunity: (data: OpportunityCreatePayload) =>
     api.post('/api/salesforce/opportunities', data),
-  
-  updateOpportunity: (opportunityId: string, updates: any) =>
+
+  updateOpportunity: (opportunityId: string, updates: Record<string, string | number | boolean | null>) =>
     api.put(`/api/salesforce/opportunities/${opportunityId}`, {
       opportunity_id: opportunityId,
       updates,
       reason: 'Updated via Revenue Hub'
-    }),
+    } satisfies OpportunityUpdatePayload),
 
-  bulkUpdateOpportunities: (opportunityIds: string[], updates: any) =>
+  bulkUpdateOpportunities: (opportunityIds: string[], updates: Record<string, string | number | boolean | null>) =>
     api.put('/api/salesforce/opportunities/bulk-update', {
       opportunity_ids: opportunityIds,
       updates

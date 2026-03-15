@@ -12,10 +12,90 @@ import logging
 from models import (
     SalesforceOpportunity, SalesforceAccount, IntacctInvoice, IntacctPayment,
     PaymentForecast, CashFlowProjection, ForecastingMetrics, ForecastingReport,
-    ForecastScenario, ForecastingDashboardData, OpportunityStage, PaymentTerms
+    ForecastScenario, ForecastingDashboardData, OpportunityStage, PaymentTerms,
+    OPEN_STAGES, CLOSED_STAGES,
 )
 
 logger = logging.getLogger(__name__)
+
+
+# ── Pure calculation functions (no I/O, easy to test) ────────────────────────
+
+def calculate_weighted_pipeline(opportunities: List[Dict[str, Any]]) -> Decimal:
+    """Sum of amount * probability for a list of raw opportunity dicts."""
+    return sum(
+        Decimal(str(opp.get("Amount", 0))) * (Decimal(str(opp.get("Probability", 0))) / 100)
+        for opp in opportunities
+    )
+
+
+def calculate_expected_revenue_in_window(
+    opportunities: List[Dict[str, Any]],
+    today: date,
+    days: int,
+) -> Decimal:
+    """Weighted revenue from opportunities closing within `days` of `today`."""
+    cutoff = today + timedelta(days=days)
+    total = Decimal('0')
+    for opp in opportunities:
+        close_str = opp.get("CloseDate")
+        if not close_str:
+            continue
+        close = datetime.strptime(close_str, '%Y-%m-%d').date()
+        if close <= cutoff:
+            amount = Decimal(str(opp.get("Amount", 0)))
+            prob = Decimal(str(opp.get("Probability", 0))) / 100
+            total += amount * prob
+    return total
+
+
+def identify_risk_factors(
+    opp: Dict[str, Any],
+    stage: OpportunityStage,
+    close_date: date,
+    amount: Decimal,
+    account_win_rate: Optional[float],
+    today: date,
+) -> List[str]:
+    """Pure risk-factor identification — no I/O."""
+    risks: List[str] = []
+    days_to_close = (close_date - today).days
+
+    if days_to_close < 0:
+        risks.append("Overdue close date")
+    elif days_to_close < 7:
+        risks.append("Close date within 1 week")
+
+    if stage in [OpportunityStage.LEAD_GEN, OpportunityStage.NEW_LEAD, OpportunityStage.QUALIFYING] and days_to_close < 30:
+        risks.append("Early stage with near-term close date")
+
+    if amount > Decimal('100000'):
+        risks.append("Large deal size")
+
+    if account_win_rate is not None and account_win_rate < 0.3:
+        risks.append("Low historical win rate for account")
+
+    payment_terms_str = opp.get("Payment_Terms__c", "Net 30")
+    if payment_terms_str in ["Net 60", "Net 90"]:
+        risks.append("Extended payment terms")
+
+    return risks
+
+
+# ── Configuration / Assumptions ──────────────────────────────────────────────
+
+class ForecastAssumptions:
+    """Explicit assumptions used when real data is unavailable.
+
+    Every number here is a best-guess default.  Making them visible (rather than
+    hiding them inside helper methods) lets callers know where real data ends and
+    assumptions begin.
+    """
+    DEFAULT_CASH_POSITION = Decimal('50000')
+    DEFAULT_MONTHLY_EXPENSES = Decimal('25000')
+    DEFAULT_AVG_PAYMENT_DELAY_DAYS = 8
+    DEFAULT_CASH_CONVERSION_CYCLE_DAYS = 45
+    DEFAULT_COLLECTION_RATE = 0.85
 
 
 class ForecastingEngine:
@@ -26,18 +106,21 @@ class ForecastingEngine:
         self.historical_data_cache = {}
         self.last_cache_update = None
         
-        # Forecasting parameters (can be made configurable)
+        # Forecasting parameters — stage probabilities reflect Pursuit's pipeline
         self.stage_probabilities = {
-            OpportunityStage.PROSPECTING: 0.1,
-            OpportunityStage.QUALIFICATION: 0.2,
-            OpportunityStage.NEEDS_ANALYSIS: 0.3,
-            OpportunityStage.VALUE_PROPOSITION: 0.4,
-            OpportunityStage.ID_DECISION_MAKERS: 0.5,
-            OpportunityStage.PERCEPTION_ANALYSIS: 0.6,
-            OpportunityStage.PROPOSAL_PRICE_QUOTE: 0.7,
-            OpportunityStage.NEGOTIATION_REVIEW: 0.8,
-            OpportunityStage.CLOSED_WON: 1.0,
+            OpportunityStage.NONE: 0.0,
+            OpportunityStage.LEAD_GEN: 0.05,
+            OpportunityStage.NEW_LEAD: 0.10,
+            OpportunityStage.QUALIFYING: 0.20,
+            OpportunityStage.DESIGN_PROPOSAL: 0.40,
+            OpportunityStage.PROPOSAL_NEGOTIATION: 0.55,
+            OpportunityStage.CONTRACT_CREATION: 0.70,
+            OpportunityStage.NEGOTIATING_CONTRACT: 0.80,
+            OpportunityStage.COLLECTING: 0.95,
+            OpportunityStage.CLOSED_COMPLETED: 1.0,
+            OpportunityStage.CLOSED_DID_NOT_FULFILL: 0.0,
             OpportunityStage.CLOSED_LOST: 0.0,
+            OpportunityStage.WITHDRAWN: 0.0,
         }
         
         self.payment_term_days = {
@@ -84,7 +167,7 @@ class ForecastingEngine:
             logger.info("Loading historical data for forecasting...")
             
             # Load Salesforce data
-            salesforce = self.mcp_client.services["salesforce"]
+            salesforce = self.mcp_client.salesforce
             
             # Get closed opportunities from last 2 years for historical analysis
             two_years_ago = (date.today() - timedelta(days=730)).strftime('%Y-%m-%d')
@@ -93,7 +176,7 @@ class ForecastingEngine:
             SELECT Id, AccountId, Name, StageName, Amount, Probability, CloseDate,
                    CreatedDate, Payment_Terms__c, Contract_Start_Date__c
             FROM Opportunity
-            WHERE CloseDate >= {two_years_ago} AND StageName IN ('Closed Won', 'Closed Lost')
+            WHERE CloseDate >= {two_years_ago} AND StageName IN ('Closed / Completed', 'Closed / Did not Fulfill', 'Closed Lost', 'Withdrawn')
             ORDER BY CloseDate DESC
             LIMIT 1000
             """
@@ -101,7 +184,7 @@ class ForecastingEngine:
             closed_opps_result = await salesforce.query(closed_opps_query)
             
             # Load Sage Intacct data
-            intacct = self.mcp_client.services["sage_intacct"]
+            intacct = self.mcp_client.sage_intacct
             
             # Get invoices and payments from last year
             one_year_ago = (date.today() - timedelta(days=365)).strftime('%Y-%m-%d')
@@ -142,13 +225,13 @@ class ForecastingEngine:
         
         try:
             # Get open opportunities
-            salesforce = self.mcp_client.services["salesforce"]
+            salesforce = self.mcp_client.salesforce
             
             open_opps_query = f"""
             SELECT Id, AccountId, Account.Name, Name, StageName, Amount, Probability, 
                    CloseDate, Payment_Terms__c, Contract_Start_Date__c
             FROM Opportunity
-            WHERE StageName NOT IN ('Closed Won', 'Closed Lost') 
+            WHERE StageName NOT IN ('Closed / Completed', 'Closed / Did not Fulfill', 'Closed Lost', 'Withdrawn') 
             AND Probability >= {min_probability}
             AND CloseDate <= {(date.today() + timedelta(days=days_ahead)).strftime('%Y-%m-%d')}
             ORDER BY CloseDate ASC
@@ -267,7 +350,7 @@ class ForecastingEngine:
             if len(account_opps) < 3:  # Need at least 3 data points
                 return None
             
-            won_count = sum(1 for opp in account_opps if opp.get("StageName") == "Closed Won")
+            won_count = sum(1 for opp in account_opps if opp.get("StageName") == "Closed / Completed")
             return won_count / len(account_opps)
             
         except Exception as e:
@@ -303,46 +386,20 @@ class ForecastingEngine:
             return 1.0
 
     def _identify_risk_factors(
-        self, 
-        opp: Dict[str, Any], 
-        stage: OpportunityStage, 
-        close_date: date, 
-        amount: Decimal, 
+        self,
+        opp: Dict[str, Any],
+        stage: OpportunityStage,
+        close_date: date,
+        amount: Decimal,
         account_id: str
     ) -> List[str]:
-        """Identify risk factors for an opportunity."""
-        risk_factors = []
-        
+        """Delegates to the pure `identify_risk_factors` function."""
         try:
-            # Time-based risks
-            days_to_close = (close_date - date.today()).days
-            if days_to_close < 0:
-                risk_factors.append("Overdue close date")
-            elif days_to_close < 7:
-                risk_factors.append("Close date within 1 week")
-            
-            # Stage vs. time risk
-            if stage in [OpportunityStage.PROSPECTING, OpportunityStage.QUALIFICATION] and days_to_close < 30:
-                risk_factors.append("Early stage with near-term close date")
-            
-            # Large deal risk
-            if amount > Decimal('100000'):
-                risk_factors.append("Large deal size")
-            
-            # Historical account performance
             account_win_rate = self._get_account_historical_win_rate(account_id)
-            if account_win_rate is not None and account_win_rate < 0.3:
-                risk_factors.append("Low historical win rate for account")
-            
-            # Payment terms risk
-            payment_terms_str = opp.get("Payment_Terms__c", "Net 30")
-            if payment_terms_str in ["Net 60", "Net 90"]:
-                risk_factors.append("Extended payment terms")
-            
+            return identify_risk_factors(opp, stage, close_date, amount, account_win_rate, date.today())
         except Exception as e:
             logger.warning(f"Error identifying risk factors: {e}")
-        
-        return risk_factors
+            return []
 
     async def generate_cash_flow_projections(self, months_ahead: int = 6) -> List[CashFlowProjection]:
         """Generate cash flow projections by month."""
@@ -408,27 +465,30 @@ class ForecastingEngine:
             return []
 
     async def _get_current_cash_position(self) -> Decimal:
-        """Get current cash position from Sage Intacct."""
+        """Get current cash position from Sage Intacct.
+
+        Falls back to ForecastAssumptions.DEFAULT_CASH_POSITION when real data
+        is unavailable.
+        """
         try:
-            intacct = self.mcp_client.services["sage_intacct"]
-            
-            # Get cash accounts
+            intacct = self.mcp_client.sage_intacct
             result = await intacct.get_financial_metrics()
-            
             if result.get("success") and result.get("data"):
-                # Sum up cash accounts (simplified)
-                return Decimal('50000')  # Placeholder - would calculate from actual data
-            
-            return Decimal('0')
-            
+                # TODO: calculate from actual GL cash accounts once Intacct returns real balances
+                logger.info("Using default cash position assumption (Intacct integration pending)")
+                return ForecastAssumptions.DEFAULT_CASH_POSITION
+            return ForecastAssumptions.DEFAULT_CASH_POSITION
         except Exception as e:
-            logger.warning(f"Error getting cash position: {e}")
-            return Decimal('50000')  # Default placeholder
+            logger.warning(f"Error getting cash position, using assumption: {e}")
+            return ForecastAssumptions.DEFAULT_CASH_POSITION
 
     async def _estimate_monthly_expenses(self) -> Decimal:
-        """Estimate monthly expenses (simplified)."""
-        # In a real implementation, this would analyze historical expense data
-        return Decimal('25000')  # Placeholder
+        """Estimate monthly expenses.
+
+        Returns ForecastAssumptions.DEFAULT_MONTHLY_EXPENSES until historical
+        expense analysis is implemented.
+        """
+        return ForecastAssumptions.DEFAULT_MONTHLY_EXPENSES
 
     def _calculate_confidence_level(
         self, 
@@ -470,46 +530,25 @@ class ForecastingEngine:
         
         try:
             # Get current opportunities
-            salesforce = self.mcp_client.services["salesforce"]
+            salesforce = self.mcp_client.salesforce
             
             pipeline_query = """
             SELECT Id, Amount, Probability, StageName, CloseDate, CreatedDate
             FROM Opportunity
-            WHERE StageName NOT IN ('Closed Won', 'Closed Lost')
+            WHERE StageName NOT IN ('Closed / Completed', 'Closed / Did not Fulfill', 'Closed Lost', 'Withdrawn')
             """
             
             pipeline_result = await salesforce.query(pipeline_query)
             opportunities = pipeline_result.get("records", [])
             
-            # Calculate pipeline metrics
+            # Calculate pipeline metrics (delegating to pure functions)
             total_pipeline = sum(Decimal(str(opp.get("Amount", 0))) for opp in opportunities)
-            weighted_pipeline = sum(
-                Decimal(str(opp.get("Amount", 0))) * (Decimal(str(opp.get("Probability", 0))) / 100)
-                for opp in opportunities
-            )
-            
-            # Calculate expected revenue by time periods
+            weighted_pipeline = calculate_weighted_pipeline(opportunities)
+
             today = date.today()
-            revenue_30 = sum(
-                Decimal(str(opp.get("Amount", 0))) * (Decimal(str(opp.get("Probability", 0))) / 100)
-                for opp in opportunities
-                if opp.get("CloseDate") and 
-                datetime.strptime(opp["CloseDate"], '%Y-%m-%d').date() <= today + timedelta(days=30)
-            )
-            
-            revenue_60 = sum(
-                Decimal(str(opp.get("Amount", 0))) * (Decimal(str(opp.get("Probability", 0))) / 100)
-                for opp in opportunities
-                if opp.get("CloseDate") and 
-                datetime.strptime(opp["CloseDate"], '%Y-%m-%d').date() <= today + timedelta(days=60)
-            )
-            
-            revenue_90 = sum(
-                Decimal(str(opp.get("Amount", 0))) * (Decimal(str(opp.get("Probability", 0))) / 100)
-                for opp in opportunities
-                if opp.get("CloseDate") and 
-                datetime.strptime(opp["CloseDate"], '%Y-%m-%d').date() <= today + timedelta(days=90)
-            )
+            revenue_30 = calculate_expected_revenue_in_window(opportunities, today, 30)
+            revenue_60 = calculate_expected_revenue_in_window(opportunities, today, 60)
+            revenue_90 = calculate_expected_revenue_in_window(opportunities, today, 90)
             
             # Calculate historical metrics
             closed_opps = self.historical_data_cache.get("closed_opportunities", [])
@@ -518,13 +557,13 @@ class ForecastingEngine:
             won_amounts = [
                 Decimal(str(opp.get("Amount", 0))) 
                 for opp in closed_opps 
-                if opp.get("StageName") == "Closed Won" and opp.get("Amount")
+                if opp.get("StageName") == "Closed / Completed" and opp.get("Amount")
             ]
             avg_deal_size = sum(won_amounts) / len(won_amounts) if won_amounts else Decimal('0')
             
             # Win rate
             total_closed = len(closed_opps)
-            won_count = sum(1 for opp in closed_opps if opp.get("StageName") == "Closed Won")
+            won_count = sum(1 for opp in closed_opps if opp.get("StageName") == "Closed / Completed")
             win_rate = won_count / total_closed if total_closed > 0 else 0.0
             
             # Sales cycle (simplified calculation)
@@ -609,26 +648,26 @@ class ForecastingEngine:
                 for pay in payments
             )
             
-            collection_rate = float(total_paid / total_invoiced) if total_invoiced > 0 else 0.85
-            
+            collection_rate = float(total_paid / total_invoiced) if total_invoiced > 0 else ForecastAssumptions.DEFAULT_COLLECTION_RATE
+
             return {
                 "collection_rate": collection_rate,
-                "avg_delay": 8,  # Placeholder
-                "conversion_cycle": 45  # Placeholder
+                "avg_delay": ForecastAssumptions.DEFAULT_AVG_PAYMENT_DELAY_DAYS,
+                "conversion_cycle": ForecastAssumptions.DEFAULT_CASH_CONVERSION_CYCLE_DAYS,
             }
-            
+
         except Exception as e:
             logger.warning(f"Error calculating payment metrics: {e}")
             return {
-                "collection_rate": 0.85,
-                "avg_delay": 8,
-                "conversion_cycle": 45
+                "collection_rate": ForecastAssumptions.DEFAULT_COLLECTION_RATE,
+                "avg_delay": ForecastAssumptions.DEFAULT_AVG_PAYMENT_DELAY_DAYS,
+                "conversion_cycle": ForecastAssumptions.DEFAULT_CASH_CONVERSION_CYCLE_DAYS,
             }
 
     async def _calculate_overdue_invoices(self) -> Decimal:
         """Calculate total amount of overdue invoices."""
         try:
-            intacct = self.mcp_client.services["sage_intacct"]
+            intacct = self.mcp_client.sage_intacct
             
             # Get overdue invoices
             result = await intacct.get_invoices(limit=1000)
@@ -676,7 +715,7 @@ class ForecastingEngine:
                     is_at_risk = True  # Overdue
                 elif amount > Decimal('50000') and probability < 30:
                     is_at_risk = True  # Large deal with low probability
-                elif (stage in ["Prospecting", "Qualification"] and 
+                elif (stage in ["Lead Gen", "New Lead", "Qualifying"] and
                       close_date and (close_date - today).days < 30):
                     is_at_risk = True  # Early stage with near-term close
                 

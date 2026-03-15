@@ -22,7 +22,9 @@ from models import (
     SalesforceOpportunity, SalesforceAccount, IntacctInvoice, IntacctPayment,
     PaymentForecast, CashFlowProjection, ForecastingMetrics, ForecastingReport,
     OpportunityUpdateRequest, InvoiceCreationRequest, ForecastingDashboardData,
-    OpportunityStage, PaymentTerms, InvoiceStatus
+    OpportunityStage, PaymentTerms, InvoiceStatus,
+    OPEN_STAGES, CLOSED_STAGES,
+    ApiResponse,
 )
 from forecasting_engine import ForecastingEngine
 from data_sync import DataSyncService
@@ -52,10 +54,8 @@ app.add_middleware(
 # Security
 security = HTTPBearer()
 
-# Global variables for services
-mcp_client: Optional[UnifiedMCPClient] = None
-forecasting_engine: Optional[ForecastingEngine] = None
-data_sync_service: Optional[DataSyncService] = None
+# Service singletons — initialized on startup, injected via Depends()
+_services: Dict[str, Any] = {}
 _sync_lock = asyncio.Lock()
 
 # Startup and shutdown events
@@ -63,33 +63,24 @@ _sync_lock = asyncio.Lock()
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup."""
-    global mcp_client, forecasting_engine, data_sync_service
-    
     logger.info("Starting up Financial Forecasting API...")
-    
+
     try:
-        # Initialize MCP client
-        mcp_client = UnifiedMCPClient()
-        
-        # Connect to Salesforce
+        client = UnifiedMCPClient()
+
         logger.info("Connecting to Salesforce...")
-        await mcp_client.connect_salesforce("stdio")
-        
-        # Connect to Sage Intacct
+        await client.connect_salesforce("stdio")
+
         logger.info("Connecting to Sage Intacct...")
-        await mcp_client.connect_sage_intacct("stdio")
-        
-        # Initialize forecasting engine
-        forecasting_engine = ForecastingEngine(mcp_client)
-        
-        # Initialize data sync service
-        data_sync_service = DataSyncService(mcp_client)
-        
-        # Start background sync task
+        await client.connect_sage_intacct("stdio")
+
+        _services["mcp_client"] = client
+        _services["forecasting_engine"] = ForecastingEngine(client)
+        _services["data_sync_service"] = DataSyncService(client)
+
         asyncio.create_task(background_sync_task())
-        
         logger.info("Financial Forecasting API started successfully!")
-        
+
     except Exception as e:
         logger.error(f"Failed to start services: {e}")
         raise
@@ -98,16 +89,10 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown."""
-    global mcp_client
-
     logger.info("Shutting down Financial Forecasting API...")
-
-    if mcp_client:
-        sage_service = mcp_client.services.get("sage_intacct")
-        if sage_service:
-            await sage_service.disconnect()
-        await mcp_client.disconnect_all()
-
+    client = _services.get("mcp_client")
+    if client:
+        await client.disconnect_all()
     logger.info("Shutdown complete.")
 
 
@@ -117,7 +102,9 @@ async def background_sync_task():
     """Background task to sync data periodically."""
     while True:
         try:
+            data_sync_service = _services.get("data_sync_service")
             if data_sync_service:
+                        # Non-blocking acquire — skip cycle if lock held
                 if _sync_lock.locked():
                     logger.warning("Sync already in progress, skipping cycle.")
                 else:
@@ -140,18 +127,28 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     return {"user_id": "demo_user", "name": "Demo User", "role": "admin"}
 
 
-def get_mcp_client():
+def get_mcp_client() -> UnifiedMCPClient:
     """Get MCP client dependency."""
-    if not mcp_client:
+    client = _services.get("mcp_client")
+    if not client:
         raise HTTPException(status_code=503, detail="MCP client not initialized")
-    return mcp_client
+    return client
 
 
-def get_forecasting_engine():
+def get_forecasting_engine() -> ForecastingEngine:
     """Get forecasting engine dependency."""
-    if not forecasting_engine:
+    engine = _services.get("forecasting_engine")
+    if not engine:
         raise HTTPException(status_code=503, detail="Forecasting engine not initialized")
-    return forecasting_engine
+    return engine
+
+
+def get_data_sync_service() -> DataSyncService:
+    """Get data sync service dependency."""
+    svc = _services.get("data_sync_service")
+    if not svc:
+        raise HTTPException(status_code=503, detail="Data sync service not available")
+    return svc
 
 
 # Health check endpoints
@@ -159,22 +156,25 @@ def get_forecasting_engine():
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.utcnow(),
-        "services": {
-            "mcp_client": mcp_client is not None,
-            "forecasting_engine": forecasting_engine is not None,
-            "data_sync_service": data_sync_service is not None,
-        }
-    }
+    return ApiResponse(
+        success=True,
+        data={"status": "healthy"},
+        meta={
+            "timestamp": datetime.utcnow().isoformat(),
+            "services": {
+                "mcp_client": "mcp_client" in _services,
+                "forecasting_engine": "forecasting_engine" in _services,
+                "data_sync_service": "data_sync_service" in _services,
+            },
+        },
+    )
 
 
 @app.get("/health/services")
 async def services_health_check(client: UnifiedMCPClient = Depends(get_mcp_client)):
     """Check health of connected services."""
     health_status = {}
-    
+
     for service_name in client._connected_services:
         try:
             service = client.services[service_name]
@@ -189,18 +189,14 @@ async def services_health_check(client: UnifiedMCPClient = Depends(get_mcp_clien
                 "status": "error",
                 "error": str(e)
             }
-    
-    return health_status
+
+    return ApiResponse(success=True, data=health_status)
 
 
 # Salesforce endpoints
 
-VALID_STAGES = {
-    'Lead Gen', 'New Lead', 'Qualifying', 'Design / Proposal Creation',
-    'Proposal Negotiation', 'Contract Creation', 'Negotiating Contract',
-    'Collecting / In Effect', 'Closed / Did not Fulfill',
-    'Closed / Completed', 'Closed Lost', 'Withdrawn', '--None--'
-}
+# Valid stages derived from the OpportunityStage enum — single source of truth
+VALID_STAGES = {s.value for s in OpportunityStage}
 
 
 @app.get("/api/salesforce/opportunities", response_model=List[SalesforceOpportunity])
@@ -213,7 +209,7 @@ async def get_opportunities(
 ):
     """Get Salesforce opportunities."""
     try:
-        salesforce = client.services["salesforce"]
+        salesforce = client.salesforce
 
         # Build SOQL query
         query = """
@@ -259,7 +255,7 @@ async def update_opportunity(
 ):
     """Update a Salesforce opportunity."""
     try:
-        salesforce = client.services["salesforce"]
+        salesforce = client.salesforce
         
         # Update the opportunity
         success = await salesforce.update_record(
@@ -269,9 +265,8 @@ async def update_opportunity(
         )
         
         if success:
-            # Log the update
             logger.info(f"Opportunity {opportunity_id} updated by {user['user_id']}")
-            return {"success": True, "message": "Opportunity updated successfully"}
+            return ApiResponse(success=True, data={"id": opportunity_id, "message": "Opportunity updated successfully"})
         else:
             raise HTTPException(status_code=400, detail="Failed to update opportunity")
             
@@ -288,7 +283,7 @@ async def get_accounts(
 ):
     """Get Salesforce accounts."""
     try:
-        salesforce = client.services["salesforce"]
+        salesforce = client.salesforce
         
         query = f"""
         SELECT Id, Name, Type, Industry, AnnualRevenue, NumberOfEmployees,
@@ -320,18 +315,14 @@ async def create_account(
 ):
     """Create a new Salesforce account."""
     try:
-        salesforce = client.services["salesforce"]
+        salesforce = client.salesforce
         
         # Create the account
         result = await salesforce.create_record("Account", account_data)
         
         if result and result.get("id"):
             logger.info(f"Account created with ID: {result['id']} by {user['user_id']}")
-            return {
-                "success": True,
-                "id": result["id"],
-                "message": "Account created successfully"
-            }
+            return ApiResponse(success=True, data={"id": result["id"], "message": "Account created successfully"})
         else:
             raise HTTPException(status_code=400, detail="Failed to create account")
             
@@ -349,7 +340,7 @@ async def get_contacts(
 ):
     """Get Salesforce contacts, optionally filtered by account."""
     try:
-        salesforce = client.services["salesforce"]
+        salesforce = client.salesforce
         
         query = f"""
         SELECT Id, FirstName, LastName, Name, AccountId, Title, Email, Phone,
@@ -383,18 +374,14 @@ async def create_contact(
 ):
     """Create a new Salesforce contact."""
     try:
-        salesforce = client.services["salesforce"]
+        salesforce = client.salesforce
         
         # Create the contact
         result = await salesforce.create_record("Contact", contact_data)
         
         if result and result.get("id"):
             logger.info(f"Contact created with ID: {result['id']} by {user['user_id']}")
-            return {
-                "success": True,
-                "id": result["id"],
-                "message": "Contact created successfully"
-            }
+            return ApiResponse(success=True, data={"id": result["id"], "message": "Contact created successfully"})
         else:
             raise HTTPException(status_code=400, detail="Failed to create contact")
             
@@ -411,7 +398,7 @@ async def get_users(
 ):
     """Get Salesforce users."""
     try:
-        salesforce = client.services["salesforce"]
+        salesforce = client.salesforce
         
         query = f"""
         SELECT Id, Name, Email, IsActive
@@ -445,7 +432,7 @@ async def get_invoices(
 ):
     """Get Sage Intacct invoices."""
     try:
-        intacct = client.services["sage_intacct"]
+        intacct = client.sage_intacct
         
         result = await intacct.get_invoices(customer_id=customer_id, limit=limit)
         
@@ -471,7 +458,7 @@ async def create_invoice(
 ):
     """Create a new invoice in Sage Intacct."""
     try:
-        intacct = client.services["sage_intacct"]
+        intacct = client.sage_intacct
         
         # Prepare invoice data
         invoice_data = {
@@ -491,11 +478,10 @@ async def create_invoice(
                 user["user_id"]
             )
             
-            return {
-                "success": True,
-                "invoice_id": result.get("data", {}).get("RECORDNO"),
-                "message": "Invoice created successfully"
-            }
+            return ApiResponse(
+                success=True,
+                data={"invoice_id": result.get("data", {}).get("RECORDNO"), "message": "Invoice created successfully"},
+            )
         else:
             raise HTTPException(
                 status_code=400, 
@@ -516,7 +502,7 @@ async def get_payments(
 ):
     """Get Sage Intacct payments."""
     try:
-        intacct = client.services["sage_intacct"]
+        intacct = client.sage_intacct
         
         result = await intacct.get_payments(customer_id=customer_id, limit=limit)
         
@@ -653,12 +639,11 @@ async def generate_forecasting_report(
 async def trigger_data_sync(
     background_tasks: BackgroundTasks,
     sync_type: str = Query("all", regex="^(all|salesforce|intacct)$"),
+    sync_service: DataSyncService = Depends(get_data_sync_service),
     user = Depends(get_current_user)
 ):
     """Trigger manual data synchronization."""
     try:
-        if not data_sync_service:
-            raise HTTPException(status_code=503, detail="Data sync service not available")
 
         if _sync_lock.locked():
             raise HTTPException(status_code=409, detail="Sync already in progress")
@@ -667,19 +652,18 @@ async def trigger_data_sync(
             async with _sync_lock:
                 await sync_fn()
 
-        # Run sync in background
         if sync_type == "all":
-            background_tasks.add_task(_locked_sync, data_sync_service.sync_all_data)
+            background_tasks.add_task(_locked_sync, sync_service.sync_all_data)
         elif sync_type == "salesforce":
-            background_tasks.add_task(_locked_sync, data_sync_service.sync_salesforce_data)
+            background_tasks.add_task(_locked_sync, sync_service.sync_salesforce_data)
         elif sync_type == "intacct":
-            background_tasks.add_task(_locked_sync, data_sync_service.sync_intacct_data)
+            background_tasks.add_task(_locked_sync, sync_service.sync_intacct_data)
 
-        return {
-            "success": True,
-            "message": f"Data sync ({sync_type}) triggered successfully",
-            "triggered_by": user["user_id"]
-        }
+        return ApiResponse(
+            success=True,
+            data={"message": f"Data sync ({sync_type}) triggered successfully"},
+            meta={"triggered_by": user["user_id"]},
+        )
 
     except HTTPException:
         raise
@@ -720,11 +704,7 @@ async def get_grant_invoices(
         # Convert to list of dicts
         invoices = df.to_dict('records')
         
-        return {
-            "success": True,
-            "count": len(invoices),
-            "invoices": invoices
-        }
+        return ApiResponse(success=True, data=invoices, meta={"count": len(invoices)})
         
     except Exception as e:
         logger.error(f"Error loading grant invoices: {e}")
@@ -748,11 +728,7 @@ async def get_invoice_matches(
         else:
             matches = {}
         
-        return {
-            "success": True,
-            "count": len(matches),
-            "matches": matches
-        }
+        return ApiResponse(success=True, data=matches, meta={"count": len(matches)})
         
     except Exception as e:
         logger.error(f"Error loading matches: {e}")
@@ -799,12 +775,10 @@ async def save_invoice_match(
         
         logger.info(f"Saved match: Invoice {match_request.invoice_id} -> Opportunity {match_request.opportunity_id}")
         
-        return {
-            "success": True,
-            "message": "Match saved successfully",
-            "invoice_id": match_request.invoice_id,
-            "opportunity_id": match_request.opportunity_id
-        }
+        return ApiResponse(
+            success=True,
+            data={"message": "Match saved successfully", "invoice_id": match_request.invoice_id, "opportunity_id": match_request.opportunity_id},
+        )
         
     except Exception as e:
         logger.error(f"Error saving match: {e}")
@@ -840,10 +814,7 @@ async def delete_invoice_match(
             
             logger.info(f"Deleted match for invoice {invoice_id}")
             
-            return {
-                "success": True,
-                "message": "Match deleted successfully"
-            }
+            return ApiResponse(success=True, data={"message": "Match deleted successfully"})
         else:
             raise HTTPException(status_code=404, detail="Match not found")
         

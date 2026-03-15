@@ -205,17 +205,43 @@ class UnifiedMCPClient:
         """Get a connected service by name."""
         return self.services.get(service_name)
 
-    def get_slack_service(self) -> Optional[SlackMCPService]:
-        """Get Slack service."""
+    # ── Typed accessors (prefer these over services["key"]) ────────────────
+
+    @property
+    def salesforce(self) -> SalesforceMCPService:
+        """Typed Salesforce service accessor."""
+        svc = self.services.get("salesforce")
+        if svc is None:
+            raise RuntimeError("Salesforce service not connected")
+        return svc
+
+    @property
+    def sage_intacct(self) -> SageIntacctMCPService:
+        """Typed Sage Intacct service accessor."""
+        svc = self.services.get("sage_intacct")
+        if svc is None:
+            raise RuntimeError("Sage Intacct service not connected")
+        return svc
+
+    @property
+    def slack(self) -> Optional[SlackMCPService]:
+        """Typed Slack service accessor."""
         return self.services.get("slack")
 
+    @property
+    def google_drive(self) -> Optional[GoogleDriveMCPService]:
+        """Typed Google Drive service accessor."""
+        return self.services.get("google_drive")
+
+    # Legacy accessors (kept for backward compatibility)
+    def get_slack_service(self) -> Optional[SlackMCPService]:
+        return self.slack
+
     def get_salesforce_service(self) -> Optional[SalesforceMCPService]:
-        """Get Salesforce service."""
         return self.services.get("salesforce")
 
     def get_google_drive_service(self) -> Optional[GoogleDriveMCPService]:
-        """Get Google Drive service."""
-        return self.services.get("google_drive")
+        return self.google_drive
 
     @property
     def connected_services(self) -> List[str]:
