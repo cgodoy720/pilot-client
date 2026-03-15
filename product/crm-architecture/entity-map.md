@@ -31,9 +31,7 @@
 | industry | string | |
 | website | string | |
 | salesforce_id | string | For sync; nullable for manually-created records |
-| revenue_streams | enum[] | `nonprofit`, `pbc`, or both — which streams this org participates in |
-
-**Revenue stream:** Both. A single Account (e.g., Goldman Sachs Foundation) may have grant Opportunities (nonprofit) and contract Opportunities (PBC).
+**Revenue stream:** Inferred from child Opportunities — not stored. A single Account may have both nonprofit and PBC Opportunities.
 
 ---
 
@@ -132,28 +130,7 @@ interface ProgramMetric {
 }
 ```
 
-**Examples:**
-
-```yaml
-# Program Inputs (what Pursuit must deliver)
-- name: NYCHA resident enrollment
-  target_value: "50 Builders"
-  measurement_method: "Enrollment records cross-referenced with NYCHA residency verification"
-
-# Program Outputs (measurable results during program)
-- name: Level 2 pass rate
-  target_value: "≥ 80%"
-  measurement_method: "Assessment scores from LMS"
-
-# Program Outcomes (long-term impact)
-- name: Income increase post-program
-  target_value: "≥ 30% within 12 months for L3+ completers"
-  measurement_method: "Follow-up survey at 6 and 12 months post-completion"
-
-- name: Employment rate
-  target_value: "≥ 85% within 6 months for L3+ completers"
-  measurement_method: "Employer verification and self-report survey"
-```
+**Example metrics:** NYCHA resident enrollment (input, target: 50), Level 2 pass rate (output, target: ≥80%), income increase for L3+ completers (outcome, target: ≥30% within 12 months), employment rate (outcome, target: ≥85% within 6 months).
 
 ---
 
@@ -179,24 +156,9 @@ interface ProgramMetric {
 
 ---
 
-### 5. Campaign (Post-MVP — deferred to keep MVP lean)
+### 5. Campaign (Deferred — MVP uses `campaign_name` string on Opportunity)
 
-**What it is (Post-MVP):** A fundraising campaign or initiative that groups Opportunities. Deferred as a full entity — **MVP uses a simple `campaign_name` string field on Opportunity** instead of a separate entity with junction tables.
-
-**MVP approach:** Add `campaign_name: string (optional)` to Opportunity. This covers basic attribution ("FY2026 Annual Fund") without the overhead of Campaign CRUD, CampaignOpportunity junction tables, or attribution logic. Promote to full entity in Post-MVP if reporting demands it.
-
-**Post-MVP entity (if promoted):**
-
-| Key Attribute | Type | Notes |
-|---------------|------|-------|
-| id | string | `camp-{year}-{slug}` |
-| name | string | Required |
-| goal_amount | number | USD target |
-| start_date | date | |
-| end_date | date | |
-| status | enum | `planned`, `active`, `completed`, `cancelled` |
-
-**Revenue stream:** Both. A single Account may have Opportunities across both streams linked to one campaign.
+**MVP approach:** `campaign_name: string (optional)` on Opportunity covers basic attribution ("FY2026 Annual Fund") without Campaign CRUD or junction tables. Promote to full entity Post-MVP if reporting demands it (see feature-register.md F32/F33).
 
 ---
 
@@ -325,71 +287,28 @@ interface ProgramMetric {
 
 ---
 
-## Relationships (Visual Summary)
+## Relationships
 
-```
-┌──────────┐     many-to-many      ┌──────────┐
-│ Contact  │◄────────────────────►  │ Account  │
-└────┬─────┘   (ContactAccount)     └────┬─────┘
-     │                                    │
-     │ one-to-one                         │ many-to-one
-     ▼                                    ▼
-┌──────────┐                        ┌──────────────┐
-│ Prospect │───── converts to ────► │ Opportunity   │
-└──────────┘                        │              │
-                                    │ campaign_name│ ← simple string (MVP)
-                                    └──────┬───────┘
-                                           │
-                         ┌─────────────────┼─────────────────┐
-                         │                 │                  │
-                    one-to-many       one-to-many        one-to-many
-                         ▼                 ▼                  ▼
-                   ┌──────────┐     ┌──────────┐      ┌──────────┐
-                   │ Payment  │     │  Task    │      │ Activity │
-                   └──────────┘     └──────────┘      └──────────┘
-
-┌──────────────┐  (nonprofit only)  ┌──────────────────┐
-│ Opportunity  │◄── one-to-one ────│ GrantRequirements │
-└──────────────┘                   └──────────────────┘
-
-┌──────────────┐   promotes to   ┌──────────┐
-│ NetworkMatch │─ ─ ─ ─ ─ ─ ─ ► │ Prospect │
-└──────────────┘                 └──────────┘
-       │
-       │ many-to-one
-       ▼
-┌──────────┐
-│ Contact  │
-└──────────┘
-
-┌──────────┐  records reasoning   ┌───────────┐   ┌─────────────┐
-│ Decision │──────────────────── │ Prospect  │   │ Opportunity │
-│          │──────────────────── │           │   │             │
-└──────────┘                     └───────────┘   └─────────────┘
-```
-
-### Junction Tables
-
-| Junction | Purpose |
-|----------|---------|
-| ContactAccount | Many-to-many: a Contact can belong to multiple Accounts (e.g., board member at two foundations) |
-
-> **Campaign junction (CampaignOpportunity) removed from MVP.** Campaign attribution in MVP is handled by `campaign_name` string on Opportunity. If Campaign becomes a full entity in Post-MVP, the junction table will be added then.
+- **Contact ↔ Account:** Many-to-many via `ContactAccount` junction (board members, consultants)
+- **Account → Opportunity:** One-to-many
+- **Contact → Prospect:** One-to-one (Prospect references Contact, adds pipeline qualification)
+- **Prospect → Opportunity:** Converts to (sets `Prospect.opportunity_id`)
+- **Opportunity → Payment, Task, Activity:** One-to-many each
+- **Opportunity → GrantRequirements:** One-to-one (nonprofit only)
+- **NetworkMatch → Contact:** Many-to-one (links LinkedIn contact to prospect list match)
+- **Decision → Prospect, Opportunity, Contact:** Optional references (at least one required)
 
 ---
 
-## Key Design Questions — Resolved
+## Key Design Decisions
 
-| Question | Resolution |
-|----------|-----------|
-| Can a Contact belong to multiple Accounts? | **Yes.** Via ContactAccount junction. Common: board members, consultants, people who change jobs. |
-| What does a Payment attach to? | **Opportunity only.** Not Campaign. Money flows through Opportunities. Campaigns are the *why*, Opportunities are the *what*. |
-| What's the difference between nonprofit and PBC Opportunities? | **`revenue_stream` enum on Opportunity.** Same entity, same stages, but different stage *meanings* (see table above) and different reporting rollups. |
-| Where does cash flow projection get its data? | **Opportunities (pipeline value × probability) + Payments (scheduled vs. received).** No separate projection entity — it's a computed view. |
-| Is Prospect separate from Contact? | **Yes.** A Prospect references a Contact but adds pipeline qualification state. A Contact exists independently (may never be a Prospect). A Prospect converts to an Opportunity. Renamed from "Lead" to avoid confusion with learning platform admissions leads. |
-| Where is Salesforce the source of truth? | **Opportunity, Account, Contact.** Salesforce IDs are stored on Bedrock records. Sync is bidirectional for these entities. Prospects, Tasks, Activities are Bedrock-native initially; Prospects sync to SF Lead (RecordType: `Fundraising_Lead`) in production. |
-| Why was "Lead" renamed to "Prospect"? | The learning platform uses "Lead" for admissions prospects (future Builders). Fundraising prospects are a different lifecycle. Renaming to "Prospect" eliminates ambiguity across systems. |
-| Why is Campaign a string, not an entity? | A team of 4 ICs doesn't need Campaign CRUD, junction tables, and attribution logic in MVP. A `campaign_name` string on Opportunity covers basic grouping. Promote to full entity if reporting demands it. |
+1. **Contact ↔ Account is many-to-many** (board members, consultants who span orgs).
+2. **Payments attach to Opportunities**, not Campaigns. Money flows through Opportunities.
+3. **Nonprofit vs. PBC** = `revenue_stream` enum on Opportunity. Same stages, different interpretations.
+4. **Cash flow** = computed view from Opportunities × probability + Payments. No separate entity.
+5. **Prospect is separate from Contact** — adds qualification state; converts to Opportunity. Renamed from "Lead" to avoid collision with learning platform admissions.
+6. **Salesforce is SoT** for Opportunity, Account, Contact. Prospects/Tasks/Activities are Bedrock-native; Prospects sync to SF `Fundraising_Lead` record type in production.
+7. **Campaign is a string** (`campaign_name` on Opportunity) for MVP. Full entity deferred.
 
 ---
 
@@ -406,7 +325,6 @@ type: foundation
 industry: Financial Services
 website: https://www.goldmansachs.com/foundation
 salesforce_id: 001Dn00000ABC1234
-revenue_streams: [nonprofit]
 created_at: 2025-06-15T10:30:00Z
 updated_at: 2026-02-20T14:15:00Z
 ```

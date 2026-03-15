@@ -198,11 +198,10 @@ Same per-record failure and retry policy as Salesforce. Sage wins on payment dat
 
 ---
 
-## What This Contract Does NOT Cover
+## PII Rules for Error Messages
 
-- **UI error display patterns** (toasts, inline, modal) — defined per-component in PRDs.
-- **Logging format** — defined in engineering docs, not product architecture.
-- **PII in error messages** — three rules:
-  1. **Never include** donor financial details, wealth tier, or composite scores in any error message.
-  2. **User-facing validation** (shown only to the user who entered the data): names and emails are acceptable. Example: "Contact 'Sarah Chen' may duplicate an existing record."
-  3. **Shared contexts** (admin dashboards, sync logs, audit trails, error queues visible to other users): use entity IDs only, never names or emails. Example: "Sync failed for contact-sarah-chen" — not "Sync failed for Sarah Chen (sarah@example.com)".
+1. **Never include** donor financial details, wealth tier, or composite scores in any error message.
+2. **User-facing validation** (shown only to data entry user): names/emails OK. Example: "Contact 'Sarah Chen' may duplicate an existing record."
+3. **Shared contexts** (dashboards, sync logs, audit trails): entity IDs only, never names/emails. Example: "Sync failed for contact-sarah-chen."
+
+UI display patterns (toasts, inline, modal) and logging format are defined per-component in PRDs.

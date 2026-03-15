@@ -24,23 +24,7 @@ Bedrock uses **one stage enum** for all Opportunities. The `revenue_stream` fiel
 
 ### Legacy Stage Mapping (PRD.md → Canonical)
 
-PRD.md (Nov 2025) used a different stage set from the Salesforce implementation. This mapping bridges old and new:
-
-| PRD.md Stage | Canonical Stage | Notes |
-|-------------|----------------|-------|
-| Lead Gen | `identified` | |
-| New Lead | `identified` | Collapsed — both are pre-outreach |
-| Qualifying | `qualified` | |
-| Design / Proposal Creation | `proposal-sent` | |
-| Proposal Negotiation | `in-negotiation` | |
-| Contract Creation | `in-negotiation` | Collapsed — both are active negotiation |
-| Negotiating Contract | `in-negotiation` | |
-| Collecting / In Effect | `closed-won` | Payment-in-progress is a Payment status, not an Opp stage |
-| Closed / Completed | `closed-won` | Terminal success; track completion via Payment status |
-| Closed / Did not Fulfill | `closed-lost` | |
-| Closed Lost | `closed-lost` | |
-
-**Why collapse?** The old stages encoded payment state inside the opportunity stage. In Bedrock, Opportunity stage tracks the *deal* lifecycle; Payment status tracks the *money* lifecycle. This eliminates the ambiguity of "Collecting / In Effect" being both a stage and a state.
+PRD.md (Nov 2025) used ~11 stages that collapsed into 7: Lead Gen/New Lead → `identified`, Qualifying → `qualified`, Design/Proposal Creation → `proposal-sent`, Proposal Negotiation/Contract Creation/Negotiating Contract → `in-negotiation`, Collecting/In Effect/Closed Completed → `closed-won`, Closed Lost/Did not Fulfill → `closed-lost`. Key change: payment state (formerly encoded in Opp stage) now lives in Payment status.
 
 ---
 
@@ -125,8 +109,8 @@ Use these exact names in all code, specs, and docs. No aliases.
 Rules:
 - **Required** on every Opportunity. Set at creation, rarely changed.
 - **Inherited** by Payments from their parent Opportunity.
-- **Inferred** on Accounts from the set of their Opportunities' revenue streams.
-- **Not set** on Contacts, Leads/Prospects, Tasks, Activities — these are stream-agnostic.
+- **Not stored** on Accounts — inferred at query time from child Opportunities.
+- **Not set** on Contacts, Prospects, Tasks, Activities — these are stream-agnostic.
 
 ---
 

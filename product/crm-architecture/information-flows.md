@@ -73,117 +73,19 @@
 
 ---
 
-## Flow 2: Campaign → Revenue
+## Flow 2: Cash Flow Projection
 
-> **Post-MVP flow.** In MVP, Campaign is a `campaign_name` string on Opportunity — no Campaign entity, no junction tables. This flow describes the Post-MVP target if Campaign is promoted to a full entity. See `entity-map.md` Section 5.
+Three data layers, all grouped by month/quarter and splittable by revenue stream, Account, or IC:
 
-**MVP version:** IC sets `campaign_name` on Opportunity at creation. Reports group Opportunities by `campaign_name`. No CRUD, no linking, no attribution logic.
+| Layer | Source | Computation |
+|-------|--------|-------------|
+| **Weighted Pipeline** (uncertain) | Open Opportunities | Σ (amount_estimated × probability) grouped by expected_close_date |
+| **Expected Inflows** (committed) | Closed-won Opps + Payments (scheduled/invoiced) | Σ (Payment.amount) grouped by expected_date |
+| **Actual Received** | Payments (status = received) | Σ (Payment.amount) grouped by received_date |
 
-**Post-MVP version (if Campaign becomes a full entity):**
+**Update triggers:** Opportunity stage/amount change, Payment status change, Salesforce sync, Sage sync (Phase 2).
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    CAMPAIGN TO REVENUE (Post-MVP)                            │
-│                                                                             │
-│  Campaign Owner             Bedrock                      Reporting          │
-│  ─────────────             ────────                     ─────────           │
-│                                                                             │
-│  1. Plan campaign    ───►  Create Campaign entity                           │
-│     (annual fund,          Set goal, dates                                  │
-│      gala, corp drive)                                                      │
-│                                                                             │
-│  2. Identify targets ───►  Link Contacts to Campaign                        │
-│                            Create Prospects for new                         │
-│                            prospects                                        │
-│                                                                             │
-│  3. Outreach begins  ───►  Log Activities                                   │
-│     (calls, events,        Create Opportunities                             │
-│      proposals)            Link via Campaign junction                       │
-│                                                                             │
-│  4. Pipeline builds  ───►  Opportunities progress       Campaign dashboard: │
-│                            through stages                goal vs. pipeline  │
-│                                                                             │
-│  5. Deals close      ───►  Opportunity: closed-won      Revenue attributed  │
-│                            Payments scheduled            to Campaign         │
-│                                                                             │
-│  6. Campaign ends    ───►  Status: completed             Final report       │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Campaign Attribution (Post-MVP Only)
-
-- Revenue is attributed to a Campaign when a linked Opportunity reaches closed-won.
-- If an Opportunity links to multiple Campaigns, revenue is attributed to all (for reporting — not double-counted in total pipeline).
-- Campaign ROI = Total Payments Received from Linked Opps / Campaign Cost (if tracked).
-
----
-
-## Flow 3: Cash Flow Projection
-
-**What data feeds the projection and how it updates.**
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       CASH FLOW PROJECTION                                  │
-│                                                                             │
-│  Data Sources               Computation                  Output             │
-│  ────────────              ───────────                  ──────              │
-│                                                                             │
-│  PIPELINE (Uncertain)                                                       │
-│  ┌─────────────────┐                                                        │
-│  │ Open Opps       │                                                        │
-│  │ amount_estimated │──► amount × probability ──►  Weighted Pipeline       │
-│  │ probability      │    grouped by                 by Month/Quarter        │
-│  │ close_date       │    expected_close_date                                │
-│  └─────────────────┘                                                        │
-│                                                                             │
-│  COMMITTED (High Confidence)                                                │
-│  ┌─────────────────┐                                                        │
-│  │ Closed-Won Opps │                                                        │
-│  │ + Scheduled     │──► amount by                                           │
-│  │   Payments      │    expected_date       ──►  Expected Inflows          │
-│  │                 │                              by Month/Quarter          │
-│  └─────────────────┘                                                        │
-│                                                                             │
-│  RECEIVED (Actual)                                                          │
-│  ┌─────────────────┐                                                        │
-│  │ Payments with   │                                                        │
-│  │ status=received │──► amount by           ──►  Actual Cash Received      │
-│  │ received_date   │    received_date             by Month/Quarter          │
-│  └─────────────────┘                                                        │
-│                                                                             │
-│  COMBINED VIEW                                                              │
-│  ┌──────────────────────────────────────────────────────────────────┐       │
-│  │  Month    │ Weighted Pipeline │ Expected Inflows │ Actual Recv  │       │
-│  │  ─────    │ ──────────────── │ ──────────────── │ ───────────  │       │
-│  │  Mar 2026 │       $120K      │      $80K        │    $45K      │       │
-│  │  Apr 2026 │       $200K      │      $150K       │     —        │       │
-│  │  May 2026 │       $350K      │      $50K        │     —        │       │
-│  │  ...      │       ...        │      ...         │    ...       │       │
-│  └──────────────────────────────────────────────────────────────────┘       │
-│                                                                             │
-│  SPLITS AVAILABLE:                                                          │
-│  • By revenue_stream (nonprofit / PBC)                                      │
-│  • By quarter / year                                                        │
-│  • By Account (concentration risk)                                          │
-│  • By assigned_to (IC performance)                                          │
-│                                                                             │
-│  UPDATE TRIGGERS:                                                           │
-│  • Any Opportunity stage change                                             │
-│  • Any Opportunity amount change                                            │
-│  • Any Payment status change                                                │
-│  • Salesforce sync completion                                               │
-│  • Sage sync completion (Phase 2)                                           │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Projection Rules
-
-1. **Weighted pipeline** = Σ (amount_estimated × probability) for all open Opportunities, grouped by expected_close_date month.
-2. **Expected inflows** = Σ (Payment.amount) where status ∈ {scheduled, invoiced}, grouped by expected_date month.
-3. **Actual received** = Σ (Payment.amount) where status = received, grouped by received_date month.
-4. **Overdue highlight** = Payments where expected_date < today AND status ≠ received.
-5. **Concentration risk** = Flag if any single Account represents >30% of weighted pipeline.
+**Alerts:** Overdue = Payment past expected_date and not received. Concentration risk = any single Account >30% of weighted pipeline.
 
 ---
 

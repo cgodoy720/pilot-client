@@ -30,18 +30,8 @@
 
 ## Suggested Authoring Order
 
-1. **PRD 01 — Data Model** (foundation; already substantially drafted in `entity-map.md`)
-2. **PRD 10 — Weekly Priorities & Tasks** (current week-1 prototype; ship first)
-3. **PRD 03 — Opportunity Management** (core pipeline; most features depend on this)
-4. **PRD 02 — Account & Contact Management** (prerequisite for Opportunities)
-5. **PRD 09 — Salesforce Migration & Sync** (unblocks real data)
-6. **PRD 06 — Reporting & Cash Flow** (CEO visibility — high-value)
-7. **PRD 08 — User Roles & Permissions** (needed before multi-user rollout)
-8. **PRD 12 — Activity & Interaction Logging** (manual logging is MVP; Slack is post-MVP)
-9. **PRD 04 — Payments & Revenue Tracking** (Phase 2 gated on Sage)
-10. **PRD 07 — Sage Integration** (Phase 2)
-11. **PRD 05 — Campaign Management** (post-MVP)
-12. **PRD 11 — Prospect Intelligence** (post-MVP)
+**MVP first:** 01 (Data Model) → 10 (Weekly Priorities, ship first) → 03 (Opportunity) → 02 (Account/Contact) → 09 (SF Sync) → 06 (Reporting) → 08 (RBAC) → 12 (Activity) → 13 (Grant Requirements) → 14 (Decision Trail)
+**Then Post-MVP:** 04 (Payments) → 07 (Sage) → 05 (Campaign) → 11 (Prospect Intelligence)
 
 ---
 
@@ -141,15 +131,7 @@ How do we know this is done and working?
 
 ## Cross-References
 
-| Document | Location | Relationship |
-|----------|----------|-------------|
-| **Canonical Definitions** | `product/crm-architecture/canonical-definitions.md` | **Read first.** Stages, field names, IDs, enums. This file governs. |
-| Scope Constitution | `product/crm-scope-constitution.md` | Every PRD must trace to core jobs |
-| Entity Map | `product/crm-architecture/entity-map.md` | Data model reference |
-| User Journey Matrix | `product/crm-architecture/user-journey-matrix.md` | User stories derive from journeys |
-| Information Flows | `product/crm-architecture/information-flows.md` | Integration points and data flow |
-| Integration Register + SF Field Mapping | `product/crm-architecture/integration-register.md` | External system contracts, Salesforce field mapping |
-| Feature Register | `product/crm-architecture/feature-register.md` | Feature-to-PRD mapping |
-| Error Contract | `product/crm-architecture/error-contract.md` | Error codes, validation rules, partial failure behavior |
-| Requirements Gaps | `product/REQUIREMENTS-GAPS-AND-STRUCTURE.md` | Open questions to resolve |
-| Original Grants PRD | `PRD.md` | Historical context; stage names and data model superseded |
+- **Read first:** `product/crm-architecture/canonical-definitions.md` (stages, field names, IDs, enums — this file governs)
+- **Architecture docs:** All in `product/crm-architecture/` (entity-map, user-journey-matrix, information-flows, integration-register, feature-register, error-contract)
+- **Scope:** `product/crm-scope-constitution.md` — every PRD must trace to core jobs
+- **Gaps:** `product/REQUIREMENTS-GAPS-AND-STRUCTURE.md` — open questions to resolve

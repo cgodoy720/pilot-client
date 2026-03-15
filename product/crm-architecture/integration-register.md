@@ -109,36 +109,15 @@
 
 ---
 
-### 2. Sage Intacct (Revenue Hub)
+### 2. Sage Intacct (Phase 2)
 
-**Direction:** Bedrock ↔ Sage Intacct (bidirectional)
+**Direction:** Bidirectional. Sage is financial SoT; Sage wins on payment data.
 
-**What syncs:**
+**Syncs:** Invoices (Bedrock → Sage on `invoiced` status, bookkeeper-triggered), Payment receipts (Sage → Bedrock, batch daily). `sage_id` on Payment as link key.
 
-| Data | Bedrock → Sage | Sage → Bedrock | Key Fields |
-|------|---------------|---------------|------------|
-| Invoices | Create invoice from Payment schedule | — | `sage_id` on Payment record |
-| Payments | — | Payment received confirmation | `amount`, `received_date`, `status` |
-| Accounts | Account billing info | — | Account reference |
+**Current state:** Not started. Requires Sage API access.
 
-**Trigger:**
-- Bedrock → Sage: When Payment status moves to `invoiced` (manual trigger by bookkeeper).
-- Sage → Bedrock: When payment is recorded in Sage (batch sync or webhook).
-
-**Frequency:** Batch (daily) or triggered. Not real-time — bookkeeper works in batches.
-
-**Conflict resolution:** Sage wins on payment data. Sage is the financial system of record.
-
-**Owner:** Engineering + Finance (bookkeeper validates).
-
-**Current state:** Not started. Phase 2. Requires Sage API access and credential setup.
-
-**Open questions (must resolve before Phase 2 development starts):**
-- Which Sage API version? REST or SDK?
-- What's the invoice creation workflow in Sage — can we push directly or does bookkeeper review in Sage first?
-- How to handle partial payments (e.g., milestone-based grants)?
-
-**Owner:** Engineering + Finance. **Target resolution:** Before Phase 2 sprint planning.
+**Open questions (resolve before Phase 2):** Which Sage API (REST/SDK)? Push invoices directly or bookkeeper reviews in Sage first? Partial payment handling for milestone-based grants? **Owner:** Engineering + Finance.
 
 ---
 
@@ -205,46 +184,15 @@
 
 ---
 
-### 6. Google Calendar (Future)
+### 6. Google Calendar (Phase 2+)
 
-**Direction:** Read only (Google Calendar → Bedrock)
-
-**What flows:**
-
-| Data | Source | Target |
-|------|--------|--------|
-| Meeting events | Google Calendar | Task/Activity suggestions in Bedrock |
-
-**Trigger:** Periodic sync or webhook.
-
-**Frequency:** Every 15 minutes or real-time via webhook.
-
-**Owner:** Engineering (Phase 2+).
-
-**Current state:** Not started. Specified in home-page-spec (`product/fundraising-team/phases/home-page-spec.md`) — calendarized view matching meetings to prospect/grant context.
+Read-only. Meeting events → Task/Activity suggestions in Bedrock. Not started. See `product/fundraising-team/phases/home-page-spec.md`.
 
 ---
 
-### 7. Claude API (Prospect Intelligence)
+### 7. Claude API (Phase 2+)
 
-**Direction:** Bedrock → Claude API
-
-**What flows:**
-
-| Data | Sent to Claude | Returned | Purpose |
-|------|---------------|----------|---------|
-| Contact + Account context | Name, org, title, giving history signals | Prospect score, research summary, suggested approach | Prospect scoring and intelligence |
-| Meeting transcripts | Transcript text + context | Structured summary, action items, confidence scores | Activity logging from Fireflies transcripts |
-
-**Trigger:** On-demand (user requests score) or batch (nightly scoring run).
-
-**Frequency:** Per-request or nightly batch.
-
-**Owner:** Engineering.
-
-**Current state:** Not started. Phase 2+. Architecture referenced in prospect-dashboard specs.
-
-**Constraints:** PII handling — minimize data sent; no donor financial details in prompts; results cached locally.
+Bedrock → Claude. Sends Contact/Account context, receives prospect scores and research summaries. Also processes Fireflies meeting transcripts into structured Activity records. On-demand or nightly batch. **PII constraint:** minimize data sent; no donor financial details; cache results locally.
 
 ---
 

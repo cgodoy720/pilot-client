@@ -138,37 +138,19 @@
 
 F01, F02, F03, F04, F05, F06, F09, F10, F11, F12, F19, F20, F21, F25, F34, F36, F38, F42, F45, F48, F49
 
-### MVP Critical Path (build order)
+### MVP Critical Path
 
-```
-F42 (RBAC)  ─────────────────────────────────────────┐
-F03 (Accounts) → F04 (Contacts) → F01 (Opps) ──────┤
-                                       │             │
-                                       ├──► F02 (Pipeline view)
-                                       ├──► F05 (Stage progression)
-                                       ├──► F06 (Stale detection)
-                                       ├──► F19 (Exec dashboard) → F20 (Cash flow) → F21 (Revenue by stream) → F25 (CSV export)
-                                       │
-F12 (Tasks) ──────► F09 (Weekly priorities)
-                         │
-F10 (CSV import) → F11 (Prospect-to-grant)
-                         │
-F34 (Activity log) → F36 (Activity timeline)
-                         │
-F38 (SF sync) → F45 (SF migration)  ← start early; unblocks real data
-```
+1. **Foundation (parallel):** F42 (RBAC) + F03 (Accounts) → F04 (Contacts) + F38 (SF sync) → F45 (SF migration)
+2. **Core pipeline:** F01 (Opps) → F02 (Pipeline view), F05 (Stage progression), F06 (Stale detection)
+3. **Reporting:** F19 (Exec dashboard) → F20 (Cash flow) → F21 (Revenue by stream) → F25 (CSV export)
+4. **Weekly workflow:** F12 (Tasks) → F09 (Weekly priorities); F10 (CSV import) → F11 (Prospect-to-grant)
+5. **Activity:** F34 (Activity log) → F36 (Activity timeline)
+6. **New:** F48 (Decision audit trail), F49 (Grant requirements capture)
 
-**Start with:** F03 + F04 (Accounts/Contacts) and F38 (Salesforce sync) in parallel.
 **Ship first:** F09 + F10 + F11 (Weekly Priorities — the week-1 prototype).
 
 ---
 
-## Scope Control Rule
+## Scope Control
 
-To promote a feature from Backlog to Post-MVP or from Post-MVP to MVP:
-1. Map it to a user journey in the Role × Journey Matrix
-2. Confirm it serves one of the 5 core jobs in the Scope Constitution
-3. Document the dependency chain — what must exist first?
-4. Get sign-off from product owner (Jac)
-
-Features that cannot be mapped to a user journey stay on Backlog.
+To promote a feature: map to a user journey, confirm it serves a core job (Scope Constitution), document dependencies, get sign-off from Jac. Unmapped features stay on Backlog.

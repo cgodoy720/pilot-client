@@ -86,14 +86,6 @@
 
 ---
 
-## Cross-Cutting Observations
+## Key Insight
 
-1. **Partnerships ICs are the primary data creators.** Almost all important data (Opportunities, Activities, Contact updates) originates from them. If the IC experience is painful, data quality collapses.
-
-2. **Executive is a read-only consumer.** The CEO needs dashboards and alerts, not data entry forms. Design for scanning, not input.
-
-3. **Finance needs structured payment data that doesn't exist yet.** The Payment entity is the most under-specified piece of the current system. Phase 2 is entirely gated on getting this right.
-
-4. **Program Staff have the lightest CRM needs** but are critical for grant compliance. They need visibility, not full CRM access.
-
-5. **"What should I do this week?"** is the #1 question for both ICs and Executives — answered differently (ICs: my tasks/deadlines; CEO: which deals need attention) but from the same underlying data.
+**ICs are the primary data creators** — if their experience is painful, data quality collapses. Executive is read-only (dashboards, not forms). "What should I do this week?" is the #1 question for both roles, answered from the same data.

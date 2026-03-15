@@ -97,20 +97,6 @@ How we know Bedrock is working by March 2027:
 
 ---
 
-## What This Document Does NOT Cover
+## Companion Documents
 
-This Scope Constitution defines *boundaries*. The following are defined in companion documents:
-
-| Topic | Document |
-|-------|----------|
-| **Canonical definitions** (stages, field names, IDs, enums) | `product/crm-architecture/canonical-definitions.md` |
-| Data model (entities, fields, relationships) | `product/crm-architecture/entity-map.md` |
-| User roles and journeys | `product/crm-architecture/user-journey-matrix.md` |
-| Information flows | `product/crm-architecture/information-flows.md` |
-| Integration contracts + Salesforce field mapping | `product/crm-architecture/integration-register.md` |
-| Feature inventory and prioritization | `product/crm-architecture/feature-register.md` |
-| Error codes, validation rules, partial failure behavior | `product/crm-architecture/error-contract.md` |
-| Individual component PRDs | `product/crm-prds/` (one per component) |
-| Week 1 prototype spec | `product/fundraising-team/phases/week-1-prototype.md` |
-| Long-term platform integration | `product/learning-platform-integration.md` |
-| Original grants PRD (historical, partially superseded) | `PRD.md` |
+This Constitution defines *boundaries*. Implementation details live in `product/crm-architecture/` (canonical-definitions, entity-map, user-journey-matrix, information-flows, integration-register, feature-register, error-contract) and `product/crm-prds/` (one PRD per component). See `product/crm-prds/README.md` for the full index.
