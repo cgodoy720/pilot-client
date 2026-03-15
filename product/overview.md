@@ -83,8 +83,10 @@ At a high level, the system aims to provide five major capability areas:
 - **Reporting & Executive Views**
   - Dashboards for CEO and leadership; board-ready views; **custom reports:** basic prompts + pre-built filters (date, stage, owner, payment status, etc.); optional advanced report builder later. See `product/fundraising-team/phases/custom-reports.md`.
 
-- **Slack-driven data entry & human verification**
-  - Team posts updates in Slack (messy OK); system proposes changes to Opportunities, Leads, Contacts, Accounts, and Payments (Sage). **Review queue** in Bedrock: staff confirm or reject before any DB write. Human verification required for all entities; critical for Payments. See `product/fundraising-team/phases/slack-data-entry-and-review.md`.
+- **Slack-driven pipeline updates & Automation Review**
+  - **Fast path:** Slack bot in `#pipeline-updates` parses natural language (rule-based + Haiku AI fallback, <$3/month), proposes structured changes in-thread, writes to Salesforce on user confirmation. Auto-approved items logged in Automation Review queue for optional pipeline meeting review.
+  - **Integration hub:** Bedrock Automation Review (see `home-page-spec.md` §3.4) — unified queue for all automated sources: unconfirmed Slack proposals, GCal, GDrive, Gmail, Fireflies, and future Knowledge Graph / Learning Platform signals. Everything in-line editable; reviewed weekly or ad hoc.
+  - Human confirmation required for every write regardless of path. See `product/fundraising-team/phases/slack-data-entry-and-review.md`.
 
 ---
 
