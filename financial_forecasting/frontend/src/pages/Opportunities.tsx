@@ -45,63 +45,14 @@ import { apiService } from '../services/api';
 import PaymentScheduleModal from '../components/PaymentScheduleModal';
 import TaskPanel from '../components/TaskPanel';
 import ActivityIntelligencePanel from '../components/ActivityIntelligencePanel';
-
-// Opportunity stages - matching Salesforce picklist
-const OPPORTUNITY_STAGES = [
-  '--None--',
-  'Lead Gen',
-  'New Lead',
-  'Qualifying',
-  'Design / Proposal Creation',
-  'Proposal Negotiation',
-  'Contract Creation',
-  'Negotiating Contract',
-  'Collecting / In Effect',
-  'Closed / Did not Fulfill',
-  'Closed / Completed',
-  'Closed Lost',
-  'Withdrawn',
-];
-
-// Open pipeline stages - anything actively being pursued
-const OPEN_STAGES = [
-  'Lead Gen',
-  'New Lead',
-  'Qualifying',
-  'Design / Proposal Creation',
-  'Proposal Negotiation',
-  'Contract Creation',
-  'Negotiating Contract'
-];
-
-const COLLECTING_STAGES = ['Collecting / In Effect'];
-const CLOSED_STAGES = ['Closed Lost', 'Withdrawn', 'Closed / Did not Fulfill', 'Closed / Completed'];
-
-interface Opportunity {
-  Id: string;
-  Name: string;
-  AccountId: string;
-  Account?: { Name: string };
-  StageName: string;
-  Amount: number;
-  Probability: number;
-  CloseDate: string;
-  CreatedDate: string;
-  LastModifiedDate: string;
-  OwnerId: string;
-  Owner?: { Name: string };
-  npe01__Payments_Made__c?: number;
-  Outstanding_Payments__c?: number;
-  Number_of_Payments_Received__c?: number;
-  Most_Recent_Payment_Date__c?: string;
-  Last_Actual_Payment__c?: string;
-  npe01__Number_of_Payments__c?: number;
-  PaymentDate__c?: string;
-  Earliest_Scheduled_Payment__c?: string;
-  RecordType?: { Name: string };
-  Active_Opportunity__c?: boolean;
-  Type?: string;
-}
+import {
+  OPPORTUNITY_STAGES,
+  OPEN_STAGES,
+  COLLECTING_STAGES,
+  CLOSED_STAGES,
+} from '../types/salesforce';
+import { getStageColor, getProbabilityColor, calculatePaymentDate } from './Opportunities/helpers';
+import type { Opportunity } from './Opportunities/helpers';
 
 // Custom Autocomplete Edit Component for Account
 function AccountEditCell(props: GridRenderEditCellParams) {
@@ -435,30 +386,7 @@ const Opportunities: React.FC = () => {
     }
   };
 
-  // Using formatDollarMillions from utils instead
-
-  const getStageColor = (stage: string) => {
-    if (stage.includes('Closed Won') || stage.includes('Completed')) return 'success';
-    if (stage.includes('Closed Lost') || stage.includes('Withdrawn')) return 'error';
-    if (stage.includes('Proposal') || stage.includes('Negotiation')) return 'warning';
-    return 'info';
-  };
-
-  const getProbabilityColor = (probability: number) => {
-    if (probability >= 70) return 'success';
-    if (probability >= 40) return 'warning';
-    return 'error';
-  };
-
-  // Calculate expected payment date (30 days after close date)
-  const calculatePaymentDate = (closeDate: string) => {
-    if (!closeDate) return null;
-    try {
-      return addDays(new Date(closeDate), 30);
-    } catch {
-      return null;
-    }
-  };
+  // Helper functions imported from ./Opportunities/helpers
 
   // Handle cell edit
   const handleCellEdit = async (newRow: any, oldRow: any) => {
@@ -1081,7 +1009,7 @@ const Opportunities: React.FC = () => {
 
   // Calculate metrics for each view mode
   const openOnlyOpps = opportunities?.filter((opp: Opportunity) => {
-    return OPEN_STAGES.includes(opp.StageName);
+    return (OPEN_STAGES as readonly string[]).includes(opp.StageName);
   }) || [];
 
   const paymentOpps = opportunities?.filter((opp: Opportunity) => {
@@ -1109,7 +1037,7 @@ const Opportunities: React.FC = () => {
     if (viewMode === 'open') {
       // Open pipeline - show open stages + recently changed
       return opportunities?.filter((opp: Opportunity) => {
-        const isOpen = OPEN_STAGES.includes(opp.StageName);
+        const isOpen = (OPEN_STAGES as readonly string[]).includes(opp.StageName);
         const inRecentSet = Boolean(recentlyChangedIds[opp.Id]);
         const inRecentRef = recentlyChangedRef.current.has(opp.Id);
         return isOpen || inRecentSet || inRecentRef;

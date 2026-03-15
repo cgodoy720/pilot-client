@@ -8,17 +8,41 @@ from pydantic import BaseModel, Field, validator
 
 
 class OpportunityStage(str, Enum):
-    """Salesforce opportunity stages."""
-    PROSPECTING = "Prospecting"
-    QUALIFICATION = "Qualification"
-    NEEDS_ANALYSIS = "Needs Analysis"
-    VALUE_PROPOSITION = "Value Proposition"
-    ID_DECISION_MAKERS = "Id. Decision Makers"
-    PERCEPTION_ANALYSIS = "Perception Analysis"
-    PROPOSAL_PRICE_QUOTE = "Proposal/Price Quote"
-    NEGOTIATION_REVIEW = "Negotiation/Review"
-    CLOSED_WON = "Closed Won"
+    """Pursuit's Salesforce opportunity stages (custom picklist)."""
+    NONE = "--None--"
+    LEAD_GEN = "Lead Gen"
+    NEW_LEAD = "New Lead"
+    QUALIFYING = "Qualifying"
+    DESIGN_PROPOSAL = "Design / Proposal Creation"
+    PROPOSAL_NEGOTIATION = "Proposal Negotiation"
+    CONTRACT_CREATION = "Contract Creation"
+    NEGOTIATING_CONTRACT = "Negotiating Contract"
+    COLLECTING = "Collecting / In Effect"
+    CLOSED_DID_NOT_FULFILL = "Closed / Did not Fulfill"
+    CLOSED_COMPLETED = "Closed / Completed"
     CLOSED_LOST = "Closed Lost"
+    WITHDRAWN = "Withdrawn"
+
+
+# Derived stage groups — single source of truth
+OPEN_STAGES = frozenset({
+    OpportunityStage.LEAD_GEN,
+    OpportunityStage.NEW_LEAD,
+    OpportunityStage.QUALIFYING,
+    OpportunityStage.DESIGN_PROPOSAL,
+    OpportunityStage.PROPOSAL_NEGOTIATION,
+    OpportunityStage.CONTRACT_CREATION,
+    OpportunityStage.NEGOTIATING_CONTRACT,
+})
+
+COLLECTING_STAGES = frozenset({OpportunityStage.COLLECTING})
+
+CLOSED_STAGES = frozenset({
+    OpportunityStage.CLOSED_DID_NOT_FULFILL,
+    OpportunityStage.CLOSED_COMPLETED,
+    OpportunityStage.CLOSED_LOST,
+    OpportunityStage.WITHDRAWN,
+})
 
 
 class PaymentTerms(str, Enum):
@@ -297,6 +321,23 @@ class ForecastingReport(BaseModel):
 
 
 # API Request/Response Models
+
+from typing import Generic, TypeVar
+
+T = TypeVar('T')
+
+
+class ApiResponse(BaseModel, Generic[T]):
+    """Standard API response envelope.
+
+    All non-Pydantic-model endpoints should return this shape so the frontend
+    can rely on a single contract: { success, data?, error?, meta? }.
+    """
+    success: bool
+    data: Optional[Any] = None
+    error: Optional[str] = None
+    meta: Optional[Dict[str, Any]] = None
+
 
 class OpportunityUpdateRequest(BaseModel):
     """Request model for updating opportunities."""

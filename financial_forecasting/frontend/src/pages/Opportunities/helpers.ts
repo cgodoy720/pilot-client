@@ -1,0 +1,63 @@
+/**
+ * Pure helper functions for the Opportunities page.
+ *
+ * Extracted from the monolithic Opportunities.tsx so they're testable
+ * and reusable across sub-components.
+ */
+import { addDays } from 'date-fns';
+import type { OpportunityStage } from '../../types/salesforce';
+
+export function getStageColor(stage: string): 'success' | 'error' | 'warning' | 'info' {
+  if (stage.includes('Completed')) return 'success';
+  if (stage.includes('Closed Lost') || stage.includes('Withdrawn') || stage.includes('Did not Fulfill'))
+    return 'error';
+  if (stage.includes('Proposal') || stage.includes('Negotiat')) return 'warning';
+  return 'info';
+}
+
+export function getProbabilityColor(probability: number): 'success' | 'warning' | 'error' {
+  if (probability >= 70) return 'success';
+  if (probability >= 40) return 'warning';
+  return 'error';
+}
+
+export function calculatePaymentDate(closeDate: string): Date | null {
+  if (!closeDate) return null;
+  try {
+    return addDays(new Date(closeDate), 30);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The Opportunity interface used across all Opportunities sub-components.
+ *
+ * This is kept here (rather than in types/salesforce.ts) because it includes
+ * Pursuit-specific custom fields that only matter in the Opportunities context.
+ */
+export interface Opportunity {
+  Id: string;
+  Name: string;
+  AccountId: string;
+  Account?: { Name: string };
+  StageName: string;
+  Amount: number;
+  Probability: number;
+  CloseDate: string;
+  CreatedDate: string;
+  LastModifiedDate: string;
+  OwnerId: string;
+  Owner?: { Name: string };
+  npe01__Payments_Made__c?: number;
+  Outstanding_Payments__c?: number;
+  Number_of_Payments_Received__c?: number;
+  Most_Recent_Payment_Date__c?: string;
+  Last_Actual_Payment__c?: string;
+  npe01__Number_of_Payments__c?: number;
+  PaymentDate__c?: string;
+  Earliest_Scheduled_Payment__c?: string;
+  RecordType?: { Name: string };
+  Active_Opportunity__c?: boolean;
+  Type?: string;
+}

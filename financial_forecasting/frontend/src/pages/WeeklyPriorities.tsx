@@ -38,6 +38,7 @@ import { useQuery } from 'react-query';
 import { apiService } from '../services/api';
 import { parseCSV } from '../utils/csvParser';
 import type { Grant, ImportResult, Lead, WeeklyPriorityItem } from '../types/weeklyPriorities';
+import type { SalesforceOpportunity } from '../types/salesforce';
 
 // ---------------------------------------------------------------------------
 // Salesforce Lightning link helper
@@ -128,12 +129,13 @@ export default function WeeklyPriorities() {
   // Filter to lookahead window
   const grants: Grant[] = useMemo(() => {
     if (!oppsData?.data) return [];
-    return (oppsData.data as any[])
+    const opps = oppsData.data as SalesforceOpportunity[];
+    return opps
       .filter((o) => isThisWeek(o.CloseDate))
       .map((o) => ({
         id: o.Id,
         name: o.Name,
-        close_date: o.CloseDate,
+        close_date: o.CloseDate ?? '',
         stage: o.StageName,
       }));
   }, [oppsData]);
