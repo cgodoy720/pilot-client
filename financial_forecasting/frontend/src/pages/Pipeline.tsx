@@ -6,14 +6,16 @@ import {
   Typography,
 } from '@mui/material';
 import {
-  TrendingUp as TrendingUpIcon,
+  MonetizationOn as MonetizationOnIcon,
   Business as BusinessIcon,
   Person as PersonIcon,
+  PersonSearch as PersonSearchIcon,
 } from '@mui/icons-material';
 
 import Opportunities from './Opportunities';
 import Accounts from './Accounts';
 import Contacts from './Contacts';
+import Leads from './Leads';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -54,7 +56,7 @@ export default function Pipeline() {
           sx={{ minHeight: 48 }}
         >
           <Tab
-            icon={<TrendingUpIcon />}
+            icon={<MonetizationOnIcon />}
             iconPosition="start"
             label="Opportunities"
             id="pipeline-tab-0"
@@ -74,6 +76,13 @@ export default function Pipeline() {
             id="pipeline-tab-2"
             aria-controls="pipeline-tabpanel-2"
           />
+          <Tab
+            icon={<PersonSearchIcon />}
+            iconPosition="start"
+            label="Leads"
+            id="pipeline-tab-3"
+            aria-controls="pipeline-tabpanel-3"
+          />
         </Tabs>
       </Box>
 
@@ -87,6 +96,10 @@ export default function Pipeline() {
 
       <TabPanel value={currentTab} index={2}>
         <Contacts />
+      </TabPanel>
+
+      <TabPanel value={currentTab} index={3}>
+        <Leads />
       </TabPanel>
     </Box>
   );

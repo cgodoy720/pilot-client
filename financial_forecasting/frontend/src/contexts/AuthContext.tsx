@@ -43,7 +43,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await apiService.getCurrentUser();
       setUser(response.data);
     } catch (error) {
-      setUser(null);
+      // Dev bypass: if auth fails locally, use a mock user so we can work without Google OAuth
+      if (window.location.hostname === 'localhost') {
+        setUser({
+          email: 'dev@localhost',
+          name: 'Dev User',
+          sub: 'dev-local',
+          salesforce_connected: true,
+        });
+      } else {
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }

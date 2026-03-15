@@ -36,7 +36,7 @@ google-api-python-client==2.111.0
 anthropic>=0.30.0
 
 # Pydantic (FastAPI dependency)
-pydantic==2.5.3
+pydantic>=2.7
 
 # Background scheduler
 APScheduler==3.10.4

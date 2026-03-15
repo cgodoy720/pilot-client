@@ -33,6 +33,9 @@ import {
   Sync as SyncIcon,
   Cloud as CloudIcon,
   CloudOff as CloudOffIcon,
+  Home as HomeIcon,
+  HolidayVillage as BedrockIcon,
+  Timeline as TimelineIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from 'react-query';
@@ -49,8 +52,10 @@ interface LayoutProps {
 }
 
 const menuItems = [
+  { text: 'Home', icon: <HomeIcon />, path: '/home' },
   { text: 'Overview', icon: <DashboardIcon />, path: '/overview' },
   { text: 'Pipeline', icon: <TrendingUpIcon />, path: '/pipeline' },
+  { text: 'Network', icon: <TimelineIcon />, path: '/network' },
   { text: 'Revenue', icon: <AttachMoneyIcon />, path: '/revenue' },
   { text: 'Cleanup', icon: <CleaningServicesIcon />, path: '/cleanup' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
@@ -141,21 +146,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const drawer = (
     <div>
-      <Toolbar sx={{ justifyContent: isExpanded ? 'flex-start' : 'center' }}>
-        <Typography 
-          variant="h6" 
-          noWrap 
-          component="div" 
-          sx={{ 
-            fontWeight: 600,
-            display: isExpanded ? 'block' : 'none',
-          }}
-        >
-          Revenue Hub
-        </Typography>
-        {!isExpanded && (
-          <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.primary.main }}>
-            R
+      <Toolbar sx={{ justifyContent: isExpanded ? 'flex-start' : 'center', gap: 1 }}>
+        <BedrockIcon sx={{ color: theme.palette.primary.main }} />
+        {isExpanded && (
+          <Typography
+            variant="h6"
+            noWrap
+            component="div"
+            sx={{ fontWeight: 600 }}
+          >
+            Bedrock
           </Typography>
         )}
       </Toolbar>

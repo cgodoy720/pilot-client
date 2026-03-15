@@ -1,0 +1,1 @@
+Fundraising-team vision and success criteria live in **`product/overview.md`** (Bedrock, capabilities, end state) and **`product/fundraising-team/raw-prds/prospect-dashboard/vision.md`** (prospect dashboard, users, features, timeline). This file is a pointer only; no duplicate content.
