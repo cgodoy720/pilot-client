@@ -24,6 +24,7 @@ from models import (
     OpportunityUpdateRequest, InvoiceCreationRequest, ForecastingDashboardData,
     OpportunityStage, PaymentTerms, InvoiceStatus,
     OPEN_STAGES, CLOSED_STAGES,
+    ApiResponse,
 )
 from forecasting_engine import ForecastingEngine
 from data_sync import DataSyncService
@@ -103,15 +104,14 @@ async def background_sync_task():
         try:
             data_sync_service = _services.get("data_sync_service")
             if data_sync_service:
-                # Try to acquire without blocking — skip if another sync is running
-                acquired = _sync_lock.locked() is False
-                if acquired:
+                        # Non-blocking acquire — skip cycle if lock held
+                if _sync_lock.locked():
+                    logger.warning("Sync already in progress, skipping cycle.")
+                else:
                     async with _sync_lock:
                         logger.info("Running background data sync...")
                         await data_sync_service.sync_all_data()
                         logger.info("Background data sync completed.")
-                else:
-                    logger.warning("Sync already in progress, skipping cycle.")
         except Exception as e:
             logger.error(f"Background sync error: {e}")
 
@@ -156,22 +156,25 @@ def get_data_sync_service() -> DataSyncService:
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.utcnow(),
-        "services": {
-            "mcp_client": "mcp_client" in _services,
-            "forecasting_engine": "forecasting_engine" in _services,
-            "data_sync_service": "data_sync_service" in _services,
-        }
-    }
+    return ApiResponse(
+        success=True,
+        data={"status": "healthy"},
+        meta={
+            "timestamp": datetime.utcnow().isoformat(),
+            "services": {
+                "mcp_client": "mcp_client" in _services,
+                "forecasting_engine": "forecasting_engine" in _services,
+                "data_sync_service": "data_sync_service" in _services,
+            },
+        },
+    )
 
 
 @app.get("/health/services")
 async def services_health_check(client: UnifiedMCPClient = Depends(get_mcp_client)):
     """Check health of connected services."""
     health_status = {}
-    
+
     for service_name in client._connected_services:
         try:
             service = client.services[service_name]
@@ -186,8 +189,8 @@ async def services_health_check(client: UnifiedMCPClient = Depends(get_mcp_clien
                 "status": "error",
                 "error": str(e)
             }
-    
-    return health_status
+
+    return ApiResponse(success=True, data=health_status)
 
 
 # Salesforce endpoints
@@ -262,9 +265,8 @@ async def update_opportunity(
         )
         
         if success:
-            # Log the update
             logger.info(f"Opportunity {opportunity_id} updated by {user['user_id']}")
-            return {"success": True, "message": "Opportunity updated successfully"}
+            return ApiResponse(success=True, data={"id": opportunity_id, "message": "Opportunity updated successfully"})
         else:
             raise HTTPException(status_code=400, detail="Failed to update opportunity")
             
@@ -320,11 +322,7 @@ async def create_account(
         
         if result and result.get("id"):
             logger.info(f"Account created with ID: {result['id']} by {user['user_id']}")
-            return {
-                "success": True,
-                "id": result["id"],
-                "message": "Account created successfully"
-            }
+            return ApiResponse(success=True, data={"id": result["id"], "message": "Account created successfully"})
         else:
             raise HTTPException(status_code=400, detail="Failed to create account")
             
@@ -383,11 +381,7 @@ async def create_contact(
         
         if result and result.get("id"):
             logger.info(f"Contact created with ID: {result['id']} by {user['user_id']}")
-            return {
-                "success": True,
-                "id": result["id"],
-                "message": "Contact created successfully"
-            }
+            return ApiResponse(success=True, data={"id": result["id"], "message": "Contact created successfully"})
         else:
             raise HTTPException(status_code=400, detail="Failed to create contact")
             
@@ -484,11 +478,10 @@ async def create_invoice(
                 user["user_id"]
             )
             
-            return {
-                "success": True,
-                "invoice_id": result.get("data", {}).get("RECORDNO"),
-                "message": "Invoice created successfully"
-            }
+            return ApiResponse(
+                success=True,
+                data={"invoice_id": result.get("data", {}).get("RECORDNO"), "message": "Invoice created successfully"},
+            )
         else:
             raise HTTPException(
                 status_code=400, 
@@ -652,27 +645,25 @@ async def trigger_data_sync(
     """Trigger manual data synchronization."""
     try:
 
-        # Atomically try to acquire — no TOCTOU race
-        if not _sync_lock.locked():
-            async def _locked_sync(sync_fn):
-                async with _sync_lock:
-                    await sync_fn()
-
-            # Run sync in background
-            if sync_type == "all":
-                background_tasks.add_task(_locked_sync, sync_service.sync_all_data)
-            elif sync_type == "salesforce":
-                background_tasks.add_task(_locked_sync, sync_service.sync_salesforce_data)
-            elif sync_type == "intacct":
-                background_tasks.add_task(_locked_sync, sync_service.sync_intacct_data)
-        else:
+        if _sync_lock.locked():
             raise HTTPException(status_code=409, detail="Sync already in progress")
 
-        return {
-            "success": True,
-            "message": f"Data sync ({sync_type}) triggered successfully",
-            "triggered_by": user["user_id"]
-        }
+        async def _locked_sync(sync_fn):
+            async with _sync_lock:
+                await sync_fn()
+
+        if sync_type == "all":
+            background_tasks.add_task(_locked_sync, sync_service.sync_all_data)
+        elif sync_type == "salesforce":
+            background_tasks.add_task(_locked_sync, sync_service.sync_salesforce_data)
+        elif sync_type == "intacct":
+            background_tasks.add_task(_locked_sync, sync_service.sync_intacct_data)
+
+        return ApiResponse(
+            success=True,
+            data={"message": f"Data sync ({sync_type}) triggered successfully"},
+            meta={"triggered_by": user["user_id"]},
+        )
 
     except HTTPException:
         raise
@@ -713,11 +704,7 @@ async def get_grant_invoices(
         # Convert to list of dicts
         invoices = df.to_dict('records')
         
-        return {
-            "success": True,
-            "count": len(invoices),
-            "invoices": invoices
-        }
+        return ApiResponse(success=True, data=invoices, meta={"count": len(invoices)})
         
     except Exception as e:
         logger.error(f"Error loading grant invoices: {e}")
@@ -741,11 +728,7 @@ async def get_invoice_matches(
         else:
             matches = {}
         
-        return {
-            "success": True,
-            "count": len(matches),
-            "matches": matches
-        }
+        return ApiResponse(success=True, data=matches, meta={"count": len(matches)})
         
     except Exception as e:
         logger.error(f"Error loading matches: {e}")
@@ -792,12 +775,10 @@ async def save_invoice_match(
         
         logger.info(f"Saved match: Invoice {match_request.invoice_id} -> Opportunity {match_request.opportunity_id}")
         
-        return {
-            "success": True,
-            "message": "Match saved successfully",
-            "invoice_id": match_request.invoice_id,
-            "opportunity_id": match_request.opportunity_id
-        }
+        return ApiResponse(
+            success=True,
+            data={"message": "Match saved successfully", "invoice_id": match_request.invoice_id, "opportunity_id": match_request.opportunity_id},
+        )
         
     except Exception as e:
         logger.error(f"Error saving match: {e}")
@@ -833,10 +814,7 @@ async def delete_invoice_match(
             
             logger.info(f"Deleted match for invoice {invoice_id}")
             
-            return {
-                "success": True,
-                "message": "Match deleted successfully"
-            }
+            return ApiResponse(success=True, data={"message": "Match deleted successfully"})
         else:
             raise HTTPException(status_code=404, detail="Match not found")
         

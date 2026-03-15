@@ -1,4 +1,14 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+/**
+ * Opportunities page — orchestrator component.
+ *
+ * Wires together sub-components extracted into the Opportunities/ directory:
+ *   - useOpportunityData: data fetching, mutations, derived state
+ *   - columns:            DataGrid column definitions
+ *   - EditCells:          Autocomplete edit cells for Account / Owner
+ *   - SummaryCards:       metric cards above the grid
+ *   - helpers:            pure functions + Opportunity interface
+ */
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { formatDollarMillions } from '../utils/formatters';
 import {
@@ -13,1626 +23,454 @@ import {
   DialogActions,
   TextField,
   MenuItem,
-  Grid,
   Chip,
-  IconButton,
   CircularProgress,
   Alert,
-  Select,
-  Autocomplete,
-  Tooltip,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
   Add as AddIcon,
   Check as CheckIcon,
-  TipsAndUpdates as IntelligenceIcon,
 } from '@mui/icons-material';
-import { 
-  DataGrid, 
-  GridColDef, 
-  GridRenderCellParams,
-  GridRenderEditCellParams,
-  GridValueGetterParams,
-  GridToolbar,
-  useGridApiContext,
-} from '@mui/x-data-grid';
-import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { DataGrid, GridToolbar, GridRenderCellParams } from '@mui/x-data-grid';
 import toast from 'react-hot-toast';
-import { format, addDays, parseISO, differenceInDays } from 'date-fns';
+import { parseISO, differenceInDays } from 'date-fns';
 
 import { apiService } from '../services/api';
 import PaymentScheduleModal from '../components/PaymentScheduleModal';
 import TaskPanel from '../components/TaskPanel';
 import ActivityIntelligencePanel from '../components/ActivityIntelligencePanel';
-import {
-  OPPORTUNITY_STAGES,
-  OPEN_STAGES,
-  COLLECTING_STAGES,
-  CLOSED_STAGES,
-} from '../types/salesforce';
-import { getStageColor, getProbabilityColor, calculatePaymentDate } from './Opportunities/helpers';
+import { OPPORTUNITY_STAGES, OPEN_STAGES, CLOSED_STAGES } from '../types/salesforce';
 import type { Opportunity } from './Opportunities/helpers';
-
-// Custom Autocomplete Edit Component for Account
-function AccountEditCell(props: GridRenderEditCellParams) {
-  const { id, value, field, hasFocus } = props;
-  const apiRef = useGridApiContext();
-  const [options, setOptions] = React.useState<any[]>([]);
-
-  React.useEffect(() => {
-    // Fetch accounts from query cache
-    const fetchAccounts = async () => {
-      try {
-        const response = await apiService.getAccounts();
-        setOptions(response.data || []);
-      } catch (error) {
-        console.error('Failed to fetch accounts:', error);
-      }
-    };
-    fetchAccounts();
-  }, []);
-
-  const handleChange = (event: any, newValue: any) => {
-    apiRef.current.setEditCellValue({ id, field, value: newValue?.Id || '' });
-  };
-
-  const selectedAccount = options.find((acc) => acc.Id === value);
-
-  return (
-    <Autocomplete
-      value={selectedAccount || null}
-      onChange={handleChange}
-      options={options}
-      getOptionLabel={(option) => option.Name || ''}
-      isOptionEqualToValue={(option, value) => option.Id === value?.Id}
-      autoFocus={hasFocus}
-      fullWidth
-      sx={{ width: '100%' }}
-      renderInput={(params) => (
-        <TextField {...params} placeholder="Search accounts..." variant="standard" />
-      )}
-    />
-  );
-}
-
-// Custom Autocomplete Edit Component for Owner
-function OwnerEditCell(props: GridRenderEditCellParams) {
-  const { id, value, field, hasFocus } = props;
-  const apiRef = useGridApiContext();
-  const [options, setOptions] = React.useState<any[]>([]);
-
-  React.useEffect(() => {
-    // Fetch users from query cache
-    const fetchUsers = async () => {
-      try {
-        const response = await apiService.getUsers({ limit: 1000 });
-        setOptions(response.data || []);
-      } catch (error) {
-        console.error('Failed to fetch users:', error);
-      }
-    };
-    fetchUsers();
-  }, []);
-
-  const handleChange = (event: any, newValue: any) => {
-    apiRef.current.setEditCellValue({ id, field, value: newValue?.Id || '' });
-  };
-
-  const selectedUser = options.find((user) => user.Id === value);
-
-  return (
-    <Autocomplete
-      value={selectedUser || null}
-      onChange={handleChange}
-      options={options}
-      getOptionLabel={(option) => option.Name || ''}
-      isOptionEqualToValue={(option, value) => option.Id === value?.Id}
-      autoFocus={hasFocus}
-      fullWidth
-      sx={{ width: '100%' }}
-      renderInput={(params) => (
-        <TextField {...params} placeholder="Search users..." variant="standard" />
-      )}
-    />
-  );
-}
+import { useOpportunityData, ViewMode } from './Opportunities/useOpportunityData';
+import { buildPipelineColumns, buildPaymentColumns, ColumnCallbacks } from './Opportunities/columns';
+import { SummaryCards } from './Opportunities/SummaryCards';
 
 const Opportunities: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
-  const [editForm, setEditForm] = useState<any>({});
-  const [viewMode, setViewMode] = useState<'open' | 'collecting' | 'closed'>('open');
-  const [recentlyChangedIds, setRecentlyChangedIds] = useState<Record<string, boolean>>({});
-  const recentlyChangedRef = useRef<Set<string>>(new Set());
-  const [initialFilter, setInitialFilter] = useState<'atRisk' | 'stale' | null>(null);
-  
-  // Filter states
+
+  // View & filter state
+  const [viewMode, setViewMode] = useState<ViewMode>('open');
   const [philanthropyOnly, setPhilanthropyOnly] = useState(false);
   const [pbcOnly, setPbcOnly] = useState(false);
   const [aijiOnly, setAijiOnly] = useState(false);
-  
-  // Bulk action states
+  const [initialFilter, setInitialFilter] = useState<'atRisk' | 'stale' | null>(null);
+
+  // Selection & bulk actions
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const [bulkActionDialogOpen, setBulkActionDialogOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<'withdraw' | 'stage' | ''>('');
   const [bulkTargetStage, setBulkTargetStage] = useState('');
-  
-  // Payment Schedule Modal state
+
+  // Edit dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
+  const [editForm, setEditForm] = useState<any>({});
+
+  // Payment schedule modal
   const [paymentScheduleOpen, setPaymentScheduleOpen] = useState(false);
   const [paymentScheduleOpp, setPaymentScheduleOpp] = useState<Opportunity | null>(null);
 
-  // Task Panel state
+  // Task panel
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const [taskPanelOpp, setTaskPanelOpp] = useState<Opportunity | null>(null);
 
-  // Activity Intelligence Panel state (drawer)
+  // Activity intelligence drawer
   const [activityPanelOpen, setActivityPanelOpen] = useState(false);
   const [activityOpp, setActivityOpp] = useState<Opportunity | null>(null);
 
-
-  const queryClient = useQueryClient();
-
-  // Fetch opportunities
-  const stagesForView = viewMode === 'open' ? OPEN_STAGES
-    : viewMode === 'collecting' ? COLLECTING_STAGES : CLOSED_STAGES;
-
-  const { data: opportunitiesData, isLoading, error } = useQuery(
-    ['opportunities', philanthropyOnly, pbcOnly, viewMode],
-    async () => {
-      const params: any = { stages: stagesForView };
-      if (philanthropyOnly) {
-        params.record_type = 'Philanthropy';
-        params.active_only = true;
-      }
-      if (pbcOnly) {
-        params.opp_type = 'PBC';
-        params.active_only = true;
-      }
-      const response = await apiService.getOpportunities(params);
-      return response.data;
-    }
-  );
-
-  // Ensure opportunities is always an array
-  const opportunities = Array.isArray(opportunitiesData) 
-    ? opportunitiesData 
-    : (opportunitiesData?.opportunities || opportunitiesData?.data || []);
-
-  // Fetch users for Owner autocomplete
-  const { data: usersData } = useQuery(
-    'users',
-    async () => {
-      const response = await apiService.getUsers({ limit: 1000 });
-      return response.data;
-    },
-    {
-      staleTime: 300000, // Cache for 5 minutes
-    }
-  );
-
-  // Fetch accounts for Account autocomplete
-  const { data: accountsData } = useQuery(
-    'accounts',
-    async () => {
-      const response = await apiService.getAccounts();
-      return response.data;
-    },
-    {
-      staleTime: 300000, // Cache for 5 minutes
-    }
-  );
-
-  // Ensure users and accounts are always arrays (memoized to stabilize Map deps)
-  const users = useMemo(
-    () => Array.isArray(usersData) ? usersData : (usersData?.users || []),
-    [usersData]
-  );
-  const accounts = useMemo(
-    () => Array.isArray(accountsData) ? accountsData : (accountsData?.accounts || []),
-    [accountsData]
-  );
-
-  const accountMap = useMemo(() => {
-    const map = new Map<string, any>();
-    accounts.forEach((a: any) => map.set(a.Id, a));
-    return map;
-  }, [accounts]);
-
-  const userMap = useMemo(() => {
-    const map = new Map<string, any>();
-    users.forEach((u: any) => map.set(u.Id, u));
-    return map;
-  }, [users]);
+  // Data hook
+  const {
+    opportunities,
+    users,
+    accountMap,
+    userMap,
+    openOnlyOpps,
+    paymentOpps,
+    isLoading,
+    error,
+    updateMutation,
+    bulkUpdateMutation,
+    queryClient,
+    recentlyChangedIds,
+    recentlyChangedRef,
+    markRecentlyChanged,
+    clearRecentlyChanged,
+  } = useOpportunityData(viewMode, philanthropyOnly, pbcOnly);
 
   // Handle incoming filter from Dashboard
   useEffect(() => {
     const state = location.state as { filterAtRisk?: boolean; filterStale?: boolean } | null;
     if (state) {
-      if (state.filterAtRisk) {
-        setInitialFilter('atRisk');
-      } else if (state.filterStale) {
-        setInitialFilter('stale');
-      }
-      // Clear the state so it doesn't persist on refresh
+      if (state.filterAtRisk) setInitialFilter('atRisk');
+      else if (state.filterStale) setInitialFilter('stale');
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state]);
 
-  // Update opportunity mutation
-  const updateMutation = useMutation(
-    async ({ oppId, updates }: { oppId: string; updates: any }) => {
-      return await apiService.updateOpportunity(oppId, updates);
-    },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('opportunities');
-        toast.success('Opportunity updated successfully!');
-        setEditDialogOpen(false);
-      },
-      onError: (error: any) => {
-        toast.error(`Failed to update: ${error.message}`);
-      },
-    }
-  );
-
-  // Bulk update mutation
-  const bulkUpdateMutation = useMutation(
-    async ({ oppIds, updates }: { oppIds: string[]; updates: any }) => {
-      // Use bulk update endpoint for better performance
-      const response = await apiService.bulkUpdateOpportunities(oppIds, updates);
-      return response.data;
-    },
-    {
-      onSuccess: (data, variables) => {
-        queryClient.invalidateQueries('opportunities');
-        
-        if (data.failed_count > 0) {
-          toast(`Updated ${data.success_count} of ${data.total} opportunities. ${data.failed_count} failed.`, {
-            icon: '⚠️',
-            duration: 5000
-          });
-        } else {
-          toast.success(`Successfully updated ${data.success_count} opportunities!`);
-        }
-        
-        setBulkActionDialogOpen(false);
-        setSelectedRowIds([]);
-        setBulkAction('');
-        setBulkTargetStage('');
-      },
-      onError: (error: any) => {
-        toast.error(`Failed to update: ${error.message}`);
-      },
-    }
-  );
-
-  const handleEdit = (opp: Opportunity) => {
-    setSelectedOpp(opp);
-    setEditForm({
-      Name: opp.Name,
-      StageName: opp.StageName,
-      Amount: opp.Amount,
-      Probability: opp.Probability,
-      CloseDate: opp.CloseDate,
-    });
-    setEditDialogOpen(true);
-  };
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
 
   const handleSave = () => {
-    if (selectedOpp) {
-      const updates: any = {};
-      
-      // Only include changed fields
-      if (editForm.Name !== selectedOpp.Name) updates.Name = editForm.Name;
-      if (editForm.StageName !== selectedOpp.StageName) updates.StageName = editForm.StageName;
-      if (editForm.Amount !== selectedOpp.Amount) updates.Amount = parseFloat(editForm.Amount);
-      if (editForm.Probability !== selectedOpp.Probability) updates.Probability = parseInt(editForm.Probability);
-      if (editForm.CloseDate !== selectedOpp.CloseDate) updates.CloseDate = editForm.CloseDate;
+    if (!selectedOpp) return;
+    const updates: any = {};
+    if (editForm.Name !== selectedOpp.Name) updates.Name = editForm.Name;
+    if (editForm.StageName !== selectedOpp.StageName) updates.StageName = editForm.StageName;
+    if (editForm.Amount !== selectedOpp.Amount) updates.Amount = parseFloat(editForm.Amount);
+    if (editForm.Probability !== selectedOpp.Probability) updates.Probability = parseInt(editForm.Probability);
+    if (editForm.CloseDate !== selectedOpp.CloseDate) updates.CloseDate = editForm.CloseDate;
 
-      if (Object.keys(updates).length > 0) {
-        // Check if stage is changing to "Closed Won"
-        const stageChangedToClosedWon = updates.StageName && 
-                                         updates.StageName.includes('Closed Won') && 
-                                         !selectedOpp.StageName.includes('Closed Won');
-        
-        // Save the opportunity first
-        updateMutation.mutate(
-          { oppId: selectedOpp.Id, updates },
-          {
-            onSuccess: () => {
-              // If moved to Closed Won, show payment schedule modal
-              if (stageChangedToClosedWon) {
-                const updatedOpp = { ...selectedOpp, ...updates };
-                setPaymentScheduleOpp(updatedOpp);
-                setPaymentScheduleOpen(true);
-              }
-            }
-          }
-        );
-      } else {
-        toast('No changes detected');
-        setEditDialogOpen(false);
-      }
+    if (Object.keys(updates).length === 0) {
+      toast('No changes detected');
+      setEditDialogOpen(false);
+      return;
     }
+
+    const stageChangedToCompleted = updates.StageName?.includes('Closed / Completed') && !selectedOpp.StageName.includes('Closed / Completed');
+    updateMutation.mutate(
+      { oppId: selectedOpp.Id, updates },
+      {
+        onSuccess: () => {
+          setEditDialogOpen(false);
+          if (stageChangedToCompleted) {
+            const updatedOpp = { ...selectedOpp, ...updates };
+            setPaymentScheduleOpp(updatedOpp);
+            setPaymentScheduleOpen(true);
+          }
+        },
+      },
+    );
   };
 
   const handleBulkAction = (action: 'withdraw' | 'stage') => {
-    if (selectedRowIds.length === 0) {
-      toast.error('Please select opportunities first');
-      return;
-    }
+    if (selectedRowIds.length === 0) { toast.error('Please select opportunities first'); return; }
     setBulkAction(action);
-    if (action === 'withdraw') {
-      setBulkTargetStage('Withdrawn');
-    }
+    if (action === 'withdraw') setBulkTargetStage('Withdrawn');
     setBulkActionDialogOpen(true);
   };
 
   const handleBulkActionConfirm = () => {
-    if (bulkAction === 'withdraw') {
-      bulkUpdateMutation.mutate({
-        oppIds: selectedRowIds,
-        updates: { StageName: 'Withdrawn' }
-      });
-    } else if (bulkAction === 'stage' && bulkTargetStage) {
-      bulkUpdateMutation.mutate({
-        oppIds: selectedRowIds,
-        updates: { StageName: bulkTargetStage }
+    const updates = bulkAction === 'withdraw'
+      ? { StageName: 'Withdrawn' }
+      : bulkTargetStage ? { StageName: bulkTargetStage } : null;
+    if (updates) {
+      bulkUpdateMutation.mutate({ oppIds: selectedRowIds, updates }, {
+        onSuccess: () => {
+          setBulkActionDialogOpen(false);
+          setSelectedRowIds([]);
+          setBulkAction('');
+          setBulkTargetStage('');
+        },
       });
     }
   };
 
-  // Helper functions imported from ./Opportunities/helpers
-
-  // Handle cell edit
   const handleCellEdit = async (newRow: any, oldRow: any) => {
-    // Find what changed
     const updates: any = {};
-    Object.keys(newRow).forEach(key => {
+    Object.keys(newRow).forEach((key) => {
       if (newRow[key] !== oldRow[key] && key !== 'Id') {
-        // Handle date conversion for CloseDate
         if (key === 'CloseDate' && newRow[key] instanceof Date) {
           updates[key] = newRow[key].toISOString().split('T')[0];
-        }
-        // Handle Owner (OwnerId update)
-        else if (key === 'OwnerId') {
-          updates.OwnerId = newRow[key];
-        }
-        // Handle Account (AccountId update)
-        else if (key === 'AccountId') {
-          updates.AccountId = newRow[key];
-        }
-        // Skip nested objects (Account, Owner) - we use the Id fields instead
-        else if (key !== 'Account' && key !== 'Owner') {
+        } else if (key !== 'Account' && key !== 'Owner') {
           updates[key] = newRow[key];
         }
       }
     });
+    if (Object.keys(updates).length === 0) return newRow;
 
-    if (Object.keys(updates).length > 0) {
-      // Show loading toast immediately
-      const loadingToast = toast.loading('Saving to Salesforce...');
-      
-      try {
-        await apiService.updateOpportunity(newRow.Id, updates);
-        toast.success('Saved!', { id: loadingToast, duration: 2000 });
-        
-        // Optimistically update without refetching (faster UI)
-        // Data will refresh in background
-        setTimeout(() => queryClient.invalidateQueries('opportunities'), 1000);
-        
-        return newRow;
-      } catch (error: any) {
-        toast.error(`Failed: ${error.response?.data?.detail || error.message}`, { id: loadingToast });
-        return oldRow; // Revert the change
-      }
+    const loadingToast = toast.loading('Saving to Salesforce...');
+    try {
+      await apiService.updateOpportunity(newRow.Id, updates);
+      toast.success('Saved!', { id: loadingToast, duration: 2000 });
+      setTimeout(() => queryClient.invalidateQueries('opportunities'), 1000);
+      return newRow;
+    } catch (error: any) {
+      toast.error(`Failed: ${error.response?.data?.detail || error.message}`, { id: loadingToast });
+      return oldRow;
     }
-    
-    return newRow; // No changes
   };
 
-  // Pipeline columns (for Sales team - focus on closing deals)
-  const pipelineColumns: GridColDef[] = [
-    {
-      field: 'tasks',
-      headerName: 'Tasks',
-      width: 80,
-      sortable: false,
-      filterable: false,
-      disableColumnMenu: true,
-      renderCell: (params: GridRenderCellParams) => (
-        <Button
-          size="small"
-          variant="text"
-          onClick={(e) => {
-            e.stopPropagation();
-            setTaskPanelOpp(params.row);
-            setTaskPanelOpen(true);
-          }}
-          sx={{ minWidth: 0, fontSize: '0.75rem', textTransform: 'none' }}
-        >
-          📋 Tasks
-        </Button>
-      ),
-    },
-    {
-      field: 'activity',
-      headerName: 'Intel',
-      width: 70,
-      sortable: false,
-      filterable: false,
-      disableColumnMenu: true,
-      renderCell: (params: GridRenderCellParams) => (
-        <Tooltip title="View activity intelligence">
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              setActivityOpp(params.row);
-              setActivityPanelOpen(true);
-            }}
-            sx={{
-              color: activityOpp?.Id === params.row.Id && activityPanelOpen ? 'primary.main' : 'text.secondary',
-              bgcolor: activityOpp?.Id === params.row.Id && activityPanelOpen ? 'primary.50' : 'transparent',
-              '&:hover': { bgcolor: 'primary.50' },
-            }}
-          >
-            <IntelligenceIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-        </Tooltip>
-      ),
-    },
-    {
-      field: 'Name',
-      headerName: 'Opportunity Name',
-      flex: 2,
-      minWidth: 250,
-      editable: true,
-      filterable: true,
-    },
-    {
-      field: 'AccountId',
-      headerName: 'Funder/Account',
-      flex: 1.5,
-      minWidth: 180,
-      editable: true,
-      valueGetter: (params: GridValueGetterParams) => params.row.AccountId,
-      renderCell: (params: GridRenderCellParams) => {
-        const account = accountMap.get(params.row.AccountId);
-        return account?.Name || params.row.Account?.Name || 'Unknown';
-      },
-      renderEditCell: (params: GridRenderEditCellParams) => <AccountEditCell {...params} />,
-      filterable: true,
-    },
-    {
-      field: 'OwnerId',
-      headerName: 'Owner',
-      flex: 1,
-      minWidth: 150,
-      editable: true,
-      valueGetter: (params: GridValueGetterParams) => {
-        // Return the owner's name for filtering to work correctly
-        const user = userMap.get(params.row.OwnerId);
-        return user?.Name || params.row.Owner?.Name || 'Unassigned';
-      },
-      renderCell: (params: GridRenderCellParams) => {
-        const user = userMap.get(params.row.OwnerId);
-        return user?.Name || params.row.Owner?.Name || 'Unassigned';
-      },
-      renderEditCell: (params: GridRenderEditCellParams) => <OwnerEditCell {...params} />,
-      filterable: true,
-    },
-    {
-      field: 'StageName',
-      headerName: 'Stage',
-      flex: 1.2,
-      minWidth: 160,
-      editable: false, // We'll handle editing with custom dropdown
-      filterable: true,
-      renderCell: (params: GridRenderCellParams) => (
-        <Select
-          value={params.value || ''}
-          onChange={async (e) => {
-            const newStage = e.target.value;
-            console.log('🎯 Stage change triggered:', { 
-              from: params.value, 
-              to: newStage, 
-              oppId: params.row.Id,
-              oppName: params.row.Name 
-            });
-            
-            if (newStage === params.value) return;
-            
-            const loadingToast = toast.loading('Updating stage...');
-            
-            // Keep item visible for 5 seconds if moving to closed stage
-            const closedStages = ['Withdrawn', 'Closed Lost', 'Closed / Did not Fulfill', 'Closed / Completed'];
-            const isMovingToClosed = closedStages.includes(newStage);
-            
-            if (isMovingToClosed) {
-              // Use both ref (immediate) and state (triggers re-render)
-              console.log('🔴 Moving to closed stage:', newStage, 'ID:', params.row.Id);
-              recentlyChangedRef.current.add(params.row.Id);
-              setRecentlyChangedIds(prev => {
-                const next = { ...prev, [params.row.Id]: true };
-                console.log('🟡 Updated recentlyChangedIds:', Object.keys(next));
-                return next;
-              });
+  const handleStageChange = (params: GridRenderCellParams, newStage: string) => {
+    if (newStage === params.value) return;
+    const loadingToast = toast.loading('Updating stage...');
 
-              setTimeout(() => {
-                console.log('⏰ 5 seconds passed, removing ID:', params.row.Id);
-                recentlyChangedRef.current.delete(params.row.Id);
-                setRecentlyChangedIds(prev => {
-                  const { [params.row.Id]: _, ...rest } = prev;
-                  return rest;
-                });
-              }, 5000); // Keep visible for 5 seconds
-            }
-            
-            // Check if moving to "Collecting / In Effect" - always show payment schedule to validate/update
-            if (newStage === 'Collecting / In Effect') {
-              toast.dismiss(loadingToast);
-              toast('Please review and confirm payment schedule', { 
-                icon: '💰',
-                duration: 3000 
-              });
-              console.log('💰 Redirecting to payment schedule for validation/update');
-              navigate(`/payment-schedule/${params.row.Id}`, {
-                state: { 
-                  fromStageChange: true,
-                  targetStage: newStage,
-                  opportunityId: params.row.Id
-                }
-              });
-              return;
-            }
-            
-            // Optimistically update the UI immediately
-            const currentQueryKey = ['opportunities', philanthropyOnly, pbcOnly, viewMode];
-            const oldData = queryClient.getQueryData(currentQueryKey);
-            queryClient.setQueryData(currentQueryKey, (old: any) => {
-              if (!old) return old;
-              return old.map((opp: any) =>
-                opp.Id === params.row.Id
-                  ? { ...opp, StageName: newStage }
-                  : opp
-              );
-            });
+    const closedStages = ['Withdrawn', 'Closed Lost', 'Closed / Did not Fulfill', 'Closed / Completed'];
+    if (closedStages.includes(newStage)) markRecentlyChanged(params.row.Id);
 
-            try {
-              // Only send the StageName field to update
-              await apiService.updateOpportunity(params.row.Id, {
-                StageName: newStage
-              });
-              toast.success('Stage updated!', {
-                id: loadingToast
-              });
-              // Refresh in background to get any server-side changes
-              queryClient.invalidateQueries('opportunities');
-            } catch (error: any) {
-              // Revert on error
-              queryClient.setQueryData(currentQueryKey, oldData);
-              setRecentlyChangedIds(prev => {
-                const { [params.row.Id]: _, ...rest } = prev;
-                return rest;
-              });
-              toast.error(`Failed: ${error.response?.data?.detail || error.message}`, { id: loadingToast });
-            }
-          }}
-          size="small"
-          variant="standard"
-          sx={{
-            width: '100%',
-            '& .MuiSelect-select': {
-              padding: '4px 8px',
-              fontSize: '0.875rem',
-            },
-            '&:before': { borderBottom: 'none' },
-            '&:hover:not(.Mui-disabled):before': { borderBottom: 'none' },
-            '&:after': { borderBottom: 'none' },
-          }}
-          renderValue={(value) => (
-        <Chip
-              label={value}
-              color={getStageColor(value as string)}
-          size="small"
-        />
-          )}
-        >
-          {OPPORTUNITY_STAGES.map((stage) => (
-            <MenuItem key={stage} value={stage}>
-              {stage}
-            </MenuItem>
-          ))}
-        </Select>
-      ),
-    },
-    {
-      field: 'Amount',
-      headerName: 'Amount',
-      flex: 0.8,
-      minWidth: 120,
-      type: 'number',
-      editable: true,
-      filterable: true,
-      valueFormatter: (params) => formatDollarMillions(params.value as number),
-    },
-    {
-      field: 'Probability',
-      headerName: 'Probability',
-      flex: 0.7,
-      minWidth: 110,
-      type: 'number',
-      editable: true,
-      filterable: true,
-      renderCell: (params: GridRenderCellParams) => (
-        <Chip
-          label={`${params.value}%`}
-          color={getProbabilityColor(params.value as number)}
-          size="small"
-          variant="outlined"
-        />
-      ),
-    },
-    {
-      field: 'CloseDate',
-      headerName: 'Close Date',
-      flex: 0.9,
-      minWidth: 120,
-      type: 'date',
-      editable: true,
-      filterable: true,
-      valueGetter: (params: GridValueGetterParams) => {
-        return params.value ? new Date(params.value) : null;
-      },
-      valueFormatter: (params) => {
-        if (!params.value) return 'N/A';
-        return format(new Date(params.value as string), 'MMM dd, yyyy');
-      },
-    },
-    {
-      field: 'PaymentDate__c',
-      headerName: '1st Payment Date',
-      flex: 0.9,
-      minWidth: 130,
-      type: 'date',
-      editable: true,
-      filterable: true,
-      valueGetter: (params: GridValueGetterParams) => {
-        return params.value ? new Date(params.value) : null;
-      },
-      valueFormatter: (params) => {
-        if (!params.value) return '-';
-        return format(new Date(params.value as string), 'MMM dd, yyyy');
-      },
-    },
-    {
-      field: 'LastModifiedDate',
-      headerName: 'Last Modified',
-      flex: 0.9,
-      minWidth: 120,
-      type: 'dateTime',
-      filterable: true,
-      valueGetter: (params: GridValueGetterParams) => {
-        return params.value ? new Date(params.value) : null;
-      },
-      valueFormatter: (params) => {
-        if (!params.value) return 'N/A';
-        return format(new Date(params.value as string), 'MMM dd, yyyy');
-      },
-    },
-    {
-      field: 'expectedValue',
-      headerName: 'Expected Value',
-      flex: 0.9,
-      minWidth: 130,
-      filterable: true,
-      valueGetter: (params: GridValueGetterParams) => {
-        const amount = params.row.Amount || 0;
-        const probability = params.row.Probability || 0;
-        return (amount * probability) / 100;
-      },
-      valueFormatter: (params) => formatDollarMillions(params.value as number),
-    },
-  ];
-
-  // Payment columns (for Finance team - focus on tracking payments)
-  const paymentColumns: GridColDef[] = [
-    {
-      field: 'tasks',
-      headerName: 'Tasks',
-      width: 80,
-      sortable: false,
-      filterable: false,
-      disableColumnMenu: true,
-      renderCell: (params: GridRenderCellParams) => (
-        <Button
-          size="small"
-          variant="text"
-          onClick={(e) => {
-            e.stopPropagation();
-            setTaskPanelOpp(params.row);
-            setTaskPanelOpen(true);
-          }}
-          sx={{ minWidth: 0, fontSize: '0.75rem', textTransform: 'none' }}
-        >
-          📋 Tasks
-        </Button>
-      ),
-    },
-    {
-      field: 'activity',
-      headerName: 'Intel',
-      width: 70,
-      sortable: false,
-      filterable: false,
-      disableColumnMenu: true,
-      renderCell: (params: GridRenderCellParams) => (
-        <Tooltip title="View activity intelligence">
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              setActivityOpp(params.row);
-              setActivityPanelOpen(true);
-            }}
-            sx={{
-              color: activityOpp?.Id === params.row.Id && activityPanelOpen ? 'primary.main' : 'text.secondary',
-              bgcolor: activityOpp?.Id === params.row.Id && activityPanelOpen ? 'primary.50' : 'transparent',
-              '&:hover': { bgcolor: 'primary.50' },
-            }}
-          >
-            <IntelligenceIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-        </Tooltip>
-      ),
-    },
-    {
-      field: 'Name',
-      headerName: 'Grant Name',
-      flex: 2,
-      minWidth: 250,
-      filterable: true,
-    },
-    {
-      field: 'AccountId',
-      headerName: 'Funder',
-      flex: 1.3,
-      minWidth: 180,
-      valueGetter: (params: GridValueGetterParams) => {
-        // Return the account name for filtering to work correctly
-        const account = accountMap.get(params.row.AccountId);
-        return account?.Name || params.row.Account?.Name || 'Unknown';
-      },
-      renderCell: (params: GridRenderCellParams) => {
-        const account = accountMap.get(params.row.AccountId);
-        return account?.Name || params.row.Account?.Name || 'Unknown';
-      },
-      filterable: true,
-    },
-    {
-      field: 'CloseDate',
-      headerName: 'Close Date',
-      flex: 0.9,
-      minWidth: 120,
-      type: 'date',
-      filterable: true,
-      valueGetter: (params: GridValueGetterParams) => {
-        return params.value ? new Date(params.value) : null;
-      },
-      valueFormatter: (params) => {
-        if (!params.value) return 'N/A';
-        return format(new Date(params.value as string), 'MMM dd, yyyy');
-      },
-    },
-    {
-      field: 'Amount',
-      headerName: 'Total Amount',
-      flex: 0.9,
-      minWidth: 130,
-      type: 'number',
-      filterable: true,
-      valueFormatter: (params) => formatDollarMillions(params.value as number),
-      renderCell: (params: GridRenderCellParams) => (
-        <Box sx={{ fontWeight: 600 }}>
-          {formatDollarMillions(params.value as number)}
-        </Box>
-      ),
-    },
-    {
-      field: 'npe01__Payments_Made__c',
-      headerName: 'Received',
-      flex: 0.9,
-      minWidth: 130,
-      type: 'number',
-      filterable: true,
-      valueGetter: (params: GridValueGetterParams) => params.row.npe01__Payments_Made__c || 0,
-      valueFormatter: (params) => formatDollarMillions((params.value as number) || 0),
-      renderCell: (params: GridRenderCellParams) => (
-        <Box sx={{ color: 'success.main', fontWeight: 600 }}>
-          {formatDollarMillions((params.value as number) || 0)}
-        </Box>
-      ),
-    },
-    {
-      field: 'remainingAmount',
-      headerName: 'Remaining',
-      flex: 0.9,
-      minWidth: 130,
-      type: 'number',
-      filterable: true,
-      valueGetter: (params: GridValueGetterParams) => {
-        const total = params.row.Amount || 0;
-        const received = params.row.npe01__Payments_Made__c || 0;
-        return total - received;
-      },
-      valueFormatter: (params) => formatDollarMillions(params.value as number),
-      renderCell: (params: GridRenderCellParams) => {
-        const remaining = params.value as number;
-        return (
-          <Box sx={{ 
-            color: remaining > 0 ? 'warning.main' : 'success.main',
-            fontWeight: 600 
-          }}>
-            {formatDollarMillions(remaining)}
-          </Box>
-        );
-      },
-    },
-    {
-      field: 'paymentProgress',
-      headerName: 'Progress',
-      flex: 1,
-      minWidth: 140,
-      filterable: true,
-      valueGetter: (params: GridValueGetterParams) => {
-        const amount = params.row.Amount || 0;
-        const received = params.row.npe01__Payments_Made__c || 0;
-        if (amount === 0) return 0;
-        return Math.round((received / amount) * 100);
-      },
-      renderCell: (params: GridRenderCellParams) => {
-        const percentage = params.value as number;
-        return (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-            <Box
-              sx={{
-                flex: 1,
-                height: 10,
-                bgcolor: 'grey.300',
-                borderRadius: 1,
-                overflow: 'hidden',
-              }}
-            >
-              <Box
-                sx={{
-                  width: `${Math.min(percentage, 100)}%`,
-                  height: '100%',
-                  bgcolor: percentage >= 100 ? 'success.main' : percentage > 0 ? 'warning.main' : 'grey.400',
-                  transition: 'width 0.3s',
-                }}
-              />
-            </Box>
-            <Typography variant="body2" sx={{ fontWeight: 600, minWidth: 40 }}>
-              {percentage}%
-            </Typography>
-          </Box>
-        );
-      },
-    },
-    {
-      field: 'Number_of_Payments_Received__c',
-      headerName: 'Payments',
-      flex: 0.7,
-      minWidth: 100,
-      type: 'number',
-      filterable: true,
-      valueGetter: (params: GridValueGetterParams) => params.row.Number_of_Payments_Received__c || 0,
-      renderCell: (params: GridRenderCellParams) => (
-        <Chip
-          label={`${params.value || 0} / ${params.row.npe01__Number_of_Payments__c || 0}`}
-          color={((params.value as number) || 0) > 0 ? 'success' : 'default'}
-          size="small"
-        />
-      ),
-    },
-    {
-      field: 'Most_Recent_Payment_Date__c',
-      headerName: 'Last Payment',
-      flex: 0.9,
-      minWidth: 130,
-      type: 'date',
-      filterable: true,
-      valueGetter: (params: GridValueGetterParams) => {
-        return params.value ? new Date(params.value) : null;
-      },
-      valueFormatter: (params) => {
-        if (!params.value) return 'No payments yet';
-        return format(new Date(params.value as string), 'MMM dd, yyyy');
-      },
-    },
-    {
-      field: 'expectedPaymentDate',
-      headerName: 'Next Expected',
-      flex: 0.9,
-      minWidth: 130,
-      filterable: true,
-      valueGetter: (params: GridValueGetterParams) => {
-        const paymentDate = calculatePaymentDate(params.row.CloseDate);
-        return paymentDate;
-      },
-      valueFormatter: (params) => {
-        if (!params.value) return 'N/A';
-        return format(params.value as Date, 'MMM dd, yyyy');
-      },
-    },
-    {
-      field: 'paymentStatus',
-      headerName: 'Status',
-      flex: 0.8,
-      minWidth: 120,
-      filterable: true,
-      valueGetter: (params: GridValueGetterParams) => {
-        const amount = params.row.Amount || 0;
-        const received = params.row.npe01__Payments_Made__c || 0;
-        const outstanding = params.row.Outstanding_Payments__c || 0;
-        
-        if (amount === 0) return 'No amount';
-        if (received >= amount) return 'Paid';
-        if (received > 0) return 'Partial';
-        if (outstanding > 0) return 'Scheduled';
-        return 'Pending';
-      },
-      renderCell: (params: GridRenderCellParams) => {
-        const status = params.value as string;
-        let color: 'success' | 'warning' | 'info' | 'default' | 'error' = 'default';
-        
-        if (status === 'Paid') color = 'success';
-        else if (status === 'Partial') color = 'warning';
-        else if (status === 'Scheduled') color = 'info';
-        else if (status === 'Pending') color = 'error';
-        
-        return (
-          <Chip
-            label={status}
-            color={color}
-            size="small"
-          />
-        );
-      },
-    },
-  ];
-
-  // Calculate metrics for each view mode
-  const openOnlyOpps = opportunities?.filter((opp: Opportunity) => {
-    return (OPEN_STAGES as readonly string[]).includes(opp.StageName);
-  }) || [];
-
-  const paymentOpps = opportunities?.filter((opp: Opportunity) => {
-    const stage = opp.StageName || '';
-    return stage.includes('Collecting') || stage.includes('In Effect');
-  }) || [];
-
-  const totalPipeline = openOnlyOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + (opp.Amount || 0), 0) || 0;
-  
-  const weightedPipeline = openOnlyOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + ((opp.Amount || 0) * (opp.Probability || 0) / 100), 0) || 0;
-
-  const totalPaymentsReceived = paymentOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + (opp.npe01__Payments_Made__c || 0), 0) || 0;
-
-  const totalOutstanding = paymentOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + ((opp.Amount || 0) - (opp.npe01__Payments_Made__c || 0)), 0) || 0;
-  
-  const totalExpected = paymentOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + (opp.Amount || 0), 0) || 0;
-
-  // Filter opportunities based on view mode
-  const displayOpps = React.useMemo(() => {
-    if (viewMode === 'open') {
-      // Open pipeline - show open stages + recently changed
-      return opportunities?.filter((opp: Opportunity) => {
-        const isOpen = (OPEN_STAGES as readonly string[]).includes(opp.StageName);
-        const inRecentSet = Boolean(recentlyChangedIds[opp.Id]);
-        const inRecentRef = recentlyChangedRef.current.has(opp.Id);
-        return isOpen || inRecentSet || inRecentRef;
-      }) || [];
-    } else if (viewMode === 'collecting') {
-      // Collecting / In Effect - won grants with payment tracking
-      return opportunities?.filter((opp: Opportunity) => {
-        const stage = opp.StageName || '';
-        return stage.includes('Collecting') || stage.includes('In Effect');
-      }) || [];
-    } else {
-      // Closed - losses, withdrawn, completed
-      return opportunities?.filter((opp: Opportunity) => {
-        const stage = opp.StageName || '';
-        return stage.includes('Closed Lost') || 
-               stage.includes('Withdrawn') || 
-               stage.includes('Closed / Did not Fulfill') ||
-               stage.includes('Closed / Completed');
-      }) || [];
+    if (newStage === 'Collecting / In Effect') {
+      toast.dismiss(loadingToast);
+      toast('Please review and confirm payment schedule', { icon: '\uD83D\uDCB0', duration: 3000 });
+      navigate(`/payment-schedule/${params.row.Id}`, {
+        state: { fromStageChange: true, targetStage: newStage, opportunityId: params.row.Id },
+      });
+      return;
     }
+
+    // Optimistic update
+    const currentQueryKey = ['opportunities', philanthropyOnly, pbcOnly, viewMode];
+    const oldData = queryClient.getQueryData(currentQueryKey);
+    queryClient.setQueryData(currentQueryKey, (old: any) =>
+      old?.map((opp: any) => (opp.Id === params.row.Id ? { ...opp, StageName: newStage } : opp)),
+    );
+
+    apiService.updateOpportunity(params.row.Id, { StageName: newStage })
+      .then(() => {
+        toast.success('Stage updated!', { id: loadingToast });
+        queryClient.invalidateQueries('opportunities');
+      })
+      .catch((err: any) => {
+        queryClient.setQueryData(currentQueryKey, oldData);
+        clearRecentlyChanged(params.row.Id);
+        toast.error(`Failed: ${err.response?.data?.detail || err.message}`, { id: loadingToast });
+      });
+  };
+
+  // ---------------------------------------------------------------------------
+  // Column callbacks & columns (memoized)
+  // ---------------------------------------------------------------------------
+
+  const columnCallbacks: ColumnCallbacks = useMemo(() => ({
+    onTaskPanelOpen: (opp) => { setTaskPanelOpp(opp); setTaskPanelOpen(true); },
+    onActivityPanelOpen: (opp) => { setActivityOpp(opp); setActivityPanelOpen(true); },
+    onStageChange: handleStageChange,
+    accountMap,
+    userMap,
+    activeActivityOppId: activityOpp?.Id,
+    activityPanelOpen,
+  }), [accountMap, userMap, activityOpp?.Id, activityPanelOpen, philanthropyOnly, pbcOnly, viewMode]);
+
+  const pipelineColumns = useMemo(() => buildPipelineColumns(columnCallbacks), [columnCallbacks]);
+  const paymentColumns = useMemo(() => buildPaymentColumns(columnCallbacks), [columnCallbacks]);
+
+  // ---------------------------------------------------------------------------
+  // Filtered / visible opportunities
+  // ---------------------------------------------------------------------------
+
+  const displayOpps = useMemo(() => {
+    if (viewMode === 'open') {
+      return opportunities.filter((opp) => {
+        const isOpen = (OPEN_STAGES as readonly string[]).includes(opp.StageName);
+        return isOpen || Boolean(recentlyChangedIds[opp.Id]) || recentlyChangedRef.current.has(opp.Id);
+      });
+    }
+    if (viewMode === 'collecting') {
+      return opportunities.filter((opp) => {
+        const s = opp.StageName || '';
+        return s.includes('Collecting') || s.includes('In Effect');
+      });
+    }
+    return opportunities.filter((opp) => (CLOSED_STAGES as readonly string[]).includes(opp.StageName));
   }, [opportunities, viewMode, recentlyChangedIds]);
 
-  // Apply AIJI name filter (client-side)
   let visibleOpps = aijiOnly
-    ? displayOpps.filter((opp: Opportunity) => (opp.Name || '').toUpperCase().includes('AIJI'))
+    ? displayOpps.filter((opp) => (opp.Name || '').toUpperCase().includes('AIJI'))
     : displayOpps;
-
-  // Recompute metrics based on visibleOpps so filters affect the topline numbers
-  const metricsOpps = visibleOpps;
-  const metricsTotalPipeline = metricsOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + (opp.Amount || 0), 0) || 0;
-  const metricsWeightedPipeline = metricsOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + ((opp.Amount || 0) * (opp.Probability || 0) / 100), 0) || 0;
-  const metricsPaymentsReceived = metricsOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + (opp.npe01__Payments_Made__c || 0), 0) || 0;
-  const metricsOutstanding = metricsOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + ((opp.Amount || 0) - (opp.npe01__Payments_Made__c || 0)), 0) || 0;
-  const metricsExpected = metricsOpps.reduce((sum: number, opp: Opportunity) => 
-    sum + (opp.Amount || 0), 0) || 0;
 
   if (initialFilter === 'atRisk') {
     const now = new Date();
-    const currentQuarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
-    const currentQuarterEnd = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 0);
-    
-    visibleOpps = visibleOpps.filter((opp: Opportunity) => {
+    const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+    const qEnd = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 0);
+    visibleOpps = visibleOpps.filter((opp) => {
       if (!opp.CloseDate) return false;
-      const closeDate = parseISO(opp.CloseDate);
-      const inCurrentQuarter = closeDate >= currentQuarterStart && closeDate <= currentQuarterEnd;
+      const cd = parseISO(opp.CloseDate);
+      const inQ = cd >= qStart && cd <= qEnd;
       const atRisk = (opp.Probability || 0) < 50 || ['Lead Gen', 'New Lead', 'Qualifying'].includes(opp.StageName || '');
-      return inCurrentQuarter && atRisk;
+      return inQ && atRisk;
     });
   } else if (initialFilter === 'stale') {
     const now = new Date();
-    visibleOpps = visibleOpps.filter((opp: Opportunity) => {
+    visibleOpps = visibleOpps.filter((opp) => {
       if (!opp.CloseDate) return false;
-      const closeDate = parseISO(opp.CloseDate);
-      const isPastDue = closeDate < now;
-      
-      const lastModified = opp.LastModifiedDate ? parseISO(opp.LastModifiedDate) : parseISO(opp.CreatedDate);
-      const daysSinceUpdate = differenceInDays(now, lastModified);
-      const notUpdated = daysSinceUpdate > 30;
-      
-      return isPastDue || notUpdated;
+      const isPastDue = parseISO(opp.CloseDate) < now;
+      const lastMod = opp.LastModifiedDate ? parseISO(opp.LastModifiedDate) : parseISO(opp.CreatedDate);
+      return isPastDue || differenceInDays(now, lastMod) > 30;
     });
   }
 
-  // Use visibleOpps directly for the totals bar (no need for separate state)
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
 
   return (
     <>
-      {/* Header */}
+      {/* Header: view mode tabs + bulk actions + new/refresh */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <Button
-            variant={viewMode === 'open' ? 'contained' : 'outlined'}
-            onClick={() => setViewMode('open')}
-            sx={{ minWidth: 150 }}
-          >
-            Open Pipeline
-            <Chip 
-              label={openOnlyOpps.length} 
-              size="small" 
-              sx={{ ml: 1, bgcolor: viewMode === 'open' ? 'rgba(255,255,255,0.3)' : 'default' }}
-            />
+          <Button variant={viewMode === 'open' ? 'contained' : 'outlined'} onClick={() => setViewMode('open')} sx={{ minWidth: 150 }}>
+            Open Pipeline <Chip label={openOnlyOpps.length} size="small" sx={{ ml: 1, bgcolor: viewMode === 'open' ? 'rgba(255,255,255,0.3)' : 'default' }} />
           </Button>
-          <Button
-            variant={viewMode === 'collecting' ? 'contained' : 'outlined'}
-            onClick={() => setViewMode('collecting')}
-            color={viewMode === 'collecting' ? 'success' : 'inherit'}
-            sx={{ minWidth: 180 }}
-          >
-            Collecting / In Effect
-            <Chip 
-              label={paymentOpps.length} 
-              size="small" 
-              sx={{ ml: 1, bgcolor: viewMode === 'collecting' ? 'rgba(255,255,255,0.3)' : 'default' }}
-            />
+          <Button variant={viewMode === 'collecting' ? 'contained' : 'outlined'} onClick={() => setViewMode('collecting')}
+            color={viewMode === 'collecting' ? 'success' : 'inherit'} sx={{ minWidth: 180 }}>
+            Collecting / In Effect <Chip label={paymentOpps.length} size="small" sx={{ ml: 1, bgcolor: viewMode === 'collecting' ? 'rgba(255,255,255,0.3)' : 'default' }} />
           </Button>
-          <Button
-            variant={viewMode === 'closed' ? 'contained' : 'outlined'}
-            onClick={() => setViewMode('closed')}
-            color={viewMode === 'closed' ? 'error' : 'inherit'}
-            sx={{ minWidth: 150 }}
-          >
+          <Button variant={viewMode === 'closed' ? 'contained' : 'outlined'} onClick={() => setViewMode('closed')}
+            color={viewMode === 'closed' ? 'error' : 'inherit'} sx={{ minWidth: 150 }}>
             Closed
-            <Chip 
-              label={opportunities?.filter((opp: Opportunity) => {
-                const stage = opp.StageName || '';
-                return stage.includes('Closed Lost') || 
-                       stage.includes('Withdrawn') || 
-                       stage.includes('Closed / Did not Fulfill') ||
-                       stage.includes('Closed / Completed');
-              }).length || 0} 
-              size="small" 
-              sx={{ ml: 1, bgcolor: viewMode === 'closed' ? 'rgba(255,255,255,0.3)' : 'default' }}
-            />
+            <Chip label={opportunities.filter((opp) => (CLOSED_STAGES as readonly string[]).includes(opp.StageName)).length} size="small"
+              sx={{ ml: 1, bgcolor: viewMode === 'closed' ? 'rgba(255,255,255,0.3)' : 'default' }} />
           </Button>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
           {selectedRowIds.length > 0 && (
             <>
-              <Chip 
-                label={`${selectedRowIds.length} selected`} 
-                color="primary" 
-                onDelete={() => setSelectedRowIds([])}
-              />
-              <Button
-                onClick={() => handleBulkAction('withdraw')}
-                variant="outlined"
-                color="error"
-                size="small"
-              >
-                Withdraw Selected
-              </Button>
-              <Button
-                onClick={() => handleBulkAction('stage')}
-                variant="outlined"
-                color="primary"
-                size="small"
-              >
-                Change Stage
-              </Button>
+              <Chip label={`${selectedRowIds.length} selected`} color="primary" onDelete={() => setSelectedRowIds([])} />
+              <Button onClick={() => handleBulkAction('withdraw')} variant="outlined" color="error" size="small">Withdraw Selected</Button>
+              <Button onClick={() => handleBulkAction('stage')} variant="outlined" color="primary" size="small">Change Stage</Button>
             </>
           )}
-          <Button
-            startIcon={<AddIcon />}
-            onClick={() => navigate('/opportunities/new')}
-            variant="contained"
-            color="primary"
-          >
-            New Opportunity
-          </Button>
-          <Button
-            startIcon={<RefreshIcon />}
-            onClick={() => queryClient.invalidateQueries('opportunities')}
-            variant="outlined"
-          >
-            Refresh
-          </Button>
+          <Button startIcon={<AddIcon />} onClick={() => navigate('/opportunities/new')} variant="contained" color="primary">New Opportunity</Button>
+          <Button startIcon={<RefreshIcon />} onClick={() => queryClient.invalidateQueries('opportunities')} variant="outlined">Refresh</Button>
         </Box>
       </Box>
 
-      {/* Pipeline Filters */}
+      {/* Filters */}
       <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-        <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 'bold' }}>
-          Filters:
-        </Typography>
-        <Chip
-          label="Philanthropy Pipeline (Active Only)"
-          onClick={() => {
-            setPhilanthropyOnly(!philanthropyOnly);
-            if (pbcOnly) setPbcOnly(false);
-            if (aijiOnly) setAijiOnly(false);
-          }}
-          color={philanthropyOnly ? 'primary' : 'default'}
-          variant={philanthropyOnly ? 'filled' : 'outlined'}
-          icon={philanthropyOnly ? <CheckIcon /> : undefined}
-        />
-        <Chip
-          label="PBC Pipeline (Active Only)"
-          onClick={() => {
-            setPbcOnly(!pbcOnly);
-            if (philanthropyOnly) setPhilanthropyOnly(false);
-            if (aijiOnly) setAijiOnly(false);
-          }}
-          color={pbcOnly ? 'secondary' : 'default'}
-          variant={pbcOnly ? 'filled' : 'outlined'}
-          icon={pbcOnly ? <CheckIcon /> : undefined}
-        />
-        <Chip
-          label="AIJI"
-          onClick={() => {
-            setAijiOnly(!aijiOnly);
-            if (philanthropyOnly) setPhilanthropyOnly(false);
-            if (pbcOnly) setPbcOnly(false);
-          }}
-          color={aijiOnly ? 'info' : 'default'}
-          variant={aijiOnly ? 'filled' : 'outlined'}
-          icon={aijiOnly ? <CheckIcon /> : undefined}
-        />
+        <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 'bold' }}>Filters:</Typography>
+        <Chip label="Philanthropy Pipeline (Active Only)" onClick={() => { setPhilanthropyOnly(!philanthropyOnly); setPbcOnly(false); setAijiOnly(false); }}
+          color={philanthropyOnly ? 'primary' : 'default'} variant={philanthropyOnly ? 'filled' : 'outlined'} icon={philanthropyOnly ? <CheckIcon /> : undefined} />
+        <Chip label="PBC Pipeline (Active Only)" onClick={() => { setPbcOnly(!pbcOnly); setPhilanthropyOnly(false); setAijiOnly(false); }}
+          color={pbcOnly ? 'secondary' : 'default'} variant={pbcOnly ? 'filled' : 'outlined'} icon={pbcOnly ? <CheckIcon /> : undefined} />
+        <Chip label="AIJI" onClick={() => { setAijiOnly(!aijiOnly); setPhilanthropyOnly(false); setPbcOnly(false); }}
+          color={aijiOnly ? 'info' : 'default'} variant={aijiOnly ? 'filled' : 'outlined'} icon={aijiOnly ? <CheckIcon /> : undefined} />
         {(philanthropyOnly || pbcOnly || aijiOnly) && (
-          <Button
-            size="small"
-            onClick={() => {
-              setPhilanthropyOnly(false);
-              setPbcOnly(false);
-              setAijiOnly(false);
-            }}
-          >
-            Clear Filters
-          </Button>
+          <Button size="small" onClick={() => { setPhilanthropyOnly(false); setPbcOnly(false); setAijiOnly(false); }}>Clear Filters</Button>
         )}
       </Box>
 
-      {/* Filter Alert */}
+      {/* Filter alerts */}
       {initialFilter && (
-        <Alert 
-          severity="warning" 
-          sx={{ mb: 3 }}
-          onClose={() => setInitialFilter(null)}
-        >
-          {initialFilter === 'atRisk' && (
-            <>
-              <strong>Showing At-Risk Deals Only:</strong> Current quarter opportunities with low probability (&lt;50%) or early stage.
-            </>
-          )}
-          {initialFilter === 'stale' && (
-            <>
-              <strong>Showing Stale Opportunities Only:</strong> Opportunities that are past due or haven't been updated in 30+ days.
-            </>
-          )}
+        <Alert severity="warning" sx={{ mb: 3 }} onClose={() => setInitialFilter(null)}>
+          {initialFilter === 'atRisk' && <><strong>Showing At-Risk Deals Only:</strong> Current quarter opportunities with low probability (&lt;50%) or early stage.</>}
+          {initialFilter === 'stale' && <><strong>Showing Stale Opportunities Only:</strong> Opportunities that are past due or haven't been updated in 30+ days.</>}
         </Alert>
       )}
 
-      {/* View Mode Hint */}
+      {/* View mode hints */}
       {viewMode === 'open' && (
         <Alert severity="info" sx={{ mb: 3 }}>
-          <strong>Open Pipeline:</strong> Track and manage open opportunities. 
-          Edit fields inline to update Salesforce instantly: Name, Account, Owner, Stage, Amount, Probability, Close Date, 1st Payment Date.
+          <strong>Open Pipeline:</strong> Track and manage open opportunities. Edit fields inline to update Salesforce instantly.
         </Alert>
       )}
-      
       {viewMode === 'collecting' && (
         <Alert severity="success" sx={{ mb: 3 }}>
-          <strong>Collecting / In Effect:</strong> Monitor won grants with payment tracking. 
-          Track received payments, outstanding amounts, and payment schedules.
+          <strong>Collecting / In Effect:</strong> Monitor won grants with payment tracking.
         </Alert>
       )}
-
       {viewMode === 'closed' && (
         <Alert severity="error" sx={{ mb: 3 }}>
           <strong>Closed Opportunities:</strong> View completed, lost, withdrawn, or unfulfilled opportunities.
         </Alert>
       )}
 
-      {/* Summary Cards */}
-      {viewMode === 'open' && (
-        <Grid container spacing={3} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom variant="body2">
-                  Open Opportunities
-                </Typography>
-                <Typography variant="h4">{metricsOpps.length}</Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Active deals
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom variant="body2">
-                  Total Pipeline Value
-                </Typography>
-                <Typography variant="h4">{formatDollarMillions(metricsTotalPipeline)}</Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Potential revenue
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ bgcolor: 'primary.50' }}>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom variant="body2">
-                  Weighted Pipeline
-                </Typography>
-                <Typography variant="h4" color="primary.main">
-                  {formatDollarMillions(metricsWeightedPipeline)}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Expected value
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom variant="body2">
-                  Avg Deal Size
-                </Typography>
-                <Typography variant="h4">
-                  {formatDollarMillions(metricsTotalPipeline / (metricsOpps.length || 1))}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Per opportunity
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      )}
+      {/* Summary cards */}
+      <SummaryCards viewMode={viewMode} opps={visibleOpps} />
 
-      {viewMode === 'collecting' && (
-        <Grid container spacing={3} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom variant="body2">
-                  Active Grants
-                </Typography>
-                <Typography variant="h4">{metricsOpps.length}</Typography>
-                <Typography variant="body2" color="textSecondary">
-                  In collection
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom variant="body2">
-                  Total Expected
-                </Typography>
-                <Typography variant="h4">{formatDollarMillions(metricsExpected)}</Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Awarded amount
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ bgcolor: 'success.50' }}>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom variant="body2">
-                  Payments Received
-                </Typography>
-                <Typography variant="h4" color="success.main">
-                  {formatDollarMillions(metricsPaymentsReceived)}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  {metricsExpected > 0 ? Math.round((metricsPaymentsReceived / metricsExpected) * 100) : 0}% received
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ bgcolor: 'warning.50' }}>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom variant="body2">
-                  Outstanding
-                </Typography>
-                <Typography variant="h4" color="warning.main">
-                  {formatDollarMillions(metricsOutstanding)}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  {totalExpected > 0 ? Math.round((totalOutstanding / totalExpected) * 100) : 0}% remaining
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      )}
+      {/* Error */}
+      {error && <Alert severity="error" sx={{ mb: 3 }}>Failed to load opportunities. Please check your connection.</Alert>}
 
-      {/* Error Display */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to load opportunities. Please check your connection.
-        </Alert>
-      )}
-
-      {/* Data Grid */}
-        <Card>
-          <CardContent>
-          {/* Filtered Totals Bar */}
+      {/* Data grid */}
+      <Card>
+        <CardContent>
           {visibleOpps.length > 0 && viewMode !== 'closed' && (
-            <Box sx={{ 
-              p: 2, 
-              mb: 2, 
-              bgcolor: 'background.paper', 
-              borderRadius: 1,
-              display: 'flex',
-              gap: 3,
-              flexWrap: 'wrap',
-              border: '1px solid',
-              borderColor: 'divider'
-            }}>
-              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                Showing: {visibleOpps.length} opportunities
-              </Typography>
+            <Box sx={{ p: 2, mb: 2, bgcolor: 'background.paper', borderRadius: 1, display: 'flex', gap: 3, flexWrap: 'wrap', border: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Showing: {visibleOpps.length} opportunities</Typography>
               {viewMode === 'open' && (
                 <>
-                  <Typography variant="body2">
-                    Total Value: {formatDollarMillions(visibleOpps.reduce((sum: number, opp: Opportunity) => sum + (opp.Amount || 0), 0))}
-                  </Typography>
-                  <Typography variant="body2">
-                    Weighted Value: {formatDollarMillions(visibleOpps.reduce((sum: number, opp: Opportunity) => sum + ((opp.Amount || 0) * (opp.Probability || 0) / 100), 0))}
-                  </Typography>
-                  <Typography variant="body2">
-                    Avg Probability: {visibleOpps.length > 0 ? Math.round(visibleOpps.reduce((sum: number, opp: Opportunity) => sum + (opp.Probability || 0), 0) / visibleOpps.length) : 0}%
-                  </Typography>
+                  <Typography variant="body2">Total Value: {formatDollarMillions(visibleOpps.reduce((s, o) => s + (o.Amount || 0), 0))}</Typography>
+                  <Typography variant="body2">Weighted Value: {formatDollarMillions(visibleOpps.reduce((s, o) => s + ((o.Amount || 0) * (o.Probability || 0)) / 100, 0))}</Typography>
+                  <Typography variant="body2">Avg Probability: {visibleOpps.length > 0 ? Math.round(visibleOpps.reduce((s, o) => s + (o.Probability || 0), 0) / visibleOpps.length) : 0}%</Typography>
                 </>
               )}
               {viewMode === 'collecting' && (
                 <>
-                  <Typography variant="body2">
-                    Total Amount: {formatDollarMillions(visibleOpps.reduce((sum: number, opp: Opportunity) => sum + (opp.Amount || 0), 0))}
-                  </Typography>
-                  <Typography variant="body2">
-                    Received: {formatDollarMillions(visibleOpps.reduce((sum: number, opp: Opportunity) => sum + (opp.npe01__Payments_Made__c || 0), 0))}
-                  </Typography>
-                  <Typography variant="body2">
-                    Outstanding: {formatDollarMillions(visibleOpps.reduce((sum: number, opp: Opportunity) => sum + ((opp.Amount || 0) - (opp.npe01__Payments_Made__c || 0)), 0))}
-                  </Typography>
+                  <Typography variant="body2">Total Amount: {formatDollarMillions(visibleOpps.reduce((s, o) => s + (o.Amount || 0), 0))}</Typography>
+                  <Typography variant="body2">Received: {formatDollarMillions(visibleOpps.reduce((s, o) => s + (o.npe01__Payments_Made__c || 0), 0))}</Typography>
+                  <Typography variant="body2">Outstanding: {formatDollarMillions(visibleOpps.reduce((s, o) => s + ((o.Amount || 0) - (o.npe01__Payments_Made__c || 0)), 0))}</Typography>
                 </>
               )}
             </Box>
           )}
-            <Box sx={{ height: 'calc(100vh - 500px)', minHeight: 600, width: '100%' }}>
-              <DataGrid
-               rows={visibleOpps || []}
-               columns={viewMode === 'collecting' ? paymentColumns : pipelineColumns}
-                loading={isLoading}
-                getRowId={(row) => row.Id}
-                pagination
-                pageSizeOptions={[25, 50, 100, 250, 500]}
-                editMode="cell"
-               processRowUpdate={viewMode === 'open' ? handleCellEdit : undefined}
-                onProcessRowUpdateError={(error) => {
-                  console.error('Error updating row:', error);
-                }}
-               checkboxSelection
-               rowSelectionModel={selectedRowIds}
-               onRowSelectionModelChange={(newSelection) => {
-                 setSelectedRowIds(newSelection as string[]);
-               }}
-               slots={{
-                 toolbar: GridToolbar,
-               }}
-               slotProps={{
-                 toolbar: {
-                   showQuickFilter: true,
-                   quickFilterProps: { debounceMs: 500 },
-                   printOptions: { disableToolbarButton: true },
-                   csvOptions: { disableToolbarButton: true },
-                 },
-                }}
-                initialState={{
-                  pagination: {
-                    paginationModel: { pageSize: 100, page: 0 },
-                  },
-                  sorting: {
-                   sortModel: viewMode === 'collecting' 
-                     ? [{ field: 'Most_Recent_Payment_Date__c', sort: 'desc' }]
-                     : [{ field: 'CloseDate', sort: 'asc' }],
-                  },
-                }}
-                filterMode="client"
-                sortingMode="client"
-                paginationMode="client"
-               disableRowSelectionOnClick={false}
-                disableColumnFilter={false}
-                disableColumnMenu={false}
-                isCellEditable={(params) => {
-                // Only allow editing in open pipeline view
-                if (viewMode !== 'open') return false;
-                // Editable fields for pipeline view (StageName handled by custom dropdown)
-                return ['Name', 'AccountId', 'OwnerId', 'Amount', 'Probability', 'CloseDate', 'PaymentDate__c'].includes(params.field);
-                }}
-                sx={{
-                  '& .MuiDataGrid-cell:focus': {
-                    outline: 'none',
-                  },
-                  '& .MuiDataGrid-cell--editable': {
-                    cursor: 'pointer',
-                    bgcolor: 'background.paper',
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
-                      boxShadow: 'inset 0 0 0 1px rgba(25, 118, 210, 0.5)',
-                    },
-                  },
-                  '& .MuiDataGrid-cell--editing': {
-                    backgroundColor: 'primary.light',
-                    boxShadow: 'inset 0 0 0 2px #1976d2',
-                  },
-                  '& .MuiDataGrid-row:hover .MuiDataGrid-cell--editable': {
-                    backgroundColor: 'action.hover',
-                  },
-                }}
-              />
-            </Box>
-          </CardContent>
-        </Card>
 
-      {/* Activity Intelligence Panel (Drawer) */}
+          <Box sx={{ height: 'calc(100vh - 500px)', minHeight: 600, width: '100%' }}>
+            <DataGrid
+              rows={visibleOpps}
+              columns={viewMode === 'collecting' ? paymentColumns : pipelineColumns}
+              loading={isLoading}
+              getRowId={(row) => row.Id}
+              pagination
+              pageSizeOptions={[25, 50, 100, 250, 500]}
+              editMode="cell"
+              processRowUpdate={viewMode === 'open' ? handleCellEdit : undefined}
+              onProcessRowUpdateError={console.error}
+              checkboxSelection
+              rowSelectionModel={selectedRowIds}
+              onRowSelectionModelChange={(sel) => setSelectedRowIds(sel as string[])}
+              slots={{ toolbar: GridToolbar }}
+              slotProps={{
+                toolbar: { showQuickFilter: true, quickFilterProps: { debounceMs: 500 }, printOptions: { disableToolbarButton: true }, csvOptions: { disableToolbarButton: true } },
+              }}
+              initialState={{
+                pagination: { paginationModel: { pageSize: 100, page: 0 } },
+                sorting: {
+                  sortModel: viewMode === 'collecting'
+                    ? [{ field: 'Most_Recent_Payment_Date__c', sort: 'desc' }]
+                    : [{ field: 'CloseDate', sort: 'asc' }],
+                },
+              }}
+              filterMode="client"
+              sortingMode="client"
+              paginationMode="client"
+              disableRowSelectionOnClick={false}
+              disableColumnFilter={false}
+              disableColumnMenu={false}
+              isCellEditable={(params) => {
+                if (viewMode !== 'open') return false;
+                return ['Name', 'AccountId', 'OwnerId', 'Amount', 'Probability', 'CloseDate', 'PaymentDate__c'].includes(params.field);
+              }}
+              sx={{
+                '& .MuiDataGrid-cell:focus': { outline: 'none' },
+                '& .MuiDataGrid-cell--editable': {
+                  cursor: 'pointer', bgcolor: 'background.paper',
+                  '&:hover': { backgroundColor: 'action.hover', boxShadow: 'inset 0 0 0 1px rgba(25, 118, 210, 0.5)' },
+                },
+                '& .MuiDataGrid-cell--editing': { backgroundColor: 'primary.light', boxShadow: 'inset 0 0 0 2px #1976d2' },
+                '& .MuiDataGrid-row:hover .MuiDataGrid-cell--editable': { backgroundColor: 'action.hover' },
+              }}
+            />
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Activity Intelligence Panel */}
       <ActivityIntelligencePanel
         open={activityPanelOpen}
         onClose={() => { setActivityPanelOpen(false); setActivityOpp(null); }}
         opportunity={activityOpp}
-        accountName={
-          (activityOpp && (
-            accountMap.get(activityOpp.AccountId)?.Name ||
-            activityOpp.Account?.Name ||
-            activityOpp.Name
-          )) || ''
-        }
+        accountName={(activityOpp && (accountMap.get(activityOpp.AccountId)?.Name || activityOpp.Account?.Name || activityOpp.Name)) || ''}
       />
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           Edit Opportunity
-          {selectedOpp && (
-            <Typography variant="body2" color="textSecondary">
-              {selectedOpp.Name}
-            </Typography>
-          )}
+          {selectedOpp && <Typography variant="body2" color="textSecondary">{selectedOpp.Name}</Typography>}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              label="Opportunity Name"
-              fullWidth
-              value={editForm.Name || ''}
-              onChange={(e) => setEditForm({ ...editForm, Name: e.target.value })}
-            />
-            
-            <TextField
-              label="Stage"
-              fullWidth
-              select
-              value={editForm.StageName || ''}
-              onChange={(e) => setEditForm({ ...editForm, StageName: e.target.value })}
-            >
-              {OPPORTUNITY_STAGES.map((stage) => (
-                <MenuItem key={stage} value={stage}>
-                  {stage}
-                </MenuItem>
-              ))}
+            <TextField label="Opportunity Name" fullWidth value={editForm.Name || ''} onChange={(e) => setEditForm({ ...editForm, Name: e.target.value })} />
+            <TextField label="Stage" fullWidth select value={editForm.StageName || ''} onChange={(e) => setEditForm({ ...editForm, StageName: e.target.value })}>
+              {OPPORTUNITY_STAGES.map((stage) => <MenuItem key={stage} value={stage}>{stage}</MenuItem>)}
             </TextField>
-
-            <TextField
-              label="Amount"
-              fullWidth
-              type="number"
-              value={editForm.Amount || ''}
-              onChange={(e) => setEditForm({ ...editForm, Amount: e.target.value })}
-              InputProps={{
-                startAdornment: '$',
-              }}
-            />
-
-            <TextField
-              label="Probability (%)"
-              fullWidth
-              type="number"
-              value={editForm.Probability || ''}
-              onChange={(e) => setEditForm({ ...editForm, Probability: e.target.value })}
-              inputProps={{ min: 0, max: 100 }}
-            />
-
-            <TextField
-              label="Close Date"
-              fullWidth
-              type="date"
-              value={editForm.CloseDate || ''}
-              onChange={(e) => setEditForm({ ...editForm, CloseDate: e.target.value })}
-              InputLabelProps={{
-                shrink: true,
-              }}
-            />
+            <TextField label="Amount" fullWidth type="number" value={editForm.Amount || ''} onChange={(e) => setEditForm({ ...editForm, Amount: e.target.value })} InputProps={{ startAdornment: '$' }} />
+            <TextField label="Probability (%)" fullWidth type="number" value={editForm.Probability || ''} onChange={(e) => setEditForm({ ...editForm, Probability: e.target.value })} inputProps={{ min: 0, max: 100 }} />
+            <TextField label="Close Date" fullWidth type="date" value={editForm.CloseDate || ''} onChange={(e) => setEditForm({ ...editForm, CloseDate: e.target.value })} InputLabelProps={{ shrink: true }} />
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-          <Button
-            onClick={handleSave}
-            variant="contained"
-            disabled={updateMutation.isLoading}
-          >
+          <Button onClick={handleSave} variant="contained" disabled={updateMutation.isLoading}>
             {updateMutation.isLoading ? <CircularProgress size={24} /> : 'Save Changes'}
           </Button>
         </DialogActions>
@@ -1646,52 +484,27 @@ const Opportunities: React.FC = () => {
           opportunityId={paymentScheduleOpp.Id}
           opportunityAmount={paymentScheduleOpp.Amount}
           opportunityName={paymentScheduleOpp.Name}
-          onScheduleCreated={() => {
-            setPaymentScheduleOpen(false);
-            queryClient.invalidateQueries('opportunities');
-            toast.success('Payment schedule created! Opportunity saved.');
-          }}
+          onScheduleCreated={() => { setPaymentScheduleOpen(false); queryClient.invalidateQueries('opportunities'); toast.success('Payment schedule created!'); }}
         />
       )}
 
       {/* Task Panel */}
-      <TaskPanel
-        open={taskPanelOpen}
-        onClose={() => { setTaskPanelOpen(false); setTaskPanelOpp(null); }}
-        opportunity={taskPanelOpp}
-        users={users}
-      />
+      <TaskPanel open={taskPanelOpen} onClose={() => { setTaskPanelOpen(false); setTaskPanelOpp(null); }} opportunity={taskPanelOpp} users={users} />
 
       {/* Bulk Action Dialog */}
       <Dialog open={bulkActionDialogOpen} onClose={() => setBulkActionDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {bulkAction === 'withdraw' ? 'Withdraw Opportunities' : 'Change Stage'}
-        </DialogTitle>
+        <DialogTitle>{bulkAction === 'withdraw' ? 'Withdraw Opportunities' : 'Change Stage'}</DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2 }}>
             {bulkAction === 'withdraw' ? (
               <Alert severity="warning" sx={{ mb: 2 }}>
-                Are you sure you want to withdraw {selectedRowIds.length} selected opportunities?
-                This will change their stage to "Withdrawn".
+                Are you sure you want to withdraw {selectedRowIds.length} selected opportunities? This will change their stage to "Withdrawn".
               </Alert>
             ) : (
               <>
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  Change the stage for {selectedRowIds.length} selected opportunities.
-                </Alert>
-                <TextField
-                  fullWidth
-                  select
-                  label="New Stage"
-                  value={bulkTargetStage}
-                  onChange={(e) => setBulkTargetStage(e.target.value)}
-                  sx={{ mt: 2 }}
-                >
-                  {OPPORTUNITY_STAGES.map((stage) => (
-                    <MenuItem key={stage} value={stage}>
-                      {stage}
-                    </MenuItem>
-                  ))}
+                <Alert severity="info" sx={{ mb: 2 }}>Change the stage for {selectedRowIds.length} selected opportunities.</Alert>
+                <TextField fullWidth select label="New Stage" value={bulkTargetStage} onChange={(e) => setBulkTargetStage(e.target.value)} sx={{ mt: 2 }}>
+                  {OPPORTUNITY_STAGES.map((stage) => <MenuItem key={stage} value={stage}>{stage}</MenuItem>)}
                 </TextField>
               </>
             )}
@@ -1699,17 +512,13 @@ const Opportunities: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setBulkActionDialogOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handleBulkActionConfirm}
+          <Button variant="contained" onClick={handleBulkActionConfirm}
             disabled={bulkUpdateMutation.isLoading || (bulkAction === 'stage' && !bulkTargetStage)}
-            color={bulkAction === 'withdraw' ? 'error' : 'primary'}
-          >
+            color={bulkAction === 'withdraw' ? 'error' : 'primary'}>
             {bulkUpdateMutation.isLoading ? <CircularProgress size={24} /> : 'Confirm'}
           </Button>
         </DialogActions>
       </Dialog>
-
     </>
   );
 };
