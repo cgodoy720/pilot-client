@@ -32,11 +32,18 @@ import {
   Person as PersonIcon,
   UploadFile as UploadFileIcon,
 } from '@mui/icons-material';
-import { format, addDays, parseISO, isWithinInterval, startOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { useQuery } from 'react-query';
 
 import { apiService } from '../services/api';
 import { parseCSV } from '../utils/csvParser';
+import {
+  LOOKAHEAD_DAYS,
+  getThisWeekRange,
+  isInLookaheadWindow as isThisWeek,
+  buildAction,
+  buildPriorityItems,
+} from '../utils/weeklyPrioritiesHelpers';
 import type { Grant, ImportResult, Lead, WeeklyPriorityItem } from '../types/weeklyPriorities';
 import type { SalesforceOpportunity } from '../types/salesforce';
 
@@ -83,30 +90,6 @@ function SalesforceLink({
       <OpenInNewIcon sx={{ fontSize: 14 }} />
     </Link>
   );
-}
-
-// ---------------------------------------------------------------------------
-// Date helpers
-// ---------------------------------------------------------------------------
-const LOOKAHEAD_DAYS = 30;
-
-function getThisWeekRange(): { start: Date; end: Date } {
-  const start = startOfDay(new Date());
-  return { start, end: addDays(start, LOOKAHEAD_DAYS - 1) };
-}
-
-function isThisWeek(dateStr: string | null | undefined): boolean {
-  if (!dateStr) return false;
-  try {
-    const { start, end } = getThisWeekRange();
-    return isWithinInterval(parseISO(dateStr), { start, end });
-  } catch {
-    return false;
-  }
-}
-
-function buildAction(grant: Grant): string {
-  return `Follow up before close date ${grant.close_date}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -158,16 +141,10 @@ export default function WeeklyPriorities() {
   }, []);
 
   // Priority items: leads with a grant_id linked to a known grant
-  const priorityItems: WeeklyPriorityItem[] = useMemo(() => {
-    return leads
-      .filter((l) => l.grant_id)
-      .map((l) => {
-        const grant = grants.find((g) => g.id === l.grant_id);
-        if (!grant) return null;
-        return { lead: l, grant, suggested_action: buildAction(grant) };
-      })
-      .filter((item): item is WeeklyPriorityItem => item !== null);
-  }, [leads, grants]);
+  const priorityItems: WeeklyPriorityItem[] = useMemo(
+    () => buildPriorityItems(leads, grants),
+    [leads, grants],
+  );
 
   // Group priority items by grant id
   const groupedByGrant = useMemo(() => {
