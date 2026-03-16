@@ -1,42 +1,65 @@
-# Pursuit Financial Forecasting & Bedrock
+## Workflow Orchestration
 
-Project instructions for Claude Code when working in this repo (CLI or IDE). Keep this file in sync with `.cursor/rules/bedrock-and-week1.mdc` for Cursor.
+### 1. Plan Mode Default
+- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
+- If something goes sideways, STOP and re-plan immediately - don't keep pushing
+- Use plan mode for verification steps, not just building
+- Write detailed specs upfront to reduce ambiguity
 
----
+### 2. Subagent Strategy
+- Use subagents liberally to keep main context window clean
+- Offload research, exploration, and parallel analysis to subagents
+- For complex problems, throw more compute at it via subagents
+- One task per subagent for focused execution
 
-## Project overview
+### 3. Self-Improvement Loop
+- After ANY correction from the user: update `tasks/lessons.md` with the pattern
+- Write rules for yourself that prevent the same mistake
+- Ruthlessly iterate on these lessons until mistake rate drops
+- Review lessons at session start for relevant project
 
-- **Main app:** `financial_forecasting/` — React (CRA) + MUI + FastAPI, wired to Salesforce and Sage Intacct (Revenue Hub / grants pipeline).
-- **Product docs:** `product/` — vision, roadmap, phase specs, requirements gaps. Bedrock (fundraising CRM, prospect intelligence, reporting) will eventually live in the unified learning platform; we prototype here first.
+### 4. Verification Before Done
+- Never mark a task complete without proving it works
+- Diff behavior between main and your changes when relevant
+- Ask yourself: "Would a staff engineer approve this?"
+- Run tests, check logs, demonstrate correctness
 
----
+### 5. Demand Elegance (Balanced)
+- For non-trivial changes: pause and ask "is there a more elegant way?"
+- If a fix feels hacky: "Knowing everything I know now, implement the elegant solution"
+- Skip this for simple, obvious fixes - don't over-engineer
+- Challenge your own work before presenting it
 
-## Week 1 prototype (current focus)
+### 6. Autonomous Bug Fixing
+- When given a bug report: just fix it. Don't ask for hand-holding
+- Point at logs, errors, failing tests - then resolve them
+- Zero context switching required from the user
+- Go fix failing CI tests without being told how
 
-- **Build in:** `financial_forecasting/frontend/`. **New page:** `financial_forecasting/frontend/src/pages/WeeklyPriorities.tsx`.
-- **Stack:** **React + MUI** (existing app). Do **not** switch to Vite/Tailwind/shadcn for week 1 — we use the current stack to reuse Salesforce and ship fast.
-- **Spec:** `product/fundraising-team/phases/week-1-prototype.md` — inputs, output, build decisions (prospect↔grant link, “this week” = next 7 days, CSV mapping, validation, ID format), implementation order.
-- **Rigor:** `product/REQUIREMENTS-GAPS-AND-STRUCTURE.md` — contracts, invariants, testable acceptance criteria.
-- **API:** Use `apiService.getOpportunities()` from `financial_forecasting/frontend/src/services/api.ts`; filter client-side for close date in next 7 days. CSV in browser (e.g. PapaParse); no new backend for week 1.
+## Task Management
 
----
+1. **Plan First**: Write plan to `tasks/todo.md` with checkable items
+2. **Verify Plan**: Check in before starting implementation
+3. **Track Progress**: Mark items complete as you go
+4. **Explain Changes**: High-level summary at each step
+5. **Document Results**: Add review section to `tasks/todo.md`
+6. **Capture Lessons**: Update `tasks/lessons.md` after corrections
 
-## Prospect-dashboard (net-new work, later)
+## Core Principles
 
-- **Specs:** `product/fundraising-team/raw-prds/prospect-dashboard/` — vision, specs, architecture, decisions.
-- **Stack for that work:** React + Vite + Tailwind + shadcn/ui (see `product/fundraising-team/raw-prds/prospect-dashboard/CLAUDE.md` and `decisions/2026-03-13-react-vite-stack.md`). This does **not** apply to the week-1 prototype in `financial_forecasting`.
+- **Simplicity First**: Make every change as simple as possible. Impact minimal code.
+- **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
+- **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
 
----
+## Target Platform Compatibility
 
-## Conventions
+This project will integrate into the Pursuit AI-native learning platform. Keep these stack and pattern choices in mind:
 
-- No secrets or CSV data in git; `.env` and data files in `.gitignore`.
-- **Product:** `product/overview.md`, `product/ROADMAP-AND-STANDARDS.md`, `product/fundraising-team/phases/` (week-1, Slack, custom reports).
-- **Grants PRD:** root `PRD.md` (Salesforce/Sage, pipeline, payments).
-
----
-
-## Useful commands
-
-- Frontend: `cd financial_forecasting/frontend && npm start`
-- Backend: from `financial_forecasting/` run the FastAPI server per project README
+- **Target stack**: React 19 + Vite + Tailwind + shadcn/ui | Node.js + Express | PostgreSQL + pgvector
+- **Auth**: JWT (via `authenticateToken` middleware), tokens in localStorage, `Authorization: Bearer` header
+- **API pattern**: REST `/api/{resource}`, JSON errors `{error, details?}`, standard HTTP status codes
+- **Frontend conventions**: `fetchWithAuth` utility, pages in `src/pages/`, shared components in `src/components/`, context providers in `src/context/`
+- **DB**: PostgreSQL with `db.one()`, `db.any()`, `db.none()` query helpers
+- **Infra**: Google Cloud (Storage, BigQuery, Cloud Run), OpenRouter for LLM calls
+- **User roles to anticipate**: `builder`, `staff`, `admin`, `applicant`, `volunteer`, `enterprise_admin`
+- When making architectural choices, prefer patterns that port cleanly to this stack
