@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import './GPT.css';
 import useAuthStore from '../../stores/authStore';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getThreads, getThreadMessages, createThread, sendMessageToGPT, streamMessageToGPT } from '../../utils/api';
@@ -1199,7 +1198,7 @@ function GPT() {
   });
 
   return (
-    <div className="gpt h-screen bg-bg-light flex flex-col">
+    <div className="h-screen bg-bg-light flex flex-col min-h-0 overflow-hidden text-carbon-black">
       {/* Historical Access Banner */}
       {isInactiveUser && (
         <div className="bg-carbon-black/80 text-gray-300 py-3 px-4 text-center text-sm font-proxima">
@@ -1292,7 +1291,7 @@ function GPT() {
         {/* Chat Interface */}
         <div className="h-full min-h-0 flex flex-col relative overflow-hidden">
           {/* Empty State or Messages Area */}
-          <div className="flex-1 min-h-0 overflow-y-auto py-8 px-6 transition-[padding] duration-200 ease-out" style={{ paddingBottom: `${inputTrayHeight}px` }}>
+          <div className="flex-1 min-h-0 overflow-y-auto py-8 px-6 transition-[padding] duration-200 ease-out [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden" style={{ paddingBottom: `${inputTrayHeight}px` }}>
             {!activeThread && messages.length === 0 ? (
               <div className="max-w-2xl mx-auto pt-[50px]">
                 <h2 className="text-[18px] leading-[26px] font-proxima font-normal text-black mb-6">
