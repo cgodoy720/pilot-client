@@ -87,4 +87,60 @@ describe('calculatePaymentDate', () => {
     expect(result).toBeInstanceOf(Date);
     expect(isNaN(result!.getTime())).toBe(true);
   });
+
+  it('handles leap year boundary', () => {
+    // Feb 1 2028 + 30 = Mar 2 (2028 is a leap year)
+    const result = calculatePaymentDate('2028-02-01');
+    expect(result!.getMonth()).toBe(2); // March
+    expect(result!.getDate()).toBe(2);
+  });
+
+  it('handles year boundary', () => {
+    // Dec 15 + 30 = Jan 14 next year
+    const result = calculatePaymentDate('2026-12-15');
+    expect(result!.getFullYear()).toBe(2027);
+    expect(result!.getMonth()).toBe(0); // January
+    expect(result!.getDate()).toBe(14);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getStageColor — comprehensive coverage against all stages
+// ---------------------------------------------------------------------------
+describe('getStageColor covers every OpportunityStage', () => {
+  const stageColorMap: [string, 'success' | 'error' | 'warning' | 'info'][] = [
+    ['--None--', 'info'],
+    ['Lead Gen', 'info'],
+    ['New Lead', 'info'],
+    ['Qualifying', 'info'],
+    ['Design / Proposal Creation', 'warning'],
+    ['Proposal Negotiation', 'warning'],
+    ['Contract Creation', 'info'],
+    ['Negotiating Contract', 'warning'],
+    ['Collecting / In Effect', 'info'],
+    ['Closed / Did not Fulfill', 'error'],
+    ['Closed / Completed', 'success'],
+    ['Closed Lost', 'error'],
+    ['Withdrawn', 'error'],
+  ];
+
+  it.each(stageColorMap)('stage "%s" → %s', (stage, expected) => {
+    expect(getStageColor(stage)).toBe(expected);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getProbabilityColor — boundary values
+// ---------------------------------------------------------------------------
+describe('getProbabilityColor boundaries', () => {
+  it.each([
+    [0, 'error'],
+    [39, 'error'],
+    [40, 'warning'],
+    [69, 'warning'],
+    [70, 'success'],
+    [100, 'success'],
+  ] as [number, 'success' | 'warning' | 'error'][])('probability %d → %s', (prob, expected) => {
+    expect(getProbabilityColor(prob)).toBe(expected);
+  });
 });

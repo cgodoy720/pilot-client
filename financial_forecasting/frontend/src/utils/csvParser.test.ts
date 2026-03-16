@@ -124,4 +124,60 @@ describe('parseCSV', () => {
     expect(result.errors).toEqual([]);
     expect(result.leads).toEqual([]);
   });
+
+  // -------------------------------------------------------------------------
+  // Numeric field parsing (parseNum strips $, before Number())
+  // -------------------------------------------------------------------------
+  it('parses dollar-formatted capacity and ask fields', async () => {
+    const csv = 'First Name,Last Name,Estimated Capacity,Estimated Ask,Likelihood\nAlice,Smith,"$50,000","$25,000",0.75\n';
+    const result = await parseCSV(csvFile(csv));
+
+    expect(result.imported).toBe(1);
+    const lead = result.leads[0];
+    expect(lead.estimated_capacity).toBe(50000);
+    expect(lead.estimated_ask).toBe(25000);
+    expect(lead.likelihood).toBe(0.75);
+  });
+
+  it('parses avg_comparable_grant with alias "average_grant"', async () => {
+    const csv = 'First Name,Last Name,Average Grant\nAlice,Smith,"$10,000"\n';
+    const result = await parseCSV(csvFile(csv));
+
+    expect(result.leads[0].avg_comparable_grant).toBe(10000);
+  });
+
+  it('leaves numeric fields undefined when non-numeric', async () => {
+    const csv = 'First Name,Last Name,Estimated Capacity,Likelihood\nAlice,Smith,N/A,high\n';
+    const result = await parseCSV(csvFile(csv));
+
+    expect(result.leads[0].estimated_capacity).toBeUndefined();
+    expect(result.leads[0].likelihood).toBeUndefined();
+  });
+
+  it('leaves numeric fields undefined when empty', async () => {
+    const csv = 'First Name,Last Name,Estimated Capacity\nAlice,Smith,\n';
+    const result = await parseCSV(csvFile(csv));
+
+    expect(result.leads[0].estimated_capacity).toBeUndefined();
+  });
+
+  // -------------------------------------------------------------------------
+  // Wealth tier validation
+  // -------------------------------------------------------------------------
+  it('accepts valid wealth tiers', async () => {
+    const csv = 'First Name,Last Name,Wealth Tier\nAlice,Smith,tier-1\nBob,Jones,tier-4\nCarl,Lee,unknown\n';
+    const result = await parseCSV(csvFile(csv));
+
+    expect(result.leads[0].wealth_tier).toBe('tier-1');
+    expect(result.leads[1].wealth_tier).toBe('tier-4');
+    expect(result.leads[2].wealth_tier).toBe('unknown');
+  });
+
+  it('rejects invalid wealth tier values', async () => {
+    const csv = 'First Name,Last Name,Wealth Tier\nAlice,Smith,tier-5\nBob,Jones,Tier-1\n';
+    const result = await parseCSV(csvFile(csv));
+
+    expect(result.leads[0].wealth_tier).toBeUndefined();
+    expect(result.leads[1].wealth_tier).toBeUndefined(); // case-sensitive
+  });
 });
