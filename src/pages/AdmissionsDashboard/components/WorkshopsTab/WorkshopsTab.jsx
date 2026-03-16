@@ -290,7 +290,7 @@ const WorkshopsTab = ({
       capacity: 50,
       is_online: false,
       meeting_link: '',
-      cohort_name: 'December 2025 - Workshop',
+      cohort_name: 'Admissions Workshop',
       workshop_type: 'admissions',
       access_window_days: 0,
       allow_early_access: false
@@ -321,7 +321,7 @@ const WorkshopsTab = ({
       capacity: workshop.capacity || 50,
       is_online: workshop.is_online || false,
       meeting_link: workshop.meeting_link || '',
-      cohort_name: workshop.cohort_name || 'December 2025 - Workshop',
+      cohort_name: workshop.cohort_name || 'Admissions Workshop',
       workshop_type: workshop.workshop_type || 'admissions',
       access_window_days: workshop.access_window_days || 0,
       allow_early_access: workshop.allow_early_access || false
