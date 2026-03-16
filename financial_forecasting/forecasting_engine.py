@@ -374,9 +374,9 @@ class ForecastingEngine:
             # Larger deals tend to have lower close rates
             if amount > avg_amount * 2:
                 return 0.85  # 15% reduction for very large deals
-            elif amount > avg_amount * 1.5:
+            elif amount > avg_amount * Decimal('1.5'):
                 return 0.92  # 8% reduction for large deals
-            elif amount < avg_amount * 0.5:
+            elif amount < avg_amount * Decimal('0.5'):
                 return 1.05  # 5% increase for small deals
             else:
                 return 1.0  # No adjustment for average-sized deals
