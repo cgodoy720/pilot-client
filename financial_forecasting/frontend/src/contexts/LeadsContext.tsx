@@ -47,12 +47,20 @@ export const LeadsProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const updateLead = useCallback(
     (id: string, updates: Partial<Lead>) => {
+      // Capacity gate: block conversion without capacity score
+      if (updates.status === 'converted') {
+        const existingLead = leads.find((l) => l.id === id);
+        const score = updates.capacity_score ?? existingLead?.capacity_score;
+        if (score == null) {
+          throw new Error('CAPACITY_GATE: Cannot convert prospect without a capacity score. Score them first in Giving Capacity.');
+        }
+      }
       updateItem(
         (lead) => lead.id === id,
         { ...updates, updated_at: new Date().toISOString() },
       );
     },
-    [updateItem],
+    [updateItem, leads],
   );
 
   const deleteLead = useCallback(

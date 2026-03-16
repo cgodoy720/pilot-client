@@ -22,6 +22,7 @@ import SalesforceCallback from './pages/SalesforceCallback';
 import WeeklyPriorities from './pages/WeeklyPriorities';
 import MyDashboard from './pages/MyDashboard';
 import NetworkMap from './pages/NetworkMap';
+import GivingCapacity from './pages/GivingCapacity';
 
 // Create Material-UI theme
 const theme = createTheme({
@@ -148,6 +149,16 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <NetworkMap />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/giving-capacity"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <GivingCapacity />
                     </Layout>
                   </ProtectedRoute>
                 }
